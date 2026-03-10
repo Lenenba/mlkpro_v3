@@ -7,9 +7,9 @@ use App\Models\Customer;
 use App\Models\PlanScan;
 use App\Models\Product;
 use App\Models\Quote;
+use App\Models\User;
 use App\Services\PlanScanService;
 use App\Services\UsageLimitService;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +22,7 @@ class PlanScanController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
@@ -53,7 +53,7 @@ class PlanScanController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
@@ -101,7 +101,7 @@ class PlanScanController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
@@ -122,7 +122,7 @@ class PlanScanController extends Controller
         $customerId = $validated['customer_id'] ?? null;
         $propertyId = $validated['property_id'] ?? null;
 
-        if ($propertyId && !$customerId) {
+        if ($propertyId && ! $customerId) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Validation error.',
@@ -137,7 +137,7 @@ class PlanScanController extends Controller
 
         if ($customerId) {
             $customer = Customer::byUser($accountId)->findOrFail($customerId);
-            if ($propertyId && !$customer->properties()->whereKey($propertyId)->exists()) {
+            if ($propertyId && ! $customer->properties()->whereKey($propertyId)->exists()) {
                 if ($this->shouldReturnJson($request)) {
                     return response()->json([
                         'message' => 'Validation error.',
@@ -222,7 +222,7 @@ class PlanScanController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $planScan->user_id !== $accountId) {
+        if (! $user || $planScan->user_id !== $accountId) {
             abort(403);
         }
 
@@ -269,7 +269,7 @@ class PlanScanController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $planScan->user_id !== $accountId) {
+        if (! $user || $planScan->user_id !== $accountId) {
             abort(403);
         }
 
@@ -295,7 +295,7 @@ class PlanScanController extends Controller
         $customerId = $planScan->customer_id ?? $validated['customer_id'] ?? null;
         $propertyId = $planScan->property_id ?? $validated['property_id'] ?? null;
 
-        if (!$customerId) {
+        if (! $customerId) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Validation error.',
@@ -309,7 +309,7 @@ class PlanScanController extends Controller
         }
 
         $customer = Customer::byUser($accountId)->findOrFail($customerId);
-        if ($propertyId && !$customer->properties()->whereKey($propertyId)->exists()) {
+        if ($propertyId && ! $customer->properties()->whereKey($propertyId)->exists()) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Validation error.',
@@ -323,7 +323,7 @@ class PlanScanController extends Controller
         }
 
         $variant = collect($planScan->variants ?? [])->firstWhere('key', $validated['variant']);
-        if (!$variant) {
+        if (! $variant) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Validation error.',
@@ -376,7 +376,7 @@ class PlanScanController extends Controller
 
         $subtotal = round($lines->sum('total'), 2);
         $total = $subtotal;
-        $jobTitle = $planScan->job_title ?: ('Plan scan ' . ($planScan->trade_type ?: 'project'));
+        $jobTitle = $planScan->job_title ?: ('Plan scan '.($planScan->trade_type ?: 'project'));
 
         $quote = null;
         DB::transaction(function () use (&$quote, $planScan, $customer, $propertyId, $accountId, $jobTitle, $subtotal, $total, $lines) {
@@ -403,7 +403,7 @@ class PlanScanController extends Controller
                 ];
             });
 
-            $quote->products()->sync($pivotData);
+            $quote->syncProductLines($pivotData);
 
             $planScan->increment('quotes_generated');
         });

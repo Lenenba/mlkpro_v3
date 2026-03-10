@@ -9,7 +9,7 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
+        "php": "^8.4",
         "barryvdh/laravel-dompdf": "^3.1",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/cashier-paddle": "2.6",
@@ -24,6 +24,7 @@
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
+        "larastan/larastan": "3.0",
         "laravel/breeze": "^2.3",
         "laravel/pail": "^1.1",
         "laravel/pint": "^1.13",
@@ -62,7 +63,16 @@
             "@php artisan migrate --graceful --ansi"
         ],
         "dev": "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"npm run dev\" --names='server,queue,vite'",
-        "test:safe": "powershell -ExecutionPolicy Bypass -File scripts/run-tests-safe.ps1"
+        "test:safe": "powershell -ExecutionPolicy Bypass -File scripts/run-tests-safe.ps1",
+        "qa:test": "@php artisan test",
+        "qa:test:mysql": "powershell -ExecutionPolicy Bypass -File scripts/run-tests-mysql.ps1",
+        "qa:format": "@php scripts/run-pint-diff.php",
+        "qa:analyse": "vendor/bin/phpstan analyse --memory-limit=1G",
+        "qa": [
+            "@qa:format",
+            "@qa:analyse",
+            "@qa:test"
+        ]
     },
     "extra": {
         "laravel": {

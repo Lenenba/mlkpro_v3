@@ -41,7 +41,6 @@ return [
         ],
     ],
 
-
     'paddle' => [
         'seller_id' => env('PADDLE_SELLER_ID'),
         'client_side_token' => env('PADDLE_CLIENT_SIDE_TOKEN'),
@@ -94,6 +93,10 @@ return [
     'rate_limits' => [
         'api_per_user' => env('API_RATE_LIMIT_PER_MINUTE', 120),
         'public_signed_per_minute' => env('PUBLIC_SIGNED_RATE_LIMIT_PER_MINUTE', 30),
+        'public_lead_lookup_per_minute' => env('PUBLIC_LEAD_LOOKUP_RATE_LIMIT_PER_MINUTE', 20),
+        'public_lead_submit_per_minute' => env('PUBLIC_LEAD_SUBMIT_RATE_LIMIT_PER_MINUTE', 6),
+        'public_kiosk_per_minute' => env('PUBLIC_KIOSK_RATE_LIMIT_PER_MINUTE', 40),
+        'ai_images_per_minute' => env('AI_IMAGES_RATE_LIMIT_PER_MINUTE', 6),
         'register_per_minute' => env('REGISTER_RATE_LIMIT_PER_MINUTE', 10),
     ],
 

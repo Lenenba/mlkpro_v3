@@ -2,30 +2,31 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Tax;
-use App\Models\Quote;
-use App\Models\Product;
-use App\Models\ProductCategory;
-use App\Models\Customer;
-use App\Models\Work;
+use App\Actions\Quotes\UpsertQuoteAction;
+use App\Http\Requests\Quotes\AcceptQuoteRequest;
+use App\Http\Requests\Quotes\StoreQuoteRequest;
+use App\Http\Requests\Quotes\UpdateQuoteRequest;
 use App\Models\ActivityLog;
+use App\Models\Customer;
+use App\Models\Product;
+use App\Models\Quote;
 use App\Models\QuoteProduct;
+use App\Models\Tax;
 use App\Models\Transaction;
-use App\Models\WorkChecklistItem;
 use App\Models\User;
+use App\Models\Work;
+use App\Models\WorkChecklistItem;
 use App\Services\TemplateService;
 use App\Services\UsageLimitService;
-use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
-use App\Traits\GeneratesSequentialNumber;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use App\Support\SequentialNumber;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class QuoteController extends Controller
 {
-    use AuthorizesRequests, GeneratesSequentialNumber;
+    use AuthorizesRequests;
 
     public function index(Request $request)
     {
@@ -59,8 +60,8 @@ class QuoteController extends Controller
             ->filter($filtersForQuery)
             ->when(
                 $showArchived,
-                fn($query) => $query->byUserWithArchived($accountId)->archived(),
-                fn($query) => $query->byUser($accountId)
+                fn ($query) => $query->byUserWithArchived($accountId)->archived(),
+                fn ($query) => $query->byUser($accountId)
             );
 
         $sort = in_array($filters['sort'] ?? null, ['created_at', 'total', 'status', 'number', 'job_title'], true)
@@ -125,7 +126,7 @@ class QuoteController extends Controller
 
         $customer->load('properties');
         $propertyId = $request->query('property_id');
-        if ($propertyId && !$customer->properties->contains('id', (int) $propertyId)) {
+        if ($propertyId && ! $customer->properties->contains('id', (int) $propertyId)) {
             $propertyId = null;
         }
 
@@ -143,7 +144,7 @@ class QuoteController extends Controller
         $templateExamples = $templateService->resolveQuoteExamples($accountOwner);
 
         return $this->inertiaOrJson('Quote/Create', [
-            'lastQuotesNumber' => $this->generateNextNumber(
+            'lastQuotesNumber' => SequentialNumber::generateNext(
                 $customer->quotes()->latest('created_at')->value('number')
             ),
             'customer' => $customer,
@@ -156,10 +157,10 @@ class QuoteController extends Controller
 
     /**
      * Show the form for editing the specified resource.
-     * @param  \App\Models\Quote  $quote
+     *
      * @return \Inertia\Response
      */
-    public function edit (Quote $quote)
+    public function edit(Quote $quote)
     {
         $this->authorize('edit', $quote);
 
@@ -167,128 +168,34 @@ class QuoteController extends Controller
 
         return $this->inertiaOrJson('Quote/Create', [
             'quote' => $quote->load('products', 'taxes'),
-            'customer' =>  $customer,
+            'customer' => $customer,
             'taxes' => Tax::all(),
         ]);
     }
 
     /**
      * Store a newly created resource in storage.
+     *
      * @param  \App\Models\Customer  $customer
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function store(Request $request)
+    public function store(StoreQuoteRequest $request, UpsertQuoteAction $upsertQuote)
     {
         $this->authorize('create', Quote::class);
 
-        app(UsageLimitService::class)->enforceLimit($request->user(), 'quotes');
-
         $user = $request->user();
-        $accountId = $user?->accountOwnerId() ?? Auth::id();
-        $accountOwner = $accountId === ($user?->id ?? null)
-            ? $user
-            : User::query()->find($accountId);
-
-        $itemType = $accountOwner?->company_type === 'products'
-            ? Product::ITEM_TYPE_PRODUCT
-            : Product::ITEM_TYPE_SERVICE;
-
-        $validated = $request->validate([
-            'job_title' => 'required|string',
-            'property_id' => 'nullable|integer',
-            'customer_id' => ['required', Rule::exists('customers', 'id')],
-            'status' => ['nullable', Rule::in(['draft', 'sent', 'accepted', 'declined'])],
-            'product' => 'required|array|min:1',
-            'product.*.id' => [
-                'nullable',
-                Rule::exists('products', 'id')
-                    ->where('user_id', $accountId),
-            ],
-            'product.*.item_type' => ['nullable', Rule::in([Product::ITEM_TYPE_PRODUCT, Product::ITEM_TYPE_SERVICE])],
-            'product.*.name' => 'required_without:product.*.id|string',
-            'product.*.description' => 'nullable|string',
-            'product.*.quantity' => 'required|integer|min:1',
-            'product.*.price' => 'required|numeric|min:0',
-            'product.*.source_details' => 'nullable',
-            'notes' => 'nullable|string',
-            'messages' => 'nullable|string',
-            'initial_deposit' => 'nullable|numeric|min:0',
-            'taxes' => 'nullable|array',
-            'taxes.*' => ['integer', Rule::exists('taxes', 'id')],
-        ]);
-
-        $customer = Customer::byUser($accountId)->findOrFail($validated['customer_id']);
-
-        $propertyId = $validated['property_id'] ?? null;
-        if ($propertyId && !$customer->properties()->whereKey($propertyId)->exists()) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Validation error.',
-                    'errors' => [
-                        'property_id' => ['Invalid property for this customer.'],
-                    ],
-                ], 422);
-            }
-
-            return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
+        if (! $user) {
+            abort(403);
         }
 
-        $creatorId = $request->user()?->id ?? Auth::id();
-        $items = collect($this->buildQuoteItems($validated['product'], $itemType, $accountId, $accountId, $creatorId));
+        app(UsageLimitService::class)->enforceLimit($user, 'quotes');
 
-        $subtotal = $items->sum('total');
-        $selectedTaxes = Tax::whereIn('id', $validated['taxes'] ?? [])->get();
-        $taxLines = $selectedTaxes->map(function ($tax) use ($subtotal) {
-            $amount = round($subtotal * ((float) $tax->rate / 100), 2);
-            return [
-                'tax_id' => $tax->id,
-                'rate' => (float) $tax->rate,
-                'amount' => $amount,
-            ];
-        });
-        $taxTotal = $taxLines->sum('amount');
-        $total = round($subtotal + $taxTotal, 2);
-        $deposit = (float) ($validated['initial_deposit'] ?? 0);
-        if ($deposit > $total) {
-            $deposit = $total;
-        }
-
-        $quote = null;
-        DB::transaction(function () use (&$quote, $customer, $propertyId, $validated, $items, $subtotal, $total, $deposit, $taxLines, $accountId) {
-            $quote = $customer->quotes()->create([
-                'user_id' => $accountId,
-                'property_id' => $propertyId,
-                'job_title' => $validated['job_title'],
-                'subtotal' => $subtotal,
-                'total' => $total,
-                'notes' => $validated['notes'] ?? null,
-                'messages' => $validated['messages'] ?? null,
-                'initial_deposit' => $deposit,
-                'status' => $validated['status'] ?? 'draft',
-                'is_fixed' => false,
-            ]);
-
-            $pivotData = $items->mapWithKeys(function ($item) {
-                return [
-                    $item['id'] => [
-                        'quantity' => $item['quantity'],
-                        'price' => $item['price'],
-                        'total' => $item['total'],
-                        'description' => $item['description'],
-                        'source_details' => $item['source_details'] ? json_encode($item['source_details']) : null,
-                    ],
-                ];
-            });
-            $quote->products()->sync($pivotData);
-
-            if ($taxLines->isNotEmpty()) {
-                $quote->taxes()->createMany($taxLines->toArray());
-            }
-        });
+        $result = $upsertQuote->execute($request->validated(), $user);
+        $quote = $result['quote'];
+        $customer = $result['customer'];
 
         if ($quote) {
-            ActivityLog::record(Auth::user(), $quote, 'created', [
+            ActivityLog::record($user, $quote, 'created', [
                 'status' => $quote->status,
                 'total' => $quote->total,
             ], 'Quote created');
@@ -308,121 +215,27 @@ class QuoteController extends Controller
         return redirect()->route('customer.show', $customer)->with('success', 'Quote created successfully!');
     }
 
-    public function update(Request $request, Quote $quote)
+    public function update(UpdateQuoteRequest $request, Quote $quote, UpsertQuoteAction $upsertQuote)
     {
-        $user = $request->user();
-        $accountId = $user?->accountOwnerId() ?? Auth::id();
-        $accountOwner = $accountId === ($user?->id ?? null)
-            ? $user
-            : User::query()->find($accountId);
-
-        $itemType = $accountOwner?->company_type === 'products'
-            ? Product::ITEM_TYPE_PRODUCT
-            : Product::ITEM_TYPE_SERVICE;
-
-        $validated = $request->validate([
-            'job_title' => 'required|string',
-            'property_id' => 'nullable|integer',
-            'customer_id' => ['required', Rule::exists('customers', 'id')],
-            'status' => ['nullable', Rule::in(['draft', 'sent', 'accepted', 'declined'])],
-            'product' => 'required|array|min:1',
-            'product.*.id' => [
-                'nullable',
-                Rule::exists('products', 'id')
-                    ->where('user_id', $accountId),
-            ],
-            'product.*.item_type' => ['nullable', Rule::in([Product::ITEM_TYPE_PRODUCT, Product::ITEM_TYPE_SERVICE])],
-            'product.*.name' => 'required_without:product.*.id|string',
-            'product.*.description' => 'nullable|string',
-            'product.*.quantity' => 'required|integer|min:1',
-            'product.*.price' => 'required|numeric|min:0',
-            'product.*.source_details' => 'nullable',
-            'notes' => 'nullable|string',
-            'messages' => 'nullable|string',
-            'initial_deposit' => 'nullable|numeric|min:0',
-            'taxes' => 'nullable|array',
-            'taxes.*' => ['integer', Rule::exists('taxes', 'id')],
-        ]);
-
         $this->authorize('edit', $quote);
 
-        $customer = Customer::byUser($accountId)->findOrFail($validated['customer_id']);
-        $propertyId = $validated['property_id'] ?? null;
-        if ($propertyId && !$customer->properties()->whereKey($propertyId)->exists()) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Validation error.',
-                    'errors' => [
-                        'property_id' => ['Invalid property for this customer.'],
-                    ],
-                ], 422);
-            }
-
-            return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
         }
 
-        $creatorId = $request->user()?->id ?? Auth::id();
-        $items = collect($this->buildQuoteItems($validated['product'], $itemType, $accountId, $accountId, $creatorId));
-
-        $subtotal = $items->sum('total');
-        $selectedTaxes = Tax::whereIn('id', $validated['taxes'] ?? [])->get();
-        $taxLines = $selectedTaxes->map(function ($tax) use ($subtotal) {
-            $amount = round($subtotal * ((float) $tax->rate / 100), 2);
-            return [
-                'tax_id' => $tax->id,
-                'rate' => (float) $tax->rate,
-                'amount' => $amount,
-            ];
-        });
-        $taxTotal = $taxLines->sum('amount');
-        $total = round($subtotal + $taxTotal, 2);
-        $deposit = (float) ($validated['initial_deposit'] ?? 0);
-        if ($deposit > $total) {
-            $deposit = $total;
-        }
-
-        $previousStatus = $quote->status;
-        DB::transaction(function () use ($quote, $customer, $propertyId, $validated, $items, $subtotal, $total, $deposit, $taxLines) {
-            $quote->update([
-                'customer_id' => $customer->id,
-                'job_title' => $validated['job_title'],
-                'property_id' => $propertyId,
-                'subtotal' => $subtotal,
-                'total' => $total,
-                'notes' => $validated['notes'] ?? null,
-                'messages' => $validated['messages'] ?? null,
-                'initial_deposit' => $deposit,
-                'status' => $validated['status'] ?? $quote->status ?? 'draft',
-                'is_fixed' => false,
-            ]);
-
-            $pivotData = $items->mapWithKeys(function ($item) {
-                return [
-                    $item['id'] => [
-                        'quantity' => $item['quantity'],
-                        'price' => $item['price'],
-                        'total' => $item['total'],
-                        'description' => $item['description'],
-                        'source_details' => $item['source_details'] ? json_encode($item['source_details']) : null,
-                    ],
-                ];
-            });
-            $quote->products()->sync($pivotData);
-
-            $quote->taxes()->delete();
-            if ($taxLines->isNotEmpty()) {
-                $quote->taxes()->createMany($taxLines->toArray());
-            }
-        });
+        $result = $upsertQuote->execute($request->validated(), $user, $quote);
+        $customer = $result['customer'];
+        $previousStatus = $result['previous_status'];
 
         if ($previousStatus !== $quote->status) {
-            ActivityLog::record(Auth::user(), $quote, 'status_changed', [
+            ActivityLog::record($user, $quote, 'status_changed', [
                 'from' => $previousStatus,
                 'to' => $quote->status,
             ], 'Quote status updated');
         }
 
-        ActivityLog::record(Auth::user(), $quote, 'updated', [
+        ActivityLog::record($user, $quote, 'updated', [
             'total' => $quote->total,
         ], 'Quote updated');
 
@@ -443,7 +256,7 @@ class QuoteController extends Controller
         return redirect()->route('customer.show', $quote->customer)->with('success', 'Quote updated successfully!');
     }
 
-    public function accept(Request $request, Quote $quote)
+    public function accept(AcceptQuoteRequest $request, Quote $quote)
     {
         $this->authorize('edit', $quote);
 
@@ -487,12 +300,7 @@ class QuoteController extends Controller
             ]);
         }
 
-        $validated = $request->validate([
-            'deposit_amount' => 'nullable|numeric|min:0',
-            'method' => 'nullable|string|max:50',
-            'reference' => 'nullable|string|max:120',
-            'signed_at' => 'nullable|date',
-        ]);
+        $validated = $request->validated();
 
         $requiredDeposit = (float) ($quote->initial_deposit ?? 0);
         $depositAmount = (float) ($validated['deposit_amount'] ?? $requiredDeposit);
@@ -513,14 +321,14 @@ class QuoteController extends Controller
         }
 
         $existingWork = Work::where('quote_id', $quote->id)->first();
-        if (!$existingWork) {
+        if (! $existingWork) {
             app(UsageLimitService::class)->enforceLimit(Auth::user(), 'jobs');
         }
 
         $work = null;
         DB::transaction(function () use ($quote, $validated, $depositAmount, $existingWork, &$work) {
             $work = $existingWork;
-            if (!$work) {
+            if (! $work) {
                 $work = Work::create([
                     'user_id' => $quote->user_id,
                     'customer_id' => $quote->customer_id,
@@ -553,7 +361,7 @@ class QuoteController extends Controller
                     ->where('status', 'completed')
                     ->exists();
 
-                if (!$hasDeposit) {
+                if (! $hasDeposit) {
                     Transaction::create([
                         'quote_id' => $quote->id,
                         'work_id' => $work->id,
@@ -744,7 +552,7 @@ class QuoteController extends Controller
                     'accepted_at' => now(),
                     'work_id' => $work->id,
                 ]);
-            } elseif (!$quote->work_id) {
+            } elseif (! $quote->work_id) {
                 $quote->update(['work_id' => $work->id]);
             }
 
@@ -795,133 +603,6 @@ class QuoteController extends Controller
         return redirect()->route('work.edit', $work)->with('success', 'Job created from quote.');
     }
 
-    private function buildQuoteItems(array $lines, string $itemType, int $userId, int $accountId, int $creatorId): array
-    {
-        $lines = collect($lines);
-        $productIds = $lines->pluck('id')->filter()->map(fn ($id) => (int) $id)->unique()->values();
-        $productMap = $productIds->isNotEmpty()
-            ? Product::byUser($userId)
-                ->whereIn('id', $productIds)
-                ->get()
-                ->keyBy('id')
-            : collect();
-
-        return $lines->map(function (array $line) use ($productMap, $itemType, $userId) {
-            $quantity = (int) ($line['quantity'] ?? 1);
-            $price = (float) ($line['price'] ?? 0);
-            $description = $line['description'] ?? null;
-            $sourceDetails = $this->normalizeSourceDetails($line['source_details'] ?? null);
-            $productId = isset($line['id']) && $line['id'] !== null ? (int) $line['id'] : null;
-            $lineItemType = $line['item_type'] ?? $itemType;
-
-            if (!$productId) {
-                $product = $this->createProductFromLine($userId, $accountId, $creatorId, $lineItemType, $line, $sourceDetails);
-                $productId = $product->id;
-                if (!$description) {
-                    $description = $product->description;
-                }
-            } else {
-                $model = $productMap->get($productId);
-                $lineItemType = $model?->item_type ?? $lineItemType;
-                if (!$description) {
-                    $description = $model?->description;
-                }
-            }
-
-            return [
-                'id' => $productId,
-                'quantity' => $quantity,
-                'price' => $price,
-                'total' => round($quantity * $price, 2),
-                'description' => $description,
-                'source_details' => $sourceDetails,
-            ];
-        })->values()->all();
-    }
-
-    private function normalizeSourceDetails($details): ?array
-    {
-        if (!$details) {
-            return null;
-        }
-
-        if (is_string($details)) {
-            $decoded = json_decode($details, true);
-            return is_array($decoded) ? $decoded : null;
-        }
-
-        if (is_object($details)) {
-            $details = json_decode(json_encode($details), true);
-        }
-
-        return is_array($details) ? $details : null;
-    }
-
-    private function createProductFromLine(
-        int $userId,
-        int $accountId,
-        int $creatorId,
-        string $itemType,
-        array $line,
-        ?array $sourceDetails
-    ): Product
-    {
-        $name = trim((string) ($line['name'] ?? ''));
-        $query = Product::byUser($userId)
-            ->where('item_type', $itemType)
-            ->whereRaw('LOWER(name) = ?', [strtolower($name)]);
-
-        $existing = $query->first();
-        if ($existing) {
-            return $existing;
-        }
-
-        $category = $this->resolveCategory($accountId, $creatorId, $itemType);
-
-        $selected = $sourceDetails['selected_source'] ?? null;
-        $best = $sourceDetails['best_source'] ?? null;
-        $source = is_array($selected) ? $selected : (is_array($best) ? $best : null);
-        $supplierName = is_array($source) ? ($source['name'] ?? null) : null;
-        $imageUrl = is_array($source) ? ($source['image_url'] ?? null) : null;
-        $sourcePrice = is_array($source) && isset($source['price']) ? (float) $source['price'] : null;
-
-        $price = (float) ($line['price'] ?? 0);
-        $costPrice = $sourcePrice ?? $price;
-        $marginPercent = 0.0;
-        if ($price > 0 && $costPrice > 0) {
-            $marginPercent = round((($price - $costPrice) / $price) * 100, 2);
-        }
-
-        $description = $line['description'] ?? null;
-        if (!$description && is_array($source)) {
-            $description = $source['title'] ?? null;
-        }
-
-        return Product::create([
-            'user_id' => $userId,
-            'name' => $name ?: 'Quote line',
-            'description' => $description ?: 'Auto-generated from quote line.',
-            'category_id' => $category->id,
-            'price' => $price,
-            'cost_price' => $costPrice,
-            'margin_percent' => $marginPercent,
-            'unit' => $line['unit'] ?? null,
-            'supplier_name' => $supplierName,
-            'stock' => 0,
-            'minimum_stock' => 0,
-            'is_active' => true,
-            'item_type' => $itemType,
-            'image' => $imageUrl,
-        ]);
-    }
-
-    private function resolveCategory(int $accountId, int $creatorId, string $itemType): ProductCategory
-    {
-        $name = $itemType === 'product' ? 'Products' : 'Services';
-
-        return ProductCategory::resolveForAccount($accountId, $creatorId, $name);
-    }
-
     private function syncWorkProductsFromQuote(Quote $quote, Work $work): void
     {
         $quote->loadMissing('products');
@@ -949,14 +630,14 @@ class QuoteController extends Controller
 
         $previousStatus = $quote->status;
         $existingWork = Work::where('quote_id', $quote->id)->first();
-        if (!$existingWork) {
+        if (! $existingWork) {
             app(UsageLimitService::class)->enforceLimit(Auth::user(), 'jobs');
         }
 
         $work = null;
         DB::transaction(function () use ($quote, $existingWork, &$work) {
             $work = $existingWork;
-            if (!$work) {
+            if (! $work) {
                 $work = Work::create([
                     'user_id' => $quote->user_id,
                     'customer_id' => $quote->customer_id,
@@ -1014,7 +695,7 @@ class QuoteController extends Controller
             ], 'Quote auto-accepted');
         }
 
-        if (!$existingWork && $work) {
+        if (! $existingWork && $work) {
             ActivityLog::record(Auth::user(), $work, 'created', [
                 'from_quote_id' => $quote->id,
                 'total' => $work->total,

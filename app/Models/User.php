@@ -3,24 +3,22 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Models\Product;
-use App\Models\Role;
-use App\Models\PlatformAdmin;
+use App\Enums\CurrencyCode;
+use App\Services\CompanyFeatureService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
-use Laravel\Paddle\Billable;
 use Illuminate\Support\Facades\Storage;
-use App\Services\CompanyFeatureService;
+use Laravel\Paddle\Billable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, Billable;
+    use Billable, HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -31,6 +29,7 @@ class User extends Authenticatable
         'name',
         'email',
         'locale',
+        'currency_code',
         'password',
         'must_change_password',
         'role_id',
@@ -133,6 +132,7 @@ class User extends Authenticatable
             'stripe_connect_details_submitted' => 'boolean',
             'stripe_connect_requirements' => 'array',
             'stripe_connect_onboarded_at' => 'datetime',
+            'currency_code' => 'string',
         ];
     }
 
@@ -326,7 +326,7 @@ class User extends Authenticatable
             return true;
         }
 
-        if (!$this->isPlatformAdmin()) {
+        if (! $this->isPlatformAdmin()) {
             return false;
         }
 
@@ -334,7 +334,7 @@ class User extends Authenticatable
             ? $this->platformAdmin
             : $this->platformAdmin()->first();
 
-        if (!$adminProfile || !$adminProfile->is_active) {
+        if (! $adminProfile || ! $adminProfile->is_active) {
             return false;
         }
 
@@ -349,6 +349,11 @@ class User extends Authenticatable
     public function isSuspended(): bool
     {
         return (bool) $this->is_suspended;
+    }
+
+    public function businessCurrencyCode(): string
+    {
+        return CurrencyCode::tryFromMixed($this->currency_code)?->value ?? CurrencyCode::default()->value;
     }
 
     public function accountOwnerId(): int
@@ -383,7 +388,7 @@ class User extends Authenticatable
             return false;
         }
 
-        if ($this->isAccountOwner() && !$this->onboarding_completed_at) {
+        if ($this->isAccountOwner() && ! $this->onboarding_completed_at) {
             return false;
         }
 
@@ -401,6 +406,7 @@ class User extends Authenticatable
     public function twoFactorMethod(): string
     {
         $method = $this->two_factor_method ?: 'email';
+
         return in_array($method, ['email', 'app', 'sms'], true) ? $method : 'email';
     }
 
@@ -422,7 +428,7 @@ class User extends Authenticatable
     public function getProfilePictureUrlAttribute(): ?string
     {
         $path = $this->profile_picture;
-        if (!$path) {
+        if (! $path) {
             return null;
         }
 

@@ -6,12 +6,12 @@ use App\Models\Customer;
 use App\Models\CustomerInterestScore;
 use App\Models\Sale;
 use App\Models\User;
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Collection;
 
 class ComputeInterestScoresJob implements ShouldQueue
 {
@@ -19,11 +19,15 @@ class ComputeInterestScoresJob implements ShouldQueue
 
     public int $tries = 2;
 
-    public array $backoff = [300, 1200];
-
     public function __construct(
         public ?int $accountId = null
     ) {
+        $this->onQueue(QueueWorkload::queue('campaigns_maintenance'));
+    }
+
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('campaigns_maintenance', [300, 1200]);
     }
 
     public function handle(): void

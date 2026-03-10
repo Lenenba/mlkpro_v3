@@ -10,7 +10,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('payments', function (Blueprint $table) {
-            if (!Schema::hasColumn('payments', 'sale_id')) {
+            if (! Schema::hasColumn('payments', 'sale_id')) {
                 $table->foreignId('sale_id')->nullable()->after('invoice_id')
                     ->constrained('sales')->nullOnDelete();
                 $table->index(['sale_id', 'status']);
@@ -37,7 +37,7 @@ return new class extends Migration
 
     private function setNullable(string $table, string $column): void
     {
-        if (!Schema::hasColumn($table, $column)) {
+        if (! Schema::hasColumn($table, $column)) {
             return;
         }
 
@@ -46,12 +46,16 @@ return new class extends Migration
             DB::statement("ALTER TABLE {$table} MODIFY {$column} BIGINT UNSIGNED NULL");
         } elseif ($driver === 'pgsql') {
             DB::statement("ALTER TABLE {$table} ALTER COLUMN {$column} DROP NOT NULL");
+        } elseif ($driver === 'sqlite') {
+            Schema::table($table, function (Blueprint $table) use ($column) {
+                $table->unsignedBigInteger($column)->nullable()->change();
+            });
         }
     }
 
     private function setNotNullable(string $table, string $column): void
     {
-        if (!Schema::hasColumn($table, $column)) {
+        if (! Schema::hasColumn($table, $column)) {
             return;
         }
 
@@ -60,6 +64,10 @@ return new class extends Migration
             DB::statement("ALTER TABLE {$table} MODIFY {$column} BIGINT UNSIGNED NOT NULL");
         } elseif ($driver === 'pgsql') {
             DB::statement("ALTER TABLE {$table} ALTER COLUMN {$column} SET NOT NULL");
+        } elseif ($driver === 'sqlite') {
+            Schema::table($table, function (Blueprint $table) use ($column) {
+                $table->unsignedBigInteger($column)->nullable(false)->change();
+            });
         }
     }
 };

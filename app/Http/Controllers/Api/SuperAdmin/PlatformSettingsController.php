@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api\SuperAdmin;
 
 use App\Models\PlatformSetting;
+use App\Services\BillingPlanService;
 use App\Support\PlanDisplay;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 
 class PlatformSettingsController extends BaseController
 {
@@ -101,6 +101,7 @@ class PlatformSettingsController extends BaseController
             'maintenance' => $maintenance,
             'templates' => $templates,
             'plans' => $plans,
+            'plan_prices' => app(BillingPlanService::class)->priceMatrix(),
             'plan_limits' => $planLimits,
             'plan_modules' => $planModules,
             'plan_display' => $planDisplay,
@@ -131,6 +132,13 @@ class PlatformSettingsController extends BaseController
             'plan_display.*.badge' => 'nullable|string|max:40',
             'plan_display.*.features' => 'nullable|array',
             'plan_display.*.features.*' => 'nullable|string|max:140',
+            'plan_prices' => 'nullable|array',
+            'plan_prices.*' => 'array',
+            'plan_prices.*.*.amount' => 'nullable|numeric|min:0',
+            'plan_prices.*.*.stripe_price_id' => 'nullable|string|max:255',
+            'plan_prices.*.*.currency_code' => 'nullable|string|size:3',
+            'plan_prices.*.*.billing_period' => 'nullable|string|max:20',
+            'plan_prices.*.*.is_active' => 'nullable|boolean',
         ]);
 
         PlatformSetting::setValue('maintenance', [
@@ -147,7 +155,7 @@ class PlatformSettingsController extends BaseController
         $limitsPayload = $this->buildLimitPayload($validated['plan_limits'] ?? []);
         PlatformSetting::setValue('plan_limits', $limitsPayload);
 
-        if (array_key_exists('plan_modules', $validated) && !$isSuperadmin) {
+        if (array_key_exists('plan_modules', $validated) && ! $isSuperadmin) {
             abort(403);
         }
 
@@ -168,7 +176,7 @@ class PlatformSettingsController extends BaseController
                 $price = $price === '' ? null : $price;
             }
             $features = $planInput['features'] ?? [];
-            if (!is_array($features)) {
+            if (! is_array($features)) {
                 $features = [];
             }
             $features = collect($features)
@@ -186,6 +194,7 @@ class PlatformSettingsController extends BaseController
         }
 
         PlatformSetting::setValue('plan_display', $displayPayload);
+        app(BillingPlanService::class)->upsertPricing($validated['plan_prices'] ?? []);
 
         $this->logAudit($request, 'platform_settings.updated');
 

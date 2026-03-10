@@ -2,17 +2,20 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Notifications\Notifiable;
-use App\Traits\GeneratesSequentialNumber;
+use App\Enums\CurrencyCode;
 use App\Models\Request as LeadRequest;
+use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Notifications\Notifiable;
 
 class Quote extends Model
 {
-    use HasFactory, GeneratesSequentialNumber, Notifiable;
+    use GeneratesSequentialNumber, HasFactory, Notifiable;
 
     protected $fillable = [
         'user_id',
@@ -26,6 +29,7 @@ class Quote extends Model
         'work_id',
         'total',
         'subtotal',
+        'currency_code',
         'initial_deposit',
         'is_fixed',
         'notes',
@@ -38,6 +42,7 @@ class Quote extends Model
     protected $casts = [
         'total' => 'decimal:2',
         'subtotal' => 'decimal:2',
+        'currency_code' => 'string',
         'initial_deposit' => 'decimal:2',
         'is_fixed' => 'boolean',
         'signed_at' => 'datetime',
@@ -49,15 +54,20 @@ class Quote extends Model
     {
         parent::boot();
 
-         // Automatically generate the quote number before creating
-         static::creating(function ($quote) {
+        // Automatically generate the quote number before creating
+        static::creating(function ($quote) {
             // Ensure `customer_id` is set before generating the number
-            if (!$quote->customer_id) {
+            if (! $quote->customer_id) {
                 throw new \Exception('Customer ID is required to generate a quote number.');
             }
 
             // Generate the number scoped by customer and user
             $quote->number = self::generateScopedNumber($quote->customer_id, 'Q');
+
+            if (! $quote->currency_code) {
+                $owner = $quote->user_id ? User::query()->find($quote->user_id) : null;
+                $quote->currency_code = $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value;
+            }
         });
 
     }
@@ -65,7 +75,7 @@ class Quote extends Model
     /**
      * Relation : Un devis appartient à un client.
      */
-    public function customer()
+    public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
 
@@ -74,7 +84,7 @@ class Quote extends Model
     /**
      * Relation : Un devis appartient à une propriété.
      */
-    public function property()
+    public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);
     }
@@ -82,30 +92,30 @@ class Quote extends Model
     /**
      * Relation : Un devis peut avoir plusieurs produits attachés.
      */
-    public function products()
+    public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'quote_products')
-            ->withPivot(['quantity', 'price', 'description', 'source_details', 'total'])
+            ->withPivot(['quantity', 'price', 'currency_code', 'description', 'source_details', 'total'])
             ->withTimestamps();
 
     }
 
-    public function request()
+    public function request(): BelongsTo
     {
         return $this->belongsTo(Request::class);
     }
 
-    public function parent()
+    public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');
     }
 
-    public function children()
+    public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id');
     }
 
-    public function work()
+    public function work(): BelongsTo
     {
         return $this->belongsTo(Work::class);
     }
@@ -113,14 +123,29 @@ class Quote extends Model
     /**
      * Relation : Un devis peut avoir plusieurs taxes attachées.
      */
-    public function taxes()
+    public function taxes(): HasMany
     {
         return $this->hasMany(QuoteTax::class);
     }
 
-    public function works()
+    public function works(): HasMany
     {
         return $this->hasMany(Work::class);
+    }
+
+    public function syncProductLines(iterable $pivotData): void
+    {
+        $currencyCode = $this->currency_code ?: CurrencyCode::default()->value;
+
+        $normalized = collect($pivotData)
+            ->mapWithKeys(function ($row, $productId) use ($currencyCode) {
+                $payload = is_array($row) ? $row : [];
+                $payload['currency_code'] = $payload['currency_code'] ?? $currencyCode;
+
+                return [$productId => $payload];
+            });
+
+        $this->products()->sync($normalized->all());
     }
 
     public function ratings(): HasMany
@@ -164,7 +189,7 @@ class Quote extends Model
     public function syncRequestStatusFromQuote(): void
     {
         $request = $this->request;
-        if (!$request) {
+        if (! $request) {
             return;
         }
 
@@ -175,7 +200,7 @@ class Quote extends Model
         ];
 
         $targetStatus = $statusMap[$this->status] ?? null;
-        if (!$targetStatus || $request->status === $targetStatus) {
+        if (! $targetStatus || $request->status === $targetStatus) {
             return;
         }
 
@@ -201,23 +226,23 @@ class Quote extends Model
                 $filters['search'] ?? null,
                 function (Builder $query, $search) {
                     $query->where(function (Builder $sub) use ($search) {
-                        $sub->where('number', 'like', '%' . $search . '%')
-                            ->orWhere('job_title', 'like', '%' . $search . '%')
-                            ->orWhere('notes', 'like', '%' . $search . '%')
-                            ->orWhere('messages', 'like', '%' . $search . '%')
+                        $sub->where('number', 'like', '%'.$search.'%')
+                            ->orWhere('job_title', 'like', '%'.$search.'%')
+                            ->orWhere('notes', 'like', '%'.$search.'%')
+                            ->orWhere('messages', 'like', '%'.$search.'%')
                             ->orWhereHas('customer', function (Builder $customerQuery) use ($search) {
-                                $customerQuery->where('company_name', 'like', '%' . $search . '%')
-                                    ->orWhere('first_name', 'like', '%' . $search . '%')
-                                    ->orWhere('last_name', 'like', '%' . $search . '%')
-                                    ->orWhere('email', 'like', '%' . $search . '%')
-                                    ->orWhere('phone', 'like', '%' . $search . '%');
+                                $customerQuery->where('company_name', 'like', '%'.$search.'%')
+                                    ->orWhere('first_name', 'like', '%'.$search.'%')
+                                    ->orWhere('last_name', 'like', '%'.$search.'%')
+                                    ->orWhere('email', 'like', '%'.$search.'%')
+                                    ->orWhere('phone', 'like', '%'.$search.'%');
                             });
                     });
                 }
             )
             ->when(
                 $filters['status'] ?? null,
-                fn(Builder $query, $status) => $query->where('status', $status)
+                fn (Builder $query, $status) => $query->where('status', $status)
             )
             ->when(
                 $filters['customer_id'] ?? null,
@@ -228,11 +253,11 @@ class Quote extends Model
             )
             ->when(
                 $filters['total_min'] ?? null,
-                fn(Builder $query, $min) => $query->where('total', '>=', $min)
+                fn (Builder $query, $min) => $query->where('total', '>=', $min)
             )
             ->when(
                 $filters['total_max'] ?? null,
-                fn(Builder $query, $max) => $query->where('total', '<=', $max)
+                fn (Builder $query, $max) => $query->where('total', '<=', $max)
             )
             ->when(
                 array_key_exists('has_deposit', $filters) && $filters['has_deposit'] !== '',
@@ -258,11 +283,11 @@ class Quote extends Model
             )
             ->when(
                 $filters['created_from'] ?? null,
-                fn(Builder $query, $from) => $query->whereDate('created_at', '>=', $from)
+                fn (Builder $query, $from) => $query->whereDate('created_at', '>=', $from)
             )
             ->when(
                 $filters['created_to'] ?? null,
-                fn(Builder $query, $to) => $query->whereDate('created_at', '<=', $to)
+                fn (Builder $query, $to) => $query->whereDate('created_at', '<=', $to)
             );
     }
 }

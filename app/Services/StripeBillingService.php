@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Data\PlanPriceData;
+use App\Exceptions\Billing\StripePriceNotConfiguredException;
 use App\Models\Billing\StripeSubscription;
 use App\Models\User;
 use Carbon\Carbon;
@@ -25,8 +27,7 @@ class StripeBillingService
         ?string $planKey = null,
         int $quantity = 1,
         ?Carbon $trialEndsAt = null
-    ): array
-    {
+    ): array {
         $client = $this->client();
         $customerId = $this->resolveCustomerId($user);
         $quantity = $this->normalizeQuantity($quantity);
@@ -69,6 +70,57 @@ class StripeBillingService
         ];
     }
 
+    public function createCheckoutSessionForPlanPrice(
+        User $user,
+        PlanPriceData $planPrice,
+        string $successUrl,
+        string $cancelUrl,
+        int $quantity = 1,
+        ?Carbon $trialEndsAt = null
+    ): array {
+        $this->ensureStripePriceConfigured($planPrice);
+
+        $client = $this->client();
+        $customerId = $this->resolveCustomerId($user);
+        $quantity = $this->normalizeQuantity($quantity);
+        $metadata = $this->buildPlanMetadata($planPrice);
+
+        $payload = [
+            'mode' => 'subscription',
+            'success_url' => $successUrl,
+            'cancel_url' => $cancelUrl,
+            'client_reference_id' => (string) $user->id,
+            'line_items' => [
+                [
+                    'price' => $planPrice->stripePriceId,
+                    'quantity' => $quantity,
+                ],
+            ],
+            'metadata' => $metadata,
+            'subscription_data' => [
+                'metadata' => $metadata,
+            ],
+        ];
+
+        if ($trialEndsAt instanceof Carbon) {
+            $payload['subscription_data']['trial_end'] = $trialEndsAt->getTimestamp();
+            $payload['payment_method_collection'] = 'always';
+        }
+
+        if ($customerId) {
+            $payload['customer'] = $customerId;
+        } else {
+            $payload['customer_email'] = $user->email;
+        }
+
+        $session = $client->checkout->sessions->create($payload);
+
+        return [
+            'id' => $session->id ?? null,
+            'url' => $session->url ?? null,
+        ];
+    }
+
     public function syncFromCheckoutSession(string $sessionId, User $user): ?StripeSubscription
     {
         $client = $this->client();
@@ -91,7 +143,7 @@ class StripeBillingService
     {
         $client = $this->client();
         $local = $this->getLocalSubscription($user);
-        if (!$local) {
+        if (! $local) {
             return null;
         }
 
@@ -101,7 +153,7 @@ class StripeBillingService
         ]);
         $planItem = $this->findPlanItem($subscription);
         $itemId = $planItem?->id ?? null;
-        if (!$itemId) {
+        if (! $itemId) {
             return null;
         }
 
@@ -120,23 +172,61 @@ class StripeBillingService
         return $this->upsertSubscription($user, $updated, $updated->customer ?? null);
     }
 
+    public function swapSubscriptionToPlanPrice(
+        User $user,
+        PlanPriceData $planPrice,
+        int $quantity = 1
+    ): ?StripeSubscription {
+        $this->ensureStripePriceConfigured($planPrice);
+
+        $client = $this->client();
+        $local = $this->getLocalSubscription($user);
+        if (! $local) {
+            return null;
+        }
+
+        $quantity = $this->normalizeQuantity($quantity);
+        $subscription = $client->subscriptions->retrieve($local->stripe_id, [
+            'expand' => ['items.data.price'],
+        ]);
+        $planItem = $this->findPlanItem($subscription);
+        $itemId = $planItem?->id ?? null;
+        if (! $itemId) {
+            return null;
+        }
+
+        $updated = $client->subscriptions->update($subscription->id, [
+            'items' => [
+                [
+                    'id' => $itemId,
+                    'price' => $planPrice->stripePriceId,
+                    'quantity' => $quantity,
+                ],
+            ],
+            'metadata' => $this->buildPlanMetadata($planPrice),
+            'proration_behavior' => 'create_prorations',
+            'expand' => ['items.data.price'],
+        ]);
+
+        return $this->upsertSubscription($user, $updated, $updated->customer ?? null);
+    }
+
     public function assignPlan(
         User $user,
         string $priceId,
         bool $comped = false,
         ?string $planKey = null,
         int $quantity = 1
-    ): ?StripeSubscription
-    {
+    ): ?StripeSubscription {
         $client = $this->client();
         $customerId = $this->resolveOrCreateCustomerId($user);
-        if (!$customerId) {
+        if (! $customerId) {
             return null;
         }
 
         $quantity = $this->normalizeQuantity($quantity);
         $couponId = $comped ? $this->compedCouponId() : null;
-        if ($comped && !$couponId) {
+        if ($comped && ! $couponId) {
             throw new \RuntimeException('Comped coupon is not configured.');
         }
 
@@ -147,7 +237,7 @@ class StripeBillingService
             ]);
             $planItem = $this->findPlanItem($subscription);
             $itemId = $planItem?->id ?? null;
-            if (!$itemId) {
+            if (! $itemId) {
                 return null;
             }
 
@@ -194,11 +284,84 @@ class StripeBillingService
         return $this->upsertSubscription($user, $subscription, $subscription->customer ?? null);
     }
 
+    public function assignPlanPrice(
+        User $user,
+        PlanPriceData $planPrice,
+        bool $comped = false,
+        int $quantity = 1
+    ): ?StripeSubscription {
+        $this->ensureStripePriceConfigured($planPrice);
+
+        $client = $this->client();
+        $customerId = $this->resolveOrCreateCustomerId($user);
+        if (! $customerId) {
+            return null;
+        }
+
+        $quantity = $this->normalizeQuantity($quantity);
+        $couponId = $comped ? $this->compedCouponId() : null;
+        if ($comped && ! $couponId) {
+            throw new \RuntimeException('Comped coupon is not configured.');
+        }
+
+        $metadata = $this->buildPlanMetadata($planPrice);
+        $local = $this->getLocalSubscription($user);
+        if ($local?->stripe_id) {
+            $subscription = $client->subscriptions->retrieve($local->stripe_id, [
+                'expand' => ['items.data.price', 'discount.coupon'],
+            ]);
+            $planItem = $this->findPlanItem($subscription);
+            $itemId = $planItem?->id ?? null;
+            if (! $itemId) {
+                return null;
+            }
+
+            $payload = [
+                'items' => [
+                    [
+                        'id' => $itemId,
+                        'price' => $planPrice->stripePriceId,
+                        'quantity' => $quantity,
+                    ],
+                ],
+                'metadata' => $metadata,
+                'proration_behavior' => 'none',
+                'expand' => ['items.data.price', 'discount.coupon'],
+            ];
+
+            $payload['discounts'] = $comped ? [['coupon' => $couponId]] : [];
+
+            $updated = $client->subscriptions->update($subscription->id, $payload);
+
+            return $this->upsertSubscription($user, $updated, $updated->customer ?? null);
+        }
+
+        $payload = [
+            'customer' => $customerId,
+            'items' => [
+                [
+                    'price' => $planPrice->stripePriceId,
+                    'quantity' => $quantity,
+                ],
+            ],
+            'expand' => ['items.data.price', 'discount.coupon'],
+            'metadata' => $metadata,
+        ];
+
+        if ($comped) {
+            $payload['discounts'] = [['coupon' => $couponId]];
+        }
+
+        $subscription = $client->subscriptions->create($payload);
+
+        return $this->upsertSubscription($user, $subscription, $subscription->customer ?? null);
+    }
+
     public function createPortalSession(User $user, string $returnUrl): ?string
     {
         $client = $this->client();
         $customerId = $this->resolveCustomerId($user);
-        if (!$customerId) {
+        if (! $customerId) {
             return null;
         }
 
@@ -213,12 +376,12 @@ class StripeBillingService
     public function enableAssistantAddon(User $user): ?StripeSubscription
     {
         $assistantPriceId = $this->assistantUsagePriceId();
-        if (!$assistantPriceId) {
+        if (! $assistantPriceId) {
             return null;
         }
 
         $local = $this->getLocalSubscription($user);
-        if (!$local) {
+        if (! $local) {
             return null;
         }
 
@@ -228,7 +391,7 @@ class StripeBillingService
         ]);
 
         $assistantItem = $this->findAssistantItem($subscription);
-        if (!$assistantItem) {
+        if (! $assistantItem) {
             $subscription = $client->subscriptions->update($subscription->id, [
                 'items' => [
                     [
@@ -247,7 +410,7 @@ class StripeBillingService
     public function disableAssistantAddon(User $user): ?StripeSubscription
     {
         $local = $this->getLocalSubscription($user);
-        if (!$local) {
+        if (! $local) {
             return null;
         }
 
@@ -257,7 +420,7 @@ class StripeBillingService
         ]);
 
         $assistantItem = $this->findAssistantItem($subscription);
-        if (!$assistantItem) {
+        if (! $assistantItem) {
             return $this->upsertSubscription($user, $subscription, $subscription->customer ?? null);
         }
 
@@ -279,7 +442,7 @@ class StripeBillingService
     {
         $quantity = max(1, $quantity);
         $itemId = $this->resolveAssistantItemId($user);
-        if (!$itemId) {
+        if (! $itemId) {
             return null;
         }
 
@@ -300,7 +463,7 @@ class StripeBillingService
             return $local->assistant_item_id;
         }
 
-        if (!$local?->stripe_id) {
+        if (! $local?->stripe_id) {
             return null;
         }
 
@@ -317,22 +480,22 @@ class StripeBillingService
     public function syncFromStripeSubscription(array $subscription, ?User $user = null): ?StripeSubscription
     {
         $stripeId = $subscription['id'] ?? null;
-        if (!$stripeId) {
+        if (! $stripeId) {
             return null;
         }
 
         $customerId = $subscription['customer'] ?? null;
 
-        if (!$user && $stripeId) {
+        if (! $user && $stripeId) {
             $local = StripeSubscription::query()->where('stripe_id', $stripeId)->first();
             $user = $local?->user;
         }
 
-        if (!$user && $customerId) {
+        if (! $user && $customerId) {
             $user = User::query()->where('stripe_customer_id', $customerId)->first();
         }
 
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -350,7 +513,7 @@ class StripeBillingService
     private function upsertSubscription(User $user, $subscription, ?string $customerId = null): ?StripeSubscription
     {
         $stripeId = $subscription->id ?? null;
-        if (!$stripeId) {
+        if (! $stripeId) {
             return null;
         }
 
@@ -358,6 +521,7 @@ class StripeBillingService
         $priceId = $this->extractPriceId($subscription);
         $assistantAddon = $this->extractAssistantAddon($subscription);
         $compedMeta = $this->extractCompedMeta($subscription);
+        $planContext = $this->resolvePlanContext($priceId, $this->extractMetadata($subscription));
 
         $record = StripeSubscription::updateOrCreate(
             ['stripe_id' => $stripeId],
@@ -365,6 +529,10 @@ class StripeBillingService
                 'user_id' => $user->id,
                 'stripe_customer_id' => $customerId,
                 'price_id' => $priceId,
+                'currency_code' => $planContext['currency_code'],
+                'plan_code' => $planContext['plan_code'],
+                'plan_price_id' => $planContext['plan_price_id'],
+                'billing_period' => $planContext['billing_period'],
                 'is_comped' => $compedMeta['is_comped'],
                 'comped_coupon_id' => $compedMeta['comped_coupon_id'],
                 'assistant_price_id' => $assistantAddon['assistant_price_id'],
@@ -387,7 +555,7 @@ class StripeBillingService
     private function upsertSubscriptionFromArray(User $user, array $subscription): ?StripeSubscription
     {
         $stripeId = $subscription['id'] ?? null;
-        if (!$stripeId) {
+        if (! $stripeId) {
             return null;
         }
 
@@ -395,6 +563,7 @@ class StripeBillingService
         $priceId = $this->extractPriceIdFromArray($subscription);
         $assistantAddon = $this->extractAssistantAddonFromArray($subscription);
         $compedMeta = $this->extractCompedMetaFromArray($subscription);
+        $planContext = $this->resolvePlanContext($priceId, $this->extractMetadataFromArray($subscription));
 
         $record = StripeSubscription::updateOrCreate(
             ['stripe_id' => $stripeId],
@@ -402,6 +571,10 @@ class StripeBillingService
                 'user_id' => $user->id,
                 'stripe_customer_id' => $customerId,
                 'price_id' => $priceId,
+                'currency_code' => $planContext['currency_code'],
+                'plan_code' => $planContext['plan_code'],
+                'plan_price_id' => $planContext['plan_price_id'],
+                'billing_period' => $planContext['billing_period'],
                 'is_comped' => $compedMeta['is_comped'],
                 'comped_coupon_id' => $compedMeta['comped_coupon_id'],
                 'assistant_price_id' => $assistantAddon['assistant_price_id'],
@@ -430,6 +603,7 @@ class StripeBillingService
         $local = $this->getLocalSubscription($user);
         if ($local?->stripe_customer_id) {
             $user->forceFill(['stripe_customer_id' => $local->stripe_customer_id])->save();
+
             return $local->stripe_customer_id;
         }
 
@@ -466,14 +640,16 @@ class StripeBillingService
         $items = $subscription->items->data ?? [];
         foreach ($items as $item) {
             $priceId = $item?->price?->id ?? null;
-            if (!$priceId) {
+            if (! $priceId) {
                 continue;
             }
             if ($assistantPriceId && $priceId === $assistantPriceId) {
                 continue;
             }
+
             return $priceId;
         }
+
         return null;
     }
 
@@ -483,21 +659,23 @@ class StripeBillingService
         $items = $subscription['items']['data'] ?? [];
         foreach ($items as $item) {
             $priceId = $item['price']['id'] ?? null;
-            if (!$priceId) {
+            if (! $priceId) {
                 continue;
             }
             if ($assistantPriceId && $priceId === $assistantPriceId) {
                 continue;
             }
+
             return $priceId;
         }
+
         return null;
     }
 
     private function extractAssistantAddon($subscription): array
     {
         $assistantPriceId = $this->assistantUsagePriceId();
-        if (!$assistantPriceId) {
+        if (! $assistantPriceId) {
             return [
                 'assistant_price_id' => null,
                 'assistant_item_id' => null,
@@ -530,12 +708,13 @@ class StripeBillingService
         $items = $subscription->items->data ?? [];
         foreach ($items as $item) {
             $priceId = $item?->price?->id ?? null;
-            if (!$priceId) {
+            if (! $priceId) {
                 continue;
             }
             if ($assistantPriceId && $priceId === $assistantPriceId) {
                 continue;
             }
+
             return $item;
         }
 
@@ -545,7 +724,7 @@ class StripeBillingService
     private function extractAssistantAddonFromArray(array $subscription): array
     {
         $assistantPriceId = $this->assistantUsagePriceId();
-        if (!$assistantPriceId) {
+        if (! $assistantPriceId) {
             return [
                 'assistant_price_id' => null,
                 'assistant_item_id' => null,
@@ -599,7 +778,7 @@ class StripeBillingService
     private function findAssistantItem($subscription): ?object
     {
         $assistantPriceId = $this->assistantUsagePriceId();
-        if (!$assistantPriceId) {
+        if (! $assistantPriceId) {
             return null;
         }
 
@@ -616,7 +795,7 @@ class StripeBillingService
 
     private function timestampToCarbon($timestamp): ?Carbon
     {
-        if (!$timestamp) {
+        if (! $timestamp) {
             return null;
         }
 
@@ -626,25 +805,28 @@ class StripeBillingService
     private function assistantUsagePriceId(): ?string
     {
         $price = config('services.stripe.ai_usage_price');
+
         return is_string($price) && trim($price) !== '' ? trim($price) : null;
     }
 
     private function normalizeQuantity(?int $quantity): int
     {
         $value = (int) $quantity;
+
         return $value > 0 ? $value : 1;
     }
 
     private function compedCouponId(): ?string
     {
         $coupon = config('services.stripe.comped_coupon_id');
+
         return is_string($coupon) && trim($coupon) !== '' ? trim($coupon) : null;
     }
 
     public function createAssistantCreditCheckoutSession(User $user, int $packs, string $successUrl, string $cancelUrl): array
     {
         $priceId = $this->assistantCreditPriceId();
-        if (!$priceId) {
+        if (! $priceId) {
             return ['id' => null, 'url' => null];
         }
 
@@ -688,7 +870,7 @@ class StripeBillingService
 
     public function retrieveCheckoutSession(string $sessionId): ?array
     {
-        if (!$sessionId) {
+        if (! $sessionId) {
             return null;
         }
 
@@ -701,13 +883,80 @@ class StripeBillingService
     private function assistantCreditPriceId(): ?string
     {
         $price = config('services.stripe.ai_credit_price');
+
         return is_string($price) && trim($price) !== '' ? trim($price) : null;
     }
 
     private function assistantCreditPackSize(): int
     {
         $pack = (int) config('services.stripe.ai_credit_pack', 0);
+
         return $pack > 0 ? $pack : 0;
+    }
+
+    private function ensureStripePriceConfigured(PlanPriceData $planPrice): void
+    {
+        if ($planPrice->stripePriceId) {
+            return;
+        }
+
+        throw new StripePriceNotConfiguredException(sprintf(
+            'No Stripe price ID is configured for plan [%s] in currency [%s] and period [%s].',
+            $planPrice->planCode,
+            $planPrice->currencyCode->value,
+            $planPrice->billingPeriod->value,
+        ));
+    }
+
+    private function buildPlanMetadata(PlanPriceData $planPrice): array
+    {
+        return array_filter([
+            'subscription_type' => 'default',
+            'plan_key' => $planPrice->planCode,
+            'plan_code' => $planPrice->planCode,
+            'plan_price_id' => (string) $planPrice->planPriceId,
+            'currency_code' => $planPrice->currencyCode->value,
+            'billing_period' => $planPrice->billingPeriod->value,
+        ]);
+    }
+
+    private function resolvePlanContext(?string $priceId, array $metadata = []): array
+    {
+        $planPrice = $priceId ? app(BillingPlanService::class)->resolveByStripePriceId($priceId) : null;
+
+        return [
+            'currency_code' => $metadata['currency_code']
+                ?? $planPrice?->currencyCode->value,
+            'plan_code' => $metadata['plan_code']
+                ?? $metadata['plan_key']
+                ?? $planPrice?->planCode,
+            'plan_price_id' => isset($metadata['plan_price_id'])
+                ? (int) $metadata['plan_price_id']
+                : $planPrice?->planPriceId,
+            'billing_period' => $metadata['billing_period']
+                ?? $planPrice?->billingPeriod->value,
+        ];
+    }
+
+    private function extractMetadata($subscription): array
+    {
+        $metadata = $subscription->metadata ?? [];
+        if (is_array($metadata)) {
+            return $metadata;
+        }
+
+        if (is_object($metadata) && method_exists($metadata, 'toArray')) {
+            return $metadata->toArray();
+        }
+
+        return [];
+    }
+
+    private function extractMetadataFromArray(array $subscription): array
+    {
+        $metadata = $subscription['metadata'] ?? [];
+
+        return is_array($metadata) ? $metadata : [];
     }
 
     private function client(): StripeClient
@@ -717,7 +966,7 @@ class StripeBillingService
         }
 
         $secret = config('services.stripe.secret');
-        if (!$secret) {
+        if (! $secret) {
             Log::warning('Stripe secret key is missing.');
         }
 

@@ -32,14 +32,19 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    tenantCurrencyCode: {
+        type: String,
+        default: 'CAD',
+    },
 });
 
-const emit = defineEmits(['submitted']); // Déclare l'événement "submitted"
+const emit = defineEmits(['submitted']);
 const overlayTarget = computed(() => (props.id ? `#${props.id}` : null));
 const initialImageUrl = ref(props.product?.image_url || '');
 const initialImage = ref(props.product?.image_url || props.product?.image || '');
 
 const { t } = useI18n();
+const currencyCode = computed(() => String(props.tenantCurrencyCode || props.product?.currency_code || 'CAD').toUpperCase());
 const aiImageSettings = computed(() => (props.aiImage && typeof props.aiImage === 'object' ? props.aiImage : {}));
 const aiImageEnabled = computed(() => Boolean(aiImageSettings.value.enabled) && Boolean(aiImageSettings.value.generate_url));
 const aiImageVisible = computed(() => Boolean(aiImageSettings.value.generate_url));
@@ -391,11 +396,11 @@ const buildProductAiPrompt = () => {
     addDetail('Supplier', trimText(form.supplier_name, 120));
     addDetail('Supplier email', trimText(form.supplier_email, 120));
     addDetail('Tracking', form.tracking_type && form.tracking_type !== 'none' ? form.tracking_type : '');
-    addNumber('Price', form.price, ' USD');
+    addNumber('Price', form.price, ` ${currencyCode.value}`);
     addNumber('Promo discount', form.promo_discount_percent, '%');
     const promoDates = [form.promo_start_at, form.promo_end_at].filter(Boolean).join(' to ');
     addDetail('Promo dates', promoDates);
-    addNumber('Cost price', form.cost_price, ' USD');
+    addNumber('Cost price', form.cost_price, ` ${currencyCode.value}`);
     addNumber('Margin', form.margin_percent, '%');
     addNumber('Tax rate', form.tax_rate, '%');
     addNumber('Stock', form.stock);
@@ -707,6 +712,9 @@ const buttonLabel = computed(() => (props.product
 
                     <div class="grid grid-cols-1 gap-4 gap-y-4">
                         <FloatingNumberInput v-model="form.price" :label="$t('products.form.price')" :step="0.01" :required="true" />
+                        <p class="-mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                            Business currency: {{ currencyCode }}. Catalog prices are stored in this currency.
+                        </p>
                         <div class="rounded-sm border border-dashed border-stone-200 bg-stone-50 p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
                             <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
                                 {{ $t('products.form.promo_title') }}
@@ -896,7 +904,7 @@ const buttonLabel = computed(() => (props.product
                                         </div>
                                     </div>
                                     <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                                        ${{ formatPrice(source.price) }}
+                                        {{ formatPrice(source.price) }} {{ String(source.currency_code || currencyCode).toUpperCase() }}
                                     </div>
                                 </div>
                                 <div class="mt-2 flex flex-wrap items-center gap-2">

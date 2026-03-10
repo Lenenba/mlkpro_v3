@@ -4,9 +4,9 @@ use App\Jobs\RetryLeadQuoteEmailJob;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Quote;
-use App\Models\Task;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
+use App\Models\Task;
 use App\Models\User;
 use App\Notifications\LeadCallRequestReceivedNotification;
 use App\Notifications\LeadFormOwnerNotification;
@@ -32,7 +32,7 @@ function createPublicLeadOwner(array $attributes = []): User
 {
     $defaults = [
         'name' => 'Lead Owner',
-        'email' => 'lead-owner-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'lead-owner-'.Str::lower(Str::random(8)).'@example.com',
         'password' => 'password',
         'role_id' => publicLeadOwnerRoleId(),
         'company_type' => 'services',
@@ -67,6 +67,7 @@ function createServiceFor(
 
 beforeEach(function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
+    config(['services.geoapify.key' => 'test-geoapify-key']);
 });
 
 it('suggests only active services from the current tenant catalog', function () {
@@ -163,8 +164,8 @@ it('exposes only active services from the current tenant on public lead form pag
                 $ids = collect($services)->pluck('id')->map(fn ($id) => (int) $id)->all();
 
                 return in_array($active->id, $ids, true)
-                    && !in_array($inactive->id, $ids, true)
-                    && !in_array($foreign->id, $ids, true);
+                    && ! in_array($inactive->id, $ids, true)
+                    && ! in_array($foreign->id, $ids, true);
             }));
 });
 
@@ -180,9 +181,9 @@ it('exposes suggestion metadata on public lead form page', function () {
             ->where('quote_question_catalog', fn ($catalog) => collect($catalog)->has('common')
                 && collect($catalog)->has('website'))
             ->where('suggest_url', fn ($url) => is_string($url)
-                && str_contains($url, '/public/requests/' . $owner->id . '/suggest-services'))
+                && str_contains($url, '/public/requests/'.$owner->id.'/suggest-services'))
             ->where('address_search_url', fn ($url) => is_string($url)
-                && str_contains($url, '/public/requests/' . $owner->id . '/address-search')));
+                && str_contains($url, '/public/requests/'.$owner->id.'/address-search')));
 });
 
 it('searches address suggestions through backend proxy on public lead form', function () {
@@ -366,6 +367,7 @@ it('creates and sends a quote when receive_quote is selected', function () {
         LeadQuoteRequestReceivedNotification::class,
         function (LeadQuoteRequestReceivedNotification $notification, array $channels, object $notifiable) use ($lead, $quote) {
             $mail = data_get($notifiable, 'routes.mail');
+
             return $notification->lead->is($lead)
                 && $notification->quote->is($quote)
                 && in_array('mail', $channels, true)
@@ -491,6 +493,7 @@ it('records a call request without creating a quote and creates a qualification 
         LeadCallRequestReceivedNotification::class,
         function (LeadCallRequestReceivedNotification $notification, array $channels, object $notifiable) use ($lead) {
             $mail = data_get($notifiable, 'routes.mail');
+
             return $notification->lead->is($lead)
                 && in_array('mail', $channels, true)
                 && $mail === 'prospect.call@example.com';

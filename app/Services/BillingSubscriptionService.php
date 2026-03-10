@@ -13,12 +13,14 @@ class BillingSubscriptionService
     public function providerRequested(): string
     {
         $provider = strtolower((string) config('billing.provider', 'paddle'));
+
         return $provider !== '' ? $provider : 'paddle';
     }
 
     public function providerEffective(): string
     {
         $provider = strtolower((string) config('billing.provider_effective', $this->providerRequested()));
+
         return $provider !== '' ? $provider : $this->providerRequested();
     }
 
@@ -30,6 +32,7 @@ class BillingSubscriptionService
     public function providerLabel(): string
     {
         $provider = $this->providerEffective();
+
         return $provider !== '' ? ucfirst($provider) : 'Paddle';
     }
 
@@ -67,6 +70,7 @@ class BillingSubscriptionService
         }
 
         $subscription = $user->subscription(PaddleSubscription::DEFAULT_TYPE);
+
         return [
             'active' => $user->subscribed(PaddleSubscription::DEFAULT_TYPE),
             'on_trial' => $user->onTrial(PaddleSubscription::DEFAULT_TYPE),
@@ -82,10 +86,9 @@ class BillingSubscriptionService
     {
         $priceId = $this->resolvePriceId($accountOwner);
         if ($priceId) {
-            foreach (config('billing.plans', []) as $key => $plan) {
-                if (!empty($plan['price_id']) && $plan['price_id'] === $priceId) {
-                    return $key;
-                }
+            $planCode = app(BillingPlanService::class)->resolvePlanCodeByStripePriceId($priceId);
+            if ($planCode) {
+                return $planCode;
             }
         }
 
@@ -113,6 +116,7 @@ class BillingSubscriptionService
         }
 
         $subscription = $accountOwner->subscription(PaddleSubscription::DEFAULT_TYPE);
+
         return $subscription?->items()->value('price_id');
     }
 
@@ -144,6 +148,7 @@ class BillingSubscriptionService
     private function isTrialActive(User $accountOwner): bool
     {
         $trialEndsAt = $this->resolveTrialEndsAt($accountOwner);
+
         return $trialEndsAt ? $trialEndsAt->isFuture() : false;
     }
 

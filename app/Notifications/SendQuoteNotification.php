@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -23,6 +24,12 @@ class SendQuoteNotification extends Notification implements ShouldQueue
     public function __construct($quote)
     {
         $this->quote = $quote;
+        $this->onQueue(QueueWorkload::queue('notifications'));
+    }
+
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('notifications', [60, 300, 900]);
     }
 
     /**
@@ -44,7 +51,7 @@ class SendQuoteNotification extends Notification implements ShouldQueue
         $companyName = $companyUser?->company_name ?: config('app.name');
         $companyLogo = $companyUser?->company_logo_url;
         $customer = $this->quote?->customer;
-        $usePublicLink = !(bool) ($customer?->portal_access ?? true) || !$customer?->portal_user_id;
+        $usePublicLink = ! (bool) ($customer?->portal_access ?? true) || ! $customer?->portal_user_id;
         $actionUrl = route('dashboard');
         $actionLabel = 'Open dashboard';
         $actionMessage = 'Log in to your portal to review and validate the quote.';
@@ -60,15 +67,15 @@ class SendQuoteNotification extends Notification implements ShouldQueue
         }
 
         return (new MailMessage)
-        ->subject('Your Quote from ' . $companyName)
-        ->view('emails.quotes.send', [
-            'quote' => $this->quote,
-            'companyName' => $companyName,
-            'companyLogo' => $companyLogo,
-            'actionUrl' => $actionUrl,
-            'actionLabel' => $actionLabel,
-            'actionMessage' => $actionMessage,
-        ]);
+            ->subject('Your Quote from '.$companyName)
+            ->view('emails.quotes.send', [
+                'quote' => $this->quote,
+                'companyName' => $companyName,
+                'companyLogo' => $companyLogo,
+                'actionUrl' => $actionUrl,
+                'actionLabel' => $actionLabel,
+                'actionMessage' => $actionMessage,
+            ]);
     }
 
     /**

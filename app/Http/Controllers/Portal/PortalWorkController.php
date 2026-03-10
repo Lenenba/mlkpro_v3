@@ -3,39 +3,31 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\GenerateWorkTasks;
 use App\Models\ActivityLog;
-use App\Models\Customer;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
-use App\Jobs\GenerateWorkTasks;
-use App\Services\WorkBillingService;
-use App\Services\TaskBillingService;
-use App\Services\WorkScheduleService;
-use App\Services\UsageLimitService;
 use App\Notifications\ActionEmailNotification;
+use App\Services\Portal\PortalAccessService;
+use App\Services\TaskBillingService;
+use App\Services\UsageLimitService;
+use App\Services\WorkBillingService;
+use App\Services\WorkScheduleService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class PortalWorkController extends Controller
 {
-    private function portalCustomer(Request $request): Customer
-    {
-        $customer = $request->user()?->customerProfile;
-        if (!$customer) {
-            abort(403);
-        }
-
-        return $customer;
-    }
+    public function __construct(
+        private readonly PortalAccessService $portalAccess
+    ) {}
 
     public function validateWork(Request $request, Work $work, WorkBillingService $billingService)
     {
-        $customer = $this->portalCustomer($request);
-        if ($work->customer_id !== $customer->id) {
-            abort(403);
-        }
+        $customer = $this->portalAccess->customer($request);
+        $this->portalAccess->assertWork($customer, $work);
 
         if (in_array($work->status, [Work::STATUS_VALIDATED, Work::STATUS_AUTO_VALIDATED], true)) {
             if ($this->shouldReturnJson($request)) {
@@ -52,7 +44,7 @@ class PortalWorkController extends Controller
         }
 
         $allowed = [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE];
-        if (!in_array($work->status, $allowed, true)) {
+        if (! in_array($work->status, $allowed, true)) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'This job is not ready for validation.',
@@ -81,11 +73,11 @@ class PortalWorkController extends Controller
         $owner = User::find($work->user_id);
         if ($owner && $owner->email) {
             $customerLabel = $customer->company_name
-                ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+                ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Job validated by client',
-                $customerLabel ? $customerLabel . ' validated a job.' : 'A client validated a job.',
+                $customerLabel ? $customerLabel.' validated a job.' : 'A client validated a job.',
                 [
                     ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
                     ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
@@ -116,10 +108,8 @@ class PortalWorkController extends Controller
 
     public function dispute(Request $request, Work $work)
     {
-        $customer = $this->portalCustomer($request);
-        if ($work->customer_id !== $customer->id) {
-            abort(403);
-        }
+        $customer = $this->portalAccess->customer($request);
+        $this->portalAccess->assertWork($customer, $work);
 
         if ($work->status === Work::STATUS_DISPUTE) {
             if ($this->shouldReturnJson($request)) {
@@ -136,7 +126,7 @@ class PortalWorkController extends Controller
         }
 
         $allowed = [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE];
-        if (!in_array($work->status, $allowed, true)) {
+        if (! in_array($work->status, $allowed, true)) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'This job cannot be disputed right now.',
@@ -160,11 +150,11 @@ class PortalWorkController extends Controller
         $owner = User::find($work->user_id);
         if ($owner && $owner->email) {
             $customerLabel = $customer->company_name
-                ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+                ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Job disputed by client',
-                $customerLabel ? $customerLabel . ' disputed a job.' : 'A client disputed a job.',
+                $customerLabel ? $customerLabel.' disputed a job.' : 'A client disputed a job.',
                 [
                     ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
                     ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
@@ -195,10 +185,8 @@ class PortalWorkController extends Controller
 
     public function confirmSchedule(Request $request, Work $work, WorkScheduleService $scheduleService)
     {
-        $customer = $this->portalCustomer($request);
-        if ($work->customer_id !== $customer->id) {
-            abort(403);
-        }
+        $customer = $this->portalAccess->customer($request);
+        $this->portalAccess->assertWork($customer, $work);
 
         if ($work->status === Work::STATUS_CANCELLED) {
             if ($this->shouldReturnJson($request)) {
@@ -213,7 +201,7 @@ class PortalWorkController extends Controller
         }
 
         $assigneeIds = $work->teamMembers()->pluck('team_members.id')->all();
-        if (!$assigneeIds) {
+        if (! $assigneeIds) {
             $assigneeIds = TeamMember::query()
                 ->forAccount($work->user_id)
                 ->active()
@@ -221,7 +209,7 @@ class PortalWorkController extends Controller
                 ->all();
         }
 
-        if (!$assigneeIds) {
+        if (! $assigneeIds) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Add at least one team member before confirming the schedule.',
@@ -313,10 +301,8 @@ class PortalWorkController extends Controller
 
     public function rejectSchedule(Request $request, Work $work)
     {
-        $customer = $this->portalCustomer($request);
-        if ($work->customer_id !== $customer->id) {
-            abort(403);
-        }
+        $customer = $this->portalAccess->customer($request);
+        $this->portalAccess->assertWork($customer, $work);
 
         if ($work->status === Work::STATUS_CANCELLED) {
             if ($this->shouldReturnJson($request)) {
@@ -354,11 +340,11 @@ class PortalWorkController extends Controller
         $owner = User::find($work->user_id);
         if ($owner && $owner->email) {
             $customerLabel = $customer->company_name
-                ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+                ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Schedule rejected by client',
-                $customerLabel ? $customerLabel . ' rejected a schedule.' : 'A client rejected a schedule.',
+                $customerLabel ? $customerLabel.' rejected a schedule.' : 'A client rejected a schedule.',
                 [
                     ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
                     ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],

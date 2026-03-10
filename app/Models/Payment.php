@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use App\Enums\CurrencyCode;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Payment extends Model
 {
@@ -30,6 +31,7 @@ class Payment extends Model
         'customer_id',
         'user_id',
         'amount',
+        'currency_code',
         'tip_amount',
         'tip_reversed_amount',
         'tip_type',
@@ -51,6 +53,7 @@ class Payment extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'currency_code' => 'string',
         'tip_amount' => 'decimal:2',
         'tip_reversed_amount' => 'decimal:2',
         'tip_percent' => 'decimal:2',
@@ -60,6 +63,33 @@ class Payment extends Model
         'tip_reversed_at' => 'datetime',
         'paid_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $payment) {
+            if ($payment->currency_code) {
+                return;
+            }
+
+            if ($payment->invoice_id) {
+                $payment->currency_code = Invoice::query()
+                    ->whereKey($payment->invoice_id)
+                    ->value('currency_code') ?: CurrencyCode::default()->value;
+
+                return;
+            }
+
+            if ($payment->sale_id) {
+                $payment->currency_code = Sale::query()
+                    ->whereKey($payment->sale_id)
+                    ->value('currency_code') ?: CurrencyCode::default()->value;
+
+                return;
+            }
+
+            $payment->currency_code = CurrencyCode::default()->value;
+        });
+    }
 
     public function invoice(): BelongsTo
     {

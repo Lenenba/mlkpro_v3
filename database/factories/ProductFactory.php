@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Models\User;
 use App\Models\ProductCategory;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Http;
 
@@ -28,6 +28,7 @@ class ProductFactory extends Factory
         return [
             'name' => $dummyResponse['title'], // Nom du produit
             'price' => $dummyResponse['price'], // Prix du produit
+            'currency_code' => 'CAD',
             'description' => $dummyResponse['description'], // Description du produit
             'category_id' => ProductCategory::factory(), // Crée une catégorie associée
             'user_id' => User::factory(), // Associe un utilisateur

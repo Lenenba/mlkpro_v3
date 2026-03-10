@@ -15,6 +15,10 @@ class StripeSubscription extends Model
         'stripe_id',
         'stripe_customer_id',
         'price_id',
+        'currency_code',
+        'plan_code',
+        'plan_price_id',
+        'billing_period',
         'is_comped',
         'comped_coupon_id',
         'assistant_price_id',
@@ -28,6 +32,10 @@ class StripeSubscription extends Model
 
     protected $casts = [
         'is_comped' => 'boolean',
+        'currency_code' => 'string',
+        'plan_code' => 'string',
+        'plan_price_id' => 'integer',
+        'billing_period' => 'string',
         'trial_ends_at' => 'datetime',
         'ends_at' => 'datetime',
         'current_period_end' => 'datetime',

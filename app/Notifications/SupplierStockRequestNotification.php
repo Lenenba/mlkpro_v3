@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Product;
 use App\Models\User;
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -18,6 +19,12 @@ class SupplierStockRequestNotification extends Notification implements ShouldQue
         public User $owner,
         public ?string $customMessage = null
     ) {
+        $this->onQueue(QueueWorkload::queue('notifications'));
+    }
+
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('notifications', [60, 300, 900]);
     }
 
     public function via(object $notifiable): array
@@ -30,22 +37,22 @@ class SupplierStockRequestNotification extends Notification implements ShouldQue
         $productName = $this->product->name ?? 'Produit';
         $subject = "Demande stock - {$productName}";
 
-        $message = (new MailMessage())
+        $message = (new MailMessage)
             ->subject($subject)
             ->greeting('Bonjour,')
             ->line("Nous sommes en stock bas pour {$productName}.")
             ->line('Pouvez-vous confirmer la disponibilite et le delai de reapprovisionnement ?')
             ->line('Details:')
-            ->line("SKU: " . ($this->product->sku ?? '-'))
-            ->line("Stock actuel: " . ((int) $this->product->stock))
-            ->line("Stock minimum: " . ((int) $this->product->minimum_stock))
-            ->line("Entreprise: " . ($this->owner->company_name ?: $this->owner->name));
+            ->line('SKU: '.($this->product->sku ?? '-'))
+            ->line('Stock actuel: '.((int) $this->product->stock))
+            ->line('Stock minimum: '.((int) $this->product->minimum_stock))
+            ->line('Entreprise: '.($this->owner->company_name ?: $this->owner->name));
 
         if ($this->customMessage) {
             $message->line('Message:')->line($this->customMessage);
         }
 
-        if (!empty($this->owner->email)) {
+        if (! empty($this->owner->email)) {
             $message->replyTo($this->owner->email, $this->owner->company_name ?: $this->owner->name);
         }
 

@@ -3,14 +3,15 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
-use App\Models\LoyaltyProgram;
-use App\Services\AssistantCreditService;
 use App\Models\AssistantUsage;
+use App\Models\LoyaltyProgram;
 use App\Models\PlatformSetting;
+use App\Services\AssistantCreditService;
+use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
 use App\Services\CompanyFeatureService;
-use App\Services\StripeConnectService;
 use App\Services\StripeBillingService;
+use App\Services\StripeConnectService;
 use App\Support\PlanDisplay;
 use App\Support\TenantPaymentMethodsResolver;
 use App\Support\TipSettingsResolver;
@@ -34,7 +35,7 @@ class BillingSettingsController extends Controller
     public function edit(Request $request)
     {
         $user = $request->user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
 
@@ -73,7 +74,7 @@ class BillingSettingsController extends Controller
             }
         }
 
-        if ($isPaddleProvider && $checkoutStatus === 'success' && $paddleApiEnabled && !$paddleError) {
+        if ($isPaddleProvider && $checkoutStatus === 'success' && $paddleApiEnabled && ! $paddleError) {
             try {
                 $this->syncLatestSubscription($user);
             } catch (\Throwable $exception) {
@@ -86,7 +87,7 @@ class BillingSettingsController extends Controller
             $user->unsetRelation('subscriptions');
         }
 
-        if (!$isPaddleProvider && $providerEffective === 'stripe' && $checkoutStatus === 'success') {
+        if (! $isPaddleProvider && $providerEffective === 'stripe' && $checkoutStatus === 'success') {
             $sessionId = $request->query('session_id');
             if ($sessionId) {
                 try {
@@ -131,34 +132,52 @@ class BillingSettingsController extends Controller
 
         $planLimits = PlatformSetting::getValue('plan_limits', []);
         $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
-        $plans = collect(config('billing.plans', []))
-            ->map(function (array $plan, string $key) use ($planLimits, $planDisplayOverrides) {
-                $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
-                $displayPrice = $this->resolvePlanDisplayPrice([
-                    'price' => $display['price'],
-                ]);
-                $teamLimitRaw = $planLimits[$key]['team_members'] ?? null;
-                $teamLimit = is_numeric($teamLimitRaw) ? (int) $teamLimitRaw : null;
-                $contactOnly = !empty($plan['contact_only']);
-                $teamMinRaw = $plan['team_members_min'] ?? null;
-                $teamMin = is_numeric($teamMinRaw) ? (int) $teamMinRaw : null;
+        $plans = $billingService->isStripe()
+            ? collect(app(BillingPlanService::class)->plansForTenant($user))
+                ->map(function (array $plan) use ($planLimits) {
+                    $teamLimitRaw = $planLimits[$plan['key']]['team_members'] ?? null;
+                    $teamLimit = is_numeric($teamLimitRaw) ? (int) $teamLimitRaw : null;
+                    $teamMinRaw = $plan['team_members_min'] ?? null;
+                    $teamMin = is_numeric($teamMinRaw) ? (int) $teamMinRaw : null;
+                    $contactOnly = (bool) ($plan['contact_only'] ?? false);
 
-                return [
-                    'key' => $key,
-                    'name' => $display['name'],
-                    'price_id' => $plan['price_id'] ?? null,
-                    'price' => $display['price'],
-                    'display_price' => $displayPrice,
-                    'features' => $display['features'],
-                    'badge' => $display['badge'],
-                    'team_members_limit' => $teamLimit,
-                    'team_members_min' => $teamMin,
-                    'contact_only' => $contactOnly,
-                    'cta_url' => $contactOnly ? route('settings.support.index') : null,
-                ];
-            })
-            ->values()
-            ->all();
+                    return array_merge($plan, [
+                        'team_members_limit' => $teamLimit,
+                        'team_members_min' => $teamMin,
+                        'contact_only' => $contactOnly,
+                        'cta_url' => $contactOnly ? route('settings.support.index') : null,
+                    ]);
+                })
+                ->values()
+                ->all()
+            : collect(config('billing.plans', []))
+                ->map(function (array $plan, string $key) use ($planLimits, $planDisplayOverrides) {
+                    $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
+                    $displayPrice = $this->resolvePlanDisplayPrice([
+                        'price' => $display['price'],
+                    ]);
+                    $teamLimitRaw = $planLimits[$key]['team_members'] ?? null;
+                    $teamLimit = is_numeric($teamLimitRaw) ? (int) $teamLimitRaw : null;
+                    $contactOnly = ! empty($plan['contact_only']);
+                    $teamMinRaw = $plan['team_members_min'] ?? null;
+                    $teamMin = is_numeric($teamMinRaw) ? (int) $teamMinRaw : null;
+
+                    return [
+                        'key' => $key,
+                        'name' => $display['name'],
+                        'price_id' => $plan['price_id'] ?? null,
+                        'price' => $display['price'],
+                        'display_price' => $displayPrice,
+                        'features' => $display['features'],
+                        'badge' => $display['badge'],
+                        'team_members_limit' => $teamLimit,
+                        'team_members_min' => $teamMin,
+                        'contact_only' => $contactOnly,
+                        'cta_url' => $contactOnly ? route('settings.support.index') : null,
+                    ];
+                })
+                ->values()
+                ->all();
 
         $subscriptionSummary = $billingService->subscriptionSummary($user);
         $seatQuantity = $billingService->resolveSeatQuantity($user);
@@ -166,7 +185,7 @@ class BillingSettingsController extends Controller
         $planKey = $billingService->resolvePlanKey($user, $planModules);
         $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
         $assistantEnabled = $user->hasCompanyFeature('assistant');
-        $assistantAddonEnabled = $assistantEnabled && !$assistantIncluded;
+        $assistantAddonEnabled = $assistantEnabled && ! $assistantIncluded;
         $assistantCreditPack = (int) config('services.stripe.ai_credit_pack', 0);
         $assistantCreditEnabled = $billingService->isStripe()
             && $providerReady
@@ -216,6 +235,7 @@ class BillingSettingsController extends Controller
                 'provider_effective' => $providerEffective,
                 'provider_label' => $providerLabel,
                 'provider_ready' => $providerReady,
+                'tenant_currency_code' => $user->businessCurrencyCode(),
                 'is_paddle' => $isPaddleProvider,
                 'support_phone' => config('app.support_phone'),
             ],
@@ -247,7 +267,7 @@ class BillingSettingsController extends Controller
                 'unit' => config('services.stripe.ai_usage_unit', 'requests'),
                 'unit_size' => (int) config('services.stripe.ai_usage_unit_size', 1),
                 'credits' => [
-                    'enabled' => $assistantCreditEnabled && !$assistantIncluded,
+                    'enabled' => $assistantCreditEnabled && ! $assistantIncluded,
                     'balance' => (int) ($user->assistant_credit_balance ?? 0),
                     'pack_size' => $assistantCreditPack,
                 ],
@@ -281,7 +301,7 @@ class BillingSettingsController extends Controller
     public function updateAssistantAddon(Request $request)
     {
         $user = $request->user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
 
@@ -290,7 +310,7 @@ class BillingSettingsController extends Controller
         ]);
 
         $billingService = app(BillingSubscriptionService::class);
-        if (!$billingService->isStripe()) {
+        if (! $billingService->isStripe()) {
             return response()->json([
                 'message' => 'Assistant IA indisponible pour ce fournisseur.',
             ], 422);
@@ -308,7 +328,7 @@ class BillingSettingsController extends Controller
         $creditPack = (int) config('services.stripe.ai_credit_pack', 0);
         $creditConfigured = (bool) config('services.stripe.ai_credit_price') && $creditPack > 0;
         $usageConfigured = (bool) config('services.stripe.ai_usage_price');
-        if (!$creditConfigured && !$usageConfigured) {
+        if (! $creditConfigured && ! $usageConfigured) {
             return response()->json([
                 'message' => 'Assistant IA non configure.',
             ], 422);
@@ -322,18 +342,18 @@ class BillingSettingsController extends Controller
         }
 
         $stripeBilling = app(StripeBillingService::class);
-        if (!$stripeBilling->isConfigured()) {
+        if (! $stripeBilling->isConfigured()) {
             return response()->json([
                 'message' => 'Stripe n\'est pas configure.',
             ], 422);
         }
 
         $features = (array) ($user->company_features ?? []);
-        $useUsageAddon = $usageConfigured && !$creditConfigured;
+        $useUsageAddon = $usageConfigured && ! $creditConfigured;
         if ($validated['enabled']) {
             if ($useUsageAddon) {
                 $subscription = $stripeBilling->enableAssistantAddon($user);
-                if (!$subscription) {
+                if (! $subscription) {
                     return response()->json([
                         'message' => 'Impossible d\'activer l\'Assistant IA.',
                     ], 422);
@@ -364,7 +384,7 @@ class BillingSettingsController extends Controller
     public function createAssistantCreditCheckout(Request $request)
     {
         $user = $request->user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
 
@@ -373,7 +393,7 @@ class BillingSettingsController extends Controller
         ]);
 
         $billingService = app(BillingSubscriptionService::class);
-        if (!$billingService->isStripe()) {
+        if (! $billingService->isStripe()) {
             return response()->json([
                 'message' => 'Assistant IA indisponible pour ce fournisseur.',
             ], 422);
@@ -388,13 +408,13 @@ class BillingSettingsController extends Controller
             ], 422);
         }
 
-        if (!$user->hasCompanyFeature('assistant')) {
+        if (! $user->hasCompanyFeature('assistant')) {
             return response()->json([
                 'message' => 'Activez l option IA avant d acheter des credits.',
             ], 422);
         }
 
-        if (!config('services.stripe.ai_credit_price')) {
+        if (! config('services.stripe.ai_credit_price')) {
             return response()->json([
                 'message' => 'Prix de credits IA manquant.',
             ], 422);
@@ -415,7 +435,7 @@ class BillingSettingsController extends Controller
         }
 
         $stripeBilling = app(StripeBillingService::class);
-        if (!$stripeBilling->isConfigured()) {
+        if (! $stripeBilling->isConfigured()) {
             return response()->json([
                 'message' => 'Stripe n\'est pas configure.',
             ], 422);
@@ -423,7 +443,7 @@ class BillingSettingsController extends Controller
 
         $packs = (int) ($validated['packs'] ?? 1);
         $successUrl = route('settings.billing.edit', ['credits' => 'success']);
-        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
+        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?').'session_id={CHECKOUT_SESSION_ID}';
         $cancelUrl = route('settings.billing.edit', ['credits' => 'cancel']);
 
         $session = $stripeBilling->createAssistantCreditCheckoutSession($user, $packs, $successUrl, $cancelUrl);
@@ -439,12 +459,12 @@ class BillingSettingsController extends Controller
     public function connectStripe(Request $request)
     {
         $user = $request->user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
 
         $connectService = app(StripeConnectService::class);
-        if (!$connectService->isEnabled()) {
+        if (! $connectService->isEnabled()) {
             return response()->json([
                 'message' => 'Stripe Connect is not configured.',
             ], 400);
@@ -474,12 +494,13 @@ class BillingSettingsController extends Controller
                 'user_id' => $user->id,
                 'exception' => $exception->getMessage(),
             ]);
+
             return response()->json([
                 'message' => $exception->getMessage() ?: 'Unable to start Stripe Connect onboarding.',
             ], 422);
         }
 
-        if (!$url) {
+        if (! $url) {
             return response()->json([
                 'message' => 'Unable to start Stripe Connect onboarding.',
             ], 422);
@@ -491,7 +512,7 @@ class BillingSettingsController extends Controller
     public function update(Request $request)
     {
         $user = $request->user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
         $loyaltyFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($user, 'loyalty');
@@ -538,7 +559,7 @@ class BillingSettingsController extends Controller
             ? $validated['default_payment_method']
             : $user->default_payment_method;
         $defaultPaymentMethod = TenantPaymentMethodsResolver::normalizeInternalMethod($rawDefaultMethod);
-        if ($defaultPaymentMethod && !in_array($defaultPaymentMethod, $paymentMethods, true)) {
+        if ($defaultPaymentMethod && ! in_array($defaultPaymentMethod, $paymentMethods, true)) {
             $defaultPaymentMethod = null;
         }
 
@@ -550,7 +571,9 @@ class BillingSettingsController extends Controller
                 : null;
         }
 
-        $incomingLoyalty = $loyaltyFeatureEnabled && is_array($validated['loyalty'] ?? null)
+        $loyaltySetupRequested = is_array($validated['loyalty'] ?? null);
+        $loyaltyFeatureEnabled = $loyaltyFeatureEnabled || $loyaltySetupRequested;
+        $incomingLoyalty = $loyaltyFeatureEnabled && $loyaltySetupRequested
             ? $validated['loyalty']
             : [];
         $loyaltyProgram = null;
@@ -584,7 +607,7 @@ class BillingSettingsController extends Controller
                     : (string) $loyaltyProgram->points_label,
             ]);
 
-            if (!$loyaltyProgram->points_label) {
+            if (! $loyaltyProgram->points_label) {
                 $loyaltyProgram->points_label = 'points';
             }
             if ($loyaltyProgram->points_per_currency_unit <= 0) {
@@ -593,7 +616,7 @@ class BillingSettingsController extends Controller
             if ($loyaltyProgram->minimum_spend < 0) {
                 $loyaltyProgram->minimum_spend = 0;
             }
-            if (!in_array($loyaltyProgram->rounding_mode, [
+            if (! in_array($loyaltyProgram->rounding_mode, [
                 LoyaltyProgram::ROUND_FLOOR,
                 LoyaltyProgram::ROUND_ROUND,
                 LoyaltyProgram::ROUND_CEIL,
@@ -652,7 +675,7 @@ class BillingSettingsController extends Controller
     private function syncLatestSubscription($user): void
     {
         $customer = $user->customer ?: $user->createAsCustomer();
-        if (!$customer) {
+        if (! $customer) {
             return;
         }
 
@@ -668,7 +691,7 @@ class BillingSettingsController extends Controller
             ]),
         ])['data'][0] ?? null;
 
-        if (!$latest || empty($latest['id'])) {
+        if (! $latest || empty($latest['id'])) {
             return;
         }
 
@@ -678,15 +701,15 @@ class BillingSettingsController extends Controller
 
         $subscription->type = $latest['custom_data']['subscription_type'] ?? Subscription::DEFAULT_TYPE;
         $subscription->status = $latest['status'] ?? Subscription::STATUS_ACTIVE;
-        $subscription->trial_ends_at = ($subscription->status === Subscription::STATUS_TRIALING && !empty($latest['next_billed_at']))
+        $subscription->trial_ends_at = ($subscription->status === Subscription::STATUS_TRIALING && ! empty($latest['next_billed_at']))
             ? Carbon::parse($latest['next_billed_at'], 'UTC')
             : null;
 
-        $subscription->paused_at = !empty($latest['paused_at'])
+        $subscription->paused_at = ! empty($latest['paused_at'])
             ? Carbon::parse($latest['paused_at'], 'UTC')
             : null;
 
-        $subscription->ends_at = !empty($latest['canceled_at'])
+        $subscription->ends_at = ! empty($latest['canceled_at'])
             ? Carbon::parse($latest['canceled_at'], 'UTC')
             : null;
 
@@ -696,7 +719,7 @@ class BillingSettingsController extends Controller
         $knownPriceIds = [];
         foreach ($items as $item) {
             $priceId = $item['price']['id'] ?? null;
-            if (!$priceId) {
+            if (! $priceId) {
                 continue;
             }
 

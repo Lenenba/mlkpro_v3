@@ -13,6 +13,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import RichTextEditor from '@/Components/RichTextEditor.vue';
+import CompanyCategoriesSection from '@/Pages/Settings/UI/CompanyCategoriesSection.vue';
 
 const props = defineProps({
     company: {
@@ -55,6 +56,10 @@ const props = defineProps({
         type: Number,
         default: 4,
     },
+    supported_currencies: {
+        type: Array,
+        default: () => ['CAD', 'EUR', 'USD'],
+    },
 });
 
 const { t, tm } = useI18n();
@@ -69,6 +74,12 @@ const countryOptions = computed(() => [
     { id: 'Tunisie', name: t('settings.company.countries.tunisia') },
     { id: '__other__', name: t('settings.company.select.other') },
 ]);
+const currencyOptions = computed(() =>
+    (props.supported_currencies || []).map((currency) => ({
+        id: currency,
+        name: currency,
+    }))
+);
 const timezoneFallback = [
     'UTC',
     'America/Toronto',
@@ -257,6 +268,7 @@ const form = useForm({
     company_province_other: '',
     company_city: '',
     company_city_other: '',
+    currency_code: props.company.currency_code || 'CAD',
     company_timezone: props.company.company_timezone || '',
     company_type: props.company.company_type || 'services',
     fulfillment_delivery_enabled: toBool(props.company.fulfillment?.delivery_enabled),
@@ -1006,6 +1018,7 @@ const addCategory = () => {
 };
 
 const usageItems = computed(() => props.usage_limits?.items || []);
+const currentLocale = computed(() => props.company.locale || '');
 const planName = computed(() =>
     props.usage_limits?.plan_name || props.usage_limits?.plan_key || t('settings.company.limits.plan_fallback')
 );
@@ -1237,6 +1250,23 @@ watch(activeTab, (value) => {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                             <FloatingSelect
+                                v-model="form.currency_code"
+                                :label="'Main business currency'"
+                                :options="currencyOptions"
+                                :disabled="!company.can_change_currency"
+                            />
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                <span v-if="company.can_change_currency">
+                                    New catalog items and Stripe online charges use this currency.
+                                </span>
+                                <span v-else>
+                                    Currency changes are locked because business activity already exists.
+                                </span>
+                            </p>
+                            <InputError class="mt-1" :message="form.errors.currency_code" />
+                        </div>
+                        <div>
+                            <FloatingSelect
                                 v-model="form.company_timezone"
                                 :label="$t('settings.company.fields.timezone')"
                                 :options="timezoneOptions"
@@ -1246,6 +1276,9 @@ watch(activeTab, (value) => {
                             />
                             <InputError class="mt-1" :message="form.errors.company_timezone" />
                         </div>
+                    </div>
+                    <div v-if="currentLocale" class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                        Locale: <span class="font-semibold text-stone-700 dark:text-neutral-200">{{ currentLocale }}</span>
                     </div>
 
                     <div>
@@ -1396,45 +1429,14 @@ watch(activeTab, (value) => {
                 </div>
             </div>
 
-            <div
-                v-show="activeTab === 'categories'"
-                :id="`${tabPrefix}-panel-categories`"
-                role="tabpanel"
-                :aria-labelledby="`${tabPrefix}-tab-categories`"
-                class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700"
-            >
-                <div class="p-4 space-y-4">
-                    <div>
-                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ $t('settings.company.categories.title') }}
-                        </h2>
-                        <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                            {{ $t('settings.company.categories.description') }}
-                        </p>
-                    </div>
-
-                    <div class="flex flex-wrap gap-2">
-                        <span v-for="category in props.categories" :key="category.id"
-                            class="rounded-full bg-stone-100 px-3 py-1 text-xs text-stone-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            {{ category.name }}
-                        </span>
-                        <span v-if="!props.categories.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                            {{ $t('settings.company.categories.empty') }}
-                        </span>
-                    </div>
-
-                    <div class="flex flex-col gap-3 md:flex-row md:items-end">
-                        <div class="flex-1">
-                            <FloatingInput v-model="categoryForm.name" :label="$t('settings.company.categories.new_label')" />
-                            <InputError class="mt-1" :message="categoryForm.errors.name" />
-                        </div>
-                        <button type="button" @click="addCategory" :disabled="!canAddCategory || categoryForm.processing"
-                            class="w-full md:w-auto py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
-                            {{ $t('settings.company.categories.add') }}
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <CompanyCategoriesSection
+                :active-tab="activeTab"
+                :tab-prefix="tabPrefix"
+                :categories="props.categories"
+                :category-form="categoryForm"
+                :can-add-category="canAddCategory"
+                @submit="addCategory"
+            />
 
             <div
                 v-show="activeTab === 'api'"

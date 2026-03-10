@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Sales\StoreSalePaymentRequest;
 use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\User;
 use App\Services\SalePaymentService;
 use App\Services\TenantPaymentMethodGuardService;
-use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class SalePaymentController extends Controller
 {
-    public function store(Request $request, Sale $sale)
+    public function store(StoreSalePaymentRequest $request, Sale $sale)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
@@ -25,7 +25,7 @@ class SalePaymentController extends Controller
         if ($sale->user_id !== $accountId) {
             abort(404);
         }
-        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
+        if (! $canAccessAll && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
@@ -40,24 +40,21 @@ class SalePaymentController extends Controller
             ]);
         }
 
-        $validated = $request->validate([
-            'amount' => 'required|numeric|min:0.01',
-            'method' => 'nullable|string|max:50',
-        ]);
+        $validated = $request->validated();
 
         $methodDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
             (int) $accountId,
             $validated['method'] ?? null,
             'sale_manual'
         );
-        if (!$methodDecision['allowed']) {
+        if (! $methodDecision['allowed']) {
             throw ValidationException::withMessages([
                 'method' => TenantPaymentMethodGuardService::ERROR_MESSAGE,
                 'code' => TenantPaymentMethodGuardService::ERROR_CODE,
             ]);
         }
 
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
         $balanceDue = $sale->balance_due;
         $amount = (float) $validated['amount'];
         if ($amount > $balanceDue) {
@@ -96,20 +93,20 @@ class SalePaymentController extends Controller
             ? $user
             : User::query()->find($ownerId);
 
-        if (!$owner || $owner->company_type !== 'products') {
+        if (! $owner || $owner->company_type !== 'products') {
             abort(403);
         }
 
         $canManage = $user->id === $owner->id;
         $canPos = $canManage;
 
-        if (!$canManage) {
+        if (! $canManage) {
             $membership = $user->relationLoaded('teamMembership')
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
             $canManage = $membership?->hasPermission('sales.manage') ?? false;
             $canPos = $membership?->hasPermission('sales.pos') ?? false;
-            if (!$canManage && !$canPos) {
+            if (! $canManage && ! $canPos) {
                 abort(403);
             }
         }

@@ -9,38 +9,30 @@ use App\Models\Product;
 use App\Models\ProductReview;
 use App\Models\Sale;
 use App\Models\SaleItem;
-use App\Models\User;
+use App\Services\Portal\PortalAccessService;
 use App\Services\ReviewModerationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class PortalReviewController extends Controller
 {
+    public function __construct(
+        private readonly PortalAccessService $portalAccess
+    ) {}
+
     private function resolvePortalSale(Request $request, Sale $sale): array
     {
-        $customer = $request->user()?->customerProfile;
-        if (!$customer) {
-            abort(403);
-        }
-
-        $owner = User::query()
-            ->select(['id', 'company_type'])
-            ->find($customer->user_id);
-
-        if (!$owner || $owner->company_type !== 'products') {
-            abort(403);
-        }
-
-        if ($sale->user_id !== $owner->id || $sale->customer_id !== $customer->id) {
-            abort(404);
-        }
-
-        return [$customer, $owner, $sale];
+        return $this->portalAccess->saleContext(
+            $request,
+            $sale,
+            'products',
+            ['id', 'company_type']
+        );
     }
 
     private function ensurePaid(Sale $sale): void
     {
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
         if ($sale->payment_status !== Sale::STATUS_PAID) {
             throw ValidationException::withMessages([
                 'payment' => 'Vous pouvez laisser un avis uniquement apres paiement.',
@@ -54,7 +46,7 @@ class PortalReviewController extends Controller
         [$blocked, $term] = $moderation->check($text);
 
         return [
-            'is_approved' => !$blocked,
+            'is_approved' => ! $blocked,
             'blocked_reason' => $blocked ? 'blocked_terms' : null,
             'blocked_term' => $term,
         ];
@@ -119,7 +111,7 @@ class PortalReviewController extends Controller
             ->where('product_id', $product->id)
             ->exists();
 
-        if (!$hasProduct) {
+        if (! $hasProduct) {
             abort(403);
         }
 

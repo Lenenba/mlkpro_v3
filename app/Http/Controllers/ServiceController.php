@@ -6,8 +6,9 @@ use App\Http\Requests\ServiceRequest;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\TeamMember;
-use App\Services\UsageLimitService;
+use App\Models\User;
 use App\Services\StripeCatalogService;
+use App\Services\UsageLimitService;
 use App\Utils\FileHandler;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
@@ -37,6 +38,9 @@ class ServiceController extends Controller
         $user = Auth::user();
         $userId = $user?->id ?? Auth::id();
         $accountId = $user?->accountOwnerId() ?? $userId;
+        $tenantCurrencyCode = User::query()->whereKey($accountId)->value('currency_code')
+            ?: $user?->businessCurrencyCode()
+            ?: 'CAD';
 
         $baseQuery = Product::query()
             ->services()
@@ -74,6 +78,7 @@ class ServiceController extends Controller
                 ->get(['id', 'name', 'unit', 'price']),
             'stats' => $stats,
             'count' => $stats['total'],
+            'tenantCurrencyCode' => $tenantCurrencyCode,
         ]);
     }
 
@@ -112,7 +117,7 @@ class ServiceController extends Controller
         $filteredQuery = (clone $baseQuery)
             ->when(
                 $filters['search'] ?? null,
-                fn($query, $search) => $query->where('name', 'like', '%' . $search . '%')
+                fn ($query, $search) => $query->where('name', 'like', '%'.$search.'%')
             )
             ->when(
                 $filters['status'] ?? null,
@@ -126,15 +131,15 @@ class ServiceController extends Controller
             )
             ->when(
                 $filters['created_from'] ?? null,
-                fn($query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
+                fn ($query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
             )
             ->when(
                 $filters['created_to'] ?? null,
-                fn($query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
+                fn ($query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
             )
             ->when(
                 $filters['created_by'] ?? null,
-                fn($query, $createdBy) => $query->where('created_by_user_id', $createdBy)
+                fn ($query, $createdBy) => $query->where('created_by_user_id', $createdBy)
             );
 
         $sort = in_array($filters['sort'] ?? null, ['name', 'created_at', 'items_count'], true)
@@ -148,11 +153,11 @@ class ServiceController extends Controller
             ->select(['id', 'name', 'user_id', 'created_by_user_id', 'created_at', 'archived_at'])
             ->with(['createdBy:id,name'])
             ->withCount([
-                'products as items_count' => fn($query) => $query->byUser($accountId),
-                'products as products_count' => fn($query) => $query
+                'products as items_count' => fn ($query) => $query->byUser($accountId),
+                'products as products_count' => fn ($query) => $query
                     ->byUser($accountId)
                     ->where('item_type', Product::ITEM_TYPE_PRODUCT),
-                'products as services_count' => fn($query) => $query
+                'products as services_count' => fn ($query) => $query
                     ->byUser($accountId)
                     ->where('item_type', Product::ITEM_TYPE_SERVICE),
             ])
@@ -165,7 +170,7 @@ class ServiceController extends Controller
             'active' => (clone $baseQuery)->whereNull('archived_at')->count(),
             'archived' => (clone $baseQuery)->whereNotNull('archived_at')->count(),
             'used' => (clone $baseQuery)
-                ->whereHas('products', fn($query) => $query->byUser($accountId))
+                ->whereHas('products', fn ($query) => $query->byUser($accountId))
                 ->count(),
         ];
 
@@ -181,7 +186,7 @@ class ServiceController extends Controller
             ->with('user:id,name')
             ->get()
             ->map(function (TeamMember $member) {
-                if (!$member->user) {
+                if (! $member->user) {
                     return null;
                 }
 
@@ -341,7 +346,7 @@ class ServiceController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
 
@@ -354,7 +359,7 @@ class ServiceController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
     }
@@ -370,7 +375,7 @@ class ServiceController extends Controller
     {
         $service->serviceMaterials()->delete();
 
-        if (!$materials) {
+        if (! $materials) {
             return;
         }
 
@@ -378,7 +383,7 @@ class ServiceController extends Controller
         $productIds = collect($materials)
             ->pluck('product_id')
             ->filter()
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->unique()
             ->values();
 
@@ -396,11 +401,11 @@ class ServiceController extends Controller
                 $productId = isset($material['product_id']) ? (int) $material['product_id'] : null;
                 $product = $productId ? $productMap->get($productId) : null;
                 $label = trim((string) ($material['label'] ?? ''));
-                if (!$label && $product) {
+                if (! $label && $product) {
                     $label = $product->name;
                 }
 
-                if (!$label) {
+                if (! $label) {
                     return null;
                 }
 

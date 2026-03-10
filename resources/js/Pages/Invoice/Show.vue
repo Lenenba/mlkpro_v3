@@ -3,6 +3,7 @@ import { computed, watch } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethods } from '@/Composables/useTenantPaymentMethods';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
@@ -182,50 +183,20 @@ const statusLabel = computed(() => {
     return translated === key ? status : translated;
 });
 
-const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];
-
-const allowedPaymentMethods = computed(() => {
-    const raw = Array.isArray(props.paymentMethodSettings?.enabled_methods_internal)
-        ? props.paymentMethodSettings.enabled_methods_internal
-        : [];
-
-    const normalized = raw
-        .map((method) => (typeof method === 'string' ? method.trim().toLowerCase() : ''))
-        .filter((method, index, array) => method && array.indexOf(method) === index)
-        .filter((method) => ALLOWED_INTERNAL_METHODS.includes(method));
-
-    return normalized.length ? normalized : ['cash', 'card'];
-});
-
-const defaultPaymentMethod = computed(() => {
-    const configured = typeof props.paymentMethodSettings?.default_method_internal === 'string'
-        ? props.paymentMethodSettings.default_method_internal.trim().toLowerCase()
-        : '';
-
-    if (configured && allowedPaymentMethods.value.includes(configured)) {
-        return configured;
-    }
-
-    return allowedPaymentMethods.value[0] || 'cash';
-});
-
-const hasMultiplePaymentMethods = computed(() => allowedPaymentMethods.value.length > 1);
-const singlePaymentMethod = computed(() => (hasMultiplePaymentMethods.value ? null : defaultPaymentMethod.value));
+const {
+    allowedPaymentMethods,
+    defaultPaymentMethod,
+    hasMultiplePaymentMethods,
+    singlePaymentMethod,
+} = useTenantPaymentMethods(computed(() => props.paymentMethodSettings));
 
 const paymentMethodLabel = (method) => {
-    if (method === 'cash') {
-        return t('sales.payments.cash');
-    }
-    if (method === 'card' || method === 'stripe') {
-        return t('sales.payments.card');
-    }
-    if (method === 'bank_transfer') {
-        return 'Bank transfer';
-    }
-    if (method === 'check') {
-        return 'Check';
-    }
-    return method || '-';
+    return resolvePaymentMethodLabel(method, {
+        cash: t('sales.payments.cash'),
+        card: t('sales.payments.card'),
+        bankTransfer: 'Bank transfer',
+        check: 'Check',
+    });
 };
 
 const isPendingCashPayment = (payment) =>

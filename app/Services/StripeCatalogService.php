@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\CurrencyCode;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
@@ -21,24 +22,25 @@ class StripeCatalogService
     public function syncProductPrice(Product $product, bool $syncPrice = true): void
     {
         $owner = $product->relationLoaded('user') ? $product->user : User::find($product->user_id);
-        if (!$owner) {
+        if (! $owner) {
             return;
         }
 
         $connectService = app(StripeConnectService::class);
-        if (!$connectService->isEnabled() || !$connectService->isAccountReady($owner)) {
+        if (! $connectService->isEnabled() || ! $connectService->isAccountReady($owner)) {
             return;
         }
 
         $accountId = $owner->stripe_connect_account_id;
-        if (!$accountId) {
+        if (! $accountId) {
             return;
         }
 
-        $currency = strtolower((string) config('cashier.currency', 'USD'));
+        $currency = CurrencyCode::tryFromMixed($product->currency_code)
+            ?->stripeValue() ?? CurrencyCode::default()->stripeValue();
 
         $stripeProductId = $product->stripe_product_id;
-        if (!$stripeProductId) {
+        if (! $stripeProductId) {
             $stripeProduct = $this->client()->products->create([
                 'name' => $product->name,
                 'description' => $product->description,
@@ -68,15 +70,16 @@ class StripeCatalogService
             }
         }
 
-        if (!$stripeProductId) {
+        if (! $stripeProductId) {
             return;
         }
 
-        if (!$syncPrice) {
+        if (! $syncPrice) {
             $product->forceFill([
                 'stripe_product_id' => $stripeProductId,
                 'stripe_price_account_id' => $accountId,
             ])->save();
+
             return;
         }
 
@@ -90,6 +93,7 @@ class StripeCatalogService
                 'stripe_product_id' => $stripeProductId,
                 'stripe_price_account_id' => $accountId,
             ])->save();
+
             return;
         }
 
@@ -113,7 +117,7 @@ class StripeCatalogService
         }
 
         $secret = config('services.stripe.secret');
-        if (!$secret) {
+        if (! $secret) {
             Log::warning('Stripe secret key is missing for Stripe catalog sync.');
         }
 

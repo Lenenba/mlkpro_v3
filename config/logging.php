@@ -73,6 +73,14 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'observability' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/observability.log'),
+            'level' => env('OBSERVABILITY_LOG_LEVEL', 'info'),
+            'days' => env('OBSERVABILITY_LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

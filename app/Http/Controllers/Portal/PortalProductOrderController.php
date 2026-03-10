@@ -15,9 +15,11 @@ use App\Models\User;
 use App\Notifications\OrderStatusNotification;
 use App\Services\InventoryService;
 use App\Services\NotificationPreferenceService;
+use App\Services\Portal\PortalAccessService;
 use App\Services\SaleTimelineService;
 use App\Services\StripeSaleService;
 use App\Services\TenantPaymentMethodGuardService;
+use App\Support\Database\UserSelects;
 use App\Support\TenantPaymentMethodsResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -31,22 +33,17 @@ use Inertia\Inertia;
 
 class PortalProductOrderController extends Controller
 {
+    public function __construct(
+        private readonly PortalAccessService $portalAccess
+    ) {}
+
     private function resolvePortalCustomer(Request $request): array
     {
-        $customer = $request->user()?->customerProfile;
-        if (!$customer) {
-            abort(403);
-        }
-
-        $owner = User::query()
-            ->select(['id', 'company_type', 'company_name', 'company_logo', 'company_fulfillment'])
-            ->find($customer->user_id);
-
-        if (!$owner || $owner->company_type !== 'products') {
-            abort(403);
-        }
-
-        return [$customer, $owner];
+        return $this->portalAccess->customerContext(
+            $request,
+            'products',
+            UserSelects::portalCompanyContext()
+        );
     }
 
     private function normalizeFulfillment(?array $settings, User $owner): array
@@ -73,10 +70,10 @@ class PortalProductOrderController extends Controller
         $hasPickupAddress = trim((string) ($merged['pickup_address'] ?? '')) !== '';
         $hasPrepTime = $merged['prep_time_minutes'] !== null && $merged['prep_time_minutes'] !== '';
 
-        if ($deliveryEnabled && !$hasDeliveryZone) {
+        if ($deliveryEnabled && ! $hasDeliveryZone) {
             $deliveryEnabled = false;
         }
-        if ($pickupEnabled && (!$hasPickupAddress || !$hasPrepTime)) {
+        if ($pickupEnabled && (! $hasPickupAddress || ! $hasPrepTime)) {
             $pickupEnabled = false;
         }
 
@@ -88,13 +85,12 @@ class PortalProductOrderController extends Controller
 
     private function resolvePortalSale(Request $request, Sale $sale): array
     {
-        [$customer, $owner] = $this->resolvePortalCustomer($request);
-
-        if ($sale->user_id !== $owner->id || $sale->customer_id !== $customer->id) {
-            abort(404);
-        }
-
-        return [$customer, $owner, $sale];
+        return $this->portalAccess->saleContext(
+            $request,
+            $sale,
+            'products',
+            UserSelects::portalCompanyContext()
+        );
     }
 
     private function syncStripeReturn(Request $request, ?Sale $sale = null): void
@@ -105,7 +101,7 @@ class PortalProductOrderController extends Controller
         }
 
         $sessionId = $request->query('session_id');
-        if (!$sessionId || !app(StripeSaleService::class)->isConfigured()) {
+        if (! $sessionId || ! app(StripeSaleService::class)->isConfigured()) {
             return;
         }
 
@@ -153,20 +149,23 @@ class PortalProductOrderController extends Controller
 
         foreach ($lines as $index => $line) {
             $product = $products->get($line['product_id'] ?? null);
-            if (!$product) {
+            if (! $product) {
                 $errors["items.{$index}.product_id"] = 'Produit invalide.';
+
                 continue;
             }
 
             $quantity = (int) ($line['quantity'] ?? 0);
             if ($quantity < 1) {
                 $errors["items.{$index}.quantity"] = 'Quantite invalide.';
+
                 continue;
             }
 
             $available = max(0, (int) ($availableOverrides[$product->id] ?? $this->resolveProductAvailableStock($product)));
             if ($quantity > $available) {
-                $errors["items.{$index}.quantity"] = 'Stock insuffisant pour ' . $product->name . '.';
+                $errors["items.{$index}.quantity"] = 'Stock insuffisant pour '.$product->name.'.';
+
                 continue;
             }
 
@@ -208,7 +207,7 @@ class PortalProductOrderController extends Controller
     private function hydrateSellableStock(iterable $products): void
     {
         foreach ($products as $product) {
-            if (!$product instanceof Product) {
+            if (! $product instanceof Product) {
                 continue;
             }
 
@@ -223,8 +222,8 @@ class PortalProductOrderController extends Controller
         $promoStart = $product->promo_start_at;
         $promoEnd = $product->promo_end_at;
         $promoActive = $discount > 0
-            && (!$promoStart || $promoStart->lessThanOrEqualTo($now))
-            && (!$promoEnd || $promoEnd->greaterThanOrEqualTo($now));
+            && (! $promoStart || $promoStart->lessThanOrEqualTo($now))
+            && (! $promoEnd || $promoEnd->greaterThanOrEqualTo($now));
 
         $basePrice = (float) $product->price;
         $promoPrice = $promoActive
@@ -248,16 +247,16 @@ class PortalProductOrderController extends Controller
         }
 
         $currentMap = $current->groupBy('product_id')
-            ->map(fn($rows) => (int) $rows->sum('quantity'))
+            ->map(fn ($rows) => (int) $rows->sum('quantity'))
             ->toArray();
 
         $nextMap = collect($itemsPayload)
             ->groupBy('product_id')
-            ->map(fn($rows) => (int) collect($rows)->sum('quantity'))
+            ->map(fn ($rows) => (int) collect($rows)->sum('quantity'))
             ->toArray();
 
         $productIds = array_values(array_unique(array_merge(array_keys($currentMap), array_keys($nextMap))));
-        if (!$productIds) {
+        if (! $productIds) {
             return;
         }
 
@@ -269,7 +268,7 @@ class PortalProductOrderController extends Controller
 
         foreach ($productIds as $productId) {
             $product = $products->get($productId);
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -292,7 +291,7 @@ class PortalProductOrderController extends Controller
 
     private function generatePickupCode(): string
     {
-        return 'PK-' . Str::upper(Str::random(6));
+        return 'PK-'.Str::upper(Str::random(6));
     }
 
     private function notifyInternalOrder(User $owner, Sale $sale, string $title, string $message): void
@@ -303,7 +302,7 @@ class PortalProductOrderController extends Controller
             ->get(['user_id', 'permissions']);
 
         $userIds = $teamMembers
-            ->filter(fn(TeamMember $member) => $member->hasPermission('sales.manage') || $member->hasPermission('sales.pos'))
+            ->filter(fn (TeamMember $member) => $member->hasPermission('sales.manage') || $member->hasPermission('sales.pos'))
             ->pluck('user_id')
             ->push($owner->id)
             ->unique()
@@ -322,7 +321,7 @@ class PortalProductOrderController extends Controller
         $actionUrl = route('sales.show', $sale);
         $preferences = app(NotificationPreferenceService::class);
         foreach ($users as $user) {
-            if (!$preferences->shouldNotify(
+            if (! $preferences->shouldNotify(
                 $user,
                 NotificationPreferenceService::CATEGORY_ORDERS,
                 NotificationPreferenceService::CHANNEL_IN_APP
@@ -403,7 +402,7 @@ class PortalProductOrderController extends Controller
             ],
             'customer' => [
                 'id' => $customer->id,
-                'name' => trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? '')),
+                'name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
                 'email' => $customer->email,
                 'phone' => $customer->phone,
                 'default_address' => $defaultAddress,
@@ -452,10 +451,10 @@ class PortalProductOrderController extends Controller
                 'delivery_confirmed_at',
             ])
             ->withCount('items')
-            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
+            ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
             ->simplePaginate(12);
 
-        $orders->through(fn(Sale $sale) => $this->formatOrderSummary($sale));
+        $orders->through(fn (Sale $sale) => $this->formatOrderSummary($sale));
 
         return response()->json([
             'orders' => $orders,
@@ -478,7 +477,7 @@ class PortalProductOrderController extends Controller
         $timeline = app(SaleTimelineService::class)->buildTimeline($sale);
 
         $sale->load(['items.product:id,name,sku,barcode,unit,image,price']);
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         $defaultAddress = $customer->defaultProperty?->street1
             ? collect([
@@ -499,7 +498,7 @@ class PortalProductOrderController extends Controller
             ],
             'customer' => [
                 'id' => $customer->id,
-                'name' => trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? '')),
+                'name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
                 'email' => $customer->email,
                 'phone' => $customer->phone,
                 'default_address' => $defaultAddress,
@@ -527,9 +526,9 @@ class PortalProductOrderController extends Controller
 
         $sale->load([
             'items.product:id,name,sku,barcode,unit,image,price',
-            'payments' => fn($query) => $query->latest()->limit(10),
+            'payments' => fn ($query) => $query->latest()->limit(10),
         ]);
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         $reviewsPayload = $this->buildReviewPayload($customer, $sale);
 
@@ -541,7 +540,7 @@ class PortalProductOrderController extends Controller
             ],
             'customer' => [
                 'id' => $customer->id,
-                'name' => trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? '')),
+                'name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
                 'email' => $customer->email,
                 'phone' => $customer->phone,
             ],
@@ -549,7 +548,7 @@ class PortalProductOrderController extends Controller
             'order' => $this->formatOrderDetail($sale),
             'orderReview' => $reviewsPayload['order_review'],
             'productReviews' => $reviewsPayload['product_reviews'],
-            'payments' => $sale->payments?->map(fn($payment) => [
+            'payments' => $sale->payments?->map(fn ($payment) => [
                 'id' => $payment->id,
                 'amount' => (float) $payment->amount,
                 'method' => $payment->method,
@@ -574,7 +573,7 @@ class PortalProductOrderController extends Controller
             'payments',
         ]);
 
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         $items = $sale->items->map(function ($item) {
             return [
@@ -600,7 +599,7 @@ class PortalProductOrderController extends Controller
         ])->setOption('isRemoteEnabled', true);
 
         $label = $sale->number ?: $sale->id;
-        $filename = 'order-' . $label . '.pdf';
+        $filename = 'order-'.$label.'.pdf';
 
         return $pdf->download($filename);
     }
@@ -629,12 +628,12 @@ class PortalProductOrderController extends Controller
                 'fulfillment_method' => 'Livraison ou retrait non configure.',
             ]);
         }
-        if ($validated['fulfillment_method'] === 'delivery' && !$fulfillment['delivery_enabled']) {
+        if ($validated['fulfillment_method'] === 'delivery' && ! $fulfillment['delivery_enabled']) {
             throw ValidationException::withMessages([
                 'fulfillment_method' => 'La livraison n est pas disponible.',
             ]);
         }
-        if ($validated['fulfillment_method'] === 'pickup' && !$fulfillment['pickup_enabled']) {
+        if ($validated['fulfillment_method'] === 'pickup' && ! $fulfillment['pickup_enabled']) {
             throw ValidationException::withMessages([
                 'fulfillment_method' => 'Le retrait n est pas disponible.',
             ]);
@@ -769,7 +768,7 @@ class PortalProductOrderController extends Controller
             ])->filter()->implode(', ')
             : null;
 
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         $categories = ProductCategory::forAccount($owner->id)
             ->active()
@@ -786,7 +785,7 @@ class PortalProductOrderController extends Controller
             ],
             'customer' => [
                 'id' => $customer->id,
-                'name' => trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? '')),
+                'name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
                 'email' => $customer->email,
                 'phone' => $customer->phone,
                 'default_address' => $defaultAddress,
@@ -814,7 +813,7 @@ class PortalProductOrderController extends Controller
                 'substitution_notes' => $sale->substitution_notes,
                 'discount_rate' => $sale->discount_rate,
                 'discount_total' => $sale->discount_total,
-                'items' => $sale->items->map(fn($item) => [
+                'items' => $sale->items->map(fn ($item) => [
                     'product_id' => $item->product_id,
                     'quantity' => $item->quantity,
                 ])->values(),
@@ -831,12 +830,13 @@ class PortalProductOrderController extends Controller
     {
         [$customer, $owner, $sale] = $this->resolvePortalSale($request, $sale);
 
-        if (!$this->canEditSale($sale)) {
+        if (! $this->canEditSale($sale)) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Commande deja en livraison.',
                 ], 422);
             }
+
             return redirect()
                 ->route('portal.orders.index')
                 ->with('error', 'Commande deja en livraison.');
@@ -863,12 +863,12 @@ class PortalProductOrderController extends Controller
                 'fulfillment_method' => 'Livraison ou retrait non configure.',
             ]);
         }
-        if ($validated['fulfillment_method'] === 'delivery' && !$fulfillment['delivery_enabled']) {
+        if ($validated['fulfillment_method'] === 'delivery' && ! $fulfillment['delivery_enabled']) {
             throw ValidationException::withMessages([
                 'fulfillment_method' => 'La livraison n est pas disponible.',
             ]);
         }
-        if ($validated['fulfillment_method'] === 'pickup' && !$fulfillment['pickup_enabled']) {
+        if ($validated['fulfillment_method'] === 'pickup' && ! $fulfillment['pickup_enabled']) {
             throw ValidationException::withMessages([
                 'fulfillment_method' => 'Le retrait n est pas disponible.',
             ]);
@@ -881,7 +881,7 @@ class PortalProductOrderController extends Controller
 
         $currentItems = $sale->items()->get(['product_id', 'quantity']);
         $currentMap = $sale->status === Sale::STATUS_PENDING
-            ? $currentItems->groupBy('product_id')->map(fn($rows) => (int) $rows->sum('quantity'))->toArray()
+            ? $currentItems->groupBy('product_id')->map(fn ($rows) => (int) $rows->sum('quantity'))->toArray()
             : [];
 
         $productIds = collect($validated['items'])->pluck('product_id')->unique()->values();
@@ -955,7 +955,7 @@ class PortalProductOrderController extends Controller
 
         if (
             $sale->status === Sale::STATUS_PENDING
-            && !in_array($sale->fulfillment_status, [Sale::FULFILLMENT_COMPLETED, Sale::FULFILLMENT_CONFIRMED], true)
+            && ! in_array($sale->fulfillment_status, [Sale::FULFILLMENT_COMPLETED, Sale::FULFILLMENT_CONFIRMED], true)
         ) {
             $this->applyReservations($sale, $itemsPayload, $owner->id, $currentItems);
         }
@@ -1003,7 +1003,7 @@ class PortalProductOrderController extends Controller
             'stripe',
             'portal_order_pay'
         );
-        if (!$methodDecision['allowed']) {
+        if (! $methodDecision['allowed']) {
             throw ValidationException::withMessages([
                 'payment' => TenantPaymentMethodGuardService::ERROR_MESSAGE,
                 'code' => TenantPaymentMethodGuardService::ERROR_CODE,
@@ -1012,13 +1012,13 @@ class PortalProductOrderController extends Controller
 
         $paymentType = $validated['type'] ?? 'deposit';
         $stripeService = app(StripeSaleService::class);
-        if (!$stripeService->isConfigured()) {
+        if (! $stripeService->isConfigured()) {
             throw ValidationException::withMessages([
                 'payment' => 'Stripe n est pas configure.',
             ]);
         }
 
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         $depositAmount = (float) ($sale->deposit_amount ?? 0);
         $amountPaid = $sale->amount_paid;
@@ -1053,7 +1053,7 @@ class PortalProductOrderController extends Controller
         }
 
         $successUrl = URL::route('portal.orders.show', ['sale' => $sale->id, 'stripe' => 'success']);
-        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
+        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?').'session_id={CHECKOUT_SESSION_ID}';
         $cancelUrl = URL::route('portal.orders.show', ['sale' => $sale->id, 'stripe' => 'cancel']);
 
         $session = $stripeService->createCheckoutSession($sale, $successUrl, $cancelUrl, $amount, $paymentType);
@@ -1087,6 +1087,7 @@ class PortalProductOrderController extends Controller
                     'message' => 'Commande annulee.',
                 ], 422);
             }
+
             return redirect()
                 ->route('portal.orders.show', $sale)
                 ->with('error', 'Commande annulee.');
@@ -1098,6 +1099,7 @@ class PortalProductOrderController extends Controller
                     'message' => 'La commande n est pas encore livree.',
                 ], 422);
             }
+
             return redirect()
                 ->route('portal.orders.show', $sale)
                 ->with('error', 'La commande n est pas encore livree.');
@@ -1109,6 +1111,7 @@ class PortalProductOrderController extends Controller
                     'message' => 'Commande deja confirmee.',
                 ], 422);
             }
+
             return redirect()
                 ->route('portal.orders.show', $sale)
                 ->with('success', 'Commande deja confirmee.');
@@ -1119,7 +1122,7 @@ class PortalProductOrderController extends Controller
         ]);
 
         $proofPath = null;
-        if (!empty($validated['proof'])) {
+        if (! empty($validated['proof'])) {
             $proofPath = $validated['proof']->store('sales/deliveries', 'public');
         }
 
@@ -1151,12 +1154,13 @@ class PortalProductOrderController extends Controller
     {
         [, $owner, $sale] = $this->resolvePortalSale($request, $sale);
 
-        if (!$this->canEditSale($sale)) {
+        if (! $this->canEditSale($sale)) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Commande deja en livraison.',
                 ], 422);
             }
+
             return redirect()
                 ->route('portal.orders.index')
                 ->with('error', 'Commande deja en livraison.');
@@ -1195,6 +1199,7 @@ class PortalProductOrderController extends Controller
                     'message' => 'Aucun article a recommander.',
                 ], 422);
             }
+
             return redirect()
                 ->route('portal.orders.index')
                 ->with('error', 'Aucun article a recommander.');
@@ -1213,12 +1218,13 @@ class PortalProductOrderController extends Controller
                     'message' => 'Certains produits ne sont plus disponibles.',
                 ], 422);
             }
+
             return redirect()
                 ->route('portal.orders.index')
                 ->with('error', 'Certains produits ne sont plus disponibles.');
         }
 
-        $lines = $items->map(fn($item) => [
+        $lines = $items->map(fn ($item) => [
             'product_id' => $item->product_id,
             'quantity' => $item->quantity,
         ])->values()->all();
@@ -1230,6 +1236,7 @@ class PortalProductOrderController extends Controller
                     'message' => 'Stock insuffisant pour recommander.',
                 ], 422);
             }
+
             return redirect()
                 ->route('portal.orders.index')
                 ->with('error', 'Stock insuffisant pour recommander.');
@@ -1349,6 +1356,7 @@ class PortalProductOrderController extends Controller
             'total' => $sale->total,
             'items' => $items->map(function ($item) {
                 $product = $item->relationLoaded('product') ? $item->product : null;
+
                 return [
                     'id' => $item->id,
                     'product_id' => $item->product_id,
@@ -1387,7 +1395,7 @@ class PortalProductOrderController extends Controller
                 ->where('customer_id', $customer->id)
                 ->whereIn('product_id', $productIds)
                 ->get()
-                ->mapWithKeys(fn(ProductReview $review) => [
+                ->mapWithKeys(fn (ProductReview $review) => [
                     $review->product_id => $this->formatProductReview($review),
                 ])
             : collect();

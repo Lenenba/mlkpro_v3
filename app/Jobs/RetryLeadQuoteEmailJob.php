@@ -8,6 +8,7 @@ use App\Models\Request as LeadRequest;
 use App\Notifications\LeadFormOwnerNotification;
 use App\Notifications\SendQuoteNotification;
 use App\Support\NotificationDispatcher;
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -20,11 +21,19 @@ class RetryLeadQuoteEmailJob implements ShouldQueue
 
     public const MAX_ATTEMPTS = 3;
 
+    public int $tries = 2;
+
     public function __construct(
         public int $quoteId,
         public int $leadId,
         public int $attempt = 1
     ) {
+        $this->onQueue(QueueWorkload::queue('leads'));
+    }
+
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('leads', [300, 900, 1800]);
     }
 
     public function handle(): void
@@ -32,7 +41,7 @@ class RetryLeadQuoteEmailJob implements ShouldQueue
         $quote = Quote::query()
             ->with(['customer.user', 'request'])
             ->find($this->quoteId);
-        if (!$quote || !$quote->customer || empty($quote->customer->email)) {
+        if (! $quote || ! $quote->customer || empty($quote->customer->email)) {
             return;
         }
 
@@ -52,6 +61,7 @@ class RetryLeadQuoteEmailJob implements ShouldQueue
                 'source' => 'lead_form_retry',
                 'retry_attempt' => $this->attempt,
             ], 'Quote email retry sent');
+
             return;
         }
 
@@ -111,4 +121,3 @@ class RetryLeadQuoteEmailJob implements ShouldQueue
         };
     }
 }
-

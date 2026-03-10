@@ -2,13 +2,32 @@
 
 namespace App\Services;
 
+use App\Models\LoyaltyProgram;
 use App\Models\PlatformSetting;
 use App\Models\User;
-use App\Services\BillingSubscriptionService;
 use Illuminate\Support\Str;
 
 class CompanyFeatureService
 {
+    private const DEFAULT_PLAN_MODULE_KEYS = [
+        'quotes',
+        'requests',
+        'reservations',
+        'plan_scans',
+        'invoices',
+        'jobs',
+        'products',
+        'performance',
+        'presence',
+        'planning',
+        'sales',
+        'services',
+        'tasks',
+        'team_members',
+        'assistant',
+        'campaigns',
+    ];
+
     private const SALON_ONLY_DISABLED_MODULES = [
         'requests',
         'products',
@@ -23,7 +42,7 @@ class CompanyFeatureService
     public function resolveEffectiveFeatures(User $user): array
     {
         $owner = $this->resolveOwner($user);
-        if (!$owner) {
+        if (! $owner) {
             return [];
         }
 
@@ -31,7 +50,7 @@ class CompanyFeatureService
             return $this->featureCache[$owner->id];
         }
 
-        $planModules = PlatformSetting::getValue('plan_modules', []);
+        $planModules = $this->resolvePlanModules();
         $planKey = $this->resolvePlanKey($owner, $planModules);
         $planDefaults = $planKey ? ($planModules[$planKey] ?? []) : [];
         $sectorDefaults = self::sectorFeatureDefaults((string) ($owner->company_sector ?? null));
@@ -43,11 +62,18 @@ class CompanyFeatureService
         foreach ($keys as $key) {
             if (array_key_exists($key, $overrides)) {
                 $features[$key] = (bool) $overrides[$key];
+
                 continue;
             }
             if (array_key_exists($key, $defaults)) {
                 $features[$key] = (bool) $defaults[$key];
             }
+        }
+
+        if (! array_key_exists('loyalty', $features)) {
+            $features['loyalty'] = LoyaltyProgram::query()
+                ->where('user_id', $owner->id)
+                ->exists();
         }
 
         $this->featureCache[$owner->id] = $features;
@@ -58,7 +84,7 @@ class CompanyFeatureService
     public function hasFeature(User $user, string $feature): bool
     {
         $features = $this->resolveEffectiveFeatures($user);
-        if (!array_key_exists($feature, $features)) {
+        if (! array_key_exists($feature, $features)) {
             return false;
         }
 
@@ -110,7 +136,7 @@ class CompanyFeatureService
         }
 
         $ownerId = $user->accountOwnerId();
-        if (!$ownerId) {
+        if (! $ownerId) {
             return null;
         }
 
@@ -122,5 +148,50 @@ class CompanyFeatureService
     private function resolvePlanKey(User $accountOwner, array $planModules): ?string
     {
         return app(BillingSubscriptionService::class)->resolvePlanKey($accountOwner, $planModules);
+    }
+
+    /**
+     * @return array<string, array<string, bool>>
+     */
+    private function resolvePlanModules(): array
+    {
+        $configuredModules = PlatformSetting::getValue('plan_modules', []);
+
+        if (is_array($configuredModules) && $configuredModules !== []) {
+            return $configuredModules;
+        }
+
+        return self::defaultPlanModules();
+    }
+
+    /**
+     * @return array<string, array<string, bool>>
+     */
+    public static function defaultPlanModules(): array
+    {
+        $plans = config('billing.plans', []);
+        $planKeys = array_keys($plans);
+        $defaultAssistantPlan = array_key_exists('scale', $plans)
+            ? 'scale'
+            : array_key_last($plans);
+        $planModules = [];
+
+        foreach ($planKeys as $planKey) {
+            foreach (self::DEFAULT_PLAN_MODULE_KEYS as $moduleKey) {
+                if ($moduleKey === 'assistant') {
+                    $planModules[$planKey][$moduleKey] = $planKey === $defaultAssistantPlan;
+
+                    continue;
+                }
+
+                $planModules[$planKey][$moduleKey] = true;
+            }
+        }
+
+        if ($planModules === []) {
+            $planModules['free'] = array_fill_keys(self::DEFAULT_PLAN_MODULE_KEYS, true);
+        }
+
+        return $planModules;
     }
 }

@@ -2,18 +2,20 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Notifications\Notifiable;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 
 class Customer extends Model
 {
-    use HasFactory, GeneratesSequentialNumber, Notifiable;
+    use GeneratesSequentialNumber, HasFactory, Notifiable;
 
     public const DEFAULT_LOGO_PATH = '/images/presets/company-1.svg';
 
@@ -96,20 +98,21 @@ class Customer extends Model
             $customer->number = self::generateNumber($customer->user_id, 'C');
         });
     }
+
     /**
      * Get the user that owns the customer.
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function portalUser()
+    public function portalUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'portal_user_id');
     }
 
-    public function vipTier()
+    public function vipTier(): BelongsTo
     {
         return $this->belongsTo(VipTier::class, 'vip_tier_id');
     }
@@ -121,14 +124,14 @@ class Customer extends Model
             ->withTimestamps();
     }
 
-    public function properties()
+    public function properties(): HasMany
     {
         return $this->hasMany(Property::class)
             ->orderByDesc('is_default')
             ->orderBy('id');
     }
 
-    public function defaultProperty()
+    public function defaultProperty(): HasOne
     {
         return $this->hasOne(Property::class)
             ->where('is_default', true);
@@ -144,7 +147,7 @@ class Customer extends Model
         return $this->properties()->where('type', 'billing')->first();
     }
 
-    public function invoices()
+    public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
     }
@@ -219,12 +222,13 @@ class Customer extends Model
         return $this->hasMany(ReservationWaitlist::class, 'client_id');
     }
 
-    public function quotes()
+    public function quotes(): HasMany
     {
         return $this->hasMany(Quote::class)
             ->whereNull('archived_at')
             ->with(['products', 'property']);
     }
+
     /**
      * Get the works for the customer.
      */
@@ -232,24 +236,17 @@ class Customer extends Model
     {
         return $this->hasMany(Work::class, 'customer_id');
     }
+
     /**
      * Scope a query to only include customers of a given user.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $userId
-     * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function scopeByUser($query, int $userId)
+    public function scopeByUser(Builder $query, int $userId): Builder
     {
         return $query->where('user_id', $userId);
     }
 
-
     /**
      * Scope a query to order products by the most recent.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeMostRecent(Builder $query): Builder
     {
@@ -258,8 +255,6 @@ class Customer extends Model
 
     /**
      * Get the total number of works for the customer.
-     *
-     * @return int
      */
     public function getTotalWorks(): int
     {
@@ -298,10 +293,6 @@ class Customer extends Model
 
     /**
      * Scope a query to filter products based on given criteria.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param array $filters
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeFilter(Builder $query, array $filters): Builder
     {
@@ -310,24 +301,24 @@ class Customer extends Model
                 $filters['name'] ?? null,
                 function (Builder $query, $name) {
                     $query->where(function (Builder $query) use ($name) {
-                        $query->where('company_name', 'like', '%' . $name . '%')
-                            ->orWhere('first_name', 'like', '%' . $name . '%')
-                            ->orWhere('last_name', 'like', '%' . $name . '%')
-                            ->orWhere('email', 'like', '%' . $name . '%')
-                            ->orWhere('phone', 'like', '%' . $name . '%');
+                        $query->where('company_name', 'like', '%'.$name.'%')
+                            ->orWhere('first_name', 'like', '%'.$name.'%')
+                            ->orWhere('last_name', 'like', '%'.$name.'%')
+                            ->orWhere('email', 'like', '%'.$name.'%')
+                            ->orWhere('phone', 'like', '%'.$name.'%');
                     });
                 }
             )
             ->when(
                 $filters['city'] ?? null,
-                fn(Builder $query, $city) => $query->whereHas('properties', function (Builder $sub) use ($city) {
-                    $sub->where('city', 'like', '%' . $city . '%');
+                fn (Builder $query, $city) => $query->whereHas('properties', function (Builder $sub) use ($city) {
+                    $sub->where('city', 'like', '%'.$city.'%');
                 })
             )
             ->when(
                 $filters['country'] ?? null,
-                fn(Builder $query, $country) => $query->whereHas('properties', function (Builder $sub) use ($country) {
-                    $sub->where('country', 'like', '%' . $country . '%');
+                fn (Builder $query, $country) => $query->whereHas('properties', function (Builder $sub) use ($country) {
+                    $sub->where('country', 'like', '%'.$country.'%');
                 })
             )
             ->when(
@@ -362,11 +353,11 @@ class Customer extends Model
             )
             ->when(
                 $filters['created_from'] ?? null,
-                fn(Builder $query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
+                fn (Builder $query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
             )
             ->when(
                 $filters['created_to'] ?? null,
-                fn(Builder $query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
+                fn (Builder $query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
             )
             ->when(
                 array_key_exists('is_vip', $filters) && $filters['is_vip'] !== '',
@@ -381,7 +372,7 @@ class Customer extends Model
             )
             ->when(
                 $filters['vip_tier_id'] ?? null,
-                fn(Builder $query, $vipTierId) => $query->where('vip_tier_id', (int) $vipTierId)
+                fn (Builder $query, $vipTierId) => $query->where('vip_tier_id', (int) $vipTierId)
             );
     }
 }

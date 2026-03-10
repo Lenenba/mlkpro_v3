@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
+use App\Services\CreateStripeSubscriptionForTenant;
 use App\Services\PlatformAdminNotifier;
 use App\Services\StripeBillingService;
 use Illuminate\Http\JsonResponse;
@@ -18,13 +20,13 @@ class SubscriptionController extends Controller
     public function portal(Request $request)
     {
         $user = $request->user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
         $billingService = app(BillingSubscriptionService::class);
         if ($billingService->isStripe()) {
             $portalUrl = app(StripeBillingService::class)->createPortalSession($user, route('settings.billing.edit'));
-            if (!$portalUrl) {
+            if (! $portalUrl) {
                 if ($this->shouldReturnJson($request)) {
                     return response()->json([
                         'message' => 'Unable to open Stripe customer portal.',
@@ -52,7 +54,7 @@ class SubscriptionController extends Controller
         }
 
         $subscription = $user->subscription(Subscription::DEFAULT_TYPE);
-        if (!$subscription) {
+        if (! $subscription) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'No active subscription found.',
@@ -80,17 +82,17 @@ class SubscriptionController extends Controller
     public function paymentMethodTransaction(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
-        if (!$this->isPaddleProvider()) {
+        if (! $this->isPaddleProvider()) {
             return response()->json([
                 'message' => 'Billing provider is not Paddle.',
             ], 422);
         }
 
         $subscription = $user->subscription(Subscription::DEFAULT_TYPE);
-        if (!$subscription) {
+        if (! $subscription) {
             return response()->json([
                 'message' => 'No subscription found.',
             ], 422);
@@ -110,7 +112,7 @@ class SubscriptionController extends Controller
         }
 
         $transactionId = $transaction['id'] ?? $transaction['transaction_id'] ?? null;
-        if (!$transactionId) {
+        if (! $transactionId) {
             return response()->json([
                 'message' => 'Invalid Paddle transaction response.',
             ], 500);
@@ -124,18 +126,23 @@ class SubscriptionController extends Controller
     public function swap(Request $request)
     {
         $user = $request->user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
         $billingService = app(BillingSubscriptionService::class);
 
-        $plans = collect(config('billing.plans', []))
-            ->map(fn(array $plan, string $key) => array_merge(['key' => $key], $plan))
-            ->filter(fn(array $plan) => !empty($plan['price_id']))
-            ->values();
+        $plans = $billingService->isStripe()
+            ? collect(app(BillingPlanService::class)->plansForTenant($user))
+                ->filter(fn (array $plan) => ! empty($plan['price_id']))
+                ->values()
+            : collect(config('billing.plans', []))
+                ->map(fn (array $plan, string $key) => array_merge(['key' => $key], $plan))
+                ->filter(fn (array $plan) => ! empty($plan['price_id']))
+                ->values();
 
         $priceIds = $plans->pluck('price_id')->filter()->values()->all();
-        if (!$priceIds) {
+        $planKeys = $plans->pluck('key')->filter()->values()->all();
+        if (! $priceIds) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'No subscription plans are configured.',
@@ -151,14 +158,18 @@ class SubscriptionController extends Controller
         }
 
         $validated = $request->validate([
-            'price_id' => ['required', Rule::in($priceIds)],
+            'plan_key' => ['nullable', Rule::in($planKeys)],
+            'price_id' => ['nullable', Rule::in($priceIds)],
         ]);
 
-        $plan = $plans->firstWhere('price_id', $validated['price_id']);
+        $plan = ! empty($validated['plan_key'])
+            ? $plans->firstWhere('key', $validated['plan_key'])
+            : $plans->firstWhere('price_id', $validated['price_id'] ?? null);
+        $selectedPriceId = $plan['price_id'] ?? null;
         $planKey = $plan['key'] ?? null;
         $currentPriceId = $billingService->resolvePriceId($user);
 
-        if ($currentPriceId === $validated['price_id']) {
+        if ($selectedPriceId && $currentPriceId === $selectedPriceId) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'You are already on this plan.',
@@ -170,7 +181,7 @@ class SubscriptionController extends Controller
 
         if ($billingService->isStripe()) {
             $summary = $billingService->subscriptionSummary($user);
-            if (!$summary['active']) {
+            if (! $summary['active']) {
                 if ($this->shouldReturnJson($request)) {
                     return response()->json([
                         'message' => 'You do not have an active subscription.',
@@ -187,8 +198,8 @@ class SubscriptionController extends Controller
 
             try {
                 $seatQuantity = $billingService->resolveSeatQuantity($user);
-                $updated = app(StripeBillingService::class)->swapSubscription($user, $validated['price_id'], $seatQuantity);
-                if (!$updated) {
+                $updated = app(CreateStripeSubscriptionForTenant::class)->swap($user, (string) $planKey, $seatQuantity);
+                if (! $updated) {
                     throw new \RuntimeException('Stripe subscription update failed.');
                 }
             } catch (\Throwable $exception) {
@@ -206,7 +217,7 @@ class SubscriptionController extends Controller
             }
 
             $subscription = $user->subscription(Subscription::DEFAULT_TYPE);
-            if (!$subscription || !$subscription->active()) {
+            if (! $subscription || ! $subscription->active()) {
                 if ($this->shouldReturnJson($request)) {
                     return response()->json([
                         'message' => 'You do not have an active subscription.',
@@ -222,7 +233,7 @@ class SubscriptionController extends Controller
             }
 
             try {
-                $subscription->swap($validated['price_id']);
+                $subscription->swap((string) $selectedPriceId);
             } catch (\Throwable $exception) {
                 if ($this->shouldReturnJson($request)) {
                     return response()->json([
@@ -236,16 +247,16 @@ class SubscriptionController extends Controller
 
         $notifier = app(PlatformAdminNotifier::class);
         $notifier->notify('plan_changed', 'Plan changed', [
-            'intro' => ($user->company_name ?: $user->email) . ' changed their plan.',
+            'intro' => ($user->company_name ?: $user->email).' changed their plan.',
             'details' => [
                 ['label' => 'Company', 'value' => $user->company_name ?: 'Not set'],
                 ['label' => 'Owner', 'value' => $user->email ?: 'Unknown'],
                 ['label' => 'From', 'value' => $notifier->resolvePlanName($currentPriceId)],
-                ['label' => 'To', 'value' => $notifier->resolvePlanName($validated['price_id'])],
+                ['label' => 'To', 'value' => $notifier->resolvePlanName($selectedPriceId)],
             ],
             'actionUrl' => route('superadmin.tenants.show', $user->id),
             'actionLabel' => 'View tenant',
-            'reference' => 'plan:' . $user->id . ':' . $currentPriceId . ':' . $validated['price_id'],
+            'reference' => 'plan:'.$user->id.':'.$currentPriceId.':'.$selectedPriceId,
             'severity' => 'info',
         ]);
 
@@ -259,63 +270,65 @@ class SubscriptionController extends Controller
         return redirect()->route('settings.billing.edit', array_filter([
             'checkout' => 'swapped',
             'plan' => $planKey,
-        ], fn($value) => $value !== null && $value !== ''));
+        ], fn ($value) => $value !== null && $value !== ''));
     }
 
     public function checkout(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
 
         $billingService = app(BillingSubscriptionService::class);
-        if (!$billingService->isStripe()) {
+        if (! $billingService->isStripe()) {
             return response()->json([
                 'message' => 'Billing provider is not Stripe.',
             ], 422);
         }
-        if (!$billingService->providerReady()) {
+        if (! $billingService->providerReady()) {
             return response()->json([
                 'message' => 'Stripe is not configured.',
             ], 422);
         }
 
-        $plans = collect(config('billing.plans', []))
-            ->map(fn(array $plan, string $key) => array_merge(['key' => $key], $plan))
-            ->filter(fn(array $plan) => !empty($plan['price_id']))
+        $plans = collect(app(BillingPlanService::class)->plansForTenant($user))
+            ->filter(fn (array $plan) => ! empty($plan['price_id']))
             ->values();
 
         $priceIds = $plans->pluck('price_id')->filter()->values()->all();
+        $planKeys = $plans->pluck('key')->filter()->values()->all();
         $validated = $request->validate([
-            'price_id' => ['required', Rule::in($priceIds)],
+            'plan_key' => ['nullable', Rule::in($planKeys)],
+            'price_id' => ['nullable', Rule::in($priceIds)],
         ]);
 
-        $plan = $plans->firstWhere('price_id', $validated['price_id']);
+        $plan = ! empty($validated['plan_key'])
+            ? $plans->firstWhere('key', $validated['plan_key'])
+            : $plans->firstWhere('price_id', $validated['price_id'] ?? null);
         $planKey = $plan['key'] ?? null;
 
         $successUrl = route('settings.billing.edit', array_filter([
             'checkout' => 'success',
             'plan' => $planKey,
-        ], fn($value) => $value !== null && $value !== ''));
-        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
+        ], fn ($value) => $value !== null && $value !== ''));
+        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?').'session_id={CHECKOUT_SESSION_ID}';
 
         $cancelUrl = route('settings.billing.edit', ['checkout' => 'cancel']);
 
         try {
             $seatQuantity = $billingService->resolveSeatQuantity($user);
-            $session = app(StripeBillingService::class)->createCheckoutSession(
+            $session = app(CreateStripeSubscriptionForTenant::class)->checkoutSession(
                 $user,
-                $validated['price_id'],
+                (string) $planKey,
                 $successUrl,
                 $cancelUrl,
-                $planKey,
                 $seatQuantity
             );
         } catch (\Throwable $exception) {
             Log::error('Stripe checkout session creation failed.', [
                 'user_id' => $user->id,
-                'price_id' => $validated['price_id'],
+                'plan_key' => $planKey,
                 'message' => $exception->getMessage(),
             ]);
 
@@ -354,6 +367,7 @@ class SubscriptionController extends Controller
     private function isPaddleProvider(): bool
     {
         $provider = strtolower((string) config('billing.provider_effective', config('billing.provider', 'paddle')));
+
         return $provider === '' || $provider === 'paddle';
     }
 }

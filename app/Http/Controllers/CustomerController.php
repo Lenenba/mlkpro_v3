@@ -2,24 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Work;
-use App\Models\Quote;
-use App\Models\Task;
-use App\Models\Invoice;
-use App\Models\LoyaltyPointLedger;
-use App\Models\LoyaltyProgram;
-use App\Models\Payment;
-use App\Models\Sale;
-use App\Models\SaleItem;
+use App\Http\Requests\CustomerRequest;
+use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Role;
-use App\Models\VipTier;
-use App\Models\Request as LeadRequest;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
+use App\Queries\Customers\BuildCustomerDetailViewData;
+use App\Queries\Customers\CustomerReadSelects;
+use App\Support\Database\UserSelects;
 use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
-use App\Models\ActivityLog;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
@@ -27,13 +21,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use App\Http\Requests\CustomerRequest;
-use App\Services\CompanyFeatureService;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class CustomerController extends Controller
 {
     use AuthorizesRequests;
+
     /**
      * Display a listing of the customers.
      *
@@ -54,7 +46,7 @@ class CustomerController extends Controller
             'direction',
         ]);
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         [, $accountId] = $this->resolveCustomerAccount($user);
@@ -73,9 +65,9 @@ class CustomerController extends Controller
         $customers = (clone $baseQuery)
             ->with(['properties'])
             ->withCount([
-                'quotes as quotes_count' => fn($query) => $query->where('user_id', $accountId),
-                'works as works_count' => fn($query) => $query->where('user_id', $accountId),
-                'invoices as invoices_count' => fn($query) => $query->where('user_id', $accountId),
+                'quotes as quotes_count' => fn ($query) => $query->where('user_id', $accountId),
+                'works as works_count' => fn ($query) => $query->where('user_id', $accountId),
+                'invoices as invoices_count' => fn ($query) => $query->where('user_id', $accountId),
             ])
             ->orderBy($sort, $direction)
             ->simplePaginate(12)
@@ -87,10 +79,10 @@ class CustomerController extends Controller
             ->whereDate('created_at', '>=', $recentThreshold)
             ->count();
         $withQuotes = (clone $baseQuery)
-            ->whereHas('quotes', fn($query) => $query->where('user_id', $accountId))
+            ->whereHas('quotes', fn ($query) => $query->where('user_id', $accountId))
             ->count();
         $withWorks = (clone $baseQuery)
-            ->whereHas('works', fn($query) => $query->where('user_id', $accountId))
+            ->whereHas('works', fn ($query) => $query->where('user_id', $accountId))
             ->count();
         $activeCount = (clone $baseQuery)
             ->where(function ($query) use ($accountId, $recentThreshold) {
@@ -114,9 +106,9 @@ class CustomerController extends Controller
 
         $topCustomers = (clone $baseQuery)
             ->withCount([
-                'quotes as quotes_count' => fn($query) => $query->where('user_id', $accountId),
-                'works as works_count' => fn($query) => $query->where('user_id', $accountId),
-                'invoices as invoices_count' => fn($query) => $query->where('user_id', $accountId),
+                'quotes as quotes_count' => fn ($query) => $query->where('user_id', $accountId),
+                'works as works_count' => fn ($query) => $query->where('user_id', $accountId),
+                'invoices as invoices_count' => fn ($query) => $query->where('user_id', $accountId),
             ])
             ->orderByDesc('quotes_count')
             ->orderByDesc('works_count')
@@ -140,45 +132,29 @@ class CustomerController extends Controller
     public function options(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         [, $accountId] = $this->resolveCustomerAccount($user);
+        $scope = $this->normalizeCustomerOptionScope((string) $request->query('scope', 'full'));
 
-        $customers = Customer::byUser($accountId)
-            ->with(['properties' => function ($query) {
-                $query->orderByDesc('is_default')->orderBy('id');
-            }])
+        $customersQuery = Customer::byUser($accountId)
             ->orderBy('company_name')
-            ->orderBy('last_name')
-            ->get(['id', 'company_name', 'first_name', 'last_name', 'email', 'phone', 'logo', 'number']);
+            ->orderBy('last_name');
 
-        $payload = $customers->map(function ($customer) {
-            return [
-                'id' => $customer->id,
-                'company_name' => $customer->company_name,
-                'first_name' => $customer->first_name,
-                'last_name' => $customer->last_name,
-                'email' => $customer->email,
-                'phone' => $customer->phone,
-                'number' => $customer->number,
-                'logo' => $customer->logo,
-                'logo_url' => $customer->logo_url,
-                'properties' => $customer->properties->map(function ($property) {
-                    return [
-                        'id' => $property->id,
-                        'type' => $property->type,
-                        'is_default' => (bool) $property->is_default,
-                        'street1' => $property->street1,
-                        'street2' => $property->street2,
-                        'city' => $property->city,
-                        'state' => $property->state,
-                        'zip' => $property->zip,
-                        'country' => $property->country,
-                    ];
-                })->values(),
-            ];
-        })->values();
+        if ($this->customerOptionScopeIncludesProperties($scope)) {
+            $propertyColumns = $this->customerPropertyOptionColumns($scope);
+            $customersQuery->with(['properties' => function ($query) use ($propertyColumns) {
+                $query->select($propertyColumns)
+                    ->orderByDesc('is_default')
+                    ->orderBy('id');
+            }]);
+        }
+
+        $customers = $customersQuery->get($this->customerOptionColumns($scope));
+        $payload = $customers
+            ->map(fn (Customer $customer) => $this->mapCustomerOptionPayload($customer, $scope))
+            ->values();
 
         return response()->json([
             'customers' => $payload,
@@ -198,14 +174,13 @@ class CustomerController extends Controller
         }
 
         return $this->inertiaOrJson('Customer/Create', [
-            'customer' => new Customer(),
+            'customer' => new Customer,
         ]);
     }
 
     /**
      * Show the form for editing the specified customer.
      *
-     * @param  \App\Models\Customer  $customer
      * @return \Inertia\Response
      */
     public function edit(Customer $customer, ?Request $request)
@@ -227,7 +202,6 @@ class CustomerController extends Controller
     /**
      * Display the specified customer.
      *
-     * @param  \App\Models\Customer  $customer
      * @return \Inertia\Response
      */
     public function show(Customer $customer, ?Request $request)
@@ -241,530 +215,22 @@ class CustomerController extends Controller
             [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
         }
         $canEdit = $user ? $user->can('update', $customer) : false;
-        $isProductAccount = $accountOwner && $accountOwner->company_type === 'products';
-
-        // Valider les filtres uniquement si la requête contient des données
         $filters = $request?->only([
             'name',
             'status',
             'month',
         ]) ?? [];
 
-        $works = collect();
-        if (!$isProductAccount) {
-            // Fetch works for the retrieved customers
-            $works = Work::with(['products', 'ratings', 'customer'])
-                ->byCustomer($customer->id)
-                ->byUser($accountId)
-                ->filter($filters)
-                ->latest()
-                ->paginate(10)
-                ->withQueryString();
-        }
+        $props = app(BuildCustomerDetailViewData::class)->execute(
+            $customer,
+            $user,
+            $accountOwner,
+            $accountId,
+            $canEdit,
+            $filters
+        );
 
-        $customer->load(['properties', 'vipTier']);
-        if (!$isProductAccount) {
-            $customer->load([
-                'quotes' => fn($query) => $query->latest()->limit(10),
-                'works' => fn($query) => $query->with('invoice')->latest()->limit(10),
-                'requests' => fn($query) => $query->latest()->limit(10)->with('quote:id,number,status,customer_id'),
-                'invoices' => fn($query) => $query
-                    ->withSum(['payments as payments_sum_amount' => fn($paymentQuery) => $paymentQuery->whereIn('status', Payment::settledStatuses())], 'amount')
-                    ->latest()
-                    ->limit(10),
-            ]);
-        }
-
-        $sales = collect();
-        $salesSummary = null;
-        $salesInsights = null;
-        $topProducts = collect();
-        $featureService = app(CompanyFeatureService::class);
-        $campaignsFeatureEnabled = $accountOwner
-            ? $featureService->hasFeature($accountOwner, 'campaigns')
-            : false;
-        $canManageMailingLists = false;
-        if ($campaignsFeatureEnabled && $user) {
-            if ((int) $user->id === (int) ($accountOwner?->id ?? 0)) {
-                $canManageMailingLists = true;
-            } else {
-                $membership = $user->relationLoaded('teamMembership')
-                    ? $user->teamMembership
-                    : $user->teamMembership()->first();
-                $canManageMailingLists = (bool) (
-                    $membership?->hasPermission('campaigns.manage')
-                    || $membership?->hasPermission('sales.manage')
-                );
-            }
-        }
-        $loyaltyFeatureEnabled = $accountOwner
-            ? $featureService->hasFeature($accountOwner, 'loyalty')
-            : false;
-        $loyalty = [
-            'feature_enabled' => $loyaltyFeatureEnabled,
-            'enabled' => false,
-            'label' => 'points',
-            'balance' => (int) ($customer->loyalty_points_balance ?? 0),
-            'rate' => 1.0,
-            'minimum_spend' => 0.0,
-            'rounding_mode' => 'floor',
-            'recent' => [],
-        ];
-
-        if ($loyaltyFeatureEnabled) {
-            $loyaltyProgram = LoyaltyProgram::query()
-                ->where('user_id', $accountId)
-                ->first();
-
-            if ($loyaltyProgram) {
-                $loyalty['enabled'] = (bool) $loyaltyProgram->is_enabled;
-                $loyalty['label'] = (string) ($loyaltyProgram->points_label ?: 'points');
-                $loyalty['rate'] = (float) $loyaltyProgram->points_per_currency_unit;
-                $loyalty['minimum_spend'] = (float) $loyaltyProgram->minimum_spend;
-                $loyalty['rounding_mode'] = (string) $loyaltyProgram->rounding_mode;
-            }
-
-            $loyalty['recent'] = LoyaltyPointLedger::query()
-                ->where('customer_id', $customer->id)
-                ->where('user_id', $accountId)
-                ->latest('processed_at')
-                ->latest('id')
-                ->limit(8)
-                ->get([
-                    'id',
-                    'payment_id',
-                    'event',
-                    'points',
-                    'amount',
-                    'processed_at',
-                    'created_at',
-                ])
-                ->map(fn($entry) => [
-                    'id' => $entry->id,
-                    'payment_id' => $entry->payment_id,
-                    'event' => $entry->event,
-                    'points' => (int) $entry->points,
-                    'amount' => (float) $entry->amount,
-                    'processed_at' => $entry->processed_at ?: $entry->created_at,
-                ])
-                ->values();
-        }
-
-        if ($accountOwner && $accountOwner->company_type === 'products') {
-            $salesQuery = Sale::query()
-                ->where('user_id', $accountId)
-                ->where('customer_id', $customer->id);
-
-            $sales = (clone $salesQuery)
-                ->latest()
-                ->limit(10)
-                ->get(['id', 'number', 'status', 'total', 'created_at']);
-
-            $salesCount = (clone $salesQuery)->count();
-            $salesTotal = (float) (clone $salesQuery)->sum('total');
-            $salesPaid = (float) (clone $salesQuery)->where('status', Sale::STATUS_PAID)->sum('total');
-
-            $salesSummary = [
-                'count' => $salesCount,
-                'total' => $salesTotal,
-                'paid' => $salesPaid,
-            ];
-
-            $lastPurchaseAt = (clone $salesQuery)->latest()->value('created_at');
-            $daysSinceLast = $lastPurchaseAt ? now()->diffInDays($lastPurchaseAt) : null;
-            $recent30Count = (clone $salesQuery)
-                ->where('created_at', '>=', now()->subDays(30))
-                ->count();
-
-            $saleDates = (clone $salesQuery)
-                ->orderBy('created_at')
-                ->get(['created_at'])
-                ->pluck('created_at')
-                ->filter();
-
-            $purchaseFrequency = null;
-            $preferredDay = null;
-            $preferredPeriod = null;
-
-            if ($saleDates->count() > 1) {
-                $intervals = [];
-                for ($i = 1; $i < $saleDates->count(); $i++) {
-                    $current = $saleDates[$i];
-                    $previous = $saleDates[$i - 1];
-                    if ($current && $previous) {
-                        $intervals[] = $current->diffInDays($previous);
-                    }
-                }
-                if ($intervals) {
-                    $purchaseFrequency = round(array_sum($intervals) / count($intervals), 1);
-                }
-            }
-
-            if ($saleDates->isNotEmpty()) {
-                $dayLabels = [
-                    'Mon' => 'Lun',
-                    'Tue' => 'Mar',
-                    'Wed' => 'Mer',
-                    'Thu' => 'Jeu',
-                    'Fri' => 'Ven',
-                    'Sat' => 'Sam',
-                    'Sun' => 'Dim',
-                ];
-                $dayCounts = [];
-                $periodCounts = [];
-                foreach ($saleDates as $date) {
-                    if (!$date) {
-                        continue;
-                    }
-                    $dayKey = $date->format('D');
-                    $dayCounts[$dayKey] = ($dayCounts[$dayKey] ?? 0) + 1;
-
-                    $hour = (int) $date->format('H');
-                    if ($hour >= 5 && $hour < 12) {
-                        $periodKey = 'morning';
-                    } elseif ($hour >= 12 && $hour < 17) {
-                        $periodKey = 'afternoon';
-                    } elseif ($hour >= 17 && $hour < 21) {
-                        $periodKey = 'evening';
-                    } else {
-                        $periodKey = 'night';
-                    }
-                    $periodCounts[$periodKey] = ($periodCounts[$periodKey] ?? 0) + 1;
-                }
-
-                if ($dayCounts) {
-                    arsort($dayCounts);
-                    $preferredDayKey = array_key_first($dayCounts);
-                    $preferredDay = $dayLabels[$preferredDayKey] ?? $preferredDayKey;
-                }
-
-                if ($periodCounts) {
-                    $periodLabels = [
-                        'morning' => 'Matin',
-                        'afternoon' => 'Apres-midi',
-                        'evening' => 'Soiree',
-                        'night' => 'Nuit',
-                    ];
-                    arsort($periodCounts);
-                    $preferredPeriodKey = array_key_first($periodCounts);
-                    $preferredPeriod = $periodLabels[$preferredPeriodKey] ?? $preferredPeriodKey;
-                }
-            }
-
-            $itemsQuery = SaleItem::query()
-                ->whereHas('sale', function ($query) use ($accountId, $customer) {
-                    $query->where('user_id', $accountId)
-                        ->where('customer_id', $customer->id);
-                });
-
-            $distinctProducts = (clone $itemsQuery)->distinct('product_id')->count('product_id');
-            $totalUnits = (int) (clone $itemsQuery)->sum('quantity');
-            $averageItems = $salesCount > 0 ? round($totalUnits / $salesCount, 1) : 0;
-
-            $topProducts = (clone $itemsQuery)
-                ->select('product_id', DB::raw('SUM(quantity) as quantity'), DB::raw('SUM(total) as total'))
-                ->whereNotNull('product_id')
-                ->groupBy('product_id')
-                ->orderByDesc('quantity')
-                ->limit(5)
-                ->with('product:id,name,sku,image')
-                ->get()
-                ->map(fn($row) => [
-                    'id' => $row->product_id,
-                    'name' => $row->product?->name,
-                    'sku' => $row->product?->sku,
-                    'image' => $row->product?->image_url ?? $row->product?->image,
-                    'quantity' => (int) $row->quantity,
-                    'total' => (float) $row->total,
-                ])
-                ->values();
-
-            $salesInsights = [
-                'average_order_value' => $salesCount > 0 ? round($salesTotal / $salesCount, 2) : 0,
-                'average_items' => $averageItems,
-                'last_purchase_at' => $lastPurchaseAt,
-                'days_since_last_purchase' => $daysSinceLast,
-                'purchase_frequency_days' => $purchaseFrequency,
-                'recent_30_count' => $recent30Count,
-                'preferred_day' => $preferredDay,
-                'preferred_period' => $preferredPeriod,
-                'distinct_products' => $distinctProducts,
-            ];
-        }
-
-        $stats = [];
-        $tasks = collect();
-        $upcomingJobs = collect();
-        $recentPayments = collect();
-        $billing = [
-            'total_invoiced' => 0,
-            'total_paid' => 0,
-            'balance_due' => 0,
-        ];
-        $activity = collect();
-        $vipTiers = collect();
-        if ($campaignsFeatureEnabled) {
-            $vipTiers = VipTier::query()
-                ->where('user_id', $accountId)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get(['id', 'code', 'name', 'perks', 'is_active']);
-        }
-
-        if (!$isProductAccount) {
-            $stats = [
-                'active_works' => Work::query()
-                    ->where('customer_id', $customer->id)
-                    ->where('user_id', $accountId)
-                    ->whereDate('end_date', '>=', now()->toDateString())
-                    ->count(),
-                'requests' => LeadRequest::query()
-                    ->where('customer_id', $customer->id)
-                    ->where('user_id', $accountId)
-                    ->count(),
-                'quotes' => Quote::query()
-                    ->where('customer_id', $customer->id)
-                    ->where('user_id', $accountId)
-                    ->whereNull('archived_at')
-                    ->count(),
-                'jobs' => Work::query()
-                    ->where('customer_id', $customer->id)
-                    ->where('user_id', $accountId)
-                    ->count(),
-                'invoices' => Invoice::query()
-                    ->where('customer_id', $customer->id)
-                    ->where('user_id', $accountId)
-                    ->count(),
-            ];
-
-            $tasks = Task::query()
-                ->forAccount($accountId)
-                ->where('customer_id', $customer->id)
-                ->with(['assignee.user:id,name'])
-                ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
-                ->orderBy('due_date')
-                ->orderByDesc('created_at')
-                ->limit(8)
-                ->get([
-                    'id',
-                    'title',
-                    'status',
-                    'due_date',
-                    'completed_at',
-                    'assigned_team_member_id',
-                ])
-                ->map(fn($task) => [
-                    'id' => $task->id,
-                    'title' => $task->title,
-                    'status' => $task->status,
-                    'due_date' => $task->due_date,
-                    'completed_at' => $task->completed_at,
-                    'assignee' => $task->assignee?->user?->name,
-                ])
-                ->values();
-
-            $upcomingJobs = Work::query()
-                ->where('customer_id', $customer->id)
-                ->where('user_id', $accountId)
-                ->whereDate('start_date', '>=', now()->toDateString())
-                ->orderBy('start_date')
-                ->limit(8)
-                ->get([
-                    'id',
-                    'job_title',
-                    'status',
-                    'start_date',
-                    'end_date',
-                    'created_at',
-                ])
-                ->map(fn($work) => [
-                    'id' => $work->id,
-                    'job_title' => $work->job_title,
-                    'status' => $work->status,
-                    'start_date' => $work->start_date,
-                    'end_date' => $work->end_date,
-                    'created_at' => $work->created_at,
-                ])
-                ->values();
-
-            $recentPayments = Payment::query()
-                ->where('customer_id', $customer->id)
-                ->where('user_id', $accountId)
-                ->with('invoice:id,number')
-                ->orderByRaw('CASE WHEN paid_at IS NULL THEN 1 ELSE 0 END')
-                ->orderByDesc('paid_at')
-                ->orderByDesc('created_at')
-                ->limit(8)
-                ->get([
-                    'id',
-                    'invoice_id',
-                    'amount',
-                    'method',
-                    'status',
-                    'reference',
-                    'paid_at',
-                    'created_at',
-                ])
-                ->map(fn($payment) => [
-                    'id' => $payment->id,
-                    'amount' => (float) $payment->amount,
-                    'method' => $payment->method,
-                    'status' => $payment->status,
-                    'reference' => $payment->reference,
-                    'paid_at' => $payment->paid_at,
-                    'created_at' => $payment->created_at,
-                    'invoice' => $payment->invoice ? [
-                        'id' => $payment->invoice_id,
-                        'number' => $payment->invoice->number,
-                    ] : null,
-                ])
-                ->values();
-
-            $totalInvoiced = (float) Invoice::query()
-                ->where('customer_id', $customer->id)
-                ->where('user_id', $accountId)
-                ->whereNotIn('status', ['void'])
-                ->sum('total');
-            $totalPaid = (float) Payment::query()
-                ->where('customer_id', $customer->id)
-                ->where('user_id', $accountId)
-                ->sum('amount');
-
-            $billing = [
-                'total_invoiced' => $totalInvoiced,
-                'total_paid' => $totalPaid,
-                'balance_due' => max(0, round($totalInvoiced - $totalPaid, 2)),
-            ];
-
-            $subjectLabels = [
-                Quote::class => 'Quote',
-                Work::class => 'Job',
-                Invoice::class => 'Invoice',
-                Payment::class => 'Payment',
-                Customer::class => 'Customer',
-            ];
-
-            $quoteIds = Quote::query()
-                ->where('customer_id', $customer->id)
-                ->where('user_id', $accountId)
-                ->latest()
-                ->limit(250)
-                ->pluck('id');
-            $workIds = Work::query()
-                ->where('customer_id', $customer->id)
-                ->where('user_id', $accountId)
-                ->latest()
-                ->limit(250)
-                ->pluck('id');
-            $invoiceIds = Invoice::query()
-                ->where('customer_id', $customer->id)
-                ->where('user_id', $accountId)
-                ->latest()
-                ->limit(250)
-                ->pluck('id');
-            $paymentIds = Payment::query()
-                ->where('customer_id', $customer->id)
-                ->where('user_id', $accountId)
-                ->latest()
-                ->limit(250)
-                ->pluck('id');
-
-            $activity = ActivityLog::query()
-                ->where(function ($query) use ($customer, $quoteIds, $workIds, $invoiceIds, $paymentIds) {
-                    $query->where(function ($sub) use ($customer) {
-                        $sub->where('subject_type', Customer::class)
-                            ->where('subject_id', $customer->id);
-                    });
-
-                    if ($quoteIds->isNotEmpty()) {
-                        $query->orWhere(function ($sub) use ($quoteIds) {
-                            $sub->where('subject_type', Quote::class)
-                                ->whereIn('subject_id', $quoteIds);
-                        });
-                    }
-
-                    if ($workIds->isNotEmpty()) {
-                        $query->orWhere(function ($sub) use ($workIds) {
-                            $sub->where('subject_type', Work::class)
-                                ->whereIn('subject_id', $workIds);
-                        });
-                    }
-
-                    if ($invoiceIds->isNotEmpty()) {
-                        $query->orWhere(function ($sub) use ($invoiceIds) {
-                            $sub->where('subject_type', Invoice::class)
-                                ->whereIn('subject_id', $invoiceIds);
-                        });
-                    }
-
-                    if ($paymentIds->isNotEmpty()) {
-                        $query->orWhere(function ($sub) use ($paymentIds) {
-                            $sub->where('subject_type', Payment::class)
-                                ->whereIn('subject_id', $paymentIds);
-                        });
-                    }
-                })
-                ->latest()
-                ->limit(12)
-                ->get(['id', 'action', 'description', 'subject_type', 'subject_id', 'created_at'])
-                ->map(function ($log) use ($subjectLabels) {
-                    return [
-                        'id' => $log->id,
-                        'action' => $log->action,
-                        'description' => $log->description,
-                        'subject_type' => $log->subject_type,
-                        'subject_id' => $log->subject_id,
-                        'subject' => $subjectLabels[$log->subject_type] ?? 'Item',
-                        'created_at' => $log->created_at,
-                    ];
-                })
-                ->values();
-        } else {
-            $activity = ActivityLog::query()
-                ->where('subject_type', Customer::class)
-                ->where('subject_id', $customer->id)
-                ->latest()
-                ->limit(12)
-                ->get(['id', 'action', 'description', 'subject_type', 'subject_id', 'created_at'])
-                ->map(function ($log) {
-                    return [
-                        'id' => $log->id,
-                        'action' => $log->action,
-                        'description' => $log->description,
-                        'subject_type' => $log->subject_type,
-                        'subject_id' => $log->subject_id,
-                        'subject' => 'Customer',
-                        'created_at' => $log->created_at,
-                    ];
-                })
-                ->values();
-        }
-
-        return $this->inertiaOrJson('Customer/Show', [
-            'customer' => $customer,
-            'canEdit' => $canEdit,
-            'works' => $works,
-            'filters' => $filters,
-            'stats' => $stats,
-            'sales' => $sales,
-            'salesSummary' => $salesSummary,
-            'salesInsights' => $salesInsights,
-            'topProducts' => $topProducts,
-            'schedule' => [
-                'tasks' => $tasks,
-                'upcomingJobs' => $upcomingJobs,
-            ],
-            'billing' => [
-                'summary' => $billing,
-                'recentPayments' => $recentPayments,
-            ],
-            'loyalty' => $loyalty,
-            'activity' => $activity,
-            'lastInteraction' => $activity->first(),
-            'vipTiers' => $vipTiers,
-            'campaignsFeatureEnabled' => $campaignsFeatureEnabled,
-            'canManageMailingLists' => $canManageMailingLists,
-        ]);
+        return $this->inertiaOrJson('Customer/Show', $props);
     }
 
     public function updateNotes(Request $request, Customer $customer)
@@ -807,7 +273,7 @@ class CustomerController extends Controller
         $raw = $validated['tags'] ?? '';
         $tags = array_filter(array_map('trim', explode(',', $raw)));
         $tags = array_values(array_unique($tags));
-        $tags = array_map(fn($tag) => mb_substr($tag, 0, 30), $tags);
+        $tags = array_map(fn ($tag) => mb_substr($tag, 0, 30), $tags);
         $tags = array_slice($tags, 0, 20);
 
         $customer->update([
@@ -881,7 +347,7 @@ class CustomerController extends Controller
     public function store(CustomerRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
@@ -889,7 +355,7 @@ class CustomerController extends Controller
         $validated = $request->validated();
         $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
         $logoPath = FileHandler::handleImageUpload('customers', $request, 'logo', $defaultLogo);
-        if (!empty($validated['logo_icon']) && !$request->hasFile('logo')) {
+        if (! empty($validated['logo_icon']) && ! $request->hasFile('logo')) {
             $logoPath = $validated['logo_icon'];
         }
         $validated['logo'] = $logoPath;
@@ -917,10 +383,10 @@ class CustomerController extends Controller
         });
 
         // Add properties if provided
-        if (!empty($validated['properties'])) {
+        if (! empty($validated['properties'])) {
             $propertyPayload = $validated['properties'];
             $propertyPayload['type'] = $propertyPayload['type'] ?? 'physical';
-            if (!empty($propertyPayload['city'])) {
+            if (! empty($propertyPayload['city'])) {
                 $propertyPayload['is_default'] = true;
                 $customer->properties()->create($propertyPayload);
             }
@@ -945,7 +411,7 @@ class CustomerController extends Controller
         }
 
         if ($this->shouldReturnJson($request)) {
-            if (!$inviteQueued) {
+            if (! $inviteQueued) {
                 return response()->json([
                     'message' => 'Customer created, but the invite email could not be sent.',
                     'warning' => true,
@@ -961,7 +427,7 @@ class CustomerController extends Controller
             ], 201);
         }
 
-        if (!$inviteQueued) {
+        if (! $inviteQueued) {
             return redirect()->route('customer.index')->with('warning', 'Customer created, but the invite email could not be sent.');
         }
 
@@ -974,7 +440,7 @@ class CustomerController extends Controller
     public function storeQuick(CustomerRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         [$accountOwner, $accountId] = $this->resolveCustomerAccount($user, true);
@@ -982,7 +448,7 @@ class CustomerController extends Controller
         $validated = $request->validated();
         $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
         $logoPath = FileHandler::handleImageUpload('customers', $request, 'logo', $defaultLogo);
-        if (!empty($validated['logo_icon']) && !$request->hasFile('logo')) {
+        if (! empty($validated['logo_icon']) && ! $request->hasFile('logo')) {
             $logoPath = $validated['logo_icon'];
         }
         $validated['logo'] = $logoPath;
@@ -1010,10 +476,10 @@ class CustomerController extends Controller
         });
 
         $property = null;
-        if (!empty($validated['properties'])) {
+        if (! empty($validated['properties'])) {
             $propertyPayload = $validated['properties'];
             $propertyPayload['type'] = $propertyPayload['type'] ?? 'physical';
-            if (!empty($propertyPayload['city'])) {
+            if (! empty($propertyPayload['city'])) {
                 $propertyPayload['is_default'] = true;
                 $property = $customer->properties()->create($propertyPayload);
             }
@@ -1088,13 +554,13 @@ class CustomerController extends Controller
             $defaultLogo,
             $customer->logo
         );
-        if (!empty($validated['logo_icon']) && !$request->hasFile('logo')) {
+        if (! empty($validated['logo_icon']) && ! $request->hasFile('logo')) {
             if (
                 $customer->logo
                 && $customer->logo !== $validated['logo_icon']
-                && !str_starts_with($customer->logo, '/')
-                && !str_starts_with($customer->logo, 'http://')
-                && !str_starts_with($customer->logo, 'https://')
+                && ! str_starts_with($customer->logo, '/')
+                && ! str_starts_with($customer->logo, 'http://')
+                && ! str_starts_with($customer->logo, 'https://')
                 && $customer->logo !== $defaultLogo
             ) {
                 FileHandler::deleteFile($customer->logo, $defaultLogo);
@@ -1112,15 +578,16 @@ class CustomerController extends Controller
 
         $customer->update($validated);
 
-        if (!empty($validated['properties'])) {
+        if (! empty($validated['properties'])) {
             $propertyPayload = $validated['properties'];
             $propertyPayload['type'] = $propertyPayload['type'] ?? 'physical';
 
-            if (!empty($propertyPayload['city'])) {
+            if (! empty($propertyPayload['city'])) {
                 DB::transaction(function () use ($customer, $propertyPayload) {
                     $defaultProperty = $customer->properties()->where('is_default', true)->first();
                     if ($defaultProperty) {
                         $defaultProperty->update($propertyPayload);
+
                         return;
                     }
 
@@ -1128,6 +595,7 @@ class CustomerController extends Controller
                     if ($fallbackProperty) {
                         $customer->properties()->update(['is_default' => false]);
                         $fallbackProperty->update(array_merge($propertyPayload, ['is_default' => true]));
+
                         return;
                     }
 
@@ -1182,7 +650,7 @@ class CustomerController extends Controller
     public function bulk(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         [, $accountId] = $this->resolveCustomerAccount($user);
@@ -1297,10 +765,10 @@ class CustomerController extends Controller
         $owner = $ownerId === $user->id
             ? $user
             : User::query()
-                ->select(['id', 'company_type', 'company_name', 'company_logo'])
+                ->select(UserSelects::companySummary())
                 ->find($ownerId);
 
-        if (!$owner) {
+        if (! $owner) {
             abort(403);
         }
 
@@ -1312,7 +780,7 @@ class CustomerController extends Controller
                     : $user->teamMembership()->first();
                 $canManage = $membership?->hasPermission('sales.manage') ?? false;
                 $canPos = $allowPos ? ($membership?->hasPermission('sales.pos') ?? false) : false;
-                if (!$membership || (!$canManage && !$canPos)) {
+                if (! $membership || (! $canManage && ! $canPos)) {
                     abort(403);
                 }
             }
@@ -1330,9 +798,81 @@ class CustomerController extends Controller
         )->id;
     }
 
+    private function normalizeCustomerOptionScope(string $scope): string
+    {
+        return in_array($scope, ['full', 'request', 'quote', 'audience'], true)
+            ? $scope
+            : 'full';
+    }
+
+    private function customerOptionScopeIncludesProperties(string $scope): bool
+    {
+        return in_array($scope, ['full', 'quote'], true);
+    }
+
+    private function customerOptionColumns(string $scope): array
+    {
+        return CustomerReadSelects::optionCustomerColumns($scope);
+    }
+
+    private function customerPropertyOptionColumns(string $scope): array
+    {
+        return CustomerReadSelects::optionPropertyColumns($scope);
+    }
+
+    private function mapCustomerOptionPayload(Customer $customer, string $scope): array
+    {
+        $payload = [
+            'id' => $customer->id,
+            'company_name' => $customer->company_name,
+            'first_name' => $customer->first_name,
+            'last_name' => $customer->last_name,
+            'email' => $customer->email,
+            'phone' => $customer->phone,
+        ];
+
+        if (in_array($scope, ['request', 'quote', 'full'], true)) {
+            $payload['number'] = $customer->number;
+            $payload['logo'] = $customer->logo;
+            $payload['logo_url'] = $customer->logo_url;
+        }
+
+        if (! $this->customerOptionScopeIncludesProperties($scope)) {
+            return $payload;
+        }
+
+        $properties = $customer->properties ?? collect();
+        $payload['properties'] = $properties
+            ->map(function ($property) use ($scope) {
+                if ($scope === 'quote') {
+                    return [
+                        'id' => $property->id,
+                        'is_default' => (bool) $property->is_default,
+                        'street1' => $property->street1,
+                        'city' => $property->city,
+                    ];
+                }
+
+                return [
+                    'id' => $property->id,
+                    'type' => $property->type,
+                    'is_default' => (bool) $property->is_default,
+                    'street1' => $property->street1,
+                    'street2' => $property->street2,
+                    'city' => $property->city,
+                    'state' => $property->state,
+                    'zip' => $property->zip,
+                    'country' => $property->country,
+                ];
+            })
+            ->values();
+
+        return $payload;
+    }
+
     private function createPortalUser(array $validated, int $roleId): User
     {
-        $name = trim(($validated['first_name'] ?? '') . ' ' . ($validated['last_name'] ?? ''));
+        $name = trim(($validated['first_name'] ?? '').' '.($validated['last_name'] ?? ''));
         if ($name === '') {
             $name = $validated['company_name'] ?? $validated['email'];
         }

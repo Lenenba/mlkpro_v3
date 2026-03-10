@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api\SuperAdmin;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\PlanScan;
-use App\Models\Product;
 use App\Models\PlatformSetting;
+use App\Models\Product;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
@@ -14,9 +14,10 @@ use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
+use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
 use App\Services\CompanyFeatureService;
-use App\Services\StripeBillingService;
+use App\Services\CreateStripeSubscriptionForTenant;
 use App\Support\PlanDisplay;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\Request;
@@ -67,7 +68,7 @@ class TenantController extends BaseController
         $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
         $query = User::query()->where('role_id', $ownerRoleId);
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($builder) use ($search) {
                 $builder->where('company_name', 'like', "%{$search}%")
@@ -76,7 +77,7 @@ class TenantController extends BaseController
             });
         }
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             if ($filters['status'] === 'suspended') {
                 $query->where('is_suspended', true);
             } elseif ($filters['status'] === 'active') {
@@ -84,23 +85,16 @@ class TenantController extends BaseController
             }
         }
 
-        if (!empty($filters['plan'])) {
+        if (! empty($filters['plan'])) {
             $this->applyPlanFilter($query, (string) $filters['plan']);
         }
 
         $tenants = $query->orderByDesc('created_at')->paginate(15);
         $subscriptionMap = $this->subscriptionMap($tenants->pluck('id'));
-        $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
-
-        $tenants->through(function (User $tenant) use ($subscriptionMap, $planDisplayOverrides) {
+        $tenants->through(function (User $tenant) use ($subscriptionMap) {
             $subscription = $subscriptionMap[$tenant->id] ?? null;
             $planKey = $this->resolvePlanKey($subscription?->price_id);
-            $planName = null;
-            if ($planKey) {
-                $planConfig = config('billing.plans.' . $planKey, []);
-                $display = PlanDisplay::merge($planConfig, $planKey, $planDisplayOverrides);
-                $planName = $display['name'];
-            }
+            $planName = app(BillingPlanService::class)->resolveByStripePriceId($subscription?->price_id)?->planName;
 
             return [
                 'id' => $tenant->id,
@@ -134,13 +128,7 @@ class TenantController extends BaseController
 
         $subscription = $this->subscriptionMap(collect([$tenant->id]))[$tenant->id] ?? null;
         $planKey = $this->resolvePlanKey($subscription?->price_id);
-        $planName = null;
-        if ($planKey) {
-            $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
-            $planConfig = config('billing.plans.' . $planKey, []);
-            $display = PlanDisplay::merge($planConfig, $planKey, $planDisplayOverrides);
-            $planName = $display['name'];
-        }
+        $planName = app(BillingPlanService::class)->resolveByStripePriceId($subscription?->price_id)?->planName;
         $stats = $this->buildStats($tenant);
         $featureFlags = $this->buildFeatureFlags($tenant, $subscription);
         $usageLimits = $this->buildUsageLimits($tenant, $subscription, $stats);
@@ -152,13 +140,14 @@ class TenantController extends BaseController
                 'email' => $tenant->email,
                 'company_name' => $tenant->company_name,
                 'company_type' => $tenant->company_type,
+                'currency_code' => $tenant->businessCurrencyCode(),
                 'created_at' => $tenant->created_at,
                 'is_suspended' => (bool) $tenant->is_suspended,
                 'onboarding_completed' => (bool) $tenant->onboarding_completed_at,
                 'security' => [
                     'two_factor_exempt' => (bool) $tenant->two_factor_exempt,
                     'two_factor_method' => $tenant->twoFactorMethod(),
-                    'two_factor_has_app' => !empty($tenant->two_factor_secret),
+                    'two_factor_has_app' => ! empty($tenant->two_factor_secret),
                 ],
                 'subscription' => ($subscription || $planKey) ? [
                     'status' => $subscription?->status ?? 'free',
@@ -279,42 +268,45 @@ class TenantController extends BaseController
         $this->ensureOwner($tenant);
 
         $billingService = app(BillingSubscriptionService::class);
-        if (!$billingService->isStripe()) {
+        if (! $billingService->isStripe()) {
             return $this->jsonResponse([
                 'message' => 'Billing provider is not Stripe.',
             ], 422);
         }
-        if (!$billingService->providerReady()) {
+        if (! $billingService->providerReady()) {
             return $this->jsonResponse([
                 'message' => 'Stripe is not configured.',
             ], 422);
         }
 
-        $plans = collect(config('billing.plans', []))
-            ->map(fn(array $plan, string $key) => array_merge(['key' => $key], $plan))
-            ->filter(fn(array $plan) => !empty($plan['price_id']))
+        $plans = collect(app(BillingPlanService::class)->plansForTenant($tenant))
+            ->filter(fn (array $plan) => ! empty($plan['price_id']))
             ->values();
 
         $priceIds = $plans->pluck('price_id')->filter()->values()->all();
-        if (!$priceIds) {
+        $planKeys = $plans->pluck('key')->filter()->values()->all();
+        if (! $priceIds) {
             return $this->jsonResponse([
                 'message' => 'No subscription plans are configured.',
                 'errors' => [
-                    'price_id' => ['No subscription plans are configured.'],
+                    'plan_key' => ['No subscription plans are configured.'],
                 ],
             ], 422);
         }
 
         $validated = $request->validate([
+            'plan_key' => ['nullable', Rule::in($planKeys)],
             'price_id' => ['required', Rule::in($priceIds)],
             'comped' => ['sometimes', 'boolean'],
         ]);
 
-        $plan = $plans->firstWhere('price_id', $validated['price_id']);
+        $plan = ! empty($validated['plan_key'])
+            ? $plans->firstWhere('key', $validated['plan_key'])
+            : $plans->firstWhere('price_id', $validated['price_id']);
         $planKey = $plan['key'] ?? null;
         $comped = (bool) ($validated['comped'] ?? false);
 
-        if ($comped && !config('services.stripe.comped_coupon_id')) {
+        if ($comped && ! config('services.stripe.comped_coupon_id')) {
             return $this->jsonResponse([
                 'message' => 'Comped coupon is not configured.',
                 'errors' => [
@@ -325,9 +317,9 @@ class TenantController extends BaseController
 
         try {
             $seatQuantity = app(BillingSubscriptionService::class)->resolveSeatQuantity($tenant);
-            $updated = app(StripeBillingService::class)
-                ->assignPlan($tenant, $validated['price_id'], $comped, $planKey, $seatQuantity);
-            if (!$updated) {
+            $updated = app(CreateStripeSubscriptionForTenant::class)
+                ->assign($tenant, (string) $planKey, $comped, $seatQuantity);
+            if (! $updated) {
                 throw new \RuntimeException('Stripe subscription update failed.');
             }
         } catch (\Throwable $exception) {
@@ -338,7 +330,7 @@ class TenantController extends BaseController
 
         $this->logAudit($request, 'tenant.plan_updated', [
             'tenant_id' => $tenant->id,
-            'price_id' => $validated['price_id'],
+            'price_id' => $plan['price_id'] ?? null,
             'plan_key' => $planKey,
             'comped' => $comped,
         ]);
@@ -529,9 +521,10 @@ class TenantController extends BaseController
 
     private function resolvePlanKey(?string $priceId): ?string
     {
-        foreach (config('billing.plans', []) as $key => $plan) {
-            if ($priceId && !empty($plan['price_id']) && $plan['price_id'] === $priceId) {
-                return $key;
+        if ($priceId) {
+            $planCode = app(BillingPlanService::class)->resolvePlanCodeByStripePriceId($priceId);
+            if ($planCode) {
+                return $planCode;
             }
         }
 
@@ -556,13 +549,14 @@ class TenantController extends BaseController
     private function planOptions(): array
     {
         $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
+
         return collect(config('billing.plans', []))
             ->map(function (array $plan, string $key) use ($planDisplayOverrides) {
                 $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
+
                 return [
                     'key' => $key,
                     'name' => $display['name'],
-                    'price_id' => $plan['price_id'] ?? null,
                 ];
             })
             ->values()
@@ -576,35 +570,23 @@ class TenantController extends BaseController
             return;
         }
 
-        $plans = config('billing.plans', []);
-        $planKey = array_key_exists($planFilter, $plans) ? $planFilter : null;
-        $priceId = $planKey ? ($plans[$planKey]['price_id'] ?? null) : null;
-
-        if (!$planKey) {
-            foreach ($plans as $key => $plan) {
-                if (!empty($plan['price_id']) && $plan['price_id'] === $planFilter) {
-                    $planKey = $key;
-                    $priceId = $planFilter;
-                    break;
-                }
-            }
-        }
-
-        if (!$priceId && !$planKey) {
-            $priceId = $planFilter;
-        }
+        $planService = app(BillingPlanService::class);
+        $planKey = array_key_exists($planFilter, config('billing.plans', []))
+            ? $planFilter
+            : $planService->resolvePlanCodeByStripePriceId($planFilter);
+        $priceIds = $planKey ? $planService->stripePriceIdsForPlan($planKey) : [$planFilter];
 
         $billingService = app(BillingSubscriptionService::class);
         if ($billingService->isStripe()) {
             if ($planKey === 'free') {
-                $query->where(function ($builder) use ($priceId) {
+                $query->where(function ($builder) use ($priceIds) {
                     $builder->whereNotIn('id', DB::table('stripe_subscriptions')
                         ->select('user_id'));
 
-                    if ($priceId) {
+                    if ($priceIds) {
                         $builder->orWhereIn('id', DB::table('stripe_subscriptions')
                             ->select('user_id')
-                            ->where('price_id', $priceId)
+                            ->whereIn('price_id', $priceIds)
                             ->distinct());
                     }
                 });
@@ -612,26 +594,28 @@ class TenantController extends BaseController
                 return;
             }
 
-            if (!$priceId) {
+            if (! $priceIds) {
                 $query->whereRaw('0 = 1');
+
                 return;
             }
 
             $query->whereIn('id', DB::table('stripe_subscriptions')
                 ->select('user_id')
-                ->where('price_id', $priceId)
+                ->whereIn('price_id', $priceIds)
                 ->distinct());
 
             return;
         }
 
         if ($planKey === 'free') {
-            $query->where(function ($builder) use ($priceId) {
+            $fallbackPriceId = $priceIds[0] ?? null;
+            $query->where(function ($builder) use ($fallbackPriceId) {
                 $builder->whereNotIn('id', DB::table('paddle_subscriptions')
                     ->select('billable_id')
                     ->where('billable_type', User::class));
 
-                if ($priceId) {
+                if ($fallbackPriceId) {
                     $builder->orWhereIn('id', DB::table('paddle_subscriptions')
                         ->join(
                             'paddle_subscription_items',
@@ -641,7 +625,7 @@ class TenantController extends BaseController
                         )
                         ->select('paddle_subscriptions.billable_id')
                         ->where('paddle_subscriptions.billable_type', User::class)
-                        ->where('paddle_subscription_items.price_id', $priceId)
+                        ->where('paddle_subscription_items.price_id', $fallbackPriceId)
                         ->distinct());
                 }
             });
@@ -649,8 +633,10 @@ class TenantController extends BaseController
             return;
         }
 
-        if (!$priceId) {
+        $fallbackPriceId = $priceIds[0] ?? null;
+        if (! $fallbackPriceId) {
             $query->whereRaw('0 = 1');
+
             return;
         }
 
@@ -658,13 +644,13 @@ class TenantController extends BaseController
             ->join('paddle_subscription_items', 'paddle_subscription_items.subscription_id', '=', 'paddle_subscriptions.id')
             ->select('paddle_subscriptions.billable_id')
             ->where('paddle_subscriptions.billable_type', User::class)
-            ->where('paddle_subscription_items.price_id', $priceId)
+            ->where('paddle_subscription_items.price_id', $fallbackPriceId)
             ->distinct());
     }
 
     private function ensureOwner(User $tenant): void
     {
-        if (!$tenant->isOwner()) {
+        if (! $tenant->isOwner()) {
             abort(404);
         }
     }

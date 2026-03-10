@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Billing\PaddleSubscription;
 use App\Models\PlatformNotification;
 use App\Models\PlatformNotificationSetting;
 use App\Models\Role;
 use App\Models\User;
-use App\Models\Billing\PaddleSubscription;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\PlatformAdminDigestNotification;
 use App\Support\NotificationDispatcher;
@@ -18,6 +18,7 @@ use Laravel\Paddle\Transaction;
 class PlatformAdminNotifier
 {
     private const DEFAULT_CHANNELS = ['email'];
+
     private const DEFAULT_CATEGORIES = [
         'new_account',
         'onboarding_completed',
@@ -29,6 +30,7 @@ class PlatformAdminNotifier
         'payment_succeeded',
         'payment_failed',
         'churn_risk',
+        'operational_health',
     ];
 
     public function notify(string $category, string $title, array $payload = []): void
@@ -42,7 +44,7 @@ class PlatformAdminNotifier
     public function sendDigest(string $frequency): int
     {
         $frequency = strtolower(trim($frequency));
-        if (!in_array($frequency, ['daily', 'weekly'], true)) {
+        if (! in_array($frequency, ['daily', 'weekly'], true)) {
             $frequency = 'daily';
         }
 
@@ -54,7 +56,7 @@ class PlatformAdminNotifier
         $sent = 0;
         foreach ($recipients as $recipient) {
             $settings = $this->resolveSettings($recipient);
-            if (!$this->isChannelEnabled($settings, 'email')) {
+            if (! $this->isChannelEnabled($settings, 'email')) {
                 continue;
             }
             if (($settings->digest_frequency ?? 'daily') !== $frequency) {
@@ -74,7 +76,7 @@ class PlatformAdminNotifier
 
             $dispatchOk = NotificationDispatcher::send($recipient, new PlatformAdminDigestNotification(
                 $frequency,
-                $items->map(fn(PlatformNotification $item) => [
+                $items->map(fn (PlatformNotification $item) => [
                     'title' => $item->title,
                     'category' => $item->category,
                     'intro' => $item->intro,
@@ -84,7 +86,7 @@ class PlatformAdminNotifier
                 'user_id' => $recipient->id,
             ]);
 
-            if (!$dispatchOk) {
+            if (! $dispatchOk) {
                 continue;
             }
 
@@ -122,12 +124,12 @@ class PlatformAdminNotifier
 
             foreach ($subscriptions as $subscription) {
                 $billable = $subscription->billable;
-                if (!$billable instanceof User) {
+                if (! $billable instanceof User) {
                     continue;
                 }
 
                 $trialEndsAt = $subscription->trial_ends_at;
-                if (!$trialEndsAt instanceof Carbon) {
+                if (! $trialEndsAt instanceof Carbon) {
                     continue;
                 }
 
@@ -136,10 +138,10 @@ class PlatformAdminNotifier
                     continue;
                 }
 
-                $reference = 'trial:' . $subscription->paddle_id . ':' . $trialEndsAt->toDateString();
+                $reference = 'trial:'.$subscription->paddle_id.':'.$trialEndsAt->toDateString();
 
                 $this->notifyUser($recipient, 'churn_risk', 'Trial ending soon', [
-                    'intro' => ($billable->company_name ?: $billable->email) . ' trial ends soon.',
+                    'intro' => ($billable->company_name ?: $billable->email).' trial ends soon.',
                     'details' => [
                         ['label' => 'Company', 'value' => $billable->company_name ?: 'Unknown'],
                         ['label' => 'Owner', 'value' => $billable->email],
@@ -164,19 +166,18 @@ class PlatformAdminNotifier
         $formatted = number_format($numeric, 2);
         $code = strtoupper($currency ?: config('cashier.currency', 'USD'));
 
-        return $formatted . ' ' . $code;
+        return $formatted.' '.$code;
     }
 
     public function resolvePlanName(?string $priceId): string
     {
-        if (!$priceId) {
+        if (! $priceId) {
             return 'Unknown';
         }
 
-        foreach (config('billing.plans', []) as $plan) {
-            if (!empty($plan['price_id']) && $plan['price_id'] === $priceId) {
-                return $plan['name'] ?? $priceId;
-            }
+        $planPrice = app(BillingPlanService::class)->resolveByStripePriceId($priceId);
+        if ($planPrice) {
+            return $planPrice->planName ?: $planPrice->planCode;
         }
 
         return $priceId;
@@ -207,12 +208,12 @@ class PlatformAdminNotifier
     private function notifyUser(User $recipient, string $category, string $title, array $payload = []): void
     {
         $settings = $this->resolveSettings($recipient);
-        if (!$this->isChannelEnabled($settings, 'email')) {
+        if (! $this->isChannelEnabled($settings, 'email')) {
             return;
         }
 
         $categories = $settings->categories ?? [];
-        if ($categories && !in_array($category, $categories, true)) {
+        if ($categories && ! in_array($category, $categories, true)) {
             return;
         }
 
@@ -258,7 +259,7 @@ class PlatformAdminNotifier
     private function resolveRecipients(): Collection
     {
         $roleId = Role::query()->where('name', 'superadmin')->value('id');
-        if (!$roleId) {
+        if (! $roleId) {
             return collect();
         }
 
@@ -288,6 +289,7 @@ class PlatformAdminNotifier
     private function isChannelEnabled(PlatformNotificationSetting $settings, string $channel): bool
     {
         $channels = $settings->channels ?? [];
+
         return in_array($channel, $channels, true);
     }
 

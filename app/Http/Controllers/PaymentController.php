@@ -2,59 +2,41 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Invoices\CreateInvoicePaymentAction;
+use App\Http\Requests\Payments\ReverseTipRequest;
+use App\Http\Requests\Payments\StoreInvoicePaymentRequest;
+use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Payment;
-use App\Models\ActivityLog;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Services\SalePaymentService;
 use App\Services\TenantPaymentMethodGuardService;
 use App\Services\TipAllocationService;
-use App\Support\TipCalculator;
-use App\Support\TipAssigneeResolver;
 use App\Support\TipSettingsResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
 
 class PaymentController extends Controller
 {
     /**
      * Store a payment for an invoice.
      */
-    public function store(Request $request, Invoice $invoice)
+    public function store(StoreInvoicePaymentRequest $request, Invoice $invoice)
     {
         if ($invoice->user_id !== Auth::id()) {
             abort(403);
         }
 
-        $validated = $request->validate([
-            'amount' => 'required|numeric|min:0.01',
-            'tip_enabled' => 'nullable|boolean',
-            'tip_mode' => ['nullable', Rule::in(['none', 'percent', 'fixed'])],
-            'tip_percent' => 'nullable|numeric|min:0',
-            'tip_amount' => 'nullable|numeric|min:0',
-            'method' => 'nullable|string|max:50',
-            'status' => ['nullable', Rule::in([
-                Payment::STATUS_PENDING,
-                Payment::STATUS_PAID,
-                Payment::STATUS_COMPLETED,
-                Payment::STATUS_FAILED,
-                Payment::STATUS_REFUNDED,
-                Payment::STATUS_REVERSED,
-            ])],
-            'reference' => 'nullable|string|max:120',
-            'notes' => 'nullable|string|max:255',
-            'paid_at' => 'nullable|date',
-        ]);
+        $validated = $request->validated();
 
         $methodDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
             (int) $invoice->user_id,
             $validated['method'] ?? null,
             'invoice_manual'
         );
-        if (!$methodDecision['allowed']) {
+        if (! $methodDecision['allowed']) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'code' => TenantPaymentMethodGuardService::ERROR_CODE,
@@ -68,68 +50,18 @@ class PaymentController extends Controller
             ]);
         }
 
-        $amount = (float) $validated['amount'];
-        $tipSettings = TipSettingsResolver::forAccountId((int) $invoice->user_id);
-        $tip = TipCalculator::resolve($amount, $validated, $tipSettings);
-        $tipAssigneeUserId = TipAssigneeResolver::resolveForInvoice($invoice);
-        $isCashPayment = ($methodDecision['canonical_method'] ?? null) === 'cash';
-        $paymentStatus = $isCashPayment
-            ? Payment::STATUS_PENDING
-            : ($validated['status'] ?? Payment::STATUS_COMPLETED);
-        $paidAt = $isCashPayment
-            ? null
-            : ($validated['paid_at'] ?? now());
+        $result = app(CreateInvoicePaymentAction::class)->execute(
+            $invoice,
+            $validated,
+            (string) ($methodDecision['canonical_method'] ?? 'cash'),
+            $request->user(),
+            (int) $request->user()->id,
+            'Payment recorded'
+        );
 
-        $payment = Payment::create([
-            'invoice_id' => $invoice->id,
-            'customer_id' => $invoice->customer_id,
-            'user_id' => $request->user()->id,
-            'amount' => $amount,
-            'tip_amount' => $tip['tip_amount'],
-            'tip_type' => $tip['tip_type'],
-            'tip_percent' => $tip['tip_percent'],
-            'tip_base_amount' => $tip['tip_base_amount'],
-            'charged_total' => $tip['charged_total'],
-            'tip_assignee_user_id' => $tip['tip_amount'] > 0 ? $tipAssigneeUserId : null,
-            'method' => $methodDecision['canonical_method'],
-            'status' => $paymentStatus,
-            'reference' => $validated['reference'] ?? null,
-            'notes' => $validated['notes'] ?? null,
-            'paid_at' => $paidAt,
-        ]);
-
-        app(TipAllocationService::class)->syncForPayment($payment);
-
-        $previousStatus = $invoice->status;
-        $invoice->refreshPaymentStatus();
-
-        ActivityLog::record($request->user(), $payment, 'created', [
-            'invoice_id' => $invoice->id,
-            'amount' => $payment->amount,
-            'tip_amount' => $payment->tip_amount,
-            'tip_type' => $payment->tip_type,
-            'tip_percent' => $payment->tip_percent,
-            'charged_total' => $payment->charged_total,
-            'tip_assignee_user_id' => $payment->tip_assignee_user_id,
-            'method' => $payment->method,
-            'status' => $payment->status,
-        ], 'Payment recorded');
-
-        if ($previousStatus !== $invoice->status) {
-            ActivityLog::record($request->user(), $invoice, 'status_changed', [
-                'from' => $previousStatus,
-                'to' => $invoice->status,
-            ], 'Invoice status updated');
-        }
-
-        if ($invoice->status === 'paid' && $invoice->work) {
-            $invoice->work->status = Work::STATUS_CLOSED;
-            $invoice->work->save();
-        }
-
-        $successMessage = $isCashPayment
-            ? 'Cash payment recorded as pending collection.'
-            : 'Payment recorded successfully.';
+        $payment = $result['payment'];
+        $invoice = $result['invoice'];
+        $successMessage = $result['message'];
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -145,7 +77,7 @@ class PaymentController extends Controller
     public function markAsPaid(Request $request, Payment $payment)
     {
         $actor = $request->user();
-        if (!$actor) {
+        if (! $actor) {
             abort(401);
         }
 
@@ -155,7 +87,7 @@ class PaymentController extends Controller
         ]);
 
         $accountId = $this->resolvePaymentAccountId($payment);
-        if (!$accountId || $actor->accountOwnerId() !== $accountId) {
+        if (! $accountId || $actor->accountOwnerId() !== $accountId) {
             abort(403);
         }
 
@@ -197,23 +129,16 @@ class PaymentController extends Controller
         return redirect()->back()->with('success', 'Cash payment marked as paid.');
     }
 
-    public function reverseTip(Request $request, Payment $payment)
+    public function reverseTip(ReverseTipRequest $request, Payment $payment)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
         $this->ensureTipReversalAccess($user, $payment);
 
-        $validated = $request->validate([
-            'amount' => 'nullable|numeric|min:0.01',
-            'rule' => ['nullable', Rule::in(['prorata', 'manual'])],
-            'reason' => 'nullable|string|max:255',
-            'allocations' => 'nullable|array',
-            'allocations.*.user_id' => 'required_with:allocations|integer|exists:users,id',
-            'allocations.*.amount' => 'required_with:allocations|numeric|min:0.01',
-        ]);
+        $validated = $request->validated();
 
         $tipAmount = round((float) ($payment->tip_amount ?? 0), 2);
         $alreadyReversed = round((float) ($payment->tip_reversed_amount ?? 0), 2);
@@ -233,7 +158,7 @@ class PaymentController extends Controller
 
         $settings = TipSettingsResolver::forAccountId((int) $payment->user_id);
         $rule = (string) ($validated['rule'] ?? ($settings['partial_refund_rule'] ?? 'prorata'));
-        if (!in_array($rule, ['prorata', 'manual'], true)) {
+        if (! in_array($rule, ['prorata', 'manual'], true)) {
             $rule = 'prorata';
         }
 
@@ -309,7 +234,7 @@ class PaymentController extends Controller
         $isOwner = $user->id === $accountId && $user->isOwner();
         $isTeamAdmin = $membership && $membership->role === 'admin';
 
-        if (!$isOwner && !$isTeamAdmin) {
+        if (! $isOwner && ! $isTeamAdmin) {
             abort(403);
         }
     }
@@ -337,12 +262,12 @@ class PaymentController extends Controller
             return (int) $payment->sale->user_id;
         }
 
-        if (!$payment->user_id) {
+        if (! $payment->user_id) {
             return null;
         }
 
         $owner = User::query()->find($payment->user_id);
-        if (!$owner) {
+        if (! $owner) {
             return null;
         }
 
@@ -363,14 +288,14 @@ class PaymentController extends Controller
             && ($membership->hasPermission('sales.manage') || $membership->hasPermission('sales.pos')));
 
         if ($payment->sale_id) {
-            if (!$isOwner && !$isTeamAdmin && !$canManageSales) {
+            if (! $isOwner && ! $isTeamAdmin && ! $canManageSales) {
                 abort(403);
             }
 
             return;
         }
 
-        if (!$isOwner && !$isTeamAdmin) {
+        if (! $isOwner && ! $isTeamAdmin) {
             abort(403);
         }
     }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CurrencyCode;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,17 +12,26 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Sale extends Model
 {
-    use HasFactory, GeneratesSequentialNumber;
+    use GeneratesSequentialNumber, HasFactory;
 
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_PAID = 'paid';
+
     public const STATUS_CANCELED = 'canceled';
+
     public const FULFILLMENT_PENDING = 'pending';
+
     public const FULFILLMENT_PREPARING = 'preparing';
+
     public const FULFILLMENT_OUT_FOR_DELIVERY = 'out_for_delivery';
+
     public const FULFILLMENT_READY_FOR_PICKUP = 'ready_for_pickup';
+
     public const FULFILLMENT_COMPLETED = 'completed';
+
     public const FULFILLMENT_CONFIRMED = 'confirmed';
 
     protected $fillable = [
@@ -33,6 +43,7 @@ class Sale extends Model
         'number',
         'subtotal',
         'tax_total',
+        'currency_code',
         'discount_rate',
         'discount_total',
         'loyalty_points_redeemed',
@@ -65,6 +76,7 @@ class Sale extends Model
     protected $casts = [
         'subtotal' => 'decimal:2',
         'tax_total' => 'decimal:2',
+        'currency_code' => 'string',
         'discount_rate' => 'decimal:2',
         'discount_total' => 'decimal:2',
         'loyalty_points_redeemed' => 'integer',
@@ -91,8 +103,13 @@ class Sale extends Model
         parent::boot();
 
         static::creating(function (self $sale) {
-            if (!$sale->number) {
+            if (! $sale->number) {
                 $sale->number = self::generateNumber($sale->user_id, 'SO');
+            }
+
+            if (! $sale->currency_code) {
+                $owner = $sale->user_id ? User::query()->find($sale->user_id) : null;
+                $sale->currency_code = $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value;
             }
         });
     }
@@ -144,7 +161,7 @@ class Sale extends Model
 
     public function getDeliveryProofUrlAttribute(): ?string
     {
-        if (!$this->delivery_proof) {
+        if (! $this->delivery_proof) {
             return null;
         }
         if (str_starts_with($this->delivery_proof, 'http://') || str_starts_with($this->delivery_proof, 'https://')) {
@@ -215,7 +232,7 @@ class Sale extends Model
     {
         if ($this->relationLoaded('payments')) {
             return $this->payments
-                ->contains(fn($payment) => ($payment->status ?? null) === Payment::STATUS_PENDING);
+                ->contains(fn ($payment) => ($payment->status ?? null) === Payment::STATUS_PENDING);
         }
 
         return $this->payments()
