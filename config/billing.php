@@ -11,9 +11,9 @@ $stripePrices = [
     env('STRIPE_PRICE_GROWTH'),
     env('STRIPE_PRICE_SCALE'),
 ];
-$stripePricesReady = !empty(array_filter(
+$stripePricesReady = ! empty(array_filter(
     $stripePrices,
-    fn($value) => is_string($value) ? trim($value) !== '' : !empty($value)
+    fn ($value) => is_string($value) ? trim($value) !== '' : ! empty($value)
 ));
 $stripeReady = $stripeEnabled && $stripeKeysReady && $stripePricesReady;
 
@@ -23,11 +23,54 @@ return [
     'provider' => $providerRequested,
     'provider_effective' => $providerEffective,
     'provider_ready' => $providerEffective === 'stripe' ? $stripeReady : true,
+    'catalog_defaults' => [
+        'free' => [
+            'description' => 'Free starter access for very small teams.',
+            'contact_only' => false,
+            'prices' => [
+                'CAD' => ['amount' => 0, 'stripe_price_id' => env('STRIPE_PRICE_FREE_CAD', env('STRIPE_PRICE_FREE'))],
+                'EUR' => ['amount' => 0, 'stripe_price_id' => env('STRIPE_PRICE_FREE_EUR')],
+                'USD' => ['amount' => 0, 'stripe_price_id' => env('STRIPE_PRICE_FREE_USD')],
+            ],
+        ],
+        'starter' => [
+            'description' => 'Starter plan for growing teams.',
+            'contact_only' => false,
+            'prices' => [
+                'CAD' => ['amount' => env('STRIPE_PRICE_STARTER_CAD_AMOUNT', env('STRIPE_PRICE_STARTER_AMOUNT', 29)), 'stripe_price_id' => env('STRIPE_PRICE_STARTER_CAD', env('STRIPE_PRICE_STARTER'))],
+                'EUR' => ['amount' => env('STRIPE_PRICE_STARTER_EUR_AMOUNT', 21), 'stripe_price_id' => env('STRIPE_PRICE_STARTER_EUR')],
+                'USD' => ['amount' => env('STRIPE_PRICE_STARTER_USD_AMOUNT', 24), 'stripe_price_id' => env('STRIPE_PRICE_STARTER_USD')],
+            ],
+        ],
+        'growth' => [
+            'description' => 'Growth plan for larger teams and automation.',
+            'contact_only' => false,
+            'prices' => [
+                'CAD' => ['amount' => env('STRIPE_PRICE_GROWTH_CAD_AMOUNT', env('STRIPE_PRICE_GROWTH_AMOUNT', 79)), 'stripe_price_id' => env('STRIPE_PRICE_GROWTH_CAD', env('STRIPE_PRICE_GROWTH'))],
+                'EUR' => ['amount' => env('STRIPE_PRICE_GROWTH_EUR_AMOUNT', 57), 'stripe_price_id' => env('STRIPE_PRICE_GROWTH_EUR')],
+                'USD' => ['amount' => env('STRIPE_PRICE_GROWTH_USD_AMOUNT', 64), 'stripe_price_id' => env('STRIPE_PRICE_GROWTH_USD')],
+            ],
+        ],
+        'scale' => [
+            'description' => 'Scale plan with advanced support and included AI.',
+            'contact_only' => false,
+            'prices' => [
+                'CAD' => ['amount' => env('STRIPE_PRICE_SCALE_CAD_AMOUNT', env('STRIPE_PRICE_SCALE_AMOUNT', 149)), 'stripe_price_id' => env('STRIPE_PRICE_SCALE_CAD', env('STRIPE_PRICE_SCALE'))],
+                'EUR' => ['amount' => env('STRIPE_PRICE_SCALE_EUR_AMOUNT', 109), 'stripe_price_id' => env('STRIPE_PRICE_SCALE_EUR')],
+                'USD' => ['amount' => env('STRIPE_PRICE_SCALE_USD_AMOUNT', 119), 'stripe_price_id' => env('STRIPE_PRICE_SCALE_USD')],
+            ],
+        ],
+        'enterprise' => [
+            'description' => 'Enterprise plan with custom pricing.',
+            'contact_only' => true,
+            'prices' => [],
+        ],
+    ],
     'plans' => [
         'free' => [
             'name' => 'Gratuit',
             'price_id' => null,
-            'price' => env($pricePrefix . '_PRICE_FREE_AMOUNT', 0),
+            'price' => env($pricePrefix.'_PRICE_FREE_AMOUNT', 0),
             'features' => [
                 'Jusqu a 3 employes',
                 'Clients, devis et factures de base',
@@ -39,8 +82,8 @@ return [
         ],
         'starter' => [
             'name' => 'Starter',
-            'price_id' => env($pricePrefix . '_PRICE_STARTER'),
-            'price' => env($pricePrefix . '_PRICE_STARTER_AMOUNT'),
+            'price_id' => env($pricePrefix.'_PRICE_STARTER'),
+            'price' => env($pricePrefix.'_PRICE_STARTER_AMOUNT'),
             'features' => [
                 'Jusqu a 10 employes',
                 'Clients, devis, jobs et factures',
@@ -54,8 +97,8 @@ return [
         ],
         'growth' => [
             'name' => 'Growth',
-            'price_id' => env($pricePrefix . '_PRICE_GROWTH'),
-            'price' => env($pricePrefix . '_PRICE_GROWTH_AMOUNT'),
+            'price_id' => env($pricePrefix.'_PRICE_GROWTH'),
+            'price' => env($pricePrefix.'_PRICE_GROWTH_AMOUNT'),
             'features' => [
                 'Jusqu a 25 employes',
                 'Tout Starter',
@@ -70,8 +113,8 @@ return [
         ],
         'scale' => [
             'name' => 'Scale',
-            'price_id' => env($pricePrefix . '_PRICE_SCALE'),
-            'price' => env($pricePrefix . '_PRICE_SCALE_AMOUNT'),
+            'price_id' => env($pricePrefix.'_PRICE_SCALE'),
+            'price' => env($pricePrefix.'_PRICE_SCALE_AMOUNT'),
             'features' => [
                 'Jusqu a 50 employes',
                 'Tout Growth',

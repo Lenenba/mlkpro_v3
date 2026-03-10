@@ -9,8 +9,8 @@ use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\WelcomeEmailNotification;
-use App\Services\BillingSubscriptionService;
 use App\Services\BillingPlanService;
+use App\Services\BillingSubscriptionService;
 use App\Services\CompanyFeatureService;
 use App\Services\CreateStripeSubscriptionForTenant;
 use App\Services\PlatformAdminNotifier;
@@ -25,6 +25,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Laravel\Paddle\Cashier;
 use Laravel\Paddle\Subscription;
 
 class OnboardingController extends Controller

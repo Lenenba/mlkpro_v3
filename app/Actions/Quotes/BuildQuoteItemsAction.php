@@ -27,7 +27,15 @@ class BuildQuoteItemsAction
             $model = null;
 
             if (! $productId) {
-                $product = $this->createProductFromLine($userId, $accountId, $creatorId, $lineItemType, $line, $sourceDetails);
+                $product = $this->createProductFromLine(
+                    $userId,
+                    $accountId,
+                    $creatorId,
+                    $lineItemType,
+                    $line,
+                    $sourceDetails,
+                    $currencyCode
+                );
                 $productId = $product->id;
                 $model = $product;
 
@@ -80,7 +88,8 @@ class BuildQuoteItemsAction
         int $creatorId,
         string $itemType,
         array $line,
-        ?array $sourceDetails
+        ?array $sourceDetails,
+        string $currencyCode
     ): Product {
         $name = trim((string) ($line['name'] ?? ''));
         $existing = Product::byUser($userId)

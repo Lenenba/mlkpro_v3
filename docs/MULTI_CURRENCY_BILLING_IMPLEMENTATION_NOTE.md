@@ -39,6 +39,14 @@ The backfill logic was implemented with chunked row updates so the migration rem
 - Super-admin analytics still inherit some legacy assumptions outside the direct billing source-of-truth path and may need a separate reporting pass if cross-currency MRR reporting is required.
 - Stripe Terminal regional rules were intentionally left out of scope for this phase.
 
+## Rollout Checklist
+
+- Run `php artisan migrate`.
+- Refresh the global plan catalog with `php artisan db:seed --class=PlanCatalogSeeder` if pricing rows need to be recreated or aligned.
+- Populate the Stripe price mapping for each supported plan and currency, either through the admin UI or the `STRIPE_PRICE_*_{CAD,EUR,USD}` environment variables.
+- Validate one subscription checkout path per supported currency so the checkout amount and charged currency match the persisted `plan_prices` row.
+- Run `php artisan test` and `npm run qa:build` before release.
+
 ## Extending To More Currencies
 
 To add another supported currency later:

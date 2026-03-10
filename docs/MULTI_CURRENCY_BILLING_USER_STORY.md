@@ -192,7 +192,7 @@ Unique rule:
 ## Phased Implementation Plan
 
 ### Phase 0 - Discovery and Safety Rails
-- Status: Planned
+- Status: Completed
 - Confirm every place where money is created, mutated, displayed, or sent to Stripe.
 - Add a short implementation note in `docs/` to document migration assumptions.
 - Decide the canonical tenant root now: `users`.
@@ -202,7 +202,7 @@ Definition of done:
 - Backfill assumptions are documented.
 
 ### Phase 1 - Core Currency Domain
-- Status: Planned
+- Status: Completed
 - Introduce:
   - `CurrencyCode` enum
   - `BillingPeriod` enum
@@ -217,7 +217,7 @@ Definition of done:
 - Currency change is blocked once activity exists.
 
 ### Phase 2 - Catalog Currency Persistence
-- Status: Planned
+- Status: Completed
 - Add `currency_code` to `products`.
 - Ensure product/service create flows assign tenant currency automatically.
 - Ensure edit flows preserve item currency.
@@ -229,7 +229,7 @@ Definition of done:
 - Stripe catalog sync reads row currency.
 
 ### Phase 3 - Plan Catalog Normalization
-- Status: Planned
+- Status: Completed
 - Create `plans` and `plan_prices`.
 - Seed default plans with explicit prices for `CAD`, `EUR`, and `USD`.
 - Introduce plan price resolver service for tenant currency and billing period.
@@ -241,7 +241,7 @@ Definition of done:
 - Admin-facing payloads can expose all currency prices for each plan.
 
 ### Phase 4 - Commercial Document Currency Snapshots
-- Status: Planned
+- Status: Completed
 - Add `currency_code` to business documents and money snapshots:
   - `quotes`
   - `quote_products`
@@ -259,7 +259,7 @@ Definition of done:
 - Historical records no longer depend on current tenant settings.
 
 ### Phase 5 - Stripe Online Payments Refactor
-- Status: Planned
+- Status: Completed
 - Replace global-config currency selection in:
   - `StripeCatalogService`
   - `StripeInvoiceService`
@@ -276,7 +276,7 @@ Definition of done:
 - No CAD hardcoding remains in Stripe payload creation.
 
 ### Phase 6 - Settings, Admin UX, and API Contracts
-- Status: Planned
+- Status: Completed
 - Expose tenant currency in company settings.
 - Expose plan price matrix per currency in admin billing management.
 - Make product/service forms show tenant currency explicitly.
@@ -288,7 +288,7 @@ Definition of done:
 - Checkout screens display the exact charged currency.
 
 ### Phase 7 - Tests and Rollout
-- Status: Planned
+- Status: Completed
 - Add unit tests for:
   - tenant currency resolution
   - unsafe tenant currency change guard

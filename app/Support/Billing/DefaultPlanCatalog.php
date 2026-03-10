@@ -9,50 +9,7 @@ class DefaultPlanCatalog
     public static function definitions(): array
     {
         $configuredPlans = config('billing.plans', []);
-
-        $defaults = [
-            'free' => [
-                'description' => 'Free starter access for very small teams.',
-                'contact_only' => false,
-                'prices' => [
-                    'CAD' => ['amount' => '0.00', 'stripe_price_id' => env('STRIPE_PRICE_FREE_CAD', env('STRIPE_PRICE_FREE'))],
-                    'EUR' => ['amount' => '0.00', 'stripe_price_id' => env('STRIPE_PRICE_FREE_EUR')],
-                    'USD' => ['amount' => '0.00', 'stripe_price_id' => env('STRIPE_PRICE_FREE_USD')],
-                ],
-            ],
-            'starter' => [
-                'description' => 'Starter plan for growing teams.',
-                'contact_only' => false,
-                'prices' => [
-                    'CAD' => ['amount' => self::normalizeAmount(env('STRIPE_PRICE_STARTER_CAD_AMOUNT', env('STRIPE_PRICE_STARTER_AMOUNT', 29))), 'stripe_price_id' => env('STRIPE_PRICE_STARTER_CAD', env('STRIPE_PRICE_STARTER'))],
-                    'EUR' => ['amount' => self::normalizeAmount(env('STRIPE_PRICE_STARTER_EUR_AMOUNT', 21)), 'stripe_price_id' => env('STRIPE_PRICE_STARTER_EUR')],
-                    'USD' => ['amount' => self::normalizeAmount(env('STRIPE_PRICE_STARTER_USD_AMOUNT', 24)), 'stripe_price_id' => env('STRIPE_PRICE_STARTER_USD')],
-                ],
-            ],
-            'growth' => [
-                'description' => 'Growth plan for larger teams and automation.',
-                'contact_only' => false,
-                'prices' => [
-                    'CAD' => ['amount' => self::normalizeAmount(env('STRIPE_PRICE_GROWTH_CAD_AMOUNT', env('STRIPE_PRICE_GROWTH_AMOUNT', 79))), 'stripe_price_id' => env('STRIPE_PRICE_GROWTH_CAD', env('STRIPE_PRICE_GROWTH'))],
-                    'EUR' => ['amount' => self::normalizeAmount(env('STRIPE_PRICE_GROWTH_EUR_AMOUNT', 57)), 'stripe_price_id' => env('STRIPE_PRICE_GROWTH_EUR')],
-                    'USD' => ['amount' => self::normalizeAmount(env('STRIPE_PRICE_GROWTH_USD_AMOUNT', 64)), 'stripe_price_id' => env('STRIPE_PRICE_GROWTH_USD')],
-                ],
-            ],
-            'scale' => [
-                'description' => 'Scale plan with advanced support and included AI.',
-                'contact_only' => false,
-                'prices' => [
-                    'CAD' => ['amount' => self::normalizeAmount(env('STRIPE_PRICE_SCALE_CAD_AMOUNT', env('STRIPE_PRICE_SCALE_AMOUNT', 149))), 'stripe_price_id' => env('STRIPE_PRICE_SCALE_CAD', env('STRIPE_PRICE_SCALE'))],
-                    'EUR' => ['amount' => self::normalizeAmount(env('STRIPE_PRICE_SCALE_EUR_AMOUNT', 109)), 'stripe_price_id' => env('STRIPE_PRICE_SCALE_EUR')],
-                    'USD' => ['amount' => self::normalizeAmount(env('STRIPE_PRICE_SCALE_USD_AMOUNT', 119)), 'stripe_price_id' => env('STRIPE_PRICE_SCALE_USD')],
-                ],
-            ],
-            'enterprise' => [
-                'description' => 'Enterprise plan with custom pricing.',
-                'contact_only' => true,
-                'prices' => [],
-            ],
-        ];
+        $defaults = config('billing.catalog_defaults', []);
 
         $result = [];
         foreach ($configuredPlans as $planCode => $configuredPlan) {
