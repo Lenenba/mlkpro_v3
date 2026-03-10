@@ -30,14 +30,14 @@ use Inertia\Response;
 class PublicRequestController extends Controller
 {
     private const FINAL_ACTION_REQUEST_CALL = 'request_call';
+
     private const FINAL_ACTION_RECEIVE_QUOTE = 'receive_quote';
 
     public function show(
         Request $request,
         User $user,
         LeadServiceSuggestionService $suggestionService
-    ): Response
-    {
+    ): Response {
         $this->assertLeadIntakeEnabled($user);
 
         app(TrackingService::class)->record('lead_form_view', $user->id);
@@ -107,7 +107,7 @@ class PublicRequestController extends Controller
                 ], 502);
             }
 
-            if (!$response->ok()) {
+            if (! $response->ok()) {
                 if ($index < count($attempts) - 1) {
                     continue;
                 }
@@ -184,8 +184,7 @@ class PublicRequestController extends Controller
         Request $request,
         User $user,
         LeadServiceSuggestionService $suggestionService
-    )
-    {
+    ) {
         $this->assertLeadIntakeEnabled($user);
 
         $validated = $request->validate([
@@ -199,10 +198,15 @@ class PublicRequestController extends Controller
             'state' => 'nullable|string|max:120',
             'postal_code' => 'nullable|string|max:30',
             'country' => 'nullable|string|max:120',
+            'intent_tags' => 'nullable|array|max:10',
+            'intent_tags.*' => 'nullable|string|max:40',
             'suggested_service_ids' => 'nullable|array|max:20',
             'suggested_service_ids.*' => 'integer',
             'services_sur_devis' => 'nullable|array|max:20',
             'services_sur_devis.*' => 'integer',
+            'qualification_answers' => 'nullable|array|max:50',
+            'qualification_answers.*' => 'nullable|string|max:2000',
+            'quote_assumptions' => 'nullable|string|max:5000',
             'final_action' => ['nullable', 'string', Rule::in([
                 self::FINAL_ACTION_REQUEST_CALL,
                 self::FINAL_ACTION_RECEIVE_QUOTE,
@@ -213,7 +217,7 @@ class PublicRequestController extends Controller
 
         if (
             $finalAction === self::FINAL_ACTION_RECEIVE_QUOTE
-            && !app(CompanyFeatureService::class)->hasFeature($user, 'quotes')
+            && ! app(CompanyFeatureService::class)->hasFeature($user, 'quotes')
         ) {
             throw ValidationException::withMessages([
                 'final_action' => ['Quote generation is unavailable for this company.'],
@@ -240,7 +244,7 @@ class PublicRequestController extends Controller
             $user,
             $validated['suggested_service_ids'] ?? []
         );
-        if (!empty($suggestedServiceIds)) {
+        if (! empty($suggestedServiceIds)) {
             $meta['suggested_service_ids'] = $suggestedServiceIds;
         }
 
@@ -254,7 +258,7 @@ class PublicRequestController extends Controller
             $user,
             $validated['services_sur_devis'] ?? []
         );
-        if (!empty($servicesSurDevis)) {
+        if (! empty($servicesSurDevis)) {
             $selectedLookup = array_flip($suggestedServiceIds);
             $meta['services_sur_devis'] = array_values(array_filter(
                 $servicesSurDevis,
@@ -262,10 +266,30 @@ class PublicRequestController extends Controller
             ));
         }
 
-        $intentTags = [];
-        $qualificationAnswers = [];
-        $missingInformation = [];
-        $assumptions = '';
+        $intentTags = $suggestionService->sanitizeIntentTags($validated['intent_tags'] ?? []);
+        $qualificationAnswers = $suggestionService->sanitizeQualificationAnswers(
+            $validated['qualification_answers'] ?? [],
+            $intentTags
+        );
+        $missingInformation = $suggestionService->missingQuoteInformation(
+            $intentTags,
+            $qualificationAnswers
+        );
+        $assumptions = trim((string) ($validated['quote_assumptions'] ?? ''));
+
+        if (! empty($intentTags)) {
+            $meta['intent_tags'] = $intentTags;
+        }
+        if (! empty($qualificationAnswers)) {
+            $meta['qualification_answers'] = $qualificationAnswers;
+        }
+        if (! empty($missingInformation)) {
+            $meta['missing_information'] = $missingInformation;
+        }
+        if ($assumptions !== '') {
+            $meta['quote_assumptions'] = $assumptions;
+        }
+
         $meta['final_action'] = $finalAction;
 
         $lead = LeadRequest::create([
@@ -398,7 +422,7 @@ class PublicRequestController extends Controller
                 'source' => 'lead_form',
             ]);
 
-            if (!$quoteEmailQueued) {
+            if (! $quoteEmailQueued) {
                 NotificationDispatcher::send($user, new LeadFormOwnerNotification(
                     event: 'lead_email_failed',
                     lead: $lead,
@@ -417,15 +441,15 @@ class PublicRequestController extends Controller
                 'final_action' => $finalAction,
             ]);
 
-            if (!$quoteEmailQueued && !$prospectSummaryEmailQueued) {
+            if (! $quoteEmailQueued && ! $prospectSummaryEmailQueued) {
                 return redirect()->back()->with('warning', 'Quote created, but both quote and confirmation emails failed.');
             }
 
-            if (!$quoteEmailQueued) {
+            if (! $quoteEmailQueued) {
                 return redirect()->back()->with('warning', 'Quote created. Confirmation email sent, but quote email failed.');
             }
 
-            if (!$prospectSummaryEmailQueued) {
+            if (! $prospectSummaryEmailQueued) {
                 return redirect()->back()->with('warning', 'Quote created and sent, but confirmation email failed.');
             }
 
@@ -472,7 +496,7 @@ class PublicRequestController extends Controller
             'event' => 'lead_call_requested',
         ]);
 
-        if (!$prospectEmailQueued) {
+        if (! $prospectEmailQueued) {
             NotificationDispatcher::send($user, new LeadFormOwnerNotification(
                 event: 'lead_email_failed',
                 lead: $lead,
@@ -488,7 +512,7 @@ class PublicRequestController extends Controller
             'final_action' => $finalAction,
         ]);
 
-        if (!$prospectEmailQueued) {
+        if (! $prospectEmailQueued) {
             return redirect()->back()->with('warning', 'Call request recorded, but confirmation email failed.');
         }
 
@@ -502,7 +526,7 @@ class PublicRequestController extends Controller
         }
 
         $hasFeature = app(CompanyFeatureService::class)->hasFeature($user, 'requests');
-        if (!$hasFeature) {
+        if (! $hasFeature) {
             abort(404);
         }
     }
@@ -550,7 +574,7 @@ class PublicRequestController extends Controller
                 $updates['phone'] = $phone;
             }
 
-            if (!empty($updates)) {
+            if (! empty($updates)) {
                 $customer->update($updates);
             }
 
@@ -651,10 +675,10 @@ class PublicRequestController extends Controller
                 'intent_tags' => array_values($intentTags),
                 'sur_devis' => $isSurDevis,
             ];
-            if (!empty($qualificationAnswers)) {
+            if (! empty($qualificationAnswers)) {
                 $sourceDetails['qualification_answers'] = $qualificationAnswers;
             }
-            if (!empty($missingInformation)) {
+            if (! empty($missingInformation)) {
                 $sourceDetails['missing_information'] = collect($missingInformation)
                     ->map(fn ($row) => (string) ($row['id'] ?? ''))
                     ->filter()
@@ -670,13 +694,13 @@ class PublicRequestController extends Controller
                 'quantity' => 1,
                 'price' => round($price, 2),
                 'total' => round($price, 2),
-                'description' => !empty($descriptionParts) ? implode(' | ', $descriptionParts) : null,
+                'description' => ! empty($descriptionParts) ? implode(' | ', $descriptionParts) : null,
                 'source_details' => $sourceDetails,
             ];
         })->values();
 
         $subtotal = round((float) $lineItems->sum('total'), 2);
-        $jobTitle = trim((string) ($lead->title ?: $lead->service_type ?: ('Lead quote #' . $lead->id)));
+        $jobTitle = trim((string) ($lead->title ?: $lead->service_type ?: ('Lead quote #'.$lead->id)));
 
         $quote = Quote::query()->create([
             'user_id' => $owner->id,
@@ -711,7 +735,7 @@ class PublicRequestController extends Controller
             ];
         })->all();
 
-        $quote->products()->sync($pivotData);
+        $quote->syncProductLines($pivotData);
 
         return $quote->fresh(['customer.user', 'products']);
     }
@@ -727,14 +751,14 @@ class PublicRequestController extends Controller
 
         $summary = trim((string) ($lead->description ?? ''));
         if ($summary !== '') {
-            $lines[] = 'Need summary: ' . $summary;
+            $lines[] = 'Need summary: '.$summary;
         }
 
-        if (!empty($intentTags)) {
-            $lines[] = 'Detected intents: ' . implode(', ', $intentTags);
+        if (! empty($intentTags)) {
+            $lines[] = 'Detected intents: '.implode(', ', $intentTags);
         }
 
-        if (!empty($qualificationAnswers)) {
+        if (! empty($qualificationAnswers)) {
             $lines[] = 'Qualification answers:';
             foreach ($qualificationAnswers as $questionId => $answer) {
                 $label = trim((string) $questionId);
@@ -743,11 +767,11 @@ class PublicRequestController extends Controller
                     continue;
                 }
 
-                $lines[] = $label . ': ' . $value;
+                $lines[] = $label.': '.$value;
             }
         }
 
-        if (!empty($missingInformation)) {
+        if (! empty($missingInformation)) {
             $missingLabels = collect($missingInformation)
                 ->map(function (array $question) {
                     $label = trim((string) ($question['label'] ?? ''));
@@ -761,14 +785,14 @@ class PublicRequestController extends Controller
                 ->values()
                 ->all();
 
-            if (!empty($missingLabels)) {
-                $lines[] = 'Missing information: ' . implode(', ', $missingLabels);
+            if (! empty($missingLabels)) {
+                $lines[] = 'Missing information: '.implode(', ', $missingLabels);
             }
         }
 
         $normalizedAssumptions = trim($assumptions);
         if ($normalizedAssumptions !== '') {
-            $lines[] = 'Assumptions: ' . $normalizedAssumptions;
+            $lines[] = 'Assumptions: '.$normalizedAssumptions;
         }
 
         $payload = trim(implode("\n", $lines));
@@ -802,11 +826,11 @@ class PublicRequestController extends Controller
 
         $descriptionLines = array_filter([
             'Lead submitted via public form and requested a call.',
-            $lead->description ? 'Need summary: ' . $lead->description : null,
-            !empty($serviceNames) ? 'Expected services: ' . implode(', ', $serviceNames) : null,
-            $lead->contact_name ? 'Contact: ' . $lead->contact_name : null,
-            $lead->contact_email ? 'Email: ' . $lead->contact_email : null,
-            $lead->contact_phone ? 'Phone: ' . $lead->contact_phone : null,
+            $lead->description ? 'Need summary: '.$lead->description : null,
+            ! empty($serviceNames) ? 'Expected services: '.implode(', ', $serviceNames) : null,
+            $lead->contact_name ? 'Contact: '.$lead->contact_name : null,
+            $lead->contact_email ? 'Email: '.$lead->contact_email : null,
+            $lead->contact_phone ? 'Phone: '.$lead->contact_phone : null,
         ]);
 
         $task = Task::query()->create([

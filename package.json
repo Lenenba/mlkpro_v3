@@ -3,10 +3,14 @@
     "type": "module",
     "scripts": {
         "build": "node --max_old_space_size=4096 ./node_modules/vite/bin/vite.js build",
-        "dev": "vite"
+        "dev": "vite",
+        "qa:build": "npm run build",
+        "qa:e2e": "npm run qa:build && playwright test",
+        "qa:e2e:install": "playwright install chromium"
     },
     "devDependencies": {
         "@inertiajs/vue3": "^2.0.0",
+        "@playwright/test": "^1.58.2",
         "@tailwindcss/forms": "^0.5.3",
         "@types/dropzone": "^5.7.9",
         "@vitejs/plugin-vue": "^5.0.0",

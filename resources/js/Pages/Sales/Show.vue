@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethods } from '@/Composables/useTenantPaymentMethods';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import { humanizeDate } from '@/utils/date';
@@ -188,36 +189,22 @@ const paymentStatusClass = computed(() =>
     paymentStatusClasses[paymentStatusKey.value] || statusClasses.draft
 );
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
-const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];
-const allowedPaymentMethods = computed(() => {
-    const raw = Array.isArray(props.paymentMethodSettings?.enabled_methods_internal)
-        ? props.paymentMethodSettings.enabled_methods_internal
-        : [];
-
-    const normalized = raw
-        .map((method) => (typeof method === 'string' ? method.trim().toLowerCase() : ''))
-        .filter((method, index, array) => method && array.indexOf(method) === index)
-        .filter((method) => ALLOWED_INTERNAL_METHODS.includes(method));
-
-    return normalized.length ? normalized : ['cash', 'card'];
-});
-const defaultPaymentMethod = computed(() => {
-    const configured = typeof props.paymentMethodSettings?.default_method_internal === 'string'
-        ? props.paymentMethodSettings.default_method_internal.trim().toLowerCase()
-        : '';
-
-    if (configured && allowedPaymentMethods.value.includes(configured)) {
-        return configured;
-    }
-
-    return allowedPaymentMethods.value[0] || 'cash';
-});
-const hasCardMethodEnabled = computed(() => allowedPaymentMethods.value.includes('card'));
+const {
+    allowedPaymentMethods,
+    defaultPaymentMethod,
+    hasMultiplePaymentMethods,
+    singlePaymentMethod,
+    hasCardMethodEnabled,
+} = useTenantPaymentMethods(computed(() => props.paymentMethodSettings));
 const canUseStripeMethod = computed(() => stripeEnabled.value && hasCardMethodEnabled.value);
 const manualPaymentMethodOptions = computed(() => allowedPaymentMethods.value);
-const hasMultipleManualPaymentMethods = computed(() => manualPaymentMethodOptions.value.length > 1);
+const hasMultipleManualPaymentMethods = computed(() =>
+    hasMultiplePaymentMethods.value && manualPaymentMethodOptions.value.length > 1
+);
 const singleManualPaymentMethod = computed(() =>
-    hasMultipleManualPaymentMethods.value ? null : (manualPaymentMethodOptions.value[0] || defaultPaymentMethod.value)
+    hasMultipleManualPaymentMethods.value
+        ? null
+        : (manualPaymentMethodOptions.value[0] || singlePaymentMethod.value || defaultPaymentMethod.value)
 );
 const stripeProcessing = ref(false);
 const stripeError = ref('');
@@ -265,19 +252,12 @@ const canRecordPayment = computed(() => balanceDue.value > 0);
 const canDownloadReceipt = computed(() => amountPaid.value > 0);
 
 const paymentMethodLabel = (method) => {
-    if (method === 'cash') {
-        return t('sales.payments.cash');
-    }
-    if (method === 'card' || method === 'stripe') {
-        return t('sales.payments.card');
-    }
-    if (method === 'bank_transfer') {
-        return 'Bank transfer';
-    }
-    if (method === 'check') {
-        return 'Check';
-    }
-    return method || '-';
+    return resolvePaymentMethodLabel(method, {
+        cash: t('sales.payments.cash'),
+        card: t('sales.payments.card'),
+        bankTransfer: 'Bank transfer',
+        check: 'Check',
+    });
 };
 
 const isSettledPayment = (payment) => {

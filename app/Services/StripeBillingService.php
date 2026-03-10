@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Data\PlanPriceData;
+use App\Exceptions\Billing\StripePriceNotConfiguredException;
 use App\Models\Billing\StripeSubscription;
 use App\Models\User;
 use Carbon\Carbon;
@@ -69,6 +71,57 @@ class StripeBillingService
         ];
     }
 
+    public function createCheckoutSessionForPlanPrice(
+        User $user,
+        PlanPriceData $planPrice,
+        string $successUrl,
+        string $cancelUrl,
+        int $quantity = 1,
+        ?Carbon $trialEndsAt = null
+    ): array {
+        $this->ensureStripePriceConfigured($planPrice);
+
+        $client = $this->client();
+        $customerId = $this->resolveCustomerId($user);
+        $quantity = $this->normalizeQuantity($quantity);
+        $metadata = $this->buildPlanMetadata($planPrice);
+
+        $payload = [
+            'mode' => 'subscription',
+            'success_url' => $successUrl,
+            'cancel_url' => $cancelUrl,
+            'client_reference_id' => (string) $user->id,
+            'line_items' => [
+                [
+                    'price' => $planPrice->stripePriceId,
+                    'quantity' => $quantity,
+                ],
+            ],
+            'metadata' => $metadata,
+            'subscription_data' => [
+                'metadata' => $metadata,
+            ],
+        ];
+
+        if ($trialEndsAt instanceof Carbon) {
+            $payload['subscription_data']['trial_end'] = $trialEndsAt->getTimestamp();
+            $payload['payment_method_collection'] = 'always';
+        }
+
+        if ($customerId) {
+            $payload['customer'] = $customerId;
+        } else {
+            $payload['customer_email'] = $user->email;
+        }
+
+        $session = $client->checkout->sessions->create($payload);
+
+        return [
+            'id' => $session->id ?? null,
+            'url' => $session->url ?? null,
+        ];
+    }
+
     public function syncFromCheckoutSession(string $sessionId, User $user): ?StripeSubscription
     {
         $client = $this->client();
@@ -113,6 +166,45 @@ class StripeBillingService
                     'quantity' => $quantity,
                 ],
             ],
+            'proration_behavior' => 'create_prorations',
+            'expand' => ['items.data.price'],
+        ]);
+
+        return $this->upsertSubscription($user, $updated, $updated->customer ?? null);
+    }
+
+    public function swapSubscriptionToPlanPrice(
+        User $user,
+        PlanPriceData $planPrice,
+        int $quantity = 1
+    ): ?StripeSubscription {
+        $this->ensureStripePriceConfigured($planPrice);
+
+        $client = $this->client();
+        $local = $this->getLocalSubscription($user);
+        if (! $local) {
+            return null;
+        }
+
+        $quantity = $this->normalizeQuantity($quantity);
+        $subscription = $client->subscriptions->retrieve($local->stripe_id, [
+            'expand' => ['items.data.price'],
+        ]);
+        $planItem = $this->findPlanItem($subscription);
+        $itemId = $planItem?->id ?? null;
+        if (! $itemId) {
+            return null;
+        }
+
+        $updated = $client->subscriptions->update($subscription->id, [
+            'items' => [
+                [
+                    'id' => $itemId,
+                    'price' => $planPrice->stripePriceId,
+                    'quantity' => $quantity,
+                ],
+            ],
+            'metadata' => $this->buildPlanMetadata($planPrice),
             'proration_behavior' => 'create_prorations',
             'expand' => ['items.data.price'],
         ]);
@@ -183,6 +275,79 @@ class StripeBillingService
                 'subscription_type' => 'default',
                 'plan_key' => $planKey,
             ]),
+        ];
+
+        if ($comped) {
+            $payload['discounts'] = [['coupon' => $couponId]];
+        }
+
+        $subscription = $client->subscriptions->create($payload);
+
+        return $this->upsertSubscription($user, $subscription, $subscription->customer ?? null);
+    }
+
+    public function assignPlanPrice(
+        User $user,
+        PlanPriceData $planPrice,
+        bool $comped = false,
+        int $quantity = 1
+    ): ?StripeSubscription {
+        $this->ensureStripePriceConfigured($planPrice);
+
+        $client = $this->client();
+        $customerId = $this->resolveOrCreateCustomerId($user);
+        if (! $customerId) {
+            return null;
+        }
+
+        $quantity = $this->normalizeQuantity($quantity);
+        $couponId = $comped ? $this->compedCouponId() : null;
+        if ($comped && ! $couponId) {
+            throw new \RuntimeException('Comped coupon is not configured.');
+        }
+
+        $metadata = $this->buildPlanMetadata($planPrice);
+        $local = $this->getLocalSubscription($user);
+        if ($local?->stripe_id) {
+            $subscription = $client->subscriptions->retrieve($local->stripe_id, [
+                'expand' => ['items.data.price', 'discount.coupon'],
+            ]);
+            $planItem = $this->findPlanItem($subscription);
+            $itemId = $planItem?->id ?? null;
+            if (! $itemId) {
+                return null;
+            }
+
+            $payload = [
+                'items' => [
+                    [
+                        'id' => $itemId,
+                        'price' => $planPrice->stripePriceId,
+                        'quantity' => $quantity,
+                    ],
+                ],
+                'metadata' => $metadata,
+                'proration_behavior' => 'none',
+                'expand' => ['items.data.price', 'discount.coupon'],
+            ];
+
+            $payload['discounts'] = $comped ? [['coupon' => $couponId]] : [];
+
+            $updated = $client->subscriptions->update($subscription->id, $payload);
+
+            return $this->upsertSubscription($user, $updated, $updated->customer ?? null);
+        }
+
+        $payload = [
+            'customer' => $customerId,
+            'items' => [
+                [
+                    'price' => $planPrice->stripePriceId,
+                    'quantity' => $quantity,
+                ],
+            ],
+            'expand' => ['items.data.price', 'discount.coupon'],
+            'metadata' => $metadata,
         ];
 
         if ($comped) {
@@ -358,6 +523,7 @@ class StripeBillingService
         $priceId = $this->extractPriceId($subscription);
         $assistantAddon = $this->extractAssistantAddon($subscription);
         $compedMeta = $this->extractCompedMeta($subscription);
+        $planContext = $this->resolvePlanContext($priceId, $this->extractMetadata($subscription));
 
         $record = StripeSubscription::updateOrCreate(
             ['stripe_id' => $stripeId],
@@ -365,6 +531,10 @@ class StripeBillingService
                 'user_id' => $user->id,
                 'stripe_customer_id' => $customerId,
                 'price_id' => $priceId,
+                'currency_code' => $planContext['currency_code'],
+                'plan_code' => $planContext['plan_code'],
+                'plan_price_id' => $planContext['plan_price_id'],
+                'billing_period' => $planContext['billing_period'],
                 'is_comped' => $compedMeta['is_comped'],
                 'comped_coupon_id' => $compedMeta['comped_coupon_id'],
                 'assistant_price_id' => $assistantAddon['assistant_price_id'],
@@ -395,6 +565,7 @@ class StripeBillingService
         $priceId = $this->extractPriceIdFromArray($subscription);
         $assistantAddon = $this->extractAssistantAddonFromArray($subscription);
         $compedMeta = $this->extractCompedMetaFromArray($subscription);
+        $planContext = $this->resolvePlanContext($priceId, $this->extractMetadataFromArray($subscription));
 
         $record = StripeSubscription::updateOrCreate(
             ['stripe_id' => $stripeId],
@@ -402,6 +573,10 @@ class StripeBillingService
                 'user_id' => $user->id,
                 'stripe_customer_id' => $customerId,
                 'price_id' => $priceId,
+                'currency_code' => $planContext['currency_code'],
+                'plan_code' => $planContext['plan_code'],
+                'plan_price_id' => $planContext['plan_price_id'],
+                'billing_period' => $planContext['billing_period'],
                 'is_comped' => $compedMeta['is_comped'],
                 'comped_coupon_id' => $compedMeta['comped_coupon_id'],
                 'assistant_price_id' => $assistantAddon['assistant_price_id'],
@@ -708,6 +883,71 @@ class StripeBillingService
     {
         $pack = (int) config('services.stripe.ai_credit_pack', 0);
         return $pack > 0 ? $pack : 0;
+    }
+
+    private function ensureStripePriceConfigured(PlanPriceData $planPrice): void
+    {
+        if ($planPrice->stripePriceId) {
+            return;
+        }
+
+        throw new StripePriceNotConfiguredException(sprintf(
+            'No Stripe price ID is configured for plan [%s] in currency [%s] and period [%s].',
+            $planPrice->planCode,
+            $planPrice->currencyCode->value,
+            $planPrice->billingPeriod->value,
+        ));
+    }
+
+    private function buildPlanMetadata(PlanPriceData $planPrice): array
+    {
+        return array_filter([
+            'subscription_type' => 'default',
+            'plan_key' => $planPrice->planCode,
+            'plan_code' => $planPrice->planCode,
+            'plan_price_id' => (string) $planPrice->planPriceId,
+            'currency_code' => $planPrice->currencyCode->value,
+            'billing_period' => $planPrice->billingPeriod->value,
+        ]);
+    }
+
+    private function resolvePlanContext(?string $priceId, array $metadata = []): array
+    {
+        $planPrice = $priceId ? app(BillingPlanService::class)->resolveByStripePriceId($priceId) : null;
+
+        return [
+            'currency_code' => $metadata['currency_code']
+                ?? $planPrice?->currencyCode->value,
+            'plan_code' => $metadata['plan_code']
+                ?? $metadata['plan_key']
+                ?? $planPrice?->planCode,
+            'plan_price_id' => isset($metadata['plan_price_id'])
+                ? (int) $metadata['plan_price_id']
+                : $planPrice?->planPriceId,
+            'billing_period' => $metadata['billing_period']
+                ?? $planPrice?->billingPeriod->value,
+        ];
+    }
+
+    private function extractMetadata($subscription): array
+    {
+        $metadata = $subscription->metadata ?? [];
+        if (is_array($metadata)) {
+            return $metadata;
+        }
+
+        if (is_object($metadata) && method_exists($metadata, 'toArray')) {
+            return $metadata->toArray();
+        }
+
+        return [];
+    }
+
+    private function extractMetadataFromArray(array $subscription): array
+    {
+        $metadata = $subscription['metadata'] ?? [];
+
+        return is_array($metadata) ? $metadata : [];
     }
 
     private function client(): StripeClient

@@ -33,6 +33,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    plan_prices: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
@@ -107,6 +111,23 @@ const form = useForm({
         };
         return acc;
     }, {}),
+    plan_prices: props.plans.reduce((acc, plan) => {
+        const existing = props.plan_prices?.[plan.key] || {};
+        ['CAD', 'EUR', 'USD'].forEach((currency) => {
+            const row = existing[currency] || {};
+            if (!acc[plan.key]) {
+                acc[plan.key] = {};
+            }
+            acc[plan.key][currency] = {
+                currency_code: row.currency_code ?? currency,
+                billing_period: row.billing_period ?? 'monthly',
+                amount: row.amount ?? '',
+                stripe_price_id: row.stripe_price_id ?? '',
+                is_active: row.is_active ?? true,
+            };
+        });
+        return acc;
+    }, {}),
 });
 
 const activePlanKey = ref(null);
@@ -120,6 +141,9 @@ const showModuleModal = computed(() => Boolean(activeModulePlan.value));
 const activeDisplayPlanKey = ref(null);
 const activeDisplayPlan = computed(() => props.plans.find((plan) => plan.key === activeDisplayPlanKey.value) || null);
 const showDisplayModal = computed(() => Boolean(activeDisplayPlan.value));
+const activePricingPlanKey = ref(null);
+const activePricingPlan = computed(() => props.plans.find((plan) => plan.key === activePricingPlanKey.value) || null);
+const showPricingModal = computed(() => Boolean(activePricingPlan.value));
 
 const limitValue = (planKey, limitKey) => {
     const value = form.plan_limits?.[planKey]?.[limitKey];
@@ -148,6 +172,14 @@ const openModulePlan = (plan) => {
 
 const closeModulePlan = () => {
     activeModulePlanKey.value = null;
+};
+
+const openPricingPlan = (plan) => {
+    activePricingPlanKey.value = plan.key;
+};
+
+const closePricingPlan = () => {
+    activePricingPlanKey.value = null;
 };
 
 const openDisplayPlan = (plan) => {
@@ -182,6 +214,13 @@ const displayFeatureCount = (planKey) =>
     (form.plan_display?.[planKey]?.features || [])
         .filter((feature) => typeof feature === 'string' && feature.trim() !== '')
         .length;
+const supportedCurrencies = ['CAD', 'EUR', 'USD'];
+const priceSummary = (planKey, currency) => {
+    const amount = form.plan_prices?.[planKey]?.[currency]?.amount;
+    return amount === '' || amount === null || typeof amount === 'undefined'
+        ? '--'
+        : `${amount} ${currency}`;
+};
 
 const putSettings = (options = {}) => {
     form.transform((data) => {
@@ -218,6 +257,12 @@ const submitPlanModules = () => {
 const submitPlanDisplay = () => {
     putSettings({
         onSuccess: () => closeDisplayPlan(),
+    });
+};
+
+const submitPlanPricing = () => {
+    putSettings({
+        onSuccess: () => closePricingPlan(),
     });
 };
 </script>
@@ -465,6 +510,127 @@ const submitPlanDisplay = () => {
                                 <button type="submit" :disabled="form.processing"
                                     class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
                                     {{ $t('super_admin.settings.plan_modules.save') }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </Modal>
+            </div>
+
+            <div class="rounded-sm border border-stone-200 border-t-4 border-t-blue-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    Plan Prices
+                </h2>
+                <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                    Define explicit monthly prices per supported currency. These values are the billing source of truth.
+                </p>
+                <form class="mt-4 space-y-4" @submit.prevent="submitPlanPricing">
+                    <div v-if="plans.length === 0" class="text-sm text-stone-500 dark:text-neutral-400">
+                        No plans are configured.
+                    </div>
+                    <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        <div
+                            v-for="plan in plans"
+                            :key="`${plan.key}-pricing`"
+                            class="cursor-pointer rounded-sm border border-stone-200 bg-white p-4 shadow-sm transition hover:border-blue-500 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-900/40 dark:hover:border-blue-500"
+                            role="button"
+                            tabindex="0"
+                            @click="openPricingPlan(plan)"
+                            @keydown.enter="openPricingPlan(plan)"
+                            @keydown.space.prevent="openPricingPlan(plan)"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ plan.name }}
+                                </div>
+                                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                    Edit pricing
+                                </span>
+                            </div>
+                            <div class="mt-3 grid gap-2 text-xs">
+                                <div
+                                    v-for="currency in supportedCurrencies"
+                                    :key="`${plan.key}-${currency}`"
+                                    class="flex items-center justify-between gap-2 rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 dark:border-neutral-700 dark:bg-neutral-900"
+                                >
+                                    <span class="text-stone-500 dark:text-neutral-400">{{ currency }}</span>
+                                    <span class="font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ priceSummary(plan.key, currency) }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            Leave Stripe price IDs blank until the corresponding prices exist in Stripe.
+                        </p>
+                        <button
+                            type="submit"
+                            :disabled="form.processing"
+                            class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                            Save pricing
+                        </button>
+                    </div>
+                </form>
+
+                <Modal :show="showPricingModal" @close="closePricingPlan" maxWidth="3xl">
+                    <div v-if="activePricingPlan" class="p-5">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                Edit pricing for {{ activePricingPlan.name }}
+                            </h3>
+                            <button type="button" @click="closePricingPlan" class="text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.common.close') }}
+                            </button>
+                        </div>
+                        <form class="mt-4 space-y-4" @submit.prevent="submitPlanPricing">
+                            <div class="grid gap-4 md:grid-cols-3">
+                                <div
+                                    v-for="currency in supportedCurrencies"
+                                    :key="`${activePricingPlan.key}-modal-${currency}`"
+                                    class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-900"
+                                >
+                                    <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ currency }}
+                                    </div>
+                                    <div class="mt-3 space-y-3">
+                                        <div>
+                                            <FloatingInput
+                                                v-model="form.plan_prices[activePricingPlan.key][currency].amount"
+                                                :label="'Amount'"
+                                            />
+                                            <InputError class="mt-1" :message="form.errors[`plan_prices.${activePricingPlan.key}.${currency}.amount`]" />
+                                        </div>
+                                        <div>
+                                            <FloatingInput
+                                                v-model="form.plan_prices[activePricingPlan.key][currency].stripe_price_id"
+                                                :label="'Stripe price ID'"
+                                            />
+                                            <InputError class="mt-1" :message="form.errors[`plan_prices.${activePricingPlan.key}.${currency}.stripe_price_id`]" />
+                                        </div>
+                                        <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
+                                            <Checkbox v-model:checked="form.plan_prices[activePricingPlan.key][currency].is_active" :value="true" />
+                                            <span>Active</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    @click="closePricingPlan"
+                                    class="py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                >
+                                    {{ $t('super_admin.common.cancel') }}
+                                </button>
+                                <button
+                                    type="submit"
+                                    :disabled="form.processing"
+                                    class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none"
+                                >
+                                    Save pricing
                                 </button>
                             </div>
                         </form>

@@ -37,7 +37,7 @@ const statusOptions = computed(() => ([
 ]));
 const planOptions = computed(() =>
     (props.plans || []).map((plan) => ({
-        value: String(plan.price_id),
+        value: String(plan.key),
         label: plan.name,
     }))
 );

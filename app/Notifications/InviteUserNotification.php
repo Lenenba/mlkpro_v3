@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -12,8 +13,11 @@ class InviteUserNotification extends Notification implements ShouldQueue
     use Queueable;
 
     private string $token;
+
     private ?string $companyName;
+
     private ?string $companyLogo;
+
     private ?string $context;
 
     public function __construct(
@@ -26,6 +30,12 @@ class InviteUserNotification extends Notification implements ShouldQueue
         $this->companyName = $companyName;
         $this->companyLogo = $companyLogo;
         $this->context = $context;
+        $this->onQueue(QueueWorkload::queue('notifications'));
+    }
+
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('notifications', [60, 300, 900]);
     }
 
     public function via(object $notifiable): array
@@ -54,7 +64,7 @@ class InviteUserNotification extends Notification implements ShouldQueue
         $companyName = $this->companyName ?: config('app.name');
 
         return (new MailMessage)
-            ->subject('Votre acces a ' . $companyName)
+            ->subject('Votre acces a '.$companyName)
             ->view('emails.auth.invite', [
                 'companyName' => $companyName,
                 'companyLogo' => $this->companyLogo,

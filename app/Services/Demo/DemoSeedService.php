@@ -446,7 +446,7 @@ class DemoSeedService
                 'total' => $line['total'],
             ];
         }
-        $quote->products()->sync($pivotData);
+        $quote->syncProductLines($pivotData);
 
         return $quote;
     }

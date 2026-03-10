@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class QuoteProduct extends Model
 {
@@ -14,19 +15,21 @@ class QuoteProduct extends Model
         'product_id',
         'quantity',
         'price',
+        'currency_code',
         'description',
         'source_details',
         'total',
     ];
 
     protected $casts = [
+        'currency_code' => 'string',
         'source_details' => 'array',
     ];
 
     /**
      * Relation : Ce produit appartient à un devis.
      */
-    public function quote()
+    public function quote(): BelongsTo
     {
         return $this->belongsTo(Quote::class);
     }
@@ -34,7 +37,7 @@ class QuoteProduct extends Model
     /**
      * Relation : Ce produit peut être lié à un produit existant.
      */
-    public function product()
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
@@ -42,8 +45,8 @@ class QuoteProduct extends Model
     /**
      * Calculer le total (quantité * prix).
      */
-    public function calculateTotal()
+    public function calculateTotal(): float
     {
-        return $this->quantity * $this->price;
+        return (float) ($this->quantity * $this->price);
     }
 }

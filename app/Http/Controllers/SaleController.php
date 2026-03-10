@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Sales\StoreSaleRequest;
+use App\Http\Requests\Sales\UpdateSaleRequest;
+use App\Http\Requests\Sales\UpdateSaleStatusRequest;
 use App\Models\Customer;
 use App\Models\LoyaltyProgram;
 use App\Models\Payment;
@@ -10,8 +13,8 @@ use App\Models\ProductLot;
 use App\Models\Sale;
 use App\Models\User;
 use App\Models\Warehouse;
-use App\Services\InventoryService;
 use App\Services\CompanyFeatureService;
+use App\Services\InventoryService;
 use App\Services\LoyaltyPointService;
 use App\Services\SaleNotificationService;
 use App\Services\SaleTimelineService;
@@ -24,7 +27,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -33,7 +35,7 @@ class SaleController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
@@ -60,7 +62,7 @@ class SaleController extends Controller
         $baseQuery = Sale::query()
             ->where('user_id', $accountId)
             ->where('status', Sale::STATUS_PAID)
-            ->when(!$canAccessAll, fn($query) => $query->where('created_by_user_id', $user->id))
+            ->when(! $canAccessAll, fn ($query) => $query->where('created_by_user_id', $user->id))
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $search = trim((string) $search);
                 if ($search === '') {
@@ -68,17 +70,17 @@ class SaleController extends Controller
                 }
 
                 $query->where(function ($query) use ($search) {
-                    $query->where('number', 'like', '%' . $search . '%');
+                    $query->where('number', 'like', '%'.$search.'%');
 
                     if (is_numeric($search)) {
                         $query->orWhere('id', (int) $search);
                     }
 
                     $query->orWhereHas('customer', function ($customerQuery) use ($search) {
-                        $customerQuery->where('company_name', 'like', '%' . $search . '%')
-                            ->orWhere('first_name', 'like', '%' . $search . '%')
-                            ->orWhere('last_name', 'like', '%' . $search . '%')
-                            ->orWhere('email', 'like', '%' . $search . '%');
+                        $customerQuery->where('company_name', 'like', '%'.$search.'%')
+                            ->orWhere('first_name', 'like', '%'.$search.'%')
+                            ->orWhere('last_name', 'like', '%'.$search.'%')
+                            ->orWhere('email', 'like', '%'.$search.'%');
                     });
                 });
             })
@@ -104,11 +106,11 @@ class SaleController extends Controller
             })
             ->when(
                 $filters['created_from'] ?? null,
-                fn($query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
+                fn ($query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
             )
             ->when(
                 $filters['created_to'] ?? null,
-                fn($query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
+                fn ($query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
             );
 
         $sort = in_array($filters['sort'] ?? null, ['number', 'status', 'total', 'created_at'], true)
@@ -153,7 +155,7 @@ class SaleController extends Controller
     public function ordersIndex(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
@@ -181,7 +183,7 @@ class SaleController extends Controller
         $baseQuery = Sale::query()
             ->where('user_id', $accountId)
             ->whereIn('status', $allowedStatuses)
-            ->when(!$canAccessAll, fn($query) => $query->where('created_by_user_id', $user->id))
+            ->when(! $canAccessAll, fn ($query) => $query->where('created_by_user_id', $user->id))
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $search = trim((string) $search);
                 if ($search === '') {
@@ -189,17 +191,17 @@ class SaleController extends Controller
                 }
 
                 $query->where(function ($query) use ($search) {
-                    $query->where('number', 'like', '%' . $search . '%');
+                    $query->where('number', 'like', '%'.$search.'%');
 
                     if (is_numeric($search)) {
                         $query->orWhere('id', (int) $search);
                     }
 
                     $query->orWhereHas('customer', function ($customerQuery) use ($search) {
-                        $customerQuery->where('company_name', 'like', '%' . $search . '%')
-                            ->orWhere('first_name', 'like', '%' . $search . '%')
-                            ->orWhere('last_name', 'like', '%' . $search . '%')
-                            ->orWhere('email', 'like', '%' . $search . '%');
+                        $customerQuery->where('company_name', 'like', '%'.$search.'%')
+                            ->orWhere('first_name', 'like', '%'.$search.'%')
+                            ->orWhere('last_name', 'like', '%'.$search.'%')
+                            ->orWhere('email', 'like', '%'.$search.'%');
                     });
                 });
             })
@@ -225,11 +227,11 @@ class SaleController extends Controller
             })
             ->when(
                 $filters['created_from'] ?? null,
-                fn($query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
+                fn ($query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
             )
             ->when(
                 $filters['created_to'] ?? null,
-                fn($query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
+                fn ($query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
             );
 
         $sort = in_array($filters['sort'] ?? null, ['number', 'status', 'total', 'created_at'], true)
@@ -240,7 +242,7 @@ class SaleController extends Controller
         $orders = (clone $baseQuery)
             ->with('customer:id,first_name,last_name,company_name')
             ->withCount('items')
-            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
+            ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
             ->orderBy($sort, $direction)
             ->simplePaginate(12)
             ->withQueryString();
@@ -273,7 +275,7 @@ class SaleController extends Controller
     public function create(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         [$accountOwner] = $this->resolveSalesAccess($user);
@@ -331,7 +333,7 @@ class SaleController extends Controller
     public function edit(Request $request, Sale $sale)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
@@ -341,7 +343,7 @@ class SaleController extends Controller
         if ($sale->user_id !== $accountId) {
             abort(404);
         }
-        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
+        if (! $canAccessAll && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
@@ -382,36 +384,17 @@ class SaleController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreSaleRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         [$accountOwner] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
         $loyaltyFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($accountOwner, 'loyalty');
 
-        $validated = $request->validate([
-            'customer_id' => 'nullable|exists:customers,id',
-            'status' => ['required', Rule::in([
-                Sale::STATUS_DRAFT,
-                Sale::STATUS_PENDING,
-                Sale::STATUS_PAID,
-                Sale::STATUS_CANCELED,
-            ])],
-            'payment_method' => ['nullable', 'string', 'max:50'],
-            'pay_with_stripe' => 'nullable|boolean',
-            'fulfillment_status' => ['nullable', Rule::in($this->allowedFulfillmentStatuses())],
-            'notes' => 'nullable|string|max:2000',
-            'scheduled_for' => 'nullable|date',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.price' => 'required|numeric|min:0',
-            'items.*.description' => 'nullable|string|max:255',
-            'loyalty_points_redeem' => 'nullable|integer|min:0',
-        ]);
+        $validated = $request->validated();
 
         $customerId = $validated['customer_id'] ?? null;
         $customerRecord = null;
@@ -420,7 +403,7 @@ class SaleController extends Controller
                 ->where('user_id', $accountId)
                 ->whereKey($customerId)
                 ->first(['id', 'discount_rate', 'loyalty_points_balance']);
-            if (!$customerRecord) {
+            if (! $customerRecord) {
                 throw ValidationException::withMessages([
                     'customer_id' => 'Client invalide pour ce compte.',
                 ]);
@@ -437,17 +420,12 @@ class SaleController extends Controller
             ->keyBy('id');
         $this->hydrateSellableStock($products);
 
-        if ($products->count() !== $productIds->count()) {
-            throw ValidationException::withMessages([
-                'items' => 'Certains produits sont invalides pour ce compte.',
-            ]);
-        }
-
         $errors = [];
         foreach ($validated['items'] as $index => $item) {
             $product = $products->get($item['product_id']);
-            if (!$product) {
+            if (! $product) {
                 $errors["items.{$index}.product_id"] = 'Produit introuvable.';
+
                 continue;
             }
 
@@ -490,7 +468,7 @@ class SaleController extends Controller
                 $requestedPaymentMethod,
                 'sale_manual'
             );
-            if (!$methodDecision['allowed']) {
+            if (! $methodDecision['allowed']) {
                 throw ValidationException::withMessages([
                     'payment_method' => TenantPaymentMethodGuardService::ERROR_MESSAGE,
                     'code' => TenantPaymentMethodGuardService::ERROR_CODE,
@@ -506,7 +484,7 @@ class SaleController extends Controller
                     'stripe',
                     'sale_stripe'
                 );
-                if (!$stripeDecision['allowed']) {
+                if (! $stripeDecision['allowed']) {
                     throw ValidationException::withMessages([
                         'payment_method' => TenantPaymentMethodGuardService::ERROR_MESSAGE,
                         'code' => TenantPaymentMethodGuardService::ERROR_CODE,
@@ -516,7 +494,7 @@ class SaleController extends Controller
         }
 
         $stripeService = $payWithStripe ? app(StripeSaleService::class) : null;
-        if ($payWithStripe && !$stripeService?->isConfigured()) {
+        if ($payWithStripe && ! $stripeService?->isConfigured()) {
             throw ValidationException::withMessages([
                 'status' => 'Stripe n est pas configure.',
             ]);
@@ -553,7 +531,7 @@ class SaleController extends Controller
         $discountedTaxTotal = round($taxTotal * (1 - ($discountRate / 100)), 2);
         $totalBeforeLoyalty = round($discountedSubtotal + $discountedTaxTotal, 2);
         $requestedLoyaltyPoints = max(0, (int) ($validated['loyalty_points_redeem'] ?? 0));
-        if (!$loyaltyFeatureEnabled && $requestedLoyaltyPoints > 0) {
+        if (! $loyaltyFeatureEnabled && $requestedLoyaltyPoints > 0) {
             throw ValidationException::withMessages([
                 'loyalty_points_redeem' => 'Le module fidelite est desactive pour ce compte.',
             ]);
@@ -563,7 +541,7 @@ class SaleController extends Controller
         $loyaltyDiscountTotal = 0.0;
 
         if ($loyaltyPointsRequested > 0) {
-            if (!$customerId || !$customerRecord) {
+            if (! $customerId || ! $customerRecord) {
                 throw ValidationException::withMessages([
                     'loyalty_points_redeem' => 'Selectionnez un client pour utiliser ses points.',
                 ]);
@@ -571,7 +549,7 @@ class SaleController extends Controller
 
             $loyaltyService = app(LoyaltyPointService::class);
             $loyaltyProgram = $loyaltyService->resolveProgramForAccount((int) $accountId, true);
-            if (!$loyaltyProgram || !$loyaltyProgram->is_enabled) {
+            if (! $loyaltyProgram || ! $loyaltyProgram->is_enabled) {
                 throw ValidationException::withMessages([
                     'loyalty_points_redeem' => 'Le programme fidelite est desactive.',
                 ]);
@@ -604,7 +582,7 @@ class SaleController extends Controller
 
         $status = $payWithStripe ? Sale::STATUS_PENDING : $validated['status'];
         $fulfillmentStatus = $validated['fulfillment_status'] ?? null;
-        if (!$payWithStripe && $status === Sale::STATUS_PAID && !$this->isFulfillmentComplete($fulfillmentStatus)) {
+        if (! $payWithStripe && $status === Sale::STATUS_PAID && ! $this->isFulfillmentComplete($fulfillmentStatus)) {
             $fulfillmentStatus = Sale::FULFILLMENT_COMPLETED;
         }
 
@@ -688,7 +666,7 @@ class SaleController extends Controller
 
         if (
             $sale->status === Sale::STATUS_PENDING
-            && !$this->isFulfillmentComplete($sale->fulfillment_status)
+            && ! $this->isFulfillmentComplete($sale->fulfillment_status)
         ) {
             $this->applyReservations($sale, $itemsPayload, $accountId, []);
         }
@@ -696,7 +674,7 @@ class SaleController extends Controller
         if (
             $sale->fulfillment_method === 'pickup'
             && $sale->fulfillment_status === Sale::FULFILLMENT_READY_FOR_PICKUP
-            && !$sale->pickup_code
+            && ! $sale->pickup_code
         ) {
             $sale->forceFill([
                 'pickup_code' => $this->generatePickupCode(),
@@ -712,7 +690,7 @@ class SaleController extends Controller
 
             foreach ($itemsPayload as $payload) {
                 $product = $products->get($payload['product_id']);
-                if (!$product) {
+                if (! $product) {
                     continue;
                 }
                 $this->applyInventoryForProduct(
@@ -731,7 +709,7 @@ class SaleController extends Controller
 
         if ($payWithStripe && $stripeService) {
             $successUrl = URL::route('sales.show', ['sale' => $sale->id, 'stripe' => 'success']);
-            $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
+            $successUrl .= (str_contains($successUrl, '?') ? '&' : '?').'session_id={CHECKOUT_SESSION_ID}';
             $cancelUrl = URL::route('sales.show', ['sale' => $sale->id, 'stripe' => 'cancel']);
 
             $session = $stripeService->createCheckoutSession(
@@ -775,10 +753,10 @@ class SaleController extends Controller
             ->with('last_sale_id', $sale->id);
     }
 
-    public function update(Request $request, Sale $sale)
+    public function update(UpdateSaleRequest $request, Sale $sale)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
@@ -788,7 +766,7 @@ class SaleController extends Controller
         if ($sale->user_id !== $accountId) {
             abort(404);
         }
-        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
+        if (! $canAccessAll && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
@@ -809,23 +787,7 @@ class SaleController extends Controller
         $previousScheduled = $sale->scheduled_for;
         $previousItems = $sale->items()->get(['product_id', 'quantity']);
 
-        $validated = $request->validate([
-            'customer_id' => 'nullable|exists:customers,id',
-            'status' => ['required', Rule::in([
-                Sale::STATUS_DRAFT,
-                Sale::STATUS_PENDING,
-                Sale::STATUS_PAID,
-                Sale::STATUS_CANCELED,
-            ])],
-            'fulfillment_status' => ['nullable', Rule::in($this->allowedFulfillmentStatuses())],
-            'notes' => 'nullable|string|max:2000',
-            'scheduled_for' => 'nullable|date',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.price' => 'required|numeric|min:0',
-            'items.*.description' => 'nullable|string|max:255',
-        ]);
+        $validated = $request->validated();
 
         $customerId = $validated['customer_id'] ?? null;
         if ($customerId) {
@@ -833,7 +795,7 @@ class SaleController extends Controller
                 ->where('user_id', $accountId)
                 ->whereKey($customerId)
                 ->exists();
-            if (!$customerExists) {
+            if (! $customerExists) {
                 throw ValidationException::withMessages([
                     'customer_id' => 'Client invalide pour ce compte.',
                 ]);
@@ -858,24 +820,19 @@ class SaleController extends Controller
             ->keyBy('id');
         $this->hydrateSellableStock($products);
 
-        if ($products->count() !== $productIds->count()) {
-            throw ValidationException::withMessages([
-                'items' => 'Certains produits sont invalides pour ce compte.',
-            ]);
-        }
-
         $currentReservedMap = $sale->status === Sale::STATUS_PENDING
             ? $previousItems
                 ->groupBy('product_id')
-                ->map(fn($rows) => (int) $rows->sum('quantity'))
+                ->map(fn ($rows) => (int) $rows->sum('quantity'))
                 ->toArray()
             : [];
 
         $errors = [];
         foreach ($validated['items'] as $index => $item) {
             $product = $products->get($item['product_id']);
-            if (!$product) {
+            if (! $product) {
                 $errors["items.{$index}.product_id"] = 'Produit introuvable.';
+
                 continue;
             }
 
@@ -978,9 +935,9 @@ class SaleController extends Controller
 
         if (
             $updateData['status'] === Sale::STATUS_PAID
-            && !$this->isFulfillmentComplete($updateData['fulfillment_status'])
+            && ! $this->isFulfillmentComplete($updateData['fulfillment_status'])
         ) {
-            if (!$sale->fulfillment_method) {
+            if (! $sale->fulfillment_method) {
                 $updateData['fulfillment_status'] = Sale::FULFILLMENT_COMPLETED;
             } else {
                 throw ValidationException::withMessages([
@@ -994,7 +951,7 @@ class SaleController extends Controller
                 'fulfillment_status' => 'La confirmation est possible apres la livraison.',
             ]);
         }
-        if ($updateData['fulfillment_status'] === Sale::FULFILLMENT_CONFIRMED && !$sale->delivery_confirmed_at) {
+        if ($updateData['fulfillment_status'] === Sale::FULFILLMENT_CONFIRMED && ! $sale->delivery_confirmed_at) {
             $updateData['delivery_confirmed_at'] = now();
             $updateData['delivery_confirmed_by_user_id'] = $user->id;
         }
@@ -1008,7 +965,7 @@ class SaleController extends Controller
 
         $wasPending = $previousStatus === Sale::STATUS_PENDING;
         $isPending = $sale->status === Sale::STATUS_PENDING
-            && !$this->isFulfillmentComplete($sale->fulfillment_status);
+            && ! $this->isFulfillmentComplete($sale->fulfillment_status);
 
         if ($isPending) {
             $currentItems = $wasPending ? $previousItems : [];
@@ -1020,7 +977,7 @@ class SaleController extends Controller
         if (
             $sale->fulfillment_method === 'pickup'
             && $sale->fulfillment_status === Sale::FULFILLMENT_READY_FOR_PICKUP
-            && !$sale->pickup_code
+            && ! $sale->pickup_code
         ) {
             $sale->forceFill([
                 'pickup_code' => $this->generatePickupCode(),
@@ -1031,7 +988,7 @@ class SaleController extends Controller
             || $this->isFulfillmentComplete($previousFulfillment);
 
         if (
-            !$inventoryAlreadyApplied
+            ! $inventoryAlreadyApplied
             && ($sale->status === Sale::STATUS_PAID || $this->isFulfillmentComplete($sale->fulfillment_status))
         ) {
             $inventoryService = app(InventoryService::class);
@@ -1039,7 +996,7 @@ class SaleController extends Controller
 
             foreach ($itemsPayload as $payload) {
                 $product = $products->get($payload['product_id']);
-                if (!$product) {
+                if (! $product) {
                     continue;
                 }
                 $this->applyInventoryForProduct(
@@ -1096,10 +1053,10 @@ class SaleController extends Controller
             ->with('success', 'Vente mise a jour.');
     }
 
-    public function updateStatus(Request $request, Sale $sale)
+    public function updateStatus(UpdateSaleStatusRequest $request, Sale $sale)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
@@ -1109,7 +1066,7 @@ class SaleController extends Controller
         if ($sale->user_id !== $accountId) {
             abort(404);
         }
-        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
+        if (! $canAccessAll && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
@@ -1119,25 +1076,17 @@ class SaleController extends Controller
             ]);
         }
 
-        $validated = $request->validate([
-            'status' => ['nullable', Rule::in([
-                Sale::STATUS_DRAFT,
-                Sale::STATUS_PENDING,
-                Sale::STATUS_PAID,
-                Sale::STATUS_CANCELED,
-            ])],
-            'fulfillment_status' => ['nullable', Rule::in($this->allowedFulfillmentStatuses())],
-            'scheduled_for' => 'nullable|date',
-        ]);
+        $validated = $request->validated();
 
-        if (!array_key_exists('status', $validated) && !array_key_exists('fulfillment_status', $validated)
-            && !array_key_exists('scheduled_for', $validated)) {
+        if (! array_key_exists('status', $validated) && ! array_key_exists('fulfillment_status', $validated)
+            && ! array_key_exists('scheduled_for', $validated)) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Aucune modification.',
                     'sale' => $this->loadSaleForResponse($sale),
                 ]);
             }
+
             return redirect()->back();
         }
 
@@ -1181,8 +1130,8 @@ class SaleController extends Controller
                 'fulfillment_status' => 'La confirmation est possible apres la livraison.',
             ]);
         }
-        if ($nextStatus === Sale::STATUS_PAID && !$this->isFulfillmentComplete($nextFulfillment)) {
-            if (!$sale->fulfillment_method) {
+        if ($nextStatus === Sale::STATUS_PAID && ! $this->isFulfillmentComplete($nextFulfillment)) {
+            if (! $sale->fulfillment_method) {
                 $nextFulfillment = Sale::FULFILLMENT_COMPLETED;
             } else {
                 throw ValidationException::withMessages([
@@ -1221,7 +1170,7 @@ class SaleController extends Controller
         if (array_key_exists('scheduled_for', $validated)) {
             $updateData['scheduled_for'] = $validated['scheduled_for'];
         }
-        if ($nextFulfillment === Sale::FULFILLMENT_CONFIRMED && !$sale->delivery_confirmed_at) {
+        if ($nextFulfillment === Sale::FULFILLMENT_CONFIRMED && ! $sale->delivery_confirmed_at) {
             $updateData['delivery_confirmed_at'] = now();
             $updateData['delivery_confirmed_by_user_id'] = $user->id;
         }
@@ -1243,14 +1192,14 @@ class SaleController extends Controller
 
         $sale->update($updateData);
 
-        $itemsPayload = $previousItems->map(fn($item) => [
+        $itemsPayload = $previousItems->map(fn ($item) => [
             'product_id' => $item->product_id,
             'quantity' => (int) $item->quantity,
         ])->values()->all();
 
         $wasPending = $previousStatus === Sale::STATUS_PENDING;
         $isPending = $sale->status === Sale::STATUS_PENDING
-            && !$this->isFulfillmentComplete($sale->fulfillment_status);
+            && ! $this->isFulfillmentComplete($sale->fulfillment_status);
 
         if ($isPending) {
             $currentItems = $wasPending ? $previousItems : [];
@@ -1262,7 +1211,7 @@ class SaleController extends Controller
         if (
             $sale->fulfillment_method === 'pickup'
             && $sale->fulfillment_status === Sale::FULFILLMENT_READY_FOR_PICKUP
-            && !$sale->pickup_code
+            && ! $sale->pickup_code
         ) {
             $sale->forceFill([
                 'pickup_code' => $this->generatePickupCode(),
@@ -1273,7 +1222,7 @@ class SaleController extends Controller
             || $this->isFulfillmentComplete($previousFulfillment);
 
         if (
-            !$inventoryAlreadyApplied
+            ! $inventoryAlreadyApplied
             && ($sale->status === Sale::STATUS_PAID || $this->isFulfillmentComplete($sale->fulfillment_status))
         ) {
             $inventoryService = app(InventoryService::class);
@@ -1287,7 +1236,7 @@ class SaleController extends Controller
 
             foreach ($previousItems as $item) {
                 $product = $products->get($item->product_id);
-                if (!$product) {
+                if (! $product) {
                     continue;
                 }
                 $this->applyInventoryForProduct(
@@ -1359,7 +1308,7 @@ class SaleController extends Controller
     public function createStripeCheckout(Request $request, Sale $sale)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
@@ -1369,7 +1318,7 @@ class SaleController extends Controller
         if ($sale->user_id !== $accountId) {
             abort(404);
         }
-        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
+        if (! $canAccessAll && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
@@ -1404,25 +1353,25 @@ class SaleController extends Controller
             'stripe',
             'sale_stripe'
         );
-        if (!$methodDecision['allowed']) {
+        if (! $methodDecision['allowed']) {
             return $respondError(
                 TenantPaymentMethodGuardService::ERROR_MESSAGE,
                 TenantPaymentMethodGuardService::ERROR_CODE
             );
         }
 
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
         if ($sale->balance_due <= 0) {
             return $respondError('Aucun solde a payer.');
         }
 
         $stripeService = app(StripeSaleService::class);
-        if (!$stripeService->isConfigured()) {
+        if (! $stripeService->isConfigured()) {
             return $respondError('Stripe n est pas configure.');
         }
 
         $successUrl = URL::route('sales.show', ['sale' => $sale->id, 'stripe' => 'success']);
-        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
+        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?').'session_id={CHECKOUT_SESSION_ID}';
         $cancelUrl = URL::route('sales.show', ['sale' => $sale->id, 'stripe' => 'cancel']);
 
         $session = $stripeService->createCheckoutSession(
@@ -1445,7 +1394,7 @@ class SaleController extends Controller
     public function confirmPickup(Request $request, Sale $sale)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
@@ -1455,7 +1404,7 @@ class SaleController extends Controller
         if ($sale->user_id !== $accountId) {
             abort(404);
         }
-        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
+        if (! $canAccessAll && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
@@ -1465,6 +1414,7 @@ class SaleController extends Controller
                     'message' => 'Cette vente n est pas en mode retrait.',
                 ], 422);
             }
+
             return redirect()
                 ->back()
                 ->with('error', 'Cette vente n est pas en mode retrait.');
@@ -1476,6 +1426,7 @@ class SaleController extends Controller
                     'message' => 'La commande n est pas prete.',
                 ], 422);
             }
+
             return redirect()
                 ->back()
                 ->with('error', 'La commande n est pas prete.');
@@ -1491,14 +1442,14 @@ class SaleController extends Controller
             'pickup_confirmed_by_user_id' => $user->id,
         ])->save();
 
-        if ($previousStatus === Sale::STATUS_PENDING && !$this->isFulfillmentComplete($previousFulfillment)) {
+        if ($previousStatus === Sale::STATUS_PENDING && ! $this->isFulfillmentComplete($previousFulfillment)) {
             $this->applyReservations($sale, [], $accountId, $previousItems);
         }
 
         $inventoryAlreadyApplied = $previousStatus === Sale::STATUS_PAID
             || $this->isFulfillmentComplete($previousFulfillment);
 
-        if (!$inventoryAlreadyApplied) {
+        if (! $inventoryAlreadyApplied) {
             $inventoryService = app(InventoryService::class);
             $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
             $productIds = $previousItems->pluck('product_id')->unique()->values();
@@ -1510,7 +1461,7 @@ class SaleController extends Controller
 
             foreach ($previousItems as $item) {
                 $product = $products->get($item->product_id);
-                if (!$product) {
+                if (! $product) {
                     continue;
                 }
                 $this->applyInventoryForProduct(
@@ -1550,17 +1501,17 @@ class SaleController extends Controller
     public function show(Request $request, Sale $sale)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
         $canAccessAll = $canManage || $canPos;
 
-        if (!$accountId || $sale->user_id !== $accountId) {
+        if (! $accountId || $sale->user_id !== $accountId) {
             abort(404);
         }
-        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
+        if (! $canAccessAll && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
@@ -1586,11 +1537,11 @@ class SaleController extends Controller
             'items.product:id,name,sku,unit,image',
             'createdBy:id,name,email,phone_number',
             'pickupConfirmedBy:id,name,email,phone_number',
-            'payments' => fn($query) => $query
+            'payments' => fn ($query) => $query
                 ->select(['id', 'sale_id', 'amount', 'method', 'status', 'paid_at', 'created_at'])
                 ->orderByDesc('paid_at'),
         ]);
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         return $this->inertiaOrJson('Sales/Show', [
             'sale' => $sale,
@@ -1604,28 +1555,28 @@ class SaleController extends Controller
     public function receipt(Request $request, Sale $sale)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
         $canAccessAll = $canManage || $canPos;
 
-        if (!$accountId || $sale->user_id !== $accountId) {
+        if (! $accountId || $sale->user_id !== $accountId) {
             abort(404);
         }
-        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
+        if (! $canAccessAll && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
         $sale->load([
             'customer:id,first_name,last_name,company_name,email,phone',
             'items.product:id,name,sku,unit,image',
-            'payments' => fn($query) => $query
+            'payments' => fn ($query) => $query
                 ->select(['id', 'sale_id', 'amount', 'method', 'status', 'paid_at', 'created_at'])
                 ->orderByDesc('paid_at'),
         ]);
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         $items = $sale->items->map(function ($item) {
             return [
@@ -1652,7 +1603,7 @@ class SaleController extends Controller
         ])->setOption('isRemoteEnabled', true);
 
         $label = $sale->number ?: $sale->id;
-        $filename = 'receipt-' . $label . '.pdf';
+        $filename = 'receipt-'.$label.'.pdf';
 
         return $pdf->download($filename);
     }
@@ -1664,20 +1615,20 @@ class SaleController extends Controller
             ? $user
             : User::query()->find($ownerId);
 
-        if (!$owner || $owner->company_type !== 'products') {
+        if (! $owner || $owner->company_type !== 'products') {
             abort(403);
         }
 
         $canManage = $user->id === $owner->id;
         $canPos = $canManage;
 
-        if (!$canManage) {
+        if (! $canManage) {
             $membership = $user->relationLoaded('teamMembership')
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
             $canManage = $membership?->hasPermission('sales.manage') ?? false;
             $canPos = $membership?->hasPermission('sales.pos') ?? false;
-            if (!$canManage && !$canPos) {
+            if (! $canManage && ! $canPos) {
                 abort(403);
             }
         }
@@ -1694,21 +1645,9 @@ class SaleController extends Controller
             'pickupConfirmedBy:id,name,email,phone_number',
             'deliveryConfirmedBy:id,name,email,phone_number',
         ]);
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         return $sale;
-    }
-
-    private function allowedFulfillmentStatuses(): array
-    {
-        return [
-            Sale::FULFILLMENT_PENDING,
-            Sale::FULFILLMENT_PREPARING,
-            Sale::FULFILLMENT_OUT_FOR_DELIVERY,
-            Sale::FULFILLMENT_READY_FOR_PICKUP,
-            Sale::FULFILLMENT_COMPLETED,
-            Sale::FULFILLMENT_CONFIRMED,
-        ];
     }
 
     private function isFulfillmentComplete(?string $status): bool
@@ -1730,16 +1669,16 @@ class SaleController extends Controller
         }
 
         $currentMap = $current->groupBy('product_id')
-            ->map(fn($rows) => (int) $rows->sum('quantity'))
+            ->map(fn ($rows) => (int) $rows->sum('quantity'))
             ->toArray();
 
         $nextMap = collect($itemsPayload)
             ->groupBy('product_id')
-            ->map(fn($rows) => (int) collect($rows)->sum('quantity'))
+            ->map(fn ($rows) => (int) collect($rows)->sum('quantity'))
             ->toArray();
 
         $productIds = array_values(array_unique(array_merge(array_keys($currentMap), array_keys($nextMap))));
-        if (!$productIds) {
+        if (! $productIds) {
             return;
         }
 
@@ -1751,7 +1690,7 @@ class SaleController extends Controller
 
         foreach ($productIds as $productId) {
             $product = $products->get($productId);
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -1774,7 +1713,7 @@ class SaleController extends Controller
 
     private function generatePickupCode(): string
     {
-        return 'PK-' . Str::upper(Str::random(6));
+        return 'PK-'.Str::upper(Str::random(6));
     }
 
     private function applyInventoryForProduct(
@@ -1803,7 +1742,7 @@ class SaleController extends Controller
                 $inventoryService->adjust($product, 1, 'out', [
                     'warehouse' => $lot->warehouse ?? $fallbackWarehouse,
                     'reason' => 'sale',
-                    'note' => 'Sale ' . $sale->number,
+                    'note' => 'Sale '.$sale->number,
                     'serial_number' => $lot->serial_number,
                     'reference' => $sale,
                 ]);
@@ -1833,7 +1772,7 @@ class SaleController extends Controller
                 $inventoryService->adjust($product, $useQuantity, 'out', [
                     'warehouse' => $lot->warehouse ?? $fallbackWarehouse,
                     'reason' => 'sale',
-                    'note' => 'Sale ' . $sale->number,
+                    'note' => 'Sale '.$sale->number,
                     'lot_number' => $lot->lot_number,
                     'reference' => $sale,
                 ]);
@@ -1845,7 +1784,7 @@ class SaleController extends Controller
                 $inventoryService->adjust($product, $remaining, 'out', [
                     'warehouse' => $fallbackWarehouse,
                     'reason' => 'sale',
-                    'note' => 'Sale ' . $sale->number,
+                    'note' => 'Sale '.$sale->number,
                     'reference' => $sale,
                 ]);
             }
@@ -1856,7 +1795,7 @@ class SaleController extends Controller
         $inventoryService->adjust($product, $quantity, 'out', [
             'warehouse' => $fallbackWarehouse,
             'reason' => 'sale',
-            'note' => 'Sale ' . $sale->number,
+            'note' => 'Sale '.$sale->number,
             'reference' => $sale,
         ]);
     }
@@ -1869,7 +1808,7 @@ class SaleController extends Controller
     private function hydrateSellableStock(iterable $products): void
     {
         foreach ($products as $product) {
-            if (!$product instanceof Product) {
+            if (! $product instanceof Product) {
                 continue;
             }
 

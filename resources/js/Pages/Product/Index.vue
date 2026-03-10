@@ -45,6 +45,10 @@ const props = defineProps({
         type: Number,
         default: null,
     },
+    tenantCurrencyCode: {
+        type: String,
+        default: 'CAD',
+    },
 });
 
 </script>
@@ -63,6 +67,7 @@ const props = defineProps({
                     :defaultWarehouseId="defaultWarehouseId"
                     :canEdit="canEdit"
                     :ai-image="ai_image"
+                    :tenant-currency-code="tenantCurrencyCode"
                 />
             </div>
             <ProductUsageStat :items="topProducts" />

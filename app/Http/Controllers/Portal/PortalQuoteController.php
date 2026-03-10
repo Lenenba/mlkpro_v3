@@ -4,37 +4,29 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
-use App\Services\UsageLimitService;
 use App\Notifications\ActionEmailNotification;
+use App\Services\Portal\PortalAccessService;
+use App\Services\UsageLimitService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PortalQuoteController extends Controller
 {
-    private function portalCustomer(Request $request): Customer
-    {
-        $customer = $request->user()?->customerProfile;
-        if (!$customer) {
-            abort(403);
-        }
-
-        return $customer;
-    }
+    public function __construct(
+        private readonly PortalAccessService $portalAccess
+    ) {}
 
     public function accept(Request $request, Quote $quote)
     {
-        $customer = $this->portalCustomer($request);
-        if ($quote->customer_id !== $customer->id) {
-            abort(403);
-        }
+        $customer = $this->portalAccess->customer($request);
+        $this->portalAccess->assertQuote($customer, $quote);
 
         if ($quote->isArchived()) {
             if ($this->shouldReturnJson($request)) {
@@ -97,7 +89,7 @@ class PortalQuoteController extends Controller
         }
 
         $existingWork = Work::where('quote_id', $quote->id)->first();
-        if (!$existingWork) {
+        if (! $existingWork) {
             $owner = User::find($quote->user_id);
             if ($owner) {
                 app(UsageLimitService::class)->enforceLimit($owner, 'jobs');
@@ -107,7 +99,7 @@ class PortalQuoteController extends Controller
         $work = null;
         DB::transaction(function () use ($quote, $validated, $depositAmount, $existingWork, &$work) {
             $work = $existingWork;
-            if (!$work) {
+            if (! $work) {
                 $work = Work::create([
                     'user_id' => $quote->user_id,
                     'customer_id' => $quote->customer_id,
@@ -140,7 +132,7 @@ class PortalQuoteController extends Controller
                     ->where('status', 'completed')
                     ->exists();
 
-                if (!$hasDeposit) {
+                if (! $hasDeposit) {
                     Transaction::create([
                         'quote_id' => $quote->id,
                         'work_id' => $work->id,
@@ -190,15 +182,15 @@ class PortalQuoteController extends Controller
         $owner = User::find($quote->user_id);
         if ($owner && $owner->email) {
             $customerLabel = $customer->company_name
-                ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+                ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Quote accepted by client',
-                $customerLabel ? $customerLabel . ' accepted a quote.' : 'A client accepted a quote.',
+                $customerLabel ? $customerLabel.' accepted a quote.' : 'A client accepted a quote.',
                 [
                     ['label' => 'Quote', 'value' => $quote->number ?? $quote->id],
                     ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
-                    ['label' => 'Total', 'value' => '$' . number_format((float) $quote->total, 2)],
+                    ['label' => 'Total', 'value' => '$'.number_format((float) $quote->total, 2)],
                 ],
                 route('customer.quote.show', $quote->id),
                 'View quote',
@@ -230,10 +222,8 @@ class PortalQuoteController extends Controller
 
     public function decline(Request $request, Quote $quote)
     {
-        $customer = $this->portalCustomer($request);
-        if ($quote->customer_id !== $customer->id) {
-            abort(403);
-        }
+        $customer = $this->portalAccess->customer($request);
+        $this->portalAccess->assertQuote($customer, $quote);
 
         if ($quote->isArchived()) {
             if ($this->shouldReturnJson($request)) {
@@ -288,15 +278,15 @@ class PortalQuoteController extends Controller
         $owner = User::find($quote->user_id);
         if ($owner && $owner->email) {
             $customerLabel = $customer->company_name
-                ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+                ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Quote declined by client',
-                $customerLabel ? $customerLabel . ' declined a quote.' : 'A client declined a quote.',
+                $customerLabel ? $customerLabel.' declined a quote.' : 'A client declined a quote.',
                 [
                     ['label' => 'Quote', 'value' => $quote->number ?? $quote->id],
                     ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
-                    ['label' => 'Total', 'value' => '$' . number_format((float) $quote->total, 2)],
+                    ['label' => 'Total', 'value' => '$'.number_format((float) $quote->total, 2)],
                 ],
                 route('customer.quote.show', $quote->id),
                 'View quote',

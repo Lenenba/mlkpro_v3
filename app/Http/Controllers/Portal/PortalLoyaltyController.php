@@ -6,12 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\LoyaltyPointLedger;
 use App\Models\LoyaltyProgram;
+use App\Services\Portal\PortalAccessService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class PortalLoyaltyController extends Controller
 {
+    public function __construct(
+        private readonly PortalAccessService $portalAccess
+    ) {}
+
     private const DEFAULT_PERIOD = '30d';
 
     private const EVENT_OPTIONS = [
@@ -32,7 +37,7 @@ class PortalLoyaltyController extends Controller
 
     public function index(Request $request)
     {
-        $customer = $this->portalCustomer($request);
+        $customer = $this->portalAccess->customer($request);
         $accountId = (int) $customer->user_id;
 
         $filters = $this->validatedFilters($request);
@@ -115,16 +120,6 @@ class PortalLoyaltyController extends Controller
         ]);
     }
 
-    private function portalCustomer(Request $request): Customer
-    {
-        $customer = $request->user()?->customerProfile;
-        if (!$customer) {
-            abort(403);
-        }
-
-        return $customer;
-    }
-
     private function validatedFilters(Request $request): array
     {
         $validated = $request->validate([
@@ -150,7 +145,7 @@ class PortalLoyaltyController extends Controller
 
     private function applyFilters(Builder $query, array $filters): void
     {
-        if (!empty($filters['event'])) {
+        if (! empty($filters['event'])) {
             $query->where('event', (string) $filters['event']);
         }
 
@@ -219,6 +214,6 @@ class PortalLoyaltyController extends Controller
             return $fullName;
         }
 
-        return 'Client #' . $customer->id;
+        return 'Client #'.$customer->id;
     }
 }

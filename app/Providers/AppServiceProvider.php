@@ -2,23 +2,26 @@
 
 namespace App\Providers;
 
+use App\Listeners\SendDatabasePushNotifications;
+use App\Listeners\SendEmailMirrorNotifications;
 use App\Models\Billing\PaddleCustomer;
 use App\Models\Billing\PaddleSubscription as PaddleSubscriptionModel;
 use App\Models\Billing\PaddleSubscriptionItem;
 use App\Models\Billing\PaddleTransaction as PaddleTransactionModel;
 use App\Models\Payment;
-use App\Observers\PaymentObserver;
 use App\Models\User;
-use App\Listeners\SendDatabasePushNotifications;
-use App\Listeners\SendEmailMirrorNotifications;
+use App\Observers\PaymentObserver;
 use App\Services\Campaigns\MarketingSettingsService;
 use App\Services\Campaigns\TemplateSeederService;
+use App\Services\Observability\SlowQueryService;
 use App\Services\PlatformAdminNotifier;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\Events\NotificationFailed;
 use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
@@ -52,7 +55,7 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('api', function (Request $request) {
             $user = $request->user();
-            $key = $user ? 'user:' . $user->id : 'ip:' . $request->ip();
+            $key = $user ? 'user:'.$user->id : 'ip:'.$request->ip();
             $limit = (int) config('services.rate_limits.api_per_user', 120);
 
             return Limit::perMinute(max(1, $limit))->by($key);
@@ -60,7 +63,44 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('public-signed', function (Request $request) {
             $limit = (int) config('services.rate_limits.public_signed_per_minute', 30);
-            $key = 'public-signed:' . $request->ip();
+            $key = 'public-signed:'.$request->ip();
+
+            return Limit::perMinute(max(1, $limit))->by($key);
+        });
+
+        RateLimiter::for('public-leads-lookup', function (Request $request) {
+            $limit = (int) config('services.rate_limits.public_lead_lookup_per_minute', 20);
+            $ownerId = (int) ($request->route('user')?->id ?? $request->route('user') ?? 0);
+            $key = 'public-leads-lookup:'.$ownerId.':'.$request->ip();
+
+            return Limit::perMinute(max(1, $limit))->by($key);
+        });
+
+        RateLimiter::for('public-leads-submit', function (Request $request) {
+            $limit = (int) config('services.rate_limits.public_lead_submit_per_minute', 6);
+            $ownerId = (int) ($request->route('user')?->id ?? $request->route('user') ?? 0);
+            $email = strtolower(trim((string) $request->input('contact_email')));
+            $fingerprint = $email !== '' ? sha1($email) : $request->ip();
+            $key = 'public-leads-submit:'.$ownerId.':'.$fingerprint;
+
+            return Limit::perMinute(max(1, $limit))->by($key);
+        });
+
+        RateLimiter::for('public-kiosk', function (Request $request) {
+            $limit = (int) config('services.rate_limits.public_kiosk_per_minute', 40);
+            $accountId = (int) ($request->route('account') ?? $request->query('account') ?? 0);
+            $key = 'public-kiosk:'.$accountId.':'.$request->ip();
+
+            return Limit::perMinute(max(1, $limit))->by($key);
+        });
+
+        RateLimiter::for('ai-images', function (Request $request) {
+            $limit = (int) config('services.rate_limits.ai_images_per_minute', 6);
+            $user = $request->user();
+            $accountId = $user ? (int) $user->accountOwnerId() : 0;
+            $key = $accountId > 0
+                ? 'ai-images:account:'.$accountId
+                : 'ai-images:ip:'.$request->ip();
 
             return Limit::perMinute(max(1, $limit))->by($key);
         });
@@ -68,10 +108,16 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('register', function (Request $request) {
             $limit = (int) config('services.rate_limits.register_per_minute', 10);
             $email = strtolower((string) $request->input('email'));
-            $key = $email !== '' ? 'register:email:' . sha1($email) : 'register:ip:' . $request->ip();
+            $key = $email !== '' ? 'register:email:'.sha1($email) : 'register:ip:'.$request->ip();
 
             return Limit::perMinute(max(1, $limit))->by($key);
         });
+
+        if (config('observability.enabled', true)) {
+            DB::listen(function (QueryExecuted $query): void {
+                app(SlowQueryService::class)->recordExecutedQuery($query);
+            });
+        }
 
         Cashier::useCustomerModel(PaddleCustomer::class);
         Cashier::useSubscriptionModel(PaddleSubscriptionModel::class);
@@ -86,7 +132,7 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(Registered::class, function (Registered $event): void {
             $user = $event->user;
-            if (!$user instanceof User) {
+            if (! $user instanceof User) {
                 return;
             }
 
@@ -94,7 +140,7 @@ class AppServiceProvider extends ServiceProvider
             $companyLabel = $user->company_name ?: $user->email;
 
             $notifier->notify('new_account', 'New account registered', [
-                'intro' => ($companyLabel ?: 'A new account') . ' signed up.',
+                'intro' => ($companyLabel ?: 'A new account').' signed up.',
                 'details' => [
                     ['label' => 'Name', 'value' => $user->name ?: 'Unknown'],
                     ['label' => 'Email', 'value' => $user->email ?: 'Unknown'],
@@ -103,7 +149,7 @@ class AppServiceProvider extends ServiceProvider
                 ],
                 'actionUrl' => route('superadmin.tenants.show', $user->id),
                 'actionLabel' => 'View tenant',
-                'reference' => 'registration:' . $user->id,
+                'reference' => 'registration:'.$user->id,
                 'severity' => 'info',
             ]);
 
@@ -115,7 +161,7 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(SubscriptionCreated::class, function (SubscriptionCreated $event): void {
             $billable = $event->billable;
-            if (!$billable instanceof User) {
+            if (! $billable instanceof User) {
                 return;
             }
 
@@ -127,7 +173,7 @@ class AppServiceProvider extends ServiceProvider
             $trialEnds = $subscription->trial_ends_at?->toDateString();
 
             $notifier->notify('subscription_started', 'Subscription started', [
-                'intro' => ($billable->company_name ?: $billable->email) . ' started a subscription.',
+                'intro' => ($billable->company_name ?: $billable->email).' started a subscription.',
                 'details' => [
                     ['label' => 'Company', 'value' => $billable->company_name ?: 'Not set'],
                     ['label' => 'Owner', 'value' => $billable->email ?: 'Unknown'],
@@ -137,7 +183,7 @@ class AppServiceProvider extends ServiceProvider
                 ],
                 'actionUrl' => route('superadmin.tenants.show', $billable->id),
                 'actionLabel' => 'View tenant',
-                'reference' => 'subscription:' . $subscription->paddle_id . ':started',
+                'reference' => 'subscription:'.$subscription->paddle_id.':started',
                 'severity' => 'info',
             ]);
         });
@@ -145,7 +191,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(SubscriptionPaused::class, function (SubscriptionPaused $event): void {
             $subscription = $event->subscription;
             $billable = $subscription->billable;
-            if (!$billable instanceof User) {
+            if (! $billable instanceof User) {
                 return;
             }
 
@@ -153,7 +199,7 @@ class AppServiceProvider extends ServiceProvider
             $pausedAt = $subscription->paused_at?->toDateString();
 
             $notifier->notify('subscription_paused', 'Subscription paused', [
-                'intro' => ($billable->company_name ?: $billable->email) . ' paused their subscription.',
+                'intro' => ($billable->company_name ?: $billable->email).' paused their subscription.',
                 'details' => [
                     ['label' => 'Company', 'value' => $billable->company_name ?: 'Not set'],
                     ['label' => 'Owner', 'value' => $billable->email ?: 'Unknown'],
@@ -162,7 +208,7 @@ class AppServiceProvider extends ServiceProvider
                 ],
                 'actionUrl' => route('superadmin.tenants.show', $billable->id),
                 'actionLabel' => 'View tenant',
-                'reference' => 'subscription:' . $subscription->paddle_id . ':paused',
+                'reference' => 'subscription:'.$subscription->paddle_id.':paused',
                 'severity' => 'warning',
             ]);
         });
@@ -170,7 +216,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(SubscriptionCanceled::class, function (SubscriptionCanceled $event): void {
             $subscription = $event->subscription;
             $billable = $subscription->billable;
-            if (!$billable instanceof User) {
+            if (! $billable instanceof User) {
                 return;
             }
 
@@ -178,7 +224,7 @@ class AppServiceProvider extends ServiceProvider
             $endsAt = $subscription->ends_at?->toDateString();
 
             $notifier->notify('subscription_canceled', 'Subscription canceled', [
-                'intro' => ($billable->company_name ?: $billable->email) . ' canceled their subscription.',
+                'intro' => ($billable->company_name ?: $billable->email).' canceled their subscription.',
                 'details' => [
                     ['label' => 'Company', 'value' => $billable->company_name ?: 'Not set'],
                     ['label' => 'Owner', 'value' => $billable->email ?: 'Unknown'],
@@ -187,7 +233,7 @@ class AppServiceProvider extends ServiceProvider
                 ],
                 'actionUrl' => route('superadmin.tenants.show', $billable->id),
                 'actionLabel' => 'View tenant',
-                'reference' => 'subscription:' . $subscription->paddle_id . ':canceled',
+                'reference' => 'subscription:'.$subscription->paddle_id.':canceled',
                 'severity' => 'warning',
             ]);
         });
@@ -195,7 +241,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(SubscriptionUpdated::class, function (SubscriptionUpdated $event): void {
             $subscription = $event->subscription;
             $billable = $subscription->billable;
-            if (!$billable instanceof User) {
+            if (! $billable instanceof User) {
                 return;
             }
 
@@ -204,11 +250,11 @@ class AppServiceProvider extends ServiceProvider
                 ?? data_get($event->payload, 'data.previous_attributes.status')
                 ?? data_get($event->payload, 'data.status_previous');
 
-            if (!$previousStatus || $currentStatus !== PaddleSubscription::STATUS_ACTIVE) {
+            if (! $previousStatus || $currentStatus !== PaddleSubscription::STATUS_ACTIVE) {
                 return;
             }
 
-            if (!in_array($previousStatus, [
+            if (! in_array($previousStatus, [
                 PaddleSubscription::STATUS_PAUSED,
                 PaddleSubscription::STATUS_PAST_DUE,
                 PaddleSubscription::STATUS_CANCELED,
@@ -219,7 +265,7 @@ class AppServiceProvider extends ServiceProvider
             $notifier = app(PlatformAdminNotifier::class);
 
             $notifier->notify('subscription_resumed', 'Subscription resumed', [
-                'intro' => ($billable->company_name ?: $billable->email) . ' resumed their subscription.',
+                'intro' => ($billable->company_name ?: $billable->email).' resumed their subscription.',
                 'details' => [
                     ['label' => 'Company', 'value' => $billable->company_name ?: 'Not set'],
                     ['label' => 'Owner', 'value' => $billable->email ?: 'Unknown'],
@@ -227,14 +273,14 @@ class AppServiceProvider extends ServiceProvider
                 ],
                 'actionUrl' => route('superadmin.tenants.show', $billable->id),
                 'actionLabel' => 'View tenant',
-                'reference' => 'subscription:' . $subscription->paddle_id . ':resumed',
+                'reference' => 'subscription:'.$subscription->paddle_id.':resumed',
                 'severity' => 'success',
             ]);
         });
 
         Event::listen(TransactionCompleted::class, function (TransactionCompleted $event): void {
             $billable = $event->billable;
-            if (!$billable instanceof User) {
+            if (! $billable instanceof User) {
                 return;
             }
 
@@ -243,7 +289,7 @@ class AppServiceProvider extends ServiceProvider
             $amount = $notifier->formatMoney($transaction->total, $transaction->currency);
 
             $notifier->notify('payment_succeeded', 'Payment received', [
-                'intro' => ($billable->company_name ?: $billable->email) . ' completed a payment.',
+                'intro' => ($billable->company_name ?: $billable->email).' completed a payment.',
                 'details' => [
                     ['label' => 'Company', 'value' => $billable->company_name ?: 'Not set'],
                     ['label' => 'Owner', 'value' => $billable->email ?: 'Unknown'],
@@ -253,19 +299,19 @@ class AppServiceProvider extends ServiceProvider
                 ],
                 'actionUrl' => route('superadmin.tenants.show', $billable->id),
                 'actionLabel' => 'View tenant',
-                'reference' => 'payment:' . $transaction->paddle_id,
+                'reference' => 'payment:'.$transaction->paddle_id,
                 'severity' => 'success',
             ]);
         });
 
         Event::listen(TransactionUpdated::class, function (TransactionUpdated $event): void {
             $billable = $event->billable;
-            if (!$billable instanceof User) {
+            if (! $billable instanceof User) {
                 return;
             }
 
             $transaction = $event->transaction;
-            if (!in_array($transaction->status, [
+            if (! in_array($transaction->status, [
                 PaddleTransaction::STATUS_PAST_DUE,
                 PaddleTransaction::STATUS_CANCELED,
             ], true)) {
@@ -276,7 +322,7 @@ class AppServiceProvider extends ServiceProvider
             $amount = $notifier->formatMoney($transaction->total, $transaction->currency);
 
             $notifier->notify('payment_failed', 'Payment failed', [
-                'intro' => ($billable->company_name ?: $billable->email) . ' has a failed payment.',
+                'intro' => ($billable->company_name ?: $billable->email).' has a failed payment.',
                 'details' => [
                     ['label' => 'Company', 'value' => $billable->company_name ?: 'Not set'],
                     ['label' => 'Owner', 'value' => $billable->email ?: 'Unknown'],
@@ -286,7 +332,7 @@ class AppServiceProvider extends ServiceProvider
                 ],
                 'actionUrl' => route('superadmin.tenants.show', $billable->id),
                 'actionLabel' => 'View tenant',
-                'reference' => 'payment:' . $transaction->paddle_id . ':' . $transaction->status,
+                'reference' => 'payment:'.$transaction->paddle_id.':'.$transaction->status,
                 'severity' => 'warning',
             ]);
         });

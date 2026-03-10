@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Request as LeadRequest;
 use App\Models\User;
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -17,6 +18,12 @@ class LeadCallRequestReceivedNotification extends Notification implements Should
         public User $owner,
         public LeadRequest $lead
     ) {
+        $this->onQueue(QueueWorkload::queue('notifications'));
+    }
+
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('notifications', [60, 300, 900]);
     }
 
     public function via(object $notifiable): array
@@ -28,9 +35,9 @@ class LeadCallRequestReceivedNotification extends Notification implements Should
     {
         $companyName = $this->owner->company_name ?: config('app.name');
         $companyLogo = $this->owner->company_logo_url;
-        $leadLabel = trim((string) ($this->lead->title ?: $this->lead->service_type ?: ('Lead #' . $this->lead->id)));
+        $leadLabel = trim((string) ($this->lead->title ?: $this->lead->service_type ?: ('Lead #'.$this->lead->id)));
         if ($leadLabel === '') {
-            $leadLabel = 'Lead #' . $this->lead->id;
+            $leadLabel = 'Lead #'.$this->lead->id;
         }
 
         return (new MailMessage)
@@ -52,4 +59,3 @@ class LeadCallRequestReceivedNotification extends Notification implements Should
             ]);
     }
 }
-

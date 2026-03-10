@@ -51,13 +51,14 @@ const planOptions = computed(() =>
     (props.plans || [])
         .filter((plan) => Boolean(plan?.price_id))
         .map((plan) => ({
-            value: String(plan.price_id),
-            label: plan.name,
+            value: String(plan.key),
+            label: plan.display_price ? `${plan.name} (${plan.display_price})` : plan.name,
         }))
 );
 const defaultPlanId = computed(() => {
-    if (props.tenant?.subscription?.price_id) {
-        return String(props.tenant.subscription.price_id);
+    const activePlan = (props.plans || []).find((plan) => plan.price_id === props.tenant?.subscription?.price_id);
+    if (activePlan?.key) {
+        return String(activePlan.key);
     }
     return '';
 });
@@ -85,7 +86,7 @@ const securityForm = useForm({
 });
 
 const planForm = useForm({
-    price_id: defaultPlanId.value,
+    plan_key: defaultPlanId.value,
     comped: props.tenant?.subscription?.is_comped ?? true,
 });
 
@@ -231,6 +232,9 @@ const impersonate = () => {
                         <div class="mt-1">
                             {{ $t('super_admin.tenants.detail.plan_label') }}: {{ tenant.subscription.plan_name || tenant.subscription.price_id }}
                         </div>
+                        <div class="mt-1">
+                            Currency: {{ tenant.currency_code || 'CAD' }}
+                        </div>
                         <div>
                             {{ $t('super_admin.tenants.detail.subscription_status') }}: {{ tenant.subscription.status }}
                         </div>
@@ -353,7 +357,7 @@ const impersonate = () => {
                 <form v-else class="mt-3 space-y-3" @submit.prevent="updatePlan">
                     <div class="grid gap-3 md:grid-cols-2">
                         <FloatingSelect
-                            v-model="planForm.price_id"
+                            v-model="planForm.plan_key"
                             :label="$t('super_admin.tenants.detail.plan_select')"
                             :options="planOptions"
                             required
@@ -366,7 +370,7 @@ const impersonate = () => {
                     <p class="text-xs text-stone-500 dark:text-neutral-400">
                         {{ $t('super_admin.tenants.detail.plan_comped_help') }}
                     </p>
-                    <InputError class="mt-1" :message="planForm.errors.price_id" />
+                    <InputError class="mt-1" :message="planForm.errors.plan_key" />
                     <InputError class="mt-1" :message="planForm.errors.comped" />
                     <button type="submit"
                         class="mt-2 py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-60"

@@ -44,6 +44,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    tenantCurrencyCode: {
+        type: String,
+        default: 'CAD',
+    },
 });
 
 const normalizeArray = (value) => {
@@ -1488,7 +1492,13 @@ const submitImport = () => {
                     </td>
 
                     <Modal v-if="canEdit" :title="$t('products.actions.edit_product')" :id="'hs-pro-edit' + product.id">
-                        <ProductForm :product="product" :categories="categories" :id="'hs-pro-edit' + product.id" :ai-image="aiImage" />
+                        <ProductForm
+                            :product="product"
+                            :categories="categories"
+                            :id="'hs-pro-edit' + product.id"
+                            :ai-image="aiImage"
+                            :tenant-currency-code="tenantCurrencyCode"
+                        />
                     </Modal>
                 </tr>
                 </template>
@@ -1803,7 +1813,13 @@ const submitImport = () => {
     </Modal>
 
     <Modal v-if="canEdit" :title="$t('products.actions.add_product')" :id="'hs-pro-dasadpm'">
-        <ProductForm :product="product" :categories="categories" :id="'hs-pro-dasadpm'" :ai-image="aiImage" />
+        <ProductForm
+            :product="product"
+            :categories="categories"
+            :id="'hs-pro-dasadpm'"
+            :ai-image="aiImage"
+            :tenant-currency-code="tenantCurrencyCode"
+        />
     </Modal>
 
     <Modal v-if="canEdit" :title="$t('products.import.title')" :id="'hs-pro-import'">

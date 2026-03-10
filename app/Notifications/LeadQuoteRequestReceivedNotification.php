@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\User;
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -21,6 +22,12 @@ class LeadQuoteRequestReceivedNotification extends Notification implements Shoul
         public Quote $quote,
         public bool $quoteEmailSent = true
     ) {
+        $this->onQueue(QueueWorkload::queue('notifications'));
+    }
+
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('notifications', [60, 300, 900]);
     }
 
     public function via(object $notifiable): array
@@ -32,14 +39,14 @@ class LeadQuoteRequestReceivedNotification extends Notification implements Shoul
     {
         $companyName = $this->owner->company_name ?: config('app.name');
         $companyLogo = $this->owner->company_logo_url;
-        $leadLabel = trim((string) ($this->lead->title ?: $this->lead->service_type ?: ('Lead #' . $this->lead->id)));
+        $leadLabel = trim((string) ($this->lead->title ?: $this->lead->service_type ?: ('Lead #'.$this->lead->id)));
         if ($leadLabel === '') {
-            $leadLabel = 'Lead #' . $this->lead->id;
+            $leadLabel = 'Lead #'.$this->lead->id;
         }
 
-        $quoteLabel = !empty($this->quote->number)
+        $quoteLabel = ! empty($this->quote->number)
             ? (string) $this->quote->number
-            : ('#' . $this->quote->id);
+            : ('#'.$this->quote->id);
 
         $description = trim((string) ($this->lead->description ?? ''));
         $description = $description !== '' ? Str::limit($description, 220) : '-';
@@ -67,7 +74,7 @@ class LeadQuoteRequestReceivedNotification extends Notification implements Shoul
                     $this->lead->contact_email ? ['label' => 'Email', 'value' => $this->lead->contact_email] : null,
                     $this->lead->contact_phone ? ['label' => 'Phone', 'value' => $this->lead->contact_phone] : null,
                     ['label' => 'Quote', 'value' => $quoteLabel],
-                    ['label' => 'Total', 'value' => '$' . number_format((float) ($this->quote->total ?? 0), 2)],
+                    ['label' => 'Total', 'value' => '$'.number_format((float) ($this->quote->total ?? 0), 2)],
                 ])),
                 'actionUrl' => null,
                 'actionLabel' => null,

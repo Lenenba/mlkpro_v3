@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CurrencyCode;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -33,6 +34,7 @@ class Sale extends Model
         'number',
         'subtotal',
         'tax_total',
+        'currency_code',
         'discount_rate',
         'discount_total',
         'loyalty_points_redeemed',
@@ -65,6 +67,7 @@ class Sale extends Model
     protected $casts = [
         'subtotal' => 'decimal:2',
         'tax_total' => 'decimal:2',
+        'currency_code' => 'string',
         'discount_rate' => 'decimal:2',
         'discount_total' => 'decimal:2',
         'loyalty_points_redeemed' => 'integer',
@@ -93,6 +96,11 @@ class Sale extends Model
         static::creating(function (self $sale) {
             if (!$sale->number) {
                 $sale->number = self::generateNumber($sale->user_id, 'SO');
+            }
+
+            if (! $sale->currency_code) {
+                $owner = $sale->user_id ? User::query()->find($sale->user_id) : null;
+                $sale->currency_code = $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value;
             }
         });
     }

@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
-use App\Models\Customer;
 use App\Models\Task;
 use App\Models\TaskMedia;
+use App\Services\Portal\PortalAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -13,19 +13,13 @@ use Illuminate\Validation\Rule;
 
 class PortalTaskMediaController extends Controller
 {
-    private function portalCustomer(Request $request): Customer
-    {
-        $customer = $request->user()?->customerProfile;
-        if (!$customer) {
-            abort(403);
-        }
-
-        return $customer;
-    }
+    public function __construct(
+        private readonly PortalAccessService $portalAccess
+    ) {}
 
     public function store(Request $request, Task $task)
     {
-        $customer = $this->portalCustomer($request);
+        $customer = $this->portalAccess->customer($request);
         if ($customer->auto_validate_tasks) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
@@ -38,12 +32,7 @@ class PortalTaskMediaController extends Controller
             ]);
         }
 
-        $task->loadMissing('work');
-
-        $workCustomerId = $task->work?->customer_id;
-        if ($task->customer_id !== $customer->id && $workCustomerId !== $customer->id) {
-            abort(403);
-        }
+        $this->portalAccess->assertTask($customer, $task);
 
         $validated = $request->validate([
             'type' => ['required', Rule::in(['execution', 'completion', 'other'])],
@@ -52,7 +41,7 @@ class PortalTaskMediaController extends Controller
         ]);
 
         $file = $request->file('file');
-        if (!$file) {
+        if (! $file) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Upload failed.',

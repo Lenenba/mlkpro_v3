@@ -6,6 +6,7 @@ use App\Http\Requests\ServiceRequest;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\TeamMember;
+use App\Models\User;
 use App\Services\UsageLimitService;
 use App\Services\StripeCatalogService;
 use App\Utils\FileHandler;
@@ -37,6 +38,9 @@ class ServiceController extends Controller
         $user = Auth::user();
         $userId = $user?->id ?? Auth::id();
         $accountId = $user?->accountOwnerId() ?? $userId;
+        $tenantCurrencyCode = User::query()->whereKey($accountId)->value('currency_code')
+            ?: $user?->businessCurrencyCode()
+            ?: 'CAD';
 
         $baseQuery = Product::query()
             ->services()
@@ -74,6 +78,7 @@ class ServiceController extends Controller
                 ->get(['id', 'name', 'unit', 'price']),
             'stats' => $stats,
             'count' => $stats['total'],
+            'tenantCurrencyCode' => $tenantCurrencyCode,
         ]);
     }
 

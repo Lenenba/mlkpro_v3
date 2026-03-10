@@ -2,18 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Leads\ConvertLeadRequestToQuoteAction;
+use App\Http\Requests\Leads\BulkUpdateLeadRequest;
+use App\Http\Requests\Leads\ConvertLeadToQuoteRequest;
+use App\Http\Requests\Leads\ImportLeadRequestsRequest;
+use App\Http\Requests\Leads\MergeLeadRequest;
+use App\Http\Requests\Leads\StoreLeadRequest;
+use App\Http\Requests\Leads\UpdateLeadRequest;
 use App\Models\ActivityLog;
 use App\Models\Customer;
-use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\TeamMember;
 use App\Models\TrackingEvent;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Carbon;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class RequestController extends Controller
@@ -23,7 +28,7 @@ class RequestController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
@@ -46,13 +51,13 @@ class RequestController extends Controller
                 $filters['search'] ?? null,
                 function ($query, $search) {
                     $query->where(function ($sub) use ($search) {
-                        $sub->where('title', 'like', '%' . $search . '%')
-                            ->orWhere('service_type', 'like', '%' . $search . '%')
-                            ->orWhere('description', 'like', '%' . $search . '%')
-                            ->orWhere('contact_name', 'like', '%' . $search . '%')
-                            ->orWhere('contact_email', 'like', '%' . $search . '%')
-                            ->orWhere('contact_phone', 'like', '%' . $search . '%')
-                            ->orWhere('external_customer_id', 'like', '%' . $search . '%');
+                        $sub->where('title', 'like', '%'.$search.'%')
+                            ->orWhere('service_type', 'like', '%'.$search.'%')
+                            ->orWhere('description', 'like', '%'.$search.'%')
+                            ->orWhere('contact_name', 'like', '%'.$search.'%')
+                            ->orWhere('contact_email', 'like', '%'.$search.'%')
+                            ->orWhere('contact_phone', 'like', '%'.$search.'%')
+                            ->orWhere('external_customer_id', 'like', '%'.$search.'%');
                     });
                 }
             )
@@ -60,7 +65,7 @@ class RequestController extends Controller
                 $filters['status'] ?? null,
                 function ($query, $status) {
                     $allowed = LeadRequest::STATUSES;
-                    if (!in_array($status, $allowed, true)) {
+                    if (! in_array($status, $allowed, true)) {
                         return;
                     }
                     $query->where('status', $status);
@@ -68,7 +73,7 @@ class RequestController extends Controller
             )
             ->when(
                 $filters['customer_id'] ?? null,
-                fn($query, $customerId) => $query->where('customer_id', $customerId)
+                fn ($query, $customerId) => $query->where('customer_id', $customerId)
             );
 
         $requestsQuery = (clone $baseQuery)
@@ -199,10 +204,11 @@ class RequestController extends Controller
             ]);
 
         $firstResponseSeconds = $kpiLeads
-            ->filter(fn($lead) => !empty($lead->first_response_at))
+            ->filter(fn ($lead) => ! empty($lead->first_response_at))
             ->map(function ($lead) {
                 $createdAt = Carbon::parse($lead->created_at);
                 $responseAt = Carbon::parse($lead->first_response_at);
+
                 return $responseAt->greaterThan($createdAt)
                     ? $responseAt->diffInSeconds($createdAt)
                     : 0;
@@ -226,6 +232,7 @@ class RequestController extends Controller
             ->map(function ($items, $channel) {
                 $total = $items->count();
                 $won = $items->where('status', LeadRequest::STATUS_WON)->count();
+
                 return [
                     'source' => $channel,
                     'total' => $total,
@@ -289,7 +296,7 @@ class RequestController extends Controller
                 $days = $lastActivityAt ? $now->diffInDays($lastActivityAt) : 0;
                 $customerName = $lead->customer
                     ? ($lead->customer->company_name
-                        ?: trim(($lead->customer->first_name ?? '') . ' ' . ($lead->customer->last_name ?? '')))
+                        ?: trim(($lead->customer->first_name ?? '').' '.($lead->customer->last_name ?? '')))
                     : null;
 
                 return [
@@ -305,7 +312,7 @@ class RequestController extends Controller
                     'days_since_activity' => $days,
                 ];
             })
-            ->filter(fn($lead) => $lead['days_since_activity'] >= 7)
+            ->filter(fn ($lead) => $lead['days_since_activity'] >= 7)
             ->values()
             ->take(10);
 
@@ -373,7 +380,7 @@ class RequestController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
@@ -459,53 +466,19 @@ class RequestController extends Controller
     /**
      * Store a new lead request.
      */
-    public function store(Request $request)
+    public function store(StoreLeadRequest $request)
     {
         $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if ($user) {
-            app(UsageLimitService::class)->enforceLimit($user, 'requests');
-        }
+        app(UsageLimitService::class)->enforceLimit($user, 'requests');
 
-        $validated = $request->validate([
-            'customer_id' => ['nullable', Rule::exists('customers', 'id')],
-            'assigned_team_member_id' => ['nullable', Rule::exists('team_members', 'id')],
-            'external_customer_id' => 'nullable|string|max:100',
-            'channel' => 'nullable|string|max:50',
-            'service_type' => 'nullable|string|max:255',
-            'urgency' => 'nullable|string|max:50',
-            'title' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'contact_name' => 'nullable|string|max:255',
-            'contact_email' => 'nullable|email|max:255',
-            'contact_phone' => 'nullable|string|max:50',
-            'country' => 'nullable|string|max:120',
-            'state' => 'nullable|string|max:120',
-            'city' => 'nullable|string|max:120',
-            'street1' => 'nullable|string|max:255',
-            'street2' => 'nullable|string|max:255',
-            'postal_code' => 'nullable|string|max:30',
-            'lat' => 'nullable|numeric',
-            'lng' => 'nullable|numeric',
-            'is_serviceable' => 'nullable|boolean',
-            'next_follow_up_at' => 'nullable|date',
-            'meta' => 'nullable|array',
-            'meta.budget' => 'nullable|numeric',
-        ]);
-
+        $validated = $request->validated();
         $customerId = $validated['customer_id'] ?? null;
-        if ($customerId) {
-            Customer::byUser($accountId)->findOrFail($customerId);
-        }
-
-        $assigneeId = $validated['assigned_team_member_id'] ?? null;
-        if ($assigneeId) {
-            TeamMember::query()
-                ->where('account_id', $accountId)
-                ->whereKey($assigneeId)
-                ->firstOrFail();
-        }
 
         $lead = LeadRequest::create([
             ...$validated,
@@ -533,22 +506,19 @@ class RequestController extends Controller
     /**
      * Import lead requests from CSV.
      */
-    public function import(Request $request)
+    public function import(ImportLeadRequestsRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         $accountId = $user->accountOwnerId();
 
-        $data = $request->validate([
-            'file' => 'required|file|mimes:csv,txt|max:10000',
-            'mapping' => 'nullable|array',
-        ]);
+        $data = $request->validated();
 
         $file = $data['file'];
         $handle = fopen($file->getRealPath(), 'r');
-        if (!$handle) {
+        if (! $handle) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Unable to read import file.',
@@ -559,7 +529,7 @@ class RequestController extends Controller
         }
 
         $headers = fgetcsv($handle);
-        if (!$headers) {
+        if (! $headers) {
             fclose($handle);
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
@@ -577,7 +547,7 @@ class RequestController extends Controller
         while (($row = fgetcsv($handle)) !== false) {
             $row = array_pad($row, count($headers), null);
             $rowData = array_combine($headers, $row);
-            if (!$rowData) {
+            if (! $rowData) {
                 continue;
             }
             $rows[] = $rowData;
@@ -618,7 +588,7 @@ class RequestController extends Controller
                 'description', 'details', 'notes', 'message',
             ]);
 
-            if (!$contactName && !$contactEmail && !$contactPhone && !$title && !$serviceType) {
+            if (! $contactName && ! $contactEmail && ! $contactPhone && ! $title && ! $serviceType) {
                 continue;
             }
 
@@ -706,7 +676,7 @@ class RequestController extends Controller
             );
 
             $lead = LeadRequest::create([
-                ...array_filter($payload, static fn($value) => $value !== null && $value !== ''),
+                ...array_filter($payload, static fn ($value) => $value !== null && $value !== ''),
                 'user_id' => $accountId,
                 'customer_id' => $customerId,
                 'status' => LeadRequest::STATUS_NEW,
@@ -733,136 +703,22 @@ class RequestController extends Controller
     /**
      * Convert a request into a draft quote.
      */
-    public function convert(Request $request, LeadRequest $lead)
+    public function convert(ConvertLeadToQuoteRequest $request, LeadRequest $lead, ConvertLeadRequestToQuoteAction $convertLead)
     {
         $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
         if ($lead->user_id !== $accountId) {
             abort(403);
         }
 
-        $validated = $request->validate([
-            'customer_id' => ['nullable', Rule::exists('customers', 'id')],
-            'create_customer' => ['nullable', 'boolean'],
-            'customer_name' => ['nullable', 'string', 'max:255'],
-            'contact_name' => ['nullable', 'string', 'max:255'],
-            'contact_email' => ['nullable', 'email', 'max:255'],
-            'contact_phone' => ['nullable', 'string', 'max:50'],
-            'property_id' => ['nullable', Rule::exists('properties', 'id')],
-            'job_title' => 'nullable|string|max:255',
-        ]);
-
-        $createCustomer = (bool) ($validated['create_customer'] ?? false);
-        $customerId = $validated['customer_id'] ?? $lead->customer_id;
-        $propertyId = $validated['property_id'] ?? null;
-
-        if ($createCustomer || !$customerId) {
-            $contactName = trim($validated['contact_name'] ?? $lead->contact_name ?? '');
-            $contactEmail = $validated['contact_email'] ?? $lead->contact_email;
-            $contactPhone = $validated['contact_phone'] ?? $lead->contact_phone;
-            $customerName = trim($validated['customer_name'] ?? '');
-            if ($customerName === '') {
-                $customerName = trim($lead->title ?? $lead->service_type ?? '');
-            }
-            if ($customerName === '' && $contactName !== '') {
-                $customerName = $contactName;
-            }
-
-            $firstName = null;
-            $lastName = null;
-            if ($contactName !== '') {
-                $parts = preg_split('/\s+/', $contactName, 2);
-                $firstName = $parts[0] ?? null;
-                $lastName = $parts[1] ?? null;
-            }
-
-            $customer = Customer::create([
-                'user_id' => $accountId,
-                'company_name' => $customerName !== '' ? $customerName : null,
-                'first_name' => $firstName,
-                'last_name' => $lastName,
-                'email' => $contactEmail,
-                'phone' => $contactPhone,
-                'description' => $lead->description,
-            ]);
-
-            $customerId = $customer->id;
-
-            if ($lead->city) {
-                $property = $customer->properties()->create([
-                    'type' => 'physical',
-                    'is_default' => true,
-                    'street1' => $lead->street1,
-                    'street2' => $lead->street2,
-                    'city' => $lead->city,
-                    'state' => $lead->state,
-                    'zip' => $lead->postal_code,
-                    'country' => $lead->country,
-                ]);
-                $propertyId = $property->id;
-            }
-        }
-
-        if (!$customerId) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Validation error.',
-                    'errors' => [
-                        'customer_id' => ['Customer is required.'],
-                    ],
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors(['customer_id' => 'Customer is required.']);
-        }
-
-        $customer = Customer::byUser($accountId)->findOrFail($customerId);
-        if ($propertyId && !$customer->properties()->whereKey($propertyId)->exists()) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Validation error.',
-                    'errors' => [
-                        'property_id' => ['Invalid property for this customer.'],
-                    ],
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors(['property_id' => 'Invalid property for this customer.']);
-        }
-
-        $jobTitle = $validated['job_title'] ?? $lead->title ?? $lead->service_type ?? 'New Quote';
-
-        if ($user) {
-            app(UsageLimitService::class)->enforceLimit($user, 'quotes');
-        }
-
-        $quote = Quote::create([
-            'user_id' => $accountId,
-            'customer_id' => $customer->id,
-            'property_id' => $propertyId,
-            'job_title' => $jobTitle,
-            'status' => 'draft',
-            'request_id' => $lead->id,
-            'notes' => $lead->description,
-        ]);
-
-        $lead->update([
-            'customer_id' => $customer->id,
-            'status' => LeadRequest::STATUS_QUALIFIED,
-            'status_updated_at' => now(),
-            'converted_at' => now(),
-        ]);
-
-        ActivityLog::record($user, $lead, 'converted', [
-            'quote_id' => $quote->id,
-            'customer_id' => $quote->customer_id,
-        ], 'Request converted to quote');
-
-        ActivityLog::record($user, $quote, 'created', [
-            'request_id' => $lead->id,
-            'customer_id' => $quote->customer_id,
-        ], 'Quote created from request');
+        $result = $convertLead->execute($lead, $request->validated(), $user);
+        $quote = $result['quote'];
+        $lead = $result['lead'];
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -875,12 +731,12 @@ class RequestController extends Controller
         return redirect()->route('customer.quote.edit', $quote)->with('success', 'Request converted to quote.');
     }
 
-    public function update(Request $request, LeadRequest $lead)
+    public function update(UpdateLeadRequest $request, LeadRequest $lead)
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
@@ -888,25 +744,7 @@ class RequestController extends Controller
             abort(403);
         }
 
-        $validated = $request->validate([
-            'status' => ['nullable', Rule::in(LeadRequest::STATUSES)],
-            'assigned_team_member_id' => ['nullable', Rule::exists('team_members', 'id')],
-            'next_follow_up_at' => ['nullable', 'date'],
-            'lost_reason' => ['nullable', 'string', 'max:255'],
-            'channel' => ['nullable', 'string', 'max:50'],
-            'urgency' => ['nullable', 'string', 'max:50'],
-            'is_serviceable' => ['nullable', 'boolean'],
-            'meta' => ['nullable', 'array'],
-            'meta.budget' => ['nullable', 'numeric'],
-        ]);
-
-        $assigneeId = $validated['assigned_team_member_id'] ?? null;
-        if ($assigneeId) {
-            TeamMember::query()
-                ->where('account_id', $accountId)
-                ->whereKey($assigneeId)
-                ->firstOrFail();
-        }
+        $validated = $request->validated();
 
         $updates = [];
         $previousStatus = $lead->status;
@@ -945,19 +783,6 @@ class RequestController extends Controller
         }
 
         $nextStatus = $updates['status'] ?? $lead->status;
-        if ($nextStatus === LeadRequest::STATUS_LOST && empty($updates['lost_reason']) && !$lead->lost_reason) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Validation error.',
-                    'errors' => [
-                        'lost_reason' => ['Lost reason is required.'],
-                    ],
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors(['lost_reason' => 'Lost reason is required.']);
-        }
-
         if ($nextStatus !== LeadRequest::STATUS_LOST) {
             $updates['lost_reason'] = null;
         }
@@ -981,56 +806,19 @@ class RequestController extends Controller
         return redirect()->back()->with('success', 'Request updated successfully.');
     }
 
-    public function bulkUpdate(Request $request)
+    public function bulkUpdate(BulkUpdateLeadRequest $request)
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
-        $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1'],
-            'ids.*' => [
-                'integer',
-                Rule::exists('requests', 'id')->where('user_id', $accountId),
-            ],
-            'status' => ['nullable', Rule::in(LeadRequest::STATUSES)],
-            'assigned_team_member_id' => [
-                'nullable',
-                Rule::exists('team_members', 'id')->where('account_id', $accountId),
-            ],
-            'lost_reason' => ['nullable', 'string', 'max:255'],
-        ]);
+        $validated = $request->validated();
 
         $status = $validated['status'] ?? null;
         $hasAssignee = array_key_exists('assigned_team_member_id', $validated);
-
-        if (!$status && !$hasAssignee) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'No bulk updates specified.',
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors([
-                'status' => 'No bulk updates specified.',
-            ]);
-        }
-
-        if ($status === LeadRequest::STATUS_LOST && empty($validated['lost_reason'])) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Validation error.',
-                    'errors' => [
-                        'lost_reason' => ['Lost reason is required.'],
-                    ],
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors(['lost_reason' => 'Lost reason is required.']);
-        }
 
         $updates = [];
         if ($status) {
@@ -1043,18 +831,6 @@ class RequestController extends Controller
 
         if ($hasAssignee) {
             $updates['assigned_team_member_id'] = $validated['assigned_team_member_id'];
-        }
-
-        if (empty($updates)) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'No bulk updates specified.',
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors([
-                'status' => 'No bulk updates specified.',
-            ]);
         }
 
         $leadIds = collect($validated['ids'])->unique()->values();
@@ -1084,12 +860,12 @@ class RequestController extends Controller
         return redirect()->back()->with('success', 'Requests updated.');
     }
 
-    public function merge(Request $request, LeadRequest $lead)
+    public function merge(MergeLeadRequest $request, LeadRequest $lead)
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
@@ -1097,24 +873,8 @@ class RequestController extends Controller
             abort(404);
         }
 
-        $validated = $request->validate([
-            'source_id' => [
-                'required',
-                'integer',
-                Rule::exists('requests', 'id')->where('user_id', $accountId),
-            ],
-        ]);
-
+        $validated = $request->validated();
         $sourceId = (int) $validated['source_id'];
-        if ($sourceId === $lead->id) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Cannot merge the same request.',
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors(['source_id' => 'Cannot merge the same request.']);
-        }
 
         $source = LeadRequest::query()
             ->where('user_id', $accountId)
@@ -1167,7 +927,7 @@ class RequestController extends Controller
 
         $lead->update($updates);
 
-        if ($source->quote && !$lead->quote) {
+        if ($source->quote && ! $lead->quote) {
             $source->quote->update(['request_id' => $lead->id]);
         }
 
@@ -1200,7 +960,7 @@ class RequestController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
@@ -1251,7 +1011,7 @@ class RequestController extends Controller
 
     private function normalizeChannel(?string $value): ?string
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 
@@ -1283,7 +1043,7 @@ class RequestController extends Controller
 
     private function normalizeUrgency(?string $value): ?string
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 

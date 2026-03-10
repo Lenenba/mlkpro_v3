@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Services\NotificationPreferenceService;
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -20,12 +21,18 @@ class LeadFormOwnerNotification extends Notification implements ShouldQueue
         public ?Quote $quote = null,
         public bool $sendMail = true
     ) {
+        $this->onQueue(QueueWorkload::queue('notifications'));
+    }
+
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('notifications', [60, 300, 900]);
     }
 
     public function via(object $notifiable): array
     {
         $channels = ['database'];
-        if ($this->sendMail && !empty($notifiable->email)) {
+        if ($this->sendMail && ! empty($notifiable->email)) {
             $channels[] = 'mail';
         }
 
@@ -88,10 +95,12 @@ class LeadFormOwnerNotification extends Notification implements ShouldQueue
 
         if ($this->event === 'lead_email_failed') {
             $quoteLabel = $this->quoteLabel();
+
             return "Quote {$quoteLabel} was created for {$leadLabel}, but customer email delivery failed.";
         }
 
         $quoteLabel = $this->quoteLabel();
+
         return "Lead {$leadLabel} generated quote {$quoteLabel}.";
     }
 
@@ -107,7 +116,7 @@ class LeadFormOwnerNotification extends Notification implements ShouldQueue
 
         if ($this->quote) {
             $details[] = ['label' => 'Quote', 'value' => $this->quoteLabel()];
-            $details[] = ['label' => 'Total', 'value' => '$' . number_format((float) ($this->quote->total ?? 0), 2)];
+            $details[] = ['label' => 'Total', 'value' => '$'.number_format((float) ($this->quote->total ?? 0), 2)];
         }
 
         return $details;
@@ -133,21 +142,21 @@ class LeadFormOwnerNotification extends Notification implements ShouldQueue
 
     private function leadLabel(): string
     {
-        $label = trim((string) ($this->lead->title ?: $this->lead->service_type ?: 'Lead #' . $this->lead->id));
+        $label = trim((string) ($this->lead->title ?: $this->lead->service_type ?: 'Lead #'.$this->lead->id));
 
-        return $label !== '' ? $label : 'Lead #' . $this->lead->id;
+        return $label !== '' ? $label : 'Lead #'.$this->lead->id;
     }
 
     private function quoteLabel(): string
     {
-        if (!$this->quote) {
+        if (! $this->quote) {
             return 'N/A';
         }
 
-        if (!empty($this->quote->number)) {
+        if (! empty($this->quote->number)) {
             return (string) $this->quote->number;
         }
 
-        return '#' . $this->quote->id;
+        return '#'.$this->quote->id;
     }
 }

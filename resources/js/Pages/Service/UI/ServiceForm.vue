@@ -26,12 +26,17 @@ const props = defineProps({
         type: String,
         default: null,
     },
+    tenantCurrencyCode: {
+        type: String,
+        default: 'CAD',
+    },
 });
 
 const emit = defineEmits(['submitted']);
 const overlayTarget = computed(() => (props.id ? `#${props.id}` : null));
 
 const { t } = useI18n();
+const currencyCode = computed(() => String(props.tenantCurrencyCode || props.service?.currency_code || 'CAD').toUpperCase());
 
 const buildMaterial = (material = {}, index = 0) => ({
     id: material.id ?? null,
@@ -253,6 +258,9 @@ const submit = () => {
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <FloatingNumberInput v-model="form.price" :label="$t('services.form.price')" :step="0.01" :required="true" />
+            <div class="rounded-sm border border-dashed border-stone-200 bg-stone-50 p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                Business currency: {{ currencyCode }}. Service prices are stored in this currency.
+            </div>
             <div class="flex items-center gap-2 p-2 rounded-sm border border-stone-200 bg-white dark:bg-neutral-900 dark:border-neutral-700">
                 <Checkbox v-model:checked="form.is_active" />
                 <span class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('services.status.active') }}</span>

@@ -2,16 +2,18 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Enums\CurrencyCode;
 use App\Traits\GeneratesSequentialNumber;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Invoice extends Model
 {
     /** @use HasFactory<\Database\Factories\InvoiceFactory> */
-    use HasFactory, GeneratesSequentialNumber;
+    use GeneratesSequentialNumber, HasFactory;
 
     public const STATUSES = [
         'draft',
@@ -32,10 +34,12 @@ class Invoice extends Model
         'number',
         'status',
         'total',
+        'currency_code',
     ];
 
     protected $casts = [
         'total' => 'decimal:2',
+        'currency_code' => 'string',
     ];
 
     protected $appends = [
@@ -48,8 +52,13 @@ class Invoice extends Model
         parent::boot();
 
         static::creating(function ($invoice) {
-            if (!$invoice->number && $invoice->user_id) {
+            if (! $invoice->number && $invoice->user_id) {
                 $invoice->number = self::generateNumber($invoice->user_id, 'I');
+            }
+
+            if (! $invoice->currency_code) {
+                $owner = $invoice->user_id ? User::query()->find($invoice->user_id) : null;
+                $invoice->currency_code = $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value;
             }
         });
     }
@@ -57,7 +66,7 @@ class Invoice extends Model
     /**
      * Get the work that owns the invoice.
      */
-    public function work()
+    public function work(): BelongsTo
     {
         return $this->belongsTo(Work::class);
     }
@@ -65,7 +74,7 @@ class Invoice extends Model
     /**
      * Get the customer for the invoice.
      */
-    public function customer()
+    public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }
@@ -73,7 +82,7 @@ class Invoice extends Model
     /**
      * Get the user that owns the invoice.
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
@@ -101,19 +110,19 @@ class Invoice extends Model
                 $filters['search'] ?? null,
                 function (Builder $query, $search) {
                     $query->where(function (Builder $sub) use ($search) {
-                        $sub->where('number', 'like', '%' . $search . '%')
+                        $sub->where('number', 'like', '%'.$search.'%')
                             ->orWhereHas('customer', function (Builder $customerQuery) use ($search) {
-                                $customerQuery->where('company_name', 'like', '%' . $search . '%')
-                                    ->orWhere('first_name', 'like', '%' . $search . '%')
-                                    ->orWhere('last_name', 'like', '%' . $search . '%')
-                                    ->orWhere('email', 'like', '%' . $search . '%');
+                                $customerQuery->where('company_name', 'like', '%'.$search.'%')
+                                    ->orWhere('first_name', 'like', '%'.$search.'%')
+                                    ->orWhere('last_name', 'like', '%'.$search.'%')
+                                    ->orWhere('email', 'like', '%'.$search.'%');
                             });
                     });
                 }
             )
             ->when(
                 $filters['status'] ?? null,
-                fn(Builder $query, $status) => $query->where('status', $status)
+                fn (Builder $query, $status) => $query->where('status', $status)
             )
             ->when(
                 $filters['customer_id'] ?? null,
@@ -124,30 +133,26 @@ class Invoice extends Model
             )
             ->when(
                 $filters['total_min'] ?? null,
-                fn(Builder $query, $min) => $query->where('total', '>=', $min)
+                fn (Builder $query, $min) => $query->where('total', '>=', $min)
             )
             ->when(
                 $filters['total_max'] ?? null,
-                fn(Builder $query, $max) => $query->where('total', '<=', $max)
+                fn (Builder $query, $max) => $query->where('total', '<=', $max)
             )
             ->when(
                 $filters['created_from'] ?? null,
-                fn(Builder $query, $from) => $query->whereDate('created_at', '>=', $from)
+                fn (Builder $query, $from) => $query->whereDate('created_at', '>=', $from)
             )
             ->when(
                 $filters['created_to'] ?? null,
-                fn(Builder $query, $to) => $query->whereDate('created_at', '<=', $to)
+                fn (Builder $query, $to) => $query->whereDate('created_at', '<=', $to)
             );
     }
 
     /**
      * Scope a query to only include customers of a given user.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $userId
-     * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function scopeByUser($query, int $userId)
+    public function scopeByUser(Builder $query, int $userId): Builder
     {
         return $query->where('user_id', $userId);
     }

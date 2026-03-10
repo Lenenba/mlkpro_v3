@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\Observability\ErrorMetricsService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetLocale::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\SecurityHeaders::class,
+            \App\Http\Middleware\RecordRequestMetrics::class,
             \App\Http\Middleware\EnsureTwoFactorVerified::class,
             \App\Http\Middleware\EnsureOnboardingIsComplete::class,
             \App\Http\Middleware\EnsureNotSuspended::class,
@@ -27,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->api(append: [
             \App\Http\Middleware\SecurityHeaders::class,
+            \App\Http\Middleware\RecordRequestMetrics::class,
         ]);
         $middleware->throttleApi();
 
@@ -38,13 +41,17 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->reportable(function (\Throwable $exception): void {
+            app(ErrorMetricsService::class)->record($exception, request());
+        });
+
         $redirectForbidden = function (Request $request, ?string $message = null) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return null;
             }
 
             $fallbackMessage = 'Acces refuse. Vous n\'avez pas les permissions necessaires.';
-            $message = $message && !in_array($message, ['This action is unauthorized.', 'Forbidden'], true)
+            $message = $message && ! in_array($message, ['This action is unauthorized.', 'Forbidden'], true)
                 ? $message
                 : $fallbackMessage;
 

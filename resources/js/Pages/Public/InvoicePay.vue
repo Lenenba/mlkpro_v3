@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
+import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethods } from '@/Composables/useTenantPaymentMethods';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import { humanizeDate } from '@/utils/date';
 
@@ -32,37 +33,15 @@ const form = useForm({
     notes: '',
 });
 
-const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];
-
-const allowedPaymentMethods = computed(() => {
-    const raw = Array.isArray(props.paymentMethodSettings?.enabled_methods_internal)
-        ? props.paymentMethodSettings.enabled_methods_internal
-        : [];
-
-    const normalized = raw
-        .map((method) => (typeof method === 'string' ? method.trim().toLowerCase() : ''))
-        .filter((method, index, array) => method && array.indexOf(method) === index)
-        .filter((method) => ALLOWED_INTERNAL_METHODS.includes(method));
-
-    return normalized.length ? normalized : ['cash', 'card'];
-});
-
-const defaultPaymentMethod = computed(() => {
-    const configured = typeof props.paymentMethodSettings?.default_method_internal === 'string'
-        ? props.paymentMethodSettings.default_method_internal.trim().toLowerCase()
-        : '';
-
-    if (configured && allowedPaymentMethods.value.includes(configured)) {
-        return configured;
-    }
-
-    return allowedPaymentMethods.value[0] || 'cash';
-});
-
-const hasMultiplePaymentMethods = computed(() => allowedPaymentMethods.value.length > 1);
-const singlePaymentMethod = computed(() => (hasMultiplePaymentMethods.value ? null : defaultPaymentMethod.value));
+const {
+    allowedPaymentMethods,
+    defaultPaymentMethod,
+    hasMultiplePaymentMethods,
+    singlePaymentMethod,
+    hasCardMethodEnabled,
+} = useTenantPaymentMethods(computed(() => props.paymentMethodSettings));
 const canUseStripe = computed(() =>
-    Boolean(props.stripeCheckoutUrl) && allowedPaymentMethods.value.includes('card')
+    Boolean(props.stripeCheckoutUrl) && hasCardMethodEnabled.value
 );
 
 watch(
@@ -169,19 +148,12 @@ const setPaymentAmount = (value) => {
 };
 
 const paymentMethodLabel = (method) => {
-    if (method === 'cash') {
-        return 'Cash';
-    }
-    if (method === 'card') {
-        return 'Card (Stripe)';
-    }
-    if (method === 'bank_transfer') {
-        return 'Bank transfer';
-    }
-    if (method === 'check') {
-        return 'Check';
-    }
-    return method || '-';
+    return resolvePaymentMethodLabel(method, {
+        cash: 'Cash',
+        card: 'Card (Stripe)',
+        bankTransfer: 'Bank transfer',
+        check: 'Check',
+    });
 };
 
 const startStripeCheckout = () => {

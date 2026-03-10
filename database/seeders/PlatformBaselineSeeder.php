@@ -15,6 +15,10 @@ class PlatformBaselineSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call([
+            PlanCatalogSeeder::class,
+        ]);
+
         $roles = [
             'superadmin' => 'Full access to the system',
             'admin' => 'Administrative access',

@@ -6,9 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservation\SlotRequest;
 use App\Http\Requests\Reservation\StoreReservationRequest;
 use App\Http\Requests\Reservation\UpdateReservationRequest;
-use App\Models\Customer;
 use App\Models\Payment;
-use App\Models\Product;
 use App\Models\Reservation;
 use App\Models\ReservationQueueItem;
 use App\Models\ReservationResource;
@@ -17,6 +15,7 @@ use App\Models\ReservationWaitlist;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
+use App\Queries\Reservations\BuildStaffReservationIndexData;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
 use App\Services\ReservationQueueService;
@@ -35,13 +34,12 @@ class StaffReservationController extends Controller
         private readonly ReservationAvailabilityService $availabilityService,
         private readonly ReservationNotificationService $notificationService,
         private readonly ReservationQueueService $queueService
-    ) {
-    }
+    ) {}
 
     public function index(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -49,146 +47,15 @@ class StaffReservationController extends Controller
 
         $account = $this->resolveAccount($user);
         $access = $this->resolveTeamAccess($user, $account->id);
-        $filters = $this->normalizeFilters($request, $access);
+        $props = app(BuildStaffReservationIndexData::class)->index($account, $access, $request);
 
-        $query = $this->reservationQuery($account->id)
-            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access));
-        $this->applyReservationSort($query, $filters['sort']);
-
-        $reservations = (clone $query)
-            ->simplePaginate(20)
-            ->withQueryString();
-
-        $eventsQuery = $this->reservationQuery($account->id)
-            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access));
-
-        $events = $eventsQuery
-            ->whereDate('starts_at', '>=', now()->subDays(7)->toDateString())
-            ->whereDate('starts_at', '<=', now()->addDays(35)->toDateString())
-            ->orderBy('starts_at')
-            ->get()
-            ->map(fn (Reservation $reservation) => $this->mapEvent($reservation))
-            ->values();
-
-        $statsQuery = $this->reservationQuery($account->id, false)
-            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access, [
-                'status' => false,
-                'date' => false,
-                'quick' => false,
-            ]));
-
-        $stats = [
-            'total' => (clone $statsQuery)->count(),
-            'pending' => (clone $statsQuery)->where('status', Reservation::STATUS_PENDING)->count(),
-            'confirmed' => (clone $statsQuery)->where('status', Reservation::STATUS_CONFIRMED)->count(),
-            'cancelled' => (clone $statsQuery)->where('status', Reservation::STATUS_CANCELLED)->count(),
-            'today' => (clone $statsQuery)->whereDate('starts_at', now()->toDateString())->count(),
-        ];
-
-        $teamMembersQuery = TeamMember::query()
-            ->forAccount($account->id)
-            ->active()
-            ->with('user:id,name');
-        if (!$access['can_view_all'] && $access['own_team_member_id']) {
-            $teamMembersQuery->whereKey($access['own_team_member_id']);
-        }
-
-        $teamMembers = $teamMembersQuery
-            ->orderBy('id')
-            ->get()
-            ->map(fn (TeamMember $member) => [
-                'id' => $member->id,
-                'user_id' => $member->user_id,
-                'name' => $member->user?->name ?? 'Member',
-                'title' => $member->title,
-            ])
-            ->values();
-
-        $services = Product::query()
-            ->services()
-            ->where('user_id', $account->id)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'price', 'item_type', 'is_active']);
-
-        $clients = Customer::query()
-            ->byUser($account->id)
-            ->orderBy('company_name')
-            ->orderBy('last_name')
-            ->get(['id', 'first_name', 'last_name', 'company_name', 'email', 'phone', 'portal_user_id']);
-
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
-        $performance = $this->buildPerformanceMetrics($account, $filters, $access, $settings);
-        $waitlistQuery = ReservationWaitlist::query()
-            ->forAccount($account->id)
-            ->with([
-                'client:id,first_name,last_name,company_name,email',
-                'service:id,name',
-                'teamMember.user:id,name',
-            ]);
-        if (!$access['can_view_all'] && $access['own_team_member_id']) {
-            $waitlistQuery->where(function ($query) use ($access) {
-                $query->where('team_member_id', (int) $access['own_team_member_id'])
-                    ->orWhereNull('team_member_id');
-            });
-        }
-
-        $waitlists = (clone $waitlistQuery)
-            ->orderByRaw("CASE status
-                WHEN 'pending' THEN 1
-                WHEN 'released' THEN 2
-                WHEN 'booked' THEN 3
-                WHEN 'cancelled' THEN 4
-                WHEN 'expired' THEN 5
-                ELSE 99
-            END ASC")
-            ->orderBy('requested_start_at')
-            ->limit(30)
-            ->get()
-            ->map(fn (ReservationWaitlist $waitlist) => $this->mapWaitlistEntry($waitlist, $access))
-            ->values();
-
-        $waitlistStats = [
-            'pending' => (clone $waitlistQuery)->where('status', ReservationWaitlist::STATUS_PENDING)->count(),
-            'released' => (clone $waitlistQuery)->where('status', ReservationWaitlist::STATUS_RELEASED)->count(),
-            'booked' => (clone $waitlistQuery)->where('status', ReservationWaitlist::STATUS_BOOKED)->count(),
-        ];
-        $queuePayload = $this->queueService->boardForStaff($account->id, $access, $settings);
-
-        return $this->inertiaOrJson('Reservation/Index', [
-            'filters' => $filters,
-            'reservations' => $reservations,
-            'events' => $events,
-            'statuses' => Reservation::STATUSES,
-            'stats' => $stats,
-            'quickCounts' => $this->quickCounts($account->id, $filters, $access),
-            'access' => [
-                'can_view_all' => $access['can_view_all'],
-                'can_manage' => $access['can_manage'],
-                'can_update_status' => $access['can_update_status'],
-                'own_team_member_id' => $access['own_team_member_id'],
-            ],
-            'teamMembers' => $teamMembers,
-            'services' => $services,
-            'clients' => $clients,
-            'timezone' => $this->availabilityService->timezoneForAccount($account),
-            'defaults' => [
-                'duration_minutes' => 60,
-                'status' => Reservation::STATUS_CONFIRMED,
-            ],
-            'settings' => $settings,
-            'performance' => $performance,
-            'waitlists' => $waitlists,
-            'waitlistStats' => $waitlistStats,
-            'queueItems' => $queuePayload['items'] ?? [],
-            'queueStats' => $queuePayload['stats'] ?? ['waiting' => 0, 'called' => 0, 'in_service' => 0],
-        ]);
+        return $this->inertiaOrJson('Reservation/Index', $props);
     }
 
     public function screen(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -196,7 +63,7 @@ class StaffReservationController extends Controller
         $account = $this->resolveAccount($user);
         $access = $this->resolveTeamAccess($user, $account->id);
         $settings = $this->availabilityService->resolveSettings($account->id, null);
-        if (!$this->queueFeaturesAvailable($settings)) {
+        if (! $this->queueFeaturesAvailable($settings)) {
             abort(404);
         }
 
@@ -230,7 +97,7 @@ class StaffReservationController extends Controller
     public function screenData(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -238,7 +105,7 @@ class StaffReservationController extends Controller
         $account = $this->resolveAccount($user);
         $access = $this->resolveTeamAccess($user, $account->id);
         $settings = $this->availabilityService->resolveSettings($account->id, null);
-        if (!$this->queueFeaturesAvailable($settings)) {
+        if (! $this->queueFeaturesAvailable($settings)) {
             abort(404);
         }
 
@@ -254,7 +121,7 @@ class StaffReservationController extends Controller
     public function events(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         $this->authorize('viewAny', Reservation::class);
@@ -271,19 +138,7 @@ class StaffReservationController extends Controller
             'quick' => ['nullable', Rule::in(['pending', 'today', 'upcoming', 'past'])],
         ]);
 
-        $filters = $this->normalizeFilters($request, $access);
-
-        $events = $this->reservationQuery($account->id)
-            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access, [
-                'search' => false,
-                'date' => false,
-            ]))
-            ->where('starts_at', '<', $validated['end'])
-            ->where('ends_at', '>', $validated['start'])
-            ->orderBy('starts_at')
-            ->get()
-            ->map(fn (Reservation $reservation) => $this->mapEvent($reservation))
-            ->values();
+        $events = app(BuildStaffReservationIndexData::class)->events($account->id, $access, $request, $validated);
 
         return response()->json([
             'events' => $events,
@@ -293,7 +148,7 @@ class StaffReservationController extends Controller
     public function slots(SlotRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         $this->authorize('viewAny', Reservation::class);
@@ -326,7 +181,7 @@ class StaffReservationController extends Controller
     public function store(StoreReservationRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         $this->authorize('create', Reservation::class);
@@ -360,7 +215,7 @@ class StaffReservationController extends Controller
     public function update(UpdateReservationRequest $request, Reservation $reservation)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         $this->authorize('update', $reservation);
@@ -392,7 +247,7 @@ class StaffReservationController extends Controller
     public function updateStatus(Request $request, Reservation $reservation)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         $this->authorize('updateStatus', $reservation);
@@ -451,7 +306,7 @@ class StaffReservationController extends Controller
     public function destroy(Request $request, Reservation $reservation)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
         $this->authorize('delete', $reservation);
@@ -470,7 +325,7 @@ class StaffReservationController extends Controller
     public function updateWaitlistStatus(Request $request, ReservationWaitlist $waitlist)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -481,7 +336,7 @@ class StaffReservationController extends Controller
         }
 
         $access = $this->resolveTeamAccess($user, $account->id);
-        if (!$this->canManageWaitlistStatus($access, $waitlist)) {
+        if (! $this->canManageWaitlistStatus($access, $waitlist)) {
             abort(403);
         }
 
@@ -555,7 +410,7 @@ class StaffReservationController extends Controller
     public function queueCallNext(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -575,7 +430,7 @@ class StaffReservationController extends Controller
             ],
         ]);
 
-        $requestedTeamMemberId = !empty($validated['team_member_id'])
+        $requestedTeamMemberId = ! empty($validated['team_member_id'])
             ? (int) $validated['team_member_id']
             : null;
 
@@ -586,7 +441,7 @@ class StaffReservationController extends Controller
             $requestedTeamMemberId
         );
 
-        if (!$next || empty($next['item'])) {
+        if (! $next || empty($next['item'])) {
             return response()->json([
                 'message' => 'No callable queue item is available right now.',
             ], 422);
@@ -595,7 +450,7 @@ class StaffReservationController extends Controller
         /** @var ReservationQueueItem $item */
         $item = $next['item'];
         $context = [];
-        if (!empty($next['team_member_id'])) {
+        if (! empty($next['team_member_id'])) {
             $context['team_member_id'] = (int) $next['team_member_id'];
         }
 
@@ -604,11 +459,11 @@ class StaffReservationController extends Controller
         $metrics = $this->queueService->refreshMetrics((int) $account->id, $settings);
 
         $clientName = $updated->client?->company_name
-            ?: trim(($updated->client?->first_name ?? '') . ' ' . ($updated->client?->last_name ?? ''));
-        if (!$clientName) {
+            ?: trim(($updated->client?->first_name ?? '').' '.($updated->client?->last_name ?? ''));
+        if (! $clientName) {
             $clientName = trim((string) data_get($updated->metadata, 'guest_name'));
         }
-        if (!$clientName) {
+        if (! $clientName) {
             $clientName = trim((string) data_get($updated->metadata, 'guest_phone'));
         }
 
@@ -656,7 +511,7 @@ class StaffReservationController extends Controller
     private function updateQueueAction(Request $request, ReservationQueueItem $item, string $action)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -669,7 +524,7 @@ class StaffReservationController extends Controller
         $access = $this->resolveTeamAccess($user, $account->id);
         $settings = $this->availabilityService->resolveSettings($account->id, null);
         $this->ensureQueueModeEnabled($settings);
-        if (!$this->canManageQueueItem($access, $item, $settings)) {
+        if (! $this->canManageQueueItem($access, $item, $settings)) {
             abort(403);
         }
 
@@ -684,7 +539,7 @@ class StaffReservationController extends Controller
         ]);
 
         $context = [];
-        if (!empty($validated['team_member_id'])) {
+        if (! empty($validated['team_member_id'])) {
             $context['team_member_id'] = (int) $validated['team_member_id'];
         } elseif (($access['own_team_member_id'] ?? null) && $item->team_member_id === null) {
             $context['team_member_id'] = (int) $access['own_team_member_id'];
@@ -704,7 +559,7 @@ class StaffReservationController extends Controller
         $metrics = $this->queueService->refreshMetrics((int) $account->id, $settings);
 
         $clientName = $updated->client?->company_name
-            ?: trim(($updated->client?->first_name ?? '') . ' ' . ($updated->client?->last_name ?? ''));
+            ?: trim(($updated->client?->first_name ?? '').' '.($updated->client?->last_name ?? ''));
 
         return response()->json([
             'message' => 'Queue item updated.',
@@ -739,7 +594,7 @@ class StaffReservationController extends Controller
             ? $user
             : User::query()->find($accountId);
 
-        if (!$account) {
+        if (! $account) {
             abort(404);
         }
 
@@ -749,7 +604,7 @@ class StaffReservationController extends Controller
     private function reservationQuery(int $accountId, bool $withRelations = true): Builder
     {
         $query = Reservation::query()->forAccount($accountId);
-        if (!$withRelations) {
+        if (! $withRelations) {
             return $query;
         }
 
@@ -786,7 +641,7 @@ class StaffReservationController extends Controller
             return true;
         }
 
-        if (!$teamMember) {
+        if (! $teamMember) {
             return false;
         }
 
@@ -803,32 +658,32 @@ class StaffReservationController extends Controller
         $canViewAll = (bool) ($access['can_view_all'] ?? false);
 
         $scope = (string) $request->input('scope', '');
-        if (!in_array($scope, ['mine', 'all'], true)) {
+        if (! in_array($scope, ['mine', 'all'], true)) {
             $scope = $ownTeamMemberId ? 'mine' : 'all';
         }
-        if (!$canViewAll || !$ownTeamMemberId) {
+        if (! $canViewAll || ! $ownTeamMemberId) {
             $scope = $ownTeamMemberId ? 'mine' : 'all';
         }
 
         $quick = (string) $request->input('quick', '');
-        if (!in_array($quick, ['', 'pending', 'today', 'upcoming', 'past'], true)) {
+        if (! in_array($quick, ['', 'pending', 'today', 'upcoming', 'past'], true)) {
             $quick = '';
         }
 
         $sort = (string) $request->input('sort', 'date_asc');
-        if (!in_array($sort, ['date_asc', 'date_desc', 'status'], true)) {
+        if (! in_array($sort, ['date_asc', 'date_desc', 'status'], true)) {
             $sort = 'date_asc';
         }
 
         $teamMemberId = $request->input('team_member_id');
         if ($scope === 'mine' && $ownTeamMemberId) {
             $teamMemberId = (string) $ownTeamMemberId;
-        } elseif (!$canViewAll) {
+        } elseif (! $canViewAll) {
             $teamMemberId = $ownTeamMemberId ? (string) $ownTeamMemberId : '';
         }
 
         $status = (string) $request->input('status', '');
-        if ($status !== '' && !in_array($status, Reservation::STATUSES, true)) {
+        if ($status !== '' && ! in_array($status, Reservation::STATUSES, true)) {
             $status = '';
         }
 
@@ -864,7 +719,7 @@ class StaffReservationController extends Controller
             $query->where('team_member_id', (int) $ownTeamMemberId);
         }
 
-        if ($options['team'] && !empty($filters['team_member_id'])) {
+        if ($options['team'] && ! empty($filters['team_member_id'])) {
             $teamMemberId = (int) $filters['team_member_id'];
             if ($teamMemberId > 0) {
                 if ($canViewAll) {
@@ -875,33 +730,33 @@ class StaffReservationController extends Controller
             }
         }
 
-        if ($options['service'] && !empty($filters['service_id'])) {
+        if ($options['service'] && ! empty($filters['service_id'])) {
             $query->where('service_id', (int) $filters['service_id']);
         }
 
-        if ($options['status'] && !empty($filters['status'])) {
+        if ($options['status'] && ! empty($filters['status'])) {
             $query->where('status', (string) $filters['status']);
         }
 
         if ($options['date']) {
-            if (!empty($filters['date_from'])) {
+            if (! empty($filters['date_from'])) {
                 $query->whereDate('starts_at', '>=', (string) $filters['date_from']);
             }
-            if (!empty($filters['date_to'])) {
+            if (! empty($filters['date_to'])) {
                 $query->whereDate('starts_at', '<=', (string) $filters['date_to']);
             }
         }
 
-        if ($options['search'] && !empty($filters['search'])) {
+        if ($options['search'] && ! empty($filters['search'])) {
             $search = (string) $filters['search'];
             $query->where(function (Builder $subQuery) use ($search) {
                 $subQuery->whereHas('client', function (Builder $clientQuery) use ($search) {
-                    $clientQuery->where('company_name', 'like', '%' . $search . '%')
-                        ->orWhere('first_name', 'like', '%' . $search . '%')
-                        ->orWhere('last_name', 'like', '%' . $search . '%')
-                        ->orWhere('email', 'like', '%' . $search . '%');
+                    $clientQuery->where('company_name', 'like', '%'.$search.'%')
+                        ->orWhere('first_name', 'like', '%'.$search.'%')
+                        ->orWhere('last_name', 'like', '%'.$search.'%')
+                        ->orWhere('email', 'like', '%'.$search.'%');
                 })->orWhereHas('service', function (Builder $serviceQuery) use ($search) {
-                    $serviceQuery->where('name', 'like', '%' . $search . '%');
+                    $serviceQuery->where('name', 'like', '%'.$search.'%');
                 });
             });
         }
@@ -925,6 +780,7 @@ class StaffReservationController extends Controller
     {
         if ($sort === 'date_desc') {
             $query->orderByDesc('starts_at');
+
             return;
         }
 
@@ -939,6 +795,7 @@ class StaffReservationController extends Controller
                 ELSE 99
             END ASC");
             $query->orderBy('starts_at');
+
             return;
         }
 
@@ -1020,7 +877,7 @@ class StaffReservationController extends Controller
                     });
             });
 
-        if (!empty($teamUserIds)) {
+        if (! empty($teamUserIds)) {
             $paymentWindowQuery->whereIn('tip_assignee_user_id', $teamUserIds);
         }
 
@@ -1069,7 +926,7 @@ class StaffReservationController extends Controller
                 ->forAccount($account->id)
                 ->active()
                 ->where('type', 'table')
-                ->when(!empty($teamMemberIds), function ($query) use ($teamMemberIds) {
+                ->when(! empty($teamMemberIds), function ($query) use ($teamMemberIds) {
                     $query->where(function ($nested) use ($teamMemberIds) {
                         $nested->whereNull('team_member_id')
                             ->orWhereIn('team_member_id', $teamMemberIds);
@@ -1086,6 +943,7 @@ class StaffReservationController extends Controller
                 ->get(['metadata'])
                 ->map(function (Reservation $reservation) {
                     $size = (int) data_get($reservation->metadata, 'party_size', 0);
+
                     return $size > 0 ? $size : null;
                 })
                 ->filter()
@@ -1118,7 +976,7 @@ class StaffReservationController extends Controller
             } elseif ($ownTeamMemberId > 0) {
                 $memberQuery->whereKey($ownTeamMemberId);
             }
-        } elseif (!$canViewAll && $ownTeamMemberId > 0) {
+        } elseif (! $canViewAll && $ownTeamMemberId > 0) {
             $memberQuery->whereKey($ownTeamMemberId);
         }
 
@@ -1193,7 +1051,7 @@ class StaffReservationController extends Controller
         }
 
         $ownTeamMemberId = (int) ($access['own_team_member_id'] ?? 0);
-        if (!$ownTeamMemberId) {
+        if (! $ownTeamMemberId) {
             return false;
         }
 
@@ -1207,7 +1065,7 @@ class StaffReservationController extends Controller
         }
 
         $ownTeamMemberId = (int) ($access['own_team_member_id'] ?? 0);
-        if (!$ownTeamMemberId) {
+        if (! $ownTeamMemberId) {
             return false;
         }
 
@@ -1232,13 +1090,13 @@ class StaffReservationController extends Controller
 
     private function ensureQueueModeEnabled(array $settings): void
     {
-        if (!$this->queueFeaturesAvailable($settings)) {
+        if (! $this->queueFeaturesAvailable($settings)) {
             throw ValidationException::withMessages([
                 'queue' => ['Hybrid queue is only available for salon businesses.'],
             ]);
         }
 
-        if (!($settings['queue_mode_enabled'] ?? false)) {
+        if (! ($settings['queue_mode_enabled'] ?? false)) {
             throw ValidationException::withMessages([
                 'queue' => ['Queue mode is disabled for this account.'],
             ]);
@@ -1248,7 +1106,7 @@ class StaffReservationController extends Controller
     private function mapWaitlistEntry(ReservationWaitlist $waitlist, array $access): array
     {
         $clientName = $waitlist->client?->company_name
-            ?: trim(($waitlist->client?->first_name ?? '') . ' ' . ($waitlist->client?->last_name ?? ''));
+            ?: trim(($waitlist->client?->first_name ?? '').' '.($waitlist->client?->last_name ?? ''));
 
         return [
             'id' => $waitlist->id,
@@ -1275,8 +1133,7 @@ class StaffReservationController extends Controller
         array $settings,
         bool $anonymizeClients,
         array $teamMembers = []
-    ): array
-    {
+    ): array {
         $board = $this->queueService->boardForStaff($accountId, $access, $settings);
         $assignmentMode = strtolower(trim((string) ($settings['queue_assignment_mode'] ?? 'per_staff')));
         $statuses = [
@@ -1310,9 +1167,10 @@ class StaffReservationController extends Controller
             ->values()
             ->map(function (array $item) use ($anonymizeClients) {
                 $clientName = (string) ($item['client_name'] ?? '');
+
                 return [
                     'id' => $item['id'],
-                    'queue_number' => $item['queue_number'] ?: ('#' . $item['id']),
+                    'queue_number' => $item['queue_number'] ?: ('#'.$item['id']),
                     'item_type' => $item['item_type'],
                     'origin' => $item['origin'] ?? ($item['item_type'] === ReservationQueueItem::TYPE_APPOINTMENT ? 'booking' : 'walk_in'),
                     'source' => $item['source'] ?? null,
@@ -1377,8 +1235,8 @@ class StaffReservationController extends Controller
     }
 
     /**
-     * @param \Illuminate\Support\Collection<int, array<string, mixed>> $items
-     * @param array<int, array<string, mixed>> $teamMembers
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $items
+     * @param  array<int, array<string, mixed>>  $teamMembers
      * @return array<int, array<string, mixed>>
      */
     private function buildChairCards(\Illuminate\Support\Collection $items, array $teamMembers, string $assignmentMode): array
@@ -1422,7 +1280,7 @@ class StaffReservationController extends Controller
 
                 $next = $memberItems
                     ->filter(fn (array $item) => in_array((string) ($item['status'] ?? ''), $waitingStatuses, true))
-                    ->filter(fn (array $item) => !$current || (int) ($item['id'] ?? 0) !== (int) ($current['id'] ?? 0))
+                    ->filter(fn (array $item) => ! $current || (int) ($item['id'] ?? 0) !== (int) ($current['id'] ?? 0))
                     ->sortBy(function (array $item) {
                         $position = is_numeric($item['position'] ?? null) ? (int) $item['position'] : 99999;
                         $eta = is_numeric($item['eta_minutes'] ?? null) ? (int) $item['eta_minutes'] : 99999;
@@ -1432,7 +1290,7 @@ class StaffReservationController extends Controller
                     ->values()
                     ->first();
 
-                if (!$next && $assignmentMode === ReservationQueueService::ASSIGNMENT_MODE_GLOBAL_PULL) {
+                if (! $next && $assignmentMode === ReservationQueueService::ASSIGNMENT_MODE_GLOBAL_PULL) {
                     $next = $globalWaitingPool
                         ->filter(fn (array $item) => (int) ($item['team_member_id'] ?? 0) === 0)
                         ->values()
@@ -1447,7 +1305,7 @@ class StaffReservationController extends Controller
                     ReservationQueueItem::STATUS_PRE_CALLED,
                 ], true)) {
                     $state = 'called';
-                } elseif (!$isPresent) {
+                } elseif (! $isPresent) {
                     $state = 'blocked';
                 } elseif ($next && (string) ($next['status'] ?? '') === ReservationQueueItem::STATUS_NOT_ARRIVED) {
                     $state = 'check_in_needed';
@@ -1458,7 +1316,7 @@ class StaffReservationController extends Controller
                 return [
                     'id' => $memberId,
                     'chair_number' => $index + 1,
-                    'chair_label' => 'Chair ' . ($index + 1),
+                    'chair_label' => 'Chair '.($index + 1),
                     'team_member_name' => (string) ($member['name'] ?? 'Member'),
                     'team_member_title' => $member['title'] ?? null,
                     'is_present' => $isPresent,
@@ -1481,7 +1339,7 @@ class StaffReservationController extends Controller
             ->active()
             ->with('user:id,name');
 
-        if (!($access['can_view_all'] ?? false) && !empty($access['own_team_member_id'])) {
+        if (! ($access['can_view_all'] ?? false) && ! empty($access['own_team_member_id'])) {
             $query->whereKey((int) $access['own_team_member_id']);
         }
 
@@ -1490,7 +1348,7 @@ class StaffReservationController extends Controller
             ->get()
             ->values();
 
-        if (!$this->queueFeaturesAvailable($settings)) {
+        if (! $this->queueFeaturesAvailable($settings)) {
             return $members
                 ->map(fn (TeamMember $member) => [
                     'id' => (int) $member->id,
@@ -1518,7 +1376,7 @@ class StaffReservationController extends Controller
                 'id' => (int) $member->id,
                 'name' => $member->user?->name ?? 'Member',
                 'title' => $member->title,
-                'is_present' => !$presenceTracked || in_array((int) $member->id, $presentIds, true),
+                'is_present' => ! $presenceTracked || in_array((int) $member->id, $presentIds, true),
             ])
             ->values()
             ->all();
@@ -1537,24 +1395,24 @@ class StaffReservationController extends Controller
                 return '***';
             }
 
-            return strtoupper(substr($local, 0, 1)) . '***';
+            return strtoupper(substr($local, 0, 1)).'***';
         }
 
         $parts = array_values(array_filter(preg_split('/\s+/', $value) ?: []));
         if (count($parts) >= 2) {
-            return strtoupper(substr($parts[0], 0, 1)) . ' ' . strtoupper(substr($parts[1], 0, 1)) . '.';
+            return strtoupper(substr($parts[0], 0, 1)).' '.strtoupper(substr($parts[1], 0, 1)).'.';
         }
 
-        return strtoupper(substr($value, 0, 1)) . '***';
+        return strtoupper(substr($value, 0, 1)).'***';
     }
 
     private function kioskPublicUrl(int $accountId, array $settings): ?string
     {
-        if (!$this->queueModeEnabled($settings)) {
+        if (! $this->queueModeEnabled($settings)) {
             return null;
         }
 
-        if (!Route::has('public.kiosk.reservations.show')) {
+        if (! Route::has('public.kiosk.reservations.show')) {
             return null;
         }
 
@@ -1564,17 +1422,17 @@ class StaffReservationController extends Controller
     private function mapEvent(Reservation $reservation): array
     {
         $clientLabel = $reservation->client?->company_name
-            ?: trim(($reservation->client?->first_name ?? '') . ' ' . ($reservation->client?->last_name ?? ''));
+            ?: trim(($reservation->client?->first_name ?? '').' '.($reservation->client?->last_name ?? ''));
         $serviceLabel = $reservation->service?->name ?: 'Reservation';
         $memberLabel = $reservation->teamMember?->user?->name ?: 'Team';
-        $title = trim($serviceLabel . ' · ' . ($clientLabel ?: 'Client'));
+        $title = trim($serviceLabel.' · '.($clientLabel ?: 'Client'));
 
         return [
             'id' => $reservation->id,
             'title' => $title,
             'start' => $reservation->starts_at?->toIso8601String(),
             'end' => $reservation->ends_at?->toIso8601String(),
-            'classNames' => ['reservation-event', 'status-' . $reservation->status],
+            'classNames' => ['reservation-event', 'status-'.$reservation->status],
             'extendedProps' => [
                 'status' => $reservation->status,
                 'team_member_id' => $reservation->team_member_id,

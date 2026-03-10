@@ -1,96 +1,35 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\WorkController;
-use App\Http\Controllers\QuoteController;
-use App\Http\Controllers\InvoiceController;
-use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\TipReportController;
-use App\Http\Controllers\SalePaymentController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\ProductPriceLookupController;
-use App\Http\Controllers\SaleController;
-use App\Http\Controllers\ServiceController;
-use App\Http\Controllers\TaskController;
-use App\Http\Controllers\TaskMediaController;
-use App\Http\Controllers\TeamMemberController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\DemoController;
-use App\Http\Controllers\DemoTourController;
-use App\Http\Controllers\ProductsSearchController;
-use App\Http\Controllers\QuoteEmaillingController;
-use App\Http\Controllers\OnboardingController;
-use App\Http\Controllers\PipelineController;
-use App\Http\Controllers\PlanningController;
-use App\Http\Controllers\PerformanceController;
-use App\Http\Controllers\PresenceController;
-use App\Http\Controllers\Reservation\ClientReservationController;
-use App\Http\Controllers\Reservation\PublicKioskReservationController;
-use App\Http\Controllers\Reservation\ReservationSettingsController;
-use App\Http\Controllers\Reservation\StaffReservationController;
-use App\Http\Controllers\RequestController;
-use App\Http\Controllers\RequestMediaController;
-use App\Http\Controllers\RequestNoteController;
-use App\Http\Controllers\PlanScanController;
-use App\Http\Controllers\WorkMediaController;
-use App\Http\Controllers\WorkChecklistController;
-use App\Http\Controllers\WelcomeController;
-use App\Http\Controllers\LegalController;
-use App\Http\Controllers\LocaleController;
-use App\Http\Controllers\PublicInvoiceController;
-use App\Http\Controllers\PublicPageController;
-use App\Http\Controllers\PublicStoreController;
-use App\Http\Controllers\PublicShowcaseController;
-use App\Http\Controllers\PublicQuoteController;
-use App\Http\Controllers\PublicRequestController;
-use App\Http\Controllers\PublicWorkController;
-use App\Http\Controllers\PublicWorkProofController;
-use App\Http\Controllers\PublicTaskMediaController;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\AiImageController;
-use App\Http\Controllers\GlobalSearchController;
-use App\Http\Controllers\LoyaltyController;
+use App\Http\Controllers\AssistantController;
+use App\Http\Controllers\CampaignAutomationController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CampaignRunController;
 use App\Http\Controllers\CampaignTrackingController;
-use App\Http\Controllers\CampaignAutomationController;
-use App\Http\Controllers\OfferSearchController;
-use App\Http\Controllers\MarketingMetaController;
-use App\Http\Controllers\MarketingTemplateController;
-use App\Http\Controllers\MarketingSegmentController;
-use App\Http\Controllers\MarketingMailingListController;
-use App\Http\Controllers\MarketingVipController;
-use App\Http\Controllers\MarketingDashboardKpiController;
-use App\Http\Controllers\Settings\CompanySettingsController;
-use App\Http\Controllers\Settings\BillingSettingsController;
-use App\Http\Controllers\Settings\LoyaltySettingsController;
-use App\Http\Controllers\Settings\MarketingSettingsController;
-use App\Http\Controllers\Settings\ProductCategoryController;
-use App\Http\Controllers\Settings\SubscriptionController;
-use App\Http\Controllers\Settings\HrSettingsController;
-use App\Http\Controllers\Settings\NotificationSettingsController;
-use App\Http\Controllers\Settings\SecuritySettingsController;
-use App\Http\Controllers\Settings\ApiTokenController;
-use App\Http\Controllers\WarehouseController;
-use App\Http\Controllers\SupportTicketController;
-use App\Http\Controllers\SupportTicketMessageController;
-use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
-use App\Http\Controllers\SuperAdmin\TenantController as SuperAdminTenantController;
-use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController;
-use App\Http\Controllers\SuperAdmin\NotificationController as SuperAdminNotificationController;
-use App\Http\Controllers\SuperAdmin\PlatformSettingsController as SuperAdminPlatformSettingsController;
-use App\Http\Controllers\SuperAdmin\AiImageController as SuperAdminAiImageController;
-use App\Http\Controllers\SuperAdmin\WelcomeBuilderController as SuperAdminWelcomeBuilderController;
-use App\Http\Controllers\SuperAdmin\PlatformPageController as SuperAdminPlatformPageController;
-use App\Http\Controllers\SuperAdmin\PlatformSectionController as SuperAdminPlatformSectionController;
-use App\Http\Controllers\SuperAdmin\PlatformAssetController as SuperAdminPlatformAssetController;
-use App\Http\Controllers\SuperAdmin\SupportTicketController as SuperAdminSupportTicketController;
-use App\Http\Controllers\SuperAdmin\SupportTicketMessageController as SuperAdminSupportTicketMessageController;
-use App\Http\Controllers\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerPropertyController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DemoController;
+use App\Http\Controllers\DemoTourController;
+use App\Http\Controllers\GlobalSearchController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\LegalController;
+use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\LoyaltyController;
+use App\Http\Controllers\MarketingDashboardKpiController;
+use App\Http\Controllers\MarketingMailingListController;
+use App\Http\Controllers\MarketingMetaController;
+use App\Http\Controllers\MarketingSegmentController;
+use App\Http\Controllers\MarketingTemplateController;
+use App\Http\Controllers\MarketingVipController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OfferSearchController;
+use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PerformanceController;
+use App\Http\Controllers\PipelineController;
+use App\Http\Controllers\PlanningController;
+use App\Http\Controllers\PlanScanController;
 use App\Http\Controllers\Portal\PortalInvoiceController;
 use App\Http\Controllers\Portal\PortalLoyaltyController;
 use App\Http\Controllers\Portal\PortalProductOrderController;
@@ -98,12 +37,73 @@ use App\Http\Controllers\Portal\PortalQuoteController;
 use App\Http\Controllers\Portal\PortalRatingController;
 use App\Http\Controllers\Portal\PortalReviewController;
 use App\Http\Controllers\Portal\PortalTaskMediaController;
-use App\Http\Controllers\Portal\PortalWorkProofController;
 use App\Http\Controllers\Portal\PortalWorkController;
+use App\Http\Controllers\Portal\PortalWorkProofController;
+use App\Http\Controllers\PresenceController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductPriceLookupController;
+use App\Http\Controllers\ProductsSearchController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicInvoiceController;
+use App\Http\Controllers\PublicPageController;
+use App\Http\Controllers\PublicQuoteController;
+use App\Http\Controllers\PublicRequestController;
+use App\Http\Controllers\PublicShowcaseController;
+use App\Http\Controllers\PublicStoreController;
+use App\Http\Controllers\PublicTaskMediaController;
+use App\Http\Controllers\PublicWorkController;
+use App\Http\Controllers\PublicWorkProofController;
+use App\Http\Controllers\QuoteController;
+use App\Http\Controllers\QuoteEmaillingController;
+use App\Http\Controllers\RequestController;
+use App\Http\Controllers\RequestMediaController;
+use App\Http\Controllers\RequestNoteController;
+use App\Http\Controllers\Reservation\ClientReservationController;
+use App\Http\Controllers\Reservation\PublicKioskReservationController;
+use App\Http\Controllers\Reservation\ReservationSettingsController;
+use App\Http\Controllers\Reservation\StaffReservationController;
+use App\Http\Controllers\SaleController;
+use App\Http\Controllers\SalePaymentController;
+use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\Settings\ApiTokenController;
+use App\Http\Controllers\Settings\BillingSettingsController;
+use App\Http\Controllers\Settings\CompanySettingsController;
+use App\Http\Controllers\Settings\HrSettingsController;
+use App\Http\Controllers\Settings\LoyaltySettingsController;
+use App\Http\Controllers\Settings\MarketingSettingsController;
+use App\Http\Controllers\Settings\NotificationSettingsController;
+use App\Http\Controllers\Settings\ProductCategoryController;
+use App\Http\Controllers\Settings\SecuritySettingsController;
+use App\Http\Controllers\Settings\SubscriptionController;
+use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController;
+use App\Http\Controllers\SuperAdmin\AiImageController as SuperAdminAiImageController;
+use App\Http\Controllers\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
+use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
+use App\Http\Controllers\SuperAdmin\NotificationController as SuperAdminNotificationController;
+use App\Http\Controllers\SuperAdmin\PlatformAssetController as SuperAdminPlatformAssetController;
+use App\Http\Controllers\SuperAdmin\PlatformPageController as SuperAdminPlatformPageController;
+use App\Http\Controllers\SuperAdmin\PlatformSectionController as SuperAdminPlatformSectionController;
+use App\Http\Controllers\SuperAdmin\PlatformSettingsController as SuperAdminPlatformSettingsController;
+use App\Http\Controllers\SuperAdmin\SupportTicketController as SuperAdminSupportTicketController;
+use App\Http\Controllers\SuperAdmin\SupportTicketMessageController as SuperAdminSupportTicketMessageController;
+use App\Http\Controllers\SuperAdmin\TenantController as SuperAdminTenantController;
+use App\Http\Controllers\SuperAdmin\WelcomeBuilderController as SuperAdminWelcomeBuilderController;
+use App\Http\Controllers\SupportTicketController;
+use App\Http\Controllers\SupportTicketMessageController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TaskMediaController;
+use App\Http\Controllers\TeamMemberController;
+use App\Http\Controllers\TipReportController;
+use App\Http\Controllers\WarehouseController;
+use App\Http\Controllers\WelcomeController;
+use App\Http\Controllers\WorkChecklistController;
+use App\Http\Controllers\WorkController;
+use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkProofController;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsurePlatformAdmin;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/favicon.ico', function () {
     return response()->file(public_path('favicon.ico'));
@@ -155,10 +155,14 @@ Route::middleware(['signed', 'throttle:public-signed'])->group(function () {
     Route::post('/public/quotes/{quote}/decline', [PublicQuoteController::class, 'decline'])->name('public.quotes.decline');
     Route::get('/public/requests/{user}', [PublicRequestController::class, 'show'])->name('public.requests.form');
     Route::post('/public/requests/{user}/address-search', [PublicRequestController::class, 'addressSearch'])
+        ->middleware('throttle:public-leads-lookup')
         ->name('public.requests.address-search');
     Route::post('/public/requests/{user}/suggest-services', [PublicRequestController::class, 'suggest'])
+        ->middleware('throttle:public-leads-lookup')
         ->name('public.requests.suggest');
-    Route::post('/public/requests/{user}', [PublicRequestController::class, 'store'])->name('public.requests.store');
+    Route::post('/public/requests/{user}', [PublicRequestController::class, 'store'])
+        ->middleware('throttle:public-leads-submit')
+        ->name('public.requests.store');
     Route::get('/public/works/{work}', [PublicWorkController::class, 'show'])->name('public.works.show');
     Route::post('/public/works/{work}/validate', [PublicWorkController::class, 'validateWork'])->name('public.works.validate');
     Route::post('/public/works/{work}/dispute', [PublicWorkController::class, 'dispute'])->name('public.works.dispute');
@@ -171,6 +175,7 @@ Route::middleware(['signed', 'throttle:public-signed'])->group(function () {
 
     Route::prefix('/kiosk/reservations')
         ->name('public.kiosk.reservations.')
+        ->middleware('throttle:public-kiosk')
         ->group(function () {
             Route::get('/', [PublicKioskReservationController::class, 'show'])
                 ->name('show');
@@ -222,7 +227,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::post('/assistant/message', [AssistantController::class, 'message'])
         ->middleware('company.feature:assistant')
         ->name('assistant.message');
-    Route::post('/ai/images', [AiImageController::class, 'generate'])->name('ai.images.generate');
+    Route::post('/ai/images', [AiImageController::class, 'generate'])
+        ->middleware('throttle:ai-images')
+        ->name('ai.images.generate');
     Route::get('/pipeline/timeline/{entityType}/{entityId}', [PipelineController::class, 'timeline'])
         ->name('pipeline.timeline');
     Route::get('/pipeline', [PipelineController::class, 'data'])->name('pipeline.data');
@@ -617,10 +624,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/payments/{payment}/tip-reverse', [PaymentController::class, 'reverseTip'])->name('payment.tip-reverse');
     });
 
-// Payment Management
-Route::post('/invoice/{invoice}/payments', [PaymentController::class, 'store'])->name('payment.store');
-Route::patch('/payments/{payment}/mark-paid', [PaymentController::class, 'markAsPaid'])->name('payment.mark-paid');
-Route::post('/sales/{sale}/payments', [SalePaymentController::class, 'store'])->name('sales.payments.store');
+    // Payment Management
+    Route::post('/invoice/{invoice}/payments', [PaymentController::class, 'store'])->name('payment.store');
+    Route::patch('/payments/{payment}/mark-paid', [PaymentController::class, 'markAsPaid'])->name('payment.mark-paid');
+    Route::post('/sales/{sale}/payments', [SalePaymentController::class, 'store'])->name('sales.payments.store');
 });
 
 Route::middleware(['auth', 'demo.safe'])->group(function () {
@@ -693,74 +700,74 @@ Route::middleware(['auth', EnsureClientUser::class, 'company.feature:reservation
     });
 
 // Authentication Routes
-require __DIR__ . '/auth.php';
-    // Super Admin
-    Route::prefix('super-admin')
-        ->name('superadmin.')
-        ->middleware([EnsurePlatformAdmin::class])
-        ->group(function () {
-            Route::get('/', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
+require __DIR__.'/auth.php';
+// Super Admin
+Route::prefix('super-admin')
+    ->name('superadmin.')
+    ->middleware([EnsurePlatformAdmin::class])
+    ->group(function () {
+        Route::get('/', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
 
-            Route::get('/tenants', [SuperAdminTenantController::class, 'index'])->name('tenants.index');
-            Route::get('/tenants/{tenant}', [SuperAdminTenantController::class, 'show'])->name('tenants.show');
-            Route::post('/tenants/{tenant}/suspend', [SuperAdminTenantController::class, 'suspend'])->name('tenants.suspend');
-            Route::post('/tenants/{tenant}/restore', [SuperAdminTenantController::class, 'restore'])->name('tenants.restore');
-            Route::post('/tenants/{tenant}/reset-onboarding', [SuperAdminTenantController::class, 'resetOnboarding'])->name('tenants.reset-onboarding');
-            Route::put('/tenants/{tenant}/features', [SuperAdminTenantController::class, 'updateFeatures'])->name('tenants.features.update');
-            Route::put('/tenants/{tenant}/limits', [SuperAdminTenantController::class, 'updateLimits'])->name('tenants.limits.update');
-            Route::put('/tenants/{tenant}/security', [SuperAdminTenantController::class, 'updateSecurity'])->name('tenants.security.update');
-            Route::put('/tenants/{tenant}/plan', [SuperAdminTenantController::class, 'updatePlan'])->name('tenants.plan.update');
-            Route::post('/tenants/{tenant}/impersonate', [SuperAdminTenantController::class, 'impersonate'])->name('tenants.impersonate');
-            Route::get('/tenants/{tenant}/export', [SuperAdminTenantController::class, 'export'])->name('tenants.export');
+        Route::get('/tenants', [SuperAdminTenantController::class, 'index'])->name('tenants.index');
+        Route::get('/tenants/{tenant}', [SuperAdminTenantController::class, 'show'])->name('tenants.show');
+        Route::post('/tenants/{tenant}/suspend', [SuperAdminTenantController::class, 'suspend'])->name('tenants.suspend');
+        Route::post('/tenants/{tenant}/restore', [SuperAdminTenantController::class, 'restore'])->name('tenants.restore');
+        Route::post('/tenants/{tenant}/reset-onboarding', [SuperAdminTenantController::class, 'resetOnboarding'])->name('tenants.reset-onboarding');
+        Route::put('/tenants/{tenant}/features', [SuperAdminTenantController::class, 'updateFeatures'])->name('tenants.features.update');
+        Route::put('/tenants/{tenant}/limits', [SuperAdminTenantController::class, 'updateLimits'])->name('tenants.limits.update');
+        Route::put('/tenants/{tenant}/security', [SuperAdminTenantController::class, 'updateSecurity'])->name('tenants.security.update');
+        Route::put('/tenants/{tenant}/plan', [SuperAdminTenantController::class, 'updatePlan'])->name('tenants.plan.update');
+        Route::post('/tenants/{tenant}/impersonate', [SuperAdminTenantController::class, 'impersonate'])->name('tenants.impersonate');
+        Route::get('/tenants/{tenant}/export', [SuperAdminTenantController::class, 'export'])->name('tenants.export');
 
-            Route::get('/admins', [SuperAdminAdminController::class, 'index'])->name('admins.index');
-            Route::post('/admins', [SuperAdminAdminController::class, 'store'])->name('admins.store');
-            Route::put('/admins/{admin}', [SuperAdminAdminController::class, 'update'])->name('admins.update');
+        Route::get('/admins', [SuperAdminAdminController::class, 'index'])->name('admins.index');
+        Route::post('/admins', [SuperAdminAdminController::class, 'store'])->name('admins.store');
+        Route::put('/admins/{admin}', [SuperAdminAdminController::class, 'update'])->name('admins.update');
 
-            Route::get('/notifications', [SuperAdminNotificationController::class, 'edit'])->name('notifications.edit');
-            Route::put('/notifications', [SuperAdminNotificationController::class, 'update'])->name('notifications.update');
+        Route::get('/notifications', [SuperAdminNotificationController::class, 'edit'])->name('notifications.edit');
+        Route::put('/notifications', [SuperAdminNotificationController::class, 'update'])->name('notifications.update');
 
-            Route::get('/announcements', [SuperAdminAnnouncementController::class, 'index'])->name('announcements.index');
-            Route::get('/announcements/preview', [SuperAdminAnnouncementController::class, 'preview'])->name('announcements.preview');
-            Route::post('/announcements', [SuperAdminAnnouncementController::class, 'store'])->name('announcements.store');
-            Route::put('/announcements/{announcement}', [SuperAdminAnnouncementController::class, 'update'])->name('announcements.update');
-            Route::delete('/announcements/{announcement}', [SuperAdminAnnouncementController::class, 'destroy'])->name('announcements.destroy');
+        Route::get('/announcements', [SuperAdminAnnouncementController::class, 'index'])->name('announcements.index');
+        Route::get('/announcements/preview', [SuperAdminAnnouncementController::class, 'preview'])->name('announcements.preview');
+        Route::post('/announcements', [SuperAdminAnnouncementController::class, 'store'])->name('announcements.store');
+        Route::put('/announcements/{announcement}', [SuperAdminAnnouncementController::class, 'update'])->name('announcements.update');
+        Route::delete('/announcements/{announcement}', [SuperAdminAnnouncementController::class, 'destroy'])->name('announcements.destroy');
 
-            Route::get('/support', [SuperAdminSupportTicketController::class, 'index'])->name('support.index');
-            Route::get('/support/{ticket}', [SuperAdminSupportTicketController::class, 'show'])->name('support.show');
-            Route::post('/support', [SuperAdminSupportTicketController::class, 'store'])->name('support.store');
-            Route::put('/support/{ticket}', [SuperAdminSupportTicketController::class, 'update'])->name('support.update');
-            Route::post('/support/{ticket}/messages', [SuperAdminSupportTicketMessageController::class, 'store'])
-                ->name('support.messages.store');
+        Route::get('/support', [SuperAdminSupportTicketController::class, 'index'])->name('support.index');
+        Route::get('/support/{ticket}', [SuperAdminSupportTicketController::class, 'show'])->name('support.show');
+        Route::post('/support', [SuperAdminSupportTicketController::class, 'store'])->name('support.store');
+        Route::put('/support/{ticket}', [SuperAdminSupportTicketController::class, 'update'])->name('support.update');
+        Route::post('/support/{ticket}/messages', [SuperAdminSupportTicketMessageController::class, 'store'])
+            ->name('support.messages.store');
 
-            Route::get('/welcome-builder', [SuperAdminWelcomeBuilderController::class, 'edit'])->name('welcome.edit');
-            Route::put('/welcome-builder', [SuperAdminWelcomeBuilderController::class, 'update'])->name('welcome.update');
+        Route::get('/welcome-builder', [SuperAdminWelcomeBuilderController::class, 'edit'])->name('welcome.edit');
+        Route::put('/welcome-builder', [SuperAdminWelcomeBuilderController::class, 'update'])->name('welcome.update');
 
-            Route::get('/pages', [SuperAdminPlatformPageController::class, 'index'])->name('pages.index');
-            Route::get('/pages/create', [SuperAdminPlatformPageController::class, 'create'])->name('pages.create');
-            Route::post('/pages', [SuperAdminPlatformPageController::class, 'store'])->name('pages.store');
-            Route::get('/pages/{page}/edit', [SuperAdminPlatformPageController::class, 'edit'])->name('pages.edit');
-            Route::put('/pages/{page}', [SuperAdminPlatformPageController::class, 'update'])->name('pages.update');
-            Route::delete('/pages/{page}', [SuperAdminPlatformPageController::class, 'destroy'])->name('pages.destroy');
+        Route::get('/pages', [SuperAdminPlatformPageController::class, 'index'])->name('pages.index');
+        Route::get('/pages/create', [SuperAdminPlatformPageController::class, 'create'])->name('pages.create');
+        Route::post('/pages', [SuperAdminPlatformPageController::class, 'store'])->name('pages.store');
+        Route::get('/pages/{page}/edit', [SuperAdminPlatformPageController::class, 'edit'])->name('pages.edit');
+        Route::put('/pages/{page}', [SuperAdminPlatformPageController::class, 'update'])->name('pages.update');
+        Route::delete('/pages/{page}', [SuperAdminPlatformPageController::class, 'destroy'])->name('pages.destroy');
 
-            Route::get('/sections', [SuperAdminPlatformSectionController::class, 'index'])->name('sections.index');
-            Route::get('/sections/create', [SuperAdminPlatformSectionController::class, 'create'])->name('sections.create');
-            Route::post('/sections', [SuperAdminPlatformSectionController::class, 'store'])->name('sections.store');
-            Route::get('/sections/{section}/edit', [SuperAdminPlatformSectionController::class, 'edit'])->name('sections.edit');
-            Route::put('/sections/{section}', [SuperAdminPlatformSectionController::class, 'update'])->name('sections.update');
-            Route::delete('/sections/{section}', [SuperAdminPlatformSectionController::class, 'destroy'])->name('sections.destroy');
+        Route::get('/sections', [SuperAdminPlatformSectionController::class, 'index'])->name('sections.index');
+        Route::get('/sections/create', [SuperAdminPlatformSectionController::class, 'create'])->name('sections.create');
+        Route::post('/sections', [SuperAdminPlatformSectionController::class, 'store'])->name('sections.store');
+        Route::get('/sections/{section}/edit', [SuperAdminPlatformSectionController::class, 'edit'])->name('sections.edit');
+        Route::put('/sections/{section}', [SuperAdminPlatformSectionController::class, 'update'])->name('sections.update');
+        Route::delete('/sections/{section}', [SuperAdminPlatformSectionController::class, 'destroy'])->name('sections.destroy');
 
-            Route::get('/assets', [SuperAdminPlatformAssetController::class, 'index'])->name('assets.index');
-            Route::post('/assets', [SuperAdminPlatformAssetController::class, 'store'])->name('assets.store');
-            Route::get('/assets/list', [SuperAdminPlatformAssetController::class, 'list'])->name('assets.list');
-            Route::delete('/assets/{asset}', [SuperAdminPlatformAssetController::class, 'destroy'])->name('assets.destroy');
+        Route::get('/assets', [SuperAdminPlatformAssetController::class, 'index'])->name('assets.index');
+        Route::post('/assets', [SuperAdminPlatformAssetController::class, 'store'])->name('assets.store');
+        Route::get('/assets/list', [SuperAdminPlatformAssetController::class, 'list'])->name('assets.list');
+        Route::delete('/assets/{asset}', [SuperAdminPlatformAssetController::class, 'destroy'])->name('assets.destroy');
 
-            Route::post('/ai/images', [SuperAdminAiImageController::class, 'generate'])->name('ai.images.generate');
+        Route::post('/ai/images', [SuperAdminAiImageController::class, 'generate'])->name('ai.images.generate');
 
-            Route::get('/settings', [SuperAdminPlatformSettingsController::class, 'edit'])->name('settings.edit');
-            Route::put('/settings', [SuperAdminPlatformSettingsController::class, 'update'])->name('settings.update');
-        });
+        Route::get('/settings', [SuperAdminPlatformSettingsController::class, 'edit'])->name('settings.edit');
+        Route::put('/settings', [SuperAdminPlatformSettingsController::class, 'update'])->name('settings.update');
+    });
 
-    Route::post('/impersonate/stop', [SuperAdminTenantController::class, 'stopImpersonate'])
-        ->middleware('impersonating')
-        ->name('superadmin.impersonate.stop');
+Route::post('/impersonate/stop', [SuperAdminTenantController::class, 'stopImpersonate'])
+    ->middleware('impersonating')
+    ->name('superadmin.impersonate.stop');

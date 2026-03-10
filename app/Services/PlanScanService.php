@@ -10,17 +10,21 @@ use App\Models\User;
 class PlanScanService
 {
     public const STATUS_NEW = 'new';
+
     public const STATUS_PROCESSING = 'processing';
+
     public const STATUS_READY = 'ready';
+
     public const STATUS_FAILED = 'failed';
+
     private const LIVE_LOOKUP_LIMIT = 3;
+
     private const LIVE_LOOKUP_BUDGET_SECONDS = 18;
 
     public function __construct(
         private PriceLookupService $priceLookupService,
         private SupplierDirectory $supplierDirectory
-    ) {
-    }
+    ) {}
 
     public function tradeOptions(): array
     {
@@ -247,13 +251,14 @@ class PlanScanService
             $province,
             $city,
             $enabledKeys,
+            $suppliers,
             $tradeLabel,
             $lookupIndexes,
             $limit,
             $budgetSeconds,
             $startedAt
         ) {
-            if (!empty($item['is_labor'])) {
+            if (! empty($item['is_labor'])) {
                 return [
                     ...$item,
                     'sources' => [],
@@ -262,7 +267,7 @@ class PlanScanService
                 ];
             }
 
-            if ($limit <= 0 || !in_array($index, $lookupIndexes, true)) {
+            if ($limit <= 0 || ! in_array($index, $lookupIndexes, true)) {
                 return [
                     ...$item,
                     'sources' => [],
@@ -350,7 +355,7 @@ class PlanScanService
 
             foreach ($items as $item) {
                 $sources = $item['sources'] ?? [];
-                $hasSources = !empty($sources);
+                $hasSources = ! empty($sources);
                 $sortedSources = $this->sortSourcesByPrice($sources);
                 $selected = $hasSources ? $this->selectSource($sortedSources, $key, $preferredSupplierKeys) : null;
                 $selectedPrice = is_array($selected) ? ($selected['price'] ?? null) : null;
@@ -420,7 +425,7 @@ class PlanScanService
             $referenceTotal = round($referenceTotal, 2);
 
             $leadDays = max(2, $baseDays + (int) ($detail['schedule_bias'] ?? 0));
-            $leadRange = $leadDays . '-' . ($leadDays + 2);
+            $leadRange = $leadDays.'-'.($leadDays + 2);
 
             $variants[] = [
                 'key' => $key,
@@ -439,9 +444,9 @@ class PlanScanService
                     'support' => $detail['support'],
                 ],
                 'highlights' => [
-                    'Best for: ' . $detail['best_for'],
-                    'Lead time: ' . $leadRange . ' days',
-                    'Materials: ' . $detail['materials'],
+                    'Best for: '.$detail['best_for'],
+                    'Lead time: '.$leadRange.' days',
+                    'Materials: '.$detail['materials'],
                 ],
                 'items' => $lines,
             ];
@@ -487,8 +492,7 @@ class PlanScanService
         string $variantKey,
         ?array $bestSource = null,
         bool $isPreferred = false
-    ): string
-    {
+    ): string {
         $supplier = is_array($selected) ? ($selected['name'] ?? 'Selected supplier') : 'Selected supplier';
         $focus = match ($variantKey) {
             'eco' => 'cost efficiency',
@@ -514,7 +518,7 @@ class PlanScanService
         if ($bestSource && is_array($selected) && ($bestSource['supplier_key'] ?? null) !== ($selected['supplier_key'] ?? null)) {
             $delta = round((float) ($selected['price'] ?? 0) - (float) ($bestSource['price'] ?? 0), 2);
             if ($delta > 0) {
-                $parts[] = 'Best price available at ' . ($bestSource['name'] ?? 'another supplier') . ' (-$' . number_format($delta, 2) . ').';
+                $parts[] = 'Best price available at '.($bestSource['name'] ?? 'another supplier').' (-$'.number_format($delta, 2).').';
             }
         }
 
@@ -555,10 +559,10 @@ class PlanScanService
                 'Prix compares sur plusieurs sources.',
                 'Marges ajustees par niveau de devis.',
                 $lookupLimit > 0
-                    ? 'Live pricing limited to ' . $lookupLimit . ' items for faster scans.'
+                    ? 'Live pricing limited to '.$lookupLimit.' items for faster scans.'
                     : 'Live pricing disabled for scans.',
                 $providerReady
-                    ? 'Sources live via ' . $provider . '.'
+                    ? 'Sources live via '.$provider.'.'
                     : 'Aucune source live configuree pour le moment.',
             ],
             'pricing' => [
@@ -582,11 +586,11 @@ class PlanScanService
             $score += 20;
         }
 
-        if (!empty($metrics['surface_m2'])) {
+        if (! empty($metrics['surface_m2'])) {
             $score += 15;
         }
 
-        if (!empty($metrics['rooms'])) {
+        if (! empty($metrics['rooms'])) {
             $score += 10;
         }
 
@@ -625,7 +629,7 @@ class PlanScanService
 
         $candidates = [];
         foreach ($items as $index => $item) {
-            if (!empty($item['is_labor'])) {
+            if (! empty($item['is_labor'])) {
                 continue;
             }
             $quantity = (float) ($item['quantity'] ?? 1);
@@ -649,13 +653,13 @@ class PlanScanService
         $limit = (int) config('suppliers.preferred_limit', 4);
         $keys = collect($suppliers)->pluck('key')->filter()->values()->all();
         $defaultEnabled = collect($suppliers)
-            ->filter(fn (array $supplier) => !empty($supplier['default_enabled']))
+            ->filter(fn (array $supplier) => ! empty($supplier['default_enabled']))
             ->pluck('key')
             ->values()
             ->all();
         $enabled = isset($preferences['enabled']) ? (array) $preferences['enabled'] : ($defaultEnabled ?: $keys);
         $enabled = array_values(array_intersect($keys, (array) $enabled));
-        if (!$enabled) {
+        if (! $enabled) {
             $enabled = $keys;
         }
 
@@ -672,12 +676,12 @@ class PlanScanService
     private function resolveCustomSuppliers(?array $preferences): array
     {
         $custom = $preferences['custom_suppliers'] ?? [];
-        if (!is_array($custom)) {
+        if (! is_array($custom)) {
             return [];
         }
 
         return array_values(array_filter($custom, function ($supplier) {
-            return is_array($supplier) && !empty($supplier['key']);
+            return is_array($supplier) && ! empty($supplier['key']);
         }));
     }
 
@@ -685,13 +689,13 @@ class PlanScanService
     {
         $byKey = [];
         foreach ($suppliers as $supplier) {
-            if (is_array($supplier) && !empty($supplier['key'])) {
+            if (is_array($supplier) && ! empty($supplier['key'])) {
                 $byKey[$supplier['key']] = $supplier;
             }
         }
 
         foreach ($customSuppliers as $supplier) {
-            if (is_array($supplier) && !empty($supplier['key'])) {
+            if (is_array($supplier) && ! empty($supplier['key'])) {
                 $byKey[$supplier['key']] = $supplier;
             }
         }
@@ -747,7 +751,7 @@ class PlanScanService
 
     private function selectSource(array $sources, string $variantKey, array $preferredSupplierKeys): ?array
     {
-        if (!$sources) {
+        if (! $sources) {
             return null;
         }
 

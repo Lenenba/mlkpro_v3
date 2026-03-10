@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
+use App\Services\CreateStripeSubscriptionForTenant;
 use App\Services\PlatformAdminNotifier;
 use App\Services\StripeBillingService;
 use Illuminate\Http\JsonResponse;
@@ -129,12 +131,17 @@ class SubscriptionController extends Controller
         }
         $billingService = app(BillingSubscriptionService::class);
 
-        $plans = collect(config('billing.plans', []))
-            ->map(fn(array $plan, string $key) => array_merge(['key' => $key], $plan))
-            ->filter(fn(array $plan) => !empty($plan['price_id']))
-            ->values();
+        $plans = $billingService->isStripe()
+            ? collect(app(BillingPlanService::class)->plansForTenant($user))
+                ->filter(fn (array $plan) => ! empty($plan['price_id']))
+                ->values()
+            : collect(config('billing.plans', []))
+                ->map(fn(array $plan, string $key) => array_merge(['key' => $key], $plan))
+                ->filter(fn(array $plan) => !empty($plan['price_id']))
+                ->values();
 
         $priceIds = $plans->pluck('price_id')->filter()->values()->all();
+        $planKeys = $plans->pluck('key')->filter()->values()->all();
         if (!$priceIds) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
@@ -151,14 +158,18 @@ class SubscriptionController extends Controller
         }
 
         $validated = $request->validate([
-            'price_id' => ['required', Rule::in($priceIds)],
+            'plan_key' => ['nullable', Rule::in($planKeys)],
+            'price_id' => ['nullable', Rule::in($priceIds)],
         ]);
 
-        $plan = $plans->firstWhere('price_id', $validated['price_id']);
+        $plan = ! empty($validated['plan_key'])
+            ? $plans->firstWhere('key', $validated['plan_key'])
+            : $plans->firstWhere('price_id', $validated['price_id'] ?? null);
+        $selectedPriceId = $plan['price_id'] ?? null;
         $planKey = $plan['key'] ?? null;
         $currentPriceId = $billingService->resolvePriceId($user);
 
-        if ($currentPriceId === $validated['price_id']) {
+        if ($selectedPriceId && $currentPriceId === $selectedPriceId) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'You are already on this plan.',
@@ -187,7 +198,7 @@ class SubscriptionController extends Controller
 
             try {
                 $seatQuantity = $billingService->resolveSeatQuantity($user);
-                $updated = app(StripeBillingService::class)->swapSubscription($user, $validated['price_id'], $seatQuantity);
+                $updated = app(CreateStripeSubscriptionForTenant::class)->swap($user, (string) $planKey, $seatQuantity);
                 if (!$updated) {
                     throw new \RuntimeException('Stripe subscription update failed.');
                 }
@@ -222,7 +233,7 @@ class SubscriptionController extends Controller
             }
 
             try {
-                $subscription->swap($validated['price_id']);
+                $subscription->swap((string) $selectedPriceId);
             } catch (\Throwable $exception) {
                 if ($this->shouldReturnJson($request)) {
                     return response()->json([
@@ -241,11 +252,11 @@ class SubscriptionController extends Controller
                 ['label' => 'Company', 'value' => $user->company_name ?: 'Not set'],
                 ['label' => 'Owner', 'value' => $user->email ?: 'Unknown'],
                 ['label' => 'From', 'value' => $notifier->resolvePlanName($currentPriceId)],
-                ['label' => 'To', 'value' => $notifier->resolvePlanName($validated['price_id'])],
+                ['label' => 'To', 'value' => $notifier->resolvePlanName($selectedPriceId)],
             ],
             'actionUrl' => route('superadmin.tenants.show', $user->id),
             'actionLabel' => 'View tenant',
-            'reference' => 'plan:' . $user->id . ':' . $currentPriceId . ':' . $validated['price_id'],
+            'reference' => 'plan:' . $user->id . ':' . $currentPriceId . ':' . $selectedPriceId,
             'severity' => 'info',
         ]);
 
@@ -281,17 +292,20 @@ class SubscriptionController extends Controller
             ], 422);
         }
 
-        $plans = collect(config('billing.plans', []))
-            ->map(fn(array $plan, string $key) => array_merge(['key' => $key], $plan))
-            ->filter(fn(array $plan) => !empty($plan['price_id']))
+        $plans = collect(app(BillingPlanService::class)->plansForTenant($user))
+            ->filter(fn (array $plan) => ! empty($plan['price_id']))
             ->values();
 
         $priceIds = $plans->pluck('price_id')->filter()->values()->all();
+        $planKeys = $plans->pluck('key')->filter()->values()->all();
         $validated = $request->validate([
-            'price_id' => ['required', Rule::in($priceIds)],
+            'plan_key' => ['nullable', Rule::in($planKeys)],
+            'price_id' => ['nullable', Rule::in($priceIds)],
         ]);
 
-        $plan = $plans->firstWhere('price_id', $validated['price_id']);
+        $plan = ! empty($validated['plan_key'])
+            ? $plans->firstWhere('key', $validated['plan_key'])
+            : $plans->firstWhere('price_id', $validated['price_id'] ?? null);
         $planKey = $plan['key'] ?? null;
 
         $successUrl = route('settings.billing.edit', array_filter([
@@ -304,18 +318,17 @@ class SubscriptionController extends Controller
 
         try {
             $seatQuantity = $billingService->resolveSeatQuantity($user);
-            $session = app(StripeBillingService::class)->createCheckoutSession(
+            $session = app(CreateStripeSubscriptionForTenant::class)->checkoutSession(
                 $user,
-                $validated['price_id'],
+                (string) $planKey,
                 $successUrl,
                 $cancelUrl,
-                $planKey,
                 $seatQuantity
             );
         } catch (\Throwable $exception) {
             Log::error('Stripe checkout session creation failed.', [
                 'user_id' => $user->id,
-                'price_id' => $validated['price_id'],
+                'plan_key' => $planKey,
                 'message' => $exception->getMessage(),
             ]);
 

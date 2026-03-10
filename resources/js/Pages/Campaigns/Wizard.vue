@@ -362,7 +362,11 @@ const loadAudienceCustomers = async () => {
     audienceCustomerLoading.value = true;
     audienceCustomerError.value = '';
     try {
-        const response = await axios.get(route('customer.options'));
+        const response = await axios.get(route('customer.options'), {
+            params: {
+                scope: 'audience',
+            },
+        });
         const customers = Array.isArray(response.data?.customers) ? response.data.customers : [];
         audienceCustomerRows.value = customers
             .map((customer) => ({

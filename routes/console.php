@@ -1,5 +1,39 @@
 <?php
 
+use App\Jobs\ComputeInterestScoresJob;
+use App\Jobs\ReconcileDeliveryReportsJob;
+use App\Models\ActivityLog;
+use App\Models\PlatformSupportTicket;
+use App\Models\Request as LeadRequest;
+use App\Models\ReservationSetting;
+use App\Models\Role;
+use App\Models\Sale;
+use App\Models\User;
+use App\Models\Work;
+use App\Notifications\ActionEmailNotification;
+use App\Notifications\LeadFollowUpNotification;
+use App\Services\Campaigns\CampaignAutomationService;
+use App\Services\Campaigns\VipService;
+use App\Services\Capacity\CapacityReportService;
+use App\Services\DailyAgendaService;
+use App\Services\Demo\DemoAccountService;
+use App\Services\Demo\DemoResetService;
+use App\Services\Demo\DemoSeedService;
+use App\Services\Observability\ObservabilityReportService;
+use App\Services\PlatformAdminNotifier;
+use App\Services\QueueHealthService;
+use App\Services\ReservationAvailabilityService;
+use App\Services\ReservationNotificationService;
+use App\Services\ReservationQueueService;
+use App\Services\SaleNotificationService;
+use App\Services\SmsNotificationService;
+use App\Services\StripePlanPriceProvisioner;
+use App\Services\SupportAssignmentService;
+use App\Services\SupportSettingsService;
+use App\Services\WorkBillingService;
+use App\Support\NotificationDispatcher;
+use App\Support\SchemaAudit\ManualSelectContractAudit;
+use Database\Seeders\LaunchSeeder;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -9,35 +43,6 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Schema;
-use Database\Seeders\LaunchSeeder;
-use App\Models\Role;
-use App\Models\User;
-use App\Models\Work;
-use App\Models\Sale;
-use App\Models\ActivityLog;
-use App\Models\PlatformSupportTicket;
-use App\Models\Request as LeadRequest;
-use App\Models\ReservationSetting;
-use App\Notifications\ActionEmailNotification;
-use App\Notifications\LeadFollowUpNotification;
-use App\Support\NotificationDispatcher;
-use App\Services\Demo\DemoAccountService;
-use App\Services\Demo\DemoResetService;
-use App\Services\Demo\DemoSeedService;
-use App\Services\DailyAgendaService;
-use App\Services\PlatformAdminNotifier;
-use App\Services\SmsNotificationService;
-use App\Services\WorkBillingService;
-use App\Services\SaleNotificationService;
-use App\Services\ReservationAvailabilityService;
-use App\Services\ReservationNotificationService;
-use App\Services\ReservationQueueService;
-use App\Services\SupportAssignmentService;
-use App\Services\SupportSettingsService;
-use App\Services\Campaigns\CampaignAutomationService;
-use App\Services\Campaigns\VipService;
-use App\Jobs\ComputeInterestScoresJob;
-use App\Jobs\ReconcileDeliveryReportsJob;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -65,13 +70,15 @@ Artisan::command('superadmin:create {email} {password}', function () {
     $email = (string) $this->argument('email');
     $password = (string) $this->argument('password');
 
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $this->error('Invalid email address.');
+
         return;
     }
 
     if (strlen($password) < 8) {
         $this->error('Password must be at least 8 characters.');
+
         return;
     }
 
@@ -82,8 +89,9 @@ Artisan::command('superadmin:create {email} {password}', function () {
 
     $user = User::where('email', $email)->first();
     if ($user) {
-        if (!$this->confirm('User already exists. Update role and password?', false)) {
+        if (! $this->confirm('User already exists. Update role and password?', false)) {
             $this->info('No changes made.');
+
             return;
         }
 
@@ -95,6 +103,7 @@ Artisan::command('superadmin:create {email} {password}', function () {
         ]);
 
         $this->info('Superadmin user updated.');
+
         return;
     }
 
@@ -109,7 +118,6 @@ Artisan::command('superadmin:create {email} {password}', function () {
     $this->info('Superadmin user created.');
 })->purpose('Create or update a superadmin user');
 
-
 Artisan::command('mail:test {to} {--subject=Test} {--body=}', function (): int {
     /** @var string $to */
     $to = (string) $this->argument('to');
@@ -118,18 +126,19 @@ Artisan::command('mail:test {to} {--subject=Test} {--body=}', function (): int {
 
     if (trim($to) === '') {
         $this->error('Destinataire manquant.');
+
         return 1;
     }
 
     if (trim($body) === '') {
         $body = implode("\n", [
             'Test email',
-            'App: ' . (string) config('app.name'),
-            'Date: ' . now()->toDateTimeString(),
+            'App: '.(string) config('app.name'),
+            'Date: '.now()->toDateTimeString(),
         ]);
     }
 
-    Mail::raw($body, fn($m) => $m->to($to)->subject($subject));
+    Mail::raw($body, fn ($m) => $m->to($to)->subject($subject));
 
     $this->info("OK: email envoye a {$to}");
 
@@ -145,16 +154,19 @@ Artisan::command('sms:test {to} {--message=}', function (SmsNotificationService 
 
     if ($to === '') {
         $this->error('Numero destinataire manquant.');
+
         return 1;
     }
 
-    if (!preg_match('/^\+[1-9]\d{7,14}$/', $to)) {
+    if (! preg_match('/^\+[1-9]\d{7,14}$/', $to)) {
         $this->error('Numero invalide. Utilisez le format E.164, ex: +15145551234');
+
         return 1;
     }
 
     if ($sid === '' || $token === '' || $from === '') {
         $this->error('Configuration Twilio incomplete. Definissez TWILIO_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM.');
+
         return 1;
     }
 
@@ -170,7 +182,7 @@ Artisan::command('sms:test {to} {--message=}', function (SmsNotificationService 
     $result = $smsService->sendWithResult($to, $message);
     $sent = (bool) ($result['ok'] ?? false);
 
-    if (!$sent) {
+    if (! $sent) {
         $reason = (string) ($result['reason'] ?? 'unknown');
         $status = (string) ($result['status'] ?? '-');
         $code = (string) ($result['code'] ?? '-');
@@ -200,6 +212,7 @@ Artisan::command('sms:test {to} {--message=}', function (SmsNotificationService 
     }
 
     $this->info("OK: SMS envoye a {$to}");
+
     return 0;
 })->purpose('Send a test SMS using Twilio credentials');
 
@@ -215,6 +228,7 @@ Artisan::command('mailgun:test {to}
     $to = trim((string) $this->argument('to'));
     if ($to === '') {
         $this->error('Destinataire manquant.');
+
         return 1;
     }
 
@@ -226,13 +240,14 @@ Artisan::command('mailgun:test {to}
 
     if ($domain === '' || $secret === '') {
         $this->error('MAILGUN_DOMAIN et MAILGUN_SECRET sont requis.');
+
         return 1;
     }
 
     $fromAddress = trim((string) ($this->option('from') ?: config('mail.from.address', '')));
     $fromName = trim((string) ($this->option('from-name') ?: config('mail.from.name', '')));
     if ($fromAddress === '') {
-        $fromAddress = 'postmaster@' . $domain;
+        $fromAddress = 'postmaster@'.$domain;
     }
     $from = $fromName !== '' ? "{$fromName} <{$fromAddress}>" : $fromAddress;
 
@@ -243,8 +258,8 @@ Artisan::command('mailgun:test {to}
     if ($text === '' && $html === '') {
         $text = implode("\n", [
             'Mailgun test email',
-            'App: ' . (string) config('app.name'),
-            'Date: ' . now()->toDateTimeString(),
+            'App: '.(string) config('app.name'),
+            'Date: '.now()->toDateTimeString(),
         ]);
     }
 
@@ -266,14 +281,102 @@ Artisan::command('mailgun:test {to}
 
     if ($response->successful()) {
         $this->info('OK: email envoye via Mailgun.');
+
         return 0;
     }
 
-    $this->error('Echec Mailgun (' . $response->status() . ')');
+    $this->error('Echec Mailgun ('.$response->status().')');
     $this->line($response->body());
 
     return 1;
 })->purpose('Send a test email using Mailgun API');
+
+Artisan::command('billing:stripe-plan-prices
+    {--dry-run : Show what would happen without changing Stripe, .env, or the database}
+    {--live : Required when STRIPE_SECRET is a live key}
+    {--no-env : Do not update the local .env file}
+    {--no-db : Do not sync plan_prices in the database}
+    {--plans= : Optional comma-separated list of plan codes}
+    {--currencies= : Optional comma-separated list of currency codes}', function (
+    StripePlanPriceProvisioner $provisioner
+): int {
+    $parseCsv = static function (?string $value): array {
+        if (! is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        return collect(explode(',', $value))
+            ->map(fn ($part) => trim((string) $part))
+            ->filter(fn ($part) => $part !== '')
+            ->values()
+            ->all();
+    };
+
+    $writeEnvPath = null;
+    if (! (bool) $this->option('no-env')) {
+        $defaultEnvPath = base_path('.env');
+        $writeEnvPath = file_exists($defaultEnvPath) ? $defaultEnvPath : null;
+    }
+
+    try {
+        $result = $provisioner->execute([
+            'dry_run' => (bool) $this->option('dry-run'),
+            'live' => (bool) $this->option('live'),
+            'plans' => $parseCsv((string) $this->option('plans')),
+            'currencies' => array_map('strtoupper', $parseCsv((string) $this->option('currencies'))),
+            'write_env' => $writeEnvPath,
+            'sync_db' => ! (bool) $this->option('no-db'),
+        ]);
+    } catch (\Throwable $exception) {
+        $this->error($exception->getMessage());
+
+        return 1;
+    }
+
+    $rows = collect($result['items'])
+        ->map(fn (array $item) => [
+            strtoupper((string) $item['plan_code']),
+            (string) $item['currency_code'],
+            (string) $item['action'],
+            number_format((float) $item['amount'], 2, '.', ''),
+            (string) ($item['stripe_price_id'] ?? '-'),
+            (string) $item['env_key'],
+        ])
+        ->all();
+
+    if ($rows !== []) {
+        $this->table(['Plan', 'Currency', 'Action', 'Amount', 'Stripe price', 'Env key'], $rows);
+    }
+
+    if ($result['resolved'] !== []) {
+        $this->newLine();
+        $this->info('Resolved environment values:');
+        foreach ($result['resolved'] as $envKey => $priceId) {
+            $this->line($envKey.'='.$priceId);
+        }
+    }
+
+    if ($result['dry_run']) {
+        $this->newLine();
+        $this->warn('Dry run: no Stripe price, .env file, or database row was changed.');
+
+        return 0;
+    }
+
+    if ($result['env_updated']) {
+        $this->info('Local .env file updated.');
+    } elseif ((bool) $this->option('no-env')) {
+        $this->warn('Skipped .env update because --no-env was used.');
+    }
+
+    if ($result['db_synced']) {
+        $this->info('plan_prices synchronized in the database.');
+    } elseif ((bool) $this->option('no-db')) {
+        $this->warn('Skipped database synchronization because --no-db was used.');
+    }
+
+    return 0;
+})->purpose('Create or reuse Stripe multi-currency plan prices, then optionally sync .env and plan_prices');
 
 Artisan::command('platform:notifications-digest {--frequency=daily}', function (PlatformAdminNotifier $notifier): int {
     $frequency = (string) $this->option('frequency');
@@ -294,7 +397,8 @@ Artisan::command('platform:notifications-scan', function (PlatformAdminNotifier 
 
 Artisan::command('agenda:process', function (DailyAgendaService $service): int {
     $result = $service->process();
-    $this->info('Agenda processed: ' . json_encode($result));
+    $this->info('Agenda processed: '.json_encode($result));
+
     return 0;
 })->purpose('Auto-start tasks/jobs and send alerts');
 
@@ -306,7 +410,7 @@ Artisan::command('orders:deposit-reminders', function (SaleNotificationService $
         ->where('status', '!=', Sale::STATUS_CANCELED)
         ->where('deposit_amount', '>', 0)
         ->with(['customer.portalUser'])
-        ->withSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount')
+        ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->where('status', 'completed')], 'amount')
         ->get();
 
     $count = 0;
@@ -595,7 +699,8 @@ Artisan::command('campaigns:automations {--account_id=}', function (CampaignAuto
     $accountId = $this->option('account_id');
     $result = $automationService->process($accountId ? (int) $accountId : null);
 
-    $this->info('Campaign automations processed: ' . json_encode($result));
+    $this->info('Campaign automations processed: '.json_encode($result));
+
     return 0;
 })->purpose('Process active marketing automation rules');
 
@@ -608,7 +713,8 @@ Artisan::command('campaigns:vip-auto-sync {--account_id=} {--dry-run}', function
         $dryRun
     );
 
-    $this->info('VIP automation processed: ' . json_encode($result));
+    $this->info('VIP automation processed: '.json_encode($result));
+
     return 0;
 })->purpose('Synchronize VIP status automatically from paid purchases');
 
@@ -618,6 +724,7 @@ Artisan::command('campaigns:interest-scores {--account_id=}', function (): int {
         ->onQueue((string) config('campaigns.queues.maintenance', 'campaigns-maintenance'));
 
     $this->info('Customer interest score recomputation queued.');
+
     return 0;
 })->purpose('Queue interest score recomputation');
 
@@ -626,6 +733,7 @@ Artisan::command('campaigns:reconcile-delivery', function (): int {
         ->onQueue((string) config('campaigns.queues.maintenance', 'campaigns-maintenance'));
 
     $this->info('Campaign delivery reconciliation queued.');
+
     return 0;
 })->purpose('Queue campaign delivery status reconciliation');
 
@@ -633,8 +741,9 @@ Artisan::command('demo:seed {type=service} {--tenant_id=}', function (
     DemoAccountService $accounts,
     DemoSeedService $seeds
 ): int {
-    if (!config('demo.enabled')) {
+    if (! config('demo.enabled')) {
         $this->error('DEMO_ENABLED is false.');
+
         return 1;
     }
 
@@ -643,8 +752,9 @@ Artisan::command('demo:seed {type=service} {--tenant_id=}', function (
 
     if ($tenantId) {
         $account = User::query()->find($tenantId);
-        if (!$account) {
+        if (! $account) {
             $this->error('Tenant not found.');
+
             return 1;
         }
         $accounts->resolveDemoUser($account, $type);
@@ -662,8 +772,9 @@ Artisan::command('demo:reset {--tenant_id=}', function (
     DemoResetService $reset,
     DemoSeedService $seeds
 ): int {
-    if (!config('demo.enabled')) {
+    if (! config('demo.enabled')) {
         $this->error('DEMO_ENABLED is false.');
+
         return 1;
     }
 
@@ -674,6 +785,7 @@ Artisan::command('demo:reset {--tenant_id=}', function (
 
     if ($accounts->isEmpty()) {
         $this->error('No demo tenants found.');
+
         return 1;
     }
 
@@ -714,7 +826,7 @@ Artisan::command('reservations:queue-alerts', function (
     $processed = 0;
     foreach ($accountIds as $accountId) {
         $settings = $availabilityService->resolveSettings((int) $accountId, null);
-        if (!($settings['queue_mode_enabled'] ?? false)) {
+        if (! ($settings['queue_mode_enabled'] ?? false)) {
             continue;
         }
 
@@ -734,8 +846,9 @@ Artisan::command('notifications:retry-failed
     {--cooldown=30 : Cooldown (minutes) by payload fingerprint before a new retry}
     {--all-errors : Retry even for non-transient errors}
     {--dry-run : Show eligible jobs without retrying}', function (): int {
-    if (!Schema::hasTable('failed_jobs')) {
+    if (! Schema::hasTable('failed_jobs')) {
         $this->warn('failed_jobs table is missing.');
+
         return 0;
     }
 
@@ -770,14 +883,14 @@ Artisan::command('notifications:retry-failed
         $payload = (string) $job->payload;
         $sendQueuedRaw = 'Illuminate\\Notifications\\SendQueuedNotifications';
         $sendQueuedEscaped = 'Illuminate\\\\Notifications\\\\SendQueuedNotifications';
-        if (!str_contains($payload, $sendQueuedRaw) && !str_contains($payload, $sendQueuedEscaped)) {
+        if (! str_contains($payload, $sendQueuedRaw) && ! str_contains($payload, $sendQueuedEscaped)) {
             continue;
         }
 
         if ($notificationClass !== '') {
             $rawNeedle = $notificationClass;
             $escapedNeedle = str_replace('\\', '\\\\', $notificationClass);
-            if (!str_contains($payload, $rawNeedle) && !str_contains($payload, $escapedNeedle)) {
+            if (! str_contains($payload, $rawNeedle) && ! str_contains($payload, $escapedNeedle)) {
                 continue;
             }
         }
@@ -787,12 +900,12 @@ Artisan::command('notifications:retry-failed
             fn (string $marker) => str_contains($exception, $marker)
         );
 
-        if (!$allErrors && !$isTransient) {
+        if (! $allErrors && ! $isTransient) {
             continue;
         }
 
         $fingerprint = sha1((string) $job->payload);
-        $lockKey = 'notifications:failed-retry:' . $fingerprint;
+        $lockKey = 'notifications:failed-retry:'.$fingerprint;
         if (Cache::has($lockKey)) {
             continue;
         }
@@ -811,21 +924,23 @@ Artisan::command('notifications:retry-failed
 
     if ($eligible->isEmpty()) {
         $this->info('No eligible failed notification jobs to retry.');
+
         return 0;
     }
 
     if ($dryRun) {
-        $this->info('Dry run: ' . $eligible->count() . ' failed notification jobs are eligible for retry.');
+        $this->info('Dry run: '.$eligible->count().' failed notification jobs are eligible for retry.');
         foreach ($eligible as $job) {
             $this->line("- id={$job->id} uuid={$job->uuid} failed_at={$job->failed_at}");
         }
+
         return 0;
     }
 
     $retried = 0;
     $failedToRetry = 0;
     foreach ($eligible as $job) {
-        $lockKey = 'notifications:failed-retry:' . $job->fingerprint;
+        $lockKey = 'notifications:failed-retry:'.$job->fingerprint;
         Cache::put($lockKey, true, now()->addMinutes($cooldownMinutes));
 
         $exitCode = Artisan::call('queue:retry', [
@@ -834,6 +949,7 @@ Artisan::command('notifications:retry-failed
 
         if ($exitCode === 0) {
             $retried += 1;
+
             continue;
         }
 
@@ -851,13 +967,14 @@ Artisan::command('notifications:retry-failed
 })->purpose('Retry transient failed notification jobs from failed_jobs');
 
 Artisan::command('app:launch-reset {--force : Skip confirmation prompt}', function (): int {
-    if (!(bool) $this->option('force')) {
+    if (! (bool) $this->option('force')) {
         $confirmed = $this->confirm(
             'This will run migrate:fresh, reseed LaunchSeeder, clear caches and optimize. Continue?',
             false
         );
-        if (!$confirmed) {
+        if (! $confirmed) {
             $this->warn('Operation cancelled.');
+
             return 1;
         }
     }
@@ -874,6 +991,7 @@ Artisan::command('app:launch-reset {--force : Skip confirmation prompt}', functi
         $exitCode = $this->call($command, $arguments);
         if ($exitCode !== 0) {
             $this->error("Failed on command: {$command}");
+
             return $exitCode;
         }
         $this->info($message);
@@ -884,6 +1002,246 @@ Artisan::command('app:launch-reset {--force : Skip confirmation prompt}', functi
 
     return 0;
 })->purpose('Reset database for launch demo data, clear caches, and optimize');
+
+Artisan::command('queue:health {--json}', function (QueueHealthService $queueHealth): int {
+    $summary = $queueHealth->summary();
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($summary, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return 0;
+    }
+
+    $this->info(sprintf(
+        'Queue connection: %s (%s)',
+        (string) ($summary['connection'] ?? 'unknown'),
+        (string) ($summary['driver'] ?? 'unknown')
+    ));
+    $this->line('Pending jobs: '.(int) ($summary['pending_jobs'] ?? 0));
+    $this->line('Oldest queued job (minutes): '.(($summary['oldest_job_minutes'] ?? null) ?? 'n/a'));
+    $this->line('Failed jobs (24h): '.(int) ($summary['failed_jobs_24h'] ?? 0));
+    $this->line('Failed jobs (7d): '.(int) ($summary['failed_jobs_7d'] ?? 0));
+
+    $pendingByQueue = is_array($summary['pending_by_queue'] ?? null)
+        ? $summary['pending_by_queue']
+        : [];
+
+    if ($pendingByQueue !== []) {
+        $rows = collect($pendingByQueue)
+            ->map(fn ($count, $queue) => [(string) $queue, (int) $count])
+            ->values()
+            ->all();
+
+        $this->table(['Queue', 'Pending'], $rows);
+    } elseif (! ($summary['measurable'] ?? false)) {
+        $this->warn('Pending backlog is not measurable for the current queue driver.');
+    }
+
+    return 0;
+})->purpose('Show queue backlog and failed job health');
+
+Artisan::command('observability:report {--json} {--notify}', function (
+    ObservabilityReportService $observability,
+    PlatformAdminNotifier $notifier
+): int {
+    $summary = $observability->summary();
+
+    if ((bool) $this->option('notify')) {
+        $referenceBucket = now()->format('YmdH');
+
+        foreach ($summary['alerts'] ?? [] as $alert) {
+            $details = is_array($alert['details'] ?? null) ? $alert['details'] : [];
+            $notifier->notify('operational_health', (string) ($alert['title'] ?? 'Operational alert'), [
+                'intro' => (string) ($alert['message'] ?? 'Operational threshold exceeded.'),
+                'details' => $details,
+                'severity' => (string) ($alert['severity'] ?? 'warning'),
+                'reference' => 'observability:'.($alert['code'] ?? 'unknown').':'.$referenceBucket,
+            ]);
+        }
+    }
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($summary, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return 0;
+    }
+
+    $this->info('Observability status: '.(string) ($summary['status'] ?? 'unknown'));
+    $this->line('Queue pending jobs: '.(int) data_get($summary, 'queue.pending_jobs', 0));
+    $this->line('Queue oldest job (minutes): '.(data_get($summary, 'queue.oldest_job_minutes') ?? 'n/a'));
+    $this->line('Slow queries (24h): '.(int) data_get($summary, 'slow_queries.count_24h', 0));
+    $this->line('Errors (1h): '.(int) data_get($summary, 'errors.count_1h', 0));
+    $this->line('Errors (24h): '.(int) data_get($summary, 'errors.count_24h', 0));
+
+    $requestRows = collect($summary['requests'] ?? [])
+        ->take(5)
+        ->map(fn (array $route) => [
+            (string) ($route['route_name'] ?? 'unknown'),
+            $route['p95_ms'] ?? 'n/a',
+            $route['p99_ms'] ?? 'n/a',
+            (int) ($route['count_24h'] ?? 0),
+            (int) ($route['error_count_24h'] ?? 0),
+        ])
+        ->all();
+
+    if ($requestRows !== []) {
+        $this->table(['Route', 'p95 ms', 'p99 ms', 'Samples', '5xx'], $requestRows);
+    }
+
+    $alerts = collect($summary['alerts'] ?? [])
+        ->map(fn (array $alert) => [
+            (string) ($alert['severity'] ?? 'warning'),
+            (string) ($alert['code'] ?? 'unknown'),
+            (string) ($alert['title'] ?? 'Alert'),
+        ])
+        ->all();
+
+    if ($alerts !== []) {
+        $this->table(['Severity', 'Code', 'Title'], $alerts);
+    } else {
+        $this->info('No active observability alerts.');
+    }
+
+    return 0;
+})->purpose('Show observability summary and optionally notify platform admins');
+
+Artisan::command('capacity:report {--json} {--notify}', function (
+    CapacityReportService $capacity,
+    PlatformAdminNotifier $notifier
+): int {
+    $summary = $capacity->summary();
+
+    if ((bool) $this->option('notify')) {
+        $referenceBucket = now()->format('YmdH');
+
+        foreach ($summary['scenarios'] ?? [] as $scenario) {
+            if (! is_array($scenario) || ! in_array($scenario['status'] ?? null, ['fail', 'insufficient_data'], true)) {
+                continue;
+            }
+
+            $details = [
+                ['label' => 'Scenario', 'value' => (string) ($scenario['label'] ?? 'Unknown scenario')],
+                ['label' => 'Routes', 'value' => implode(', ', $scenario['route_names'] ?? [])],
+                ['label' => 'Samples', 'value' => (int) data_get($scenario, 'observed.count_24h', 0)],
+                ['label' => 'p95', 'value' => data_get($scenario, 'observed.p95_ms') ?? 'n/a'],
+                ['label' => 'p99', 'value' => data_get($scenario, 'observed.p99_ms') ?? 'n/a'],
+            ];
+
+            $notifier->notify('operational_health', 'Capacity validation: '.(string) ($scenario['label'] ?? 'scenario'), [
+                'intro' => collect($scenario['failures'] ?? [])->implode(' '),
+                'details' => $details,
+                'severity' => ($scenario['status'] ?? null) === 'fail' ? 'warning' : 'info',
+                'reference' => 'capacity:scenario:'.($scenario['key'] ?? 'unknown').':'.$referenceBucket,
+            ]);
+        }
+
+        foreach ($summary['shared_checks'] ?? [] as $check) {
+            if (! is_array($check) || ($check['status'] ?? null) !== 'fail') {
+                continue;
+            }
+
+            $notifier->notify('operational_health', 'Capacity risk: '.(string) ($check['label'] ?? 'shared check'), [
+                'intro' => (string) ($check['remediation'] ?? 'Shared capacity constraint exceeded.'),
+                'details' => [
+                    ['label' => 'Check', 'value' => (string) ($check['label'] ?? 'unknown')],
+                    ['label' => 'Observed', 'value' => $check['observed'] ?? 'n/a'],
+                    ['label' => 'Target', 'value' => $check['target'] ?? 'n/a'],
+                ],
+                'severity' => 'warning',
+                'reference' => 'capacity:shared:'.($check['key'] ?? 'unknown').':'.$referenceBucket,
+            ]);
+        }
+    }
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($summary, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return 0;
+    }
+
+    $this->info('Capacity validation status: '.(string) ($summary['status'] ?? 'unknown'));
+
+    $scenarioRows = collect($summary['scenarios'] ?? [])
+        ->map(fn (array $scenario) => [
+            (string) ($scenario['label'] ?? 'unknown'),
+            implode(', ', $scenario['route_names'] ?? []),
+            (string) ($scenario['status'] ?? 'unknown'),
+            (int) data_get($scenario, 'observed.count_24h', 0),
+            data_get($scenario, 'observed.p95_ms') ?? 'n/a',
+            data_get($scenario, 'observed.p99_ms') ?? 'n/a',
+            (int) data_get($scenario, 'observed.error_count_24h', 0),
+        ])
+        ->all();
+
+    if ($scenarioRows !== []) {
+        $this->table(['Scenario', 'Routes', 'Status', 'Samples', 'p95 ms', 'p99 ms', '5xx'], $scenarioRows);
+    }
+
+    $sharedRows = collect($summary['shared_checks'] ?? [])
+        ->map(fn (array $check) => [
+            (string) ($check['label'] ?? 'unknown'),
+            (string) ($check['status'] ?? 'unknown'),
+            $check['observed'] ?? 'n/a',
+            $check['target'] ?? 'n/a',
+        ])
+        ->all();
+
+    if ($sharedRows !== []) {
+        $this->table(['Shared check', 'Status', 'Observed', 'Target'], $sharedRows);
+    }
+
+    $remediation = collect($summary['remediation'] ?? [])
+        ->filter(fn ($item) => is_string($item) && trim($item) !== '')
+        ->values();
+
+    if ($remediation->isNotEmpty()) {
+        $this->newLine();
+        $this->info('Remediation priorities:');
+        foreach ($remediation as $item) {
+            $this->line('- '.$item);
+        }
+    } else {
+        $this->info('No active capacity remediation items.');
+    }
+
+    return 0;
+})->purpose('Show scenario-based capacity validation and optionally notify platform admins');
+
+Artisan::command('schema:audit-selects {--json}', function (ManualSelectContractAudit $audit): int {
+    $failures = $audit->run();
+    $payload = [
+        'ok' => $failures === [],
+        'checked' => $audit->contractCount(),
+        'failures' => $failures,
+    ];
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return $failures === [] ? 0 : 1;
+    }
+
+    if ($failures === []) {
+        $this->info('Manual select schema audit passed.');
+        $this->line('Checked '.$audit->contractCount().' select contracts.');
+
+        return 0;
+    }
+
+    $this->error('Manual select schema audit failed.');
+    $this->table(
+        ['Contract', 'Table', 'Missing columns'],
+        collect($failures)
+            ->map(fn (array $failure) => [
+                (string) ($failure['contract'] ?? 'unknown'),
+                (string) ($failure['table'] ?? 'unknown'),
+                implode(', ', $failure['missing'] ?? []),
+            ])
+            ->all()
+    );
+
+    return 1;
+})->purpose('Verify curated manual select contracts against the live database schema');
 
 Schedule::command('platform:notifications-digest --frequency=daily')->dailyAt('08:00');
 Schedule::command('platform:notifications-digest --frequency=weekly')->weeklyOn(1, '08:00');
@@ -898,6 +1256,7 @@ Schedule::command('campaigns:automations')->everyFiveMinutes()->withoutOverlappi
 Schedule::command('campaigns:vip-auto-sync')->dailyAt('02:35')->withoutOverlapping();
 Schedule::command('campaigns:interest-scores')->dailyAt('02:15');
 Schedule::command('campaigns:reconcile-delivery')->everyTenMinutes()->withoutOverlapping();
+Schedule::command('observability:report --notify')->everyTenMinutes()->withoutOverlapping();
 Schedule::command('notifications:retry-failed --notification=App\\Notifications\\InviteUserNotification --max=20 --within-hours=24 --cooldown=30')
     ->everyTenMinutes()
     ->withoutOverlapping();

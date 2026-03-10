@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\CurrencyCode;
 use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -55,7 +56,8 @@ class StripeInvoiceService
             ];
         }
 
-        $currency = strtolower((string) config('cashier.currency', 'USD'));
+        $currency = CurrencyCode::tryFromMixed($invoice->currency_code)
+            ?->stripeValue() ?? CurrencyCode::default()->stripeValue();
         $label = $invoice->number ? "Invoice {$invoice->number}" : "Invoice #{$invoice->id}";
         $companyName = $invoice->user?->company_name ?: config('app.name');
 
@@ -326,6 +328,7 @@ class StripeInvoiceService
                 'customer_id' => $invoice->customer_id,
                 'user_id' => $invoice->user_id,
                 'amount' => $amount,
+                'currency_code' => $invoice->currency_code,
                 'tip_amount' => $tipAmount,
                 'tip_type' => $tipType,
                 'tip_percent' => $tipType === 'percent' ? $tipPercent : null,

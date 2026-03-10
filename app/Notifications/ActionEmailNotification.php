@@ -2,23 +2,30 @@
 
 namespace App\Notifications;
 
+use App\Models\Customer;
+use App\Models\User;
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use App\Models\Customer;
-use App\Models\User;
 
 class ActionEmailNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
     public string $title;
+
     public ?string $intro;
+
     public array $details;
+
     public ?string $actionUrl;
+
     public ?string $actionLabel;
+
     public ?string $subject;
+
     public ?string $note;
 
     public function __construct(
@@ -37,6 +44,12 @@ class ActionEmailNotification extends Notification implements ShouldQueue
         $this->actionLabel = $actionLabel;
         $this->subject = $subject;
         $this->note = $note;
+        $this->onQueue(QueueWorkload::queue('notifications'));
+    }
+
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('notifications', [60, 300, 900]);
     }
 
     public function via(object $notifiable): array

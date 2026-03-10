@@ -22,6 +22,7 @@ class QuoteFactory extends Factory
             'user_id' => User::factory(), // Utilisateur par défaut
             'customer_id' => Customer::factory(), // Génère un client associé
             'property_id' => Property::factory(), // Génère une propriété associée
+            'currency_code' => 'CAD',
             'total' => $this->faker->randomFloat(2, 100, 10000), // Total aléatoire entre 100 et 10 000
             'initial_deposit' => $this->faker->randomFloat(2, 50, 500), // Dépôt initial aléatoire entre 50 et 500
             'is_fixed' => $this->faker->boolean(), // Devis fixe ou non
