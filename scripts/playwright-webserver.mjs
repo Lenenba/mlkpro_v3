@@ -1,19 +1,25 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(scriptDir, '..');
+const publicPath = path.join(projectRoot, 'public');
 const sqliteDir = path.join(projectRoot, 'storage', 'framework', 'testing');
 const sqlitePath = path.join(sqliteDir, 'e2e.sqlite');
+const viteHotPath = path.join(projectRoot, 'public', 'hot');
+const routerPath = path.join(projectRoot, 'scripts', 'playwright-router.php');
 const port = process.env.PLAYWRIGHT_E2E_PORT || '38103';
 const appUrl = `http://127.0.0.1:${port}`;
 
 mkdirSync(sqliteDir, { recursive: true });
 if (!existsSync(sqlitePath)) {
     closeSync(openSync(sqlitePath, 'w'));
+}
+if (existsSync(viteHotPath)) {
+    unlinkSync(viteHotPath);
 }
 
 const env = {
@@ -93,7 +99,7 @@ const runPhp = (args) => new Promise((resolve, reject) => {
 await runPhp(['artisan', 'optimize:clear']);
 await runPhp(['artisan', 'migrate:fresh', '--seed', '--seeder=Database\\Seeders\\E2ESmokeSeeder', '--force']);
 
-const server = spawn(phpBinary, ['-S', `127.0.0.1:${port}`, 'scripts/playwright-router.php'], {
+const server = spawn(phpBinary, ['-S', `127.0.0.1:${port}`, '-t', publicPath, routerPath], {
     cwd: projectRoot,
     env,
     stdio: 'inherit',
