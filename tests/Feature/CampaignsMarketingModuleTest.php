@@ -113,7 +113,7 @@ function forceCurrentTimeWithinMarketingQuietHours(User $owner): void
             'quiet_hours' => [
                 'timezone' => 'UTC',
                 'start' => $now->copy()->subMinute()->format('H:i'),
-                'end' => $now->copy()->addMinute()->format('H:i'),
+                'end' => $now->copy()->addMinutes(2)->format('H:i'),
             ],
         ],
     ]);
