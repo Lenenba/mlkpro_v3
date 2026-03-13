@@ -41,7 +41,7 @@ function marketingOwner(array $overrides = []): User
 
     return User::factory()->create(array_merge([
         'role_id' => $roleId,
-        'email' => 'owner-' . Str::lower(Str::random(12)) . '@example.com',
+        'email' => 'owner-'.Str::lower(Str::random(12)).'@example.com',
         'company_features' => [
             'campaigns' => true,
             'products' => true,
@@ -58,14 +58,14 @@ function marketingProduct(User $owner, array $overrides = []): Product
     $categoryId = $overrides['category_id'] ?? ProductCategory::query()->create([
         'user_id' => $owner->id,
         'created_by_user_id' => $owner->id,
-        'name' => 'Campaign Category ' . Str::upper(Str::random(4)),
+        'name' => 'Campaign Category '.Str::upper(Str::random(4)),
     ])->id;
 
     return Product::query()->create(array_merge([
         'user_id' => $owner->id,
         'category_id' => $categoryId,
         'item_type' => Product::ITEM_TYPE_PRODUCT,
-        'name' => 'Offer ' . Str::upper(Str::random(6)),
+        'name' => 'Offer '.Str::upper(Str::random(6)),
         'description' => 'Campaign offer',
         'price' => 19.99,
         'stock' => 15,
@@ -81,8 +81,8 @@ function marketingCustomer(User $owner, array $overrides = []): Customer
         'first_name' => 'John',
         'last_name' => 'Doe',
         'company_name' => 'Acme',
-        'email' => 'customer-' . Str::lower(Str::random(12)) . '@example.com',
-        'phone' => '+1514555' . random_int(1000, 9999),
+        'email' => 'customer-'.Str::lower(Str::random(12)).'@example.com',
+        'phone' => '+1514555'.random_int(1000, 9999),
         'is_active' => true,
     ], $overrides));
 }
@@ -129,7 +129,7 @@ test('offer search supports cursor pagination', function () {
 
     for ($index = 0; $index < 25; $index++) {
         marketingProduct($owner, [
-            'name' => 'Product ' . str_pad((string) $index, 2, '0', STR_PAD_LEFT),
+            'name' => 'Product '.str_pad((string) $index, 2, '0', STR_PAD_LEFT),
             'created_at' => now()->subMinutes($index),
         ]);
     }
@@ -259,7 +259,7 @@ test('consent and fatigue rules are enforced', function () {
     $owner = marketingOwner();
     disableMarketingQuietHours($owner);
     $customer = marketingCustomer($owner, [
-        'email' => 'fatigue-' . Str::lower(Str::random(10)) . '@example.com',
+        'email' => 'fatigue-'.Str::lower(Str::random(10)).'@example.com',
     ]);
 
     /** @var ConsentService $consent */
@@ -326,7 +326,7 @@ test('manual campaign audience estimate ignores current quiet hours', function (
     forceCurrentTimeWithinMarketingQuietHours($owner);
 
     $customer = marketingCustomer($owner, [
-        'email' => 'manual-quiet-' . Str::lower(Str::random(10)) . '@example.com',
+        'email' => 'manual-quiet-'.Str::lower(Str::random(10)).'@example.com',
     ]);
     $offer = marketingProduct($owner);
 
@@ -380,7 +380,7 @@ test('scheduled campaign audience estimate still respects quiet hours', function
     forceCurrentTimeWithinMarketingQuietHours($owner);
 
     $customer = marketingCustomer($owner, [
-        'email' => 'scheduled-quiet-' . Str::lower(Str::random(10)) . '@example.com',
+        'email' => 'scheduled-quiet-'.Str::lower(Str::random(10)).'@example.com',
     ]);
     $offer = marketingProduct($owner);
 
@@ -508,7 +508,7 @@ test('sending workflow queues dispatch and recipient jobs', function () {
     $owner = marketingOwner();
     disableMarketingQuietHours($owner);
     $customer = marketingCustomer($owner, [
-        'email' => 'send-' . Str::lower(Str::random(10)) . '@example.com',
+        'email' => 'send-'.Str::lower(Str::random(10)).'@example.com',
     ]);
     $offer = marketingProduct($owner);
 
@@ -569,7 +569,7 @@ test('dispatch assigns ab variant metadata and stores run summary', function () 
     $owner = marketingOwner();
     disableMarketingQuietHours($owner);
     $customer = marketingCustomer($owner, [
-        'email' => 'ab-' . Str::lower(Str::random(10)) . '@example.com',
+        'email' => 'ab-'.Str::lower(Str::random(10)).'@example.com',
     ]);
     $offer = marketingProduct($owner);
 
@@ -664,8 +664,8 @@ test('send job queues fallback recipient when primary provider fails', function 
     $owner = marketingOwner();
     disableMarketingQuietHours($owner);
     $customer = marketingCustomer($owner, [
-        'email' => 'fallback-' . Str::lower(Str::random(10)) . '@example.com',
-        'phone' => '+1514555' . random_int(1000, 9999),
+        'email' => 'fallback-'.Str::lower(Str::random(10)).'@example.com',
+        'phone' => '+1514555'.random_int(1000, 9999),
     ]);
     $offer = marketingProduct($owner);
 
@@ -791,7 +791,7 @@ test('campaign show exposes delivery insights for ab holdout and fallback', func
     ]);
 
     $customer = marketingCustomer($owner, [
-        'email' => 'insights-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'insights-'.Str::lower(Str::random(8)).'@example.com',
     ]);
 
     CampaignRecipient::query()->create([
@@ -885,12 +885,12 @@ test('available mailing list customers can be searched and imported by selected 
     $candidate = marketingCustomer($owner, [
         'first_name' => 'Nadia',
         'last_name' => 'Martin',
-        'email' => 'nadia-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'nadia-'.Str::lower(Str::random(8)).'@example.com',
     ]);
     $other = marketingCustomer($owner, [
         'first_name' => 'Louis',
         'last_name' => 'Bernard',
-        'email' => 'louis-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'louis-'.Str::lower(Str::random(8)).'@example.com',
     ]);
 
     $list = MailingList::query()->create([
@@ -943,10 +943,10 @@ test('vip tier assignment is reflected in audience resolver filters', function (
     disableMarketingQuietHours($owner);
 
     $vipCustomer = marketingCustomer($owner, [
-        'email' => 'vip-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'vip-'.Str::lower(Str::random(8)).'@example.com',
     ]);
     $regularCustomer = marketingCustomer($owner, [
-        'email' => 'regular-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'regular-'.Str::lower(Str::random(8)).'@example.com',
     ]);
 
     $tierResponse = $this->actingAs($owner)->postJson(route('marketing.vip.store'), [
@@ -1029,17 +1029,17 @@ test('vip automation upgrades and downgrades customers from paid purchases', fun
     ]);
 
     $eligibleCustomer = marketingCustomer($owner, [
-        'email' => 'eligible-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'eligible-'.Str::lower(Str::random(8)).'@example.com',
     ]);
     $downgradedCustomer = marketingCustomer($owner, [
-        'email' => 'downgrade-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'downgrade-'.Str::lower(Str::random(8)).'@example.com',
         'is_vip' => true,
         'vip_tier_id' => $goldTier->id,
         'vip_tier_code' => 'GOLD',
         'vip_since_at' => now()->subMonths(4),
     ]);
     $untouchedCustomer = marketingCustomer($owner, [
-        'email' => 'untouched-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'untouched-'.Str::lower(Str::random(8)).'@example.com',
     ]);
 
     Sale::query()->create([
@@ -1113,13 +1113,13 @@ test('vip automation supports per-tier rules with priorities', function () {
     ]);
 
     $silverCustomer = marketingCustomer($owner, [
-        'email' => 'silver-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'silver-'.Str::lower(Str::random(8)).'@example.com',
     ]);
     $goldCustomer = marketingCustomer($owner, [
-        'email' => 'gold-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'gold-'.Str::lower(Str::random(8)).'@example.com',
     ]);
     $platinumCustomer = marketingCustomer($owner, [
-        'email' => 'platinum-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'platinum-'.Str::lower(Str::random(8)).'@example.com',
     ]);
 
     Sale::query()->create([
