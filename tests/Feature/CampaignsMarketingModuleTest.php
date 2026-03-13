@@ -41,7 +41,7 @@ function marketingOwner(array $overrides = []): User
 
     return User::factory()->create(array_merge([
         'role_id' => $roleId,
-        'email' => 'owner-' . Str::lower(Str::random(12)) . '@example.com',
+        'email' => 'owner-'.Str::lower(Str::random(12)).'@example.com',
         'company_features' => [
             'campaigns' => true,
             'products' => true,
@@ -58,14 +58,14 @@ function marketingProduct(User $owner, array $overrides = []): Product
     $categoryId = $overrides['category_id'] ?? ProductCategory::query()->create([
         'user_id' => $owner->id,
         'created_by_user_id' => $owner->id,
-        'name' => 'Campaign Category ' . Str::upper(Str::random(4)),
+        'name' => 'Campaign Category '.Str::upper(Str::random(4)),
     ])->id;
 
     return Product::query()->create(array_merge([
         'user_id' => $owner->id,
         'category_id' => $categoryId,
         'item_type' => Product::ITEM_TYPE_PRODUCT,
-        'name' => 'Offer ' . Str::upper(Str::random(6)),
+        'name' => 'Offer '.Str::upper(Str::random(6)),
         'description' => 'Campaign offer',
         'price' => 19.99,
         'stock' => 15,
@@ -81,8 +81,8 @@ function marketingCustomer(User $owner, array $overrides = []): Customer
         'first_name' => 'John',
         'last_name' => 'Doe',
         'company_name' => 'Acme',
-        'email' => 'customer-' . Str::lower(Str::random(12)) . '@example.com',
-        'phone' => '+1514555' . random_int(1000, 9999),
+        'email' => 'customer-'.Str::lower(Str::random(12)).'@example.com',
+        'phone' => '+1514555'.random_int(1000, 9999),
         'is_active' => true,
     ], $overrides));
 }
@@ -102,6 +102,23 @@ function disableMarketingQuietHours(User $owner): void
     ]);
 }
 
+function forceCurrentTimeWithinMarketingQuietHours(User $owner): void
+{
+    $now = now()->copy()->setTimezone('UTC');
+
+    /** @var MarketingSettingsService $service */
+    $service = app(MarketingSettingsService::class);
+    $service->update($owner, [
+        'channels' => [
+            'quiet_hours' => [
+                'timezone' => 'UTC',
+                'start' => $now->copy()->subMinute()->format('H:i'),
+                'end' => $now->copy()->addMinutes(2)->format('H:i'),
+            ],
+        ],
+    ]);
+}
+
 beforeEach(function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $this->withoutMiddleware(EnsureTwoFactorVerified::class);
@@ -112,7 +129,7 @@ test('offer search supports cursor pagination', function () {
 
     for ($index = 0; $index < 25; $index++) {
         marketingProduct($owner, [
-            'name' => 'Product ' . str_pad((string) $index, 2, '0', STR_PAD_LEFT),
+            'name' => 'Product '.str_pad((string) $index, 2, '0', STR_PAD_LEFT),
             'created_at' => now()->subMinutes($index),
         ]);
     }
@@ -242,7 +259,7 @@ test('consent and fatigue rules are enforced', function () {
     $owner = marketingOwner();
     disableMarketingQuietHours($owner);
     $customer = marketingCustomer($owner, [
-        'email' => 'fatigue-' . Str::lower(Str::random(10)) . '@example.com',
+        'email' => 'fatigue-'.Str::lower(Str::random(10)).'@example.com',
     ]);
 
     /** @var ConsentService $consent */
@@ -302,13 +319,196 @@ test('consent and fatigue rules are enforced', function () {
     expect($fatigueDecision['reason'])->toBe('fatigue_limit');
 });
 
+test('manual campaign audience estimate ignores current quiet hours', function () {
+    $owner = marketingOwner([
+        'company_timezone' => 'UTC',
+    ]);
+    forceCurrentTimeWithinMarketingQuietHours($owner);
+
+    $customer = marketingCustomer($owner, [
+        'email' => 'manual-quiet-'.Str::lower(Str::random(10)).'@example.com',
+    ]);
+    $offer = marketingProduct($owner);
+
+    CustomerConsent::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'status' => CustomerConsent::STATUS_GRANTED,
+        'granted_at' => now(),
+    ]);
+
+    /** @var CampaignService $campaignService */
+    $campaignService = app(CampaignService::class);
+
+    $campaign = $campaignService->saveCampaign($owner, $owner, [
+        'name' => 'Manual quiet hours estimate',
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'language_mode' => Campaign::LANGUAGE_MODE_PREFERRED,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'offers' => [
+            [
+                'offer_type' => 'product',
+                'offer_id' => $offer->id,
+            ],
+        ],
+        'channels' => [
+            [
+                'channel' => Campaign::CHANNEL_EMAIL,
+                'is_enabled' => true,
+                'subject_template' => 'Sujet',
+                'body_template' => '<p>Body</p>',
+            ],
+        ],
+        'audience' => [
+            'source_logic' => 'UNION',
+            'manual_customer_ids' => [$customer->id],
+        ],
+    ]);
+
+    $estimate = $campaignService->estimateAudience($campaign->fresh(['audience', 'channels', 'user']));
+
+    expect((int) ($estimate['total_eligible'] ?? 0))->toBe(1)
+        ->and(data_get($estimate, 'blocked_by_reason.quiet_hours'))->toBeNull();
+});
+
+test('scheduled campaign audience estimate still respects quiet hours', function () {
+    $owner = marketingOwner([
+        'company_timezone' => 'UTC',
+    ]);
+    forceCurrentTimeWithinMarketingQuietHours($owner);
+
+    $customer = marketingCustomer($owner, [
+        'email' => 'scheduled-quiet-'.Str::lower(Str::random(10)).'@example.com',
+    ]);
+    $offer = marketingProduct($owner);
+
+    CustomerConsent::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'status' => CustomerConsent::STATUS_GRANTED,
+        'granted_at' => now(),
+    ]);
+
+    /** @var CampaignService $campaignService */
+    $campaignService = app(CampaignService::class);
+
+    $campaign = $campaignService->saveCampaign($owner, $owner, [
+        'name' => 'Scheduled quiet hours estimate',
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'language_mode' => Campaign::LANGUAGE_MODE_PREFERRED,
+        'schedule_type' => Campaign::SCHEDULE_SCHEDULED,
+        'scheduled_at' => now()->copy()->utc()->addMinute()->toISOString(),
+        'offers' => [
+            [
+                'offer_type' => 'product',
+                'offer_id' => $offer->id,
+            ],
+        ],
+        'channels' => [
+            [
+                'channel' => Campaign::CHANNEL_EMAIL,
+                'is_enabled' => true,
+                'subject_template' => 'Sujet',
+                'body_template' => '<p>Body</p>',
+            ],
+        ],
+        'audience' => [
+            'source_logic' => 'UNION',
+            'manual_customer_ids' => [$customer->id],
+        ],
+    ]);
+
+    $estimate = $campaignService->estimateAudience($campaign->fresh(['audience', 'channels', 'user']));
+
+    expect((int) ($estimate['total_eligible'] ?? 0))->toBe(0)
+        ->and((int) data_get($estimate, 'blocked_by_reason.quiet_hours'))->toBe(1);
+});
+
+test('campaign update accepts service offers when legacy product ids payload is empty', function () {
+    $owner = marketingOwner();
+    disableMarketingQuietHours($owner);
+
+    $serviceOffer = marketingProduct($owner, [
+        'item_type' => Product::ITEM_TYPE_SERVICE,
+        'name' => 'Pressure wash',
+    ]);
+
+    /** @var CampaignService $campaignService */
+    $campaignService = app(CampaignService::class);
+
+    $campaign = $campaignService->saveCampaign($owner, $owner, [
+        'name' => 'Service campaign',
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'offer_mode' => Campaign::OFFER_MODE_SERVICES,
+        'language_mode' => Campaign::LANGUAGE_MODE_FR,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'offers' => [
+            [
+                'offer_type' => 'service',
+                'offer_id' => $serviceOffer->id,
+            ],
+        ],
+        'channels' => [
+            [
+                'channel' => Campaign::CHANNEL_EMAIL,
+                'is_enabled' => true,
+                'subject_template' => 'Sujet',
+                'body_template' => '<p>Body</p>',
+            ],
+        ],
+    ]);
+
+    $response = $this->actingAs($owner)->putJson(route('campaigns.update', $campaign), [
+        'name' => 'Service campaign updated',
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'type' => Campaign::TYPE_PROMOTION,
+        'offer_mode' => Campaign::OFFER_MODE_SERVICES,
+        'language_mode' => Campaign::LANGUAGE_MODE_FR,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'product_ids' => [],
+        'offers' => [
+            [
+                'offer_type' => 'service',
+                'offer_id' => $serviceOffer->id,
+            ],
+        ],
+        'channels' => [
+            [
+                'channel' => Campaign::CHANNEL_EMAIL,
+                'is_enabled' => true,
+                'subject_template' => 'Sujet',
+                'body_template' => '<p>Body</p>',
+            ],
+        ],
+        'audience' => [
+            'source_logic' => 'UNION',
+            'manual_customer_ids' => [],
+            'include_mailing_list_ids' => [],
+            'exclude_mailing_list_ids' => [],
+        ],
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('campaign.offer_mode', Campaign::OFFER_MODE_SERVICES);
+
+    $campaign->refresh()->load('offers.offer');
+
+    expect($campaign->offers)->toHaveCount(1)
+        ->and((int) $campaign->offers->first()->offer_id)->toBe($serviceOffer->id)
+        ->and((string) $campaign->offers->first()->offer_type)->toBe('service');
+});
+
 test('sending workflow queues dispatch and recipient jobs', function () {
     Queue::fake();
 
     $owner = marketingOwner();
     disableMarketingQuietHours($owner);
     $customer = marketingCustomer($owner, [
-        'email' => 'send-' . Str::lower(Str::random(10)) . '@example.com',
+        'email' => 'send-'.Str::lower(Str::random(10)).'@example.com',
     ]);
     $offer = marketingProduct($owner);
 
@@ -369,7 +569,7 @@ test('dispatch assigns ab variant metadata and stores run summary', function () 
     $owner = marketingOwner();
     disableMarketingQuietHours($owner);
     $customer = marketingCustomer($owner, [
-        'email' => 'ab-' . Str::lower(Str::random(10)) . '@example.com',
+        'email' => 'ab-'.Str::lower(Str::random(10)).'@example.com',
     ]);
     $offer = marketingProduct($owner);
 
@@ -464,8 +664,8 @@ test('send job queues fallback recipient when primary provider fails', function 
     $owner = marketingOwner();
     disableMarketingQuietHours($owner);
     $customer = marketingCustomer($owner, [
-        'email' => 'fallback-' . Str::lower(Str::random(10)) . '@example.com',
-        'phone' => '+1514555' . random_int(1000, 9999),
+        'email' => 'fallback-'.Str::lower(Str::random(10)).'@example.com',
+        'phone' => '+1514555'.random_int(1000, 9999),
     ]);
     $offer = marketingProduct($owner);
 
@@ -591,7 +791,7 @@ test('campaign show exposes delivery insights for ab holdout and fallback', func
     ]);
 
     $customer = marketingCustomer($owner, [
-        'email' => 'insights-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'insights-'.Str::lower(Str::random(8)).'@example.com',
     ]);
 
     CampaignRecipient::query()->create([
@@ -685,12 +885,12 @@ test('available mailing list customers can be searched and imported by selected 
     $candidate = marketingCustomer($owner, [
         'first_name' => 'Nadia',
         'last_name' => 'Martin',
-        'email' => 'nadia-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'nadia-'.Str::lower(Str::random(8)).'@example.com',
     ]);
     $other = marketingCustomer($owner, [
         'first_name' => 'Louis',
         'last_name' => 'Bernard',
-        'email' => 'louis-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'louis-'.Str::lower(Str::random(8)).'@example.com',
     ]);
 
     $list = MailingList::query()->create([
@@ -743,10 +943,10 @@ test('vip tier assignment is reflected in audience resolver filters', function (
     disableMarketingQuietHours($owner);
 
     $vipCustomer = marketingCustomer($owner, [
-        'email' => 'vip-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'vip-'.Str::lower(Str::random(8)).'@example.com',
     ]);
     $regularCustomer = marketingCustomer($owner, [
-        'email' => 'regular-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'regular-'.Str::lower(Str::random(8)).'@example.com',
     ]);
 
     $tierResponse = $this->actingAs($owner)->postJson(route('marketing.vip.store'), [
@@ -829,17 +1029,17 @@ test('vip automation upgrades and downgrades customers from paid purchases', fun
     ]);
 
     $eligibleCustomer = marketingCustomer($owner, [
-        'email' => 'eligible-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'eligible-'.Str::lower(Str::random(8)).'@example.com',
     ]);
     $downgradedCustomer = marketingCustomer($owner, [
-        'email' => 'downgrade-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'downgrade-'.Str::lower(Str::random(8)).'@example.com',
         'is_vip' => true,
         'vip_tier_id' => $goldTier->id,
         'vip_tier_code' => 'GOLD',
         'vip_since_at' => now()->subMonths(4),
     ]);
     $untouchedCustomer = marketingCustomer($owner, [
-        'email' => 'untouched-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'untouched-'.Str::lower(Str::random(8)).'@example.com',
     ]);
 
     Sale::query()->create([
@@ -913,13 +1113,13 @@ test('vip automation supports per-tier rules with priorities', function () {
     ]);
 
     $silverCustomer = marketingCustomer($owner, [
-        'email' => 'silver-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'silver-'.Str::lower(Str::random(8)).'@example.com',
     ]);
     $goldCustomer = marketingCustomer($owner, [
-        'email' => 'gold-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'gold-'.Str::lower(Str::random(8)).'@example.com',
     ]);
     $platinumCustomer = marketingCustomer($owner, [
-        'email' => 'platinum-' . Str::lower(Str::random(8)) . '@example.com',
+        'email' => 'platinum-'.Str::lower(Str::random(8)).'@example.com',
     ]);
 
     Sale::query()->create([

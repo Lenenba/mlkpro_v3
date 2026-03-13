@@ -13,22 +13,22 @@ class FatigueLimiter
 {
     public function __construct(
         private readonly MarketingSettingsService $marketingSettingsService,
-    ) {
-    }
+    ) {}
 
     public function canSend(
         User $accountOwner,
         ?Customer $customer,
         string $channel,
         ?Campaign $campaign = null,
-        ?Carbon $at = null
+        ?Carbon $at = null,
+        bool $ignoreQuietHours = false
     ): array {
-        if (!$customer) {
+        if (! $customer) {
             return ['allowed' => true];
         }
 
         $now = $at ?: Carbon::now();
-        if ($this->isQuietHours($accountOwner, $now)) {
+        if (! $ignoreQuietHours && $this->isQuietHours($accountOwner, $now)) {
             return ['allowed' => false, 'reason' => 'quiet_hours'];
         }
 
@@ -155,7 +155,7 @@ class FatigueLimiter
 
     private function parseHourMinute(string $value): array
     {
-        if (!preg_match('/^(\d{1,2}):(\d{2})$/', trim($value), $matches)) {
+        if (! preg_match('/^(\d{1,2}):(\d{2})$/', trim($value), $matches)) {
             return [0, 0];
         }
 

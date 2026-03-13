@@ -16,8 +16,7 @@ class AudienceResolver
     public function __construct(
         private readonly ConsentService $consentService,
         private readonly FatigueLimiter $fatigueLimiter,
-    ) {
-    }
+    ) {}
 
     public function estimateForCampaign(Campaign $campaign): array
     {
@@ -145,6 +144,10 @@ class AudienceResolver
         $eligibleByChannel = [];
         $blockedByChannel = [];
         $blockedByReason = [];
+        $scheduledAt = $campaign->schedule_type === Campaign::SCHEDULE_SCHEDULED && $campaign->scheduled_at
+            ? $campaign->scheduled_at->copy()
+            : null;
+        $ignoreQuietHours = $scheduledAt === null;
 
         foreach ($customers as $customer) {
             foreach ($enabledChannels as $channel) {
@@ -156,7 +159,7 @@ class AudienceResolver
                     $destination
                 );
 
-                if (!($decision['allowed'] ?? false)) {
+                if (! ($decision['allowed'] ?? false)) {
                     $this->pushBlocked(
                         $blocked,
                         $blockedByChannel,
@@ -166,11 +169,19 @@ class AudienceResolver
                         $customer->id,
                         $destination
                     );
+
                     continue;
                 }
 
-                $fatigueDecision = $this->fatigueLimiter->canSend($campaign->user, $customer, $channel, $campaign);
-                if (!($fatigueDecision['allowed'] ?? false)) {
+                $fatigueDecision = $this->fatigueLimiter->canSend(
+                    $campaign->user,
+                    $customer,
+                    $channel,
+                    $campaign,
+                    $scheduledAt,
+                    $ignoreQuietHours
+                );
+                if (! ($fatigueDecision['allowed'] ?? false)) {
                     $this->pushBlocked(
                         $blocked,
                         $blockedByChannel,
@@ -180,13 +191,14 @@ class AudienceResolver
                         $customer->id,
                         (string) $decision['destination']
                     );
+
                     continue;
                 }
 
                 $normalizedDestination = (string) $decision['destination'];
                 $destinationHash = CampaignRecipient::destinationHash($normalizedDestination)
-                    ?: hash('sha256', $channel . ':' . $normalizedDestination);
-                $dedupeKey = $channel . '|' . $destinationHash;
+                    ?: hash('sha256', $channel.':'.$normalizedDestination);
+                $dedupeKey = $channel.'|'.$destinationHash;
 
                 if (isset($dedupe[$dedupeKey])) {
                     $this->pushBlocked(
@@ -198,6 +210,7 @@ class AudienceResolver
                         $customer->id,
                         $normalizedDestination
                     );
+
                     continue;
                 }
 
@@ -221,7 +234,7 @@ class AudienceResolver
                 : $this->inferChannels((string) $contact['destination'], $enabledChannels);
 
             foreach ($channels as $channel) {
-                if (!in_array($channel, $enabledChannels, true)) {
+                if (! in_array($channel, $enabledChannels, true)) {
                     continue;
                 }
 
@@ -232,7 +245,7 @@ class AudienceResolver
                     (string) $contact['destination']
                 );
 
-                if (!($decision['allowed'] ?? false)) {
+                if (! ($decision['allowed'] ?? false)) {
                     $this->pushBlocked(
                         $blocked,
                         $blockedByChannel,
@@ -242,13 +255,14 @@ class AudienceResolver
                         null,
                         (string) $contact['destination']
                     );
+
                     continue;
                 }
 
                 $normalizedDestination = (string) $decision['destination'];
                 $destinationHash = CampaignRecipient::destinationHash($normalizedDestination)
-                    ?: hash('sha256', $channel . ':' . $normalizedDestination);
-                $dedupeKey = $channel . '|' . $destinationHash;
+                    ?: hash('sha256', $channel.':'.$normalizedDestination);
+                $dedupeKey = $channel.'|'.$destinationHash;
 
                 if (isset($dedupe[$dedupeKey])) {
                     $this->pushBlocked(
@@ -260,6 +274,7 @@ class AudienceResolver
                         null,
                         $normalizedDestination
                     );
+
                     continue;
                 }
 
@@ -290,12 +305,11 @@ class AudienceResolver
     }
 
     /**
-     * @param mixed $values
      * @return Collection<int, int>
      */
     private function normalizeCustomerIds(mixed $values): Collection
     {
-        if (!is_array($values)) {
+        if (! is_array($values)) {
             return collect();
         }
 
@@ -307,7 +321,7 @@ class AudienceResolver
     }
 
     /**
-     * @param array<int, int> $mailingListIds
+     * @param  array<int, int>  $mailingListIds
      * @return Collection<int, int>
      */
     private function mailingListCustomerIds(int $accountOwnerId, array $mailingListIds): Collection
@@ -316,7 +330,7 @@ class AudienceResolver
             return collect();
         }
 
-        if (!DB::getSchemaBuilder()->hasTable('mailing_lists') || !DB::getSchemaBuilder()->hasTable('mailing_list_customers')) {
+        if (! DB::getSchemaBuilder()->hasTable('mailing_lists') || ! DB::getSchemaBuilder()->hasTable('mailing_list_customers')) {
             return collect();
         }
 
@@ -332,9 +346,9 @@ class AudienceResolver
     }
 
     /**
-     * @param Collection<int, int> $dynamicCustomerIds
-     * @param Collection<int, int> $includeMailingListCustomerIds
-     * @param Collection<int, int> $manualCustomerIds
+     * @param  Collection<int, int>  $dynamicCustomerIds
+     * @param  Collection<int, int>  $includeMailingListCustomerIds
+     * @param  Collection<int, int>  $manualCustomerIds
      * @return Collection<int, int>
      */
     private function resolveCustomerIdsBySourceLogic(
@@ -386,7 +400,7 @@ class AudienceResolver
             $value = preg_split('/[\r\n,;]+/', $value) ?: [];
         }
 
-        if (!is_array($value)) {
+        if (! is_array($value)) {
             return [];
         }
 
@@ -401,10 +415,11 @@ class AudienceResolver
                     'destination' => $destination,
                     'channel' => null,
                 ];
+
                 continue;
             }
 
-            if (!is_array($entry)) {
+            if (! is_array($entry)) {
                 continue;
             }
 
@@ -460,7 +475,7 @@ class AudienceResolver
     {
         $operator = strtoupper((string) ($group['operator'] ?? 'AND'));
         $rules = $group['rules'] ?? null;
-        if (!is_array($rules)) {
+        if (! is_array($rules)) {
             $rules = array_is_list($group) ? $group : [];
         }
 
@@ -469,7 +484,7 @@ class AudienceResolver
         }
 
         foreach ($rules as $index => $rule) {
-            if (!is_array($rule)) {
+            if (! is_array($rule)) {
                 continue;
             }
 
@@ -483,6 +498,7 @@ class AudienceResolver
             $query->{$method}(function (Builder $builder) use ($rule, $isNested): void {
                 if ($isNested) {
                     $this->applyGroup($builder, $rule);
+
                     return;
                 }
 
@@ -504,25 +520,31 @@ class AudienceResolver
         switch ($field) {
             case 'tags':
                 $this->applyTagsRule($query, $operator, $value);
+
                 return;
             case 'segment_status':
                 $this->applySegmentStatusRule($query, $value);
+
                 return;
             case 'city':
                 $query->whereHas('properties', function (Builder $builder) use ($operator, $value): void {
                     $this->applyStringComparison($builder, 'city', $operator, $value);
                 });
+
                 return;
             case 'language':
                 $query->whereHas('portalUser', function (Builder $builder) use ($operator, $value): void {
                     $this->applyStringComparison($builder, 'locale', $operator, $value);
                 });
+
                 return;
             case 'has_email':
                 $this->applyBooleanPresence($query, 'email', $value);
+
                 return;
             case 'has_phone':
                 $this->applyBooleanPresence($query, 'phone', $value);
+
                 return;
             case 'has_app_account':
                 if ((bool) $value) {
@@ -530,20 +552,24 @@ class AudienceResolver
                 } else {
                     $query->whereNull('portal_user_id');
                 }
+
                 return;
             case 'is_vip':
                 $this->applyVipStatusRule($query, $operator, $value);
+
                 return;
             case 'vip_tier_id':
                 $this->applyVipTierIdRule($query, $operator, $value);
+
                 return;
             case 'vip_tier':
             case 'vip_tier_code':
                 $this->applyVipTierCodeRule($query, $operator, $value);
+
                 return;
             case 'total_spend':
                 $comparison = $this->comparisonOperator($operator);
-                if (!$comparison || !is_numeric($value)) {
+                if (! $comparison || ! is_numeric($value)) {
                     return;
                 }
 
@@ -551,10 +577,11 @@ class AudienceResolver
                     "(SELECT COALESCE(SUM(total),0) FROM sales WHERE sales.user_id = customers.user_id AND sales.customer_id = customers.id AND sales.status = ?) {$comparison} ?",
                     ['paid', (float) $value]
                 );
+
                 return;
             case 'booking_frequency_per_month':
                 $comparison = $this->comparisonOperator($operator);
-                if (!$comparison || !is_numeric($value)) {
+                if (! $comparison || ! is_numeric($value)) {
                     return;
                 }
 
@@ -562,30 +589,34 @@ class AudienceResolver
                     "(SELECT COUNT(*) FROM reservations WHERE reservations.account_id = customers.user_id AND reservations.client_id = customers.id AND reservations.created_at >= ?) {$comparison} ?",
                     [now()->subDays(30), (int) $value]
                 );
+
                 return;
             case 'last_activity_days':
                 $comparison = $this->comparisonOperator($operator);
-                if (!$comparison || !is_numeric($value)) {
+                if (! $comparison || ! is_numeric($value)) {
                     return;
                 }
 
-                $activityExpression = "COALESCE(
+                $activityExpression = 'COALESCE(
                     (SELECT MAX(created_at) FROM sales WHERE sales.user_id = customers.user_id AND sales.customer_id = customers.id),
                     (SELECT MAX(created_at) FROM quotes WHERE quotes.user_id = customers.user_id AND quotes.customer_id = customers.id),
                     (SELECT MAX(created_at) FROM reservations WHERE reservations.account_id = customers.user_id AND reservations.client_id = customers.id),
                     customers.created_at
-                )";
+                )';
                 $query->whereRaw("TIMESTAMPDIFF(DAY, {$activityExpression}, NOW()) {$comparison} ?", [(int) $value]);
+
                 return;
             case 'purchased_product_id':
                 $this->applyPurchasedProductRule($query, $operator, $value);
+
                 return;
             case 'purchased_category_id':
                 $this->applyPurchasedCategoryRule($query, $operator, $value);
+
                 return;
             case 'interest_score':
                 $comparison = $this->comparisonOperator($operator);
-                if (!$comparison || !is_numeric($value)) {
+                if (! $comparison || ! is_numeric($value)) {
                     return;
                 }
 
@@ -597,9 +628,11 @@ class AudienceResolver
                         ->where('customer_interest_scores.score_scope', 'global')
                         ->whereRaw("customer_interest_scores.score {$comparison} ?", [(int) $value]);
                 });
+
                 return;
             case 'behavior_event':
                 $this->applyBehaviorEventRule($query, $operator, $value);
+
                 return;
             default:
                 return;
@@ -621,6 +654,7 @@ class AudienceResolver
             foreach ($values as $tag) {
                 $query->whereJsonContains('tags', $tag);
             }
+
             return;
         }
 
@@ -631,6 +665,7 @@ class AudienceResolver
                         ->orWhereJsonDoesntContain('tags', $tag);
                 });
             }
+
             return;
         }
 
@@ -662,6 +697,7 @@ class AudienceResolver
                 $builder->{$method}(function (Builder $nested) use ($status, $activeSince, $lostSince): void {
                     if ($status === 'new') {
                         $nested->where('customers.created_at', '>=', now()->subDays(30));
+
                         return;
                     }
 
@@ -673,6 +709,7 @@ class AudienceResolver
                                 ->whereColumn('sales.customer_id', 'customers.id')
                                 ->where('sales.created_at', '>=', $activeSince);
                         });
+
                         return;
                     }
 
@@ -684,6 +721,7 @@ class AudienceResolver
                                 ->whereColumn('sales.customer_id', 'customers.id')
                                 ->where('sales.created_at', '>=', $activeSince);
                         });
+
                         return;
                     }
 
@@ -705,6 +743,7 @@ class AudienceResolver
     {
         if ((bool) $value) {
             $query->whereNotNull($field)->where($field, '!=', '');
+
             return;
         }
 
@@ -722,6 +761,7 @@ class AudienceResolver
 
         if (in_array($operator, ['not_equals', 'not_in', 'exclude'], true)) {
             $query->where('is_vip', '!=', (bool) $parsed);
+
             return;
         }
 
@@ -744,6 +784,7 @@ class AudienceResolver
                 $builder->whereNull('vip_tier_id')
                     ->orWhereNotIn('vip_tier_id', $values->all());
             });
+
             return;
         }
 
@@ -766,6 +807,7 @@ class AudienceResolver
                 $builder->whereNull('vip_tier_code')
                     ->orWhereNotIn('vip_tier_code', $values->all());
             });
+
             return;
         }
 
@@ -799,6 +841,7 @@ class AudienceResolver
 
         if ($mode === 'exclude') {
             $query->whereNotExists($callback);
+
             return;
         }
 
@@ -833,6 +876,7 @@ class AudienceResolver
 
         if ($mode === 'exclude') {
             $query->whereNotExists($callback);
+
             return;
         }
 
@@ -864,6 +908,7 @@ class AudienceResolver
 
         if ($mode === 'exclude') {
             $query->whereNotExists($callback);
+
             return;
         }
 
@@ -876,26 +921,31 @@ class AudienceResolver
 
         if (in_array($operator, ['in', 'contains_any'], true)) {
             $query->whereIn($field, $values);
+
             return;
         }
 
         if ($operator === 'not_in') {
             $query->whereNotIn($field, $values);
+
             return;
         }
 
         if ($operator === 'contains') {
-            $query->where($field, 'like', '%' . trim((string) $value) . '%');
+            $query->where($field, 'like', '%'.trim((string) $value).'%');
+
             return;
         }
 
         if ($operator === 'not_contains') {
-            $query->where($field, 'not like', '%' . trim((string) $value) . '%');
+            $query->where($field, 'not like', '%'.trim((string) $value).'%');
+
             return;
         }
 
         if ($operator === 'not_equals') {
             $query->where($field, '!=', (string) $value);
+
             return;
         }
 

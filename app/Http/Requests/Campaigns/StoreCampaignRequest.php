@@ -23,7 +23,7 @@ class StoreCampaignRequest extends FormRequest
             'type' => ['nullable', Rule::in(Campaign::allowedTypes())],
             'offer_mode' => ['nullable', Rule::in(Campaign::allowedOfferModes())],
             'language_mode' => ['nullable', Rule::in(Campaign::allowedLanguageModes())],
-            'product_ids' => ['nullable', 'array', 'min:1'],
+            'product_ids' => ['nullable', 'array'],
             'product_ids.*' => ['integer'],
             'offers' => ['nullable', 'array', 'min:1'],
             'offers.*.offer_type' => ['required_with:offers', Rule::in(['product', 'service'])],
@@ -142,11 +142,11 @@ class StoreCampaignRequest extends FormRequest
     private function normalizedAudience(): ?array
     {
         $audience = $this->input('audience');
-        if (!is_array($audience)) {
+        if (! is_array($audience)) {
             return null;
         }
 
-        if (!array_key_exists('source_logic', $audience)) {
+        if (! array_key_exists('source_logic', $audience)) {
             return $audience;
         }
 
