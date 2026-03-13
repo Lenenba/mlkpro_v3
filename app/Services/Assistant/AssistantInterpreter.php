@@ -8,9 +8,7 @@ use RuntimeException;
 
 class AssistantInterpreter
 {
-    public function __construct(private readonly OpenAiClient $client)
-    {
-    }
+    public function __construct(private readonly OpenAiClient $client) {}
 
     public function interpret(string $message, array $context = []): array
     {
@@ -33,25 +31,35 @@ class AssistantInterpreter
 
     private function buildSystemPrompt(array $context): string
     {
-        $draft = $context['draft'] ?? null;
+        $draft = $context['draft'] ?? $context['campaign'] ?? null;
         $draftJson = $draft ? json_encode($draft, JSON_PRETTY_PRINT) : 'null';
+        $campaignContext = $context['campaign_context'] ?? null;
+        $campaignContextJson = $campaignContext
+            ? json_encode($campaignContext, JSON_PRETTY_PRINT)
+            : 'null';
 
         return <<<PROMPT
 You are a structured assistant for a business management platform.
 Return JSON only. Do not include markdown or extra text.
 
-Allowed intents: create_quote, create_work, create_invoice, send_quote, accept_quote, convert_quote, mark_invoice_paid, update_work_status, create_customer, create_property, create_category, create_product, create_service, create_team_member, read_notifications, list_quotes, list_works, list_invoices, list_customers, show_quote, show_work, show_invoice, show_customer, create_task, update_task_status, assign_task, update_checklist_item, create_request, convert_request, send_invoice, remind_invoice, schedule_work, assign_work_team, unknown.
+Allowed intents: create_quote, create_work, create_invoice, send_quote, accept_quote, convert_quote, mark_invoice_paid, update_work_status, create_customer, create_property, create_category, create_product, create_service, create_team_member, read_notifications, list_quotes, list_works, list_invoices, list_customers, show_quote, show_work, show_invoice, show_customer, create_task, update_task_status, assign_task, update_checklist_item, create_request, convert_request, send_invoice, remind_invoice, schedule_work, assign_work_team, draft_campaign, unknown.
 
 You cannot modify the app structure, UI, schema, or settings. You can only create or read workflow data.
 If a user asks to change the UI or structure, set intent to "unknown".
+Use intent "draft_campaign" when the user wants to prepare, launch, plan, promote, announce, relaunch, win back, or market something to customers.
+For campaign requests, use only these campaign types when known: NEW_OFFER, BACK_AVAILABLE, PROMOTION, CROSS_SELL, WINBACK, ANNOUNCEMENT.
+For campaign requests, use only these channels when known: EMAIL, SMS, IN_APP.
 
-If an existing draft is provided, merge new user info into it and return the updated draft in the matching object (quote/work/customer/property/category/product).
+If an existing draft is provided, merge new user info into it and return the updated draft in the matching object (quote/work/customer/property/category/product/task/request/team_member/campaign).
 Draft JSON:
 {$draftJson}
 
+Campaign context JSON:
+{$campaignContextJson}
+
 Output JSON schema:
 {
-  "intent": "create_quote|create_work|create_invoice|send_quote|accept_quote|convert_quote|mark_invoice_paid|update_work_status|create_customer|create_property|create_category|create_product|create_service|create_team_member|read_notifications|unknown",
+  "intent": "create_quote|create_work|create_invoice|send_quote|accept_quote|convert_quote|mark_invoice_paid|update_work_status|create_customer|create_property|create_category|create_product|create_service|create_team_member|read_notifications|draft_campaign|unknown",
   "confidence": 0.0,
   "quote": {
     "customer": {
@@ -194,6 +202,19 @@ Output JSON schema:
     "role": "admin|member|seller|sales_manager",
     "permissions": []
   },
+  "campaign": {
+    "objective": "",
+    "campaign_type": "NEW_OFFER|BACK_AVAILABLE|PROMOTION|CROSS_SELL|WINBACK|ANNOUNCEMENT",
+    "offer_hint": "",
+    "offer_mode_hint": "PRODUCTS|SERVICES|MIXED",
+    "audience_hint": "",
+    "timing_hint": "",
+    "channel_hints": ["EMAIL|SMS|IN_APP"],
+    "kpi_hint": "",
+    "language_hint": "PREFERRED|FR|EN|BOTH",
+    "name_hint": "",
+    "notes": ""
+  },
   "team_members": [],
   "filters": {
     "search": "",
@@ -210,6 +231,9 @@ Rules:
 - For work.status use one of: to_schedule, scheduled, en_route, in_progress, tech_complete, pending_review, validated, auto_validated, dispute, closed, cancelled, completed.
 - For action intents, fill targets with any provided quote/work/invoice ids or numbers.
 - For team_member.permissions, only use permission ids: quotes.view, quotes.create, quotes.edit, quotes.send, jobs.view, jobs.edit, tasks.view, tasks.create, tasks.edit, tasks.delete, reservations.view, reservations.queue, reservations.manage, sales.manage, sales.pos.
+- For campaign.channel_hints, only use EMAIL, SMS, or IN_APP.
+- For campaign.offer_mode_hint, only use PRODUCTS, SERVICES, or MIXED.
+- For campaign.language_hint, only use PREFERRED, FR, EN, or BOTH.
 - If intent is not clear, set intent to "unknown".
 PROMPT;
     }
@@ -228,7 +252,7 @@ PROMPT;
         }
 
         $decoded = json_decode($trimmed, true);
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             throw new RuntimeException('OpenAI returned invalid JSON.');
         }
 
@@ -272,9 +296,10 @@ PROMPT;
             'remind_invoice',
             'schedule_work',
             'assign_work_team',
+            'draft_campaign',
             'unknown',
         ];
-        if (!in_array($intent, $allowed, true)) {
+        if (! in_array($intent, $allowed, true)) {
             $intent = 'unknown';
         }
 
@@ -295,6 +320,7 @@ PROMPT;
         $request = $this->normalizeRequest($data['request'] ?? []);
         $teamMembers = $this->normalizeTeamMembers($data['team_members'] ?? []);
         $filters = $this->normalizeFilters($data['filters'] ?? []);
+        $campaign = $this->normalizeCampaign($data['campaign'] ?? []);
 
         return [
             'intent' => $intent,
@@ -311,6 +337,7 @@ PROMPT;
             'checklist_item' => $checklistItem,
             'request' => $request,
             'team_member' => $teamMember,
+            'campaign' => $campaign,
             'team_members' => $teamMembers,
             'filters' => $filters,
             'actions' => array_values(array_filter(Arr::wrap($data['actions'] ?? []))),
@@ -408,7 +435,7 @@ PROMPT;
         $items = Arr::wrap($items);
         $normalized = [];
         foreach ($items as $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
@@ -510,12 +537,51 @@ PROMPT;
         ];
     }
 
+    private function normalizeCampaign($campaign): array
+    {
+        $campaign = is_array($campaign) ? $campaign : [];
+        $channelHints = array_values(array_filter(array_map(function ($value): string {
+            $candidate = strtoupper(trim((string) $value));
+
+            return in_array($candidate, ['EMAIL', 'SMS', 'IN_APP'], true) ? $candidate : '';
+        }, Arr::wrap($campaign['channel_hints'] ?? []))));
+
+        $campaignType = strtoupper($this->cleanString($campaign['campaign_type'] ?? null));
+        if (! in_array($campaignType, ['NEW_OFFER', 'BACK_AVAILABLE', 'PROMOTION', 'CROSS_SELL', 'WINBACK', 'ANNOUNCEMENT'], true)) {
+            $campaignType = '';
+        }
+
+        $offerMode = strtoupper($this->cleanString($campaign['offer_mode_hint'] ?? null));
+        if (! in_array($offerMode, ['PRODUCTS', 'SERVICES', 'MIXED'], true)) {
+            $offerMode = '';
+        }
+
+        $languageHint = strtoupper($this->cleanString($campaign['language_hint'] ?? null));
+        if (! in_array($languageHint, ['PREFERRED', 'FR', 'EN', 'BOTH'], true)) {
+            $languageHint = '';
+        }
+
+        return [
+            'objective' => $this->cleanString($campaign['objective'] ?? null),
+            'campaign_type' => $campaignType,
+            'offer_hint' => $this->cleanString($campaign['offer_hint'] ?? null),
+            'offer_mode_hint' => $offerMode,
+            'audience_hint' => $this->cleanString($campaign['audience_hint'] ?? null),
+            'timing_hint' => $this->cleanString($campaign['timing_hint'] ?? null),
+            'channel_hints' => array_values(array_unique($channelHints)),
+            'kpi_hint' => $this->cleanString($campaign['kpi_hint'] ?? null),
+            'language_hint' => $languageHint,
+            'name_hint' => $this->cleanString($campaign['name_hint'] ?? null),
+            'notes' => $this->cleanString($campaign['notes'] ?? null),
+        ];
+    }
+
     private function normalizeTeamMembers($members): array
     {
         $members = Arr::wrap($members);
         $normalized = [];
         foreach ($members as $member) {
-            if (!is_array($member)) {
+            if (! is_array($member)) {
                 continue;
             }
             $normalized[] = [

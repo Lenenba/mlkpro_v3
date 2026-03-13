@@ -608,7 +608,7 @@ const save = () => {
         ...form.data(),
         type: form.campaign_type,
         offers: offersPayload.value,
-        product_ids: productIdsPayload.value,
+        product_ids: productIdsPayload.value.length > 0 ? productIdsPayload.value : null,
         scheduled_at: form.schedule_type === 'scheduled' ? (form.scheduled_at || null) : null,
         audience_segment_id: form.audience_segment_id || null,
         channels: form.channels.map((channel) => ({

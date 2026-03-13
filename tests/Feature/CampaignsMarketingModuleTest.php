@@ -102,6 +102,23 @@ function disableMarketingQuietHours(User $owner): void
     ]);
 }
 
+function forceCurrentTimeWithinMarketingQuietHours(User $owner): void
+{
+    $now = now()->copy()->setTimezone('UTC');
+
+    /** @var MarketingSettingsService $service */
+    $service = app(MarketingSettingsService::class);
+    $service->update($owner, [
+        'channels' => [
+            'quiet_hours' => [
+                'timezone' => 'UTC',
+                'start' => $now->copy()->subMinute()->format('H:i'),
+                'end' => $now->copy()->addMinute()->format('H:i'),
+            ],
+        ],
+    ]);
+}
+
 beforeEach(function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $this->withoutMiddleware(EnsureTwoFactorVerified::class);
@@ -300,6 +317,189 @@ test('consent and fatigue rules are enforced', function () {
     $fatigueDecision = $fatigue->canSend($owner, $customer, Campaign::CHANNEL_EMAIL, $campaign);
     expect($fatigueDecision['allowed'])->toBeFalse();
     expect($fatigueDecision['reason'])->toBe('fatigue_limit');
+});
+
+test('manual campaign audience estimate ignores current quiet hours', function () {
+    $owner = marketingOwner([
+        'company_timezone' => 'UTC',
+    ]);
+    forceCurrentTimeWithinMarketingQuietHours($owner);
+
+    $customer = marketingCustomer($owner, [
+        'email' => 'manual-quiet-' . Str::lower(Str::random(10)) . '@example.com',
+    ]);
+    $offer = marketingProduct($owner);
+
+    CustomerConsent::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'status' => CustomerConsent::STATUS_GRANTED,
+        'granted_at' => now(),
+    ]);
+
+    /** @var CampaignService $campaignService */
+    $campaignService = app(CampaignService::class);
+
+    $campaign = $campaignService->saveCampaign($owner, $owner, [
+        'name' => 'Manual quiet hours estimate',
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'language_mode' => Campaign::LANGUAGE_MODE_PREFERRED,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'offers' => [
+            [
+                'offer_type' => 'product',
+                'offer_id' => $offer->id,
+            ],
+        ],
+        'channels' => [
+            [
+                'channel' => Campaign::CHANNEL_EMAIL,
+                'is_enabled' => true,
+                'subject_template' => 'Sujet',
+                'body_template' => '<p>Body</p>',
+            ],
+        ],
+        'audience' => [
+            'source_logic' => 'UNION',
+            'manual_customer_ids' => [$customer->id],
+        ],
+    ]);
+
+    $estimate = $campaignService->estimateAudience($campaign->fresh(['audience', 'channels', 'user']));
+
+    expect((int) ($estimate['total_eligible'] ?? 0))->toBe(1)
+        ->and(data_get($estimate, 'blocked_by_reason.quiet_hours'))->toBeNull();
+});
+
+test('scheduled campaign audience estimate still respects quiet hours', function () {
+    $owner = marketingOwner([
+        'company_timezone' => 'UTC',
+    ]);
+    forceCurrentTimeWithinMarketingQuietHours($owner);
+
+    $customer = marketingCustomer($owner, [
+        'email' => 'scheduled-quiet-' . Str::lower(Str::random(10)) . '@example.com',
+    ]);
+    $offer = marketingProduct($owner);
+
+    CustomerConsent::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'status' => CustomerConsent::STATUS_GRANTED,
+        'granted_at' => now(),
+    ]);
+
+    /** @var CampaignService $campaignService */
+    $campaignService = app(CampaignService::class);
+
+    $campaign = $campaignService->saveCampaign($owner, $owner, [
+        'name' => 'Scheduled quiet hours estimate',
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'language_mode' => Campaign::LANGUAGE_MODE_PREFERRED,
+        'schedule_type' => Campaign::SCHEDULE_SCHEDULED,
+        'scheduled_at' => now()->copy()->utc()->addMinute()->toISOString(),
+        'offers' => [
+            [
+                'offer_type' => 'product',
+                'offer_id' => $offer->id,
+            ],
+        ],
+        'channels' => [
+            [
+                'channel' => Campaign::CHANNEL_EMAIL,
+                'is_enabled' => true,
+                'subject_template' => 'Sujet',
+                'body_template' => '<p>Body</p>',
+            ],
+        ],
+        'audience' => [
+            'source_logic' => 'UNION',
+            'manual_customer_ids' => [$customer->id],
+        ],
+    ]);
+
+    $estimate = $campaignService->estimateAudience($campaign->fresh(['audience', 'channels', 'user']));
+
+    expect((int) ($estimate['total_eligible'] ?? 0))->toBe(0)
+        ->and((int) data_get($estimate, 'blocked_by_reason.quiet_hours'))->toBe(1);
+});
+
+test('campaign update accepts service offers when legacy product ids payload is empty', function () {
+    $owner = marketingOwner();
+    disableMarketingQuietHours($owner);
+
+    $serviceOffer = marketingProduct($owner, [
+        'item_type' => Product::ITEM_TYPE_SERVICE,
+        'name' => 'Pressure wash',
+    ]);
+
+    /** @var CampaignService $campaignService */
+    $campaignService = app(CampaignService::class);
+
+    $campaign = $campaignService->saveCampaign($owner, $owner, [
+        'name' => 'Service campaign',
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'offer_mode' => Campaign::OFFER_MODE_SERVICES,
+        'language_mode' => Campaign::LANGUAGE_MODE_FR,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'offers' => [
+            [
+                'offer_type' => 'service',
+                'offer_id' => $serviceOffer->id,
+            ],
+        ],
+        'channels' => [
+            [
+                'channel' => Campaign::CHANNEL_EMAIL,
+                'is_enabled' => true,
+                'subject_template' => 'Sujet',
+                'body_template' => '<p>Body</p>',
+            ],
+        ],
+    ]);
+
+    $response = $this->actingAs($owner)->putJson(route('campaigns.update', $campaign), [
+        'name' => 'Service campaign updated',
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'type' => Campaign::TYPE_PROMOTION,
+        'offer_mode' => Campaign::OFFER_MODE_SERVICES,
+        'language_mode' => Campaign::LANGUAGE_MODE_FR,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'product_ids' => [],
+        'offers' => [
+            [
+                'offer_type' => 'service',
+                'offer_id' => $serviceOffer->id,
+            ],
+        ],
+        'channels' => [
+            [
+                'channel' => Campaign::CHANNEL_EMAIL,
+                'is_enabled' => true,
+                'subject_template' => 'Sujet',
+                'body_template' => '<p>Body</p>',
+            ],
+        ],
+        'audience' => [
+            'source_logic' => 'UNION',
+            'manual_customer_ids' => [],
+            'include_mailing_list_ids' => [],
+            'exclude_mailing_list_ids' => [],
+        ],
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('campaign.offer_mode', Campaign::OFFER_MODE_SERVICES);
+
+    $campaign->refresh()->load('offers.offer');
+
+    expect($campaign->offers)->toHaveCount(1)
+        ->and((int) $campaign->offers->first()->offer_id)->toBe($serviceOffer->id)
+        ->and((string) $campaign->offers->first()->offer_type)->toBe('service');
 });
 
 test('sending workflow queues dispatch and recipient jobs', function () {

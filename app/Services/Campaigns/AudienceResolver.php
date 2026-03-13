@@ -145,6 +145,10 @@ class AudienceResolver
         $eligibleByChannel = [];
         $blockedByChannel = [];
         $blockedByReason = [];
+        $scheduledAt = $campaign->schedule_type === Campaign::SCHEDULE_SCHEDULED && $campaign->scheduled_at
+            ? $campaign->scheduled_at->copy()
+            : null;
+        $ignoreQuietHours = $scheduledAt === null;
 
         foreach ($customers as $customer) {
             foreach ($enabledChannels as $channel) {
@@ -169,7 +173,14 @@ class AudienceResolver
                     continue;
                 }
 
-                $fatigueDecision = $this->fatigueLimiter->canSend($campaign->user, $customer, $channel, $campaign);
+                $fatigueDecision = $this->fatigueLimiter->canSend(
+                    $campaign->user,
+                    $customer,
+                    $channel,
+                    $campaign,
+                    $scheduledAt,
+                    $ignoreQuietHours
+                );
                 if (!($fatigueDecision['allowed'] ?? false)) {
                     $this->pushBlocked(
                         $blocked,

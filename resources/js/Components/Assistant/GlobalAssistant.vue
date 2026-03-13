@@ -113,8 +113,17 @@ const restoreState = () => {
     try {
         const storedContext = localStorage.getItem(storageKey.value);
         const storedMessages = localStorage.getItem(messagesKey.value);
+        const parsedMessages = storedMessages ? JSON.parse(storedMessages) : [];
         context.value = storedContext ? JSON.parse(storedContext) : {};
-        messages.value = storedMessages ? JSON.parse(storedMessages) : [];
+        messages.value = Array.isArray(parsedMessages)
+            ? parsedMessages.map((message) => ({
+                id: message?.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                role: message?.role || 'assistant',
+                content: typeof message?.content === 'string' ? message.content : '',
+                ts: message?.ts || new Date().toISOString(),
+                meta: message?.meta && typeof message.meta === 'object' ? message.meta : null,
+            }))
+            : [];
         voiceReplyEnabled.value = localStorage.getItem(voiceReplyKey.value) === '1';
         autoSendVoice.value = localStorage.getItem(autoSendKey.value) === '1';
         const lastAssistant = [...messages.value].reverse().find((message) => message.role === 'assistant');
@@ -128,12 +137,13 @@ const restoreState = () => {
     }
 };
 
-const addMessage = (role, content) => {
+const addMessage = (role, content, meta = null) => {
     messages.value.push({
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         role,
         content,
         ts: new Date().toISOString(),
+        meta,
     });
     if (role === 'assistant') {
         lastAssistantMessage.value = content || '';
@@ -148,6 +158,126 @@ const formatAssistantMessage = (payload) => {
         content = content ? `${content}\n${questionText}` : questionText;
     }
     return content || 'Assistant ready.';
+};
+
+const buildAssistantMeta = (payload) => {
+    if (payload?.campaign_review && typeof payload.campaign_review === 'object') {
+        return {
+            campaignReview: payload.campaign_review,
+        };
+    }
+
+    return null;
+};
+
+const trimPreviewText = (value, limit = 120) => {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+
+    if (text.length <= limit) {
+        return text;
+    }
+
+    return `${text.slice(0, limit - 3)}...`;
+};
+
+const summarizePreviewPayload = (payload) => {
+    const previews = Array.isArray(payload?.previews) ? payload.previews : [];
+    const estimated = Number(payload?.estimated?.total_eligible || 0);
+    const lines = [`Apercu campagne pret. Audience estimee: ${estimated} contacts.`];
+    const seenChannels = new Set();
+
+    previews.forEach((preview) => {
+        const channel = String(preview?.channel || '').toUpperCase();
+        if (!channel || seenChannels.has(channel)) {
+            return;
+        }
+
+        seenChannels.add(channel);
+        const headline = trimPreviewText(preview?.subject || preview?.title || preview?.body || '', 90);
+        if (headline) {
+            lines.push(`${channel}: ${headline}`);
+        }
+    });
+
+    return lines.join('\n');
+};
+
+const summarizeTestSendPayload = (payload) => {
+    const results = Array.isArray(payload?.results) ? payload.results : [];
+    if (results.length === 0) {
+        return 'Aucun envoi de test n a ete retourne.';
+    }
+
+    const lines = ['Envoi de test lance:'];
+    results.forEach((result) => {
+        const channel = String(result?.channel || '').toUpperCase();
+        if (result?.ok) {
+            lines.push(`- ${channel}: ok`);
+            return;
+        }
+
+        const reason = String(result?.reason || 'erreur');
+        lines.push(`- ${channel}: ${reason}`);
+    });
+
+    return lines.join('\n');
+};
+
+const summarizeCampaignActionError = (error, fallback) => {
+    return error?.response?.data?.message || fallback;
+};
+
+const runCampaignReviewAction = async (step, review) => {
+    const campaignId = Number(step?.campaign_id || review?.campaign_id || 0);
+    if (!campaignId || isLoading.value) {
+        return;
+    }
+
+    if (step?.type === 'open_campaign_draft') {
+        router.get(route('campaigns.edit', campaignId));
+        return;
+    }
+
+    if (step?.type === 'view_campaign') {
+        router.get(route('campaigns.show', campaignId));
+        return;
+    }
+
+    isLoading.value = true;
+
+    try {
+        if (step?.type === 'preview_campaign') {
+            const response = await window.axios.post(route('campaigns.preview', campaignId), {
+                sample_size: 2,
+            });
+            const message = summarizePreviewPayload(response?.data || {});
+            addMessage('assistant', message);
+            if (voiceReplyEnabled.value) {
+                speakMessage(message);
+            }
+            return;
+        }
+
+        if (step?.type === 'test_send_campaign') {
+            const response = await window.axios.post(route('campaigns.test-send', campaignId), {
+                channels: Array.isArray(step?.channels) ? step.channels : [],
+            });
+            const message = summarizeTestSendPayload(response?.data || {});
+            addMessage('assistant', message);
+            if (voiceReplyEnabled.value) {
+                speakMessage(message);
+            }
+        }
+    } catch (error) {
+        const message = summarizeCampaignActionError(error, 'Action campagne indisponible pour le moment.');
+        addMessage('assistant', message);
+        if (voiceReplyEnabled.value) {
+            speakMessage(message);
+        }
+    } finally {
+        isLoading.value = false;
+        persistState();
+    }
 };
 
 const sanitizeSpeechText = (content) => {
@@ -215,7 +345,8 @@ const sendMessage = async () => {
         }
 
         const assistantMessage = formatAssistantMessage(payload);
-        addMessage('assistant', assistantMessage);
+        const assistantMeta = buildAssistantMeta(payload);
+        addMessage('assistant', assistantMessage, assistantMeta);
         if (voiceReplyEnabled.value) {
             speakMessage(assistantMessage);
         }
@@ -230,6 +361,10 @@ const sendMessage = async () => {
 
         if (payload?.action?.type === 'invoice_created' && payload?.action?.invoice_id) {
             router.get(route('invoice.show', payload.action.invoice_id));
+        }
+
+        if (payload?.action?.type === 'campaign_draft_ready' && payload?.action?.campaign_id && !payload?.campaign_review) {
+            router.get(route('campaigns.edit', payload.action.campaign_id));
         }
     } catch (error) {
         const status = error?.response?.status;
@@ -349,7 +484,7 @@ onMounted(() => {
         <div class="flex items-center justify-between px-4 py-3 border-b border-stone-200">
             <div>
                 <div class="text-sm font-semibold text-stone-800">Assistant</div>
-                <div class="text-xs text-stone-500">Workflow only (no UI changes)</div>
+                <div class="text-xs text-stone-500">Workflows et brouillons campagne</div>
             </div>
             <div class="flex items-center gap-2">
                 <button
@@ -379,16 +514,103 @@ onMounted(() => {
                     <div>- "Cree un devis pour Acme avec Service A a 120."</div>
                     <div>- "Cree un job pour Jean Demo pour demain 9h."</div>
                     <div>- "Cree un membre Marc avec droits devis ecriture."</div>
+                    <div>- "Prepare une campagne pour relancer mes anciens clients."</div>
                 </div>
             </div>
             <div v-for="message in messages" :key="message.id" class="flex">
                 <div
-                    class="max-w-[80%] px-3 py-2 rounded-lg whitespace-pre-line"
+                    class="max-w-[88%] px-3 py-2 rounded-lg"
                     :class="message.role === 'user'
                         ? 'ms-auto bg-emerald-600 text-white'
                         : 'me-auto bg-stone-100 text-stone-700'"
                 >
-                    {{ message.content }}
+                    <div v-if="message.content" class="whitespace-pre-line">
+                        {{ message.content }}
+                    </div>
+                    <div
+                        v-if="message.role === 'assistant' && message.meta?.campaignReview"
+                        class="mt-3 rounded-md border border-stone-200 bg-white p-3 text-xs text-stone-700 space-y-3"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                                    Brouillon campagne
+                                </div>
+                                <div class="mt-1 text-sm font-semibold text-stone-900">
+                                    {{ message.meta.campaignReview.title }}
+                                </div>
+                                <div class="text-[11px] text-stone-500">
+                                    {{ message.meta.campaignReview.subtitle }}
+                                </div>
+                            </div>
+                            <div class="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold uppercase text-emerald-700">
+                                {{ message.meta.campaignReview.status_label }}
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div
+                                v-for="item in message.meta.campaignReview.summary || []"
+                                :key="`${message.id}-${item.label}`"
+                                class="rounded-md bg-stone-50 px-2 py-2"
+                            >
+                                <div class="text-[10px] uppercase tracking-wide text-stone-500">{{ item.label }}</div>
+                                <div class="mt-1 text-xs font-semibold text-stone-800">{{ item.value }}</div>
+                            </div>
+                        </div>
+
+                        <div v-if="(message.meta.campaignReview.deduced || []).length > 0" class="space-y-2">
+                            <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-500">Deduit</div>
+                            <div
+                                v-for="item in message.meta.campaignReview.deduced"
+                                :key="`${message.id}-deduced-${item.label}`"
+                                class="rounded-md border border-stone-200 px-2 py-2"
+                            >
+                                <div class="text-xs font-semibold text-stone-800">{{ item.label }}: {{ item.value }}</div>
+                                <div class="mt-1 text-[11px] text-stone-500">{{ item.reason }}</div>
+                            </div>
+                        </div>
+
+                        <div v-if="(message.meta.campaignReview.proposed || []).length > 0" class="space-y-2">
+                            <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-500">Propose</div>
+                            <div
+                                v-for="item in message.meta.campaignReview.proposed"
+                                :key="`${message.id}-proposed-${item.label}`"
+                                class="rounded-md border border-stone-200 px-2 py-2"
+                            >
+                                <div class="text-xs font-semibold text-stone-800">{{ item.label }}: {{ item.value }}</div>
+                                <div class="mt-1 text-[11px] text-stone-500">{{ item.reason }}</div>
+                            </div>
+                        </div>
+
+                        <div v-if="(message.meta.campaignReview.needs_confirmation || []).length > 0" class="space-y-2">
+                            <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-600">A confirmer</div>
+                            <div
+                                v-for="item in message.meta.campaignReview.needs_confirmation"
+                                :key="`${message.id}-confirmation-${item.label}`"
+                                class="rounded-md border border-amber-200 bg-amber-50 px-2 py-2"
+                            >
+                                <div class="text-xs font-semibold text-stone-800">{{ item.label }}: {{ item.value }}</div>
+                                <div class="mt-1 text-[11px] text-stone-600">{{ item.reason }}</div>
+                            </div>
+                        </div>
+
+                        <div v-if="(message.meta.campaignReview.next_steps || []).length > 0" class="space-y-2">
+                            <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-500">Actions rapides</div>
+                            <div class="flex flex-wrap gap-2">
+                                <button
+                                    v-for="step in message.meta.campaignReview.next_steps"
+                                    :key="`${message.id}-step-${step.type}`"
+                                    type="button"
+                                    class="rounded-md border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] font-medium text-stone-700 hover:bg-stone-100 disabled:opacity-50"
+                                    :disabled="isLoading"
+                                    @click="runCampaignReviewAction(step, message.meta.campaignReview)"
+                                >
+                                    {{ step.label }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div v-if="isLoading" class="text-xs text-stone-400">Assistant is thinking...</div>

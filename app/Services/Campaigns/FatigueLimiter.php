@@ -21,14 +21,15 @@ class FatigueLimiter
         ?Customer $customer,
         string $channel,
         ?Campaign $campaign = null,
-        ?Carbon $at = null
+        ?Carbon $at = null,
+        bool $ignoreQuietHours = false
     ): array {
         if (!$customer) {
             return ['allowed' => true];
         }
 
         $now = $at ?: Carbon::now();
-        if ($this->isQuietHours($accountOwner, $now)) {
+        if (!$ignoreQuietHours && $this->isQuietHours($accountOwner, $now)) {
             return ['allowed' => false, 'reason' => 'quiet_hours'];
         }
 

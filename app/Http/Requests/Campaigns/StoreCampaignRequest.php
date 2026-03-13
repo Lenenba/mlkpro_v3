@@ -23,7 +23,7 @@ class StoreCampaignRequest extends FormRequest
             'type' => ['nullable', Rule::in(Campaign::allowedTypes())],
             'offer_mode' => ['nullable', Rule::in(Campaign::allowedOfferModes())],
             'language_mode' => ['nullable', Rule::in(Campaign::allowedLanguageModes())],
-            'product_ids' => ['nullable', 'array', 'min:1'],
+            'product_ids' => ['nullable', 'array'],
             'product_ids.*' => ['integer'],
             'offers' => ['nullable', 'array', 'min:1'],
             'offers.*.offer_type' => ['required_with:offers', Rule::in(['product', 'service'])],

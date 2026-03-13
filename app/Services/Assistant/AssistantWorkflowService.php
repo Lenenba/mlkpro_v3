@@ -133,7 +133,7 @@ class AssistantWorkflowService
             'assign_work_team' => $this->handleAssignWorkTeam($interpretation, $user, $context),
             default => [
                 'status' => 'unknown',
-                'message' => 'Je peux creer et gerer des devis, factures et jobs, creer des clients/proprietes/categories/produits/services/membres, lire des listes et details, gerer des tasks/checklists, creer/convertir des requests, envoyer/relancer des factures et lire les notifications.',
+                'message' => 'Je peux creer et gerer des devis, factures et jobs, creer des clients/proprietes/categories/produits/services/membres, lire des listes et details, gerer des tasks/checklists, creer/convertir des requests, envoyer/relancer des factures, lire les notifications et preparer le contexte d une campagne marketing.',
             ],
         };
     }
