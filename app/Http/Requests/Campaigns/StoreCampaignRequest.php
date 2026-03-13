@@ -142,11 +142,11 @@ class StoreCampaignRequest extends FormRequest
     private function normalizedAudience(): ?array
     {
         $audience = $this->input('audience');
-        if (!is_array($audience)) {
+        if (! is_array($audience)) {
             return null;
         }
 
-        if (!array_key_exists('source_logic', $audience)) {
+        if (! array_key_exists('source_logic', $audience)) {
             return $audience;
         }
 
