@@ -10,6 +10,11 @@ use Illuminate\Validation\ValidationException;
 
 class TemplateLibraryService
 {
+    public function __construct(
+        private readonly EmailTemplateComposer $emailTemplateComposer,
+    ) {
+    }
+
     /**
      * @param array<string, mixed> $filters
      * @return Collection<int, MessageTemplate>
@@ -40,8 +45,25 @@ class TemplateLibraryService
                 }
             })
             ->orderByDesc('is_default')
+            ->orderByDesc('updated_at')
             ->orderBy('name')
             ->get();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function presetCatalog(): array
+    {
+        return $this->emailTemplateComposer->presetCatalog();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function blockLibrary(): array
+    {
+        return $this->emailTemplateComposer->blockLibrary();
     }
 
     /**
@@ -112,6 +134,24 @@ class TemplateLibraryService
         $template->delete();
     }
 
+    public function duplicate(User $accountOwner, User $actor, MessageTemplate $template): MessageTemplate
+    {
+        if ((int) $template->user_id !== (int) $accountOwner->id) {
+            throw ValidationException::withMessages([
+                'template' => 'Template does not belong to this tenant.',
+            ]);
+        }
+
+        $copy = $template->replicate();
+        $copy->created_by_user_id = $actor->id;
+        $copy->updated_by_user_id = $actor->id;
+        $copy->name = trim((string) $template->name).' Copy';
+        $copy->is_default = false;
+        $copy->push();
+
+        return $copy->fresh();
+    }
+
     public function resolveDefault(
         User $accountOwner,
         string $channel,
@@ -156,11 +196,7 @@ class TemplateLibraryService
     public function normalizeContent(string $channel, array $content): array
     {
         $normalized = match (strtoupper($channel)) {
-            'EMAIL' => [
-                'subject' => trim((string) ($content['subject'] ?? '')),
-                'previewText' => trim((string) ($content['previewText'] ?? $content['preview_text'] ?? '')),
-                'html' => (string) ($content['html'] ?? $content['body'] ?? ''),
-            ],
+            'EMAIL' => $this->emailTemplateComposer->normalizeContent($content),
             'SMS' => [
                 'text' => (string) ($content['text'] ?? $content['body'] ?? ''),
                 'shortener' => (bool) ($content['shortener'] ?? false),
@@ -180,18 +216,25 @@ class TemplateLibraryService
     /**
      * @return array<string, mixed>
      */
-    public function extractChannelTemplates(MessageTemplate $template): array
+    public function extractChannelTemplates(User $accountOwner, MessageTemplate $template): array
     {
         $content = $this->normalizeContent((string) $template->channel, (array) ($template->content ?? []));
         $channel = strtoupper((string) $template->channel);
 
         if ($channel === 'EMAIL') {
+            $bodyTemplate = ($content['editorMode'] ?? 'html') === 'builder'
+                ? $this->emailTemplateComposer->compile($content)
+                : (string) ($content['html'] ?? '');
+
             return [
                 'subject_template' => $this->nullableString($content['subject'] ?? null),
                 'title_template' => null,
-                'body_template' => $this->nullableString($content['html'] ?? null),
+                'body_template' => $this->nullableString($bodyTemplate),
                 'metadata' => [
                     'preview_text' => $this->nullableString($content['previewText'] ?? null),
+                    'editor_mode' => $this->nullableString($content['editorMode'] ?? null),
+                    'template_key' => $this->nullableString($content['templateKey'] ?? null),
+                    'schema' => is_array($content['schema'] ?? null) ? $content['schema'] : null,
                 ],
             ];
         }
@@ -233,6 +276,7 @@ class TemplateLibraryService
      * @return array<string, mixed>
      */
     public function preview(
+        User $accountOwner,
         string $channel,
         array $content,
         array $context,
@@ -246,7 +290,9 @@ class TemplateLibraryService
 
         if (strtoupper($channel) === 'EMAIL') {
             $subjectTemplate = (string) ($normalized['subject'] ?? '');
-            $bodyTemplate = (string) ($normalized['html'] ?? '');
+            $bodyTemplate = ($normalized['editorMode'] ?? 'html') === 'builder'
+                ? $this->emailTemplateComposer->compile($normalized)
+                : (string) ($normalized['html'] ?? '');
             $subject = $renderer->render($subjectTemplate, $context, false);
             $body = $renderer->render($bodyTemplate, $context, true);
             $invalid = array_merge(
@@ -275,6 +321,8 @@ class TemplateLibraryService
             'body' => $body,
             'invalid_tokens' => array_values(array_unique($invalid)),
             'character_count' => $body !== null ? mb_strlen($body) : 0,
+            'editor_mode' => strtoupper((string) ($normalized['editorMode'] ?? 'HTML')),
+            'template_key' => (string) ($normalized['templateKey'] ?? ''),
         ];
     }
 

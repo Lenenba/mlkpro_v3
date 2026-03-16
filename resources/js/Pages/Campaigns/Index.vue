@@ -6,6 +6,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -174,17 +175,24 @@ const statusBadgeClass = (status) => {
                             {{ t('marketing.campaign_index.page_description') }}
                         </p>
                     </div>
-                    <Link v-if="canManage" :href="route('campaigns.create')">
-                        <PrimaryButton>
-                            <span class="inline-flex items-center gap-1.5">
-                                <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M5 12h14" />
-                                    <path d="M12 5v14" />
-                                </svg>
-                                <span>{{ t('marketing.campaign_index.new_campaign') }}</span>
-                            </span>
-                        </PrimaryButton>
-                    </Link>
+                    <div v-if="canManage" class="flex flex-wrap items-center gap-2">
+                        <Link :href="route('campaigns.templates.manage')">
+                            <SecondaryButton type="button">
+                                {{ t('marketing.campaign_index.actions.manage_templates') }}
+                            </SecondaryButton>
+                        </Link>
+                        <Link :href="route('campaigns.create')">
+                            <PrimaryButton>
+                                <span class="inline-flex items-center gap-1.5">
+                                    <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M5 12h14" />
+                                        <path d="M12 5v14" />
+                                    </svg>
+                                    <span>{{ t('marketing.campaign_index.new_campaign') }}</span>
+                                </span>
+                            </PrimaryButton>
+                        </Link>
+                    </div>
                 </div>
 
                 <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">

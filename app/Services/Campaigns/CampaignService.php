@@ -191,7 +191,7 @@ class CampaignService
                 }
 
                 $templatePayload = $template
-                    ? $this->templateLibraryService->extractChannelTemplates($template)
+                    ? $this->templateLibraryService->extractChannelTemplates($accountOwner, $template)
                     : [
                         'subject_template' => null,
                         'title_template' => null,

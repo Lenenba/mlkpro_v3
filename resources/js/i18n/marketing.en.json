@@ -175,6 +175,15 @@
       "error_delete": "Unable to delete template.",
       "error_preview": "Unable to preview template."
     },
+    "template_page": {
+      "head_title": "Marketing templates workspace",
+      "page_title": "Marketing templates",
+      "page_description": "Work on email templates in a dedicated, wider workspace so creation and review stay clean and comfortable.",
+      "actions": {
+        "back_to_settings": "Back to settings",
+        "back_to_campaigns": "Back to campaigns"
+      }
+    },
     "segment_manager": {
       "title": "Segments",
       "segment_name": "Segment name",
@@ -384,7 +393,8 @@
       },
       "actions": {
         "view": "View",
-        "edit": "Edit"
+        "edit": "Edit",
+        "manage_templates": "Manage templates"
       }
     },
     "campaign_show": {

@@ -10,6 +10,9 @@ use App\Models\CampaignAudience;
 use App\Models\CampaignChannel;
 use App\Models\CampaignEvent;
 use App\Models\CampaignMessage;
+use App\Models\CampaignProspect;
+use App\Models\CampaignProspectActivity;
+use App\Models\CampaignProspectBatch;
 use App\Models\CampaignRecipient;
 use App\Models\CampaignRun;
 use App\Models\Customer;
@@ -2758,7 +2761,7 @@ class LaunchSeeder extends Seeder
         ]);
         $productQuote->products()->sync($productPivot);
 
-        LeadRequest::updateOrCreate(
+        $productLead = LeadRequest::updateOrCreate(
             [
                 'user_id' => $productOwner->id,
                 'title' => 'Lead - Supply order',
@@ -2869,6 +2872,13 @@ class LaunchSeeder extends Seeder
             && Schema::hasTable('marketing_settings')
             && Schema::hasTable('message_templates')
             && Schema::hasTable('campaign_offers');
+        $canSeedCampaignProspecting = $canSeedCampaigns
+            && Schema::hasTable('campaign_prospect_batches')
+            && Schema::hasTable('campaign_prospects')
+            && Schema::hasTable('campaign_prospect_activities')
+            && Schema::hasTable('requests')
+            && Schema::hasColumn('campaigns', 'campaign_direction')
+            && Schema::hasColumn('campaigns', 'prospecting_enabled');
 
         if ($canSeedCampaigns) {
             $campaignCustomers = collect([$productCustomer, $productCustomerRetail, $productCustomerWholesale])
@@ -3352,6 +3362,684 @@ class LaunchSeeder extends Seeder
                     'error_message' => null,
                 ]
             );
+
+            if ($canSeedCampaignProspecting) {
+                $prospectingStartedAt = $now->copy()->subDays(4)->setTime(9, 0, 0);
+                $prospectingCampaign = Campaign::updateOrCreate(
+                    [
+                        'user_id' => $productOwner->id,
+                        'name' => 'Prospection automne B2B (seed)',
+                    ],
+                    [
+                        'created_by_user_id' => $productOwner->id,
+                        'updated_by_user_id' => $productOwner->id,
+                        'audience_segment_id' => null,
+                        'campaign_type' => Campaign::TYPE_PROMOTION,
+                        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+                        'prospecting_enabled' => true,
+                        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+                        'language_mode' => Campaign::LANGUAGE_MODE_FR,
+                        'type' => Campaign::TYPE_PROMOTION,
+                        'status' => Campaign::STATUS_RUNNING,
+                        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+                        'scheduled_at' => null,
+                        'started_at' => $prospectingStartedAt,
+                        'completed_at' => null,
+                        'locale' => 'fr',
+                        'cta_url' => 'https://example.com/prospects/catalogue-b2b',
+                        'is_marketing' => true,
+                        'last_run_at' => $now->copy()->subHours(18),
+                        'settings' => [
+                            'seed' => 'launch',
+                            'prospecting_sequence' => [
+                                'enabled' => true,
+                                'max_steps' => 3,
+                                'follow_up_delays_hours' => [48, 96],
+                            ],
+                            'ideal_customer_profile' => [
+                                'industries' => ['fitness', 'wellness', 'hospitality'],
+                                'regions' => ['QC', 'ON'],
+                            ],
+                        ],
+                    ]
+                );
+
+                $prospectingCampaign->products()->sync($campaignProductIds);
+                if ($canSeedCampaignFoundations && $campaignProductIds !== []) {
+                    $rows = collect($campaignProductIds)->map(fn ($productId) => [
+                        'campaign_id' => $prospectingCampaign->id,
+                        'offer_type' => Product::ITEM_TYPE_PRODUCT,
+                        'offer_id' => (int) $productId,
+                        'metadata' => json_encode(['seed' => true, 'scenario' => 'prospecting']),
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ])->all();
+
+                    DB::table('campaign_offers')->upsert(
+                        $rows,
+                        ['campaign_id', 'offer_type', 'offer_id'],
+                        ['metadata', 'updated_at']
+                    );
+                }
+
+                CampaignChannel::updateOrCreate(
+                    [
+                        'campaign_id' => $prospectingCampaign->id,
+                        'channel' => Campaign::CHANNEL_EMAIL,
+                    ],
+                    [
+                        'is_enabled' => true,
+                        'subject_template' => 'Offre B2B pour {companyName}',
+                        'title_template' => null,
+                        'body_template' => 'Bonjour {firstName}, nous avons une offre adaptee a {companyName}: {ctaUrl}',
+                        'metadata' => ['seed' => true, 'scenario' => 'prospecting'],
+                    ]
+                );
+
+                CampaignChannel::updateOrCreate(
+                    [
+                        'campaign_id' => $prospectingCampaign->id,
+                        'channel' => Campaign::CHANNEL_SMS,
+                    ],
+                    [
+                        'is_enabled' => false,
+                        'subject_template' => null,
+                        'title_template' => null,
+                        'body_template' => 'Bonjour {firstName}, decouvrez notre offre B2B : {ctaUrl}',
+                        'metadata' => ['seed' => true, 'scenario' => 'prospecting'],
+                    ]
+                );
+
+                CampaignAudience::updateOrCreate(
+                    ['campaign_id' => $prospectingCampaign->id],
+                    [
+                        'smart_filters' => null,
+                        'exclusion_filters' => null,
+                        'manual_customer_ids' => [],
+                        'manual_contacts' => [],
+                        'estimated_counts' => [
+                            'total_eligible' => 3,
+                            'eligible_by_channel' => ['EMAIL' => 3],
+                            'blocked_by_channel' => ['EMAIL' => 1],
+                            'blocked_by_reason' => ['do_not_contact_list' => 1],
+                        ],
+                        'resolved_at' => $now->copy()->subHours(20),
+                    ]
+                );
+
+                $prospectingRun = CampaignRun::updateOrCreate(
+                    ['idempotency_key' => 'launch-seed-campaign-run-3'],
+                    [
+                        'campaign_id' => $prospectingCampaign->id,
+                        'user_id' => $productOwner->id,
+                        'triggered_by_user_id' => $productOwner->id,
+                        'trigger_type' => CampaignRun::TRIGGER_MANUAL,
+                        'status' => CampaignRun::STATUS_RUNNING,
+                        'scheduled_for' => null,
+                        'started_at' => $now->copy()->subHours(18),
+                        'completed_at' => null,
+                        'audience_snapshot' => [
+                            'eligible_count' => 2,
+                            'channels' => ['EMAIL'],
+                            'source' => 'launch_seed_prospecting',
+                        ],
+                        'summary' => [
+                            'queued' => 2,
+                            'sent' => 2,
+                            'delivered' => 2,
+                            'opened' => 1,
+                            'clicked' => 1,
+                            'converted' => 1,
+                        ],
+                        'error_message' => null,
+                    ]
+                );
+
+                $persistProspect = function (CampaignProspectBatch $batch, string $emailNormalized, array $values) use ($prospectingCampaign, $productOwner, $setTimestamps) {
+                    $timestamp = $values['created_at'] ?? now();
+                    $email = $values['email'] ?? $emailNormalized;
+                    $phone = $values['phone'] ?? null;
+                    $metadata = is_array($values['metadata'] ?? null) ? $values['metadata'] : [];
+                    $metadata['seed'] = 'launch';
+
+                    $prospect = CampaignProspect::updateOrCreate(
+                        [
+                            'campaign_id' => $prospectingCampaign->id,
+                            'campaign_prospect_batch_id' => $batch->id,
+                            'email_normalized' => $emailNormalized,
+                        ],
+                        array_merge([
+                            'user_id' => $productOwner->id,
+                            'source_type' => $batch->source_type,
+                            'source_reference' => $batch->source_reference,
+                            'email' => $email,
+                            'phone_normalized' => $phone,
+                            'status' => CampaignProspect::STATUS_NEW,
+                            'match_status' => CampaignProspect::MATCH_NONE,
+                            'raw_payload' => ['seed' => 'launch', 'email' => $email],
+                            'normalized_payload' => ['seed' => 'launch', 'email' => $emailNormalized],
+                            'metadata' => $metadata,
+                        ], $values)
+                    );
+
+                    $setTimestamps($prospect, $timestamp);
+
+                    return $prospect->fresh();
+                };
+
+                $persistProspectActivity = function (
+                    CampaignProspect $prospect,
+                    string $activityType,
+                    string $summary,
+                    $occurredAt,
+                    ?CampaignRun $run = null,
+                    ?string $channel = null,
+                    array $payload = []
+                ) use ($prospectingCampaign, $productOwner, $setTimestamps) {
+                    $activity = CampaignProspectActivity::updateOrCreate(
+                        [
+                            'campaign_prospect_id' => $prospect->id,
+                            'activity_type' => $activityType,
+                            'summary' => $summary,
+                        ],
+                        [
+                            'campaign_id' => $prospectingCampaign->id,
+                            'campaign_run_id' => $run?->id,
+                            'campaign_recipient_id' => null,
+                            'user_id' => $productOwner->id,
+                            'actor_user_id' => $productOwner->id,
+                            'channel' => $channel,
+                            'payload' => $payload,
+                            'occurred_at' => $occurredAt,
+                        ]
+                    );
+
+                    $setTimestamps($activity, $occurredAt);
+
+                    return $activity;
+                };
+
+                $reviewBatch = CampaignProspectBatch::updateOrCreate(
+                    [
+                        'campaign_id' => $prospectingCampaign->id,
+                        'batch_number' => 1,
+                    ],
+                    [
+                        'user_id' => $productOwner->id,
+                        'approved_by_user_id' => null,
+                        'source_type' => CampaignProspect::SOURCE_CSV,
+                        'source_reference' => 'seed-b2b-fitness-q1.csv',
+                        'input_count' => 4,
+                        'accepted_count' => 1,
+                        'rejected_count' => 1,
+                        'duplicate_count' => 1,
+                        'blocked_count' => 1,
+                        'scored_count' => 1,
+                        'contacted_count' => 0,
+                        'replied_count' => 0,
+                        'lead_count' => 0,
+                        'customer_count' => 0,
+                        'status' => CampaignProspectBatch::STATUS_ANALYZED,
+                        'analysis_summary' => [
+                            'review_required_count' => 1,
+                            'score_distribution' => ['high' => 1, 'medium' => 1, 'low' => 2],
+                            'duplicates' => 1,
+                            'blocked' => 1,
+                        ],
+                        'approved_at' => null,
+                    ]
+                );
+                $setTimestamps($reviewBatch, $now->copy()->subDays(2)->setTime(10, 0, 0));
+
+                $outreachBatch = CampaignProspectBatch::updateOrCreate(
+                    [
+                        'campaign_id' => $prospectingCampaign->id,
+                        'batch_number' => 2,
+                    ],
+                    [
+                        'user_id' => $productOwner->id,
+                        'approved_by_user_id' => $productOwner->id,
+                        'source_type' => CampaignProspect::SOURCE_MANUAL,
+                        'source_reference' => 'launch-seeder-shortlist',
+                        'input_count' => 3,
+                        'accepted_count' => 3,
+                        'rejected_count' => 0,
+                        'duplicate_count' => 0,
+                        'blocked_count' => 0,
+                        'scored_count' => 0,
+                        'contacted_count' => 2,
+                        'replied_count' => 1,
+                        'lead_count' => 1,
+                        'customer_count' => 0,
+                        'status' => CampaignProspectBatch::STATUS_RUNNING,
+                        'analysis_summary' => [
+                            'review_required_count' => 0,
+                            'approved_count' => 3,
+                            'ready_for_outreach_count' => 1,
+                            'follow_up_due_count' => 1,
+                        ],
+                        'approved_at' => $now->copy()->subDays(1)->setTime(9, 30, 0),
+                    ]
+                );
+                $setTimestamps($outreachBatch, $now->copy()->subDays(1)->setTime(9, 0, 0));
+
+                $scoredProspect = $persistProspect($reviewBatch, 'amelie@ateliernord.ca', [
+                    'created_at' => $now->copy()->subDays(2)->setTime(10, 10, 0),
+                    'external_ref' => 'seed-prospect-001',
+                    'company_name' => 'Atelier Nord',
+                    'contact_name' => 'Amelie Gagnon',
+                    'first_name' => 'Amelie',
+                    'last_name' => 'Gagnon',
+                    'email' => 'amelie@ateliernord.ca',
+                    'phone' => '+15145551010',
+                    'website' => 'https://ateliernord.ca',
+                    'website_domain' => 'ateliernord.ca',
+                    'city' => 'Montreal',
+                    'state' => 'QC',
+                    'country' => 'Canada',
+                    'industry' => 'fitness',
+                    'company_size' => '11-50',
+                    'tags' => ['studio', 'montreal'],
+                    'fit_score' => 92,
+                    'intent_score' => 58,
+                    'priority_score' => 81,
+                    'qualification_summary' => 'Studio independant avec un besoin probable de consommables recurrents.',
+                    'status' => CampaignProspect::STATUS_SCORED,
+                    'match_status' => CampaignProspect::MATCH_MANUAL_REVIEW,
+                    'owner_notes' => 'A valider avant outreach, potentiel B2B interessant.',
+                    'last_activity_at' => $now->copy()->subDays(2)->setTime(10, 20, 0),
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'review',
+                    ],
+                ]);
+
+                $duplicateProspect = $persistProspect($reviewBatch, 'product-buyer@example.com', [
+                    'created_at' => $now->copy()->subDays(2)->setTime(10, 15, 0),
+                    'external_ref' => 'seed-prospect-002',
+                    'company_name' => 'Roy Commerce',
+                    'contact_name' => 'Mia Roy',
+                    'first_name' => 'Mia',
+                    'last_name' => 'Roy',
+                    'email' => 'product-buyer@example.com',
+                    'phone' => '+14165550001',
+                    'website' => 'https://roy-commerce.example.com',
+                    'website_domain' => 'roy-commerce.example.com',
+                    'city' => 'Toronto',
+                    'state' => 'ON',
+                    'country' => 'Canada',
+                    'industry' => 'retail',
+                    'company_size' => '1-10',
+                    'tags' => ['duplicate', 'existing_lead'],
+                    'fit_score' => 61,
+                    'intent_score' => 34,
+                    'priority_score' => 43,
+                    'qualification_summary' => 'Contact deja present dans le pipeline leads.',
+                    'status' => CampaignProspect::STATUS_DUPLICATE,
+                    'match_status' => CampaignProspect::MATCH_LEAD,
+                    'matched_lead_id' => $productLead->id,
+                    'blocked_reason' => 'existing_lead',
+                    'last_activity_at' => $now->copy()->subDays(2)->setTime(10, 22, 0),
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'duplicate',
+                    ],
+                ]);
+
+                $blockedProspect = $persistProspect($reviewBatch, 'optout@clinicriver.ca', [
+                    'created_at' => $now->copy()->subDays(2)->setTime(10, 18, 0),
+                    'external_ref' => 'seed-prospect-003',
+                    'company_name' => 'Clinique River',
+                    'contact_name' => 'Sarah Cote',
+                    'first_name' => 'Sarah',
+                    'last_name' => 'Cote',
+                    'email' => 'optout@clinicriver.ca',
+                    'phone' => '+15145551030',
+                    'website' => 'https://clinicriver.ca',
+                    'website_domain' => 'clinicriver.ca',
+                    'city' => 'Quebec',
+                    'state' => 'QC',
+                    'country' => 'Canada',
+                    'industry' => 'wellness',
+                    'company_size' => '11-50',
+                    'tags' => ['blocked'],
+                    'fit_score' => 56,
+                    'intent_score' => 22,
+                    'priority_score' => 29,
+                    'qualification_summary' => 'Adresse presente dans la liste de blocage marketing.',
+                    'status' => CampaignProspect::STATUS_BLOCKED,
+                    'match_status' => CampaignProspect::MATCH_BLOCKED_DESTINATION,
+                    'do_not_contact' => true,
+                    'blocked_reason' => 'do_not_contact_list',
+                    'last_activity_at' => $now->copy()->subDays(2)->setTime(10, 24, 0),
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'blocked',
+                    ],
+                ]);
+
+                $doNotContactProspect = $persistProspect($reviewBatch, 'camille@studiozen.ca', [
+                    'created_at' => $now->copy()->subDays(2)->setTime(10, 21, 0),
+                    'external_ref' => 'seed-prospect-004',
+                    'company_name' => 'Studio Zen',
+                    'contact_name' => 'Camille Roy',
+                    'first_name' => 'Camille',
+                    'last_name' => 'Roy',
+                    'email' => 'camille@studiozen.ca',
+                    'phone' => '+15145551040',
+                    'website' => 'https://studiozen.ca',
+                    'website_domain' => 'studiozen.ca',
+                    'city' => 'Sherbrooke',
+                    'state' => 'QC',
+                    'country' => 'Canada',
+                    'industry' => 'wellness',
+                    'company_size' => '1-10',
+                    'tags' => ['dnc'],
+                    'fit_score' => 48,
+                    'intent_score' => 12,
+                    'priority_score' => 19,
+                    'qualification_summary' => 'Demande manuelle de ne plus etre contactee.',
+                    'status' => CampaignProspect::STATUS_DO_NOT_CONTACT,
+                    'match_status' => CampaignProspect::MATCH_NONE,
+                    'do_not_contact' => true,
+                    'blocked_reason' => 'manual_opt_out',
+                    'last_activity_at' => $now->copy()->subDays(2)->setTime(10, 26, 0),
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'reject',
+                    ],
+                ]);
+
+                $approvedProspect = $persistProspect($outreachBatch, 'claire@espacerituel.ca', [
+                    'created_at' => $now->copy()->subDays(1)->setTime(9, 5, 0),
+                    'external_ref' => 'seed-prospect-005',
+                    'company_name' => 'Espace Rituel',
+                    'contact_name' => 'Claire Dubois',
+                    'first_name' => 'Claire',
+                    'last_name' => 'Dubois',
+                    'email' => 'claire@espacerituel.ca',
+                    'phone' => '+15145552010',
+                    'website' => 'https://espacerituel.ca',
+                    'website_domain' => 'espacerituel.ca',
+                    'city' => 'Montreal',
+                    'state' => 'QC',
+                    'country' => 'Canada',
+                    'industry' => 'wellness',
+                    'company_size' => '11-50',
+                    'tags' => ['approved', 'spa'],
+                    'fit_score' => 83,
+                    'intent_score' => 41,
+                    'priority_score' => 72,
+                    'qualification_summary' => 'Compte cible valide pour une premiere prise de contact.',
+                    'status' => CampaignProspect::STATUS_APPROVED,
+                    'match_status' => CampaignProspect::MATCH_NONE,
+                    'owner_notes' => 'Pret pour le prochain envoi email.',
+                    'last_activity_at' => $now->copy()->subDays(1)->setTime(9, 25, 0),
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'approved',
+                        'sequence' => [
+                            'current_step' => 0,
+                            'current_phase' => 'ready',
+                            'next_follow_up_at' => null,
+                        ],
+                    ],
+                ]);
+
+                $followUpProspect = $persistProspect($outreachBatch, 'mario@urbanbean.ca', [
+                    'created_at' => $now->copy()->subDays(1)->setTime(9, 8, 0),
+                    'external_ref' => 'seed-prospect-006',
+                    'company_name' => 'Urban Bean',
+                    'contact_name' => 'Mario Pelletier',
+                    'first_name' => 'Mario',
+                    'last_name' => 'Pelletier',
+                    'email' => 'mario@urbanbean.ca',
+                    'phone' => '+14165552110',
+                    'website' => 'https://urbanbean.ca',
+                    'website_domain' => 'urbanbean.ca',
+                    'city' => 'Ottawa',
+                    'state' => 'ON',
+                    'country' => 'Canada',
+                    'industry' => 'hospitality',
+                    'company_size' => '11-50',
+                    'tags' => ['follow-up', 'cafe'],
+                    'fit_score' => 76,
+                    'intent_score' => 66,
+                    'priority_score' => 77,
+                    'qualification_summary' => 'Premier contact envoye, relance a programmer.',
+                    'status' => CampaignProspect::STATUS_FOLLOW_UP_DUE,
+                    'match_status' => CampaignProspect::MATCH_NONE,
+                    'first_contacted_at' => $now->copy()->subHours(30),
+                    'last_contacted_at' => $now->copy()->subHours(30),
+                    'last_activity_at' => $now->copy()->subHours(6),
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'review',
+                        'sequence' => [
+                            'current_step' => 2,
+                            'current_phase' => 'follow_up_1',
+                            'next_follow_up_at' => $now->copy()->addHours(12)->toJSON(),
+                        ],
+                    ],
+                ]);
+
+                $convertedProspect = $persistProspect($outreachBatch, 'nadia@studioforma.ca', [
+                    'created_at' => $now->copy()->subDays(1)->setTime(9, 12, 0),
+                    'external_ref' => 'seed-prospect-007',
+                    'company_name' => 'Studio Forma',
+                    'contact_name' => 'Nadia Karim',
+                    'first_name' => 'Nadia',
+                    'last_name' => 'Karim',
+                    'email' => 'nadia@studioforma.ca',
+                    'phone' => '+15145552220',
+                    'website' => 'https://studioforma.ca',
+                    'website_domain' => 'studioforma.ca',
+                    'city' => 'Montreal',
+                    'state' => 'QC',
+                    'country' => 'Canada',
+                    'industry' => 'fitness',
+                    'company_size' => '11-50',
+                    'tags' => ['converted', 'gym'],
+                    'fit_score' => 94,
+                    'intent_score' => 79,
+                    'priority_score' => 91,
+                    'qualification_summary' => 'A repondu favorablement et souhaite une offre adaptee.',
+                    'status' => CampaignProspect::STATUS_CONVERTED_TO_LEAD,
+                    'match_status' => CampaignProspect::MATCH_NONE,
+                    'first_contacted_at' => $now->copy()->subHours(40),
+                    'last_contacted_at' => $now->copy()->subHours(24),
+                    'last_replied_at' => $now->copy()->subHours(20),
+                    'last_activity_at' => $now->copy()->subHours(20),
+                    'owner_notes' => 'Lead cree apres reponse positive au second message.',
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'approved',
+                        'sequence' => [
+                            'current_step' => 3,
+                            'current_phase' => 'follow_up_2',
+                            'next_follow_up_at' => null,
+                        ],
+                    ],
+                ]);
+
+                $seededProspectingLead = LeadRequest::updateOrCreate(
+                    [
+                        'user_id' => $productOwner->id,
+                        'title' => 'Lead - Studio Forma outbound',
+                    ],
+                    [
+                        'customer_id' => null,
+                        'status' => LeadRequest::STATUS_CONTACTED,
+                        'status_updated_at' => $now->copy()->subHours(20),
+                        'next_follow_up_at' => $now->copy()->addDay(),
+                        'service_type' => 'Approvisionnement B2B',
+                        'urgency' => 'normal',
+                        'channel' => 'campaign',
+                        'description' => 'Lead cree depuis la campagne de prospection seed.',
+                        'contact_name' => 'Nadia Karim',
+                        'contact_email' => 'nadia@studioforma.ca',
+                        'contact_phone' => '+15145552220',
+                        'country' => 'Canada',
+                        'state' => 'QC',
+                        'city' => 'Montreal',
+                        'street1' => '88 Avenue du Parc',
+                        'meta' => [
+                            'source_kind' => 'campaign_prospecting',
+                            'source_direction' => 'outbound',
+                            'source_campaign_direction' => $prospectingCampaign->resolvedCampaignDirection(),
+                            'source_campaign_id' => (int) $prospectingCampaign->id,
+                            'source_campaign_name' => (string) $prospectingCampaign->name,
+                            'source_campaign_run_id' => (int) $prospectingRun->id,
+                            'source_campaign_recipient_id' => null,
+                            'source_prospect_id' => (int) $convertedProspect->id,
+                            'source_prospect_batch_id' => (int) $outreachBatch->id,
+                            'source_channel' => 'EMAIL',
+                            'source_outreach_phase' => 'follow_up_2',
+                            'source_fit_score' => $convertedProspect->fit_score,
+                            'source_intent_score' => $convertedProspect->intent_score,
+                            'source_priority_score' => $convertedProspect->priority_score,
+                            'source_first_contacted_at' => optional($convertedProspect->first_contacted_at)->toJSON(),
+                            'source_last_contacted_at' => optional($convertedProspect->last_contacted_at)->toJSON(),
+                            'source_last_replied_at' => optional($convertedProspect->last_replied_at)->toJSON(),
+                            'source_converted_at' => $now->copy()->subHours(20)->toJSON(),
+                        ],
+                    ]
+                );
+                $setTimestamps($seededProspectingLead, $now->copy()->subHours(20));
+
+                $convertedMetadata = is_array($convertedProspect->metadata) ? $convertedProspect->metadata : [];
+                $convertedMetadata['lead_conversion'] = [
+                    'lead_id' => (int) $seededProspectingLead->id,
+                    'created' => true,
+                    'converted_at' => $now->copy()->subHours(20)->toJSON(),
+                    'converted_by_user_id' => $productOwner->id,
+                ];
+
+                $convertedProspect->forceFill([
+                    'matched_lead_id' => $seededProspectingLead->id,
+                    'converted_to_lead_id' => $seededProspectingLead->id,
+                    'metadata' => $convertedMetadata,
+                ])->saveQuietly();
+
+                $persistProspectActivity(
+                    $scoredProspect,
+                    'analyzed',
+                    'Prospect analyse et envoye en revue manuelle.',
+                    $now->copy()->subDays(2)->setTime(10, 20, 0),
+                    null,
+                    null,
+                    ['fit_score' => 92, 'intent_score' => 58]
+                );
+                $persistProspectActivity(
+                    $duplicateProspect,
+                    'duplicate_detected',
+                    'Doublon detecte avec un lead existant.',
+                    $now->copy()->subDays(2)->setTime(10, 22, 0),
+                    null,
+                    null,
+                    ['matched_lead_id' => $productLead->id]
+                );
+                $persistProspectActivity(
+                    $blockedProspect,
+                    'blocked',
+                    'Destination bloquee par la liste DNC.',
+                    $now->copy()->subDays(2)->setTime(10, 24, 0),
+                    null,
+                    'EMAIL',
+                    ['reason' => 'do_not_contact_list']
+                );
+                $persistProspectActivity(
+                    $doNotContactProspect,
+                    'manual_do_not_contact',
+                    'Prospect marque manuellement comme ne plus contacter.',
+                    $now->copy()->subDays(2)->setTime(10, 26, 0),
+                    null,
+                    null,
+                    ['reason' => 'manual_opt_out']
+                );
+                $persistProspectActivity(
+                    $approvedProspect,
+                    'approved',
+                    'Prospect approuve pour la prochaine vague.',
+                    $now->copy()->subDays(1)->setTime(9, 25, 0),
+                    null,
+                    null,
+                    ['batch_id' => $outreachBatch->id]
+                );
+                $persistProspectActivity(
+                    $followUpProspect,
+                    'outreach_sent',
+                    'Premier message de prospection envoye.',
+                    $now->copy()->subHours(30),
+                    $prospectingRun,
+                    'EMAIL',
+                    ['step' => 1, 'phase' => 'first_touch']
+                );
+                $persistProspectActivity(
+                    $followUpProspect,
+                    'follow_up_scheduled',
+                    'Relance planifiee pour le prochain cycle.',
+                    $now->copy()->subHours(6),
+                    $prospectingRun,
+                    'EMAIL',
+                    ['step' => 2, 'phase' => 'follow_up_1']
+                );
+                $persistProspectActivity(
+                    $convertedProspect,
+                    'outreach_sent',
+                    'Message de suivi envoye au prospect.',
+                    $now->copy()->subHours(40),
+                    $prospectingRun,
+                    'EMAIL',
+                    ['step' => 2, 'phase' => 'follow_up_1']
+                );
+                $persistProspectActivity(
+                    $convertedProspect,
+                    'prospect_replied',
+                    'Le prospect a repondu avec un interet confirme.',
+                    $now->copy()->subHours(20),
+                    $prospectingRun,
+                    'EMAIL',
+                    ['response' => 'positive']
+                );
+                $persistProspectActivity(
+                    $convertedProspect,
+                    'converted_to_lead',
+                    'Prospect converti en lead commercial.',
+                    $now->copy()->subHours(20),
+                    $prospectingRun,
+                    'EMAIL',
+                    ['lead_id' => $seededProspectingLead->id]
+                );
+
+                $reviewBatch->forceFill([
+                    'input_count' => 4,
+                    'accepted_count' => 1,
+                    'rejected_count' => 1,
+                    'duplicate_count' => 1,
+                    'blocked_count' => 1,
+                    'scored_count' => 1,
+                    'contacted_count' => 0,
+                    'replied_count' => 0,
+                    'lead_count' => 0,
+                    'customer_count' => 0,
+                    'status' => CampaignProspectBatch::STATUS_ANALYZED,
+                ])->saveQuietly();
+
+                $outreachBatch->forceFill([
+                    'input_count' => 3,
+                    'accepted_count' => 3,
+                    'rejected_count' => 0,
+                    'duplicate_count' => 0,
+                    'blocked_count' => 0,
+                    'scored_count' => 0,
+                    'contacted_count' => 2,
+                    'replied_count' => 1,
+                    'lead_count' => 1,
+                    'customer_count' => 0,
+                    'status' => CampaignProspectBatch::STATUS_RUNNING,
+                ])->saveQuietly();
+            }
         }
 
         $productSalesCatalog = $productProducts

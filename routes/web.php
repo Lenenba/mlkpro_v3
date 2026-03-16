@@ -460,12 +460,17 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     });
 
     Route::middleware('company.feature:campaigns')->group(function () {
+        Route::get('/campaigns/templates', [MarketingTemplateController::class, 'manage'])
+            ->name('campaigns.templates.manage');
         Route::get('/offers/search', [OfferSearchController::class, 'search'])->name('offers.search');
         Route::get('/marketing/meta', MarketingMetaController::class)->name('marketing.meta');
         Route::get('/marketing/dashboard/kpis', MarketingDashboardKpiController::class)->name('marketing.dashboard.kpis');
         Route::get('/marketing/templates', [MarketingTemplateController::class, 'index'])->name('marketing.templates.index');
         Route::post('/marketing/templates', [MarketingTemplateController::class, 'store'])->name('marketing.templates.store');
+        Route::post('/marketing/templates/upload-image', [MarketingTemplateController::class, 'uploadImage'])
+            ->name('marketing.templates.upload-image');
         Route::get('/marketing/templates/{template}', [MarketingTemplateController::class, 'show'])->name('marketing.templates.show');
+        Route::post('/marketing/templates/{template}/duplicate', [MarketingTemplateController::class, 'duplicate'])->name('marketing.templates.duplicate');
         Route::put('/marketing/templates/{template}', [MarketingTemplateController::class, 'update'])->name('marketing.templates.update');
         Route::delete('/marketing/templates/{template}', [MarketingTemplateController::class, 'destroy'])->name('marketing.templates.destroy');
         Route::post('/marketing/templates/preview', [MarketingTemplateController::class, 'preview'])->name('marketing.templates.preview');

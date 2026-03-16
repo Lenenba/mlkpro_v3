@@ -9,6 +9,11 @@ use Illuminate\Support\Facades\Mail;
 
 class EmailCampaignProvider implements CampaignChannelProvider
 {
+    public function __construct(
+        private readonly \App\Services\Campaigns\BrandProfileService $brandProfileService,
+    ) {
+    }
+
     public function channel(): string
     {
         return Campaign::CHANNEL_EMAIL;
@@ -31,8 +36,23 @@ class EmailCampaignProvider implements CampaignChannelProvider
         }
 
         try {
-            Mail::html((string) $message->body_rendered, function ($mail) use ($to, $subject): void {
+            $owner = $recipient->campaign?->relationLoaded('user')
+                ? $recipient->campaign?->user
+                : $recipient->campaign?->user()->first();
+            $brand = $owner ? $this->brandProfileService->resolve($owner) : [];
+            $fromName = trim((string) ($brand['name'] ?? ''));
+            $replyTo = trim((string) ($brand['reply_to_email'] ?? $brand['contact_email'] ?? ''));
+
+            Mail::html((string) $message->body_rendered, function ($mail) use ($to, $subject, $fromName, $replyTo): void {
                 $mail->to($to)->subject($subject);
+
+                if ($fromName !== '') {
+                    $mail->from((string) config('mail.from.address'), $fromName);
+                }
+
+                if ($replyTo !== '' && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
+                    $mail->replyTo($replyTo);
+                }
             });
         } catch (\Throwable $exception) {
             return [

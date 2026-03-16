@@ -1494,15 +1494,16 @@ const applyTemplate = (channelRow) => {
     const template = templates.value.find((row) => Number(row.id) === id);
     if (!template) return;
     const content = template.content || {};
+    const channelTemplates = template.channel_templates || {};
     const channel = String(channelRow.channel).toUpperCase();
     if (channel === 'EMAIL') {
-        channelRow.subject_template = content.subject || '';
-        channelRow.body_template = content.html || content.body || '';
+        channelRow.subject_template = channelTemplates.subject_template || content.subject || '';
+        channelRow.body_template = channelTemplates.body_template || content.html || content.body || '';
     } else if (channel === 'SMS') {
-        channelRow.body_template = content.text || content.body || '';
+        channelRow.body_template = channelTemplates.body_template || content.text || content.body || '';
     } else if (channel === 'IN_APP') {
-        channelRow.title_template = content.title || '';
-        channelRow.body_template = content.body || '';
+        channelRow.title_template = channelTemplates.title_template || content.title || '';
+        channelRow.body_template = channelTemplates.body_template || content.body || '';
     }
 };
 

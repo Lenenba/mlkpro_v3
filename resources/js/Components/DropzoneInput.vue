@@ -26,6 +26,27 @@ const input = ref(null); // Référence pour l'élément input de fichier
 const preview = ref(null); // Référence pour l'aperçu de l'image
 const progress = ref(0); // Progression fictive (par exemple pour l'upload)
 const errorMessage = ref('');
+const isDragging = ref(false);
+
+const previewName = computed(() => {
+  if (file.value instanceof File) {
+    return file.value.name;
+  }
+
+  return props.label || 'Image preview';
+});
+
+const previewMeta = computed(() => {
+  if (file.value instanceof File) {
+    return `${(file.value.size / 1024).toFixed(2)} KB`;
+  }
+
+  if (typeof props.modelValue === 'string' && props.modelValue.trim() !== '') {
+    return 'Current image';
+  }
+
+  return '';
+});
 
 const updatePreview = (value) => {
   if (value instanceof File) {
@@ -44,42 +65,47 @@ const updatePreview = (value) => {
   progress.value = 0;
 };
 
+const processSelectedFile = async (selectedFile, resetInput = null) => {
+  if (!selectedFile) {
+    return;
+  }
+
+  errorMessage.value = '';
+  progress.value = 0;
+
+  const result = await resizeImageFile(selectedFile, {
+    maxDimension: MEDIA_LIMITS.maxImageDimension,
+    maxBytes: MEDIA_LIMITS.maxImageBytes,
+  });
+  if (result.error) {
+    errorMessage.value = result.error;
+    if (resetInput) {
+      resetInput.value = '';
+    }
+    return;
+  }
+
+  const processedFile = result.file;
+  file.value = processedFile;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    preview.value = e.target.result;
+  };
+  reader.readAsDataURL(processedFile);
+
+  const interval = setInterval(() => {
+    if (progress.value >= 100) {
+      clearInterval(interval);
+    } else {
+      progress.value += 10;
+    }
+  }, 100);
+};
+
 // Fonction pour gérer le changement de fichier
 const handleFileChange = async (event) => {
-  const selectedFile = event.target.files[0];
-  if (selectedFile) {
-    errorMessage.value = '';
-    progress.value = 0; // R‚initialiser la barre de progression
-
-    const result = await resizeImageFile(selectedFile, {
-      maxDimension: MEDIA_LIMITS.maxImageDimension,
-      maxBytes: MEDIA_LIMITS.maxImageBytes,
-    });
-    if (result.error) {
-      errorMessage.value = result.error;
-      event.target.value = '';
-      return;
-    }
-    const processedFile = result.file;
-
-    file.value = processedFile; // Met … jour v-model
-
-    // G‚n‚rer un aper‡u de l'image
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      preview.value = e.target.result;
-    };
-    reader.readAsDataURL(processedFile);
-
-    // Simuler la progression (remplacez par une vraie logique d'upload si n‚cessaire)
-    const interval = setInterval(() => {
-      if (progress.value >= 100) {
-        clearInterval(interval);
-      } else {
-        progress.value += 10;
-      }
-    }, 100);
-  }
+  await processSelectedFile(event.target.files[0], event.target);
 };
 
 // Fonction pour déclencher l'ouverture du champ <input>
@@ -95,6 +121,27 @@ const removeFile = () => {
   preview.value = null; // Supprimer l'aper‡u
   progress.value = 0; // R‚initialiser la progression
   errorMessage.value = '';
+  isDragging.value = false;
+  if (input.value) {
+    input.value.value = '';
+  }
+};
+
+const handleDragOver = (event) => {
+  event.preventDefault();
+  isDragging.value = true;
+};
+
+const handleDragLeave = () => {
+  isDragging.value = false;
+};
+
+const handleDrop = async (event) => {
+  event.preventDefault();
+  isDragging.value = false;
+
+  const droppedFile = event.dataTransfer?.files?.[0];
+  await processSelectedFile(droppedFile);
 };
 
 
@@ -129,10 +176,10 @@ watch(
             />
             <div>
               <p class="text-sm font-medium text-stone-800 dark:text-white">
-                {{ file.value?.name || "Image preview" }}
+                {{ previewName }}
               </p>
-              <p class="text-xs text-stone-500 dark:text-neutral-500">
-                {{ (file.value?.size / 1024).toFixed(2) }} KB
+              <p v-if="previewMeta" class="text-xs text-stone-500 dark:text-neutral-500">
+                {{ previewMeta }}
               </p>
             </div>
           </div>
@@ -184,8 +231,14 @@ watch(
     <!-- Bouton pour ajouter un fichier -->
     <div
       v-else
-      class="cursor-pointer p-12 flex justify-center bg-white border border-dashed border-stone-300 rounded-sm dark:bg-neutral-800 dark:border-neutral-600"
+      class="cursor-pointer p-12 flex justify-center border border-dashed rounded-sm transition"
+      :class="isDragging
+        ? 'border-stone-500 bg-stone-100 dark:border-neutral-400 dark:bg-neutral-700'
+        : 'border-stone-300 bg-white dark:border-neutral-600 dark:bg-neutral-800'"
       @click="triggerFileInput"
+      @dragover="handleDragOver"
+      @dragleave="handleDragLeave"
+      @drop="handleDrop"
     >
       <div class="text-center">
         <span

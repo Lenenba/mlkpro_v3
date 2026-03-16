@@ -7,16 +7,20 @@ use App\Models\Customer;
 use App\Models\MessageTemplate;
 use App\Models\Product;
 use App\Models\User;
+use App\Utils\FileHandler;
 use App\Services\Campaigns\TemplateLibraryService;
 use App\Services\Campaigns\TemplateRenderer;
+use App\Services\Campaigns\BrandProfileService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Storage;
 
 class MarketingTemplateController extends Controller
 {
     public function __construct(
         private readonly TemplateLibraryService $templateLibraryService,
         private readonly TemplateRenderer $templateRenderer,
+        private readonly BrandProfileService $brandProfileService,
     ) {
     }
 
@@ -34,10 +38,31 @@ class MarketingTemplateController extends Controller
             'search' => 'nullable|string|max:120',
         ]);
 
-        $templates = $this->templateLibraryService->list($owner, $validated);
+        $templates = $this->templateLibraryService->list($owner, $validated)
+            ->map(fn (MessageTemplate $template): array => $this->serializeTemplate($owner, $template))
+            ->values();
 
         return response()->json([
             'templates' => $templates,
+            'presets' => $this->templateLibraryService->presetCatalog(),
+            'block_library' => $this->templateLibraryService->blockLibrary(),
+            'supported_tokens' => $this->templateRenderer->allowedTokens(),
+            'brand_profile' => $this->brandProfileService->resolve($owner),
+        ]);
+    }
+
+    public function manage(Request $request)
+    {
+        [$owner, , $canManage] = $this->resolveAccess($request->user());
+        if (! $canManage) {
+            abort(403);
+        }
+
+        return $this->inertiaOrJson('Campaigns/Templates', [
+            'enums' => [
+                'campaign_types' => Campaign::allowedTypes(),
+            ],
+            'brand_profile' => $this->brandProfileService->resolve($owner),
         ]);
     }
 
@@ -53,8 +78,29 @@ class MarketingTemplateController extends Controller
         }
 
         return response()->json([
-            'template' => $template,
+            'template' => $this->serializeTemplate($owner, $template),
+            'supported_tokens' => $this->templateRenderer->allowedTokens(),
+            'brand_profile' => $this->brandProfileService->resolve($owner),
         ]);
+    }
+
+    public function duplicate(Request $request, MessageTemplate $template)
+    {
+        [$owner, , $canManage] = $this->resolveAccess($request->user());
+        if (!$canManage) {
+            abort(403);
+        }
+
+        if ((int) $template->user_id !== (int) $owner->id) {
+            abort(404);
+        }
+
+        $duplicate = $this->templateLibraryService->duplicate($owner, $request->user(), $template);
+
+        return response()->json([
+            'message' => 'Template duplicated.',
+            'template' => $this->serializeTemplate($owner, $duplicate),
+        ], 201);
     }
 
     public function store(Request $request)
@@ -69,7 +115,7 @@ class MarketingTemplateController extends Controller
 
         return response()->json([
             'message' => 'Template created.',
-            'template' => $template,
+            'template' => $this->serializeTemplate($owner, $template),
         ], 201);
     }
 
@@ -89,7 +135,7 @@ class MarketingTemplateController extends Controller
 
         return response()->json([
             'message' => 'Template updated.',
-            'template' => $updated,
+            'template' => $this->serializeTemplate($owner, $updated),
         ]);
     }
 
@@ -132,6 +178,7 @@ class MarketingTemplateController extends Controller
         );
 
         $preview = $this->templateLibraryService->preview(
+            $owner,
             (string) $validated['channel'],
             (array) $validated['content'],
             $context,
@@ -172,6 +219,7 @@ class MarketingTemplateController extends Controller
             : (array) ($template->content ?? []);
 
         $preview = $this->templateLibraryService->preview(
+            $owner,
             (string) $template->channel,
             $content,
             $context,
@@ -183,6 +231,26 @@ class MarketingTemplateController extends Controller
             'template' => $template,
             'sample' => $sample,
         ]);
+    }
+
+    public function uploadImage(Request $request)
+    {
+        [$owner, , $canManage] = $this->resolveAccess($request->user());
+        if (! $canManage) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'image' => 'required|file|image|max:5120',
+        ]);
+
+        $path = FileHandler::storeFile('campaign-template-images/'.$owner->id, $validated['image']);
+
+        return response()->json([
+            'message' => 'Image uploaded.',
+            'path' => $path,
+            'url' => Storage::disk('public')->url($path),
+        ], 201);
     }
 
     /**
@@ -268,7 +336,7 @@ class MarketingTemplateController extends Controller
         $ownerId = $user->accountOwnerId();
         $owner = $ownerId === $user->id
             ? $user
-            : User::query()->select(['id'])->find($ownerId);
+            : User::query()->find($ownerId);
         if (!$owner) {
             abort(403);
         }
@@ -291,5 +359,15 @@ class MarketingTemplateController extends Controller
 
         return [$owner, $canView, $canManage];
     }
-}
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeTemplate(User $owner, MessageTemplate $template): array
+    {
+        $payload = $template->toArray();
+        $payload['channel_templates'] = $this->templateLibraryService->extractChannelTemplates($owner, $template);
+
+        return $payload;
+    }
+}

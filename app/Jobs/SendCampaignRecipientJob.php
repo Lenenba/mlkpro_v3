@@ -77,11 +77,24 @@ class SendCampaignRecipientJob implements ShouldQueue
         $abVariant = $resolvedChannel['variant'];
 
         $product = $recipient->campaign->offers->first()?->offer ?: $recipient->campaign->products->first();
+        $trackedUrl = $recipient->campaign->cta_url
+            ? $trackingService->trackedUrl($recipient)
+            : null;
+        $unsubscribeUrl = strtoupper((string) $recipient->channel) === Campaign::CHANNEL_EMAIL
+            ? $trackingService->unsubscribeUrl($recipient)
+            : null;
         $context = $renderer->buildContext(
             $recipient->campaign,
             $recipient->customer,
             $product,
-            $prospectingOutreachService->buildContextExtrasFromRecipient($recipient)
+            array_merge(
+                $prospectingOutreachService->buildContextExtrasFromRecipient($recipient),
+                [
+                    'ctaUrl' => (string) ($trackedUrl ?: $recipient->campaign->cta_url),
+                    'trackedCtaUrl' => (string) ($trackedUrl ?: $recipient->campaign->cta_url),
+                    'unsubscribeUrl' => (string) ($unsubscribeUrl ?? ''),
+                ]
+            )
         );
         $rendered = $renderer->renderChannel($channelForRender, $context);
 
@@ -104,10 +117,6 @@ class SendCampaignRecipientJob implements ShouldQueue
 
             return;
         }
-
-        $trackedUrl = $recipient->campaign->cta_url
-            ? $trackingService->trackedUrl($recipient)
-            : null;
 
         $message = CampaignMessage::query()->updateOrCreate(
             ['campaign_recipient_id' => $recipient->id],

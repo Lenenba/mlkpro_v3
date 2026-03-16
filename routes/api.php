@@ -325,6 +325,7 @@ Route::name('api.')->group(function () {
                 Route::get('marketing/templates', [MarketingTemplateController::class, 'index']);
                 Route::post('marketing/templates', [MarketingTemplateController::class, 'store']);
                 Route::get('marketing/templates/{template}', [MarketingTemplateController::class, 'show']);
+                Route::post('marketing/templates/{template}/duplicate', [MarketingTemplateController::class, 'duplicate']);
                 Route::put('marketing/templates/{template}', [MarketingTemplateController::class, 'update']);
                 Route::delete('marketing/templates/{template}', [MarketingTemplateController::class, 'destroy']);
                 Route::post('marketing/templates/preview', [MarketingTemplateController::class, 'preview']);

@@ -693,7 +693,7 @@ class CampaignController extends Controller
         $ownerId = $user->accountOwnerId();
         $owner = $ownerId === $user->id
             ? $user
-            : User::query()->select(['id'])->find($ownerId);
+            : User::query()->find($ownerId);
 
         if (!$owner) {
             abort(403);

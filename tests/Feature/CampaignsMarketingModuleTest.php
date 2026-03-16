@@ -25,15 +25,21 @@ use App\Services\Campaigns\CampaignRunProgressService;
 use App\Services\Campaigns\CampaignService;
 use App\Services\Campaigns\CampaignTrackingService;
 use App\Services\Campaigns\ConsentService;
+use App\Services\Campaigns\EmailTemplateComposer;
 use App\Services\Campaigns\FatigueLimiter;
 use App\Services\Campaigns\MarketingSettingsService;
 use App\Services\Campaigns\TemplateLibraryService;
+use App\Services\Campaigns\TemplateRenderer;
 use App\Services\Campaigns\TemplateSeederService;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -141,6 +147,20 @@ function forceCurrentTimeWithinMarketingQuietHours(User $owner): void
 beforeEach(function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $this->withoutMiddleware(EnsureTwoFactorVerified::class);
+
+    $dispatcher = DB::connection()->getEventDispatcher();
+    DB::connection()->unsetEventDispatcher();
+    try {
+        if (! Schema::hasTable('cache')) {
+            Schema::create('cache', function (Blueprint $table): void {
+                $table->string('key')->primary();
+                $table->mediumText('value');
+                $table->integer('expiration');
+            });
+        }
+    } finally {
+        DB::connection()->setEventDispatcher($dispatcher);
+    }
 });
 
 test('offer search supports cursor pagination', function () {
@@ -272,6 +292,105 @@ test('template library resolves most specific default template', function () {
     expect($resolvedFr?->id)->toBe($promotionFr->id);
     expect($resolvedEn?->id)->toBe($promotionDefault->id);
     expect($resolvedOther?->id)->toBe($fallback->id);
+});
+
+test('template renderer resolves campaign id token in context', function () {
+    $owner = marketingOwner();
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'Context campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+    ]);
+    $campaign->setRelation('user', $owner);
+
+    /** @var TemplateRenderer $renderer */
+    $renderer = app(TemplateRenderer::class);
+    $context = $renderer->buildContext($campaign);
+
+    expect($renderer->render('/campaigns/{campaignId}', $context))->toBe('/campaigns/'.$campaign->id);
+});
+
+test('email template composer compiles simple three-section schema', function () {
+    /** @var EmailTemplateComposer $composer */
+    $composer = app(EmailTemplateComposer::class);
+
+    $html = $composer->compile([
+        'editorMode' => 'builder',
+        'schema' => [
+            'sections' => [
+                [
+                    'key' => 'header',
+                    'column_count' => 2,
+                    'columns' => [
+                        [
+                            'kicker' => 'Promotion',
+                            'title' => 'Hello {firstName}',
+                            'body' => 'Discover {offerName}',
+                            'button_label' => 'Shop now',
+                            'button_url' => '{trackedCtaUrl}',
+                        ],
+                        [
+                            'title' => 'Save {promoPercent}%',
+                            'body' => 'Use code {promoCode}',
+                            'image_url' => '{offerImageUrl}',
+                        ],
+                    ],
+                ],
+                [
+                    'key' => 'body',
+                    'column_count' => 1,
+                    'columns' => [
+                        [
+                            'title' => 'Main details',
+                            'body' => 'Amount {amountFormatted}',
+                        ],
+                    ],
+                ],
+                [
+                    'key' => 'footer',
+                    'enabled' => false,
+                    'column_count' => 1,
+                    'columns' => [
+                        [
+                            'title' => 'Need help?',
+                            'body' => 'Call {brandPhone}',
+                            'button_label' => 'Contact us',
+                            'button_url' => '{brandContactUrl}',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    expect($html)->toContain('Hello {firstName}');
+    expect($html)->toContain('Save {promoPercent}%');
+    expect($html)->toContain('Main details');
+    expect($html)->not->toContain('Need help?');
+    expect($html)->toContain('{brandLogoUrl}');
+    expect($html)->not->toContain('linear-gradient');
+});
+
+test('marketing template image upload stores file and returns public url', function () {
+    Storage::fake('public');
+
+    $owner = marketingOwner();
+
+    $response = $this->actingAs($owner)->post(route('marketing.templates.upload-image'), [
+        'image' => UploadedFile::fake()->image('hero-banner.png', 1200, 800),
+    ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('message', 'Image uploaded.');
+
+    $path = $response->json('path');
+    expect($path)->toBeString()->not->toBe('');
+    Storage::disk('public')->assertExists($path);
+    expect($response->json('url'))->toBe(Storage::disk('public')->url($path));
 });
 
 test('consent and fatigue rules are enforced', function () {
