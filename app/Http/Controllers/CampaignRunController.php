@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Campaign;
+use App\Models\CampaignProspect;
 use App\Models\CampaignRecipient;
 use App\Models\CampaignRun;
 use App\Models\Customer;
 use App\Models\User;
 use App\Services\Campaigns\AudienceResolver;
+use App\Services\Campaigns\CampaignProspectingOutreachService;
 use App\Services\Campaigns\CampaignService;
 use App\Services\Campaigns\CampaignTrackingService;
 use App\Services\Campaigns\TemplateRenderer;
@@ -22,6 +24,7 @@ class CampaignRunController extends Controller
         private readonly AudienceResolver $audienceResolver,
         private readonly TemplateRenderer $templateRenderer,
         private readonly CampaignTrackingService $trackingService,
+        private readonly CampaignProspectingOutreachService $prospectingOutreachService,
     ) {
     }
 
@@ -69,8 +72,23 @@ class CampaignRunController extends Controller
                 ->limit($sampleSize)
                 ->with(['defaultProperty', 'portalUser'])
                 ->get();
+        $prospectIds = collect($resolved['eligible'])
+            ->pluck('metadata.prospect_id')
+            ->filter()
+            ->unique()
+            ->take(50)
+            ->values();
+        $prospects = $prospectIds->isEmpty()
+            ? collect()
+            : CampaignProspect::query()
+                ->where('campaign_id', $campaign->id)
+                ->where('user_id', $owner->id)
+                ->whereIn('id', $prospectIds->all())
+                ->inRandomOrder()
+                ->limit($sampleSize)
+                ->get();
 
-        if ($customers->isEmpty()) {
+        if ($customers->isEmpty() && $prospects->isEmpty()) {
             $customers = collect([null]);
         }
 
@@ -90,6 +108,36 @@ class CampaignRunController extends Controller
                         'email' => $customer->email,
                         'phone' => $customer->phone,
                     ] : null,
+                    'subject' => $rendered['subject'] ?? null,
+                    'title' => $rendered['title'] ?? null,
+                    'body' => $rendered['body'] ?? null,
+                    'character_count' => $rendered['character_count'] ?? null,
+                    'sms_segments' => $rendered['sms_segments'] ?? null,
+                    'sms_too_long' => $rendered['sms_too_long'] ?? false,
+                    'invalid_tokens' => $rendered['invalid_tokens'] ?? [],
+                ];
+            }
+        }
+
+        foreach ($prospects as $prospect) {
+            $context = $this->templateRenderer->buildContext(
+                $campaign,
+                null,
+                $product,
+                $this->prospectingOutreachService->contextExtrasFromProspect($prospect, $campaign)
+            );
+            foreach ($campaign->channels->where('is_enabled', true) as $channelModel) {
+                $rendered = $this->templateRenderer->renderChannel($channelModel, $context);
+                $previews[] = [
+                    'channel' => strtoupper((string) $channelModel->channel),
+                    'customer' => null,
+                    'prospect' => [
+                        'id' => $prospect->id,
+                        'name' => trim(($prospect->first_name ?? '').' '.($prospect->last_name ?? '')),
+                        'company' => $prospect->company_name,
+                        'email' => $prospect->email,
+                        'phone' => $prospect->phone,
+                    ],
                     'subject' => $rendered['subject'] ?? null,
                     'title' => $rendered['title'] ?? null,
                     'body' => $rendered['body'] ?? null,

@@ -302,6 +302,11 @@
       "en": "Anglais",
       "both": "Français et anglais"
     },
+    "campaign_directions": {
+      "customer_marketing": "Marketing client",
+      "prospecting_outbound": "Prospection sortante",
+      "lead_generation_inbound": "Génération de leads entrante"
+    },
     "source_logic": {
       "union": "Union",
       "intersect": "Intersection"
@@ -392,7 +397,8 @@
         "back": "Retour",
         "edit": "Modifier",
         "export_csv": "Exporter CSV",
-        "mark_conversion": "Marquer conversion"
+        "mark_conversion": "Marquer conversion",
+        "open_prospecting_workspace": "Ouvrir l espace prospecting"
       },
       "cards": {
         "status": "Statut",
@@ -402,10 +408,45 @@
         "runs": "Exécutions"
       },
       "sections": {
+        "funnel": "Funnel",
+        "prospecting": "Prospecting",
         "channels": "Canaux",
         "events": "Événements",
         "recent_runs": "Exécutions récentes",
         "clicks_no_conversion": "Clics sans conversion"
+      },
+      "funnel": {
+        "direction": "Direction",
+        "prospects": "Prospects",
+        "contacted": "Contactés",
+        "replied": "Réponses",
+        "qualified": "Qualifiés",
+        "leads": "Leads",
+        "customers": "Clients",
+        "prospect_to_lead_rate": "Taux prospect vers lead",
+        "lead_to_customer_rate": "Taux lead vers client",
+        "overall_customer_rate": "Taux prospect vers client",
+        "not_available": "N/D"
+      },
+      "prospecting": {
+        "direction": "Direction",
+        "total_batches": "Total batches",
+        "pending_review_batches": "Batches en revue",
+        "ready_for_outreach": "Prêts pour outreach",
+        "follow_up_due": "Relances dues",
+        "converted_leads": "Leads convertis",
+        "do_not_contact": "Ne plus contacter",
+        "recent_batches": "Batches récents",
+        "top_prospects": "Top prospects",
+        "empty_batches": "Aucun batch prospect récent.",
+        "empty_prospects": "Aucun prospect prioritaire pour le moment.",
+        "batch_label": "Batch #{number}",
+        "accepted": "Acceptés",
+        "duplicates": "Doublons",
+        "blocked": "Bloqués",
+        "leads": "Leads",
+        "fit_intent": "Fit {fit} | Intent {intent}",
+        "open_lead": "Ouvrir le lead"
       },
       "channel": {
         "active": "Actif",
@@ -506,6 +547,8 @@
       "fields": {
         "campaign_name": "Nom de la campagne",
         "campaign_type": "Type de campagne",
+        "prospecting_enabled": "Prospection activée",
+        "campaign_direction": "Direction de campagne",
         "offer_mode": "Mode d’offre",
         "language_mode": "Mode de langue",
         "schedule_type": "Type de planification",
@@ -571,6 +614,8 @@
       },
       "review": {
         "type": "Type",
+        "direction": "Direction",
+        "prospecting_enabled": "Prospection",
         "offer_mode": "Mode d’offre",
         "offers": "Offres",
         "enabled_channels": "Canaux activés",
@@ -589,6 +634,215 @@
         "enable": "Activer fallback",
         "max_depth": "Profondeur max",
         "targets": "Canaux de repli pour {source}"
+      },
+      "prospecting": {
+        "title": "Intake de prospection et revue des batches",
+        "description": "Importez des prospects par batch, analysez les doublons et le scoring, puis approuvez ou rejetez le batch avant l outreach.",
+        "save_draft_title": "Enregistrez la campagne avant l intake du batch",
+        "save_draft_description": "Un brouillon de campagne doit exister avant de lancer une analyse de prospects par CSV ou saisie manuelle.",
+        "source_title": "Source des prospects",
+        "batch_cap_hint": "Unité de revue par défaut : 100 prospects par batch.",
+        "no_file_selected": "Aucun fichier sélectionné.",
+        "manual_placeholder": "entreprise|contact|email|telephone|site|industrie|pays|tags",
+        "manual_hint": "Collez une ligne par prospect. Délimiteurs supportés : tabulation, | ou virgule. La ligne d entête est optionnelle.",
+        "manual_line_count": "{count} ligne(s) détectée(s)",
+        "review_title": "Espace de revue des batches",
+        "review_hint": "Sélectionnez un batch pour inspecter les scores, les doublons et l éligibilité à l outreach.",
+        "empty_batches": "Aucun batch de prospects analysé pour le moment.",
+        "batch_label": "Batch #{number}",
+        "batch_meta": "Source : {source} | Statut : {status}",
+        "scoring_title": "Vue scoring",
+        "match_summary_title": "Vue déduplication",
+        "review_state_title": "État de revue",
+        "review_decision": "Décision de revue",
+        "reviewed_at": "Revu le",
+        "pending_review": "En attente de revue",
+        "loading_batch": "Chargement de la revue du batch...",
+        "loading_prospect": "Chargement du détail du prospect...",
+        "empty_prospects": "Aucun prospect ne correspond aux filtres actuels.",
+        "detail_title": "Détail du prospect",
+        "timeline_title": "Chronologie d activité",
+        "empty_timeline": "Aucune activité prospect enregistrée pour le moment.",
+        "actions": {
+          "create_draft": "Créer le brouillon",
+          "analyze_batch": "Analyser le batch",
+          "analyzing": "Analyse en cours...",
+          "approve_batch": "Approuver le batch",
+          "reject_batch": "Rejeter le batch",
+          "processing": "Traitement...",
+          "view_prospect": "Ouvrir le détail",
+          "convert_to_lead": "Convertir en lead",
+          "link_existing_lead": "Lier à un lead existant",
+          "link_matched_lead": "Lier le lead détecté",
+          "search_leads": "Rechercher des leads",
+          "searching_leads": "Recherche...",
+          "bulk_approve": "Approuver la sélection",
+          "bulk_reject": "Rejeter la sélection",
+          "bulk_do_not_contact": "DNC sélection",
+          "mark_blocked": "Marquer bloqué",
+          "mark_duplicate": "Marquer doublon",
+          "mark_disqualified": "Marquer rejeté",
+          "mark_do_not_contact": "Ne plus contacter"
+        },
+        "import_modes": {
+          "manual": "Saisie manuelle",
+          "csv": "Import CSV"
+        },
+        "source_types": {
+          "manual": "Manuel",
+          "csv": "CSV",
+          "connector": "Connecteur",
+          "directory_api": "API annuaire",
+          "ads": "Publicités",
+          "landing_page": "Page d atterrissage",
+          "import": "Import"
+        },
+        "fields": {
+          "import_mode": "Mode d import",
+          "source_type": "Type de source",
+          "source_reference": "Référence source",
+          "batch_size": "Taille du batch",
+          "manual_input": "Prospects manuels",
+          "csv_file": "Fichier CSV",
+          "lead_search": "Recherche lead",
+          "linked_lead": "Lead existant"
+        },
+        "summary": {
+          "total_batches": "Total batches",
+          "analyzed_batches": "Analysés",
+          "approved_batches": "Approuvés",
+          "canceled_batches": "Rejetés"
+        },
+        "kpis": {
+          "accepted": "Acceptés",
+          "duplicates": "Doublons",
+          "blocked": "Bloqués",
+          "rejected": "Rejetés",
+          "review_required": "Revue requise",
+          "high_priority": "Haute priorité"
+        },
+        "score_ranges": {
+          "high": "Élevé",
+          "medium": "Moyen",
+          "low": "Faible"
+        },
+        "filters": {
+          "search": "Rechercher des prospects",
+          "status": "Statut prospect",
+          "match_status": "Statut de rapprochement",
+          "sort": "Tri",
+          "all_statuses": "Tous les statuts",
+          "all_match_statuses": "Tous les statuts de rapprochement"
+        },
+        "sorts": {
+          "priority_desc": "Priorité décroissante",
+          "fit_desc": "Fit décroissant",
+          "intent_desc": "Intent décroissant",
+          "status_asc": "Statut A à Z",
+          "identity_asc": "Identité A à Z"
+        },
+        "bulk": {
+          "select_all_visible": "Sélectionner tous les prospects visibles",
+          "selected_count": "{count} sélectionné(s)"
+        },
+        "batch_statuses": {
+          "draft": "Brouillon",
+          "analyzed": "Analysé",
+          "approved": "Approuvé",
+          "running": "En cours",
+          "completed": "Terminé",
+          "canceled": "Rejeté"
+        },
+        "prospect_statuses": {
+          "scored": "Scoré",
+          "approved": "Approuvé",
+          "contacted": "Contacté",
+          "follow_up_due": "Relance due",
+          "replied": "A répondu",
+          "qualified": "Qualifié",
+          "converted_to_lead": "Converti en lead",
+          "converted_to_customer": "Converti en client",
+          "duplicate": "Doublon",
+          "blocked": "Bloqué",
+          "disqualified": "Rejeté",
+          "do_not_contact": "Ne plus contacter"
+        },
+        "match_statuses": {
+          "none": "Aucun doublon",
+          "matched_customer": "Client existant",
+          "matched_lead": "Lead existant",
+          "matched_prospect": "Prospect existant",
+          "blocked_destination": "Destination bloquée",
+          "manual_review_required": "Revue manuelle requise"
+        },
+        "table": {
+          "select": "Sélection",
+          "identity": "Identité",
+          "contact": "Contact",
+          "priority": "Priorité",
+          "match": "Rapprochement",
+          "status": "Statut",
+          "recommended_action": "Action recommandée",
+          "fit_intent": "Fit {fit} | Intent {intent}",
+          "matched_customer": "Client : {value}",
+          "matched_lead": "Lead : {value}"
+        },
+        "recommended_actions": {
+          "approve": "Approuver pour outreach",
+          "approved": "Prêt pour outreach",
+          "duplicate": "Conserver exclu comme doublon",
+          "blocked": "Conserver bloqué",
+          "reject": "Rejeter du batch",
+          "review": "Revoir manuellement"
+        },
+        "detail": {
+          "email": "Email",
+          "phone": "Téléphone",
+          "source": "Source",
+          "scores": "Scores",
+          "scores_value": "Priorité {priority} | Fit {fit} | Intent {intent}",
+          "sequence": "Séquence",
+          "last_activity": "Dernière activité",
+          "match": "Rapprochement déduplication",
+          "matched_customer": "Client rapproché : {value}",
+          "matched_lead": "Lead rapproché : {value}",
+          "qualification_summary": "Résumé de qualification",
+          "owner_notes": "Notes internes",
+          "no_owner_notes": "Aucune note interne.",
+          "link_existing_lead": "Lier à un lead existant",
+          "matched_lead_ready": "Un lead rapproché est déjà disponible.",
+          "converted_lead": "Lead converti",
+          "open_lead": "Ouvrir le lead"
+        },
+        "sequence": {
+          "not_started": "Aucun outreach envoyé pour le moment.",
+          "stopped": "Séquence arrêtée : {reason}",
+          "progress": "Étape {step} | Phase {phase} | Prochaine relance {next}"
+        },
+        "messages": {
+          "batch_analyzed": "Batch de prospects analysé.",
+          "batch_approved": "Batch de prospects approuvé.",
+          "batch_rejected": "Batch de prospects rejeté.",
+          "prospect_updated": "Prospect mis à jour.",
+          "bulk_updated": "Prospects sélectionnés mis à jour.",
+          "prospect_converted": "Prospect converti en lead.",
+          "prospect_linked": "Prospect lié à un lead existant."
+        },
+        "errors": {
+          "load_batches": "Impossible de charger les batches de prospects.",
+          "load_batch": "Impossible de charger la revue du batch.",
+          "load_prospect": "Impossible de charger le détail du prospect.",
+          "load_leads": "Impossible de charger les suggestions de leads.",
+          "save_draft_first": "Enregistrez la campagne en brouillon avant d analyser les prospects.",
+          "file_required": "Sélectionnez un fichier CSV à analyser.",
+          "manual_required": "Collez au moins une ligne prospect à analyser.",
+          "import_failed": "Impossible d analyser le batch de prospects.",
+          "review_failed": "Impossible de revoir le batch de prospects.",
+          "update_prospect": "Impossible de mettre à jour le prospect.",
+          "bulk_update": "Impossible de mettre à jour les prospects sélectionnés.",
+          "link_prospect": "Impossible de lier le prospect à un lead.",
+          "convert_prospect": "Impossible de convertir le prospect."
+        }
       },
       "results_hint": "Les résultats détaillés sont disponibles sur la page de campagne.",
       "errors": {

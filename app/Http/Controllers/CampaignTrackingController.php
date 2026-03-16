@@ -3,17 +3,27 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ReconcileDeliveryReportsJob;
+use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\Campaigns\CampaignRunProgressService;
 use App\Services\Campaigns\CampaignTrackingService;
 use Illuminate\Http\Request;
 
 class CampaignTrackingController extends Controller
 {
-    public function track(string $token, CampaignTrackingService $trackingService)
+    public function track(
+        Request $request,
+        string $token,
+        CampaignTrackingService $trackingService,
+        CampaignLeadAttributionService $leadAttributionService
+    )
     {
         $resolved = $trackingService->resolveClickToken($token);
         if (!$resolved || empty($resolved['url'])) {
             abort(404);
+        }
+
+        if (! empty($resolved['recipient'])) {
+            $leadAttributionService->rememberRecipientClick($request, $resolved['recipient']);
         }
 
         return redirect()->away((string) $resolved['url']);

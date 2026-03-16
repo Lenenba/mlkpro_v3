@@ -12,6 +12,7 @@ class CampaignTrackingService
 {
     public function __construct(
         private readonly ConsentService $consentService,
+        private readonly CampaignProspectingOutreachService $prospectingOutreachService,
     ) {
     }
 
@@ -79,6 +80,7 @@ class CampaignTrackingService
         ])->save();
 
         $this->recordEvent($recipient, CampaignEvent::EVENT_QUEUED);
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_QUEUED);
     }
 
     public function markSent(CampaignRecipient $recipient, ?string $provider = null, ?string $providerMessageId = null): void
@@ -91,6 +93,7 @@ class CampaignTrackingService
         ])->save();
 
         $this->recordEvent($recipient, CampaignEvent::EVENT_SENT);
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_SENT);
     }
 
     public function markDelivered(CampaignRecipient $recipient, array $metadata = []): void
@@ -101,6 +104,7 @@ class CampaignTrackingService
         ])->save();
 
         $this->recordEvent($recipient, CampaignEvent::EVENT_DELIVERED, $metadata);
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_DELIVERED, $metadata);
     }
 
     public function markOpened(CampaignRecipient $recipient, array $metadata = []): void
@@ -111,6 +115,7 @@ class CampaignTrackingService
         ])->save();
 
         $this->recordEvent($recipient, CampaignEvent::EVENT_OPENED, $metadata);
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_OPENED, $metadata);
     }
 
     public function markClicked(CampaignRecipient $recipient, array $metadata = []): void
@@ -121,6 +126,7 @@ class CampaignTrackingService
         ])->save();
 
         $this->recordEvent($recipient, CampaignEvent::EVENT_CLICKED, $metadata);
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_CLICKED, $metadata);
     }
 
     public function markConverted(
@@ -148,6 +154,12 @@ class CampaignTrackingService
             'occurred_at' => now(),
             'metadata' => $metadata ?: null,
         ]);
+
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_CONVERTED, [
+            ...$metadata,
+            'conversion_type' => $conversionType,
+            'conversion_id' => $conversionId,
+        ]);
     }
 
     public function markFailed(CampaignRecipient $recipient, string $reason, array $metadata = []): void
@@ -159,6 +171,11 @@ class CampaignTrackingService
         ])->save();
 
         $this->recordEvent($recipient, CampaignEvent::EVENT_FAILED, array_merge($metadata, ['reason' => $reason]));
+        $this->prospectingOutreachService->syncRecipientEvent(
+            $recipient,
+            CampaignEvent::EVENT_FAILED,
+            array_merge($metadata, ['reason' => $reason])
+        );
     }
 
     public function resolveClickToken(string $token): ?array
@@ -205,6 +222,9 @@ class CampaignTrackingService
         );
 
         $this->recordEvent($recipient, CampaignEvent::EVENT_UNSUBSCRIBE, [
+            'source' => 'unsubscribe_link',
+        ]);
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_UNSUBSCRIBE, [
             'source' => 'unsubscribe_link',
         ]);
 

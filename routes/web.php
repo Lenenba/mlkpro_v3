@@ -4,6 +4,7 @@ use App\Http\Controllers\AiImageController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\CampaignAutomationController;
 use App\Http\Controllers\CampaignController;
+use App\Http\Controllers\CampaignProspectingController;
 use App\Http\Controllers\CampaignRunController;
 use App\Http\Controllers\CampaignTrackingController;
 use App\Http\Controllers\CustomerController;
@@ -524,6 +525,30 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/campaigns/{campaign}/estimate', [CampaignRunController::class, 'estimate'])->name('campaigns.estimate');
         Route::post('/campaigns/{campaign}/preview', [CampaignRunController::class, 'preview'])->name('campaigns.preview');
         Route::post('/campaigns/{campaign}/test-send', [CampaignRunController::class, 'testSend'])->name('campaigns.test-send');
+        Route::get('/campaigns/{campaign}/prospect-batches', [CampaignProspectingController::class, 'batches'])
+            ->name('campaigns.prospect-batches.index');
+        Route::post('/campaigns/{campaign}/prospect-batches/import', [CampaignProspectingController::class, 'import'])
+            ->name('campaigns.prospect-batches.import');
+        Route::get('/campaigns/{campaign}/prospect-batches/{batch}', [CampaignProspectingController::class, 'showBatch'])
+            ->name('campaigns.prospect-batches.show');
+        Route::post('/campaigns/{campaign}/prospect-batches/{batch}/approve', [CampaignProspectingController::class, 'approveBatch'])
+            ->name('campaigns.prospect-batches.approve');
+        Route::post('/campaigns/{campaign}/prospect-batches/{batch}/reject', [CampaignProspectingController::class, 'rejectBatch'])
+            ->name('campaigns.prospect-batches.reject');
+        Route::get('/campaigns/{campaign}/prospects', [CampaignProspectingController::class, 'prospects'])
+            ->name('campaigns.prospects.index');
+        Route::get('/campaigns/{campaign}/lead-options', [CampaignProspectingController::class, 'leadOptions'])
+            ->name('campaigns.prospects.lead-options');
+        Route::patch('/campaigns/{campaign}/prospects/bulk-status', [CampaignProspectingController::class, 'bulkUpdateProspects'])
+            ->name('campaigns.prospects.bulk-status');
+        Route::get('/campaigns/{campaign}/prospects/{prospect}', [CampaignProspectingController::class, 'showProspect'])
+            ->name('campaigns.prospects.show');
+        Route::patch('/campaigns/{campaign}/prospects/{prospect}/status', [CampaignProspectingController::class, 'updateProspectStatus'])
+            ->name('campaigns.prospects.status');
+        Route::post('/campaigns/{campaign}/prospects/{prospect}/convert-to-lead', [CampaignProspectingController::class, 'convertProspectToLead'])
+            ->name('campaigns.prospects.convert');
+        Route::post('/campaigns/{campaign}/prospects/{prospect}/link-to-lead', [CampaignProspectingController::class, 'linkProspectToLead'])
+            ->name('campaigns.prospects.link');
         Route::post('/campaigns/{campaign}/send', [CampaignRunController::class, 'sendNow'])->name('campaigns.send');
         Route::post('/campaigns/{campaign}/schedule', [CampaignRunController::class, 'schedule'])->name('campaigns.schedule');
         Route::post('/campaigns/{campaign}/conversions', [CampaignRunController::class, 'recordConversion'])

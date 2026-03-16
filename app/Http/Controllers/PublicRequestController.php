@@ -14,6 +14,7 @@ use App\Notifications\LeadCallRequestReceivedNotification;
 use App\Notifications\LeadFormOwnerNotification;
 use App\Notifications\LeadQuoteRequestReceivedNotification;
 use App\Notifications\SendQuoteNotification;
+use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\CompanyFeatureService;
 use App\Services\LeadServiceSuggestionService;
 use App\Services\TrackingService;
@@ -36,9 +37,11 @@ class PublicRequestController extends Controller
     public function show(
         Request $request,
         User $user,
-        LeadServiceSuggestionService $suggestionService
+        LeadServiceSuggestionService $suggestionService,
+        CampaignLeadAttributionService $leadAttributionService,
     ): Response {
         $this->assertLeadIntakeEnabled($user);
+        $leadAttributionService->syncPublicFormAttribution($request, $user);
 
         app(TrackingService::class)->record('lead_form_view', $user->id);
 
@@ -183,7 +186,8 @@ class PublicRequestController extends Controller
     public function store(
         Request $request,
         User $user,
-        LeadServiceSuggestionService $suggestionService
+        LeadServiceSuggestionService $suggestionService,
+        CampaignLeadAttributionService $leadAttributionService,
     ) {
         $this->assertLeadIntakeEnabled($user);
 
@@ -291,6 +295,10 @@ class PublicRequestController extends Controller
         }
 
         $meta['final_action'] = $finalAction;
+        $meta = $leadAttributionService->mergeLeadMeta(
+            $meta,
+            $leadAttributionService->buildInboundAttributionMeta($request, $user)
+        );
 
         $lead = LeadRequest::create([
             'user_id' => $user->id,
@@ -439,7 +447,9 @@ class PublicRequestController extends Controller
                 'lead_id' => $lead->id,
                 'quote_id' => $quote->id,
                 'final_action' => $finalAction,
+                'campaign_id' => data_get($lead->meta, 'source_campaign_id'),
             ]);
+            $leadAttributionService->forgetAttribution($request, $user);
 
             if (! $quoteEmailQueued && ! $prospectSummaryEmailQueued) {
                 return redirect()->back()->with('warning', 'Quote created, but both quote and confirmation emails failed.');
@@ -510,7 +520,9 @@ class PublicRequestController extends Controller
         app(TrackingService::class)->record('lead_form_submit', $user->id, [
             'lead_id' => $lead->id,
             'final_action' => $finalAction,
+            'campaign_id' => data_get($lead->meta, 'source_campaign_id'),
         ]);
+        $leadAttributionService->forgetAttribution($request, $user);
 
         if (! $prospectEmailQueued) {
             return redirect()->back()->with('warning', 'Call request recorded, but confirmation email failed.');

@@ -4,14 +4,19 @@ use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Jobs\DispatchCampaignRunJob;
 use App\Jobs\SendCampaignRecipientJob;
 use App\Models\Campaign;
+use App\Models\CampaignProspect;
+use App\Models\CampaignProspectActivity;
+use App\Models\CampaignProspectBatch;
 use App\Models\CampaignRecipient;
 use App\Models\CampaignRun;
 use App\Models\Customer;
 use App\Models\CustomerConsent;
+use App\Models\CustomerOptOut;
 use App\Models\MailingList;
 use App\Models\MessageTemplate;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\Request as LeadRequest;
 use App\Models\Role;
 use App\Models\Sale;
 use App\Models\User;
@@ -26,9 +31,11 @@ use App\Services\Campaigns\TemplateLibraryService;
 use App\Services\Campaigns\TemplateSeederService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
@@ -98,6 +105,18 @@ function disableMarketingQuietHours(User $owner): void
                 'start' => '00:00',
                 'end' => '00:00',
             ],
+        ],
+    ]);
+}
+
+function allowColdOutbound(User $owner): void
+{
+    /** @var MarketingSettingsService $service */
+    $service = app(MarketingSettingsService::class);
+    $service->update($owner, [
+        'consent' => [
+            'default_behavior' => 'allow_without_explicit',
+            'require_explicit' => false,
         ],
     ]);
 }
@@ -740,6 +759,7 @@ test('send job queues fallback recipient when primary provider fails', function 
         app(CampaignRunProgressService::class),
         app(ConsentService::class),
         app(FatigueLimiter::class),
+        app(\App\Services\Campaigns\CampaignProspectingOutreachService::class),
     );
 
     $recipient->refresh();
@@ -1290,4 +1310,748 @@ test('template seeder is idempotent for tenant defaults', function () {
         ->count();
 
     expect($duplicates)->toBe(0);
+});
+
+test('prospecting dispatch resolves approved prospects and syncs outreach timeline', function () {
+    Queue::fake();
+
+    $owner = marketingOwner();
+    disableMarketingQuietHours($owner);
+    allowColdOutbound($owner);
+    $offer = marketingProduct($owner);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Outbound prospecting timeline',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+        'settings' => [
+            'prospecting_sequence' => [
+                'enabled' => true,
+                'max_steps' => 3,
+                'follow_up_delays_hours' => [1, 24],
+            ],
+        ],
+    ]);
+    $campaign->offers()->create([
+        'offer_type' => 'product',
+        'offer_id' => $offer->id,
+    ]);
+    $campaign->channels()->create([
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'is_enabled' => true,
+        'subject_template' => 'Hello {firstName}',
+        'body_template' => 'Offer for {companyName}',
+    ]);
+
+    $batch = CampaignProspectBatch::query()->create([
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'approved_by_user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_IMPORT,
+        'batch_number' => 1,
+        'input_count' => 1,
+        'accepted_count' => 1,
+        'scored_count' => 1,
+        'status' => CampaignProspectBatch::STATUS_APPROVED,
+        'approved_at' => now(),
+    ]);
+    $prospect = CampaignProspect::query()->create([
+        'campaign_id' => $campaign->id,
+        'campaign_prospect_batch_id' => $batch->id,
+        'user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_IMPORT,
+        'company_name' => 'Acme Prospect',
+        'contact_name' => 'Alice Prospect',
+        'first_name' => 'Alice',
+        'last_name' => 'Prospect',
+        'email' => 'alice.prospect@example.com',
+        'email_normalized' => 'alice.prospect@example.com',
+        'status' => CampaignProspect::STATUS_APPROVED,
+        'match_status' => CampaignProspect::MATCH_NONE,
+        'priority_score' => 88,
+        'metadata' => [
+            'available_channels' => [Campaign::CHANNEL_EMAIL],
+        ],
+    ]);
+
+    /** @var CampaignService $campaignService */
+    $campaignService = app(CampaignService::class);
+    $run = $campaignService->queueRun($campaign->fresh(['channels', 'user']), $owner);
+
+    Queue::assertPushed(DispatchCampaignRunJob::class, fn (DispatchCampaignRunJob $job) => $job->campaignRunId === $run->id);
+
+    (new DispatchCampaignRunJob($run->id))->handle(
+        app(AudienceResolver::class),
+        app(CampaignTrackingService::class),
+        app(CampaignRunProgressService::class),
+    );
+
+    $recipient = CampaignRecipient::query()
+        ->where('campaign_run_id', $run->id)
+        ->where('channel', Campaign::CHANNEL_EMAIL)
+        ->first();
+
+    expect($recipient)->not->toBeNull()
+        ->and(data_get($recipient?->metadata, 'source'))->toBe('prospecting')
+        ->and(data_get($recipient?->metadata, 'prospect_id'))->toBe($prospect->id)
+        ->and(data_get($recipient?->metadata, 'outreach_phase'))->toBe('first_touch');
+
+    /** @var CampaignTrackingService $trackingService */
+    $trackingService = app(CampaignTrackingService::class);
+    $trackingService->markSent($recipient);
+    $trackingService->markOpened($recipient, ['source' => 'tracking_pixel']);
+    $trackingService->markClicked($recipient, ['source' => 'tracking_link']);
+
+    $prospect->refresh();
+    $batch->refresh();
+
+    expect($prospect->status)->toBe(CampaignProspect::STATUS_CONTACTED)
+        ->and($prospect->first_contacted_at)->not->toBeNull()
+        ->and(data_get($prospect->metadata, 'sequence.current_step'))->toBe(1)
+        ->and(data_get($prospect->metadata, 'sequence.next_follow_up_at'))->not->toBeNull()
+        ->and($batch->contacted_count)->toBe(1)
+        ->and(CampaignProspectActivity::query()
+            ->where('campaign_prospect_id', $prospect->id)
+            ->whereIn('activity_type', ['outreach_sent', 'outreach_opened', 'outreach_clicked'])
+            ->count())->toBe(3);
+});
+
+test('prospecting follow up due prospects become audience again on later runs', function () {
+    Queue::fake();
+
+    $owner = marketingOwner();
+    disableMarketingQuietHours($owner);
+    allowColdOutbound($owner);
+    $offer = marketingProduct($owner);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Prospecting follow up',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+        'settings' => [
+            'prospecting_sequence' => [
+                'enabled' => true,
+                'max_steps' => 3,
+                'follow_up_delays_hours' => [1, 24],
+            ],
+        ],
+    ]);
+    $campaign->offers()->create([
+        'offer_type' => 'product',
+        'offer_id' => $offer->id,
+    ]);
+    $campaign->channels()->create([
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'is_enabled' => true,
+        'subject_template' => 'Follow up {firstName}',
+        'body_template' => 'Still interested, {companyName}?',
+    ]);
+
+    $batch = CampaignProspectBatch::query()->create([
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'approved_by_user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_IMPORT,
+        'batch_number' => 1,
+        'input_count' => 1,
+        'accepted_count' => 1,
+        'scored_count' => 1,
+        'status' => CampaignProspectBatch::STATUS_APPROVED,
+        'approved_at' => now(),
+    ]);
+    $prospect = CampaignProspect::query()->create([
+        'campaign_id' => $campaign->id,
+        'campaign_prospect_batch_id' => $batch->id,
+        'user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_IMPORT,
+        'company_name' => 'Follow Up Inc',
+        'contact_name' => 'Follow Prospect',
+        'first_name' => 'Follow',
+        'email' => 'followup@example.com',
+        'email_normalized' => 'followup@example.com',
+        'status' => CampaignProspect::STATUS_APPROVED,
+        'match_status' => CampaignProspect::MATCH_NONE,
+        'metadata' => [
+            'available_channels' => [Campaign::CHANNEL_EMAIL],
+        ],
+    ]);
+
+    /** @var CampaignService $campaignService */
+    $campaignService = app(CampaignService::class);
+    $run = $campaignService->queueRun($campaign->fresh(['channels', 'user']), $owner);
+
+    (new DispatchCampaignRunJob($run->id))->handle(
+        app(AudienceResolver::class),
+        app(CampaignTrackingService::class),
+        app(CampaignRunProgressService::class),
+    );
+
+    $recipient = CampaignRecipient::query()
+        ->where('campaign_run_id', $run->id)
+        ->where('channel', Campaign::CHANNEL_EMAIL)
+        ->firstOrFail();
+
+    app(CampaignTrackingService::class)->markSent($recipient);
+
+    Carbon::setTestNow(now()->addHours(2));
+    $resolved = app(AudienceResolver::class)->resolveForCampaign($campaign->fresh(['channels', 'user']));
+    Carbon::setTestNow();
+
+    expect((int) ($resolved['counts']['total_eligible'] ?? 0))->toBe(1)
+        ->and(data_get($resolved, 'eligible.0.metadata.outreach_phase'))->toBe('follow_up_1')
+        ->and($prospect->fresh()->status)->toBe(CampaignProspect::STATUS_FOLLOW_UP_DUE);
+});
+
+test('prospecting run cannot queue without approved or due prospects', function () {
+    $owner = marketingOwner();
+    disableMarketingQuietHours($owner);
+    $offer = marketingProduct($owner);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Empty prospecting campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+    $campaign->offers()->create([
+        'offer_type' => 'product',
+        'offer_id' => $offer->id,
+    ]);
+    $campaign->channels()->create([
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'is_enabled' => true,
+        'subject_template' => 'Subject',
+        'body_template' => 'Body',
+    ]);
+
+    expect(fn () => app(CampaignService::class)->queueRun($campaign->fresh(['channels', 'user']), $owner))
+        ->toThrow(ValidationException::class);
+});
+
+test('prospect can be marked do not contact and is suppressed from future outreach', function () {
+    $owner = marketingOwner();
+    disableMarketingQuietHours($owner);
+    allowColdOutbound($owner);
+    $offer = marketingProduct($owner);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Prospect suppression',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+    $campaign->offers()->create([
+        'offer_type' => 'product',
+        'offer_id' => $offer->id,
+    ]);
+    $campaign->channels()->create([
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'is_enabled' => true,
+        'subject_template' => 'Subject',
+        'body_template' => 'Body',
+    ]);
+
+    $batch = CampaignProspectBatch::query()->create([
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'approved_by_user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_IMPORT,
+        'batch_number' => 1,
+        'input_count' => 1,
+        'accepted_count' => 1,
+        'scored_count' => 1,
+        'status' => CampaignProspectBatch::STATUS_APPROVED,
+        'approved_at' => now(),
+    ]);
+    $prospect = CampaignProspect::query()->create([
+        'campaign_id' => $campaign->id,
+        'campaign_prospect_batch_id' => $batch->id,
+        'user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_IMPORT,
+        'company_name' => 'Suppress Inc',
+        'contact_name' => 'Suppress Me',
+        'email' => 'suppress@example.com',
+        'email_normalized' => 'suppress@example.com',
+        'status' => CampaignProspect::STATUS_APPROVED,
+        'match_status' => CampaignProspect::MATCH_NONE,
+        'metadata' => [
+            'available_channels' => [Campaign::CHANNEL_EMAIL],
+        ],
+    ]);
+
+    $response = $this->actingAs($owner)->patchJson(route('campaigns.prospects.status', [$campaign, $prospect]), [
+        'status' => CampaignProspect::STATUS_DO_NOT_CONTACT,
+        'reason' => 'requested_removal',
+        'note' => 'Prospect asked to stop outreach.',
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('prospect.status', CampaignProspect::STATUS_DO_NOT_CONTACT)
+        ->assertJsonPath('prospect.do_not_contact', true);
+
+    $detail = $this->actingAs($owner)->getJson(route('campaigns.prospects.show', [$campaign, $prospect]));
+    $detail->assertOk()
+        ->assertJsonPath('prospect.activities.0.activity_type', 'manual_status_updated');
+
+    $prospect->refresh();
+    expect($prospect->do_not_contact)->toBeTrue()
+        ->and($prospect->blocked_reason)->toBe('requested_removal');
+
+    expect(CustomerOptOut::query()
+        ->where('user_id', $owner->id)
+        ->where('channel', Campaign::CHANNEL_EMAIL)
+        ->where('destination_hash', CampaignRecipient::destinationHash('suppress@example.com'))
+        ->exists())->toBeTrue();
+
+    $resolved = app(AudienceResolver::class)->resolveForCampaign($campaign->fresh(['channels', 'user']));
+    expect((int) ($resolved['counts']['total_eligible'] ?? 0))->toBe(0);
+});
+
+test('prospecting fallback resolves alternate destinations from prospect metadata', function () {
+    Queue::fake();
+
+    $owner = marketingOwner();
+    disableMarketingQuietHours($owner);
+    allowColdOutbound($owner);
+    $offer = marketingProduct($owner);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'Prospect fallback campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_RUNNING,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'settings' => [
+            'channel_fallback' => [
+                'enabled' => true,
+                'max_depth' => 1,
+                'map' => [
+                    Campaign::CHANNEL_SMS => [Campaign::CHANNEL_EMAIL],
+                ],
+            ],
+        ],
+    ]);
+    $campaign->offers()->create([
+        'offer_type' => 'product',
+        'offer_id' => $offer->id,
+    ]);
+    $campaign->channels()->create([
+        'channel' => Campaign::CHANNEL_SMS,
+        'is_enabled' => true,
+        'body_template' => '',
+    ]);
+    $campaign->channels()->create([
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'is_enabled' => true,
+        'subject_template' => 'Fallback {firstName}',
+        'body_template' => 'Fallback body',
+    ]);
+
+    $batch = CampaignProspectBatch::query()->create([
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'approved_by_user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_IMPORT,
+        'batch_number' => 1,
+        'input_count' => 1,
+        'accepted_count' => 1,
+        'scored_count' => 1,
+        'status' => CampaignProspectBatch::STATUS_APPROVED,
+        'approved_at' => now(),
+    ]);
+    $prospect = CampaignProspect::query()->create([
+        'campaign_id' => $campaign->id,
+        'campaign_prospect_batch_id' => $batch->id,
+        'user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_IMPORT,
+        'company_name' => 'Fallback Prospect',
+        'first_name' => 'Pat',
+        'email' => 'prospect-fallback@example.com',
+        'email_normalized' => 'prospect-fallback@example.com',
+        'phone' => '+15145550011',
+        'phone_normalized' => '+15145550011',
+        'status' => CampaignProspect::STATUS_APPROVED,
+        'match_status' => CampaignProspect::MATCH_NONE,
+        'metadata' => [
+            'available_channels' => [Campaign::CHANNEL_SMS, Campaign::CHANNEL_EMAIL],
+        ],
+    ]);
+
+    $run = CampaignRun::query()->create([
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'triggered_by_user_id' => $owner->id,
+        'trigger_type' => CampaignRun::TRIGGER_MANUAL,
+        'status' => CampaignRun::STATUS_RUNNING,
+        'idempotency_key' => Str::uuid()->toString(),
+    ]);
+
+    $recipient = CampaignRecipient::query()->create([
+        'campaign_run_id' => $run->id,
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'channel' => Campaign::CHANNEL_SMS,
+        'destination' => '+15145550011',
+        'destination_hash' => CampaignRecipient::destinationHash('+15145550011'),
+        'status' => CampaignRecipient::STATUS_QUEUED,
+        'queued_at' => now(),
+        'metadata' => [
+            'source' => 'prospecting',
+            'prospect_id' => $prospect->id,
+            'prospect_batch_id' => $batch->id,
+            'outreach_phase' => 'first_touch',
+            'prospect_context' => [
+                'firstName' => 'Pat',
+                'companyName' => 'Fallback Prospect',
+            ],
+            'prospect_destinations' => [
+                Campaign::CHANNEL_SMS => '+15145550011',
+                Campaign::CHANNEL_EMAIL => 'prospect-fallback@example.com',
+            ],
+        ],
+    ]);
+
+    (new SendCampaignRecipientJob($recipient->id))->handle(
+        app(\App\Services\Campaigns\TemplateRenderer::class),
+        app(CampaignTrackingService::class),
+        app(\App\Services\Campaigns\Providers\CampaignProviderManager::class),
+        app(CampaignRunProgressService::class),
+        app(ConsentService::class),
+        app(FatigueLimiter::class),
+        app(\App\Services\Campaigns\CampaignProspectingOutreachService::class),
+    );
+
+    $fallbackRecipient = CampaignRecipient::query()
+        ->where('campaign_run_id', $run->id)
+        ->where('channel', Campaign::CHANNEL_EMAIL)
+        ->where('destination_hash', CampaignRecipient::destinationHash('prospect-fallback@example.com'))
+        ->first();
+
+    expect($fallbackRecipient)->not->toBeNull()
+        ->and((string) $fallbackRecipient?->destination)->toBe('prospect-fallback@example.com')
+        ->and(data_get($fallbackRecipient?->metadata, 'fallback.parent_recipient_id'))->toBe($recipient->id);
+
+    Queue::assertPushed(SendCampaignRecipientJob::class, function (SendCampaignRecipientJob $job) use ($fallbackRecipient) {
+        return $job->campaignRecipientId === $fallbackRecipient->id;
+    });
+});
+
+test('prospect conversion creates attributed lead and updates funnel reporting', function () {
+    $owner = marketingOwner([
+        'company_features' => [
+            'campaigns' => true,
+            'products' => true,
+            'services' => true,
+            'sales' => true,
+            'requests' => true,
+        ],
+    ]);
+    $offer = marketingProduct($owner);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Prospect conversion reporting',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_RUNNING,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+    $campaign->offers()->create([
+        'offer_type' => 'product',
+        'offer_id' => $offer->id,
+    ]);
+    $campaign->channels()->create([
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'is_enabled' => true,
+        'subject_template' => 'Hello {firstName}',
+        'body_template' => 'Let us help {companyName}',
+    ]);
+
+    $batch = CampaignProspectBatch::query()->create([
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'approved_by_user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_IMPORT,
+        'batch_number' => 1,
+        'input_count' => 1,
+        'accepted_count' => 1,
+        'scored_count' => 1,
+        'status' => CampaignProspectBatch::STATUS_APPROVED,
+        'approved_at' => now(),
+    ]);
+    $prospect = CampaignProspect::query()->create([
+        'campaign_id' => $campaign->id,
+        'campaign_prospect_batch_id' => $batch->id,
+        'user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_IMPORT,
+        'company_name' => 'Attribution Prospect',
+        'contact_name' => 'Alice Attribution',
+        'first_name' => 'Alice',
+        'last_name' => 'Attribution',
+        'email' => 'alice.attribution@example.com',
+        'email_normalized' => 'alice.attribution@example.com',
+        'status' => CampaignProspect::STATUS_QUALIFIED,
+        'match_status' => CampaignProspect::MATCH_NONE,
+        'fit_score' => 82,
+        'intent_score' => 71,
+        'priority_score' => 90,
+        'qualification_summary' => 'Prospect asked for a tailored quote.',
+        'metadata' => [
+            'available_channels' => [Campaign::CHANNEL_EMAIL],
+        ],
+    ]);
+
+    $run = CampaignRun::query()->create([
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'triggered_by_user_id' => $owner->id,
+        'trigger_type' => CampaignRun::TRIGGER_MANUAL,
+        'status' => CampaignRun::STATUS_RUNNING,
+        'idempotency_key' => Str::uuid()->toString(),
+    ]);
+
+    $recipient = CampaignRecipient::query()->create([
+        'campaign_run_id' => $run->id,
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'destination' => 'alice.attribution@example.com',
+        'destination_hash' => CampaignRecipient::destinationHash('alice.attribution@example.com'),
+        'status' => CampaignRecipient::STATUS_CLICKED,
+        'queued_at' => now()->subHour(),
+        'sent_at' => now()->subHour(),
+        'clicked_at' => now()->subMinutes(20),
+        'metadata' => [
+            'source' => 'prospecting',
+            'prospect_id' => $prospect->id,
+            'prospect_batch_id' => $batch->id,
+            'outreach_phase' => 'follow_up_1',
+        ],
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospects.convert', [$campaign, $prospect]), [
+        'title' => 'Qualified campaign lead',
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('created', true)
+        ->assertJsonPath('prospect.status', CampaignProspect::STATUS_CONVERTED_TO_LEAD);
+
+    $lead = LeadRequest::query()->findOrFail((int) $response->json('lead.id'));
+
+    expect(data_get($lead->meta, 'source_kind'))->toBe('campaign_prospecting')
+        ->and((int) data_get($lead->meta, 'source_campaign_id'))->toBe($campaign->id)
+        ->and((int) data_get($lead->meta, 'source_campaign_recipient_id'))->toBe($recipient->id)
+        ->and((int) data_get($lead->meta, 'source_prospect_id'))->toBe($prospect->id)
+        ->and((string) data_get($lead->meta, 'source_direction'))->toBe('outbound');
+
+    $prospect->refresh();
+    $recipient->refresh();
+
+    expect($prospect->status)->toBe(CampaignProspect::STATUS_CONVERTED_TO_LEAD)
+        ->and((int) $prospect->converted_to_lead_id)->toBe($lead->id)
+        ->and($recipient->status)->toBe(CampaignRecipient::STATUS_CONVERTED)
+        ->and($recipient->converted_at)->not->toBeNull();
+
+    $leadShow = $this->actingAs($owner)->getJson(route('request.show', $lead));
+    $leadShow->assertOk()
+        ->assertJsonPath('campaignOrigin.campaign.id', $campaign->id)
+        ->assertJsonPath('campaignOrigin.prospect.id', $prospect->id)
+        ->assertJsonPath('campaignOrigin.direction', 'outbound');
+
+    $campaignShow = $this->actingAs($owner)->getJson(route('campaigns.show', $campaign));
+    $campaignShow->assertOk()
+        ->assertJsonPath('funnel.stages.prospects', 1)
+        ->assertJsonPath('funnel.stages.leads', 1)
+        ->assertJsonPath('funnel.stages.customers', 0);
+
+    $lead->update([
+        'status' => LeadRequest::STATUS_WON,
+        'status_updated_at' => now(),
+    ]);
+
+    $campaignShow = $this->actingAs($owner)->getJson(route('campaigns.show', $campaign));
+    $campaignShow->assertOk()
+        ->assertJsonPath('funnel.stages.customers', 1);
+});
+
+test('prospecting workspace supports lead lookup bulk review and dashboard insights', function () {
+    $owner = marketingOwner();
+    $offer = marketingProduct($owner);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Prospecting workspace controls',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+    $campaign->offers()->create([
+        'offer_type' => 'product',
+        'offer_id' => $offer->id,
+    ]);
+
+    $batch = CampaignProspectBatch::query()->create([
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_IMPORT,
+        'source_reference' => 'workspace.csv',
+        'batch_number' => 1,
+        'input_count' => 2,
+        'accepted_count' => 2,
+        'scored_count' => 2,
+        'status' => CampaignProspectBatch::STATUS_ANALYZED,
+        'analysis_summary' => [
+            'review_required_count' => 2,
+        ],
+    ]);
+
+    $prospectA = CampaignProspect::query()->create([
+        'campaign_id' => $campaign->id,
+        'campaign_prospect_batch_id' => $batch->id,
+        'user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_IMPORT,
+        'source_reference' => 'workspace.csv',
+        'company_name' => 'Acme North',
+        'contact_name' => 'Alice North',
+        'email' => 'alice.north@example.com',
+        'email_normalized' => 'alice.north@example.com',
+        'status' => CampaignProspect::STATUS_SCORED,
+        'match_status' => CampaignProspect::MATCH_NONE,
+        'priority_score' => 92,
+        'fit_score' => 84,
+        'intent_score' => 65,
+    ]);
+
+    $prospectB = CampaignProspect::query()->create([
+        'campaign_id' => $campaign->id,
+        'campaign_prospect_batch_id' => $batch->id,
+        'user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_IMPORT,
+        'source_reference' => 'workspace.csv',
+        'company_name' => 'Beta South',
+        'contact_name' => 'Bob South',
+        'email' => 'bob.south@example.com',
+        'email_normalized' => 'bob.south@example.com',
+        'status' => CampaignProspect::STATUS_SCORED,
+        'match_status' => CampaignProspect::MATCH_NONE,
+        'priority_score' => 78,
+        'fit_score' => 71,
+        'intent_score' => 40,
+    ]);
+
+    $lead = LeadRequest::query()->create([
+        'user_id' => $owner->id,
+        'status' => LeadRequest::STATUS_NEW,
+        'title' => 'Acme North existing lead',
+        'contact_name' => 'Alice North',
+        'contact_email' => 'alice.north@example.com',
+        'status_updated_at' => now(),
+    ]);
+
+    $lookup = $this->actingAs($owner)->getJson(route('campaigns.prospects.lead-options', [
+        'campaign' => $campaign,
+        'search' => 'Acme North',
+    ]));
+
+    $lookup->assertOk()
+        ->assertJsonPath('leads.0.id', $lead->id);
+
+    $approved = $this->actingAs($owner)->patchJson(route('campaigns.prospects.bulk-status', $campaign), [
+        'prospect_ids' => [$prospectA->id, $prospectB->id],
+        'status' => CampaignProspect::STATUS_APPROVED,
+    ]);
+
+    $approved->assertOk()
+        ->assertJsonPath('updated_count', 2);
+
+    $dnc = $this->actingAs($owner)->patchJson(route('campaigns.prospects.bulk-status', $campaign), [
+        'prospect_ids' => [$prospectB->id],
+        'status' => CampaignProspect::STATUS_DO_NOT_CONTACT,
+    ]);
+
+    $dnc->assertOk()
+        ->assertJsonPath('updated_count', 1);
+
+    $linked = $this->actingAs($owner)->postJson(route('campaigns.prospects.link', [$campaign, $prospectA]), [
+        'lead_id' => $lead->id,
+    ]);
+
+    $linked->assertOk()
+        ->assertJsonPath('created', false)
+        ->assertJsonPath('lead.id', $lead->id)
+        ->assertJsonPath('prospect.converted_lead.id', $lead->id);
+
+    $prospectA->refresh();
+    $prospectB->refresh();
+    $batch->refresh();
+    $lead->refresh();
+
+    expect($prospectA->status)->toBe(CampaignProspect::STATUS_CONVERTED_TO_LEAD)
+        ->and((int) $prospectA->converted_to_lead_id)->toBe($lead->id)
+        ->and($prospectB->status)->toBe(CampaignProspect::STATUS_DO_NOT_CONTACT)
+        ->and($prospectB->do_not_contact)->toBeTrue()
+        ->and((int) $batch->accepted_count)->toBe(1)
+        ->and((int) $batch->rejected_count)->toBe(1)
+        ->and((int) $batch->scored_count)->toBe(0)
+        ->and((int) data_get($batch->analysis_summary, 'review_required_count'))->toBe(0)
+        ->and((int) data_get($lead->meta, 'source_campaign_id'))->toBe($campaign->id);
+
+    $campaignShow = $this->actingAs($owner)->getJson(route('campaigns.show', $campaign));
+    $campaignShow->assertOk()
+        ->assertJsonPath('prospectingDashboard.summary.total_batches', 1)
+        ->assertJsonPath('prospectingDashboard.summary.converted_leads', 1)
+        ->assertJsonPath('prospectingDashboard.summary.do_not_contact_prospects', 1)
+        ->assertJsonPath('prospectingDashboard.recent_batches.0.id', $batch->id);
 });

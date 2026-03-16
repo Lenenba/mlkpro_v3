@@ -32,6 +32,7 @@ class CampaignService
         private readonly TemplateRenderer $templateRenderer,
         private readonly SmsNotificationService $smsService,
         private readonly TemplateLibraryService $templateLibraryService,
+        private readonly CampaignProspectingOutreachService $prospectingOutreachService,
     ) {
     }
 
@@ -75,6 +76,26 @@ class CampaignService
                 ]);
             }
 
+            $prospectingEnabled = (bool) ($payload['prospecting_enabled'] ?? false);
+            $campaignDirection = strtolower((string) (
+                $payload['campaign_direction']
+                ?? ($prospectingEnabled
+                    ? Campaign::DIRECTION_PROSPECTING_OUTBOUND
+                    : Campaign::DIRECTION_CUSTOMER_MARKETING)
+            ));
+
+            if (!in_array($campaignDirection, Campaign::allowedDirections(), true)) {
+                throw ValidationException::withMessages([
+                    'campaign_direction' => 'Invalid campaign direction.',
+                ]);
+            }
+
+            if (!$prospectingEnabled) {
+                $campaignDirection = Campaign::DIRECTION_CUSTOMER_MARKETING;
+            } elseif ($campaignDirection === Campaign::DIRECTION_CUSTOMER_MARKETING) {
+                $campaignDirection = Campaign::DIRECTION_PROSPECTING_OUTBOUND;
+            }
+
             $offers = $this->normalizedOffers($payload, $accountOwner);
             if ($offers->isEmpty()) {
                 throw ValidationException::withMessages([
@@ -92,6 +113,8 @@ class CampaignService
                 'audience_segment_id' => $payload['audience_segment_id'] ?? null,
                 'name' => trim((string) ($payload['name'] ?? '')),
                 'campaign_type' => $campaignType,
+                'campaign_direction' => $campaignDirection,
+                'prospecting_enabled' => $prospectingEnabled,
                 'offer_mode' => $offerMode,
                 'language_mode' => $languageMode,
                 'type' => $campaignType, // Legacy mirror column kept for backward compatibility.
@@ -269,6 +292,8 @@ class CampaignService
                 [
                     'campaign_id' => $campaign->id,
                     'campaign_type' => $campaignType,
+                    'campaign_direction' => $campaignDirection,
+                    'prospecting_enabled' => $prospectingEnabled,
                     'offer_mode' => $offerMode,
                     'channels' => $keptChannels,
                     'offers' => $offers->map(fn (array $offer) => [
@@ -316,6 +341,8 @@ class CampaignService
                 'channels' => 'No enabled channels configured for this campaign.',
             ]);
         }
+
+        $this->prospectingOutreachService->assertCanQueueRun($campaign->loadMissing('user'));
 
         $effectiveIdempotencyKey = $idempotencyKey;
         if (!$effectiveIdempotencyKey) {
@@ -375,8 +402,18 @@ class CampaignService
             ->where('user_id', $campaign->user_id)
             ->inRandomOrder()
             ->first();
+        $sampleProspect = $sampleCustomer
+            ? null
+            : $this->prospectingOutreachService->sampleProspects($campaign, 1)->first();
         $product = $campaign->offers->first()?->offer ?: $campaign->products->first();
-        $context = $this->templateRenderer->buildContext($campaign, $sampleCustomer, $product);
+        $context = $this->templateRenderer->buildContext(
+            $campaign,
+            $sampleCustomer,
+            $product,
+            $sampleProspect
+                ? $this->prospectingOutreachService->contextExtrasFromProspect($sampleProspect, $campaign)
+                : []
+        );
 
         $results = [];
         foreach ($campaign->channels->where('is_enabled', true) as $channelModel) {
@@ -562,6 +599,21 @@ class CampaignService
             'enabled' => (bool) ($fallback['enabled'] ?? false),
             'max_depth' => max(1, min(3, (int) ($fallback['max_depth'] ?? 1))),
             'map' => $fallbackMap,
+        ];
+
+        $sequence = is_array($settings['prospecting_sequence'] ?? null) ? $settings['prospecting_sequence'] : [];
+        $delays = collect($sequence['follow_up_delays_hours'] ?? [72, 168])
+            ->map(fn ($value) => max(1, min(24 * 30, (int) $value)))
+            ->filter()
+            ->values()
+            ->take(2)
+            ->all();
+
+        $maxSteps = max(1, min(3, (int) ($sequence['max_steps'] ?? (1 + count($delays)))));
+        $normalized['prospecting_sequence'] = [
+            'enabled' => (bool) ($sequence['enabled'] ?? true),
+            'max_steps' => $maxSteps,
+            'follow_up_delays_hours' => array_slice($delays, 0, max(0, $maxSteps - 1)),
         ];
 
         return $normalized;

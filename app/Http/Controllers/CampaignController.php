@@ -7,11 +7,14 @@ use App\Http\Requests\Campaigns\UpdateCampaignRequest;
 use App\Enums\CampaignAudienceSourceLogic;
 use App\Models\AudienceSegment;
 use App\Models\Campaign;
+use App\Models\CampaignProspect;
+use App\Models\CampaignProspectBatch;
 use App\Models\CampaignRecipient;
 use App\Models\MailingList;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\VipTier;
+use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\Campaigns\CampaignService;
 use App\Services\Campaigns\MarketingSettingsService;
 use Illuminate\Http\Request;
@@ -21,6 +24,7 @@ class CampaignController extends Controller
     public function __construct(
         private readonly CampaignService $campaignService,
         private readonly MarketingSettingsService $marketingSettingsService,
+        private readonly CampaignLeadAttributionService $leadAttributionService,
     ) {
     }
 
@@ -385,12 +389,16 @@ class CampaignController extends Controller
             ],
             'channels' => $channelInsights,
         ];
+        $funnel = $this->leadAttributionService->funnelForCampaign($campaign);
+        $prospectingDashboard = $this->prospectingDashboard($campaign);
 
         return $this->inertiaOrJson('Campaigns/Show', [
             'campaign' => $campaign,
             'eventStats' => $eventsByType,
             'clickNoConversion' => $clickNoConversion,
             'deliveryInsights' => $deliveryInsights,
+            'funnel' => $funnel,
+            'prospectingDashboard' => $prospectingDashboard,
             'access' => [
                 'can_view' => $canView,
                 'can_manage' => $canManage,
@@ -424,6 +432,146 @@ class CampaignController extends Controller
         return redirect()
             ->route('campaigns.index')
             ->with('success', 'Campaign deleted.');
+    }
+
+    private function prospectingDashboard(Campaign $campaign): array
+    {
+        $batchBaseQuery = CampaignProspectBatch::query()->where('campaign_id', $campaign->id);
+        $prospectBaseQuery = CampaignProspect::query()->where('campaign_id', $campaign->id);
+
+        $summary = [
+            'total_batches' => (clone $batchBaseQuery)->count(),
+            'pending_review_batches' => (clone $batchBaseQuery)->where('status', CampaignProspectBatch::STATUS_ANALYZED)->count(),
+            'approved_batches' => (clone $batchBaseQuery)->where('status', CampaignProspectBatch::STATUS_APPROVED)->count(),
+            'running_batches' => (clone $batchBaseQuery)->where('status', CampaignProspectBatch::STATUS_RUNNING)->count(),
+            'total_prospects' => (clone $prospectBaseQuery)->count(),
+            'review_required_prospects' => (clone $prospectBaseQuery)->where('status', CampaignProspect::STATUS_SCORED)->count(),
+            'ready_for_outreach_prospects' => (clone $prospectBaseQuery)->where('status', CampaignProspect::STATUS_APPROVED)->count(),
+            'follow_up_due_prospects' => (clone $prospectBaseQuery)->where('status', CampaignProspect::STATUS_FOLLOW_UP_DUE)->count(),
+            'qualified_prospects' => (clone $prospectBaseQuery)->where('status', CampaignProspect::STATUS_QUALIFIED)->count(),
+            'converted_leads' => (clone $prospectBaseQuery)
+                ->where(function ($query): void {
+                    $query->whereNotNull('converted_to_lead_id')
+                        ->orWhere('status', CampaignProspect::STATUS_CONVERTED_TO_LEAD);
+                })
+                ->count(),
+            'do_not_contact_prospects' => (clone $prospectBaseQuery)
+                ->where(function ($query): void {
+                    $query->where('do_not_contact', true)
+                        ->orWhere('status', CampaignProspect::STATUS_DO_NOT_CONTACT);
+                })
+                ->count(),
+        ];
+
+        $recentBatches = (clone $batchBaseQuery)
+            ->orderByDesc('batch_number')
+            ->limit(5)
+            ->get([
+                'id',
+                'batch_number',
+                'status',
+                'source_type',
+                'source_reference',
+                'input_count',
+                'accepted_count',
+                'duplicate_count',
+                'blocked_count',
+                'rejected_count',
+                'contacted_count',
+                'lead_count',
+                'created_at',
+            ])
+            ->map(fn (CampaignProspectBatch $batch) => [
+                'id' => $batch->id,
+                'batch_number' => $batch->batch_number,
+                'status' => $batch->status,
+                'source_type' => $batch->source_type,
+                'source_reference' => $batch->source_reference,
+                'input_count' => $batch->input_count,
+                'accepted_count' => $batch->accepted_count,
+                'duplicate_count' => $batch->duplicate_count,
+                'blocked_count' => $batch->blocked_count,
+                'rejected_count' => $batch->rejected_count,
+                'contacted_count' => $batch->contacted_count,
+                'lead_count' => $batch->lead_count,
+                'created_at' => optional($batch->created_at)->toJSON(),
+            ])
+            ->values()
+            ->all();
+
+        $topProspects = CampaignProspect::query()
+            ->where('campaign_id', $campaign->id)
+            ->with([
+                'batch:id,batch_number,status',
+                'matchedLead:id,title,contact_name,contact_email,status',
+                'convertedLead:id,title,contact_name,contact_email,status',
+            ])
+            ->orderByDesc('priority_score')
+            ->orderByDesc('fit_score')
+            ->orderByDesc('id')
+            ->limit(8)
+            ->get([
+                'id',
+                'campaign_prospect_batch_id',
+                'source_type',
+                'source_reference',
+                'company_name',
+                'contact_name',
+                'email',
+                'phone',
+                'status',
+                'match_status',
+                'priority_score',
+                'fit_score',
+                'intent_score',
+                'matched_lead_id',
+                'converted_to_lead_id',
+                'last_activity_at',
+            ])
+            ->map(fn (CampaignProspect $prospect) => [
+                'id' => $prospect->id,
+                'batch' => $prospect->batch ? [
+                    'id' => $prospect->batch->id,
+                    'batch_number' => $prospect->batch->batch_number,
+                    'status' => $prospect->batch->status,
+                ] : null,
+                'source_type' => $prospect->source_type,
+                'source_reference' => $prospect->source_reference,
+                'company_name' => $prospect->company_name,
+                'contact_name' => $prospect->contact_name,
+                'email' => $prospect->email,
+                'phone' => $prospect->phone,
+                'status' => $prospect->status,
+                'match_status' => $prospect->match_status,
+                'priority_score' => $prospect->priority_score,
+                'fit_score' => $prospect->fit_score,
+                'intent_score' => $prospect->intent_score,
+                'matched_lead' => $prospect->matchedLead ? [
+                    'id' => $prospect->matchedLead->id,
+                    'title' => $prospect->matchedLead->title,
+                    'contact_name' => $prospect->matchedLead->contact_name,
+                    'contact_email' => $prospect->matchedLead->contact_email,
+                    'status' => $prospect->matchedLead->status,
+                ] : null,
+                'converted_lead' => $prospect->convertedLead ? [
+                    'id' => $prospect->convertedLead->id,
+                    'title' => $prospect->convertedLead->title,
+                    'contact_name' => $prospect->convertedLead->contact_name,
+                    'contact_email' => $prospect->convertedLead->contact_email,
+                    'status' => $prospect->convertedLead->status,
+                ] : null,
+                'last_activity_at' => optional($prospect->last_activity_at)->toJSON(),
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'enabled' => $campaign->usesProspecting(),
+            'direction' => $campaign->resolvedCampaignDirection(),
+            'summary' => $summary,
+            'recent_batches' => $recentBatches,
+            'top_prospects' => $topProspects,
+        ];
     }
 
     private function productsForOwner(int $ownerId)
@@ -494,6 +642,7 @@ class CampaignController extends Controller
     {
         return [
             'types' => Campaign::allowedTypes(),
+            'directions' => Campaign::allowedDirections(),
             'channels' => Campaign::allowedChannels(),
             'offer_modes' => Campaign::allowedOfferModes(),
             'language_modes' => Campaign::allowedLanguageModes(),

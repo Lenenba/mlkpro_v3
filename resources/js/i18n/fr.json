@@ -4139,6 +4139,26 @@
       "status_updated": "Statut mis a jour",
       "source": "Source"
     },
+    "origin": {
+      "title": "Origine campagne",
+      "campaign": "Campagne",
+      "kind": "Type d attribution",
+      "direction": "Direction",
+      "channel": "Canal source",
+      "prospect": "Prospect source",
+      "batch": "Batch source",
+      "first_outreach": "Premier contact",
+      "attributed_at": "Attribue le",
+      "utm": "Contexte UTM",
+      "kinds": {
+        "campaign_prospecting": "Campagne de prospection",
+        "campaign_inbound": "Campagne inbound"
+      },
+      "directions": {
+        "inbound": "Entrant",
+        "outbound": "Sortant"
+      }
+    },
     "notes": {
       "title": "Notes",
       "empty": "Aucune note pour l'instant.",

@@ -4139,6 +4139,26 @@
       "status_updated": "Status updated",
       "source": "Source"
     },
+    "origin": {
+      "title": "Campaign origin",
+      "campaign": "Campaign",
+      "kind": "Attribution type",
+      "direction": "Direction",
+      "channel": "Source channel",
+      "prospect": "Source prospect",
+      "batch": "Source batch",
+      "first_outreach": "First outreach",
+      "attributed_at": "Attributed at",
+      "utm": "UTM context",
+      "kinds": {
+        "campaign_prospecting": "Prospecting campaign",
+        "campaign_inbound": "Inbound campaign"
+      },
+      "directions": {
+        "inbound": "Inbound",
+        "outbound": "Outbound"
+      }
+    },
     "notes": {
       "title": "Notes",
       "empty": "No notes yet.",

@@ -302,6 +302,11 @@
       "en": "English",
       "both": "French and English"
     },
+    "campaign_directions": {
+      "customer_marketing": "Customer marketing",
+      "prospecting_outbound": "Prospecting outbound",
+      "lead_generation_inbound": "Lead generation inbound"
+    },
     "source_logic": {
       "union": "Union",
       "intersect": "Intersection"
@@ -392,7 +397,8 @@
         "back": "Back",
         "edit": "Edit",
         "export_csv": "Export CSV",
-        "mark_conversion": "Mark conversion"
+        "mark_conversion": "Mark conversion",
+        "open_prospecting_workspace": "Open prospecting workspace"
       },
       "cards": {
         "status": "Status",
@@ -402,10 +408,45 @@
         "runs": "Runs"
       },
       "sections": {
+        "funnel": "Funnel",
+        "prospecting": "Prospecting",
         "channels": "Channels",
         "events": "Events",
         "recent_runs": "Recent runs",
         "clicks_no_conversion": "Clicks without conversion"
+      },
+      "funnel": {
+        "direction": "Direction",
+        "prospects": "Prospects",
+        "contacted": "Contacted",
+        "replied": "Replied",
+        "qualified": "Qualified",
+        "leads": "Leads",
+        "customers": "Customers",
+        "prospect_to_lead_rate": "Prospect to lead rate",
+        "lead_to_customer_rate": "Lead to customer rate",
+        "overall_customer_rate": "Prospect to customer rate",
+        "not_available": "N/A"
+      },
+      "prospecting": {
+        "direction": "Direction",
+        "total_batches": "Total batches",
+        "pending_review_batches": "Pending review batches",
+        "ready_for_outreach": "Ready for outreach",
+        "follow_up_due": "Follow-up due",
+        "converted_leads": "Converted leads",
+        "do_not_contact": "Do not contact",
+        "recent_batches": "Recent batches",
+        "top_prospects": "Top prospects",
+        "empty_batches": "No recent prospect batch.",
+        "empty_prospects": "No priority prospect yet.",
+        "batch_label": "Batch #{number}",
+        "accepted": "Accepted",
+        "duplicates": "Duplicates",
+        "blocked": "Blocked",
+        "leads": "Leads",
+        "fit_intent": "Fit {fit} | Intent {intent}",
+        "open_lead": "Open lead"
       },
       "channel": {
         "active": "Active",
@@ -506,6 +547,8 @@
       "fields": {
         "campaign_name": "Campaign name",
         "campaign_type": "Campaign type",
+        "prospecting_enabled": "Prospecting enabled",
+        "campaign_direction": "Campaign direction",
         "offer_mode": "Offer mode",
         "language_mode": "Language mode",
         "schedule_type": "Schedule type",
@@ -571,6 +614,8 @@
       },
       "review": {
         "type": "Type",
+        "direction": "Direction",
+        "prospecting_enabled": "Prospecting",
         "offer_mode": "Offer mode",
         "offers": "Offers",
         "enabled_channels": "Enabled channels",
@@ -590,6 +635,215 @@
         "max_depth": "Max depth",
         "targets": "Fallback targets for {source}"
       },
+      "prospecting": {
+        "title": "Prospecting intake and batch review",
+        "description": "Import prospects by batch, analyze duplicates and scoring, then approve or reject the batch before outreach.",
+        "save_draft_title": "Save the campaign before batch intake",
+        "save_draft_description": "A campaign draft must exist before CSV or manual prospect analysis can run.",
+        "source_title": "Prospect source intake",
+        "batch_cap_hint": "Default review unit: 100 prospects per batch.",
+        "no_file_selected": "No file selected.",
+        "manual_placeholder": "company|contact|email|phone|website|industry|country|tags",
+        "manual_hint": "Paste one row per line. Supported delimiters: tab, |, or comma. Header row is optional.",
+        "manual_line_count": "{count} line(s) detected",
+        "review_title": "Batch review workspace",
+        "review_hint": "Select a batch to inspect scores, duplicates, and outreach eligibility.",
+        "empty_batches": "No prospect batch analyzed yet.",
+        "batch_label": "Batch #{number}",
+        "batch_meta": "Source: {source} | Status: {status}",
+        "scoring_title": "Scoring overview",
+        "match_summary_title": "Dedupe overview",
+        "review_state_title": "Review state",
+        "review_decision": "Review decision",
+        "reviewed_at": "Reviewed at",
+        "pending_review": "Pending review",
+          "loading_batch": "Loading batch review...",
+          "loading_prospect": "Loading prospect detail...",
+          "empty_prospects": "No prospects match the current review filters.",
+          "detail_title": "Prospect detail",
+          "timeline_title": "Activity timeline",
+          "empty_timeline": "No prospect activity recorded yet.",
+          "actions": {
+            "create_draft": "Create draft",
+            "analyze_batch": "Analyze batch",
+            "analyzing": "Analyzing...",
+            "approve_batch": "Approve batch",
+            "reject_batch": "Reject batch",
+          "processing": "Processing...",
+          "view_prospect": "Open detail",
+          "convert_to_lead": "Convert to lead",
+          "link_existing_lead": "Link existing lead",
+          "link_matched_lead": "Link matched lead",
+          "search_leads": "Search leads",
+          "searching_leads": "Searching...",
+          "bulk_approve": "Approve selected",
+          "bulk_reject": "Reject selected",
+          "bulk_do_not_contact": "DNC selected",
+          "mark_blocked": "Mark blocked",
+          "mark_duplicate": "Mark duplicate",
+          "mark_disqualified": "Mark rejected",
+          "mark_do_not_contact": "Do not contact"
+          },
+        "import_modes": {
+          "manual": "Manual paste",
+          "csv": "CSV import"
+        },
+        "source_types": {
+          "manual": "Manual",
+          "csv": "CSV",
+          "connector": "Connector",
+          "directory_api": "Directory API",
+          "ads": "Ads",
+          "landing_page": "Landing page",
+          "import": "Import"
+        },
+        "fields": {
+          "import_mode": "Import mode",
+          "source_type": "Source type",
+          "source_reference": "Source reference",
+          "batch_size": "Batch size",
+          "manual_input": "Manual prospects",
+          "csv_file": "CSV file",
+          "lead_search": "Lead search",
+          "linked_lead": "Existing lead"
+        },
+        "summary": {
+          "total_batches": "Total batches",
+          "analyzed_batches": "Analyzed",
+          "approved_batches": "Approved",
+          "canceled_batches": "Rejected"
+        },
+        "kpis": {
+          "accepted": "Accepted",
+          "duplicates": "Duplicates",
+          "blocked": "Blocked",
+          "rejected": "Rejected",
+          "review_required": "Review required",
+          "high_priority": "High priority"
+        },
+        "score_ranges": {
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        },
+        "filters": {
+          "search": "Search prospects",
+          "status": "Prospect status",
+          "match_status": "Match status",
+          "sort": "Sort",
+          "all_statuses": "All statuses",
+          "all_match_statuses": "All match statuses"
+        },
+        "sorts": {
+          "priority_desc": "Priority high to low",
+          "fit_desc": "Fit high to low",
+          "intent_desc": "Intent high to low",
+          "status_asc": "Status A to Z",
+          "identity_asc": "Identity A to Z"
+        },
+        "bulk": {
+          "select_all_visible": "Select all visible prospects",
+          "selected_count": "{count} selected"
+        },
+        "batch_statuses": {
+          "draft": "Draft",
+          "analyzed": "Analyzed",
+          "approved": "Approved",
+          "running": "Running",
+          "completed": "Completed",
+          "canceled": "Rejected"
+        },
+        "prospect_statuses": {
+          "scored": "Scored",
+          "approved": "Approved",
+          "contacted": "Contacted",
+          "follow_up_due": "Follow-up due",
+          "replied": "Replied",
+          "qualified": "Qualified",
+          "converted_to_lead": "Converted to lead",
+          "converted_to_customer": "Converted to customer",
+          "duplicate": "Duplicate",
+          "blocked": "Blocked",
+          "disqualified": "Rejected",
+          "do_not_contact": "Do not contact"
+        },
+        "match_statuses": {
+          "none": "No duplicate",
+          "matched_customer": "Matched customer",
+          "matched_lead": "Matched lead",
+          "matched_prospect": "Matched prospect",
+          "blocked_destination": "Blocked destination",
+          "manual_review_required": "Manual review required"
+        },
+        "table": {
+          "select": "Select",
+          "identity": "Identity",
+          "contact": "Contact",
+          "priority": "Priority",
+          "match": "Match",
+          "status": "Status",
+          "recommended_action": "Recommended action",
+          "fit_intent": "Fit {fit} | Intent {intent}",
+          "matched_customer": "Customer: {value}",
+          "matched_lead": "Lead: {value}"
+        },
+          "recommended_actions": {
+            "approve": "Approve for outreach",
+            "approved": "Ready for outreach",
+            "duplicate": "Keep excluded as duplicate",
+            "blocked": "Keep blocked",
+            "reject": "Reject from this batch",
+            "review": "Review manually"
+          },
+          "detail": {
+            "email": "Email",
+            "phone": "Phone",
+            "source": "Source",
+            "scores": "Scores",
+            "scores_value": "Priority {priority} | Fit {fit} | Intent {intent}",
+            "sequence": "Sequence",
+            "last_activity": "Last activity",
+            "match": "Dedupe match",
+            "matched_customer": "Matched customer: {value}",
+            "matched_lead": "Matched lead: {value}",
+            "qualification_summary": "Qualification summary",
+            "owner_notes": "Owner notes",
+            "no_owner_notes": "No owner notes.",
+            "link_existing_lead": "Link to existing lead",
+            "matched_lead_ready": "A matched lead is already available.",
+            "converted_lead": "Converted lead",
+            "open_lead": "Open lead"
+          },
+          "sequence": {
+            "not_started": "No outreach sent yet.",
+            "stopped": "Sequence stopped: {reason}",
+            "progress": "Step {step} | Phase {phase} | Next follow-up {next}"
+          },
+          "messages": {
+            "batch_analyzed": "Prospect batch analyzed.",
+            "batch_approved": "Prospect batch approved.",
+            "batch_rejected": "Prospect batch rejected.",
+            "prospect_updated": "Prospect updated.",
+            "bulk_updated": "Selected prospects updated.",
+            "prospect_converted": "Prospect converted to lead.",
+            "prospect_linked": "Prospect linked to an existing lead."
+          },
+          "errors": {
+            "load_batches": "Unable to load prospect batches.",
+            "load_batch": "Unable to load batch review.",
+            "load_prospect": "Unable to load prospect detail.",
+            "load_leads": "Unable to load lead suggestions.",
+            "save_draft_first": "Save the campaign as a draft before analyzing prospects.",
+            "file_required": "Select a CSV file to analyze.",
+            "manual_required": "Paste at least one prospect row to analyze.",
+            "import_failed": "Unable to analyze the prospect batch.",
+            "review_failed": "Unable to review the prospect batch.",
+            "update_prospect": "Unable to update the prospect.",
+            "bulk_update": "Unable to update the selected prospects.",
+            "link_prospect": "Unable to link the prospect to a lead.",
+            "convert_prospect": "Unable to convert the prospect."
+          }
+        },
       "results_hint": "Detailed results are available on the campaign page.",
       "errors": {
         "select_offer": "Select at least one offer.",

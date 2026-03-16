@@ -11,6 +11,8 @@ const props = defineProps({
     eventStats: { type: Object, default: () => ({}) },
     clickNoConversion: { type: Array, default: () => [] },
     deliveryInsights: { type: Object, default: () => ({}) },
+    funnel: { type: Object, default: () => ({}) },
+    prospectingDashboard: { type: Object, default: () => ({}) },
     access: { type: Object, default: () => ({}) },
 });
 
@@ -55,6 +57,37 @@ const channelInsights = computed(() => {
         }))
         .sort((left, right) => left.channel.localeCompare(right.channel));
 });
+const funnelInsights = computed(() => props.funnel || {});
+const funnelStages = computed(() => {
+    const source = funnelInsights.value?.stages || {};
+
+    return [
+        { key: 'prospects', value: Number(source.prospects || 0), label: t('marketing.campaign_show.funnel.prospects') },
+        { key: 'contacted', value: Number(source.contacted || 0), label: t('marketing.campaign_show.funnel.contacted') },
+        { key: 'replied', value: Number(source.replied || 0), label: t('marketing.campaign_show.funnel.replied') },
+        { key: 'qualified', value: Number(source.qualified || 0), label: t('marketing.campaign_show.funnel.qualified') },
+        { key: 'leads', value: Number(source.leads || 0), label: t('marketing.campaign_show.funnel.leads') },
+        { key: 'customers', value: Number(source.customers || 0), label: t('marketing.campaign_show.funnel.customers') },
+    ];
+});
+const funnelRates = computed(() => {
+    const source = funnelInsights.value?.rates || {};
+
+    return {
+        prospectToLead: source.prospect_to_lead_percent,
+        leadToCustomer: source.lead_to_customer_percent,
+        overallCustomer: source.overall_customer_percent,
+    };
+});
+const prospectingInsights = computed(() => props.prospectingDashboard || {});
+const showProspectingDashboard = computed(() => Boolean(
+    prospectingInsights.value?.enabled
+    || Number(prospectingInsights.value?.summary?.total_batches || 0) > 0
+    || Number(prospectingInsights.value?.summary?.total_prospects || 0) > 0
+));
+const prospectingSummary = computed(() => prospectingInsights.value?.summary || {});
+const prospectingRecentBatches = computed(() => Array.isArray(prospectingInsights.value?.recent_batches) ? prospectingInsights.value.recent_batches : []);
+const prospectingTopProspects = computed(() => Array.isArray(prospectingInsights.value?.top_prospects) ? prospectingInsights.value.top_prospects : []);
 const { t } = useI18n();
 
 const conversionError = ref('');
@@ -74,6 +107,12 @@ const campaignTypeLabel = (value) => {
     const normalized = String(value || '').toLowerCase();
     if (!normalized) return '-';
     return translateWithFallback(`marketing.campaign_types.${normalized}`, humanizeValue(value));
+};
+
+const campaignDirectionLabel = (value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (!normalized) return '-';
+    return translateWithFallback(`marketing.campaign_directions.${normalized}`, humanizeValue(value));
 };
 
 const scheduleTypeLabel = (value) => {
@@ -126,7 +165,7 @@ const markConverted = async (recipient) => {
             conversion_id: conversionId,
         });
         router.reload({
-            only: ['campaign', 'eventStats', 'clickNoConversion'],
+            only: ['campaign', 'eventStats', 'clickNoConversion', 'deliveryInsights', 'funnel'],
             preserveScroll: true,
         });
     } catch (error) {
@@ -134,6 +173,16 @@ const markConverted = async (recipient) => {
     } finally {
         conversionBusy.value = false;
     }
+};
+
+const openProspectingWorkspace = (step = 3) => {
+    if (!canManage.value) return;
+
+    if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem('campaign-wizard-next-step', String(step));
+    }
+
+    router.visit(route('campaigns.edit', props.campaign.id));
 };
 </script>
 
@@ -259,6 +308,163 @@ const markConverted = async (recipient) => {
                 <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
                     * `Sent` includes statuses sent/delivered/opened/clicked/converted. `Delivered` includes delivered/opened/clicked/converted.
                 </p>
+            </section>
+
+            <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.campaign_show.sections.funnel') }}</h2>
+                    <span class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.campaign_show.funnel.direction') }}: {{ campaignDirectionLabel(funnelInsights.direction) }}
+                    </span>
+                </div>
+
+                <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                    <div
+                        v-for="stage in funnelStages"
+                        :key="`funnel-${stage.key}`"
+                        class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                    >
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ stage.label }}</div>
+                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ stage.value }}</div>
+                    </div>
+                </div>
+
+                <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.funnel.prospect_to_lead_rate') }}</div>
+                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ funnelRates.prospectToLead === null ? t('marketing.campaign_show.funnel.not_available') : `${funnelRates.prospectToLead}%` }}
+                        </div>
+                    </div>
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.funnel.lead_to_customer_rate') }}</div>
+                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ funnelRates.leadToCustomer === null ? t('marketing.campaign_show.funnel.not_available') : `${funnelRates.leadToCustomer}%` }}
+                        </div>
+                    </div>
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.funnel.overall_customer_rate') }}</div>
+                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ funnelRates.overallCustomer === null ? t('marketing.campaign_show.funnel.not_available') : `${funnelRates.overallCustomer}%` }}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section v-if="showProspectingDashboard" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.campaign_show.sections.prospecting') }}</h2>
+                        <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                            {{ t('marketing.campaign_show.prospecting.direction') }}: {{ campaignDirectionLabel(prospectingInsights.direction) }}
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <Link
+                            v-if="canManage"
+                            :href="route('campaigns.edit', campaign.id)"
+                            class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            @click.prevent="openProspectingWorkspace()"
+                        >
+                            {{ t('marketing.campaign_show.actions.open_prospecting_workspace') }}
+                        </Link>
+                    </div>
+                </div>
+
+                <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.prospecting.total_batches') }}</div>
+                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ Number(prospectingSummary.total_batches || 0) }}</div>
+                    </div>
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.prospecting.pending_review_batches') }}</div>
+                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ Number(prospectingSummary.pending_review_batches || 0) }}</div>
+                    </div>
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.prospecting.ready_for_outreach') }}</div>
+                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ Number(prospectingSummary.ready_for_outreach_prospects || 0) }}</div>
+                    </div>
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.prospecting.follow_up_due') }}</div>
+                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ Number(prospectingSummary.follow_up_due_prospects || 0) }}</div>
+                    </div>
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.prospecting.converted_leads') }}</div>
+                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ Number(prospectingSummary.converted_leads || 0) }}</div>
+                    </div>
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_show.prospecting.do_not_contact') }}</div>
+                        <div class="mt-1 text-lg font-semibold text-stone-700 dark:text-neutral-200">{{ Number(prospectingSummary.do_not_contact_prospects || 0) }}</div>
+                    </div>
+                </div>
+
+                <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="flex items-center justify-between gap-2">
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.campaign_show.prospecting.recent_batches') }}</h3>
+                        </div>
+                        <div v-if="prospectingRecentBatches.length === 0" class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
+                            {{ t('marketing.campaign_show.prospecting.empty_batches') }}
+                        </div>
+                        <div v-else class="mt-3 space-y-2">
+                            <div v-for="batch in prospectingRecentBatches" :key="`show-prospect-batch-${batch.id}`" class="rounded-sm border border-stone-200 bg-white px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-900">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ t('marketing.campaign_show.prospecting.batch_label', { number: batch.batch_number }) }}
+                                    </div>
+                                    <div class="text-stone-500 dark:text-neutral-400">{{ humanizeValue(batch.status) }}</div>
+                                </div>
+                                <div class="mt-2 grid grid-cols-2 gap-2 text-stone-600 dark:text-neutral-300">
+                                    <div>{{ t('marketing.campaign_show.prospecting.accepted') }}: {{ batch.accepted_count }}</div>
+                                    <div>{{ t('marketing.campaign_show.prospecting.duplicates') }}: {{ batch.duplicate_count }}</div>
+                                    <div>{{ t('marketing.campaign_show.prospecting.blocked') }}: {{ batch.blocked_count }}</div>
+                                    <div>{{ t('marketing.campaign_show.prospecting.leads') }}: {{ batch.lead_count }}</div>
+                                </div>
+                                <div class="mt-2 text-stone-500 dark:text-neutral-400">
+                                    {{ batch.source_reference || batch.source_type || '-' }} | {{ humanizeDate(batch.created_at) || '-' }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="flex items-center justify-between gap-2">
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.campaign_show.prospecting.top_prospects') }}</h3>
+                        </div>
+                        <div v-if="prospectingTopProspects.length === 0" class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
+                            {{ t('marketing.campaign_show.prospecting.empty_prospects') }}
+                        </div>
+                        <div v-else class="mt-3 space-y-2">
+                            <div v-for="prospect in prospectingTopProspects" :key="`show-top-prospect-${prospect.id}`" class="rounded-sm border border-stone-200 bg-white px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-900">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div class="font-semibold text-stone-800 dark:text-neutral-100">
+                                            {{ prospect.contact_name || prospect.company_name || prospect.email || prospect.phone || `#${prospect.id}` }}
+                                        </div>
+                                        <div class="mt-1 text-stone-500 dark:text-neutral-400">
+                                            {{ prospect.company_name || prospect.email || prospect.phone || '-' }}
+                                        </div>
+                                        <div class="mt-1 text-stone-500 dark:text-neutral-400">
+                                            {{ t('marketing.campaign_show.prospecting.batch_label', { number: prospect.batch?.batch_number || '-' }) }}
+                                        </div>
+                                    </div>
+                                    <div class="shrink-0 text-right">
+                                        <div class="font-semibold text-stone-800 dark:text-neutral-100">{{ prospect.priority_score ?? '-' }}</div>
+                                        <div class="mt-1 text-stone-500 dark:text-neutral-400">{{ humanizeValue(prospect.status) }}</div>
+                                    </div>
+                                </div>
+                                <div class="mt-2 text-stone-500 dark:text-neutral-400">
+                                    {{ t('marketing.campaign_show.prospecting.fit_intent', { fit: prospect.fit_score ?? '-', intent: prospect.intent_score ?? '-' }) }}
+                                </div>
+                                <div v-if="prospect.converted_lead" class="mt-2">
+                                    <Link :href="route('request.show', prospect.converted_lead.id)" class="text-xs font-medium text-emerald-700 underline underline-offset-2 dark:text-emerald-300">
+                                        {{ t('marketing.campaign_show.prospecting.open_lead') }}
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <section class="grid grid-cols-1 gap-4 lg:grid-cols-2">

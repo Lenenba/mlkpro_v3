@@ -54,6 +54,10 @@ class Campaign extends Model
     public const LANGUAGE_MODE_EN = CampaignLanguageMode::EN->value;
     public const LANGUAGE_MODE_BOTH = CampaignLanguageMode::BOTH->value;
 
+    public const DIRECTION_CUSTOMER_MARKETING = 'customer_marketing';
+    public const DIRECTION_PROSPECTING_OUTBOUND = 'prospecting_outbound';
+    public const DIRECTION_LEAD_GENERATION_INBOUND = 'lead_generation_inbound';
+
     protected $fillable = [
         'user_id',
         'created_by_user_id',
@@ -61,6 +65,8 @@ class Campaign extends Model
         'audience_segment_id',
         'name',
         'campaign_type',
+        'campaign_direction',
+        'prospecting_enabled',
         'offer_mode',
         'language_mode',
         'type',
@@ -82,6 +88,7 @@ class Campaign extends Model
         'completed_at' => 'datetime',
         'last_run_at' => 'datetime',
         'is_marketing' => 'boolean',
+        'prospecting_enabled' => 'boolean',
         'settings' => 'array',
     ];
 
@@ -147,6 +154,21 @@ class Campaign extends Model
         return $this->hasMany(CampaignAutomationRule::class);
     }
 
+    public function prospectBatches(): HasMany
+    {
+        return $this->hasMany(CampaignProspectBatch::class);
+    }
+
+    public function prospects(): HasMany
+    {
+        return $this->hasMany(CampaignProspect::class);
+    }
+
+    public function prospectActivities(): HasMany
+    {
+        return $this->hasMany(CampaignProspectActivity::class);
+    }
+
     public function scopeByUser(Builder $query, int $userId): Builder
     {
         return $query->where('user_id', $userId);
@@ -172,8 +194,27 @@ class Campaign extends Model
         return CampaignLanguageMode::values();
     }
 
+    public static function allowedDirections(): array
+    {
+        return [
+            self::DIRECTION_CUSTOMER_MARKETING,
+            self::DIRECTION_PROSPECTING_OUTBOUND,
+            self::DIRECTION_LEAD_GENERATION_INBOUND,
+        ];
+    }
+
     public function resolvedCampaignType(): string
     {
         return (string) ($this->campaign_type ?: $this->type ?: self::TYPE_PROMOTION);
+    }
+
+    public function resolvedCampaignDirection(): string
+    {
+        return (string) ($this->campaign_direction ?: self::DIRECTION_CUSTOMER_MARKETING);
+    }
+
+    public function usesProspecting(): bool
+    {
+        return (bool) $this->prospecting_enabled;
     }
 }

@@ -7,6 +7,7 @@ use App\Models\CampaignChannel;
 use App\Models\CampaignMessage;
 use App\Models\CampaignRecipient;
 use App\Services\Campaigns\CampaignRunProgressService;
+use App\Services\Campaigns\CampaignProspectingOutreachService;
 use App\Services\Campaigns\CampaignTrackingService;
 use App\Services\Campaigns\ConsentService;
 use App\Services\Campaigns\FatigueLimiter;
@@ -43,6 +44,7 @@ class SendCampaignRecipientJob implements ShouldQueue
         CampaignRunProgressService $progressService,
         ConsentService $consentService,
         FatigueLimiter $fatigueLimiter,
+        CampaignProspectingOutreachService $prospectingOutreachService,
     ): void {
         $recipient = CampaignRecipient::query()
             ->with([
@@ -78,7 +80,8 @@ class SendCampaignRecipientJob implements ShouldQueue
         $context = $renderer->buildContext(
             $recipient->campaign,
             $recipient->customer,
-            $product
+            $product,
+            $prospectingOutreachService->buildContextExtrasFromRecipient($recipient)
         );
         $rendered = $renderer->renderChannel($channelForRender, $context);
 
@@ -150,7 +153,8 @@ class SendCampaignRecipientJob implements ShouldQueue
                 $reason,
                 $trackingService,
                 $consentService,
-                $fatigueLimiter
+                $fatigueLimiter,
+                $prospectingOutreachService
             );
 
             $trackingService->markFailed(
@@ -226,7 +230,8 @@ class SendCampaignRecipientJob implements ShouldQueue
         string $failureReason,
         CampaignTrackingService $trackingService,
         ConsentService $consentService,
-        FatigueLimiter $fatigueLimiter
+        FatigueLimiter $fatigueLimiter,
+        CampaignProspectingOutreachService $prospectingOutreachService
     ): array {
         $campaign = $recipient->campaign;
         $accountOwner = $campaign?->user;
@@ -287,6 +292,9 @@ class SendCampaignRecipientJob implements ShouldQueue
             }
 
             $destinationCandidate = $this->destinationForChannel($recipient, $target);
+            if (! $destinationCandidate) {
+                $destinationCandidate = $prospectingOutreachService->destinationForFallback($recipient, $target);
+            }
             $consentDecision = $consentService->canReceive(
                 $accountOwner,
                 $recipient->customer,
