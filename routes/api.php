@@ -55,6 +55,7 @@ use App\Http\Controllers\CampaignAutomationController;
 use App\Http\Controllers\CampaignTrackingController;
 use App\Http\Controllers\OfferSearchController;
 use App\Http\Controllers\MarketingMetaController;
+use App\Http\Controllers\MarketingProspectProviderConnectionController;
 use App\Http\Controllers\MarketingTemplateController;
 use App\Http\Controllers\MarketingSegmentController;
 use App\Http\Controllers\MarketingMailingListController;
@@ -354,6 +355,11 @@ Route::name('api.')->group(function () {
                 Route::put('marketing/vip-tiers/{vipTier}', [MarketingVipController::class, 'update']);
                 Route::delete('marketing/vip-tiers/{vipTier}', [MarketingVipController::class, 'destroy']);
                 Route::patch('marketing/customers/{customer}/vip', [MarketingVipController::class, 'updateCustomer']);
+                Route::get('marketing/prospect-providers', [MarketingProspectProviderConnectionController::class, 'index']);
+                Route::post('marketing/prospect-providers', [MarketingProspectProviderConnectionController::class, 'store']);
+                Route::put('marketing/prospect-providers/{connection}', [MarketingProspectProviderConnectionController::class, 'update']);
+                Route::post('marketing/prospect-providers/{connection}/validate', [MarketingProspectProviderConnectionController::class, 'validateConnection']);
+                Route::post('marketing/prospect-providers/{connection}/disconnect', [MarketingProspectProviderConnectionController::class, 'disconnect']);
 
                 Route::get('campaigns', [CampaignController::class, 'index']);
                 Route::get('campaigns/create', [CampaignController::class, 'create']);
@@ -366,6 +372,7 @@ Route::name('api.')->group(function () {
                 Route::post('campaigns/{campaign}/preview', [CampaignRunController::class, 'preview']);
                 Route::post('campaigns/{campaign}/test-send', [CampaignRunController::class, 'testSend']);
                 Route::get('campaigns/{campaign}/prospect-batches', [CampaignProspectingController::class, 'batches']);
+                Route::post('campaigns/{campaign}/prospect-provider-preview', [CampaignProspectingController::class, 'providerPreview']);
                 Route::post('campaigns/{campaign}/prospect-batches/import', [CampaignProspectingController::class, 'import']);
                 Route::get('campaigns/{campaign}/prospect-batches/{batch}', [CampaignProspectingController::class, 'showBatch']);
                 Route::post('campaigns/{campaign}/prospect-batches/{batch}/approve', [CampaignProspectingController::class, 'approveBatch']);

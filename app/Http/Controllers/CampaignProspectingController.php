@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\Campaigns\CampaignProspectConversionService;
 use App\Services\Campaigns\CampaignProspectingOutreachService;
 use App\Services\Campaigns\CampaignProspectingService;
+use App\Services\Campaigns\ProspectProviderPreviewService;
 use Illuminate\Http\Request;
 
 class CampaignProspectingController extends Controller
@@ -19,6 +20,7 @@ class CampaignProspectingController extends Controller
         private readonly CampaignProspectingService $prospectingService,
         private readonly CampaignProspectingOutreachService $prospectingOutreachService,
         private readonly CampaignProspectConversionService $prospectConversionService,
+        private readonly ProspectProviderPreviewService $prospectProviderPreviewService,
     ) {
     }
 
@@ -41,6 +43,28 @@ class CampaignProspectingController extends Controller
             'batches' => $batches->map(fn (CampaignProspectBatch $batch) => $this->batchPayload($batch))->values()->all(),
             'total_imported' => $batches->sum('input_count'),
         ], 201);
+    }
+
+    public function providerPreview(Request $request, Campaign $campaign)
+    {
+        [$owner, , $canManage] = $this->resolveCampaignAccess($request->user(), $campaign);
+        if (! $canManage) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'provider_connection_id' => ['required', 'integer'],
+            'query' => ['required', 'string', 'max:2000'],
+            'query_label' => ['nullable', 'string', 'max:120'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $preview = $this->prospectProviderPreviewService->preview($owner, $campaign, $validated);
+
+        return response()->json([
+            'message' => 'Provider preview ready.',
+            ...$preview,
+        ]);
     }
 
     public function batches(Request $request, Campaign $campaign)

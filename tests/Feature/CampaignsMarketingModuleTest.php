@@ -8,6 +8,7 @@ use App\Models\Campaign;
 use App\Models\CampaignProspect;
 use App\Models\CampaignProspectActivity;
 use App\Models\CampaignProspectBatch;
+use App\Models\CampaignProspectProviderConnection;
 use App\Models\CampaignRecipient;
 use App\Models\CampaignRun;
 use App\Models\Customer;
@@ -20,6 +21,7 @@ use App\Models\ProductCategory;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
 use App\Models\Sale;
+use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\Campaigns\AudienceResolver;
 use App\Services\Campaigns\CampaignRunProgressService;
@@ -87,6 +89,26 @@ function marketingProduct(User $owner, array $overrides = []): Product
         'minimum_stock' => 1,
         'is_active' => true,
     ], $overrides));
+}
+
+function marketingTeamMember(User $owner, array $permissions = [], array $userOverrides = [], array $membershipOverrides = []): User
+{
+    $member = User::factory()->create(array_merge([
+        'email' => 'member-'.Str::lower(Str::random(12)).'@example.com',
+        'company_features' => $owner->company_features,
+        'onboarding_completed_at' => now(),
+        'company_type' => $owner->company_type,
+    ], $userOverrides));
+
+    TeamMember::query()->create(array_merge([
+        'account_id' => $owner->id,
+        'user_id' => $member->id,
+        'role' => 'member',
+        'permissions' => $permissions,
+        'is_active' => true,
+    ], $membershipOverrides));
+
+    return $member;
 }
 
 function marketingCustomer(User $owner, array $overrides = []): Customer
@@ -201,6 +223,402 @@ test('offer search supports cursor pagination', function () {
     $secondIds = collect($second->json('items'))->pluck('id');
 
     expect($secondIds->intersect($firstIds))->toHaveCount(0);
+});
+
+test('marketing owner can create validate and disconnect prospect provider connections', function () {
+    $owner = marketingOwner();
+
+    $create = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.store'), [
+        'provider_key' => 'apollo',
+        'label' => 'Apollo main',
+        'credentials' => [
+            'api_key' => 'apollo-secret-12345',
+        ],
+    ]);
+
+    $create->assertCreated()
+        ->assertJsonPath('provider_connection.provider_key', 'apollo')
+        ->assertJsonPath('provider_connection.label', 'Apollo main')
+        ->assertJsonMissingPath('provider_connection.credentials');
+
+    $connectionId = (int) $create->json('provider_connection.id');
+    $connection = CampaignProspectProviderConnection::query()->findOrFail($connectionId);
+
+    expect($connection->status)->toBe(CampaignProspectProviderConnection::STATUS_DRAFT);
+    expect($connection->credentials)->toBe(['api_key' => 'apollo-secret-12345']);
+    expect((string) $connection->getRawOriginal('credentials'))->not->toContain('apollo-secret-12345');
+
+    $validated = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.validate', $connectionId));
+
+    $validated->assertOk()
+        ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_CONNECTED)
+        ->assertJsonPath('provider_connection.is_active', true);
+
+    $connection->refresh();
+    expect($connection->last_validated_at)->not->toBeNull();
+
+    $disconnected = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.disconnect', $connectionId));
+
+    $disconnected->assertOk()
+        ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_DISCONNECTED)
+        ->assertJsonPath('provider_connection.is_active', false);
+});
+
+test('marketing owner can update prospect provider connection without replacing saved secret', function () {
+    $owner = marketingOwner();
+
+    $connection = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_LUSHA,
+        'label' => 'Lusha primary',
+        'credentials' => ['api_key' => 'lusha-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_DRAFT,
+        'is_active' => true,
+    ]);
+
+    $update = $this->actingAs($owner)->putJson(route('marketing.prospect-providers.update', $connection), [
+        'label' => 'Lusha updated',
+        'credentials' => [
+            'api_key' => '',
+        ],
+    ]);
+
+    $update->assertOk()
+        ->assertJsonPath('provider_connection.label', 'Lusha updated')
+        ->assertJsonPath('provider_connection.provider_key', CampaignProspectProviderConnection::PROVIDER_LUSHA);
+
+    $connection->refresh();
+    expect($connection->label)->toBe('Lusha updated');
+    expect($connection->credentials)->toBe(['api_key' => 'lusha-secret-12345']);
+});
+
+test('marketing meta exposes prospect provider definitions and connections', function () {
+    $owner = marketingOwner();
+
+    CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_UPLEAD,
+        'label' => 'UpLead account',
+        'credentials' => ['api_key' => 'uplead-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    $response = $this->actingAs($owner)->getJson(route('marketing.meta'));
+
+    $response->assertOk()
+        ->assertJsonPath('prospect_provider_connections.0.provider_key', CampaignProspectProviderConnection::PROVIDER_UPLEAD)
+        ->assertJsonPath('prospect_provider_connections.0.label', 'UpLead account');
+
+    $providerKeys = collect($response->json('prospect_providers'))->pluck('key');
+    expect($providerKeys)->toContain('apollo');
+    expect($providerKeys)->toContain('lusha');
+    expect($providerKeys)->toContain('uplead');
+});
+
+test('campaign team member can view prospect provider workspace in read only mode', function () {
+    $owner = marketingOwner();
+    $member = marketingTeamMember($owner, ['campaigns.view']);
+
+    CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
+        'label' => 'Apollo workspace',
+        'credentials' => ['api_key' => 'apollo-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    $page = $this->actingAs($member)->getJson(route('campaigns.prospect-providers.manage'));
+
+    $page->assertOk()
+        ->assertJsonPath('access.can_view', true)
+        ->assertJsonPath('access.can_manage_secrets', false)
+        ->assertJsonPath('provider_connections.0.label', 'Apollo workspace')
+        ->assertJsonPath('provider_summary.connected', 1);
+
+    $index = $this->actingAs($member)->getJson(route('marketing.prospect-providers.index'));
+
+    $index->assertOk()
+        ->assertJsonPath('access.can_manage_secrets', false)
+        ->assertJsonPath('provider_connections.0.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO);
+});
+
+test('campaign team member cannot mutate prospect provider credentials', function () {
+    $owner = marketingOwner();
+    $member = marketingTeamMember($owner, ['campaigns.view']);
+
+    $connection = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_LUSHA,
+        'label' => 'Lusha readonly',
+        'credentials' => ['api_key' => 'lusha-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_DRAFT,
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($member)->postJson(route('marketing.prospect-providers.store'), [
+        'provider_key' => 'apollo',
+        'label' => 'Should fail',
+        'credentials' => ['api_key' => 'secret-12345'],
+    ])->assertForbidden();
+
+    $this->actingAs($member)->putJson(route('marketing.prospect-providers.update', $connection), [
+        'label' => 'Should fail',
+    ])->assertForbidden();
+
+    $this->actingAs($member)->postJson(route('marketing.prospect-providers.validate', $connection))
+        ->assertForbidden();
+
+    $this->actingAs($member)->postJson(route('marketing.prospect-providers.disconnect', $connection))
+        ->assertForbidden();
+});
+
+test('campaign index exposes prospect provider summary', function () {
+    $owner = marketingOwner();
+
+    CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
+        'label' => 'Apollo connected',
+        'credentials' => ['api_key' => 'apollo-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_UPLEAD,
+        'label' => 'UpLead draft',
+        'credentials' => ['api_key' => 'uplead-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_DRAFT,
+        'is_active' => false,
+    ]);
+
+    $response = $this->actingAs($owner)->getJson(route('campaigns.index'));
+
+    $response->assertOk()
+        ->assertJsonPath('prospectProviderSummary.configured', 2)
+        ->assertJsonPath('prospectProviderSummary.connected', 1)
+        ->assertJsonPath('prospectProviderSummary.attention', 1);
+});
+
+test('campaign wizard exposes only connected prospect providers for audience selection', function () {
+    $owner = marketingOwner();
+
+    CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
+        'label' => 'Apollo ready',
+        'credentials' => ['api_key' => 'apollo-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_LUSHA,
+        'label' => 'Lusha draft',
+        'credentials' => ['api_key' => 'lusha-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_DRAFT,
+        'is_active' => false,
+    ]);
+
+    $response = $this->actingAs($owner)->getJson(route('campaigns.create'));
+
+    $response->assertOk()
+        ->assertJsonCount(1, 'availableProspectProviders')
+        ->assertJsonPath('availableProspectProviders.0.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO)
+        ->assertJsonPath('availableProspectProviders.0.label', 'Apollo ready');
+});
+
+test('campaign update persists provider audience selection context', function () {
+    $owner = marketingOwner();
+    $offer = marketingProduct($owner);
+
+    $provider = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_UPLEAD,
+        'label' => 'UpLead ICP',
+        'credentials' => ['api_key' => 'uplead-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    /** @var CampaignService $campaignService */
+    $campaignService = app(CampaignService::class);
+
+    $campaign = $campaignService->saveCampaign($owner, $owner, [
+        'name' => 'Provider audience campaign',
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'language_mode' => Campaign::LANGUAGE_MODE_PREFERRED,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'offers' => [
+            [
+                'offer_type' => 'product',
+                'offer_id' => $offer->id,
+            ],
+        ],
+        'channels' => [
+            [
+                'channel' => Campaign::CHANNEL_EMAIL,
+                'is_enabled' => true,
+                'subject_template' => 'Subject',
+                'body_template' => '<p>Body</p>',
+            ],
+        ],
+        'audience' => [
+            'source_logic' => 'UNION',
+            'manual_customer_ids' => [],
+        ],
+    ]);
+
+    $response = $this->actingAs($owner)->putJson(route('campaigns.update', $campaign), [
+        'name' => 'Provider audience campaign updated',
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'language_mode' => Campaign::LANGUAGE_MODE_PREFERRED,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'offers' => [
+            [
+                'offer_type' => 'product',
+                'offer_id' => $offer->id,
+            ],
+        ],
+        'channels' => [
+            [
+                'channel' => Campaign::CHANNEL_EMAIL,
+                'is_enabled' => true,
+                'subject_template' => 'Subject',
+                'body_template' => '<p>Body</p>',
+            ],
+        ],
+        'audience' => [
+            'source_logic' => 'UNION',
+            'manual_customer_ids' => [],
+            'include_mailing_list_ids' => [],
+            'exclude_mailing_list_ids' => [],
+            'source_summary' => [
+                'import_mode' => 'provider',
+                'source_type' => 'connector',
+                'source_reference' => 'UpLead ICP',
+                'provider_connection_id' => $provider->id,
+                'provider_key' => CampaignProspectProviderConnection::PROVIDER_UPLEAD,
+                'provider_label' => 'UpLead',
+                'provider_connection_label' => 'UpLead ICP',
+                'provider_query_label' => 'Quebec manufacturing',
+                'provider_query' => 'Manufacturing companies in Quebec, procurement, 20-200 employees',
+            ],
+        ],
+    ]);
+
+    $response->assertOk();
+
+    $campaign->refresh()->load('audience');
+    $sourceSummary = $campaign->audience?->source_summary ?? [];
+
+    expect($sourceSummary['import_mode'] ?? null)->toBe('provider')
+        ->and($sourceSummary['source_type'] ?? null)->toBe('connector')
+        ->and($sourceSummary['provider_connection_id'] ?? null)->toBe($provider->id)
+        ->and($sourceSummary['provider_key'] ?? null)->toBe(CampaignProspectProviderConnection::PROVIDER_UPLEAD)
+        ->and($sourceSummary['provider_connection_label'] ?? null)->toBe('UpLead ICP')
+        ->and($sourceSummary['provider_query_label'] ?? null)->toBe('Quebec manufacturing')
+        ->and($sourceSummary['provider_query'] ?? null)->toContain('Manufacturing companies in Quebec');
+});
+
+test('campaign provider preview returns normalized rows without creating batches', function () {
+    $owner = marketingOwner();
+
+    $provider = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
+        'label' => 'Apollo outbound',
+        'credentials' => ['api_key' => 'apollo-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Provider preview campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
+        'provider_connection_id' => $provider->id,
+        'query_label' => 'Toronto retail',
+        'query' => 'Retail companies in Toronto, operations, 11-50 employees',
+        'limit' => 6,
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('provider_connection.id', $provider->id)
+        ->assertJsonPath('provider_connection.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO)
+        ->assertJsonPath('preview.count', 6)
+        ->assertJsonPath('rows.0.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO)
+        ->assertJsonPath('rows.0.source_type', CampaignProspect::SOURCE_CONNECTOR)
+        ->assertJsonPath('rows.0.source_reference', 'Apollo outbound')
+        ->assertJsonPath('rows.0.metadata.provider_preview', true);
+
+    expect((string) data_get($response->json(), 'rows.0.preview_ref'))->not->toBe('')
+        ->and(CampaignProspectBatch::query()->count())->toBe(0);
+});
+
+test('campaign provider preview rejects disconnected provider connection', function () {
+    $owner = marketingOwner();
+
+    $provider = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_LUSHA,
+        'label' => 'Lusha pending',
+        'credentials' => ['api_key' => 'lusha-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_DRAFT,
+        'is_active' => false,
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Provider preview blocked',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
+        'provider_connection_id' => $provider->id,
+        'query' => 'Construction, Quebec',
+    ]);
+
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['provider_connection_id']);
 });
 
 test('segment can be saved loaded and counted', function () {

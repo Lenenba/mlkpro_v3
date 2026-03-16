@@ -19,6 +19,7 @@ const props = defineProps({
     segments: { type: Array, default: () => [] },
     mailingLists: { type: Array, default: () => [] },
     vipTiers: { type: Array, default: () => [] },
+    availableProspectProviders: { type: Array, default: () => [] },
     enums: { type: Object, default: () => ({}) },
     marketingSettings: { type: Object, default: () => ({}) },
     access: { type: Object, default: () => ({}) },
@@ -235,10 +236,23 @@ const testResults = ref([]);
 const runMessage = ref('');
 const isProspectingMode = computed(() => Boolean(form.prospecting_enabled) && String(form.campaign_direction || '') !== 'customer_marketing');
 const wizardStepStorageKey = 'campaign-wizard-next-step';
+const savedAudienceSourceSummary = props.campaign?.audience?.source_summary || {};
 
-const prospectingImportMode = ref('manual');
-const prospectingSourceType = ref('manual');
-const prospectingSourceReference = ref('');
+const prospectingImportMode = ref(String(savedAudienceSourceSummary?.import_mode || 'manual'));
+const prospectingSourceType = ref(String(savedAudienceSourceSummary?.source_type || 'manual'));
+const prospectingSourceReference = ref(String(savedAudienceSourceSummary?.source_reference || ''));
+const prospectingProviderConnectionId = ref(
+    savedAudienceSourceSummary?.provider_connection_id ? String(savedAudienceSourceSummary.provider_connection_id) : ''
+);
+const prospectingProviderQueryLabel = ref(String(savedAudienceSourceSummary?.provider_query_label || ''));
+const prospectingProviderQuery = ref(String(savedAudienceSourceSummary?.provider_query || ''));
+const providerPreviewBusy = ref(false);
+const providerPreviewError = ref('');
+const providerPreviewMessage = ref('');
+const providerPreviewRows = ref([]);
+const providerPreviewMeta = ref(null);
+const providerPreviewConnection = ref(null);
+const selectedProviderPreviewRefs = ref([]);
 const prospectingBatchSize = ref(100);
 const prospectingManualInput = ref('');
 const prospectingSelectedFile = ref(null);
@@ -280,7 +294,41 @@ const leadLinkError = ref('');
 const prospectingImportModeOptions = computed(() => ([
     { value: 'manual', label: t('marketing.campaign_wizard.prospecting.import_modes.manual') },
     { value: 'csv', label: t('marketing.campaign_wizard.prospecting.import_modes.csv') },
+    { value: 'provider', label: t('marketing.campaign_wizard.prospecting.import_modes.provider') },
 ]));
+
+const availableProspectProviders = computed(() => (
+    Array.isArray(props.availableProspectProviders) ? props.availableProspectProviders : []
+));
+
+const prospectingProviderOptions = computed(() => availableProspectProviders.value.map((connection) => ({
+    value: String(connection.id),
+    label: `${connection.provider_label} - ${connection.label}`,
+})));
+
+const selectedProspectProvider = computed(() => {
+    const connectionId = Number(prospectingProviderConnectionId.value || 0);
+    if (!connectionId) {
+        return null;
+    }
+
+    return availableProspectProviders.value.find((connection) => Number(connection.id) === connectionId) || null;
+});
+
+const prospectingProviderPlaceholder = computed(() => {
+    const providerKey = String(selectedProspectProvider.value?.provider_key || '').toLowerCase();
+    if (providerKey === 'apollo') {
+        return 'VP operations, ecommerce, Toronto, 11-50 employees';
+    }
+    if (providerKey === 'lusha') {
+        return 'Construction companies, Ontario, owner or general manager';
+    }
+    if (providerKey === 'uplead') {
+        return 'Manufacturing, Quebec, procurement, 20-200 employees';
+    }
+
+    return 'ICP, filters, regions, titles, or saved search URL';
+});
 
 const prospectingSourceTypeOptions = computed(() => ([
     'manual',
@@ -339,11 +387,57 @@ const canAnalyzeProspectBatch = computed(() => {
         return false;
     }
 
+    if (prospectingImportMode.value === 'provider') {
+        return false;
+    }
+
     if (prospectingImportMode.value === 'csv') {
         return Boolean(prospectingSelectedFile.value);
     }
 
     return manualProspectLineCount.value > 0;
+});
+
+const canSaveProviderSelection = computed(() => {
+    return Boolean(
+        canManage.value
+        && isEdit.value
+        && prospectingImportMode.value === 'provider'
+        && selectedProspectProvider.value
+        && String(prospectingProviderQuery.value || '').trim() !== ''
+        && !form.processing
+    );
+});
+
+const prospectingProviderSelectionSummary = computed(() => {
+    if (prospectingImportMode.value !== 'provider') {
+        return null;
+    }
+
+    if (selectedProspectProvider.value) {
+        return `${selectedProspectProvider.value.provider_label} - ${selectedProspectProvider.value.label}`;
+    }
+
+    const fallbackLabel = String(savedAudienceSourceSummary?.provider_connection_label || savedAudienceSourceSummary?.provider_label || '').trim();
+    return fallbackLabel || null;
+});
+
+const canLoadProviderPreview = computed(() => {
+    return Boolean(
+        canManage.value
+        && campaignId.value
+        && prospectingImportMode.value === 'provider'
+        && selectedProspectProvider.value
+        && String(prospectingProviderQuery.value || '').trim() !== ''
+        && !providerPreviewBusy.value
+    );
+});
+
+const selectedProviderPreviewCount = computed(() => selectedProviderPreviewRefs.value.length);
+
+const allProviderPreviewSelected = computed(() => {
+    return providerPreviewRows.value.length > 0
+        && selectedProviderPreviewRefs.value.length === providerPreviewRows.value.length;
 });
 
 const canReviewActiveBatch = computed(() => {
@@ -493,6 +587,19 @@ const clearProspectingMessages = () => {
     prospectingImportMessage.value = '';
     prospectingBatchError.value = '';
     prospectingBatchMessage.value = '';
+};
+
+const clearProviderPreviewFeedback = () => {
+    providerPreviewError.value = '';
+    providerPreviewMessage.value = '';
+};
+
+const clearProviderPreview = () => {
+    clearProviderPreviewFeedback();
+    providerPreviewRows.value = [];
+    providerPreviewMeta.value = null;
+    providerPreviewConnection.value = null;
+    selectedProviderPreviewRefs.value = [];
 };
 
 const detectManualProspectDelimiter = (lines) => {
@@ -656,6 +763,51 @@ const prospectSequenceSummary = (prospect) => {
         phase: phase ? humanizeValue(phase) : '-',
         next: nextFollowUpAt,
     });
+};
+
+const providerPreviewLocation = (row) => {
+    const parts = [
+        String(row?.city || '').trim(),
+        String(row?.state || '').trim(),
+        String(row?.country || '').trim(),
+    ].filter((value) => value !== '');
+
+    return parts.length > 0 ? parts.join(', ') : '-';
+};
+
+const providerPreviewMissingLabel = (field) => {
+    const normalized = String(field || '').trim().toLowerCase();
+    if (normalized === 'company_name') return t('marketing.campaign_wizard.prospecting.preview_missing.company_name');
+    if (normalized === 'contact_name') return t('marketing.campaign_wizard.prospecting.preview_missing.contact_name');
+    if (normalized === 'email') return t('marketing.campaign_wizard.prospecting.preview_missing.email');
+    if (normalized === 'phone') return t('marketing.campaign_wizard.prospecting.preview_missing.phone');
+    if (normalized === 'website') return t('marketing.campaign_wizard.prospecting.preview_missing.website');
+    return humanizeValue(field);
+};
+
+const toggleProviderPreviewSelection = (previewRef, checked) => {
+    const normalizedRef = String(previewRef || '').trim();
+    if (!normalizedRef) {
+        return;
+    }
+
+    if (checked) {
+        selectedProviderPreviewRefs.value = [...new Set([...selectedProviderPreviewRefs.value, normalizedRef])];
+        return;
+    }
+
+    selectedProviderPreviewRefs.value = selectedProviderPreviewRefs.value.filter((value) => value !== normalizedRef);
+};
+
+const toggleAllProviderPreviewRows = () => {
+    if (allProviderPreviewSelected.value) {
+        selectedProviderPreviewRefs.value = [];
+        return;
+    }
+
+    selectedProviderPreviewRefs.value = providerPreviewRows.value
+        .map((row) => String(row?.preview_ref || '').trim())
+        .filter((value) => value !== '');
 };
 
 const clearSelectedProspects = () => {
@@ -1053,6 +1205,52 @@ const loadProspectBatches = async (selectedBatchId = null) => {
     }
 };
 
+const previewProviderProspects = async () => {
+    if (!campaignId.value) {
+        providerPreviewError.value = t('marketing.campaign_wizard.prospecting.errors.save_draft_first');
+        return;
+    }
+
+    if (!selectedProspectProvider.value) {
+        providerPreviewError.value = t('marketing.campaign_wizard.prospecting.errors.provider_connection_required');
+        return;
+    }
+
+    if (String(prospectingProviderQuery.value || '').trim() === '') {
+        providerPreviewError.value = t('marketing.campaign_wizard.prospecting.errors.provider_query_required');
+        return;
+    }
+
+    providerPreviewBusy.value = true;
+    clearProviderPreviewFeedback();
+
+    try {
+        const response = await axios.post(route('campaigns.prospect-provider-preview', campaignId.value), {
+            provider_connection_id: Number(prospectingProviderConnectionId.value || 0),
+            query_label: String(prospectingProviderQueryLabel.value || '').trim() || null,
+            query: String(prospectingProviderQuery.value || '').trim(),
+            limit: 25,
+        });
+
+        providerPreviewRows.value = Array.isArray(response.data?.rows) ? response.data.rows : [];
+        providerPreviewMeta.value = response.data?.preview || null;
+        providerPreviewConnection.value = response.data?.provider_connection || null;
+        selectedProviderPreviewRefs.value = providerPreviewRows.value
+            .map((row) => String(row?.preview_ref || '').trim())
+            .filter((value) => value !== '');
+        providerPreviewMessage.value = response.data?.message || t('marketing.campaign_wizard.prospecting.messages.provider_preview_ready');
+    } catch (error) {
+        const validationErrors = error?.response?.data?.errors || {};
+        const firstValidationMessage = Object.values(validationErrors).flat()[0];
+        providerPreviewError.value = firstValidationMessage
+            || error?.response?.data?.message
+            || error?.message
+            || t('marketing.campaign_wizard.prospecting.errors.provider_preview_failed');
+    } finally {
+        providerPreviewBusy.value = false;
+    }
+};
+
 const analyzeProspectBatch = async () => {
     if (!campaignId.value) {
         prospectingImportError.value = t('marketing.campaign_wizard.prospecting.errors.save_draft_first');
@@ -1201,6 +1399,54 @@ watch(
         if (normalized !== '') {
             form.prospecting_enabled = true;
         }
+    }
+);
+
+watch(
+    () => prospectingImportMode.value,
+    (mode, previous) => {
+        clearProviderPreview();
+
+        if (mode === 'provider') {
+            prospectingSourceType.value = 'connector';
+            prospectingSourceReference.value = selectedProspectProvider.value?.label || '';
+            return;
+        }
+
+        if (previous === 'provider') {
+            prospectingSourceReference.value = '';
+        }
+
+        if (!prospectingSourceType.value || prospectingSourceType.value === 'connector') {
+            prospectingSourceType.value = mode === 'csv' ? 'csv' : 'manual';
+        }
+    },
+    { immediate: true }
+);
+
+watch(
+    () => selectedProspectProvider.value,
+    (connection) => {
+        clearProviderPreview();
+
+        if (prospectingImportMode.value !== 'provider') {
+            return;
+        }
+
+        prospectingSourceType.value = 'connector';
+        prospectingSourceReference.value = connection?.label || '';
+    },
+    { immediate: true }
+);
+
+watch(
+    () => [prospectingProviderQuery.value, prospectingProviderQueryLabel.value],
+    () => {
+        if (prospectingImportMode.value !== 'provider') {
+            return;
+        }
+
+        clearProviderPreview();
     }
 );
 
@@ -1436,20 +1682,49 @@ const logicSummary = computed(() => {
     });
 });
 
-const audiencePayload = () => ({
-    smart_filters: props.campaign?.audience?.smart_filters || null,
-    exclusion_filters: props.campaign?.audience?.exclusion_filters || null,
-    manual_customer_ids: selectedAudienceCustomerIds.value,
-    include_mailing_list_ids: includeMailingListIds.value,
-    exclude_mailing_list_ids: excludeMailingListIds.value,
-    source_logic: sourceLogic.value,
-    source_summary: {
-        logic: sourceLogic.value,
-        include_mailing_lists_count: includeMailingListIds.value.length,
-        exclude_mailing_lists_count: excludeMailingListIds.value.length,
-    },
-    manual_contacts: initialManualContacts,
-});
+const audiencePayload = () => {
+    const providerContext = prospectingImportMode.value === 'provider'
+        ? {
+            provider_connection_id: selectedProspectProvider.value
+                ? Number(selectedProspectProvider.value.id)
+                : (savedAudienceSourceSummary?.provider_connection_id ?? null),
+            provider_key: selectedProspectProvider.value?.provider_key || savedAudienceSourceSummary?.provider_key || null,
+            provider_label: selectedProspectProvider.value?.provider_label || savedAudienceSourceSummary?.provider_label || null,
+            provider_connection_label: selectedProspectProvider.value?.label || savedAudienceSourceSummary?.provider_connection_label || null,
+            provider_query_label: String(prospectingProviderQueryLabel.value || '').trim() || null,
+            provider_query: String(prospectingProviderQuery.value || '').trim() || null,
+        }
+        : {
+            provider_connection_id: null,
+            provider_key: null,
+            provider_label: null,
+            provider_connection_label: null,
+            provider_query_label: null,
+            provider_query: null,
+        };
+
+    return {
+        smart_filters: props.campaign?.audience?.smart_filters || null,
+        exclusion_filters: props.campaign?.audience?.exclusion_filters || null,
+        manual_customer_ids: selectedAudienceCustomerIds.value,
+        include_mailing_list_ids: includeMailingListIds.value,
+        exclude_mailing_list_ids: excludeMailingListIds.value,
+        source_logic: sourceLogic.value,
+        source_summary: {
+            logic: sourceLogic.value,
+            include_mailing_lists_count: includeMailingListIds.value.length,
+            exclude_mailing_lists_count: excludeMailingListIds.value.length,
+            import_mode: String(prospectingImportMode.value || 'manual'),
+            source_type: String(prospectingSourceType.value || 'manual'),
+            source_reference: String(prospectingSourceReference.value || '').trim()
+                || (prospectingImportMode.value === 'provider'
+                    ? (savedAudienceSourceSummary?.source_reference || null)
+                    : null),
+            ...providerContext,
+        },
+        manual_contacts: initialManualContacts,
+    };
+};
 
 const templatesForChannel = (channel) => {
     return templates.value.filter((row) => String(row.channel).toUpperCase() === String(channel).toUpperCase());
@@ -1685,6 +1960,7 @@ onMounted(async () => {
 
 watch(isProspectingMode, async (enabled) => {
     if (!enabled || !campaignId.value) {
+        clearProviderPreview();
         return;
     }
 
@@ -1819,6 +2095,7 @@ watch(isProspectingMode, async (enabled) => {
                                 option-label="label"
                             />
                             <FloatingSelect
+                                v-if="prospectingImportMode !== 'provider'"
                                 v-model="prospectingSourceType"
                                 :label="t('marketing.campaign_wizard.prospecting.fields.source_type')"
                                 :options="prospectingSourceTypeOptions"
@@ -1826,6 +2103,7 @@ watch(isProspectingMode, async (enabled) => {
                                 option-label="label"
                             />
                             <FloatingInput
+                                v-if="prospectingImportMode !== 'provider'"
                                 v-model="prospectingSourceReference"
                                 :label="t('marketing.campaign_wizard.prospecting.fields.source_reference')"
                             />
@@ -1863,7 +2141,7 @@ watch(isProspectingMode, async (enabled) => {
                                 </div>
                             </div>
 
-                            <div v-else class="mt-3 space-y-2">
+                            <div v-else-if="prospectingImportMode === 'csv'" class="mt-3 space-y-2">
                                 <label class="block text-xs font-medium text-stone-600 dark:text-neutral-300">
                                     {{ t('marketing.campaign_wizard.prospecting.fields.csv_file') }}
                                 </label>
@@ -1878,10 +2156,60 @@ watch(isProspectingMode, async (enabled) => {
                                 </div>
                             </div>
 
+                            <div v-else class="mt-3 space-y-3">
+                                <div
+                                    v-if="prospectingProviderOptions.length === 0"
+                                    class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200"
+                                >
+                                    <div class="font-semibold">{{ t('marketing.campaign_wizard.prospecting.provider_empty_title') }}</div>
+                                    <p class="mt-1">{{ t('marketing.campaign_wizard.prospecting.provider_empty_description') }}</p>
+                                    <div class="mt-3">
+                                        <Link :href="route('campaigns.prospect-providers.manage')">
+                                            <SecondaryButton type="button">
+                                                {{ t('marketing.campaign_wizard.prospecting.actions.manage_providers') }}
+                                            </SecondaryButton>
+                                        </Link>
+                                    </div>
+                                </div>
+                                <template v-else>
+                                    <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                                        <FloatingSelect
+                                            v-model="prospectingProviderConnectionId"
+                                            :label="t('marketing.campaign_wizard.prospecting.fields.provider_connection')"
+                                            :options="prospectingProviderOptions"
+                                            option-value="value"
+                                            option-label="label"
+                                        />
+                                        <FloatingInput
+                                            v-model="prospectingProviderQueryLabel"
+                                            :label="t('marketing.campaign_wizard.prospecting.fields.provider_query_label')"
+                                        />
+                                    </div>
+                                    <FloatingTextarea
+                                        v-model="prospectingProviderQuery"
+                                        :label="t('marketing.campaign_wizard.prospecting.fields.provider_query')"
+                                        :placeholder="prospectingProviderPlaceholder"
+                                    />
+                                    <div class="rounded-sm border border-dashed border-stone-300 bg-white px-3 py-2 text-xs text-stone-500 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-400">
+                                        {{ t('marketing.campaign_wizard.prospecting.provider_query_hint') }}
+                                    </div>
+                                </template>
+                            </div>
+
                             <div class="mt-3 flex flex-wrap gap-2">
-                                <PrimaryButton type="button" :disabled="!canAnalyzeProspectBatch" @click="analyzeProspectBatch">
-                                    {{ prospectingImportBusy ? t('marketing.campaign_wizard.prospecting.actions.analyzing') : t('marketing.campaign_wizard.prospecting.actions.analyze_batch') }}
-                                </PrimaryButton>
+                                <template v-if="prospectingImportMode === 'provider'">
+                                    <PrimaryButton type="button" :disabled="!canSaveProviderSelection" @click="save(2)">
+                                        {{ form.processing ? t('marketing.campaign_wizard.actions.saving') : t('marketing.campaign_wizard.prospecting.actions.save_provider_selection') }}
+                                    </PrimaryButton>
+                                    <SecondaryButton type="button" :disabled="!canLoadProviderPreview" @click="previewProviderProspects">
+                                        {{ providerPreviewBusy ? t('marketing.campaign_wizard.prospecting.actions.previewing_provider') : t('marketing.campaign_wizard.prospecting.actions.preview_provider') }}
+                                    </SecondaryButton>
+                                </template>
+                                <template v-else>
+                                    <PrimaryButton type="button" :disabled="!canAnalyzeProspectBatch" @click="analyzeProspectBatch">
+                                        {{ prospectingImportBusy ? t('marketing.campaign_wizard.prospecting.actions.analyzing') : t('marketing.campaign_wizard.prospecting.actions.analyze_batch') }}
+                                    </PrimaryButton>
+                                </template>
                                 <SecondaryButton type="button" :disabled="prospectingBatchBusy" @click="loadProspectBatches(activeProspectBatchId)">
                                     {{ t('marketing.common.reload') }}
                                 </SecondaryButton>
@@ -1889,6 +2217,134 @@ watch(isProspectingMode, async (enabled) => {
 
                             <p v-if="prospectingImportError" class="mt-2 text-xs text-rose-600">{{ prospectingImportError }}</p>
                             <p v-if="prospectingImportMessage" class="mt-2 text-xs text-emerald-700 dark:text-emerald-300">{{ prospectingImportMessage }}</p>
+                            <p v-if="providerPreviewError" class="mt-2 text-xs text-rose-600">{{ providerPreviewError }}</p>
+                            <p v-if="providerPreviewMessage" class="mt-2 text-xs text-emerald-700 dark:text-emerald-300">{{ providerPreviewMessage }}</p>
+                            <p v-if="prospectingImportMode === 'provider'" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ t('marketing.campaign_wizard.prospecting.provider_next_step_hint') }}
+                            </p>
+                        </div>
+
+                        <div
+                            v-if="prospectingImportMode === 'provider' && (providerPreviewRows.length > 0 || providerPreviewBusy || providerPreviewError || providerPreviewMessage)"
+                            class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        >
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ t('marketing.campaign_wizard.prospecting.preview_title') }}
+                                    </div>
+                                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ t('marketing.campaign_wizard.prospecting.preview_hint', {
+                                            count: providerPreviewMeta?.count || providerPreviewRows.length || 0,
+                                            provider: providerPreviewConnection?.label || prospectingProviderSelectionSummary || '-',
+                                        }) }}
+                                    </p>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 text-xs">
+                                    <span class="rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                                        {{ t('marketing.campaign_wizard.prospecting.preview_selected_count', { count: selectedProviderPreviewCount, total: providerPreviewRows.length || 0 }) }}
+                                    </span>
+                                    <SecondaryButton
+                                        v-if="providerPreviewRows.length"
+                                        type="button"
+                                        @click="toggleAllProviderPreviewRows"
+                                    >
+                                        {{ allProviderPreviewSelected ? t('marketing.campaign_wizard.prospecting.preview_unselect_all') : t('marketing.campaign_wizard.prospecting.preview_select_all') }}
+                                    </SecondaryButton>
+                                </div>
+                            </div>
+
+                            <div v-if="providerPreviewMeta?.query || providerPreviewMeta?.query_label" class="mt-3 flex flex-wrap gap-2 text-xs">
+                                <span
+                                    v-if="providerPreviewMeta?.query_label"
+                                    class="rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                                >
+                                    {{ providerPreviewMeta.query_label }}
+                                </span>
+                                <span
+                                    v-if="providerPreviewMeta?.query"
+                                    class="rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                                >
+                                    {{ providerPreviewMeta.query }}
+                                </span>
+                            </div>
+
+                            <div v-if="providerPreviewBusy" class="mt-3 rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                                {{ t('marketing.campaign_wizard.prospecting.preview_loading') }}
+                            </div>
+
+                            <div v-else-if="providerPreviewRows.length === 0" class="mt-3 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-4 text-xs text-stone-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                                {{ t('marketing.campaign_wizard.prospecting.preview_empty') }}
+                            </div>
+
+                            <div v-else class="mt-3 overflow-x-auto">
+                                <table class="min-w-full divide-y divide-stone-200 text-left text-xs dark:divide-neutral-700">
+                                    <thead class="bg-stone-50 text-stone-500 dark:bg-neutral-800 dark:text-neutral-400">
+                                        <tr>
+                                            <th class="px-3 py-2 font-semibold"></th>
+                                            <th class="px-3 py-2 font-semibold">{{ t('marketing.campaign_wizard.prospecting.preview_columns.company') }}</th>
+                                            <th class="px-3 py-2 font-semibold">{{ t('marketing.campaign_wizard.prospecting.preview_columns.contact') }}</th>
+                                            <th class="px-3 py-2 font-semibold">{{ t('marketing.campaign_wizard.prospecting.preview_columns.reach') }}</th>
+                                            <th class="px-3 py-2 font-semibold">{{ t('marketing.campaign_wizard.prospecting.preview_columns.location') }}</th>
+                                            <th class="px-3 py-2 font-semibold">{{ t('marketing.campaign_wizard.prospecting.preview_columns.origin') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-stone-100 bg-white text-stone-700 dark:divide-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
+                                        <tr
+                                            v-for="row in providerPreviewRows"
+                                            :key="row.preview_ref"
+                                            class="align-top"
+                                        >
+                                            <td class="px-3 py-3">
+                                                <input
+                                                    :checked="selectedProviderPreviewRefs.includes(row.preview_ref)"
+                                                    type="checkbox"
+                                                    class="rounded border-stone-300 text-green-600 focus:ring-green-600"
+                                                    @change="toggleProviderPreviewSelection(row.preview_ref, $event.target.checked)"
+                                                >
+                                            </td>
+                                            <td class="px-3 py-3">
+                                                <div class="font-semibold text-stone-800 dark:text-neutral-100">{{ row.company_name || '-' }}</div>
+                                                <div class="mt-1 text-stone-500 dark:text-neutral-400">{{ row.industry || '-' }}</div>
+                                                <div v-if="row.company_size" class="mt-1 text-stone-500 dark:text-neutral-400">{{ row.company_size }}</div>
+                                            </td>
+                                            <td class="px-3 py-3">
+                                                <div class="font-medium text-stone-700 dark:text-neutral-200">{{ row.contact_name || '-' }}</div>
+                                                <div class="mt-1 text-stone-500 dark:text-neutral-400">{{ row.first_name || row.last_name ? `${row.first_name || ''} ${row.last_name || ''}`.trim() : '-' }}</div>
+                                            </td>
+                                            <td class="px-3 py-3">
+                                                <div>{{ row.email || '-' }}</div>
+                                                <div class="mt-1 text-stone-500 dark:text-neutral-400">{{ row.phone || '-' }}</div>
+                                                <a
+                                                    v-if="row.website"
+                                                    :href="row.website"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    class="mt-1 inline-flex text-green-700 hover:text-green-800 dark:text-green-300 dark:hover:text-green-200"
+                                                >
+                                                    {{ row.website_domain || row.website }}
+                                                </a>
+                                            </td>
+                                            <td class="px-3 py-3">
+                                                <div>{{ providerPreviewLocation(row) }}</div>
+                                            </td>
+                                            <td class="px-3 py-3">
+                                                <div class="text-stone-500 dark:text-neutral-400">{{ row.provider_label || '-' }}</div>
+                                                <div class="mt-1 text-stone-500 dark:text-neutral-400">{{ row.source_reference || '-' }}</div>
+                                                <div v-if="row.missing_fields?.length" class="mt-2 flex flex-wrap gap-1">
+                                                    <span
+                                                        v-for="field in row.missing_fields"
+                                                        :key="`${row.preview_ref}-${field}`"
+                                                        class="rounded-sm border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+                                                    >
+                                                        {{ providerPreviewMissingLabel(field) }}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
                         <div v-if="prospectingBatchSummary" class="grid grid-cols-2 gap-2 xl:grid-cols-4">
@@ -2710,6 +3166,9 @@ watch(isProspectingMode, async (enabled) => {
                     <div><strong>{{ t('marketing.campaign_wizard.review.type') }}:</strong> {{ campaignTypeLabel(form.campaign_type) }}</div>
                     <div><strong>{{ t('marketing.campaign_wizard.review.direction') }}:</strong> {{ directionLabel(form.campaign_direction) }}</div>
                     <div><strong>{{ t('marketing.campaign_wizard.review.prospecting_enabled') }}:</strong> {{ form.prospecting_enabled ? t('marketing.campaign_wizard.yes') : t('marketing.campaign_wizard.no') }}</div>
+                    <div v-if="isProspectingMode"><strong>{{ t('marketing.campaign_wizard.prospecting.fields.import_mode') }}:</strong> {{ t(`marketing.campaign_wizard.prospecting.import_modes.${prospectingImportMode}`) }}</div>
+                    <div v-if="isProspectingMode && prospectingImportMode === 'provider'"><strong>{{ t('marketing.campaign_wizard.prospecting.fields.provider_connection') }}:</strong> {{ prospectingProviderSelectionSummary || '-' }}</div>
+                    <div v-if="isProspectingMode && prospectingImportMode === 'provider' && prospectingProviderQuery"><strong>{{ t('marketing.campaign_wizard.prospecting.fields.provider_query') }}:</strong> {{ prospectingProviderQuery }}</div>
                     <div><strong>{{ t('marketing.campaign_wizard.review.offer_mode') }}:</strong> {{ offerModeLabel(form.offer_mode) }}</div>
                     <div><strong>{{ t('marketing.campaign_wizard.review.offers') }}:</strong> {{ offersPayload.length }}</div>
                     <div><strong>{{ t('marketing.campaign_wizard.review.enabled_channels') }}:</strong> {{ form.channels.filter((row) => row.is_enabled).length }}</div>

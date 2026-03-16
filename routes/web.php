@@ -20,6 +20,7 @@ use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\MarketingDashboardKpiController;
 use App\Http\Controllers\MarketingMailingListController;
 use App\Http\Controllers\MarketingMetaController;
+use App\Http\Controllers\MarketingProspectProviderConnectionController;
 use App\Http\Controllers\MarketingSegmentController;
 use App\Http\Controllers\MarketingTemplateController;
 use App\Http\Controllers\MarketingVipController;
@@ -462,6 +463,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::middleware('company.feature:campaigns')->group(function () {
         Route::get('/campaigns/templates', [MarketingTemplateController::class, 'manage'])
             ->name('campaigns.templates.manage');
+        Route::get('/campaigns/prospect-providers', [MarketingProspectProviderConnectionController::class, 'manage'])
+            ->name('campaigns.prospect-providers.manage');
         Route::get('/offers/search', [OfferSearchController::class, 'search'])->name('offers.search');
         Route::get('/marketing/meta', MarketingMetaController::class)->name('marketing.meta');
         Route::get('/marketing/dashboard/kpis', MarketingDashboardKpiController::class)->name('marketing.dashboard.kpis');
@@ -520,6 +523,16 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('marketing.vip.destroy');
         Route::patch('/marketing/customers/{customer}/vip', [MarketingVipController::class, 'updateCustomer'])
             ->name('marketing.vip.customer.update');
+        Route::get('/marketing/prospect-providers', [MarketingProspectProviderConnectionController::class, 'index'])
+            ->name('marketing.prospect-providers.index');
+        Route::post('/marketing/prospect-providers', [MarketingProspectProviderConnectionController::class, 'store'])
+            ->name('marketing.prospect-providers.store');
+        Route::put('/marketing/prospect-providers/{connection}', [MarketingProspectProviderConnectionController::class, 'update'])
+            ->name('marketing.prospect-providers.update');
+        Route::post('/marketing/prospect-providers/{connection}/validate', [MarketingProspectProviderConnectionController::class, 'validateConnection'])
+            ->name('marketing.prospect-providers.validate');
+        Route::post('/marketing/prospect-providers/{connection}/disconnect', [MarketingProspectProviderConnectionController::class, 'disconnect'])
+            ->name('marketing.prospect-providers.disconnect');
 
         Route::get('/campaigns', [CampaignController::class, 'index'])->name('campaigns.index');
         Route::get('/campaigns/create', [CampaignController::class, 'create'])->name('campaigns.create');
@@ -534,6 +547,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/campaigns/{campaign}/test-send', [CampaignRunController::class, 'testSend'])->name('campaigns.test-send');
         Route::get('/campaigns/{campaign}/prospect-batches', [CampaignProspectingController::class, 'batches'])
             ->name('campaigns.prospect-batches.index');
+        Route::post('/campaigns/{campaign}/prospect-provider-preview', [CampaignProspectingController::class, 'providerPreview'])
+            ->name('campaigns.prospect-provider-preview');
         Route::post('/campaigns/{campaign}/prospect-batches/import', [CampaignProspectingController::class, 'import'])
             ->name('campaigns.prospect-batches.import');
         Route::get('/campaigns/{campaign}/prospect-batches/{batch}', [CampaignProspectingController::class, 'showBatch'])

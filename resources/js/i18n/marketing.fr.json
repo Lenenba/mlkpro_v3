@@ -56,6 +56,10 @@
         "vip_tiers_manager": {
           "title": "Gestionnaire de tiers VIP",
           "description": "Définissez et mettez à jour les tiers VIP et les assignations clients."
+        },
+        "prospect_provider_manager": {
+          "title": "Fournisseurs de prospects",
+          "description": "Connectez Apollo, Lusha et UpLead pour poser une base securisee avant les futurs imports provider dans la prospection."
         }
       },
       "channels": {
@@ -131,6 +135,57 @@
         "remove_rule": "Retirer"
       }
     },
+    "prospect_provider_manager": {
+      "title": "Fournisseurs de prospects",
+      "description": "Creez des connexions fournisseur securisees par tenant avant d ajouter la preview provider et l import dans l audience de campagne.",
+      "summary": {
+        "configured": "Connexions configurees",
+        "connected": "Connectees et pretes",
+        "attention": "A verifier"
+      },
+      "fields": {
+        "provider": "Fournisseur",
+        "label": "Libelle de connexion",
+        "api_key": "Cle API"
+      },
+      "columns": {
+        "provider": "Fournisseur",
+        "label": "Libelle",
+        "status": "Statut",
+        "last_validated": "Derniere validation"
+      },
+      "statuses": {
+        "draft": "Brouillon",
+        "connected": "Connecte",
+        "invalid": "Invalide",
+        "expired": "Expire",
+        "rate_limited": "Limite atteinte",
+        "disconnected": "Deconnecte"
+      },
+      "create_connection": "Creer la connexion",
+      "update_connection": "Mettre a jour la connexion",
+      "validate_connection": "Valider",
+      "disconnect_connection": "Deconnecter",
+      "search_connection": "Rechercher une connexion",
+      "credentials_saved": "Identifiants chiffres enregistres",
+      "no_credentials": "Aucun identifiant enregistre",
+      "not_validated": "Pas encore valide",
+      "secret_store_hint": "Les secrets sont stockes chiffres. Apres creation, utilisez Valider pour confirmer l etat de la connexion.",
+      "secret_update_hint": "Laissez la cle API vide pour conserver le secret existant. Renseignez-la seulement pour remplacer le secret enregistre.",
+      "confirm_disconnect": "Deconnecter la connexion fournisseur \"{name}\" ?",
+      "info_created": "Connexion fournisseur creee.",
+      "info_updated": "Connexion fournisseur mise a jour.",
+      "info_validated": "Connexion {provider} validee.",
+      "info_disconnected": "Connexion fournisseur deconnectee.",
+      "error_load": "Impossible de charger les connexions fournisseur.",
+      "error_save": "Impossible d enregistrer la connexion fournisseur.",
+      "error_validate": "Impossible de valider la connexion fournisseur.",
+      "error_disconnect": "Impossible de deconnecter la connexion fournisseur.",
+      "no_connection_found": "Aucune connexion fournisseur trouvee.",
+      "read_only_title": "Acces lecture seule",
+      "read_only_description": "Seul le proprietaire du compte peut ajouter, remplacer, valider ou deconnecter les identifiants fournisseur. Les membres de l equipe peuvent quand meme verifier l etat des connexions ici avant de les utiliser dans l audience de campagne.",
+      "view_only_actions": "Lecture seule"
+    },
     "template_manager": {
       "title": "Templates",
       "template_name": "Nom du template",
@@ -181,6 +236,15 @@
       "page_description": "Travaillez les templates email dans un espace dédié, plus large et plus confortable pour construire des campagnes qualitatives.",
       "actions": {
         "back_to_settings": "Retour aux paramètres",
+        "back_to_campaigns": "Retour aux campagnes"
+      }
+    },
+    "prospect_provider_page": {
+      "head_title": "Espace fournisseurs de prospects",
+      "page_title": "Fournisseurs de prospects",
+      "page_description": "Connectez, validez et surveillez vos fournisseurs de prospects dans un espace dedie avant d ajouter l import provider a l audience des campagnes.",
+      "actions": {
+        "back_to_settings": "Retour aux parametres",
         "back_to_campaigns": "Retour aux campagnes"
       }
     },
@@ -394,7 +458,15 @@
       "actions": {
         "view": "Voir",
         "edit": "Modifier",
-        "manage_templates": "Gérer les templates"
+        "manage_templates": "Gerer les templates",
+        "manage_prospect_providers": "Fournisseurs de prospects"
+      },
+      "providers": {
+        "title": "Etat des fournisseurs de prospects",
+        "description": "Verifiez la disponibilite des fournisseurs avant de basculer l audience campagne vers un intake prospect base sur un provider.",
+        "configured": "{count} configures",
+        "connected": "{count} connectes",
+        "attention": "{count} a verifier"
       }
     },
     "campaign_show": {
@@ -677,6 +749,10 @@
           "create_draft": "Créer le brouillon",
           "analyze_batch": "Analyser le lot",
           "analyzing": "Analyse en cours...",
+          "save_provider_selection": "Enregistrer la selection fournisseur",
+          "preview_provider": "Prévisualiser les prospects",
+          "previewing_provider": "Chargement de la preview...",
+          "manage_providers": "Gerer les fournisseurs",
           "approve_batch": "Approuver le lot",
           "reject_batch": "Rejeter le lot",
           "processing": "Traitement...",
@@ -696,7 +772,8 @@
         },
         "import_modes": {
           "manual": "Saisie manuelle",
-          "csv": "Import CSV"
+          "csv": "Import CSV",
+          "provider": "Connexion fournisseur"
         },
         "source_types": {
           "manual": "Manuel",
@@ -714,8 +791,36 @@
           "batch_size": "Taille du lot",
           "manual_input": "Prospects manuels",
           "csv_file": "Fichier CSV",
+          "provider_connection": "Connexion fournisseur",
+          "provider_query_label": "Libelle de requete",
+          "provider_query": "Requete fournisseur ou ICP",
           "lead_search": "Recherche lead",
           "linked_lead": "Lead existant"
+        },
+        "provider_empty_title": "Aucun fournisseur connecte disponible",
+        "provider_empty_description": "Connectez et validez au moins un fournisseur avant de preparer une audience prospect basee sur un provider.",
+        "provider_query_hint": "Stockez ici les termes de recherche, l ICP, l URL de recherche sauvegardee ou les filtres fournisseur pour que la prochaine etape de preview/import puisse rejouer exactement la requete provider.",
+        "provider_next_step_hint": "Enregistrez le fournisseur choisi sur le brouillon, puis previsualisez ici les prospects retournes avant la future etape d import.",
+        "preview_title": "Preview fournisseur",
+        "preview_hint": "{count} prospect(s) de preview charges depuis {provider}. Revoyez les lignes avant que l import confirme soit disponible.",
+        "preview_loading": "Chargement de la preview fournisseur...",
+        "preview_empty": "Aucune ligne de preview n est disponible pour cette requete fournisseur.",
+        "preview_selected_count": "{count} selectionne(s) / {total} lignes",
+        "preview_select_all": "Tout selectionner",
+        "preview_unselect_all": "Tout deselectionner",
+        "preview_columns": {
+          "company": "Entreprise",
+          "contact": "Contact",
+          "reach": "Joignable via",
+          "location": "Localisation",
+          "origin": "Origine"
+        },
+        "preview_missing": {
+          "company_name": "Entreprise manquante",
+          "contact_name": "Contact manquant",
+          "email": "Email manquant",
+          "phone": "Telephone manquant",
+          "website": "Site manquant"
         },
         "summary": {
           "total_batches": "Total des lots",
@@ -831,6 +936,7 @@
         },
         "messages": {
           "batch_analyzed": "Lot de prospects analysé.",
+          "provider_preview_ready": "Preview fournisseur chargée.",
           "batch_approved": "Lot de prospects approuvé.",
           "batch_rejected": "Lot de prospects rejeté.",
           "prospect_updated": "Prospect mis à jour.",
@@ -844,8 +950,11 @@
           "load_prospect": "Impossible de charger le détail du prospect.",
           "load_leads": "Impossible de charger les suggestions de leads.",
           "save_draft_first": "Enregistrez la campagne en brouillon avant d analyser les prospects.",
+          "provider_connection_required": "Sélectionnez un fournisseur connecté avant de charger une preview.",
+          "provider_query_required": "Saisissez une requête fournisseur ou un ICP avant de charger une preview.",
           "file_required": "Sélectionnez un fichier CSV à analyser.",
           "manual_required": "Collez au moins une ligne prospect à analyser.",
+          "provider_preview_failed": "La preview fournisseur n a pas pu être chargée pour le moment.",
           "import_failed": "Impossible d analyser le lot de prospects.",
           "review_failed": "Impossible de revoir le lot de prospects.",
           "update_prospect": "Impossible de mettre à jour le prospect.",

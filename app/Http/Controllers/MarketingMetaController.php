@@ -10,12 +10,16 @@ use App\Enums\CampaignType;
 use App\Enums\OfferType;
 use App\Models\User;
 use App\Services\Campaigns\MarketingSettingsService;
+use App\Services\Campaigns\ProspectProviderConnectionService;
+use App\Services\Campaigns\ProspectProviderRegistry;
 use Illuminate\Http\Request;
 
 class MarketingMetaController extends Controller
 {
     public function __construct(
         private readonly MarketingSettingsService $settingsService,
+        private readonly ProspectProviderRegistry $prospectProviderRegistry,
+        private readonly ProspectProviderConnectionService $prospectProviderConnectionService,
     ) {
     }
 
@@ -46,6 +50,8 @@ class MarketingMetaController extends Controller
                 'SMS' => ['text', 'shortener'],
                 'IN_APP' => ['title', 'body', 'deepLink', 'image'],
             ],
+            'prospect_providers' => $this->prospectProviderRegistry->definitions(),
+            'prospect_provider_connections' => $this->prospectProviderConnectionService->listPayloads($owner),
             'settings' => $settings,
         ]);
     }

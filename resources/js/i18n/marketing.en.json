@@ -56,6 +56,10 @@
         "vip_tiers_manager": {
           "title": "VIP tiers manager",
           "description": "Define and update VIP tiers and customer assignments."
+        },
+        "prospect_provider_manager": {
+          "title": "Prospect providers",
+          "description": "Connect Apollo, Lusha, and UpLead accounts so prospecting imports can be validated from a secure tenant-owned foundation."
         }
       },
       "channels": {
@@ -131,6 +135,57 @@
         "remove_rule": "Remove"
       }
     },
+    "prospect_provider_manager": {
+      "title": "Prospect providers",
+      "description": "Create secure tenant-owned provider connections before provider preview and import flows are added to campaign audience.",
+      "summary": {
+        "configured": "Configured connections",
+        "connected": "Connected and ready",
+        "attention": "Need attention"
+      },
+      "fields": {
+        "provider": "Provider",
+        "label": "Connection label",
+        "api_key": "API key"
+      },
+      "columns": {
+        "provider": "Provider",
+        "label": "Label",
+        "status": "Status",
+        "last_validated": "Last validated"
+      },
+      "statuses": {
+        "draft": "Draft",
+        "connected": "Connected",
+        "invalid": "Invalid",
+        "expired": "Expired",
+        "rate_limited": "Rate limited",
+        "disconnected": "Disconnected"
+      },
+      "create_connection": "Create connection",
+      "update_connection": "Update connection",
+      "validate_connection": "Validate",
+      "disconnect_connection": "Disconnect",
+      "search_connection": "Search connection",
+      "credentials_saved": "Encrypted credentials saved",
+      "no_credentials": "No credentials saved yet",
+      "not_validated": "Not validated yet",
+      "secret_store_hint": "Secrets are stored encrypted. After creation, use Validate to confirm the connection state.",
+      "secret_update_hint": "Leave the API key empty to keep the existing secret. Fill it only when replacing the saved secret.",
+      "confirm_disconnect": "Disconnect provider connection \"{name}\"?",
+      "info_created": "Provider connection created.",
+      "info_updated": "Provider connection updated.",
+      "info_validated": "{provider} connection validated.",
+      "info_disconnected": "Provider connection disconnected.",
+      "error_load": "Unable to load provider connections.",
+      "error_save": "Unable to save provider connection.",
+      "error_validate": "Unable to validate provider connection.",
+      "error_disconnect": "Unable to disconnect provider connection.",
+      "no_connection_found": "No provider connection found.",
+      "read_only_title": "View-only access",
+      "read_only_description": "Only the account owner can add, replace, validate, or disconnect provider credentials. Team members can still review provider health here before using available connections in campaign audience.",
+      "view_only_actions": "View only"
+    },
     "template_manager": {
       "title": "Templates",
       "template_name": "Template name",
@@ -179,6 +234,15 @@
       "head_title": "Marketing templates workspace",
       "page_title": "Marketing templates",
       "page_description": "Work on email templates in a dedicated, wider workspace so creation and review stay clean and comfortable.",
+      "actions": {
+        "back_to_settings": "Back to settings",
+        "back_to_campaigns": "Back to campaigns"
+      }
+    },
+    "prospect_provider_page": {
+      "head_title": "Prospect providers workspace",
+      "page_title": "Prospect providers",
+      "page_description": "Connect, validate, and monitor prospect data providers in a dedicated workspace before audience imports are added to campaigns.",
       "actions": {
         "back_to_settings": "Back to settings",
         "back_to_campaigns": "Back to campaigns"
@@ -394,7 +458,15 @@
       "actions": {
         "view": "View",
         "edit": "Edit",
-        "manage_templates": "Manage templates"
+        "manage_templates": "Manage templates",
+        "manage_prospect_providers": "Prospect providers"
+      },
+      "providers": {
+        "title": "Prospect provider status",
+        "description": "Check provider readiness before switching campaign audience to provider-based prospect intake.",
+        "configured": "{count} configured",
+        "connected": "{count} connected",
+        "attention": "{count} need attention"
       }
     },
     "campaign_show": {
@@ -673,12 +745,16 @@
           "detail_title": "Prospect detail",
           "timeline_title": "Activity timeline",
           "empty_timeline": "No prospect activity recorded yet.",
-          "actions": {
-            "create_draft": "Create draft",
-            "analyze_batch": "Analyze batch",
-            "analyzing": "Analyzing...",
-            "approve_batch": "Approve batch",
-            "reject_batch": "Reject batch",
+        "actions": {
+          "create_draft": "Create draft",
+          "analyze_batch": "Analyze batch",
+          "analyzing": "Analyzing...",
+          "save_provider_selection": "Save provider selection",
+          "preview_provider": "Preview prospects",
+          "previewing_provider": "Loading preview...",
+          "manage_providers": "Manage providers",
+          "approve_batch": "Approve batch",
+          "reject_batch": "Reject batch",
           "processing": "Processing...",
           "view_prospect": "Open detail",
           "convert_to_lead": "Convert to lead",
@@ -696,7 +772,8 @@
           },
         "import_modes": {
           "manual": "Manual paste",
-          "csv": "CSV import"
+          "csv": "CSV import",
+          "provider": "Provider connection"
         },
         "source_types": {
           "manual": "Manual",
@@ -714,8 +791,36 @@
           "batch_size": "Batch size",
           "manual_input": "Manual prospects",
           "csv_file": "CSV file",
+          "provider_connection": "Provider connection",
+          "provider_query_label": "Saved query label",
+          "provider_query": "Provider query or ICP",
           "lead_search": "Lead search",
           "linked_lead": "Existing lead"
+        },
+        "provider_empty_title": "No connected provider available",
+        "provider_empty_description": "Connect and validate at least one provider before preparing a provider-based prospect audience.",
+        "provider_query_hint": "Store the search terms, ICP, saved search URL, or provider filters here so the next preview/import step can replay the exact provider request.",
+        "provider_next_step_hint": "Save the provider choice on the campaign draft, then preview the returned prospects here before the future import step.",
+        "preview_title": "Provider preview",
+        "preview_hint": "{count} preview prospect(s) loaded from {provider}. Review the rows before import becomes available.",
+        "preview_loading": "Loading provider preview...",
+        "preview_empty": "No preview row is available yet for this provider request.",
+        "preview_selected_count": "{count} selected / {total} rows",
+        "preview_select_all": "Select all",
+        "preview_unselect_all": "Unselect all",
+        "preview_columns": {
+          "company": "Company",
+          "contact": "Contact",
+          "reach": "Reach",
+          "location": "Location",
+          "origin": "Origin"
+        },
+        "preview_missing": {
+          "company_name": "Missing company",
+          "contact_name": "Missing contact",
+          "email": "Missing email",
+          "phone": "Missing phone",
+          "website": "Missing website"
         },
         "summary": {
           "total_batches": "Total batches",
@@ -829,24 +934,28 @@
             "stopped": "Sequence stopped: {reason}",
             "progress": "Step {step} | Phase {phase} | Next follow-up {next}"
           },
-          "messages": {
-            "batch_analyzed": "Prospect batch analyzed.",
-            "batch_approved": "Prospect batch approved.",
+        "messages": {
+          "batch_analyzed": "Prospect batch analyzed.",
+          "provider_preview_ready": "Provider preview loaded.",
+          "batch_approved": "Prospect batch approved.",
             "batch_rejected": "Prospect batch rejected.",
             "prospect_updated": "Prospect updated.",
             "bulk_updated": "Selected prospects updated.",
             "prospect_converted": "Prospect converted to lead.",
             "prospect_linked": "Prospect linked to an existing lead."
           },
-          "errors": {
-            "load_batches": "Unable to load prospect batches.",
-            "load_batch": "Unable to load batch review.",
-            "load_prospect": "Unable to load prospect detail.",
-            "load_leads": "Unable to load lead suggestions.",
-            "save_draft_first": "Save the campaign as a draft before analyzing prospects.",
-            "file_required": "Select a CSV file to analyze.",
-            "manual_required": "Paste at least one prospect row to analyze.",
-            "import_failed": "Unable to analyze the prospect batch.",
+        "errors": {
+          "load_batches": "Unable to load prospect batches.",
+          "load_batch": "Unable to load batch review.",
+          "load_prospect": "Unable to load prospect detail.",
+          "load_leads": "Unable to load lead suggestions.",
+          "save_draft_first": "Save the campaign as a draft before analyzing prospects.",
+          "provider_connection_required": "Select a connected provider before loading a preview.",
+          "provider_query_required": "Enter a provider query or ICP before loading a preview.",
+          "file_required": "Select a CSV file to analyze.",
+          "manual_required": "Paste at least one prospect row to analyze.",
+          "provider_preview_failed": "The provider preview could not be loaded right now.",
+          "import_failed": "Unable to analyze the prospect batch.",
             "review_failed": "Unable to review the prospect batch.",
             "update_prospect": "Unable to update the prospect.",
             "bulk_update": "Unable to update the selected prospects.",

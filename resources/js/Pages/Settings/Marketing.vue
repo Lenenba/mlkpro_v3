@@ -428,6 +428,20 @@ const toggleAllowedMode = (mode) => {
                         </PrimaryButton>
                     </div>
                 </div>
+
+                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.prospect_provider_manager.title') }}</h2>
+                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.settings.cards.prospect_provider_manager.description') }}
+                    </p>
+                    <div class="mt-3">
+                        <Link :href="route('campaigns.prospect-providers.manage')">
+                            <PrimaryButton type="button">
+                                {{ t('marketing.settings.open_manager') }}
+                            </PrimaryButton>
+                        </Link>
+                    </div>
+                </div>
             </div>
 
             <Modal :show="activeDialog === 'channels-config'" max-width="4xl" @close="closeDialog">

@@ -15,6 +15,7 @@ use App\Models\Product;
 use App\Models\User;
 use App\Models\VipTier;
 use App\Services\Campaigns\CampaignLeadAttributionService;
+use App\Services\Campaigns\ProspectProviderConnectionService;
 use App\Services\Campaigns\CampaignService;
 use App\Services\Campaigns\MarketingSettingsService;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class CampaignController extends Controller
         private readonly CampaignService $campaignService,
         private readonly MarketingSettingsService $marketingSettingsService,
         private readonly CampaignLeadAttributionService $leadAttributionService,
+        private readonly ProspectProviderConnectionService $prospectProviderConnectionService,
     ) {
     }
 
@@ -84,6 +86,7 @@ class CampaignController extends Controller
             'campaigns' => $campaigns,
             'filters' => $filters,
             'stats' => $stats,
+            'prospectProviderSummary' => $this->prospectProviderConnectionService->summaryForOwner($owner),
             'enums' => $this->enums(),
             'access' => [
                 'can_view' => $canView,
@@ -112,6 +115,7 @@ class CampaignController extends Controller
             'segments' => $this->segmentsForOwner($owner->id),
             'mailingLists' => $this->mailingListsForOwner($owner->id),
             'vipTiers' => $this->vipTiersForOwner($owner->id),
+            'availableProspectProviders' => $this->prospectProviderConnectionService->availablePayloadsForAudience($owner),
             'enums' => $this->enums(),
             'marketingSettings' => $this->marketingSettingsService->getResolved($owner),
             'access' => [
@@ -191,6 +195,7 @@ class CampaignController extends Controller
             'segments' => $this->segmentsForOwner($owner->id),
             'mailingLists' => $this->mailingListsForOwner($owner->id),
             'vipTiers' => $this->vipTiersForOwner($owner->id),
+            'availableProspectProviders' => $this->prospectProviderConnectionService->availablePayloadsForAudience($owner),
             'enums' => $this->enums(),
             'marketingSettings' => $this->marketingSettingsService->getResolved($owner),
             'access' => [

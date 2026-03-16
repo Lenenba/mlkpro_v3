@@ -221,6 +221,11 @@ class User extends Authenticatable
         return $this->hasMany(CampaignRun::class);
     }
 
+    public function campaignProspectProviderConnections(): HasMany
+    {
+        return $this->hasMany(CampaignProspectProviderConnection::class);
+    }
+
     public function messageTemplates(): HasMany
     {
         return $this->hasMany(MessageTemplate::class);
