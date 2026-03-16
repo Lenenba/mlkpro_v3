@@ -274,7 +274,10 @@ class CampaignProspectingService
                 'do_not_contact' => $analysis['do_not_contact'],
                 'blocked_reason' => $analysis['blocked_reason'],
                 'owner_notes' => $normalized['owner_notes'],
-                'metadata' => $analysis['metadata'],
+                'metadata' => array_filter([
+                    ...((array) ($normalized['metadata'] ?? [])),
+                    ...((array) ($analysis['metadata'] ?? [])),
+                ], fn ($value) => $value !== null),
             ]);
 
             $this->recordActivities($prospect, $campaign, $actor, $analysis);
@@ -602,6 +605,7 @@ class CampaignProspectingService
             'company_size' => trim((string) ($row['company_size'] ?? '')) ?: null,
             'tags' => $tags !== [] ? $tags : null,
             'owner_notes' => trim((string) ($row['owner_notes'] ?? '')) ?: null,
+            'metadata' => $metadata !== [] ? $metadata : null,
             'raw_payload' => $row,
             'normalized_payload' => $normalizedPayload,
         ];

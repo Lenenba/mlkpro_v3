@@ -752,6 +752,8 @@
           "save_provider_selection": "Save provider selection",
           "preview_provider": "Preview prospects",
           "previewing_provider": "Loading preview...",
+          "import_selected_preview": "Import selection",
+          "importing_selected_preview": "Importing selection...",
           "manage_providers": "Manage providers",
           "approve_batch": "Approve batch",
           "reject_batch": "Reject batch",
@@ -821,6 +823,15 @@
           "email": "Missing email",
           "phone": "Missing phone",
           "website": "Missing website"
+        },
+        "import_summary_title": "Provider import summary",
+        "import_summary_hint": "The selected preview rows were sent through the existing prospect analysis pipeline and created {batches} batch(es).",
+        "import_summary": {
+          "imported": "Imported",
+          "analyzed": "Analyzed",
+          "duplicates": "Duplicates",
+          "blocked": "Blocked",
+          "accepted": "Accepted"
         },
         "summary": {
           "total_batches": "Total batches",
@@ -937,6 +948,7 @@
         "messages": {
           "batch_analyzed": "Prospect batch analyzed.",
           "provider_preview_ready": "Provider preview loaded.",
+          "provider_import_complete": "Selected preview rows imported into batch review.",
           "batch_approved": "Prospect batch approved.",
             "batch_rejected": "Prospect batch rejected.",
             "prospect_updated": "Prospect updated.",
@@ -952,6 +964,7 @@
           "save_draft_first": "Save the campaign as a draft before analyzing prospects.",
           "provider_connection_required": "Select a connected provider before loading a preview.",
           "provider_query_required": "Enter a provider query or ICP before loading a preview.",
+          "provider_selection_required": "Select at least one preview row before importing.",
           "file_required": "Select a CSV file to analyze.",
           "manual_required": "Paste at least one prospect row to analyze.",
           "provider_preview_failed": "The provider preview could not be loaded right now.",

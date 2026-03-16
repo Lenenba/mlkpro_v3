@@ -752,6 +752,8 @@
           "save_provider_selection": "Enregistrer la selection fournisseur",
           "preview_provider": "Prévisualiser les prospects",
           "previewing_provider": "Chargement de la preview...",
+          "import_selected_preview": "Importer la sélection",
+          "importing_selected_preview": "Import de la sélection...",
           "manage_providers": "Gerer les fournisseurs",
           "approve_batch": "Approuver le lot",
           "reject_batch": "Rejeter le lot",
@@ -821,6 +823,15 @@
           "email": "Email manquant",
           "phone": "Telephone manquant",
           "website": "Site manquant"
+        },
+        "import_summary_title": "Résumé de l import fournisseur",
+        "import_summary_hint": "Les lignes de preview sélectionnées ont été envoyées dans le pipeline d analyse prospect existant et ont créé {batches} lot(s).",
+        "import_summary": {
+          "imported": "Importés",
+          "analyzed": "Analysés",
+          "duplicates": "Doublons",
+          "blocked": "Bloqués",
+          "accepted": "Acceptés"
         },
         "summary": {
           "total_batches": "Total des lots",
@@ -937,6 +948,7 @@
         "messages": {
           "batch_analyzed": "Lot de prospects analysé.",
           "provider_preview_ready": "Preview fournisseur chargée.",
+          "provider_import_complete": "Les lignes de preview sélectionnées ont été importées dans la revue de lot.",
           "batch_approved": "Lot de prospects approuvé.",
           "batch_rejected": "Lot de prospects rejeté.",
           "prospect_updated": "Prospect mis à jour.",
@@ -952,6 +964,7 @@
           "save_draft_first": "Enregistrez la campagne en brouillon avant d analyser les prospects.",
           "provider_connection_required": "Sélectionnez un fournisseur connecté avant de charger une preview.",
           "provider_query_required": "Saisissez une requête fournisseur ou un ICP avant de charger une preview.",
+          "provider_selection_required": "Sélectionnez au moins une ligne de preview avant l import.",
           "file_required": "Sélectionnez un fichier CSV à analyser.",
           "manual_required": "Collez au moins une ligne prospect à analyser.",
           "provider_preview_failed": "La preview fournisseur n a pas pu être chargée pour le moment.",

@@ -27,6 +27,8 @@ class ImportCampaignProspectBatchRequest extends FormRequest
             'prospects.*.contact_name' => ['nullable', 'string', 'max:255'],
             'prospects.*.first_name' => ['nullable', 'string', 'max:120'],
             'prospects.*.last_name' => ['nullable', 'string', 'max:120'],
+            'prospects.*.source_reference' => ['nullable', 'string', 'max:191'],
+            'prospects.*.external_ref' => ['nullable', 'string', 'max:191'],
             'prospects.*.email' => ['nullable', 'string', 'max:255'],
             'prospects.*.phone' => ['nullable', 'string', 'max:80'],
             'prospects.*.website' => ['nullable', 'string', 'max:255'],

@@ -40,6 +40,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
@@ -168,6 +169,49 @@ function forceCurrentTimeWithinMarketingQuietHours(User $owner): void
     ]);
 }
 
+function fakeApolloHealthCheck(int $status = 200, array $body = ['ok' => true]): void
+{
+    Http::fake([
+        'https://api.apollo.io/v1/auth/health' => Http::response($body, $status),
+        '*' => Http::response(['message' => 'Unexpected Apollo request'], 500),
+    ]);
+}
+
+function fakeApolloPreviewResponses(array $people, array $matches): void
+{
+    Http::fake([
+        'https://api.apollo.io/api/v1/mixed_people/api_search' => Http::response([
+            'people' => $people,
+        ], 200),
+        'https://api.apollo.io/api/v1/people/bulk_match' => Http::response([
+            'matches' => $matches,
+        ], 200),
+        '*' => Http::response(['message' => 'Unexpected Apollo request'], 500),
+    ]);
+}
+
+function fakeLushaValidationResponse(int $status = 200, array $body = ['items' => [['value' => 'sales']]]): void
+{
+    Http::fake([
+        'https://api.lusha.com/prospecting/filters/contacts/departments' => Http::response($body, $status),
+        '*' => Http::response(['message' => 'Unexpected Lusha request'], 500),
+    ]);
+}
+
+function fakeLushaPreviewResponses(array $contacts, array $enrichedContacts, string $requestId = 'lusha-request-1'): void
+{
+    Http::fake([
+        'https://api.lusha.com/prospecting/contact/search' => Http::response([
+            'requestId' => $requestId,
+            'contacts' => $contacts,
+        ], 200),
+        'https://api.lusha.com/prospecting/contact/enrich' => Http::response([
+            'contacts' => $enrichedContacts,
+        ], 200),
+        '*' => Http::response(['message' => 'Unexpected Lusha request'], 500),
+    ]);
+}
+
 beforeEach(function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $this->withoutMiddleware(EnsureTwoFactorVerified::class);
@@ -227,6 +271,7 @@ test('offer search supports cursor pagination', function () {
 
 test('marketing owner can create validate and disconnect prospect provider connections', function () {
     $owner = marketingOwner();
+    fakeApolloHealthCheck();
 
     $create = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.store'), [
         'provider_key' => 'apollo',
@@ -315,6 +360,26 @@ test('marketing meta exposes prospect provider definitions and connections', fun
     expect($providerKeys)->toContain('apollo');
     expect($providerKeys)->toContain('lusha');
     expect($providerKeys)->toContain('uplead');
+});
+
+test('marketing owner can validate lusha prospect provider connection', function () {
+    $owner = marketingOwner();
+    fakeLushaValidationResponse();
+
+    $connection = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_LUSHA,
+        'label' => 'Lusha main',
+        'credentials' => ['api_key' => 'lusha-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_DRAFT,
+        'is_active' => true,
+    ]);
+
+    $validated = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.validate', $connection));
+
+    $validated->assertOk()
+        ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_CONNECTED)
+        ->assertJsonPath('provider_connection.is_active', true);
 });
 
 test('campaign team member can view prospect provider workspace in read only mode', function () {
@@ -539,6 +604,62 @@ test('campaign update persists provider audience selection context', function ()
 
 test('campaign provider preview returns normalized rows without creating batches', function () {
     $owner = marketingOwner();
+    fakeApolloPreviewResponses(
+        people: [
+            [
+                'id' => 'apollo-person-1',
+                'first_name' => 'Mia',
+                'last_name' => 'Stone',
+                'name' => 'Mia Stone',
+                'title' => 'VP Operations',
+                'linkedin_url' => 'https://linkedin.com/in/mia-stone',
+                'organization' => [
+                    'id' => 'apollo-org-1',
+                    'name' => 'North Retail Group',
+                    'website_url' => 'https://north-retail.example',
+                    'city' => 'Toronto',
+                    'state' => 'Ontario',
+                    'country' => 'Canada',
+                    'industry' => 'Retail',
+                    'estimated_num_employees' => 42,
+                ],
+            ],
+            [
+                'id' => 'apollo-person-2',
+                'first_name' => 'Noah',
+                'last_name' => 'Grant',
+                'name' => 'Noah Grant',
+                'title' => 'Head of Sales',
+                'linkedin_url' => 'https://linkedin.com/in/noah-grant',
+                'organization' => [
+                    'id' => 'apollo-org-2',
+                    'name' => 'Summit Supply',
+                    'website_url' => 'https://summit-supply.example',
+                    'city' => 'Montreal',
+                    'state' => 'Quebec',
+                    'country' => 'Canada',
+                    'industry' => 'Logistics',
+                    'estimated_num_employees' => 120,
+                ],
+            ],
+        ],
+        matches: [
+            [
+                'id' => 'apollo-person-1',
+                'email' => 'mia.stone@north-retail.example',
+                'phone_numbers' => [
+                    ['sanitized_number' => '+14165550111'],
+                ],
+            ],
+            [
+                'id' => 'apollo-person-2',
+                'email' => 'noah.grant@summit-supply.example',
+                'phone_numbers' => [
+                    ['sanitized_number' => '+15145550112'],
+                ],
+            ],
+        ],
+    );
 
     $provider = CampaignProspectProviderConnection::query()->create([
         'user_id' => $owner->id,
@@ -569,17 +690,21 @@ test('campaign provider preview returns normalized rows without creating batches
         'provider_connection_id' => $provider->id,
         'query_label' => 'Toronto retail',
         'query' => 'Retail companies in Toronto, operations, 11-50 employees',
-        'limit' => 6,
+        'limit' => 2,
     ]);
 
     $response->assertOk()
         ->assertJsonPath('provider_connection.id', $provider->id)
         ->assertJsonPath('provider_connection.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO)
-        ->assertJsonPath('preview.count', 6)
+        ->assertJsonPath('preview.count', 2)
         ->assertJsonPath('rows.0.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO)
         ->assertJsonPath('rows.0.source_type', CampaignProspect::SOURCE_CONNECTOR)
         ->assertJsonPath('rows.0.source_reference', 'Apollo outbound')
-        ->assertJsonPath('rows.0.metadata.provider_preview', true);
+        ->assertJsonPath('rows.0.metadata.provider_preview', true)
+        ->assertJsonPath('rows.0.metadata.apollo_person_id', 'apollo-person-1')
+        ->assertJsonPath('rows.0.metadata.apollo_organization_id', 'apollo-org-1')
+        ->assertJsonPath('rows.0.email', 'mia.stone@north-retail.example')
+        ->assertJsonPath('rows.0.phone', '+14165550111');
 
     expect((string) data_get($response->json(), 'rows.0.preview_ref'))->not->toBe('')
         ->and(CampaignProspectBatch::query()->count())->toBe(0);
@@ -619,6 +744,244 @@ test('campaign provider preview rejects disconnected provider connection', funct
 
     $response->assertStatus(422)
         ->assertJsonValidationErrors(['provider_connection_id']);
+});
+
+test('campaign provider selection import reuses prospect batch analysis pipeline', function () {
+    $owner = marketingOwner();
+    allowColdOutbound($owner);
+
+    $existingCustomer = marketingCustomer($owner, [
+        'email' => 'duplicate.provider@example.com',
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Provider import campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $campaign->channels()->create([
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'is_enabled' => true,
+        'subject_template' => 'Hello {firstName}',
+        'body_template' => 'Body',
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-batches.import', $campaign), [
+        'source_type' => CampaignProspect::SOURCE_CONNECTOR,
+        'source_reference' => 'Apollo outbound',
+        'batch_size' => 100,
+        'prospects' => [
+            [
+                'external_ref' => 'APOLLO-ROW-001',
+                'source_reference' => 'Apollo outbound',
+                'company_name' => 'North Retail Group',
+                'contact_name' => 'Mia Stone',
+                'first_name' => 'Mia',
+                'last_name' => 'Stone',
+                'email' => 'mia.stone@north-retail.example',
+                'website' => 'north-retail.example',
+                'city' => 'Toronto',
+                'country' => 'Canada',
+                'industry' => 'Retail',
+                'tags' => ['Apollo', 'Retail'],
+                'metadata' => [
+                    'provider_key' => 'apollo',
+                    'provider_preview_ref' => 'APOLLO-PREVIEW-001',
+                ],
+            ],
+            [
+                'external_ref' => 'APOLLO-ROW-002',
+                'source_reference' => 'Apollo outbound',
+                'company_name' => 'Duplicate Retail Group',
+                'contact_name' => 'Dup Prospect',
+                'email' => $existingCustomer->email,
+                'website' => 'duplicate-retail.example',
+                'city' => 'Toronto',
+                'country' => 'Canada',
+                'industry' => 'Retail',
+                'metadata' => [
+                    'provider_key' => 'apollo',
+                    'provider_preview_ref' => 'APOLLO-PREVIEW-002',
+                ],
+            ],
+            [
+                'external_ref' => 'APOLLO-ROW-003',
+                'source_reference' => 'Apollo outbound',
+                'company_name' => 'No Destination Inc',
+                'contact_name' => 'Blocked Prospect',
+                'city' => 'Montreal',
+                'country' => 'Canada',
+                'industry' => 'Services',
+                'metadata' => [
+                    'provider_key' => 'apollo',
+                    'provider_preview_ref' => 'APOLLO-PREVIEW-003',
+                ],
+            ],
+        ],
+    ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('batches.0.source_type', CampaignProspect::SOURCE_CONNECTOR)
+        ->assertJsonPath('batches.0.source_reference', 'Apollo outbound')
+        ->assertJsonPath('batches.0.input_count', 3)
+        ->assertJsonPath('batches.0.accepted_count', 1)
+        ->assertJsonPath('batches.0.duplicate_count', 1)
+        ->assertJsonPath('batches.0.blocked_count', 1)
+        ->assertJsonPath('total_imported', 3);
+
+    $batch = CampaignProspectBatch::query()->firstOrFail();
+    $accepted = CampaignProspect::query()->where('external_ref', 'APOLLO-ROW-001')->firstOrFail();
+    $duplicate = CampaignProspect::query()->where('external_ref', 'APOLLO-ROW-002')->firstOrFail();
+    $blocked = CampaignProspect::query()->where('external_ref', 'APOLLO-ROW-003')->firstOrFail();
+
+    expect($batch->status)->toBe(CampaignProspectBatch::STATUS_ANALYZED)
+        ->and((int) $batch->accepted_count)->toBe(1)
+        ->and((int) $batch->duplicate_count)->toBe(1)
+        ->and((int) $batch->blocked_count)->toBe(1)
+        ->and($accepted->status)->toBe(CampaignProspect::STATUS_SCORED)
+        ->and($accepted->source_reference)->toBe('Apollo outbound')
+        ->and(data_get($accepted->metadata, 'provider_key'))->toBe('apollo')
+        ->and(data_get($accepted->metadata, 'provider_preview_ref'))->toBe('APOLLO-PREVIEW-001')
+        ->and($duplicate->status)->toBe(CampaignProspect::STATUS_DUPLICATE)
+        ->and($duplicate->match_status)->toBe(CampaignProspect::MATCH_CUSTOMER)
+        ->and((int) $duplicate->matched_customer_id)->toBe($existingCustomer->id)
+        ->and($blocked->status)->toBe(CampaignProspect::STATUS_BLOCKED)
+        ->and($blocked->blocked_reason)->toBe('no_destination_for_enabled_channels');
+});
+
+test('campaign lusha preview returns enriched rows and imported prospects keep lusha metadata', function () {
+    $owner = marketingOwner();
+    allowColdOutbound($owner);
+
+    fakeLushaPreviewResponses(
+        contacts: [
+            [
+                'id' => 'lusha-contact-1',
+                'fullName' => 'Ava Martin',
+                'firstName' => 'Ava',
+                'lastName' => 'Martin',
+                'jobTitle' => 'Head of Sales',
+                'companyId' => 'lusha-company-1',
+                'companyName' => 'Bright Logistics',
+                'companyWebsite' => 'https://bright-logistics.example',
+                'city' => 'Montreal',
+                'country' => 'Canada',
+                'linkedinUrl' => 'https://linkedin.com/in/ava-martin',
+            ],
+        ],
+        enrichedContacts: [
+            [
+                'id' => 'lusha-contact-1',
+                'emails' => [
+                    ['email' => 'ava.martin@bright-logistics.example'],
+                ],
+                'phones' => [
+                    ['number' => '+15145550222'],
+                ],
+                'company' => [
+                    'id' => 'lusha-company-1',
+                    'name' => 'Bright Logistics',
+                    'website' => 'https://bright-logistics.example',
+                    'industry' => 'Logistics',
+                    'employeeCountRange' => '51-200',
+                    'city' => 'Montreal',
+                    'country' => 'Canada',
+                ],
+            ],
+        ],
+    );
+
+    $provider = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_LUSHA,
+        'label' => 'Lusha outbound',
+        'credentials' => ['api_key' => 'lusha-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Lusha preview campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $campaign->channels()->create([
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'is_enabled' => true,
+        'subject_template' => 'Hello {firstName}',
+        'body_template' => 'Body',
+    ]);
+
+    $preview = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
+        'provider_connection_id' => $provider->id,
+        'query_label' => 'Montreal logistics',
+        'query' => 'Logistics companies in Montreal, head of sales',
+        'limit' => 1,
+    ]);
+
+    $preview->assertOk()
+        ->assertJsonPath('rows.0.provider_key', CampaignProspectProviderConnection::PROVIDER_LUSHA)
+        ->assertJsonPath('rows.0.email', 'ava.martin@bright-logistics.example')
+        ->assertJsonPath('rows.0.phone', '+15145550222')
+        ->assertJsonPath('rows.0.metadata.lusha_contact_id', 'lusha-contact-1')
+        ->assertJsonPath('rows.0.metadata.lusha_company_id', 'lusha-company-1');
+
+    $previewRow = $preview->json('rows.0');
+
+    $import = $this->actingAs($owner)->postJson(route('campaigns.prospect-batches.import', $campaign), [
+        'source_type' => CampaignProspect::SOURCE_CONNECTOR,
+        'source_reference' => 'Lusha outbound',
+        'prospects' => [[
+            'external_ref' => $previewRow['external_ref'],
+            'source_reference' => $previewRow['source_reference'],
+            'company_name' => $previewRow['company_name'],
+            'contact_name' => $previewRow['contact_name'],
+            'first_name' => $previewRow['first_name'],
+            'last_name' => $previewRow['last_name'],
+            'email' => $previewRow['email'],
+            'phone' => $previewRow['phone'],
+            'website' => $previewRow['website'],
+            'city' => $previewRow['city'],
+            'state' => $previewRow['state'],
+            'country' => $previewRow['country'],
+            'industry' => $previewRow['industry'],
+            'company_size' => $previewRow['company_size'],
+            'tags' => $previewRow['tags'],
+            'metadata' => $previewRow['metadata'],
+        ]],
+    ]);
+
+    $import->assertCreated()
+        ->assertJsonPath('batches.0.accepted_count', 1)
+        ->assertJsonPath('batches.0.source_reference', 'Lusha outbound');
+
+    $prospect = CampaignProspect::query()->where('external_ref', 'lusha-contact-1')->firstOrFail();
+
+    expect($prospect->status)->toBe(CampaignProspect::STATUS_SCORED)
+        ->and(data_get($prospect->metadata, 'lusha_contact_id'))->toBe('lusha-contact-1')
+        ->and(data_get($prospect->metadata, 'lusha_company_id'))->toBe('lusha-company-1')
+        ->and(data_get($prospect->metadata, 'lusha_search_result'))->toBeTrue();
 });
 
 test('segment can be saved loaded and counted', function () {
