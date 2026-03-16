@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import axios from 'axios';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -37,9 +37,13 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    tokenInsertRequest: {
+        type: Object,
+        default: () => null,
+    },
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'focus-field']);
 
 const clone = (value) => JSON.parse(JSON.stringify(value ?? {}));
 
@@ -78,6 +82,25 @@ const colorFields = [
     { key: 'accent_color', label: 'Accent' },
     { key: 'surface_color', label: 'Surface' },
 ];
+const sectionBackgroundOptions = [
+    { value: 'white', label: 'White' },
+    { value: 'soft', label: 'Soft' },
+    { value: 'highlight', label: 'Highlight' },
+];
+const sectionTextAlignOptions = [
+    { value: 'left', label: 'Left' },
+    { value: 'center', label: 'Center' },
+];
+const sectionSpacingOptions = [
+    { value: 'compact', label: 'Compact' },
+    { value: 'normal', label: 'Normal' },
+    { value: 'spacious', label: 'Spacious' },
+];
+const sectionCtaStyleOptions = [
+    { value: 'solid', label: 'Solid button' },
+    { value: 'outline', label: 'Outline button' },
+    { value: 'soft', label: 'Soft button' },
+];
 
 const createBlock = () => ({
     id: `block-${Math.random().toString(36).slice(2, 10)}`,
@@ -98,6 +121,30 @@ const clampColumnCount = (value) => {
     return Math.max(1, Math.min(3, Math.trunc(parsed)));
 };
 
+const normalizeSectionBackgroundMode = (value) => (
+    ['white', 'soft', 'highlight'].includes(String(value || '').toLowerCase())
+        ? String(value).toLowerCase()
+        : 'white'
+);
+
+const normalizeSectionTextAlign = (value) => (
+    ['left', 'center'].includes(String(value || '').toLowerCase())
+        ? String(value).toLowerCase()
+        : 'left'
+);
+
+const normalizeSectionSpacing = (value) => (
+    ['compact', 'normal', 'spacious'].includes(String(value || '').toLowerCase())
+        ? String(value).toLowerCase()
+        : 'normal'
+);
+
+const normalizeSectionCtaStyle = (value) => (
+    ['solid', 'outline', 'soft'].includes(String(value || '').toLowerCase())
+        ? String(value).toLowerCase()
+        : 'solid'
+);
+
 const fillColumns = (columns, count) => {
     const next = Array.isArray(columns)
         ? columns.slice(0, count).map((column) => ({
@@ -116,6 +163,11 @@ const fillColumns = (columns, count) => {
 const createSection = (key, columnCount = 1) => ({
     key,
     enabled: true,
+    background_mode: 'white',
+    text_align: 'left',
+    spacing_top: 'normal',
+    spacing_bottom: 'normal',
+    cta_style: 'solid',
     column_count: clampColumnCount(columnCount),
     columns: fillColumns([], clampColumnCount(columnCount)),
 });
@@ -241,6 +293,11 @@ const normalizeLegacySections = (sections) => {
         return {
             key: section.key,
             enabled: true,
+            background_mode: 'white',
+            text_align: 'left',
+            spacing_top: 'normal',
+            spacing_bottom: 'normal',
+            cta_style: 'solid',
             column_count: count,
             columns: fillColumns(columns, count),
         };
@@ -271,6 +328,11 @@ const normalizeSchema = (schemaValue = {}) => {
             return {
                 key: definition.key,
                 enabled: section?.enabled !== false,
+                background_mode: normalizeSectionBackgroundMode(section?.background_mode),
+                text_align: normalizeSectionTextAlign(section?.text_align),
+                spacing_top: normalizeSectionSpacing(section?.spacing_top),
+                spacing_bottom: normalizeSectionSpacing(section?.spacing_bottom),
+                cta_style: normalizeSectionCtaStyle(section?.cta_style),
                 column_count: count,
                 columns: fillColumns(section?.columns, count),
             };
@@ -296,6 +358,7 @@ const normalize = (value = {}) => {
 
 const state = ref(normalize(props.modelValue));
 const uploadState = ref({});
+const activeField = ref(null);
 
 watch(() => props.modelValue, (next) => {
     state.value = normalize(next);
@@ -305,6 +368,15 @@ watch(() => props.modelValue, (next) => {
 watch(state, (next) => {
     emit('update:modelValue', normalize(next));
 }, { deep: true });
+
+watch(() => props.tokenInsertRequest?.nonce, async () => {
+    const token = String(props.tokenInsertRequest?.token || '').trim();
+    if (token === '' || !activeField.value) {
+        return;
+    }
+
+    await insertTokenIntoActiveField(token);
+});
 
 const presetOptions = computed(() => props.presets
     .filter((preset) => String(preset?.channel || '').toUpperCase() === 'EMAIL')
@@ -321,6 +393,8 @@ const presetOptions = computed(() => props.presets
 
 const getSection = (key) => state.value.schema.sections.find((section) => section.key === key) || createSection(key, 1);
 
+const inputId = (sectionKey, columnId, field) => `email-builder-${sectionKey}-${columnId}-${field}`;
+
 const setSectionEnabled = (section, enabled) => {
     section.enabled = Boolean(enabled);
 };
@@ -329,6 +403,59 @@ const updateColumnCount = (section, value) => {
     const count = clampColumnCount(value);
     section.column_count = count;
     section.columns = fillColumns(section.columns, count);
+};
+
+const setActiveBuilderField = (sectionDefinition, column, columnIndex, field, label) => {
+    activeField.value = {
+        sectionKey: sectionDefinition.key,
+        columnId: column.id,
+        field,
+        id: inputId(sectionDefinition.key, column.id, field),
+    };
+
+    emit('focus-field', {
+        scope: 'builder',
+        label: `${sectionDefinition.label} - Column ${columnIndex + 1} - ${label}`,
+    });
+};
+
+const insertTokenIntoActiveField = async (token) => {
+    if (!activeField.value) {
+        return;
+    }
+
+    const section = state.value.schema.sections.find((entry) => entry.key === activeField.value.sectionKey);
+    const column = section?.columns?.find((entry) => entry.id === activeField.value.columnId);
+    if (!column) {
+        return;
+    }
+
+    const wrappedToken = `{${token}}`;
+    const currentValue = String(column?.[activeField.value.field] || '');
+    const element = typeof document !== 'undefined'
+        ? document.getElementById(activeField.value.id)
+        : null;
+
+    let nextValue = `${currentValue}${wrappedToken}`;
+    let nextCursor = nextValue.length;
+
+    if (element && typeof element.selectionStart === 'number' && typeof element.selectionEnd === 'number') {
+        const start = element.selectionStart;
+        const end = element.selectionEnd;
+        nextValue = `${currentValue.slice(0, start)}${wrappedToken}${currentValue.slice(end)}`;
+        nextCursor = start + wrappedToken.length;
+    }
+
+    column[activeField.value.field] = nextValue;
+
+    await nextTick();
+
+    if (element && typeof element.focus === 'function') {
+        element.focus();
+        if (typeof element.setSelectionRange === 'function') {
+            element.setSelectionRange(nextCursor, nextCursor);
+        }
+    }
 };
 
 const getUploadMeta = (columnId) => uploadState.value[columnId] || { busy: false, error: '', version: 0 };
@@ -510,7 +637,51 @@ const applyBrandColorPreset = () => {
                     This section is removed from the email until you restore it.
                 </div>
 
-                <div v-else class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+                <div v-else class="mt-4 space-y-4">
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+                        <FloatingSelect
+                            :model-value="getSection(sectionDefinition.key).background_mode"
+                            label="Background"
+                            :options="sectionBackgroundOptions"
+                            option-value="value"
+                            option-label="label"
+                            @update:modelValue="(value) => { getSection(sectionDefinition.key).background_mode = normalizeSectionBackgroundMode(value); }"
+                        />
+                        <FloatingSelect
+                            :model-value="getSection(sectionDefinition.key).text_align"
+                            label="Text align"
+                            :options="sectionTextAlignOptions"
+                            option-value="value"
+                            option-label="label"
+                            @update:modelValue="(value) => { getSection(sectionDefinition.key).text_align = normalizeSectionTextAlign(value); }"
+                        />
+                        <FloatingSelect
+                            :model-value="getSection(sectionDefinition.key).spacing_top"
+                            label="Top space"
+                            :options="sectionSpacingOptions"
+                            option-value="value"
+                            option-label="label"
+                            @update:modelValue="(value) => { getSection(sectionDefinition.key).spacing_top = normalizeSectionSpacing(value); }"
+                        />
+                        <FloatingSelect
+                            :model-value="getSection(sectionDefinition.key).spacing_bottom"
+                            label="Bottom space"
+                            :options="sectionSpacingOptions"
+                            option-value="value"
+                            option-label="label"
+                            @update:modelValue="(value) => { getSection(sectionDefinition.key).spacing_bottom = normalizeSectionSpacing(value); }"
+                        />
+                        <FloatingSelect
+                            :model-value="getSection(sectionDefinition.key).cta_style"
+                            label="CTA style"
+                            :options="sectionCtaStyleOptions"
+                            option-value="value"
+                            option-label="label"
+                            @update:modelValue="(value) => { getSection(sectionDefinition.key).cta_style = normalizeSectionCtaStyle(value); }"
+                        />
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
                     <div
                         v-for="(column, columnIndex) in getSection(sectionDefinition.key).columns"
                         :key="column.id"
@@ -521,9 +692,24 @@ const applyBrandColorPreset = () => {
                         </p>
 
                         <div class="mt-3 grid grid-cols-1 gap-3">
-                            <FloatingInput v-model="column.kicker" label="Kicker" />
-                            <FloatingInput v-model="column.title" label="Title" />
-                            <FloatingTextarea v-model="column.body" label="Body" />
+                            <FloatingInput
+                                :id="inputId(sectionDefinition.key, column.id, 'kicker')"
+                                v-model="column.kicker"
+                                label="Kicker"
+                                @focusin="setActiveBuilderField(sectionDefinition, column, columnIndex, 'kicker', 'Kicker')"
+                            />
+                            <FloatingInput
+                                :id="inputId(sectionDefinition.key, column.id, 'title')"
+                                v-model="column.title"
+                                label="Title"
+                                @focusin="setActiveBuilderField(sectionDefinition, column, columnIndex, 'title', 'Title')"
+                            />
+                            <FloatingTextarea
+                                :id="inputId(sectionDefinition.key, column.id, 'body')"
+                                v-model="column.body"
+                                label="Body"
+                                @focusin="setActiveBuilderField(sectionDefinition, column, columnIndex, 'body', 'Body')"
+                            />
                             <div class="space-y-2">
                                 <DropzoneInput
                                     :key="`${column.id}-${getUploadMeta(column.id).version}`"
@@ -537,31 +723,35 @@ const applyBrandColorPreset = () => {
                                 <p v-else-if="getUploadMeta(column.id).error" class="text-xs text-rose-600">
                                     {{ getUploadMeta(column.id).error }}
                                 </p>
+                                <p v-else class="text-xs text-stone-500 dark:text-neutral-400">
+                                    Upload, replace, or remove the image here. You can also paste a direct image URL below.
+                                </p>
                             </div>
                             <FloatingInput
+                                :id="inputId(sectionDefinition.key, column.id, 'image_url')"
                                 :model-value="column.image_url"
                                 label="Image URL"
+                                @focusin="setActiveBuilderField(sectionDefinition, column, columnIndex, 'image_url', 'Image URL')"
                                 @update:modelValue="(value) => updateColumnImage(column, value)"
                             />
-                            <FloatingInput v-model="column.button_label" label="CTA label" />
-                            <FloatingInput v-model="column.button_url" label="CTA URL" />
+                            <FloatingInput
+                                :id="inputId(sectionDefinition.key, column.id, 'button_label')"
+                                v-model="column.button_label"
+                                label="CTA label"
+                                @focusin="setActiveBuilderField(sectionDefinition, column, columnIndex, 'button_label', 'CTA label')"
+                            />
+                            <FloatingInput
+                                :id="inputId(sectionDefinition.key, column.id, 'button_url')"
+                                v-model="column.button_url"
+                                label="CTA URL"
+                                @focusin="setActiveBuilderField(sectionDefinition, column, columnIndex, 'button_url', 'CTA URL')"
+                            />
                         </div>
                     </div>
                 </div>
+                </div>
             </div>
 
-            <details class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                <summary class="cursor-pointer font-semibold">Dynamic variables</summary>
-                <div class="mt-2 flex flex-wrap gap-2">
-                    <span
-                        v-for="token in supportedTokens"
-                        :key="`token-${token}`"
-                        class="rounded-full border border-stone-300 bg-white px-2 py-1 text-[11px] dark:border-neutral-600 dark:bg-neutral-900"
-                    >
-                        {{ '{' + token + '}' }}
-                    </span>
-                </div>
-            </details>
         </div>
     </div>
 </template>

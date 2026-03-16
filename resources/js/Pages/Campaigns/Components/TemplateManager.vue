@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import axios from 'axios';
+import { router, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -17,6 +18,7 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const page = usePage();
 
 const translateWithFallback = (key, fallback) => {
     const translated = t(key);
@@ -77,6 +79,30 @@ const createDefaultForm = () => ({
     },
 });
 
+const normalizeFormState = (value) => {
+    const next = value && typeof value === 'object' ? clone(value) : {};
+    const base = createDefaultForm();
+
+    return {
+        ...base,
+        ...next,
+        is_default: Boolean(next?.is_default ?? base.is_default),
+        tags: typeof next?.tags === 'string' ? next.tags : base.tags,
+        emailContent: {
+            ...base.emailContent,
+            ...(next?.emailContent && typeof next.emailContent === 'object' ? next.emailContent : {}),
+        },
+        smsContent: {
+            ...base.smsContent,
+            ...(next?.smsContent && typeof next.smsContent === 'object' ? next.smsContent : {}),
+        },
+        inAppContent: {
+            ...base.inAppContent,
+            ...(next?.inAppContent && typeof next.inAppContent === 'object' ? next.inAppContent : {}),
+        },
+    };
+};
+
 const rows = ref([]);
 const presets = ref([]);
 const blockLibrary = ref([]);
@@ -87,14 +113,48 @@ const isLoadingList = ref(false);
 const error = ref('');
 const info = ref('');
 const preview = ref(null);
+const previewMode = ref('desktop');
 const editingId = ref(null);
 const listSearch = ref('');
 const listChannel = ref('');
 const listPage = ref(1);
 const listPerPage = ref(8);
 const perPageOptions = [8, 16, 24];
+const tokenInsertRequest = ref(null);
+const activeTokenTarget = ref(null);
+const defaultTestRecipientEmail = computed(() => String(page.props?.auth?.user?.email || '').trim());
+const testRecipientEmail = ref(defaultTestRecipientEmail.value);
+const draftStatus = ref('idle');
+const draftRestored = ref(false);
 
-const form = ref(createDefaultForm());
+const form = ref(normalizeFormState(createDefaultForm()));
+
+let suppressDraftWatch = false;
+let draftSaveTimeout = null;
+let removeBeforeRouteLeaveGuard = null;
+
+const runWithoutDraftWatch = (callback) => {
+    suppressDraftWatch = true;
+    callback();
+    nextTick(() => {
+        suppressDraftWatch = false;
+    });
+};
+
+const formSnapshot = () => JSON.stringify({
+    editingId: editingId.value,
+    form: normalizeFormState(form.value),
+});
+
+const savedSnapshot = ref(formSnapshot());
+const hasUnsavedChanges = computed(() => formSnapshot() !== savedSnapshot.value);
+const draftStorageKey = computed(() => {
+    const path = typeof window === 'undefined' ? 'marketing-templates' : window.location.pathname;
+    const scope = editingId.value ? `template-${editingId.value}` : 'new';
+
+    return `marketing-template-editor:v1:${path}:${scope}`;
+});
+const leaveWarningMessage = 'You have unsaved template changes. Leave this page without saving?';
 
 const campaignTypes = computed(() => Array.isArray(props.enums?.campaign_types) ? props.enums.campaign_types : []);
 const channelOptions = computed(() => [
@@ -142,6 +202,132 @@ const pagedRows = computed(() => {
     const start = (listPage.value - 1) * listPerPage.value;
     return filteredRows.value.slice(start, start + listPerPage.value);
 });
+const emailPreviewSubject = computed(() => String(preview.value?.subject || form.value.emailContent?.subject || '').trim());
+const emailPreviewPreheader = computed(() => String(form.value.emailContent?.previewText || '').trim());
+const previewViewportClass = computed(() => (
+    previewMode.value === 'mobile'
+        ? 'mx-auto w-[390px] max-w-full'
+        : 'w-full'
+));
+
+const getDraftStorage = () => (typeof window === 'undefined' ? null : window.localStorage);
+
+const clearDraft = (key = draftStorageKey.value) => {
+    const storage = getDraftStorage();
+    if (!storage) {
+        return;
+    }
+
+    storage.removeItem(key);
+};
+
+const syncSavedSnapshot = async ({
+    status = 'idle',
+    restored = false,
+} = {}) => {
+    await nextTick();
+    await nextTick();
+    savedSnapshot.value = formSnapshot();
+    draftStatus.value = status;
+    draftRestored.value = restored;
+};
+
+const restoreDraftForCurrentScope = () => {
+    const storage = getDraftStorage();
+    if (!storage) {
+        return false;
+    }
+
+    const raw = storage.getItem(draftStorageKey.value);
+    if (!raw) {
+        draftStatus.value = 'idle';
+        draftRestored.value = false;
+        return false;
+    }
+
+    try {
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || !parsed.form) {
+            storage.removeItem(draftStorageKey.value);
+            draftStatus.value = 'idle';
+            draftRestored.value = false;
+            return false;
+        }
+
+        runWithoutDraftWatch(() => {
+            preview.value = null;
+            previewMode.value = 'desktop';
+            tokenInsertRequest.value = null;
+            activeTokenTarget.value = null;
+            form.value = normalizeFormState(parsed.form);
+        });
+
+        savedSnapshot.value = formSnapshot();
+        draftStatus.value = 'saved';
+        draftRestored.value = true;
+        return true;
+    } catch (error) {
+        storage.removeItem(draftStorageKey.value);
+        draftStatus.value = 'idle';
+        draftRestored.value = false;
+        return false;
+    }
+};
+
+const persistDraft = () => {
+    const storage = getDraftStorage();
+    if (!storage) {
+        draftStatus.value = 'idle';
+        return;
+    }
+
+    if (!hasUnsavedChanges.value) {
+        clearDraft();
+        draftStatus.value = 'idle';
+        return;
+    }
+
+    storage.setItem(draftStorageKey.value, JSON.stringify({
+        form: normalizeFormState(form.value),
+        saved_at: new Date().toISOString(),
+    }));
+    savedSnapshot.value = formSnapshot();
+    draftStatus.value = 'saved';
+    draftRestored.value = false;
+};
+
+const scheduleDraftSave = () => {
+    if (suppressDraftWatch) {
+        return;
+    }
+
+    if (draftSaveTimeout) {
+        clearTimeout(draftSaveTimeout);
+    }
+
+    if (!hasUnsavedChanges.value) {
+        clearDraft();
+        draftStatus.value = 'idle';
+        return;
+    }
+
+    draftStatus.value = 'saving';
+    draftSaveTimeout = setTimeout(() => {
+        persistDraft();
+        draftSaveTimeout = null;
+    }, 700);
+};
+
+const applyEditorState = (nextForm, templateId = null) => {
+    runWithoutDraftWatch(() => {
+        editingId.value = templateId === null ? null : Number(templateId);
+        preview.value = null;
+        previewMode.value = 'desktop';
+        tokenInsertRequest.value = null;
+        activeTokenTarget.value = null;
+        form.value = normalizeFormState(nextForm);
+    });
+};
 
 const buildContent = () => {
     const channel = String(form.value.channel || 'EMAIL').toUpperCase();
@@ -160,11 +346,11 @@ const parseTags = (value) => String(value || '')
     .map((item) => item.trim())
     .filter((item) => item !== '');
 
-const fillFromTemplate = (template) => {
+const buildFormStateFromTemplate = (template) => {
     const content = template?.content || {};
     const channel = String(template?.channel || 'EMAIL').toUpperCase();
 
-    form.value = {
+    return normalizeFormState({
         name: template?.name || '',
         channel,
         campaign_type: template?.campaign_type || '',
@@ -186,13 +372,99 @@ const fillFromTemplate = (template) => {
                 image: content.image || content.imageUrl || '',
             }
             : { title: '', body: '', deepLink: '', image: '' },
+    });
+};
+
+const setActiveEmailField = (key, id, label) => {
+    activeTokenTarget.value = {
+        scope: 'email-meta',
+        key,
+        id,
+        label,
     };
 };
 
-const resetForm = () => {
-    editingId.value = null;
-    preview.value = null;
-    form.value = createDefaultForm();
+const handleBuilderFocusField = (payload) => {
+    activeTokenTarget.value = payload;
+};
+
+const insertTokenAtCursor = async (value, token, inputId, applyValue) => {
+    const wrappedToken = `{${token}}`;
+    const currentValue = String(value || '');
+    const element = typeof document !== 'undefined'
+        ? document.getElementById(inputId)
+        : null;
+
+    let nextValue = `${currentValue}${wrappedToken}`;
+    let nextCursor = nextValue.length;
+
+    if (element && typeof element.selectionStart === 'number' && typeof element.selectionEnd === 'number') {
+        const start = element.selectionStart;
+        const end = element.selectionEnd;
+        nextValue = `${currentValue.slice(0, start)}${wrappedToken}${currentValue.slice(end)}`;
+        nextCursor = start + wrappedToken.length;
+    }
+
+    applyValue(nextValue);
+
+    await nextTick();
+
+    if (element && typeof element.focus === 'function') {
+        element.focus();
+        if (typeof element.setSelectionRange === 'function') {
+            element.setSelectionRange(nextCursor, nextCursor);
+        }
+    }
+};
+
+const insertToken = async (token) => {
+    if (String(form.value.channel || '').toUpperCase() !== 'EMAIL' || !activeTokenTarget.value) {
+        return;
+    }
+
+    if (activeTokenTarget.value.scope === 'builder') {
+        tokenInsertRequest.value = {
+            token,
+            nonce: Date.now(),
+        };
+        return;
+    }
+
+    if (activeTokenTarget.value.scope === 'email-meta') {
+        const key = String(activeTokenTarget.value.key || '');
+        if (!['subject', 'previewText'].includes(key)) {
+            return;
+        }
+
+        await insertTokenAtCursor(
+            form.value.emailContent[key],
+            token,
+            String(activeTokenTarget.value.id || ''),
+            (nextValue) => {
+                form.value.emailContent[key] = nextValue;
+            }
+        );
+    }
+};
+
+const resetForm = async ({ clearCurrentDraft = true, restoreDraft = true } = {}) => {
+    const previousDraftKey = draftStorageKey.value;
+    if (clearCurrentDraft) {
+        clearDraft(previousDraftKey);
+    }
+
+    applyEditorState(createDefaultForm());
+    if (!testRecipientEmail.value) {
+        testRecipientEmail.value = defaultTestRecipientEmail.value;
+    }
+    if (restoreDraft) {
+        const restored = restoreDraftForCurrentScope();
+        if (restored) {
+            await syncSavedSnapshot({ status: 'saved', restored: true });
+            return;
+        }
+    }
+    await syncSavedSnapshot();
 };
 
 const load = async () => {
@@ -217,6 +489,7 @@ const save = async () => {
     error.value = '';
     info.value = '';
     try {
+        const currentDraftKey = draftStorageKey.value;
         const payload = {
             name: String(form.value.name || '').trim(),
             channel: String(form.value.channel || '').toUpperCase(),
@@ -235,7 +508,8 @@ const save = async () => {
             info.value = t('marketing.template_manager.info_created');
         }
 
-        resetForm();
+        clearDraft(currentDraftKey);
+        await resetForm({ clearCurrentDraft: false, restoreDraft: false });
         await load();
     } catch (requestError) {
         error.value = requestError?.response?.data?.message || requestError?.message || t('marketing.template_manager.error_save');
@@ -244,10 +518,12 @@ const save = async () => {
     }
 };
 
-const edit = (template) => {
-    editingId.value = Number(template.id);
-    fillFromTemplate(template);
-    preview.value = null;
+const edit = async (template) => {
+    applyEditorState(buildFormStateFromTemplate(template), template.id);
+    const restored = restoreDraftForCurrentScope();
+    if (!restored) {
+        await syncSavedSnapshot();
+    }
     info.value = '';
     error.value = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -307,6 +583,24 @@ const previewTemplate = async () => {
     }
 };
 
+const sendTestEmail = async () => {
+    busy.value = true;
+    error.value = '';
+    info.value = '';
+    try {
+        const response = await axios.post(route('marketing.templates.test-send'), {
+            channel: String(form.value.channel || '').toUpperCase(),
+            content: buildContent(),
+            recipient_email: String(testRecipientEmail.value || defaultTestRecipientEmail.value || '').trim() || null,
+        });
+        info.value = response.data?.message || 'Test email sent.';
+    } catch (requestError) {
+        error.value = requestError?.response?.data?.message || requestError?.message || 'Unable to send the test email.';
+    } finally {
+        busy.value = false;
+    }
+};
+
 const listStats = computed(() => ({
     total: rows.value.length,
     email: rows.value.filter((template) => String(template?.channel || '').toUpperCase() === 'EMAIL').length,
@@ -317,9 +611,85 @@ watch([listSearch, listChannel, listPerPage], () => {
     listPage.value = 1;
 });
 
+watch(() => form.value.channel, () => {
+    activeTokenTarget.value = null;
+    tokenInsertRequest.value = null;
+});
+
 watch(totalPages, (value) => {
     if (listPage.value > value) {
         listPage.value = value;
+    }
+});
+
+watch(() => formSnapshot(), () => {
+    scheduleDraftSave();
+});
+
+watch(defaultTestRecipientEmail, (value) => {
+    if (!String(testRecipientEmail.value || '').trim()) {
+        testRecipientEmail.value = String(value || '').trim();
+    }
+});
+
+const handleBeforeUnload = (event) => {
+    if (!hasUnsavedChanges.value) {
+        return;
+    }
+
+    event.preventDefault();
+    event.returnValue = '';
+};
+
+const shouldConfirmInertiaLeave = (event) => {
+    if (!hasUnsavedChanges.value || typeof window === 'undefined') {
+        return false;
+    }
+
+    const targetUrl = event?.detail?.visit?.url;
+    if (!targetUrl) {
+        return false;
+    }
+
+    const currentUrl = new URL(window.location.href);
+    const nextUrl = new URL(String(targetUrl), window.location.origin);
+
+    return currentUrl.pathname !== nextUrl.pathname
+        || currentUrl.search !== nextUrl.search
+        || currentUrl.hash !== nextUrl.hash;
+};
+
+onMounted(() => {
+    if (!String(testRecipientEmail.value || '').trim()) {
+        testRecipientEmail.value = defaultTestRecipientEmail.value;
+    }
+
+    const restored = restoreDraftForCurrentScope();
+    if (!restored) {
+        syncSavedSnapshot();
+    }
+    if (typeof window !== 'undefined') {
+        window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+
+    removeBeforeRouteLeaveGuard = router.on('before', (event) => {
+        if (!shouldConfirmInertiaLeave(event)) {
+            return;
+        }
+
+        return window.confirm(leaveWarningMessage);
+    });
+});
+
+onBeforeUnmount(() => {
+    if (draftSaveTimeout) {
+        clearTimeout(draftSaveTimeout);
+    }
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+    }
+    if (typeof removeBeforeRouteLeaveGuard === 'function') {
+        removeBeforeRouteLeaveGuard();
     }
 });
 
@@ -336,6 +706,32 @@ load();
                         <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                             Build branded emails with a simple 3-section layout, company colors, and live preview.
                         </p>
+                        <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                            <span
+                                v-if="hasUnsavedChanges"
+                                class="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 font-medium text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300"
+                            >
+                                Unsaved changes
+                            </span>
+                            <span
+                                v-if="draftStatus === 'saving'"
+                                class="rounded-full border border-stone-200 bg-stone-50 px-2 py-1 text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                            >
+                                Saving draft locally...
+                            </span>
+                            <span
+                                v-else-if="draftStatus === 'saved'"
+                                class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300"
+                            >
+                                Draft saved locally
+                            </span>
+                            <span
+                                v-if="draftRestored"
+                                class="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300"
+                            >
+                                Restored after refresh
+                            </span>
+                        </div>
                     </div>
                     <div class="flex items-center gap-2">
                         <SecondaryButton :disabled="busy || isLoadingList" @click="load">
@@ -345,6 +741,10 @@ load();
                             {{ editingId ? t('marketing.template_manager.update_template') : t('marketing.template_manager.create_template') }}
                         </PrimaryButton>
                     </div>
+                </div>
+
+                <div class="mt-3 rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                    Local draft autosave protects the current editor on this device. The template is only saved to your library when you use Create or Update.
                 </div>
 
                 <div v-if="error" class="mt-3 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">
@@ -385,8 +785,77 @@ load();
                 <div class="mt-4">
                     <div v-if="form.channel === 'EMAIL'">
                         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                            <FloatingInput v-model="form.emailContent.subject" :label="t('marketing.template_manager.subject')" />
-                            <FloatingInput v-model="form.emailContent.previewText" :label="t('marketing.template_manager.preview_text')" />
+                            <FloatingInput
+                                id="template-email-subject"
+                                v-model="form.emailContent.subject"
+                                :label="t('marketing.template_manager.subject')"
+                                @focusin="setActiveEmailField('subject', 'template-email-subject', 'Subject')"
+                            />
+                            <FloatingInput
+                                id="template-email-preview-text"
+                                v-model="form.emailContent.previewText"
+                                :label="t('marketing.template_manager.preview_text')"
+                                @focusin="setActiveEmailField('previewText', 'template-email-preview-text', 'Preview text')"
+                            />
+                        </div>
+                        <details class="mt-4 rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                            <summary class="cursor-pointer font-semibold">Quick insert variables</summary>
+                            <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+                                <p>
+                                    Active field:
+                                    <span class="font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ activeTokenTarget?.label || 'Select a text field first' }}
+                                    </span>
+                                </p>
+                                <p class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                    Click a field, then click a token.
+                                </p>
+                            </div>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <button
+                                    v-for="token in supportedTokens"
+                                    :key="`template-token-${token}`"
+                                    type="button"
+                                    class="rounded-full border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-700 transition hover:border-stone-400 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    :disabled="!activeTokenTarget"
+                                    @mousedown.prevent
+                                    @click="insertToken(token)"
+                                >
+                                    {{ '{' + token + '}' }}
+                                </button>
+                            </div>
+                        </details>
+                        <div class="mt-4 rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <p class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Preview modes</p>
+                                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                        Check the same email in desktop and mobile widths before saving.
+                                    </p>
+                                </div>
+                                <div class="inline-flex rounded-sm border border-stone-200 bg-stone-50 p-1 dark:border-neutral-700 dark:bg-neutral-800">
+                                    <button
+                                        type="button"
+                                        class="rounded-sm px-3 py-1.5 text-xs font-semibold transition"
+                                        :class="previewMode === 'desktop'
+                                            ? 'bg-white text-stone-900 shadow-sm dark:bg-neutral-900 dark:text-neutral-100'
+                                            : 'text-stone-500 hover:text-stone-800 dark:text-neutral-400 dark:hover:text-neutral-200'"
+                                        @click="previewMode = 'desktop'"
+                                    >
+                                        Desktop
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="rounded-sm px-3 py-1.5 text-xs font-semibold transition"
+                                        :class="previewMode === 'mobile'
+                                            ? 'bg-white text-stone-900 shadow-sm dark:bg-neutral-900 dark:text-neutral-100'
+                                            : 'text-stone-500 hover:text-stone-800 dark:text-neutral-400 dark:hover:text-neutral-200'"
+                                        @click="previewMode = 'mobile'"
+                                    >
+                                        Mobile
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div class="mt-4">
                             <EmailTemplateBuilder
@@ -396,6 +865,8 @@ load();
                                 :supported-tokens="supportedTokens"
                                 :language="form.language"
                                 :brand-profile="brandProfile"
+                                :token-insert-request="tokenInsertRequest"
+                                @focus-field="handleBuilderFocusField"
                             />
                         </div>
                     </div>
@@ -414,6 +885,21 @@ load();
                         <FloatingTextarea v-model="form.inAppContent.body" :label="t('marketing.template_manager.in_app_body')" class="md:col-span-2" />
                         <FloatingInput v-model="form.inAppContent.image" :label="t('marketing.template_manager.image_url')" class="md:col-span-2" />
                     </div>
+                </div>
+
+                <div v-if="form.channel === 'EMAIL'" class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                        <FloatingInput
+                            v-model="testRecipientEmail"
+                            label="Test recipient email"
+                        />
+                        <SecondaryButton type="button" :disabled="busy" @click="sendTestEmail">
+                            Send test email
+                        </SecondaryButton>
+                    </div>
+                    <p class="mt-2 text-[11px] text-stone-500 dark:text-neutral-400">
+                        The rendered preview is sent to this address only. No campaign is published or scheduled.
+                    </p>
                 </div>
 
                 <div class="mt-4 flex flex-wrap items-center gap-2">
@@ -461,15 +947,37 @@ load();
                         <p class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Preview</p>
                         <span class="text-xs text-stone-500 dark:text-neutral-400">{{ preview?.editor_mode || form.channel }}</span>
                     </div>
-                    <div v-if="preview && form.channel === 'EMAIL'" class="mt-3 space-y-3">
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            <div v-if="preview.subject"><strong>{{ t('marketing.template_manager.subject_label') }}</strong> {{ preview.subject }}</div>
+                    <div v-if="form.channel === 'EMAIL'" class="mt-3 space-y-3">
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                            <p class="text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Inbox preview</p>
+                            <div class="mt-2 rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
+                                <div class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ brandProfile.name || 'Your company' }}
+                                </div>
+                                <div class="mt-2 text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                                    {{ emailPreviewSubject || 'No subject yet' }}
+                                </div>
+                                <div class="mt-1 text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                                    {{ emailPreviewPreheader || 'No preview text yet' }}
+                                </div>
+                            </div>
                         </div>
-                        <iframe
-                            class="min-h-[520px] w-full rounded-sm border border-stone-200 bg-white dark:border-neutral-700"
-                            :srcdoc="preview.body || ''"
-                            title="Email preview"
-                        />
+                        <div class="rounded-sm border border-stone-200 bg-stone-100 p-3 dark:border-neutral-700 dark:bg-neutral-800/60">
+                            <div :class="previewViewportClass">
+                                <iframe
+                                    v-if="preview"
+                                    class="min-h-[520px] w-full rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700"
+                                    :srcdoc="preview.body || ''"
+                                    title="Email preview"
+                                />
+                                <div
+                                    v-else
+                                    class="flex min-h-[220px] items-center justify-center rounded-sm border border-dashed border-stone-300 bg-white px-4 py-6 text-center text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                                >
+                                    Use preview to render the current email with sample customer and offer data.
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div v-else-if="preview" class="mt-3 whitespace-pre-wrap rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
                         {{ preview.body || preview.title || 'No preview body.' }}

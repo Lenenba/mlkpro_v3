@@ -93,6 +93,34 @@ class EmailTemplateComposer
         ];
     }
 
+    private function normalizeSectionBackgroundMode(mixed $value): string
+    {
+        $mode = strtolower(trim((string) $value));
+
+        return in_array($mode, ['white', 'soft', 'highlight'], true) ? $mode : 'white';
+    }
+
+    private function normalizeSectionTextAlign(mixed $value): string
+    {
+        $align = strtolower(trim((string) $value));
+
+        return in_array($align, ['left', 'center'], true) ? $align : 'left';
+    }
+
+    private function normalizeSectionSpacing(mixed $value): string
+    {
+        $spacing = strtolower(trim((string) $value));
+
+        return in_array($spacing, ['compact', 'normal', 'spacious'], true) ? $spacing : 'normal';
+    }
+
+    private function normalizeSectionCtaStyle(mixed $value): string
+    {
+        $style = strtolower(trim((string) $value));
+
+        return in_array($style, ['solid', 'outline', 'soft'], true) ? $style : 'solid';
+    }
+
     /**
      * @param  array<int, mixed>  $sections
      */
@@ -206,6 +234,11 @@ class EmailTemplateComposer
             'key' => $default['key'],
             'label' => $default['label'],
             'enabled' => array_key_exists('enabled', $section) ? (bool) $section['enabled'] : (bool) ($default['enabled'] ?? true),
+            'background_mode' => $this->normalizeSectionBackgroundMode($section['background_mode'] ?? $default['background_mode'] ?? 'white'),
+            'text_align' => $this->normalizeSectionTextAlign($section['text_align'] ?? $default['text_align'] ?? 'left'),
+            'spacing_top' => $this->normalizeSectionSpacing($section['spacing_top'] ?? $default['spacing_top'] ?? 'normal'),
+            'spacing_bottom' => $this->normalizeSectionSpacing($section['spacing_bottom'] ?? $default['spacing_bottom'] ?? 'normal'),
+            'cta_style' => $this->normalizeSectionCtaStyle($section['cta_style'] ?? $default['cta_style'] ?? 'solid'),
             'column_count' => $count,
             'columns' => $columns,
         ];
@@ -422,9 +455,9 @@ class EmailTemplateComposer
     private function sectionDefaults(): array
     {
         return [
-            ['key' => 'header', 'label' => 'Header', 'enabled' => true, 'column_count' => 1],
-            ['key' => 'body', 'label' => 'Body', 'enabled' => true, 'column_count' => 1],
-            ['key' => 'footer', 'label' => 'Footer', 'enabled' => true, 'column_count' => 1],
+            ['key' => 'header', 'label' => 'Header', 'enabled' => true, 'background_mode' => 'white', 'text_align' => 'left', 'spacing_top' => 'normal', 'spacing_bottom' => 'normal', 'cta_style' => 'solid', 'column_count' => 1],
+            ['key' => 'body', 'label' => 'Body', 'enabled' => true, 'background_mode' => 'white', 'text_align' => 'left', 'spacing_top' => 'normal', 'spacing_bottom' => 'normal', 'cta_style' => 'solid', 'column_count' => 1],
+            ['key' => 'footer', 'label' => 'Footer', 'enabled' => true, 'background_mode' => 'white', 'text_align' => 'left', 'spacing_top' => 'normal', 'spacing_bottom' => 'normal', 'cta_style' => 'solid', 'column_count' => 1],
         ];
     }
 
@@ -440,18 +473,33 @@ class EmailTemplateComposer
             [
                 'key' => 'header',
                 'enabled' => true,
+                'background_mode' => 'white',
+                'text_align' => 'left',
+                'spacing_top' => 'normal',
+                'spacing_bottom' => 'normal',
+                'cta_style' => 'solid',
                 'column_count' => max(1, min(3, count($headerBlocks))),
                 'columns' => $headerBlocks,
             ],
             [
                 'key' => 'body',
                 'enabled' => true,
+                'background_mode' => 'white',
+                'text_align' => 'left',
+                'spacing_top' => 'normal',
+                'spacing_bottom' => 'normal',
+                'cta_style' => 'solid',
                 'column_count' => max(1, min(3, count($bodyBlocks))),
                 'columns' => $bodyBlocks,
             ],
             [
                 'key' => 'footer',
                 'enabled' => true,
+                'background_mode' => 'white',
+                'text_align' => 'left',
+                'spacing_top' => 'normal',
+                'spacing_bottom' => 'normal',
+                'cta_style' => 'solid',
                 'column_count' => max(1, min(3, count($footerBlocks))),
                 'columns' => $footerBlocks,
             ],

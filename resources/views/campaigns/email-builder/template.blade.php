@@ -28,13 +28,26 @@
         ])) === '';
     };
 
-    $sectionBlocks = function (string $key) use ($sectionMap, $isBlockEmpty) {
+    $sectionSpacingValue = function (string $value): int {
+        return match ($value) {
+            'compact' => 12,
+            'spacious' => 32,
+            default => 24,
+        };
+    };
+
+    $sectionBlocks = function (string $key) use ($sectionMap, $isBlockEmpty, $sectionSpacingValue) {
         $section = $sectionMap->get($key, []);
         if (is_array($section) && array_key_exists('enabled', $section) && ! $section['enabled']) {
             return [
                 'key' => $key,
                 'count' => 1,
                 'blocks' => collect(),
+                'background_mode' => 'white',
+                'text_align' => 'left',
+                'spacing_top' => 24,
+                'spacing_bottom' => 24,
+                'cta_style' => 'solid',
             ];
         }
 
@@ -47,6 +60,11 @@
             'key' => $key,
             'count' => max(1, $blocks->count()),
             'blocks' => $blocks,
+            'background_mode' => is_array($section) ? (string) ($section['background_mode'] ?? 'white') : 'white',
+            'text_align' => is_array($section) ? (string) ($section['text_align'] ?? 'left') : 'left',
+            'spacing_top' => $sectionSpacingValue((string) (is_array($section) ? ($section['spacing_top'] ?? 'normal') : 'normal')),
+            'spacing_bottom' => $sectionSpacingValue((string) (is_array($section) ? ($section['spacing_bottom'] ?? 'normal') : 'normal')),
+            'cta_style' => is_array($section) ? (string) ($section['cta_style'] ?? 'solid') : 'solid',
         ];
     };
 
@@ -57,47 +75,58 @@
         ->filter(fn (array $section) => $section['blocks']->count() > 0)
         ->values();
 
-    $button = function (string $label, string $url) use ($primary): string {
+    $button = function (string $label, string $url, string $style = 'solid') use ($primary, $secondary, $surface): string {
         if (trim($label) === '') {
             return '';
         }
 
         $safeUrl = trim($url) !== '' ? $url : '#';
 
-        return '<a href="'.e($safeUrl).'" style="display:inline-block; margin-top:14px; padding:12px 18px; border-radius:8px; background:'.$primary.'; color:#FFFFFF; text-decoration:none; font-size:13px; line-height:16px; font-weight:700;">'.e($label).'</a>';
+        $buttonStyle = match ($style) {
+            'outline' => 'display:inline-block; margin-top:14px; padding:12px 18px; border-radius:8px; background:#FFFFFF; color:'.$primary.'; text-decoration:none; font-size:13px; line-height:16px; font-weight:700; border:1px solid '.$primary.';',
+            'soft' => 'display:inline-block; margin-top:14px; padding:12px 18px; border-radius:8px; background:'.$surface.'; color:'.$secondary.'; text-decoration:none; font-size:13px; line-height:16px; font-weight:700; border:1px solid #e7e5e4;',
+            default => 'display:inline-block; margin-top:14px; padding:12px 18px; border-radius:8px; background:'.$primary.'; color:#FFFFFF; text-decoration:none; font-size:13px; line-height:16px; font-weight:700;',
+        };
+
+        return '<a href="'.e($safeUrl).'" style="'.$buttonStyle.'">'.e($label).'</a>';
     };
 
-    $renderBlock = function (array $block) use ($button, $primary, $secondary, $mutedColor): string {
+    $renderBlock = function (array $block, array $section) use ($button, $primary, $secondary, $mutedColor): string {
         $cardBackground = '#FFFFFF';
         $cardBorder = '1px solid #e7e5e4';
         $titleColor = $secondary;
         $copyColor = $mutedColor;
         $kickerColor = $primary;
+        $textAlign = ($section['text_align'] ?? 'left') === 'center' ? 'center' : 'left';
+        $alignmentStyle = 'text-align:'.$textAlign.';';
 
         $kicker = trim((string) ($block['kicker'] ?? '')) !== ''
-            ? '<div style="padding-bottom:10px; font-size:11px; line-height:16px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:'.$kickerColor.';">'.e((string) $block['kicker']).'</div>'
+            ? '<div style="'.$alignmentStyle.' padding-bottom:10px; font-size:11px; line-height:16px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:'.$kickerColor.';">'.e((string) $block['kicker']).'</div>'
             : '';
 
         $title = trim((string) ($block['title'] ?? '')) !== ''
-            ? '<div style="font-size:20px; line-height:26px; font-weight:800; letter-spacing:-0.02em; color:'.$titleColor.';">'.e((string) $block['title']).'</div>'
+            ? '<div style="'.$alignmentStyle.' font-size:20px; line-height:26px; font-weight:800; letter-spacing:-0.02em; color:'.$titleColor.';">'.e((string) $block['title']).'</div>'
             : '';
 
         $copy = trim((string) ($block['body'] ?? '')) !== ''
-            ? '<div style="padding-top:12px; font-size:15px; line-height:24px; color:'.$copyColor.';">'.nl2br(e((string) $block['body'])).'</div>'
+            ? '<div style="'.$alignmentStyle.' padding-top:12px; font-size:15px; line-height:24px; color:'.$copyColor.';">'.nl2br(e((string) $block['body'])).'</div>'
             : '';
 
         $image = trim((string) ($block['image_url'] ?? '')) !== ''
             ? '<div style="padding-bottom:16px;"><img src="'.e((string) $block['image_url']).'" alt="" style="display:block; width:100%; border-radius:8px; max-width:100%;"></div>'
             : '';
 
-        $buttonHtml = $button((string) ($block['button_label'] ?? ''), (string) ($block['button_url'] ?? ''));
+        $buttonHtml = $button((string) ($block['button_label'] ?? ''), (string) ($block['button_url'] ?? ''), (string) ($section['cta_style'] ?? 'solid'));
+        $buttonWrapper = $buttonHtml !== ''
+            ? '<div style="'.$alignmentStyle.'">'.$buttonHtml.'</div>'
+            : '';
 
         return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:'.$cardBackground.'; border:'.$cardBorder.'; border-radius:8px;"><tr><td style="padding:20px;">'
             .$image
             .$kicker
             .$title
             .$copy
-            .$buttonHtml
+            .$buttonWrapper
             .'</td></tr></table>';
     };
 
@@ -112,14 +141,28 @@
         $lastIndex = $blocks->count() - 1;
         $columns = $blocks
             ->values()
-            ->map(function (array $block, int $index) use ($renderBlock, $width, $lastIndex): string {
+            ->map(function (array $block, int $index) use ($renderBlock, $width, $lastIndex, $section): string {
                 $paddingRight = $index === $lastIndex ? '0' : '10px';
 
-                return '<td class="stack-column" width="'.$width.'%" valign="top" style="padding:0 '.$paddingRight.' 16px 0;">'.$renderBlock($block).'</td>';
+                return '<td class="stack-column" width="'.$width.'%" valign="top" style="padding:0 '.$paddingRight.' 16px 0;">'.$renderBlock($block, $section).'</td>';
             })
             ->implode('');
 
         return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>'.$columns.'</tr></table>';
+    };
+
+    $renderSection = function (array $section) use ($renderColumns, $surface, $primary): string {
+        $backgroundMode = (string) ($section['background_mode'] ?? 'white');
+        $wrapperBackground = match ($backgroundMode) {
+            'soft' => $surface,
+            default => '#FFFFFF',
+        };
+        $wrapperBorder = '1px solid #e7e5e4';
+        $wrapperAccent = $backgroundMode === 'highlight' ? ' border-top:3px solid '.$primary.';' : '';
+
+        return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:'.$wrapperBackground.'; border:'.$wrapperBorder.'; border-radius:8px;'.$wrapperAccent.'"><tr><td style="padding:20px 20px 4px 20px;">'
+            .$renderColumns($section)
+            .'</td></tr></table>';
     };
 @endphp
 <!DOCTYPE html>
@@ -186,9 +229,9 @@
                                     <tr>
                                         <td
                                             class="mobile-pad"
-                                            style="padding:{{ $index === 0 ? '24px 32px 12px 32px' : '12px 32px 12px 32px' }};{{ $index > 0 ? ' border-top:1px solid #f0ece7;' : '' }}"
+                                            style="padding:{{ $section['spacing_top'] }}px 32px {{ $section['spacing_bottom'] }}px 32px;"
                                         >
-                                            {!! $renderColumns($section) !!}
+                                            {!! $renderSection($section) !!}
                                         </td>
                                     </tr>
                                 @endforeach

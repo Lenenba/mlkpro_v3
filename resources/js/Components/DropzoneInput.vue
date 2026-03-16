@@ -27,6 +27,7 @@ const preview = ref(null); // Référence pour l'aperçu de l'image
 const progress = ref(0); // Progression fictive (par exemple pour l'upload)
 const errorMessage = ref('');
 const isDragging = ref(false);
+const showProgress = computed(() => file.value instanceof File);
 
 const previewName = computed(() => {
   if (file.value instanceof File) {
@@ -59,6 +60,7 @@ const updatePreview = (value) => {
   }
   if (typeof value === 'string' && value.trim() !== '') {
     preview.value = value;
+    progress.value = 100;
     return;
   }
   preview.value = null;
@@ -183,34 +185,26 @@ watch(
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            @click="removeFile"
-            class="text-stone-500 hover:text-stone-800 dark:text-neutral-500 dark:hover:text-neutral-200"
-          >
-            <svg
-              class="shrink-0 size-4"
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              @click="triggerFileInput"
+              class="rounded-sm border border-stone-300 bg-white px-2 py-1 text-xs font-semibold text-stone-700 transition hover:bg-stone-50 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
             >
-              <path d="M3 6h18"></path>
-              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-              <line x1="10" x2="10" y1="11" y2="17"></line>
-              <line x1="14" x2="14" y1="11" y2="17"></line>
-            </svg>
-          </button>
+              Replace
+            </button>
+            <button
+              type="button"
+              @click="removeFile"
+              class="rounded-sm border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950/50"
+            >
+              Remove
+            </button>
+          </div>
         </div>
 
         <!-- Barre de progression -->
-        <div class="flex items-center gap-x-3">
+        <div v-if="showProgress" class="flex items-center gap-x-3">
           <div
             class="flex w-full h-2 bg-stone-200 rounded-full overflow-hidden dark:bg-neutral-700"
           >
@@ -225,6 +219,9 @@ watch(
             </span>
           </div>
         </div>
+        <p v-else class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
+          This image is already attached. You can replace it or remove it.
+        </p>
       </div>
     </template>
 

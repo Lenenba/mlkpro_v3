@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Jobs\DispatchCampaignRunJob;
 use App\Jobs\SendCampaignRecipientJob;
+use App\Mail\RenderedTemplatePreviewMail;
 use App\Models\Campaign;
 use App\Models\CampaignProspect;
 use App\Models\CampaignProspectActivity;
@@ -37,6 +38,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -324,6 +326,7 @@ test('email template composer compiles simple three-section schema', function ()
             'sections' => [
                 [
                     'key' => 'header',
+                    'background_mode' => 'highlight',
                     'column_count' => 2,
                     'columns' => [
                         [
@@ -342,11 +345,18 @@ test('email template composer compiles simple three-section schema', function ()
                 ],
                 [
                     'key' => 'body',
+                    'background_mode' => 'soft',
+                    'text_align' => 'center',
+                    'spacing_top' => 'compact',
+                    'spacing_bottom' => 'spacious',
+                    'cta_style' => 'outline',
                     'column_count' => 1,
                     'columns' => [
                         [
                             'title' => 'Main details',
                             'body' => 'Amount {amountFormatted}',
+                            'button_label' => 'Learn more',
+                            'button_url' => '{ctaUrl}',
                         ],
                     ],
                 ],
@@ -372,6 +382,10 @@ test('email template composer compiles simple three-section schema', function ()
     expect($html)->toContain('Main details');
     expect($html)->not->toContain('Need help?');
     expect($html)->toContain('{brandLogoUrl}');
+    expect($html)->toContain('border-top:3px solid {brandPrimaryColor};');
+    expect($html)->toContain('background:{brandSurfaceColor};');
+    expect($html)->toContain('text-align:center;');
+    expect($html)->toContain('border:1px solid {brandPrimaryColor};');
     expect($html)->not->toContain('linear-gradient');
 });
 
@@ -391,6 +405,57 @@ test('marketing template image upload stores file and returns public url', funct
     expect($path)->toBeString()->not->toBe('');
     Storage::disk('public')->assertExists($path);
     expect($response->json('url'))->toBe(Storage::disk('public')->url($path));
+});
+
+test('marketing template test send delivers rendered email to controlled recipient', function () {
+    Mail::fake();
+
+    $owner = marketingOwner([
+        'email' => 'owner-test@example.com',
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('marketing.templates.test-send'), [
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'recipient_email' => 'qa-recipient@example.com',
+        'content' => [
+            'subject' => 'Template preview',
+            'editorMode' => 'html',
+            'html' => '<p>Rendered body</p>',
+        ],
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('recipient_email', 'qa-recipient@example.com')
+        ->assertJsonPath('message', 'Test email sent to qa-recipient@example.com.');
+
+    Mail::assertSent(RenderedTemplatePreviewMail::class, function (RenderedTemplatePreviewMail $mail): bool {
+        return $mail->hasTo('qa-recipient@example.com')
+            && $mail->subjectLine === 'Template preview'
+            && $mail->htmlBody === '<p>Rendered body</p>';
+    });
+});
+
+test('marketing template test send rejects invalid tokens', function () {
+    Mail::fake();
+
+    $owner = marketingOwner([
+        'email' => 'owner-invalid@example.com',
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('marketing.templates.test-send'), [
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'recipient_email' => 'qa-recipient@example.com',
+        'content' => [
+            'subject' => 'Template {missingToken}',
+            'editorMode' => 'html',
+            'html' => '<p>Hello world</p>',
+        ],
+    ]);
+
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['content']);
+
+    Mail::assertNothingOutgoing();
 });
 
 test('consent and fatigue rules are enforced', function () {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\RenderedTemplatePreviewMail;
 use App\Models\Campaign;
 use App\Models\Customer;
 use App\Models\MessageTemplate;
@@ -12,8 +13,10 @@ use App\Services\Campaigns\TemplateLibraryService;
 use App\Services\Campaigns\TemplateRenderer;
 use App\Services\Campaigns\BrandProfileService;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class MarketingTemplateController extends Controller
 {
@@ -230,6 +233,67 @@ class MarketingTemplateController extends Controller
             'preview' => $preview,
             'template' => $template,
             'sample' => $sample,
+        ]);
+    }
+
+    public function testSend(Request $request)
+    {
+        [$owner, , $canManage] = $this->resolveAccess($request->user());
+        if (! $canManage) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'channel' => ['required', Rule::in(Campaign::allowedChannels())],
+            'content' => 'required|array',
+            'recipient_email' => 'nullable|email',
+            'customer_id' => 'nullable|integer',
+            'offer_id' => 'nullable|integer',
+        ]);
+
+        $channel = strtoupper((string) $validated['channel']);
+        if ($channel !== Campaign::CHANNEL_EMAIL) {
+            throw ValidationException::withMessages([
+                'channel' => 'Test send is only available for email templates.',
+            ]);
+        }
+
+        [$context] = $this->buildPreviewContext(
+            $owner,
+            $validated['customer_id'] ?? null,
+            $validated['offer_id'] ?? null
+        );
+
+        $preview = $this->templateLibraryService->preview(
+            $owner,
+            $channel,
+            (array) $validated['content'],
+            $context,
+            $this->templateRenderer
+        );
+
+        $invalidTokens = array_values(array_unique((array) ($preview['invalid_tokens'] ?? [])));
+        if ($invalidTokens !== []) {
+            throw ValidationException::withMessages([
+                'content' => 'This template contains invalid tokens: '.implode(', ', $invalidTokens).'.',
+            ]);
+        }
+
+        $recipientEmail = trim((string) ($validated['recipient_email'] ?? $request->user()?->email ?? ''));
+        if (! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
+            throw ValidationException::withMessages([
+                'recipient_email' => 'A valid test recipient email is required.',
+            ]);
+        }
+
+        Mail::to($recipientEmail)->send(new RenderedTemplatePreviewMail(
+            (string) ($preview['subject'] ?: 'Template test'),
+            (string) ($preview['body'] ?: '<p></p>')
+        ));
+
+        return response()->json([
+            'message' => 'Test email sent to '.$recipientEmail.'.',
+            'recipient_email' => $recipientEmail,
         ]);
     }
 

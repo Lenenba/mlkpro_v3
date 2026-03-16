@@ -474,6 +474,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::put('/marketing/templates/{template}', [MarketingTemplateController::class, 'update'])->name('marketing.templates.update');
         Route::delete('/marketing/templates/{template}', [MarketingTemplateController::class, 'destroy'])->name('marketing.templates.destroy');
         Route::post('/marketing/templates/preview', [MarketingTemplateController::class, 'preview'])->name('marketing.templates.preview');
+        Route::post('/marketing/templates/test-send', [MarketingTemplateController::class, 'testSend'])
+            ->name('marketing.templates.test-send');
         Route::post('/marketing/templates/{template}/preview', [MarketingTemplateController::class, 'previewTemplate'])
             ->name('marketing.templates.preview-template');
 
