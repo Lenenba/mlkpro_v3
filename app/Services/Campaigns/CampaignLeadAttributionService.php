@@ -16,9 +16,11 @@ use Illuminate\Support\Str;
 class CampaignLeadAttributionService
 {
     public const SOURCE_KIND_PROSPECTING = 'campaign_prospecting';
+
     public const SOURCE_KIND_INBOUND = 'campaign_inbound';
 
     private const SESSION_KEY_PREFIX = 'campaign_lead_attribution.';
+
     private const ATTRIBUTION_TTL_HOURS = 24 * 14;
 
     public function rememberRecipientClick(Request $request, CampaignRecipient $recipient): void

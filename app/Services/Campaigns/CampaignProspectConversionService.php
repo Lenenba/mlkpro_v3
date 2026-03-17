@@ -18,8 +18,7 @@ class CampaignProspectConversionService
     public function __construct(
         private readonly CampaignLeadAttributionService $leadAttributionService,
         private readonly CampaignTrackingService $trackingService,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array<string, mixed>  $payload

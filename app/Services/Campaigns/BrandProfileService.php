@@ -8,8 +8,7 @@ class BrandProfileService
 {
     public function __construct(
         private readonly MarketingSettingsService $marketingSettingsService,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string, mixed>

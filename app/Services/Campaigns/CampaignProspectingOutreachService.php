@@ -46,8 +46,7 @@ class CampaignProspectingOutreachService
     public function __construct(
         private readonly ConsentService $consentService,
         private readonly FatigueLimiter $fatigueLimiter,
-    ) {
-    }
+    ) {}
 
     public function usesProspectingAudience(?Campaign $campaign): bool
     {
@@ -540,12 +539,12 @@ class CampaignProspectingOutreachService
             $blockedReason = $normalizedStatus === CampaignProspect::STATUS_APPROVED
                 ? null
                 : ($reason ?: match ($normalizedStatus) {
-                CampaignProspect::STATUS_DUPLICATE => 'manual_duplicate',
-                CampaignProspect::STATUS_BLOCKED => 'manual_blocked',
-                CampaignProspect::STATUS_DISQUALIFIED => 'manual_disqualified',
-                CampaignProspect::STATUS_DO_NOT_CONTACT => 'manual_do_not_contact',
-                default => $prospect->blocked_reason,
-            });
+                    CampaignProspect::STATUS_DUPLICATE => 'manual_duplicate',
+                    CampaignProspect::STATUS_BLOCKED => 'manual_blocked',
+                    CampaignProspect::STATUS_DISQUALIFIED => 'manual_disqualified',
+                    CampaignProspect::STATUS_DO_NOT_CONTACT => 'manual_do_not_contact',
+                    default => $prospect->blocked_reason,
+                });
 
             $updates = [
                 'status' => $normalizedStatus,

@@ -33,8 +33,7 @@ class CampaignService
         private readonly SmsNotificationService $smsService,
         private readonly TemplateLibraryService $templateLibraryService,
         private readonly CampaignProspectingOutreachService $prospectingOutreachService,
-    ) {
-    }
+    ) {}
 
     public function saveCampaign(
         User $accountOwner,
@@ -43,9 +42,9 @@ class CampaignService
         ?Campaign $campaign = null
     ): Campaign {
         return DB::transaction(function () use ($accountOwner, $actor, $payload, $campaign): Campaign {
-            $isCreate = !$campaign;
-            if (!$campaign) {
-                $campaign = new Campaign();
+            $isCreate = ! $campaign;
+            if (! $campaign) {
+                $campaign = new Campaign;
                 $campaign->user_id = $accountOwner->id;
                 $campaign->created_by_user_id = $actor->id;
                 $campaign->status = Campaign::STATUS_DRAFT;
@@ -63,14 +62,14 @@ class CampaignService
             }
 
             $campaignType = strtoupper((string) ($payload['campaign_type'] ?? $payload['type'] ?? Campaign::TYPE_PROMOTION));
-            if (!in_array($campaignType, Campaign::allowedTypes(), true)) {
+            if (! in_array($campaignType, Campaign::allowedTypes(), true)) {
                 throw ValidationException::withMessages([
                     'campaign_type' => 'Invalid campaign type.',
                 ]);
             }
 
             $languageMode = strtoupper((string) ($payload['language_mode'] ?? Campaign::LANGUAGE_MODE_PREFERRED));
-            if (!in_array($languageMode, Campaign::allowedLanguageModes(), true)) {
+            if (! in_array($languageMode, Campaign::allowedLanguageModes(), true)) {
                 throw ValidationException::withMessages([
                     'language_mode' => 'Invalid language mode.',
                 ]);
@@ -84,13 +83,13 @@ class CampaignService
                     : Campaign::DIRECTION_CUSTOMER_MARKETING)
             ));
 
-            if (!in_array($campaignDirection, Campaign::allowedDirections(), true)) {
+            if (! in_array($campaignDirection, Campaign::allowedDirections(), true)) {
                 throw ValidationException::withMessages([
                     'campaign_direction' => 'Invalid campaign direction.',
                 ]);
             }
 
-            if (!$prospectingEnabled) {
+            if (! $prospectingEnabled) {
                 $campaignDirection = Campaign::DIRECTION_CUSTOMER_MARKETING;
             } elseif ($campaignDirection === Campaign::DIRECTION_CUSTOMER_MARKETING) {
                 $campaignDirection = Campaign::DIRECTION_PROSPECTING_OUTBOUND;
@@ -174,9 +173,9 @@ class CampaignService
                 ]);
 
                 $template = null;
-                if (!empty($channelData['message_template_id'])) {
+                if (! empty($channelData['message_template_id'])) {
                     $template = $templates->get((int) $channelData['message_template_id']);
-                    if (!$template || strtoupper((string) $template->channel) !== $channelName) {
+                    if (! $template || strtoupper((string) $template->channel) !== $channelName) {
                         throw ValidationException::withMessages([
                             'channels' => 'Template channel mismatch.',
                         ]);
@@ -259,8 +258,8 @@ class CampaignService
             $sourceSummary = array_merge([
                 'logic' => $sourceLogic,
                 'dynamic_enabled' => (bool) (
-                    !empty($audience['smart_filters'])
-                    || !empty($campaign->audience_segment_id)
+                    ! empty($audience['smart_filters'])
+                    || ! empty($campaign->audience_segment_id)
                 ),
                 'include_mailing_lists_count' => count($includeMailingListIds),
                 'exclude_mailing_lists_count' => count($excludeMailingListIds),
@@ -345,7 +344,7 @@ class CampaignService
         $this->prospectingOutreachService->assertCanQueueRun($campaign->loadMissing('user'));
 
         $effectiveIdempotencyKey = $idempotencyKey;
-        if (!$effectiveIdempotencyKey) {
+        if (! $effectiveIdempotencyKey) {
             $timePart = ($scheduledFor ?: now())->copy()->seconds(0)->format('Y-m-d H:i');
             $effectiveIdempotencyKey = hash('sha256', implode('|', [
                 $campaign->id,
@@ -418,7 +417,7 @@ class CampaignService
         $results = [];
         foreach ($campaign->channels->where('is_enabled', true) as $channelModel) {
             $channel = strtoupper((string) $channelModel->channel);
-            if ($channels !== [] && !in_array($channel, $channels, true)) {
+            if ($channels !== [] && ! in_array($channel, $channels, true)) {
                 continue;
             }
 
@@ -430,6 +429,7 @@ class CampaignService
                     'reason' => 'invalid_tokens',
                     'invalid_tokens' => $rendered['invalid_tokens'],
                 ];
+
                 continue;
             }
 
@@ -440,6 +440,7 @@ class CampaignService
                     'reason' => 'sms_too_long',
                     'segments' => $rendered['sms_segments'],
                 ];
+
                 continue;
             }
 
@@ -461,7 +462,7 @@ class CampaignService
     private function sendTestEmail(User $actor, array $rendered): array
     {
         $email = trim((string) $actor->email);
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return [
                 'channel' => Campaign::CHANNEL_EMAIL,
                 'ok' => false,
@@ -500,7 +501,7 @@ class CampaignService
         }
 
         $result = $this->smsService->sendWithResult($phone, (string) ($rendered['body'] ?? ''));
-        if (!($result['ok'] ?? false)) {
+        if (! ($result['ok'] ?? false)) {
             return [
                 'channel' => Campaign::CHANNEL_SMS,
                 'ok' => false,
@@ -564,7 +565,7 @@ class CampaignService
     }
 
     /**
-     * @param array<string, mixed> $settings
+     * @param  array<string, mixed>  $settings
      * @return array<string, mixed>
      */
     private function normalizeCampaignSettings(array $settings): array
@@ -620,13 +621,14 @@ class CampaignService
     }
 
     /**
-     * @param array<string, mixed> $abTesting
+     * @param  array<string, mixed>  $abTesting
      * @return array<string, mixed>
      */
     private function normalizeAbTesting(array $abTesting): array
     {
         $variant = static function (mixed $value): array {
             $source = is_array($value) ? $value : [];
+
             return [
                 'subject_template' => $source['subject_template'] ?? null,
                 'title_template' => $source['title_template'] ?? null,
@@ -643,7 +645,7 @@ class CampaignService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      * @return Collection<int, array{offer_type: string, offer_id: int, metadata: array<string, mixed>|null}>
      */
     private function normalizedOffers(array $payload, User $accountOwner): Collection
@@ -677,7 +679,7 @@ class CampaignService
         $merged = $offers
             ->concat($legacyProducts)
             ->concat($fromSelectors)
-            ->unique(fn (array $item) => $item['offer_type'] . ':' . $item['offer_id'])
+            ->unique(fn (array $item) => $item['offer_type'].':'.$item['offer_id'])
             ->values();
 
         if ($merged->isEmpty()) {
@@ -700,7 +702,7 @@ class CampaignService
         return $merged->map(function (array $item) use ($products): array {
             $product = $products->get($item['offer_id']);
             $resolvedType = strtolower((string) ($product?->item_type ?? OfferType::PRODUCT->value));
-            if (!in_array($resolvedType, OfferType::values(), true)) {
+            if (! in_array($resolvedType, OfferType::values(), true)) {
                 $resolvedType = OfferType::PRODUCT->value;
             }
 
@@ -719,7 +721,7 @@ class CampaignService
     }
 
     /**
-     * @param array<string, mixed> $selectors
+     * @param  array<string, mixed>  $selectors
      * @return Collection<int, array{offer_type: string, offer_id: int, metadata: array<string, mixed>|null}>
      */
     private function offersFromSelectors(array $selectors, string $offerMode, User $accountOwner): Collection
@@ -752,6 +754,7 @@ class CampaignService
                 foreach ($tags as $index => $tag) {
                     if ($index === 0) {
                         $builder->whereJsonContains('tags', $tag);
+
                         continue;
                     }
                     $builder->orWhereJsonContains('tags', $tag);
@@ -779,7 +782,7 @@ class CampaignService
     }
 
     /**
-     * @param Collection<int, array{offer_type: string, offer_id: int, metadata: array<string, mixed>|null}> $offers
+     * @param  Collection<int, array{offer_type: string, offer_id: int, metadata: array<string, mixed>|null}>  $offers
      */
     private function resolveOfferMode(string $requestedMode, Collection $offers): string
     {
@@ -801,7 +804,7 @@ class CampaignService
             return $inferred;
         }
 
-        if (!in_array($requested, Campaign::allowedOfferModes(), true)) {
+        if (! in_array($requested, Campaign::allowedOfferModes(), true)) {
             throw ValidationException::withMessages([
                 'offer_mode' => 'Invalid offer mode.',
             ]);
@@ -823,7 +826,7 @@ class CampaignService
     }
 
     /**
-     * @param Collection<int, array{offer_type: string, offer_id: int, metadata: array<string, mixed>|null}> $offers
+     * @param  Collection<int, array{offer_type: string, offer_id: int, metadata: array<string, mixed>|null}>  $offers
      */
     private function syncCampaignOffers(Campaign $campaign, Collection $offers): void
     {
@@ -852,12 +855,11 @@ class CampaignService
     }
 
     /**
-     * @param mixed $values
      * @return array<int, int>
      */
     private function normalizeIdList(mixed $values): array
     {
-        if (!is_array($values)) {
+        if (! is_array($values)) {
             return [];
         }
 
@@ -870,8 +872,8 @@ class CampaignService
     }
 
     /**
-     * @param array<int, int> $includeIds
-     * @param array<int, int> $excludeIds
+     * @param  array<int, int>  $includeIds
+     * @param  array<int, int>  $excludeIds
      */
     private function assertMailingListsBelongToTenant(User $accountOwner, array $includeIds, array $excludeIds): void
     {
@@ -904,6 +906,7 @@ class CampaignService
         }
 
         $fallbackValue = trim((string) $fallback);
+
         return $fallbackValue !== '' ? $fallbackValue : null;
     }
 }
