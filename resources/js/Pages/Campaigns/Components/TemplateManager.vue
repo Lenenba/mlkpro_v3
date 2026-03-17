@@ -5,10 +5,10 @@ import { router, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
-import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import EmailTemplateBuilder from '@/Pages/Campaigns/Components/EmailTemplateBuilder.vue';
+import EmailBodyEditor from '@/Pages/Campaigns/Components/EmailBodyEditor.vue';
 
 const props = defineProps({
     enums: {
@@ -872,7 +872,7 @@ load();
                     </div>
 
                     <div v-else-if="form.channel === 'SMS'" class="grid grid-cols-1 gap-3">
-                        <FloatingTextarea v-model="form.smsContent.text" :label="t('marketing.template_manager.sms_text')" />
+                        <EmailBodyEditor v-model="form.smsContent.text" :label="t('marketing.template_manager.sms_text')" compact />
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                             <input v-model="form.smsContent.shortener" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
                             <span>{{ t('marketing.template_manager.enable_shortener') }}</span>
@@ -882,7 +882,7 @@ load();
                     <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <FloatingInput v-model="form.inAppContent.title" :label="t('marketing.template_manager.in_app_title')" />
                         <FloatingInput v-model="form.inAppContent.deepLink" :label="t('marketing.template_manager.deep_link')" />
-                        <FloatingTextarea v-model="form.inAppContent.body" :label="t('marketing.template_manager.in_app_body')" class="md:col-span-2" />
+                        <EmailBodyEditor v-model="form.inAppContent.body" :label="t('marketing.template_manager.in_app_body')" class="md:col-span-2" compact />
                         <FloatingInput v-model="form.inAppContent.image" :label="t('marketing.template_manager.image_url')" class="md:col-span-2" />
                     </div>
                 </div>

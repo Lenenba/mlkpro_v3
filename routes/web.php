@@ -551,6 +551,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('campaigns.prospect-provider-preview');
         Route::post('/campaigns/{campaign}/prospect-batches/import', [CampaignProspectingController::class, 'import'])
             ->name('campaigns.prospect-batches.import');
+        Route::get('/campaigns/{campaign}/prospect-batches/{batch}/workspace', [CampaignProspectingController::class, 'workspace'])
+            ->name('campaigns.prospect-batches.workspace');
         Route::get('/campaigns/{campaign}/prospect-batches/{batch}', [CampaignProspectingController::class, 'showBatch'])
             ->name('campaigns.prospect-batches.show');
         Route::post('/campaigns/{campaign}/prospect-batches/{batch}/approve', [CampaignProspectingController::class, 'approveBatch'])

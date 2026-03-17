@@ -4,6 +4,7 @@ namespace App\Services\Campaigns;
 
 use App\Enums\OfferType;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\Sale;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\CursorPaginator;
@@ -49,6 +50,7 @@ class OfferSearchService
                 'type' => $type,
                 'hasMore' => $paginator->hasMorePages(),
             ],
+            'filters' => $this->filterOptions($accountOwner),
         ];
     }
 
@@ -260,5 +262,44 @@ class OfferSearchService
                 'tags' => is_array($offer->tags) ? $offer->tags : [],
             ];
         })->values()->all();
+    }
+
+    /**
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    private function filterOptions(User $accountOwner): array
+    {
+        $categories = ProductCategory::query()
+            ->forAccount($accountOwner->id)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ProductCategory $category): array => [
+                'id' => (int) $category->id,
+                'name' => (string) $category->name,
+            ])
+            ->values()
+            ->all();
+
+        $tags = Product::query()
+            ->where('user_id', $accountOwner->id)
+            ->pluck('tags')
+            ->filter(fn ($value) => is_array($value))
+            ->flatMap(fn (array $value) => $value)
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->map(fn (string $tag): array => [
+                'value' => $tag,
+                'label' => $tag,
+            ])
+            ->all();
+
+        return [
+            'categories' => $categories,
+            'tags' => $tags,
+        ];
     }
 }
