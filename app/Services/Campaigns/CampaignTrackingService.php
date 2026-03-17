@@ -12,17 +12,17 @@ class CampaignTrackingService
 {
     public function __construct(
         private readonly ConsentService $consentService,
-    ) {
-    }
+        private readonly CampaignProspectingOutreachService $prospectingOutreachService,
+    ) {}
 
     public function ensureTokens(CampaignRecipient $recipient): CampaignRecipient
     {
         $updates = [];
-        if (!$recipient->tracking_token) {
+        if (! $recipient->tracking_token) {
             $updates['tracking_token'] = $this->generateToken();
         }
 
-        if (!$recipient->unsubscribe_token && strtoupper((string) $recipient->channel) === 'EMAIL') {
+        if (! $recipient->unsubscribe_token && strtoupper((string) $recipient->channel) === 'EMAIL') {
             $updates['unsubscribe_token'] = $this->generateToken();
         }
 
@@ -44,7 +44,7 @@ class CampaignTrackingService
     public function unsubscribeUrl(CampaignRecipient $recipient): ?string
     {
         $recipient = $this->ensureTokens($recipient);
-        if (!$recipient->unsubscribe_token) {
+        if (! $recipient->unsubscribe_token) {
             return null;
         }
 
@@ -79,6 +79,7 @@ class CampaignTrackingService
         ])->save();
 
         $this->recordEvent($recipient, CampaignEvent::EVENT_QUEUED);
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_QUEUED);
     }
 
     public function markSent(CampaignRecipient $recipient, ?string $provider = null, ?string $providerMessageId = null): void
@@ -91,6 +92,7 @@ class CampaignTrackingService
         ])->save();
 
         $this->recordEvent($recipient, CampaignEvent::EVENT_SENT);
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_SENT);
     }
 
     public function markDelivered(CampaignRecipient $recipient, array $metadata = []): void
@@ -101,6 +103,7 @@ class CampaignTrackingService
         ])->save();
 
         $this->recordEvent($recipient, CampaignEvent::EVENT_DELIVERED, $metadata);
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_DELIVERED, $metadata);
     }
 
     public function markOpened(CampaignRecipient $recipient, array $metadata = []): void
@@ -111,6 +114,7 @@ class CampaignTrackingService
         ])->save();
 
         $this->recordEvent($recipient, CampaignEvent::EVENT_OPENED, $metadata);
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_OPENED, $metadata);
     }
 
     public function markClicked(CampaignRecipient $recipient, array $metadata = []): void
@@ -121,6 +125,7 @@ class CampaignTrackingService
         ])->save();
 
         $this->recordEvent($recipient, CampaignEvent::EVENT_CLICKED, $metadata);
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_CLICKED, $metadata);
     }
 
     public function markConverted(
@@ -148,6 +153,12 @@ class CampaignTrackingService
             'occurred_at' => now(),
             'metadata' => $metadata ?: null,
         ]);
+
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_CONVERTED, [
+            ...$metadata,
+            'conversion_type' => $conversionType,
+            'conversion_id' => $conversionId,
+        ]);
     }
 
     public function markFailed(CampaignRecipient $recipient, string $reason, array $metadata = []): void
@@ -159,6 +170,11 @@ class CampaignTrackingService
         ])->save();
 
         $this->recordEvent($recipient, CampaignEvent::EVENT_FAILED, array_merge($metadata, ['reason' => $reason]));
+        $this->prospectingOutreachService->syncRecipientEvent(
+            $recipient,
+            CampaignEvent::EVENT_FAILED,
+            array_merge($metadata, ['reason' => $reason])
+        );
     }
 
     public function resolveClickToken(string $token): ?array
@@ -168,13 +184,13 @@ class CampaignTrackingService
             ->where('tracking_token', $token)
             ->first();
 
-        if (!$recipient) {
+        if (! $recipient) {
             return null;
         }
 
         $this->markClicked($recipient, ['source' => 'tracking_link']);
         $destination = $recipient->message?->cta_url ?: $recipient->campaign?->cta_url;
-        if (!$destination) {
+        if (! $destination) {
             return null;
         }
 
@@ -191,7 +207,7 @@ class CampaignTrackingService
             ->where('unsubscribe_token', $token)
             ->first();
 
-        if (!$recipient || !$recipient->campaign || !$recipient->campaign->user) {
+        if (! $recipient || ! $recipient->campaign || ! $recipient->campaign->user) {
             return null;
         }
 
@@ -207,6 +223,9 @@ class CampaignTrackingService
         $this->recordEvent($recipient, CampaignEvent::EVENT_UNSUBSCRIBE, [
             'source' => 'unsubscribe_link',
         ]);
+        $this->prospectingOutreachService->syncRecipientEvent($recipient, CampaignEvent::EVENT_UNSUBSCRIBE, [
+            'source' => 'unsubscribe_link',
+        ]);
 
         return $recipient;
     }
@@ -217,7 +236,7 @@ class CampaignTrackingService
             ->where('provider_message_id', $providerMessageId)
             ->first();
 
-        if (!$recipient) {
+        if (! $recipient) {
             return null;
         }
 
@@ -228,22 +247,26 @@ class CampaignTrackingService
 
         if (in_array($normalized, ['delivered', 'delivery_success'], true)) {
             $this->markDelivered($recipient, $metadata);
+
             return $recipient;
         }
 
         if (in_array($normalized, ['opened', 'open'], true)) {
             $this->markOpened($recipient, $metadata);
+
             return $recipient;
         }
 
         if (in_array($normalized, ['clicked', 'click'], true)) {
             $this->markClicked($recipient, $metadata);
+
             return $recipient;
         }
 
         if (in_array($normalized, ['failed', 'undelivered', 'bounced'], true)) {
             $reason = (string) ($metadata['reason'] ?? $normalized);
             $this->markFailed($recipient, $reason, $metadata);
+
             return $recipient;
         }
 

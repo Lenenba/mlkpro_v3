@@ -21,6 +21,8 @@ class StoreCampaignRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'campaign_type' => ['nullable', Rule::in(Campaign::allowedTypes())],
             'type' => ['nullable', Rule::in(Campaign::allowedTypes())],
+            'prospecting_enabled' => ['nullable', 'boolean'],
+            'campaign_direction' => ['nullable', Rule::in(Campaign::allowedDirections())],
             'offer_mode' => ['nullable', Rule::in(Campaign::allowedOfferModes())],
             'language_mode' => ['nullable', Rule::in(Campaign::allowedLanguageModes())],
             'product_ids' => ['nullable', 'array'],
@@ -128,6 +130,8 @@ class StoreCampaignRequest extends FormRequest
 
         $this->merge(array_filter([
             'campaign_type' => $campaignType ? strtoupper((string) $campaignType) : null,
+            'prospecting_enabled' => $this->boolean('prospecting_enabled'),
+            'campaign_direction' => $this->normalizedCampaignDirection(),
             'offer_mode' => $offerMode ? strtoupper((string) $offerMode) : null,
             'language_mode' => $this->input('language_mode')
                 ? strtoupper((string) $this->input('language_mode'))
@@ -155,5 +159,17 @@ class StoreCampaignRequest extends FormRequest
         )->value;
 
         return $audience;
+    }
+
+    private function normalizedCampaignDirection(): string
+    {
+        $candidate = strtolower(trim((string) $this->input('campaign_direction', '')));
+        if (! in_array($candidate, Campaign::allowedDirections(), true)) {
+            return $this->boolean('prospecting_enabled')
+                ? Campaign::DIRECTION_PROSPECTING_OUTBOUND
+                : Campaign::DIRECTION_CUSTOMER_MARKETING;
+        }
+
+        return $candidate;
     }
 }

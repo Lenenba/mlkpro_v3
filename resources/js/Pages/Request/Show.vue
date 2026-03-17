@@ -34,6 +34,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    campaignOrigin: {
+        type: Object,
+        default: null,
+    },
 });
 
 const { t } = useI18n();
@@ -398,6 +402,32 @@ const mediaLabel = (media) => media?.original_name || media?.path || t('requests
 const isImage = (media) => media?.mime && media.mime.startsWith('image/');
 
 const scoreData = computed(() => buildLeadScore(props.lead, t));
+const campaignOrigin = computed(() => props.campaignOrigin || null);
+const hasCampaignOrigin = computed(() => Boolean(campaignOrigin.value?.campaign));
+const originUtmEntries = computed(() =>
+    Object.entries(campaignOrigin.value?.utm || {})
+        .filter(([, value]) => Boolean(value))
+);
+
+const campaignOriginKindLabel = (value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (!normalized) {
+        return '-';
+    }
+
+    const translated = t(`requests.origin.kinds.${normalized}`);
+    return translated === `requests.origin.kinds.${normalized}` ? normalized : translated;
+};
+
+const campaignOriginDirectionLabel = (value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (!normalized) {
+        return '-';
+    }
+
+    const translated = t(`requests.origin.directions.${normalized}`);
+    return translated === `requests.origin.directions.${normalized}` ? normalized : translated;
+};
 
 const sourceOptions = computed(() => ([
     { id: 'manual', name: t('requests.sources.manual') },
@@ -875,6 +905,75 @@ const mergeDuplicate = (duplicate) => {
                                 <span class="text-stone-800 dark:text-neutral-200">
                                     {{ lead.channel || '-' }}
                                 </span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section v-if="hasCampaignOrigin" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('requests.origin.title') }}
+                        </h2>
+                        <div class="mt-3 space-y-3 text-sm text-stone-600 dark:text-neutral-300">
+                            <div class="flex items-center justify-between gap-3">
+                                <span>{{ $t('requests.origin.campaign') }}</span>
+                                <Link
+                                    :href="route('campaigns.show', campaignOrigin.campaign.id)"
+                                    class="text-right font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-300"
+                                >
+                                    {{ campaignOrigin.campaign.name }}
+                                </Link>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>{{ $t('requests.origin.kind') }}</span>
+                                <span class="text-stone-800 dark:text-neutral-200">
+                                    {{ campaignOriginKindLabel(campaignOrigin.kind) }}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>{{ $t('requests.origin.direction') }}</span>
+                                <span class="text-stone-800 dark:text-neutral-200">
+                                    {{ campaignOriginDirectionLabel(campaignOrigin.direction) }}
+                                </span>
+                            </div>
+                            <div v-if="campaignOrigin.channel" class="flex items-center justify-between">
+                                <span>{{ $t('requests.origin.channel') }}</span>
+                                <span class="text-stone-800 dark:text-neutral-200">
+                                    {{ campaignOrigin.channel }}
+                                </span>
+                            </div>
+                            <div v-if="campaignOrigin.prospect" class="flex items-center justify-between">
+                                <span>{{ $t('requests.origin.prospect') }}</span>
+                                <span class="text-right text-stone-800 dark:text-neutral-200">
+                                    #{{ campaignOrigin.prospect.id }} · {{ campaignOrigin.prospect.company_name || campaignOrigin.prospect.contact_name || '-' }}
+                                </span>
+                            </div>
+                            <div v-if="campaignOrigin.batch" class="flex items-center justify-between">
+                                <span>{{ $t('requests.origin.batch') }}</span>
+                                <span class="text-stone-800 dark:text-neutral-200">
+                                    #{{ campaignOrigin.batch.batch_number }}
+                                </span>
+                            </div>
+                            <div v-if="campaignOrigin.first_outreach_at" class="flex items-center justify-between">
+                                <span>{{ $t('requests.origin.first_outreach') }}</span>
+                                <span class="text-stone-800 dark:text-neutral-200" :title="formatAbsoluteDate(campaignOrigin.first_outreach_at)">
+                                    {{ formatDate(campaignOrigin.first_outreach_at) }}
+                                </span>
+                            </div>
+                            <div v-if="campaignOrigin.converted_at" class="flex items-center justify-between">
+                                <span>{{ $t('requests.origin.attributed_at') }}</span>
+                                <span class="text-stone-800 dark:text-neutral-200" :title="formatAbsoluteDate(campaignOrigin.converted_at)">
+                                    {{ formatDate(campaignOrigin.converted_at) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div v-if="originUtmEntries.length" class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                            <div class="font-semibold text-stone-700 dark:text-neutral-200">{{ $t('requests.origin.utm') }}</div>
+                            <div class="mt-2 space-y-1">
+                                <div v-for="[key, value] in originUtmEntries" :key="`origin-utm-${key}`" class="flex items-center justify-between gap-3">
+                                    <span class="uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ key }}</span>
+                                    <span class="text-right text-stone-800 dark:text-neutral-200">{{ value }}</span>
+                                </div>
                             </div>
                         </div>
                     </section>

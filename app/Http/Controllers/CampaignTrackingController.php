@@ -3,17 +3,26 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ReconcileDeliveryReportsJob;
+use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\Campaigns\CampaignRunProgressService;
 use App\Services\Campaigns\CampaignTrackingService;
 use Illuminate\Http\Request;
 
 class CampaignTrackingController extends Controller
 {
-    public function track(string $token, CampaignTrackingService $trackingService)
-    {
+    public function track(
+        Request $request,
+        string $token,
+        CampaignTrackingService $trackingService,
+        CampaignLeadAttributionService $leadAttributionService
+    ) {
         $resolved = $trackingService->resolveClickToken($token);
-        if (!$resolved || empty($resolved['url'])) {
+        if (! $resolved || empty($resolved['url'])) {
             abort(404);
+        }
+
+        if (! empty($resolved['recipient'])) {
+            $leadAttributionService->rememberRecipientClick($request, $resolved['recipient']);
         }
 
         return redirect()->away((string) $resolved['url']);
@@ -22,7 +31,7 @@ class CampaignTrackingController extends Controller
     public function unsubscribe(string $token, CampaignTrackingService $trackingService)
     {
         $recipient = $trackingService->unsubscribeByToken($token);
-        if (!$recipient) {
+        if (! $recipient) {
             abort(404);
         }
 
@@ -36,7 +45,7 @@ class CampaignTrackingController extends Controller
         CampaignTrackingService $trackingService,
         CampaignRunProgressService $progressService
     ) {
-        if (!$this->validWebhookSecret($request, 'sms_secret')) {
+        if (! $this->validWebhookSecret($request, 'sms_secret')) {
             abort(403);
         }
 
@@ -67,7 +76,7 @@ class CampaignTrackingController extends Controller
         CampaignTrackingService $trackingService,
         CampaignRunProgressService $progressService
     ) {
-        if (!$this->validWebhookSecret($request, 'email_secret')) {
+        if (! $this->validWebhookSecret($request, 'email_secret')) {
             abort(403);
         }
 
@@ -105,12 +114,13 @@ class CampaignTrackingController extends Controller
 
     private function validWebhookSecret(Request $request, string $key): bool
     {
-        $expected = (string) config('campaigns.webhooks.' . $key);
+        $expected = (string) config('campaigns.webhooks.'.$key);
         if ($expected === '') {
             return false;
         }
 
         $provided = (string) $request->header('X-Campaign-Webhook-Secret', '');
+
         return hash_equals($expected, $provided);
     }
 }

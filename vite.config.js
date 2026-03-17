@@ -18,7 +18,9 @@ export default defineConfig({
         }),
     ],
     build: {
-        chunkSizeWarningLimit: 1000, // Augmente la limite de 500 kB a 1000 kB
+        // Keep the build stable for SSR-less Inertia pages. Aggressive manual chunking
+        // introduced a circular runtime dependency between framework and calendar code.
+        chunkSizeWarningLimit: 1600,
         sourcemap: false,
         reportCompressedSize: false,
         minify: 'esbuild',

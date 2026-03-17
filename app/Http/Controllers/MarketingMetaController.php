@@ -10,19 +10,22 @@ use App\Enums\CampaignType;
 use App\Enums\OfferType;
 use App\Models\User;
 use App\Services\Campaigns\MarketingSettingsService;
+use App\Services\Campaigns\ProspectProviderConnectionService;
+use App\Services\Campaigns\ProspectProviderRegistry;
 use Illuminate\Http\Request;
 
 class MarketingMetaController extends Controller
 {
     public function __construct(
         private readonly MarketingSettingsService $settingsService,
-    ) {
-    }
+        private readonly ProspectProviderRegistry $prospectProviderRegistry,
+        private readonly ProspectProviderConnectionService $prospectProviderConnectionService,
+    ) {}
 
     public function __invoke(Request $request)
     {
         [$owner, $canView] = $this->resolveAccess($request->user());
-        if (!$canView) {
+        if (! $canView) {
             abort(403);
         }
 
@@ -46,13 +49,15 @@ class MarketingMetaController extends Controller
                 'SMS' => ['text', 'shortener'],
                 'IN_APP' => ['title', 'body', 'deepLink', 'image'],
             ],
+            'prospect_providers' => $this->prospectProviderRegistry->definitions(),
+            'prospect_provider_connections' => $this->prospectProviderConnectionService->listPayloads($owner),
             'settings' => $settings,
         ]);
     }
 
     private function resolveAccess(?User $user): array
     {
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -60,7 +65,7 @@ class MarketingMetaController extends Controller
         $owner = $ownerId === $user->id
             ? $user
             : User::query()->select(['id'])->find($ownerId);
-        if (!$owner) {
+        if (! $owner) {
             abort(403);
         }
 

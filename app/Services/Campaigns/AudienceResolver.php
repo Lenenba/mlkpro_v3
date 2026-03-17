@@ -16,6 +16,7 @@ class AudienceResolver
     public function __construct(
         private readonly ConsentService $consentService,
         private readonly FatigueLimiter $fatigueLimiter,
+        private readonly CampaignProspectingOutreachService $prospectingOutreachService,
     ) {}
 
     public function estimateForCampaign(Campaign $campaign): array
@@ -48,6 +49,10 @@ class AudienceResolver
                     'blocked_by_reason' => [],
                 ],
             ];
+        }
+
+        if ($this->prospectingOutreachService->usesProspectingAudience($campaign)) {
+            return $this->prospectingOutreachService->resolveAudience($campaign, $enabledChannels);
         }
 
         $audience = $campaign->audience;

@@ -2,28 +2,34 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\RenderedTemplatePreviewMail;
 use App\Models\Campaign;
 use App\Models\Customer;
 use App\Models\MessageTemplate;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\Campaigns\BrandProfileService;
 use App\Services\Campaigns\TemplateLibraryService;
 use App\Services\Campaigns\TemplateRenderer;
+use App\Utils\FileHandler;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class MarketingTemplateController extends Controller
 {
     public function __construct(
         private readonly TemplateLibraryService $templateLibraryService,
         private readonly TemplateRenderer $templateRenderer,
-    ) {
-    }
+        private readonly BrandProfileService $brandProfileService,
+    ) {}
 
     public function index(Request $request)
     {
         [$owner, $canView] = $this->resolveAccess($request->user());
-        if (!$canView) {
+        if (! $canView) {
             abort(403);
         }
 
@@ -34,17 +40,38 @@ class MarketingTemplateController extends Controller
             'search' => 'nullable|string|max:120',
         ]);
 
-        $templates = $this->templateLibraryService->list($owner, $validated);
+        $templates = $this->templateLibraryService->list($owner, $validated)
+            ->map(fn (MessageTemplate $template): array => $this->serializeTemplate($owner, $template))
+            ->values();
 
         return response()->json([
             'templates' => $templates,
+            'presets' => $this->templateLibraryService->presetCatalog(),
+            'block_library' => $this->templateLibraryService->blockLibrary(),
+            'supported_tokens' => $this->templateRenderer->allowedTokens(),
+            'brand_profile' => $this->brandProfileService->resolve($owner),
+        ]);
+    }
+
+    public function manage(Request $request)
+    {
+        [$owner, , $canManage] = $this->resolveAccess($request->user());
+        if (! $canManage) {
+            abort(403);
+        }
+
+        return $this->inertiaOrJson('Campaigns/Templates', [
+            'enums' => [
+                'campaign_types' => Campaign::allowedTypes(),
+            ],
+            'brand_profile' => $this->brandProfileService->resolve($owner),
         ]);
     }
 
     public function show(Request $request, MessageTemplate $template)
     {
         [$owner, $canView] = $this->resolveAccess($request->user());
-        if (!$canView) {
+        if (! $canView) {
             abort(403);
         }
 
@@ -53,14 +80,35 @@ class MarketingTemplateController extends Controller
         }
 
         return response()->json([
-            'template' => $template,
+            'template' => $this->serializeTemplate($owner, $template),
+            'supported_tokens' => $this->templateRenderer->allowedTokens(),
+            'brand_profile' => $this->brandProfileService->resolve($owner),
         ]);
+    }
+
+    public function duplicate(Request $request, MessageTemplate $template)
+    {
+        [$owner, , $canManage] = $this->resolveAccess($request->user());
+        if (! $canManage) {
+            abort(403);
+        }
+
+        if ((int) $template->user_id !== (int) $owner->id) {
+            abort(404);
+        }
+
+        $duplicate = $this->templateLibraryService->duplicate($owner, $request->user(), $template);
+
+        return response()->json([
+            'message' => 'Template duplicated.',
+            'template' => $this->serializeTemplate($owner, $duplicate),
+        ], 201);
     }
 
     public function store(Request $request)
     {
         [$owner, , $canManage] = $this->resolveAccess($request->user());
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -69,14 +117,14 @@ class MarketingTemplateController extends Controller
 
         return response()->json([
             'message' => 'Template created.',
-            'template' => $template,
+            'template' => $this->serializeTemplate($owner, $template),
         ], 201);
     }
 
     public function update(Request $request, MessageTemplate $template)
     {
         [$owner, , $canManage] = $this->resolveAccess($request->user());
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -89,14 +137,14 @@ class MarketingTemplateController extends Controller
 
         return response()->json([
             'message' => 'Template updated.',
-            'template' => $updated,
+            'template' => $this->serializeTemplate($owner, $updated),
         ]);
     }
 
     public function destroy(Request $request, MessageTemplate $template)
     {
         [$owner, , $canManage] = $this->resolveAccess($request->user());
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -114,7 +162,7 @@ class MarketingTemplateController extends Controller
     public function preview(Request $request)
     {
         [$owner, , $canManage] = $this->resolveAccess($request->user());
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -132,6 +180,7 @@ class MarketingTemplateController extends Controller
         );
 
         $preview = $this->templateLibraryService->preview(
+            $owner,
             (string) $validated['channel'],
             (array) $validated['content'],
             $context,
@@ -147,7 +196,7 @@ class MarketingTemplateController extends Controller
     public function previewTemplate(Request $request, MessageTemplate $template)
     {
         [$owner, , $canManage] = $this->resolveAccess($request->user());
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -172,6 +221,7 @@ class MarketingTemplateController extends Controller
             : (array) ($template->content ?? []);
 
         $preview = $this->templateLibraryService->preview(
+            $owner,
             (string) $template->channel,
             $content,
             $context,
@@ -183,6 +233,87 @@ class MarketingTemplateController extends Controller
             'template' => $template,
             'sample' => $sample,
         ]);
+    }
+
+    public function testSend(Request $request)
+    {
+        [$owner, , $canManage] = $this->resolveAccess($request->user());
+        if (! $canManage) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'channel' => ['required', Rule::in(Campaign::allowedChannels())],
+            'content' => 'required|array',
+            'recipient_email' => 'nullable|email',
+            'customer_id' => 'nullable|integer',
+            'offer_id' => 'nullable|integer',
+        ]);
+
+        $channel = strtoupper((string) $validated['channel']);
+        if ($channel !== Campaign::CHANNEL_EMAIL) {
+            throw ValidationException::withMessages([
+                'channel' => 'Test send is only available for email templates.',
+            ]);
+        }
+
+        [$context] = $this->buildPreviewContext(
+            $owner,
+            $validated['customer_id'] ?? null,
+            $validated['offer_id'] ?? null
+        );
+
+        $preview = $this->templateLibraryService->preview(
+            $owner,
+            $channel,
+            (array) $validated['content'],
+            $context,
+            $this->templateRenderer
+        );
+
+        $invalidTokens = array_values(array_unique((array) ($preview['invalid_tokens'] ?? [])));
+        if ($invalidTokens !== []) {
+            throw ValidationException::withMessages([
+                'content' => 'This template contains invalid tokens: '.implode(', ', $invalidTokens).'.',
+            ]);
+        }
+
+        $recipientEmail = trim((string) ($validated['recipient_email'] ?? $request->user()?->email ?? ''));
+        if (! filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
+            throw ValidationException::withMessages([
+                'recipient_email' => 'A valid test recipient email is required.',
+            ]);
+        }
+
+        Mail::to($recipientEmail)->send(new RenderedTemplatePreviewMail(
+            (string) ($preview['subject'] ?: 'Template test'),
+            (string) ($preview['body'] ?: '<p></p>')
+        ));
+
+        return response()->json([
+            'message' => 'Test email sent to '.$recipientEmail.'.',
+            'recipient_email' => $recipientEmail,
+        ]);
+    }
+
+    public function uploadImage(Request $request)
+    {
+        [$owner, , $canManage] = $this->resolveAccess($request->user());
+        if (! $canManage) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'image' => 'required|file|image|max:5120',
+        ]);
+
+        $path = FileHandler::storeFile('campaign-template-images/'.$owner->id, $validated['image']);
+
+        return response()->json([
+            'message' => 'Image uploaded.',
+            'path' => $path,
+            'url' => Storage::disk('public')->url($path),
+        ], 201);
     }
 
     /**
@@ -215,7 +346,7 @@ class MarketingTemplateController extends Controller
                 ->with(['defaultProperty', 'portalUser'])
                 ->first();
         }
-        if (!$customer) {
+        if (! $customer) {
             $customer = Customer::query()
                 ->where('user_id', $owner->id)
                 ->with(['defaultProperty', 'portalUser'])
@@ -230,7 +361,7 @@ class MarketingTemplateController extends Controller
                 ->whereKey($offerId)
                 ->first();
         }
-        if (!$offer) {
+        if (! $offer) {
             $offer = Product::query()
                 ->where('user_id', $owner->id)
                 ->where('is_active', true)
@@ -261,15 +392,15 @@ class MarketingTemplateController extends Controller
 
     private function resolveAccess(?User $user): array
     {
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         $ownerId = $user->accountOwnerId();
         $owner = $ownerId === $user->id
             ? $user
-            : User::query()->select(['id'])->find($ownerId);
-        if (!$owner) {
+            : User::query()->find($ownerId);
+        if (! $owner) {
             abort(403);
         }
 
@@ -291,5 +422,15 @@ class MarketingTemplateController extends Controller
 
         return [$owner, $canView, $canManage];
     }
-}
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeTemplate(User $owner, MessageTemplate $template): array
+    {
+        $payload = $template->toArray();
+        $payload['channel_templates'] = $this->templateLibraryService->extractChannelTemplates($owner, $template);
+
+        return $payload;
+    }
+}

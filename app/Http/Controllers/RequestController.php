@@ -14,6 +14,7 @@ use App\Models\Customer;
 use App\Models\Request as LeadRequest;
 use App\Models\TeamMember;
 use App\Models\TrackingEvent;
+use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -454,12 +455,15 @@ class RequestController extends Controller
                 ->get();
         }
 
+        $campaignOrigin = app(CampaignLeadAttributionService::class)->campaignOriginForLead($lead, $user);
+
         return $this->inertiaOrJson('Request/Show', [
             'lead' => $lead,
             'activity' => $activity,
             'statuses' => $statuses,
             'assignees' => $assignees,
             'duplicates' => $duplicates,
+            'campaignOrigin' => $campaignOrigin,
         ]);
     }
 

@@ -1,6 +1,9 @@
 <?php
 
 use App\Jobs\RetryLeadQuoteEmailJob;
+use App\Models\Campaign;
+use App\Models\CampaignRecipient;
+use App\Models\CampaignRun;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Quote;
@@ -586,4 +589,74 @@ it('schedules quote email retry when initial quote email fails', function () {
         'subject_id' => $lead->id,
         'action' => 'lead_email_retry_scheduled',
     ]);
+});
+
+it('attributes public leads to inbound campaigns after tracked campaign clicks', function () {
+    $owner = createPublicLeadOwner([
+        'company_features' => [
+            'requests' => true,
+            'campaigns' => true,
+        ],
+    ]);
+
+    $publicFormUrl = URL::signedRoute('public.requests.form', ['user' => $owner->id]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Inbound lead form campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_LEAD_GENERATION_INBOUND,
+        'prospecting_enabled' => false,
+        'offer_mode' => Campaign::OFFER_MODE_SERVICES,
+        'status' => Campaign::STATUS_RUNNING,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'cta_url' => $publicFormUrl,
+        'is_marketing' => true,
+    ]);
+
+    $run = CampaignRun::query()->create([
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'triggered_by_user_id' => $owner->id,
+        'trigger_type' => CampaignRun::TRIGGER_MANUAL,
+        'status' => CampaignRun::STATUS_RUNNING,
+        'idempotency_key' => (string) Str::uuid(),
+    ]);
+
+    $recipient = CampaignRecipient::query()->create([
+        'campaign_run_id' => $run->id,
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'destination' => 'inbound.recipient@example.com',
+        'destination_hash' => CampaignRecipient::destinationHash('inbound.recipient@example.com'),
+        'status' => CampaignRecipient::STATUS_SENT,
+        'tracking_token' => Str::random(64),
+        'sent_at' => now()->subMinute(),
+    ]);
+
+    $this->get(route('campaigns.track', ['token' => $recipient->tracking_token]))
+        ->assertRedirect($publicFormUrl);
+
+    $this->post(URL::signedRoute('public.requests.store', ['user' => $owner->id]), [
+        'contact_name' => 'Inbound Prospect',
+        'contact_email' => 'inbound.prospect@example.com',
+        'service_type' => 'Lead qualification',
+        'description' => 'Need a quick discussion.',
+        'final_action' => 'request_call',
+    ])->assertRedirect();
+
+    $lead = LeadRequest::query()
+        ->where('user_id', $owner->id)
+        ->latest('id')
+        ->firstOrFail();
+
+    expect(data_get($lead->meta, 'source_kind'))->toBe('campaign_inbound')
+        ->and((int) data_get($lead->meta, 'source_campaign_id'))->toBe($campaign->id)
+        ->and((int) data_get($lead->meta, 'source_campaign_run_id'))->toBe($run->id)
+        ->and((int) data_get($lead->meta, 'source_campaign_recipient_id'))->toBe($recipient->id)
+        ->and((string) data_get($lead->meta, 'source_direction'))->toBe('inbound');
 });

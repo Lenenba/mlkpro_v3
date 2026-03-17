@@ -6,6 +6,7 @@ use App\Models\Campaign;
 use App\Models\CampaignChannel;
 use App\Models\CampaignMessage;
 use App\Models\CampaignRecipient;
+use App\Services\Campaigns\CampaignProspectingOutreachService;
 use App\Services\Campaigns\CampaignRunProgressService;
 use App\Services\Campaigns\CampaignTrackingService;
 use App\Services\Campaigns\ConsentService;
@@ -43,6 +44,7 @@ class SendCampaignRecipientJob implements ShouldQueue
         CampaignRunProgressService $progressService,
         ConsentService $consentService,
         FatigueLimiter $fatigueLimiter,
+        CampaignProspectingOutreachService $prospectingOutreachService,
     ): void {
         $recipient = CampaignRecipient::query()
             ->with([
@@ -75,10 +77,24 @@ class SendCampaignRecipientJob implements ShouldQueue
         $abVariant = $resolvedChannel['variant'];
 
         $product = $recipient->campaign->offers->first()?->offer ?: $recipient->campaign->products->first();
+        $trackedUrl = $recipient->campaign->cta_url
+            ? $trackingService->trackedUrl($recipient)
+            : null;
+        $unsubscribeUrl = strtoupper((string) $recipient->channel) === Campaign::CHANNEL_EMAIL
+            ? $trackingService->unsubscribeUrl($recipient)
+            : null;
         $context = $renderer->buildContext(
             $recipient->campaign,
             $recipient->customer,
-            $product
+            $product,
+            array_merge(
+                $prospectingOutreachService->buildContextExtrasFromRecipient($recipient),
+                [
+                    'ctaUrl' => (string) ($trackedUrl ?: $recipient->campaign->cta_url),
+                    'trackedCtaUrl' => (string) ($trackedUrl ?: $recipient->campaign->cta_url),
+                    'unsubscribeUrl' => (string) ($unsubscribeUrl ?? ''),
+                ]
+            )
         );
         $rendered = $renderer->renderChannel($channelForRender, $context);
 
@@ -101,10 +117,6 @@ class SendCampaignRecipientJob implements ShouldQueue
 
             return;
         }
-
-        $trackedUrl = $recipient->campaign->cta_url
-            ? $trackingService->trackedUrl($recipient)
-            : null;
 
         $message = CampaignMessage::query()->updateOrCreate(
             ['campaign_recipient_id' => $recipient->id],
@@ -150,7 +162,8 @@ class SendCampaignRecipientJob implements ShouldQueue
                 $reason,
                 $trackingService,
                 $consentService,
-                $fatigueLimiter
+                $fatigueLimiter,
+                $prospectingOutreachService
             );
 
             $trackingService->markFailed(
@@ -226,7 +239,8 @@ class SendCampaignRecipientJob implements ShouldQueue
         string $failureReason,
         CampaignTrackingService $trackingService,
         ConsentService $consentService,
-        FatigueLimiter $fatigueLimiter
+        FatigueLimiter $fatigueLimiter,
+        CampaignProspectingOutreachService $prospectingOutreachService
     ): array {
         $campaign = $recipient->campaign;
         $accountOwner = $campaign?->user;
@@ -287,6 +301,9 @@ class SendCampaignRecipientJob implements ShouldQueue
             }
 
             $destinationCandidate = $this->destinationForChannel($recipient, $target);
+            if (! $destinationCandidate) {
+                $destinationCandidate = $prospectingOutreachService->destinationForFallback($recipient, $target);
+            }
             $consentDecision = $consentService->canReceive(
                 $accountOwner,
                 $recipient->customer,

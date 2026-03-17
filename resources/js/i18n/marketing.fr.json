@@ -56,6 +56,10 @@
         "vip_tiers_manager": {
           "title": "Gestionnaire de tiers VIP",
           "description": "Définissez et mettez à jour les tiers VIP et les assignations clients."
+        },
+        "prospect_provider_manager": {
+          "title": "Fournisseurs de prospects",
+          "description": "Connectez Apollo, Lusha et UpLead pour poser une base securisee avant les futurs imports provider dans la prospection."
         }
       },
       "channels": {
@@ -131,6 +135,57 @@
         "remove_rule": "Retirer"
       }
     },
+    "prospect_provider_manager": {
+      "title": "Fournisseurs de prospects",
+      "description": "Creez des connexions fournisseur securisees par tenant avant d ajouter la preview provider et l import dans l audience de campagne.",
+      "summary": {
+        "configured": "Connexions configurees",
+        "connected": "Connectees et pretes",
+        "attention": "A verifier"
+      },
+      "fields": {
+        "provider": "Fournisseur",
+        "label": "Libelle de connexion",
+        "api_key": "Cle API"
+      },
+      "columns": {
+        "provider": "Fournisseur",
+        "label": "Libelle",
+        "status": "Statut",
+        "last_validated": "Derniere validation"
+      },
+      "statuses": {
+        "draft": "Brouillon",
+        "connected": "Connecte",
+        "invalid": "Invalide",
+        "expired": "Expire",
+        "rate_limited": "Limite atteinte",
+        "disconnected": "Deconnecte"
+      },
+      "create_connection": "Creer la connexion",
+      "update_connection": "Mettre a jour la connexion",
+      "validate_connection": "Valider",
+      "disconnect_connection": "Deconnecter",
+      "search_connection": "Rechercher une connexion",
+      "credentials_saved": "Identifiants chiffres enregistres",
+      "no_credentials": "Aucun identifiant enregistre",
+      "not_validated": "Pas encore valide",
+      "secret_store_hint": "Les secrets sont stockes chiffres. Apres creation, utilisez Valider pour confirmer l etat de la connexion.",
+      "secret_update_hint": "Laissez la cle API vide pour conserver le secret existant. Renseignez-la seulement pour remplacer le secret enregistre.",
+      "confirm_disconnect": "Deconnecter la connexion fournisseur \"{name}\" ?",
+      "info_created": "Connexion fournisseur creee.",
+      "info_updated": "Connexion fournisseur mise a jour.",
+      "info_validated": "Connexion {provider} validee.",
+      "info_disconnected": "Connexion fournisseur deconnectee.",
+      "error_load": "Impossible de charger les connexions fournisseur.",
+      "error_save": "Impossible d enregistrer la connexion fournisseur.",
+      "error_validate": "Impossible de valider la connexion fournisseur.",
+      "error_disconnect": "Impossible de deconnecter la connexion fournisseur.",
+      "no_connection_found": "Aucune connexion fournisseur trouvee.",
+      "read_only_title": "Acces lecture seule",
+      "read_only_description": "Seul le proprietaire du compte peut ajouter, remplacer, valider ou deconnecter les identifiants fournisseur. Les membres de l equipe peuvent quand meme verifier l etat des connexions ici avant de les utiliser dans l audience de campagne.",
+      "view_only_actions": "Lecture seule"
+    },
     "template_manager": {
       "title": "Templates",
       "template_name": "Nom du template",
@@ -174,6 +229,24 @@
       "error_save": "Impossible d’enregistrer le template.",
       "error_delete": "Impossible de supprimer le template.",
       "error_preview": "Impossible de prévisualiser le template."
+    },
+    "template_page": {
+      "head_title": "Espace templates marketing",
+      "page_title": "Templates marketing",
+      "page_description": "Travaillez les templates email dans un espace dédié, plus large et plus confortable pour construire des campagnes qualitatives.",
+      "actions": {
+        "back_to_settings": "Retour aux paramètres",
+        "back_to_campaigns": "Retour aux campagnes"
+      }
+    },
+    "prospect_provider_page": {
+      "head_title": "Espace fournisseurs de prospects",
+      "page_title": "Fournisseurs de prospects",
+      "page_description": "Connectez, validez et surveillez vos fournisseurs de prospects dans un espace dedie avant d ajouter l import provider a l audience des campagnes.",
+      "actions": {
+        "back_to_settings": "Retour aux parametres",
+        "back_to_campaigns": "Retour aux campagnes"
+      }
     },
     "segment_manager": {
       "title": "Segments",
@@ -302,6 +375,11 @@
       "en": "Anglais",
       "both": "Français et anglais"
     },
+    "campaign_directions": {
+      "customer_marketing": "Marketing client",
+      "prospecting_outbound": "Prospection sortante",
+      "lead_generation_inbound": "Génération de leads entrante"
+    },
     "source_logic": {
       "union": "Union",
       "intersect": "Intersection"
@@ -379,7 +457,16 @@
       },
       "actions": {
         "view": "Voir",
-        "edit": "Modifier"
+        "edit": "Modifier",
+        "manage_templates": "Gerer les templates",
+        "manage_prospect_providers": "Fournisseurs de prospects"
+      },
+      "providers": {
+        "title": "Etat des fournisseurs de prospects",
+        "description": "Verifiez la disponibilite des fournisseurs avant de basculer l audience campagne vers un intake prospect base sur un provider.",
+        "configured": "{count} configures",
+        "connected": "{count} connectes",
+        "attention": "{count} a verifier"
       }
     },
     "campaign_show": {
@@ -392,7 +479,8 @@
         "back": "Retour",
         "edit": "Modifier",
         "export_csv": "Exporter CSV",
-        "mark_conversion": "Marquer conversion"
+        "mark_conversion": "Marquer conversion",
+        "open_prospecting_workspace": "Ouvrir l espace de prospection"
       },
       "cards": {
         "status": "Statut",
@@ -402,10 +490,45 @@
         "runs": "Exécutions"
       },
       "sections": {
+        "funnel": "Tunnel",
+        "prospecting": "Prospection",
         "channels": "Canaux",
         "events": "Événements",
         "recent_runs": "Exécutions récentes",
         "clicks_no_conversion": "Clics sans conversion"
+      },
+      "funnel": {
+        "direction": "Direction",
+        "prospects": "Prospects",
+        "contacted": "Contactés",
+        "replied": "Réponses",
+        "qualified": "Qualifiés",
+        "leads": "Leads",
+        "customers": "Clients",
+        "prospect_to_lead_rate": "Taux prospect vers lead",
+        "lead_to_customer_rate": "Taux lead vers client",
+        "overall_customer_rate": "Taux prospect vers client",
+        "not_available": "N/D"
+      },
+      "prospecting": {
+        "direction": "Direction",
+        "total_batches": "Total des lots",
+        "pending_review_batches": "Lots en revue",
+        "ready_for_outreach": "Prêts à contacter",
+        "follow_up_due": "Relances dues",
+        "converted_leads": "Leads convertis",
+        "do_not_contact": "Ne plus contacter",
+        "recent_batches": "Lots récents",
+        "top_prospects": "Prospects prioritaires",
+        "empty_batches": "Aucun lot de prospection récent.",
+        "empty_prospects": "Aucun prospect prioritaire pour le moment.",
+        "batch_label": "Lot #{number}",
+        "accepted": "Acceptés",
+        "duplicates": "Doublons",
+        "blocked": "Bloqués",
+        "leads": "Leads",
+        "fit_intent": "Adéquation {fit} | Intention {intent}",
+        "open_lead": "Ouvrir le lead"
       },
       "channel": {
         "active": "Actif",
@@ -506,6 +629,8 @@
       "fields": {
         "campaign_name": "Nom de la campagne",
         "campaign_type": "Type de campagne",
+        "prospecting_enabled": "Prospection activée",
+        "campaign_direction": "Direction de campagne",
         "offer_mode": "Mode d’offre",
         "language_mode": "Mode de langue",
         "schedule_type": "Type de planification",
@@ -571,6 +696,8 @@
       },
       "review": {
         "type": "Type",
+        "direction": "Direction",
+        "prospecting_enabled": "Prospection",
         "offer_mode": "Mode d’offre",
         "offers": "Offres",
         "enabled_channels": "Canaux activés",
@@ -589,6 +716,275 @@
         "enable": "Activer fallback",
         "max_depth": "Profondeur max",
         "targets": "Canaux de repli pour {source}"
+      },
+      "prospecting": {
+        "title": "Import de prospection et revue des lots",
+        "description": "Importez des prospects par lot, analysez les doublons et les scores, puis approuvez ou rejetez le lot avant la prise de contact.",
+        "save_draft_title": "Enregistrez la campagne avant l import du lot",
+        "save_draft_description": "Un brouillon de campagne doit exister avant de lancer une analyse de prospects par CSV ou saisie manuelle.",
+        "source_title": "Source des prospects",
+        "batch_cap_hint": "Unité de revue par défaut : 100 prospects par lot.",
+        "no_file_selected": "Aucun fichier sélectionné.",
+        "manual_placeholder": "entreprise|contact|email|telephone|site|industrie|pays|tags",
+        "manual_hint": "Collez une ligne par prospect. Délimiteurs supportés : tabulation, | ou virgule. La ligne d entête est optionnelle.",
+        "manual_line_count": "{count} ligne(s) détectée(s)",
+        "review_title": "Espace de revue des lots",
+        "review_hint": "Sélectionnez un lot pour inspecter les scores, les doublons et l éligibilité à la prise de contact.",
+        "empty_batches": "Aucun lot de prospects analysé pour le moment.",
+        "batch_label": "Lot #{number}",
+        "batch_meta": "Source : {source} | Statut : {status}",
+        "scoring_title": "Vue scoring",
+        "match_summary_title": "Vue déduplication",
+        "review_state_title": "État de revue",
+        "review_decision": "Décision de revue",
+        "reviewed_at": "Revu le",
+        "pending_review": "En attente de revue",
+        "loading_batch": "Chargement de la revue du lot...",
+        "loading_prospect": "Chargement du détail du prospect...",
+        "empty_prospects": "Aucun prospect ne correspond aux filtres actuels.",
+        "detail_title": "Détail du prospect",
+        "timeline_title": "Chronologie d activité",
+        "empty_timeline": "Aucune activité prospect enregistrée pour le moment.",
+        "actions": {
+          "create_draft": "Créer le brouillon",
+          "analyze_batch": "Analyser le lot",
+          "analyzing": "Analyse en cours...",
+          "save_provider_selection": "Enregistrer la selection fournisseur",
+          "preview_provider": "Prévisualiser les prospects",
+          "previewing_provider": "Chargement de la preview...",
+          "import_selected_preview": "Importer la sélection",
+          "importing_selected_preview": "Import de la sélection...",
+          "manage_providers": "Gerer les fournisseurs",
+          "approve_batch": "Approuver le lot",
+          "reject_batch": "Rejeter le lot",
+          "processing": "Traitement...",
+          "view_prospect": "Ouvrir le détail",
+          "convert_to_lead": "Convertir en lead",
+          "link_existing_lead": "Lier à un lead existant",
+          "link_matched_lead": "Lier le lead détecté",
+          "search_leads": "Rechercher des leads",
+          "searching_leads": "Recherche...",
+          "bulk_approve": "Approuver la sélection",
+          "bulk_reject": "Rejeter la sélection",
+          "bulk_do_not_contact": "DNC sélection",
+          "mark_blocked": "Marquer bloqué",
+          "mark_duplicate": "Marquer doublon",
+          "mark_disqualified": "Marquer rejeté",
+          "mark_do_not_contact": "Ne plus contacter"
+        },
+        "import_modes": {
+          "manual": "Saisie manuelle",
+          "csv": "Import CSV",
+          "provider": "Connexion fournisseur"
+        },
+        "source_types": {
+          "manual": "Manuel",
+          "csv": "CSV",
+          "connector": "Connecteur",
+          "directory_api": "API annuaire",
+          "ads": "Publicités",
+          "landing_page": "Page d atterrissage",
+          "import": "Import"
+        },
+        "fields": {
+          "import_mode": "Mode d import",
+          "source_type": "Type de source",
+          "source_reference": "Référence source",
+          "batch_size": "Taille du lot",
+          "manual_input": "Prospects manuels",
+          "csv_file": "Fichier CSV",
+          "provider_connection": "Connexion fournisseur",
+          "provider_query_label": "Libelle de requete",
+          "provider_query": "Requete fournisseur ou ICP",
+          "lead_search": "Recherche lead",
+          "linked_lead": "Lead existant"
+        },
+        "provider_empty_title": "Aucun fournisseur connecte disponible",
+        "provider_empty_description": "Connectez et validez au moins un fournisseur avant de preparer une audience prospect basee sur un provider.",
+        "provider_query_hint": "Stockez ici les termes de recherche, l ICP, l URL de recherche sauvegardee ou les filtres fournisseur pour que la prochaine etape de preview/import puisse rejouer exactement la requete provider.",
+        "provider_next_step_hint": "Enregistrez le fournisseur choisi sur le brouillon, puis previsualisez ici les prospects retournes avant la future etape d import.",
+        "preview_title": "Preview fournisseur",
+        "preview_hint": "{count} prospect(s) de preview charges depuis {provider}. Revoyez les lignes avant que l import confirme soit disponible.",
+        "preview_loading": "Chargement de la preview fournisseur...",
+        "preview_empty": "Aucune ligne de preview n est disponible pour cette requete fournisseur.",
+        "preview_selected_count": "{count} selectionne(s) / {total} lignes",
+        "preview_fresh_rows": "Lignes fraiches",
+        "preview_already_imported_rows": "Deja importees",
+        "preview_last_imported_at": "Dernier import precedent",
+        "preview_already_imported_badge": "Deja importe dans cette campagne",
+        "preview_already_imported_short": "Importe plus tot pour cette campagne.",
+        "preview_select_all": "Tout selectionner",
+        "preview_unselect_all": "Tout deselectionner",
+        "preview_columns": {
+          "company": "Entreprise",
+          "contact": "Contact",
+          "reach": "Joignable via",
+          "location": "Localisation",
+          "origin": "Origine"
+        },
+        "preview_missing": {
+          "company_name": "Entreprise manquante",
+          "contact_name": "Contact manquant",
+          "email": "Email manquant",
+          "phone": "Telephone manquant",
+          "website": "Site manquant"
+        },
+        "import_summary_title": "Résumé de l import fournisseur",
+        "import_summary_hint": "Les lignes de preview sélectionnées ont été envoyées dans le pipeline d analyse prospect existant et ont créé {batches} lot(s).",
+        "compliance_title": "Garde-fous d usage fournisseur",
+        "compliance_body": "Les donnees fournisseur servent uniquement a preparer des prospects candidats. Elles ne remplacent pas vos regles de consentement, vos listes d exclusion ou vos controles de contactabilite.",
+        "compliance_consent_required": "Le consentement explicite est actuellement requis par vos reglages marketing avant toute prise de contact applicable.",
+        "compliance_consent_not_required": "Le consentement explicite n est pas globalement requis dans vos reglages marketing, mais les regles de contactabilite et d opt-out continuent de s appliquer.",
+        "compliance_contactability": "Importez uniquement ce que vous etes pret a revoir, approuver et contacter dans le cadre des regles de la plateforme.",
+        "import_summary": {
+          "imported": "Importés",
+          "analyzed": "Analysés",
+          "duplicates": "Doublons",
+          "blocked": "Bloqués",
+          "accepted": "Acceptés"
+        },
+        "summary": {
+          "total_batches": "Total des lots",
+          "analyzed_batches": "Analysés",
+          "approved_batches": "Approuvés",
+          "canceled_batches": "Rejetés"
+        },
+        "kpis": {
+          "accepted": "Acceptés",
+          "duplicates": "Doublons",
+          "blocked": "Bloqués",
+          "rejected": "Rejetés",
+          "review_required": "Revue requise",
+          "high_priority": "Haute priorité"
+        },
+        "score_ranges": {
+          "high": "Élevé",
+          "medium": "Moyen",
+          "low": "Faible"
+        },
+        "filters": {
+          "search": "Rechercher des prospects",
+          "status": "Statut prospect",
+          "match_status": "Statut de rapprochement",
+          "sort": "Tri",
+          "all_statuses": "Tous les statuts",
+          "all_match_statuses": "Tous les statuts de rapprochement"
+        },
+        "sorts": {
+          "priority_desc": "Priorité décroissante",
+          "fit_desc": "Adéquation décroissante",
+          "intent_desc": "Intention décroissante",
+          "status_asc": "Statut A à Z",
+          "identity_asc": "Identité A à Z"
+        },
+        "bulk": {
+          "select_all_visible": "Sélectionner tous les prospects visibles",
+          "selected_count": "{count} sélectionné(s)"
+        },
+        "batch_statuses": {
+          "draft": "Brouillon",
+          "analyzed": "Analysé",
+          "approved": "Approuvé",
+          "running": "En cours",
+          "completed": "Terminé",
+          "canceled": "Rejeté"
+        },
+        "prospect_statuses": {
+          "scored": "Scoré",
+          "approved": "Approuvé",
+          "contacted": "Contacté",
+          "follow_up_due": "Relance due",
+          "replied": "A répondu",
+          "qualified": "Qualifié",
+          "converted_to_lead": "Converti en lead",
+          "converted_to_customer": "Converti en client",
+          "duplicate": "Doublon",
+          "blocked": "Bloqué",
+          "disqualified": "Rejeté",
+          "do_not_contact": "Ne plus contacter"
+        },
+        "match_statuses": {
+          "none": "Aucun doublon",
+          "matched_customer": "Client existant",
+          "matched_lead": "Lead existant",
+          "matched_prospect": "Prospect existant",
+          "blocked_destination": "Destination bloquée",
+          "manual_review_required": "Revue manuelle requise"
+        },
+        "table": {
+          "select": "Sélection",
+          "identity": "Identité",
+          "contact": "Contact",
+          "priority": "Priorité",
+          "match": "Rapprochement",
+          "status": "Statut",
+          "recommended_action": "Action recommandée",
+          "fit_intent": "Adéquation {fit} | Intention {intent}",
+          "matched_customer": "Client : {value}",
+          "matched_lead": "Lead : {value}"
+        },
+        "recommended_actions": {
+          "approve": "Approuver pour la prise de contact",
+          "approved": "Prêt pour la prise de contact",
+          "duplicate": "Conserver exclu comme doublon",
+          "blocked": "Conserver bloqué",
+          "reject": "Retirer du lot",
+          "review": "Revoir manuellement"
+        },
+        "detail": {
+          "email": "Email",
+          "phone": "Téléphone",
+          "source": "Source",
+          "scores": "Scores",
+          "scores_value": "Priorité {priority} | Adéquation {fit} | Intention {intent}",
+          "sequence": "Séquence",
+          "last_activity": "Dernière activité",
+          "match": "Rapprochement déduplication",
+          "matched_customer": "Client rapproché : {value}",
+          "matched_lead": "Lead rapproché : {value}",
+          "qualification_summary": "Résumé de qualification",
+          "owner_notes": "Notes internes",
+          "no_owner_notes": "Aucune note interne.",
+          "link_existing_lead": "Lier à un lead existant",
+          "matched_lead_ready": "Un lead rapproché est déjà disponible.",
+          "converted_lead": "Lead converti",
+          "open_lead": "Ouvrir le lead"
+        },
+        "sequence": {
+          "not_started": "Aucune prise de contact envoyée pour le moment.",
+          "stopped": "Séquence arrêtée : {reason}",
+          "progress": "Étape {step} | Phase {phase} | Prochaine relance {next}"
+        },
+        "messages": {
+          "batch_analyzed": "Lot de prospects analysé.",
+          "provider_preview_ready": "Preview fournisseur chargée.",
+          "provider_import_complete": "Les lignes de preview sélectionnées ont été importées dans la revue de lot.",
+          "batch_approved": "Lot de prospects approuvé.",
+          "batch_rejected": "Lot de prospects rejeté.",
+          "prospect_updated": "Prospect mis à jour.",
+          "bulk_updated": "Prospects sélectionnés mis à jour.",
+          "prospect_converted": "Prospect converti en lead.",
+          "prospect_linked": "Prospect lié à un lead existant."
+        },
+        "errors": {
+          "load_batches": "Impossible de charger les lots de prospects.",
+          "load_batch": "Impossible de charger la revue du lot.",
+          "load_prospect": "Impossible de charger le détail du prospect.",
+          "load_leads": "Impossible de charger les suggestions de leads.",
+          "save_draft_first": "Enregistrez la campagne en brouillon avant d analyser les prospects.",
+          "provider_connection_required": "Sélectionnez un fournisseur connecté avant de charger une preview.",
+          "provider_query_required": "Saisissez une requête fournisseur ou un ICP avant de charger une preview.",
+          "provider_selection_required": "Sélectionnez au moins une ligne de preview avant l import.",
+          "file_required": "Sélectionnez un fichier CSV à analyser.",
+          "manual_required": "Collez au moins une ligne prospect à analyser.",
+          "provider_preview_failed": "La preview fournisseur n a pas pu être chargée pour le moment.",
+          "import_failed": "Impossible d analyser le lot de prospects.",
+          "review_failed": "Impossible de revoir le lot de prospects.",
+          "update_prospect": "Impossible de mettre à jour le prospect.",
+          "bulk_update": "Impossible de mettre à jour les prospects sélectionnés.",
+          "link_prospect": "Impossible de lier le prospect à un lead.",
+          "convert_prospect": "Impossible de convertir le prospect."
+        }
       },
       "results_hint": "Les résultats détaillés sont disponibles sur la page de campagne.",
       "errors": {

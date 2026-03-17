@@ -6,6 +6,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -18,6 +19,10 @@ const props = defineProps({
         default: () => ({}),
     },
     stats: {
+        type: Object,
+        default: () => ({}),
+    },
+    prospectProviderSummary: {
         type: Object,
         default: () => ({}),
     },
@@ -42,6 +47,11 @@ const isFiltering = ref(false);
 
 const rows = computed(() => props.campaigns?.data || []);
 const canManage = computed(() => Boolean(props.access?.can_manage));
+const providerSummary = computed(() => ({
+    configured: Number(props.prospectProviderSummary?.configured || 0),
+    connected: Number(props.prospectProviderSummary?.connected || 0),
+    attention: Number(props.prospectProviderSummary?.attention || 0),
+}));
 
 const humanizeValue = (value) => String(value || '')
     .replaceAll('_', ' ')
@@ -174,17 +184,31 @@ const statusBadgeClass = (status) => {
                             {{ t('marketing.campaign_index.page_description') }}
                         </p>
                     </div>
-                    <Link v-if="canManage" :href="route('campaigns.create')">
-                        <PrimaryButton>
-                            <span class="inline-flex items-center gap-1.5">
-                                <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M5 12h14" />
-                                    <path d="M12 5v14" />
-                                </svg>
-                                <span>{{ t('marketing.campaign_index.new_campaign') }}</span>
-                            </span>
-                        </PrimaryButton>
-                    </Link>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <Link :href="route('campaigns.prospect-providers.manage')">
+                            <SecondaryButton type="button">
+                                {{ t('marketing.campaign_index.actions.manage_prospect_providers') }}
+                            </SecondaryButton>
+                        </Link>
+                        <template v-if="canManage">
+                        <Link :href="route('campaigns.templates.manage')">
+                            <SecondaryButton type="button">
+                                {{ t('marketing.campaign_index.actions.manage_templates') }}
+                            </SecondaryButton>
+                        </Link>
+                        <Link :href="route('campaigns.create')">
+                            <PrimaryButton>
+                                <span class="inline-flex items-center gap-1.5">
+                                    <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M5 12h14" />
+                                        <path d="M12 5v14" />
+                                    </svg>
+                                    <span>{{ t('marketing.campaign_index.new_campaign') }}</span>
+                                </span>
+                            </PrimaryButton>
+                        </Link>
+                        </template>
+                    </div>
                 </div>
 
                 <div class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -207,6 +231,30 @@ const statusBadgeClass = (status) => {
                     <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
                         <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_index.stats.completed') }}</div>
                         <div class="mt-1 text-xl font-semibold text-indigo-700 dark:text-indigo-300">{{ stats.completed || 0 }}</div>
+                    </div>
+                </div>
+
+                <div class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ t('marketing.campaign_index.providers.title') }}
+                            </div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ t('marketing.campaign_index.providers.description') }}
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 text-xs">
+                            <span class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                                {{ t('marketing.campaign_index.providers.configured', { count: providerSummary.configured }) }}
+                            </span>
+                            <span class="rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                {{ t('marketing.campaign_index.providers.connected', { count: providerSummary.connected }) }}
+                            </span>
+                            <span class="rounded-sm border border-amber-200 bg-amber-50 px-2 py-1 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+                                {{ t('marketing.campaign_index.providers.attention', { count: providerSummary.attention }) }}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </section>

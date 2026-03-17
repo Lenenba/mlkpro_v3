@@ -7,6 +7,7 @@ use App\Models\CampaignChannel;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\User;
 use Illuminate\Support\Arr;
 
 class TemplateRenderer
@@ -35,8 +36,67 @@ class TemplateRenderer
         'productImageUrl',
         'stockLevel?',
         'campaignName',
+        'campaignId',
         'ctaUrl',
+        'trackedCtaUrl',
+        'unsubscribeUrl',
+        'customerFullName',
+        'contactName',
+        'appointmentDate',
+        'appointmentTime',
+        'appointmentLocation',
+        'amount',
+        'amountFormatted',
+        'discountAmount',
+        'discountPercent',
+        'discountCode',
+        'expiryDate',
+        'serviceName',
+        'serviceCategory',
+        'brandName',
+        'brandTagline',
+        'brandDescription',
+        'brandLogoUrl',
+        'brandWebsiteUrl',
+        'brandBookingUrl',
+        'brandSupportUrl',
+        'brandContactUrl',
+        'brandContactEmail',
+        'brandReplyToEmail',
+        'brandPhone',
+        'brandAddressLine1',
+        'brandAddressLine2',
+        'brandCity',
+        'brandProvince',
+        'brandCountry',
+        'brandPostalCode',
+        'brandAddress',
+        'brandPrimaryColor',
+        'brandSecondaryColor',
+        'brandAccentColor',
+        'brandSurfaceColor',
+        'brandHeroBackgroundColor',
+        'brandFooterBackgroundColor',
+        'brandTextColor',
+        'brandMutedColor',
+        'brandFacebookUrl',
+        'brandInstagramUrl',
+        'brandLinkedinUrl',
+        'brandYoutubeUrl',
+        'brandTiktokUrl',
+        'brandWhatsappUrl',
+        'brandFooterNote',
+        'companyBrandName',
+        'companyLogoUrl',
+        'companyWebsiteUrl',
+        'companyContactEmail',
+        'companyPhone',
+        'companyAddress',
     ];
+
+    public function __construct(
+        private readonly BrandProfileService $brandProfileService,
+    ) {}
 
     public function allowedTokens(): array
     {
@@ -54,7 +114,7 @@ class TemplateRenderer
         $tokens = array_values(array_unique($matches[1] ?? []));
 
         return array_values(array_filter($tokens, function (string $token): bool {
-            return !in_array($token, self::ALLOWED_TOKENS, true);
+            return ! in_array($token, self::ALLOWED_TOKENS, true);
         }));
     }
 
@@ -166,9 +226,24 @@ class TemplateRenderer
             }
         }
 
+        $accountOwner = $campaign->relationLoaded('user')
+            ? $campaign->user
+            : User::query()->find($campaign->user_id);
+        $brandTokens = $accountOwner
+            ? $this->brandProfileService->tokenMap($accountOwner)
+            : [];
+
         $base = [
             'firstName' => (string) ($customer?->first_name ?? ''),
             'lastName' => (string) ($customer?->last_name ?? ''),
+            'customerFullName' => trim(implode(' ', array_filter([
+                (string) ($customer?->first_name ?? ''),
+                (string) ($customer?->last_name ?? ''),
+            ]))),
+            'contactName' => trim(implode(' ', array_filter([
+                (string) ($customer?->first_name ?? ''),
+                (string) ($customer?->last_name ?? ''),
+            ]))),
             'companyName' => (string) ($customer?->company_name ?? ''),
             'lastOrderDate' => (string) ($lastOrderDate ?? ''),
             'city' => (string) ($city ?? ''),
@@ -188,9 +263,23 @@ class TemplateRenderer
             'productImageUrl' => (string) ($offer?->image_url ?? ''),
             'stockLevel?' => $offer ? (string) ($offer->stock ?? '') : '',
             'campaignName' => (string) ($campaign->name ?? ''),
+            'campaignId' => (string) ($campaign->id ?? ''),
             'ctaUrl' => (string) ($campaign->cta_url ?? ''),
+            'trackedCtaUrl' => (string) ($campaign->cta_url ?? ''),
+            'unsubscribeUrl' => '',
+            'appointmentDate' => (string) Arr::get($campaign->settings ?? [], 'appointment_date', ''),
+            'appointmentTime' => (string) Arr::get($campaign->settings ?? [], 'appointment_time', ''),
+            'appointmentLocation' => (string) Arr::get($campaign->settings ?? [], 'appointment_location', ''),
+            'amount' => (string) Arr::get($campaign->settings ?? [], 'amount', ''),
+            'amountFormatted' => (string) Arr::get($campaign->settings ?? [], 'amount_formatted', ''),
+            'discountAmount' => (string) Arr::get($campaign->settings ?? [], 'discount_amount', ''),
+            'discountPercent' => $promoPercent !== null ? (string) $promoPercent : '',
+            'discountCode' => (string) ($promoCode ?? ''),
+            'expiryDate' => (string) ($promoEndDate ?? ''),
+            'serviceName' => (string) ($offer?->item_type === Product::ITEM_TYPE_SERVICE ? $offer?->name : ''),
+            'serviceCategory' => '',
         ];
 
-        return array_merge($base, $extra);
+        return array_merge($brandTokens, $base, $extra);
     }
 }

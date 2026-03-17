@@ -10,6 +10,9 @@ use App\Models\CampaignAudience;
 use App\Models\CampaignChannel;
 use App\Models\CampaignEvent;
 use App\Models\CampaignMessage;
+use App\Models\CampaignProspect;
+use App\Models\CampaignProspectActivity;
+use App\Models\CampaignProspectBatch;
 use App\Models\CampaignRecipient;
 use App\Models\CampaignRun;
 use App\Models\Customer;
@@ -20,10 +23,8 @@ use App\Models\MarketingSetting;
 use App\Models\OrderReview;
 use App\Models\Payment;
 use App\Models\PlatformAdmin;
-use App\Models\PlatformAnnouncement;
 use App\Models\PlatformNotificationSetting;
 use App\Models\PlatformSetting;
-use App\Models\PlatformSupportTicket;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductImage;
@@ -32,6 +33,7 @@ use App\Models\Property;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
 use App\Models\QuoteRating;
+use App\Models\Request as LeadRequest;
 use App\Models\Reservation;
 use App\Models\ReservationCheckIn;
 use App\Models\ReservationQueueItem;
@@ -40,13 +42,9 @@ use App\Models\ReservationResourceAllocation;
 use App\Models\ReservationReview;
 use App\Models\ReservationSetting;
 use App\Models\ReservationWaitlist;
-use App\Models\Request as LeadRequest;
 use App\Models\Role;
 use App\Models\Sale;
-use App\Models\ServiceMaterial;
 use App\Models\Task;
-use App\Models\TaskMaterial;
-use App\Models\TaskMedia;
 use App\Models\TeamMember;
 use App\Models\TeamMemberAttendance;
 use App\Models\TeamMemberShift;
@@ -58,8 +56,8 @@ use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Models\WorkMedia;
 use App\Models\WorkRating;
-use App\Services\InventoryService;
 use App\Services\Campaigns\TemplateSeederService;
+use App\Services\InventoryService;
 use App\Services\TipAllocationService;
 use App\Services\WorkBillingService;
 use Illuminate\Database\Seeder;
@@ -242,10 +240,10 @@ class LaunchSeeder extends Seeder
             ]
         );
         $serviceOwnerFeatures = (array) ($serviceOwner->company_features ?? []);
-        if (!array_key_exists('reservations', $serviceOwnerFeatures)) {
+        if (! array_key_exists('reservations', $serviceOwnerFeatures)) {
             $serviceOwnerFeatures['reservations'] = true;
         }
-        if (!array_key_exists('campaigns', $serviceOwnerFeatures)) {
+        if (! array_key_exists('campaigns', $serviceOwnerFeatures)) {
             $serviceOwnerFeatures['campaigns'] = true;
         }
         $serviceOwner->update([
@@ -288,10 +286,10 @@ class LaunchSeeder extends Seeder
             ]
         );
         $productOwnerFeatures = (array) ($productOwner->company_features ?? []);
-        if (!array_key_exists('sales', $productOwnerFeatures)) {
+        if (! array_key_exists('sales', $productOwnerFeatures)) {
             $productOwnerFeatures['sales'] = true;
         }
-        if (!array_key_exists('campaigns', $productOwnerFeatures)) {
+        if (! array_key_exists('campaigns', $productOwnerFeatures)) {
             $productOwnerFeatures['campaigns'] = true;
         }
         $productOwner->update([
@@ -1524,7 +1522,7 @@ class LaunchSeeder extends Seeder
             $cost = (float) $data['cost_price'];
             $margin = $price > 0 ? round((($price - $cost) / $price) * 100, 2) : 0;
             $category = $productCategoryMap[$data['category']] ?? $productCategory;
-            $seedKey = trim(($data['sku'] ?? '') . ' ' . ($data['name'] ?? '') . ' ' . ($data['category'] ?? 'product'));
+            $seedKey = trim(($data['sku'] ?? '').' '.($data['name'] ?? '').' '.($data['category'] ?? 'product'));
             $imageUrls = $resolveSeededPhotoList($seedKey, 4, 900);
             $imageUrl = $imageUrls[0] ?? null;
             $promo = $productPromoMap[$data['name']] ?? null;
@@ -1560,7 +1558,7 @@ class LaunchSeeder extends Seeder
                 ]
             );
 
-            if (!empty($imageUrls)) {
+            if (! empty($imageUrls)) {
                 ProductImage::where('product_id', $product->id)->update(['is_primary' => false]);
                 foreach ($imageUrls as $index => $url) {
                     ProductImage::updateOrCreate(
@@ -1623,7 +1621,7 @@ class LaunchSeeder extends Seeder
 
         foreach ($productProducts as $product) {
             $data = $productSeedMap->get($product->name);
-            if (!$data) {
+            if (! $data) {
                 continue;
             }
 
@@ -1642,7 +1640,7 @@ class LaunchSeeder extends Seeder
             $trackingType = $data['tracking_type'] ?? 'none';
             $primaryLotNumber = null;
 
-            if ($plan && !empty($plan['lots'])) {
+            if ($plan && ! empty($plan['lots'])) {
                 foreach ($plan['lots'] as $lot) {
                     $warehouse = $productWarehouseMap[$lot['warehouse']] ?? $productMainWarehouse;
                     $inventoryService->adjust($product, (int) $lot['quantity'], 'in', [
@@ -1657,7 +1655,7 @@ class LaunchSeeder extends Seeder
             } elseif ($trackingType === 'lot' && $seedStock > 0) {
                 $mainLot = max(1, (int) round($seedStock * 0.6));
                 $overflowLot = max(0, $seedStock - $mainLot);
-                $primaryLotNumber = $data['sku'] . '-A';
+                $primaryLotNumber = $data['sku'].'-A';
 
                 $inventoryService->adjust($product, $mainLot, 'in', [
                     'warehouse' => $productMainWarehouse,
@@ -1673,7 +1671,7 @@ class LaunchSeeder extends Seeder
                         'warehouse' => $productOverflowWarehouse,
                         'reason' => 'seed',
                         'note' => 'Seeded lot stock',
-                        'lot_number' => $data['sku'] . '-B',
+                        'lot_number' => $data['sku'].'-B',
                         'expires_at' => $now->copy()->addMonths(6),
                         'received_at' => $now->copy()->subDays(30),
                     ]);
@@ -1713,7 +1711,7 @@ class LaunchSeeder extends Seeder
                 }
             }
 
-            if (!empty($plan['damaged'])) {
+            if (! empty($plan['damaged'])) {
                 $warehouse = $productWarehouseMap[$plan['damaged']['warehouse']] ?? $productMainWarehouse;
                 $inventoryService->adjust($product, (int) $plan['damaged']['quantity'], 'damage', [
                     'warehouse' => $warehouse,
@@ -1721,7 +1719,7 @@ class LaunchSeeder extends Seeder
                     'note' => 'Seeded damaged stock',
                     'lot_number' => $plan['damaged']['lot_number'] ?? null,
                 ]);
-            } elseif (!empty($data['damaged'])) {
+            } elseif (! empty($data['damaged'])) {
                 $inventoryService->adjust($product, (int) $data['damaged'], 'damage', [
                     'warehouse' => $productMainWarehouse,
                     'reason' => 'seed',
@@ -1730,17 +1728,17 @@ class LaunchSeeder extends Seeder
                 ]);
             }
 
-            if (!empty($data['reserved'])) {
+            if (! empty($data['reserved'])) {
                 $inventory = $inventoryService->ensureInventory($product, $productMainWarehouse);
                 $inventory->update([
                     'reserved' => (int) $data['reserved'],
                 ]);
             }
 
-            if (!empty($data['bin_locations'])) {
+            if (! empty($data['bin_locations'])) {
                 foreach ($data['bin_locations'] as $warehouseKey => $binLocation) {
                     $warehouse = $productWarehouseMap[$warehouseKey] ?? null;
-                    if (!$warehouse) {
+                    if (! $warehouse) {
                         continue;
                     }
                     $inventory = $inventoryService->ensureInventory($product, $warehouse);
@@ -2351,7 +2349,7 @@ class LaunchSeeder extends Seeder
                 [
                     'work_id' => $reviewWork->id,
                     'type' => 'after',
-                    'path' => 'work_media/review-after-' . $index . '.jpg',
+                    'path' => 'work_media/review-after-'.$index.'.jpg',
                 ],
                 [
                     'user_id' => $serviceOwner->id,
@@ -2401,7 +2399,7 @@ class LaunchSeeder extends Seeder
                 [
                     'work_id' => $inProgressWork->id,
                     'type' => 'before',
-                    'path' => 'work_media/in-progress-before-' . $index . '.jpg',
+                    'path' => 'work_media/in-progress-before-'.$index.'.jpg',
                 ],
                 [
                     'user_id' => $serviceOwner->id,
@@ -2513,7 +2511,7 @@ class LaunchSeeder extends Seeder
         };
         $tipAllocationsEnabled = Schema::hasTable('payment_tip_allocations');
         $syncTipAllocations = static function (?Payment $payment) use ($tipAllocationsEnabled): void {
-            if (!$tipAllocationsEnabled || !$payment) {
+            if (! $tipAllocationsEnabled || ! $payment) {
                 return;
             }
 
@@ -2758,7 +2756,7 @@ class LaunchSeeder extends Seeder
         ]);
         $productQuote->products()->sync($productPivot);
 
-        LeadRequest::updateOrCreate(
+        $productLead = LeadRequest::updateOrCreate(
             [
                 'user_id' => $productOwner->id,
                 'title' => 'Lead - Supply order',
@@ -2869,6 +2867,13 @@ class LaunchSeeder extends Seeder
             && Schema::hasTable('marketing_settings')
             && Schema::hasTable('message_templates')
             && Schema::hasTable('campaign_offers');
+        $canSeedCampaignProspecting = $canSeedCampaigns
+            && Schema::hasTable('campaign_prospect_batches')
+            && Schema::hasTable('campaign_prospects')
+            && Schema::hasTable('campaign_prospect_activities')
+            && Schema::hasTable('requests')
+            && Schema::hasColumn('campaigns', 'campaign_direction')
+            && Schema::hasColumn('campaigns', 'prospecting_enabled');
 
         if ($canSeedCampaigns) {
             $campaignCustomers = collect([$productCustomer, $productCustomerRetail, $productCustomerWholesale])
@@ -2925,7 +2930,7 @@ class LaunchSeeder extends Seeder
                     ]
                 );
 
-                if (!empty($campaignCustomer->portal_user_id)) {
+                if (! empty($campaignCustomer->portal_user_id)) {
                     CustomerConsent::updateOrCreate(
                         [
                             'user_id' => $productOwner->id,
@@ -3136,7 +3141,7 @@ class LaunchSeeder extends Seeder
                         'user_id' => $productOwner->id,
                         'customer_id' => $productCustomer->id,
                         'destination' => $primaryEmail,
-                        'dedupe_key' => Campaign::CHANNEL_EMAIL . '|' . $primaryHash,
+                        'dedupe_key' => Campaign::CHANNEL_EMAIL.'|'.$primaryHash,
                         'status' => CampaignRecipient::STATUS_CONVERTED,
                         'provider' => 'seed',
                         'provider_message_id' => 'seed-msg-001',
@@ -3185,7 +3190,7 @@ class LaunchSeeder extends Seeder
                         'user_id' => $productOwner->id,
                         'customer_id' => $productCustomerRetail->id,
                         'destination' => $retailEmail,
-                        'dedupe_key' => Campaign::CHANNEL_EMAIL . '|' . $retailHash,
+                        'dedupe_key' => Campaign::CHANNEL_EMAIL.'|'.$retailHash,
                         'status' => CampaignRecipient::STATUS_CLICKED,
                         'provider' => 'seed',
                         'provider_message_id' => 'seed-msg-002',
@@ -3352,10 +3357,688 @@ class LaunchSeeder extends Seeder
                     'error_message' => null,
                 ]
             );
+
+            if ($canSeedCampaignProspecting) {
+                $prospectingStartedAt = $now->copy()->subDays(4)->setTime(9, 0, 0);
+                $prospectingCampaign = Campaign::updateOrCreate(
+                    [
+                        'user_id' => $productOwner->id,
+                        'name' => 'Prospection automne B2B (seed)',
+                    ],
+                    [
+                        'created_by_user_id' => $productOwner->id,
+                        'updated_by_user_id' => $productOwner->id,
+                        'audience_segment_id' => null,
+                        'campaign_type' => Campaign::TYPE_PROMOTION,
+                        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+                        'prospecting_enabled' => true,
+                        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+                        'language_mode' => Campaign::LANGUAGE_MODE_FR,
+                        'type' => Campaign::TYPE_PROMOTION,
+                        'status' => Campaign::STATUS_RUNNING,
+                        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+                        'scheduled_at' => null,
+                        'started_at' => $prospectingStartedAt,
+                        'completed_at' => null,
+                        'locale' => 'fr',
+                        'cta_url' => 'https://example.com/prospects/catalogue-b2b',
+                        'is_marketing' => true,
+                        'last_run_at' => $now->copy()->subHours(18),
+                        'settings' => [
+                            'seed' => 'launch',
+                            'prospecting_sequence' => [
+                                'enabled' => true,
+                                'max_steps' => 3,
+                                'follow_up_delays_hours' => [48, 96],
+                            ],
+                            'ideal_customer_profile' => [
+                                'industries' => ['fitness', 'wellness', 'hospitality'],
+                                'regions' => ['QC', 'ON'],
+                            ],
+                        ],
+                    ]
+                );
+
+                $prospectingCampaign->products()->sync($campaignProductIds);
+                if ($canSeedCampaignFoundations && $campaignProductIds !== []) {
+                    $rows = collect($campaignProductIds)->map(fn ($productId) => [
+                        'campaign_id' => $prospectingCampaign->id,
+                        'offer_type' => Product::ITEM_TYPE_PRODUCT,
+                        'offer_id' => (int) $productId,
+                        'metadata' => json_encode(['seed' => true, 'scenario' => 'prospecting']),
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ])->all();
+
+                    DB::table('campaign_offers')->upsert(
+                        $rows,
+                        ['campaign_id', 'offer_type', 'offer_id'],
+                        ['metadata', 'updated_at']
+                    );
+                }
+
+                CampaignChannel::updateOrCreate(
+                    [
+                        'campaign_id' => $prospectingCampaign->id,
+                        'channel' => Campaign::CHANNEL_EMAIL,
+                    ],
+                    [
+                        'is_enabled' => true,
+                        'subject_template' => 'Offre B2B pour {companyName}',
+                        'title_template' => null,
+                        'body_template' => 'Bonjour {firstName}, nous avons une offre adaptee a {companyName}: {ctaUrl}',
+                        'metadata' => ['seed' => true, 'scenario' => 'prospecting'],
+                    ]
+                );
+
+                CampaignChannel::updateOrCreate(
+                    [
+                        'campaign_id' => $prospectingCampaign->id,
+                        'channel' => Campaign::CHANNEL_SMS,
+                    ],
+                    [
+                        'is_enabled' => false,
+                        'subject_template' => null,
+                        'title_template' => null,
+                        'body_template' => 'Bonjour {firstName}, decouvrez notre offre B2B : {ctaUrl}',
+                        'metadata' => ['seed' => true, 'scenario' => 'prospecting'],
+                    ]
+                );
+
+                CampaignAudience::updateOrCreate(
+                    ['campaign_id' => $prospectingCampaign->id],
+                    [
+                        'smart_filters' => null,
+                        'exclusion_filters' => null,
+                        'manual_customer_ids' => [],
+                        'manual_contacts' => [],
+                        'estimated_counts' => [
+                            'total_eligible' => 3,
+                            'eligible_by_channel' => ['EMAIL' => 3],
+                            'blocked_by_channel' => ['EMAIL' => 1],
+                            'blocked_by_reason' => ['do_not_contact_list' => 1],
+                        ],
+                        'resolved_at' => $now->copy()->subHours(20),
+                    ]
+                );
+
+                $prospectingRun = CampaignRun::updateOrCreate(
+                    ['idempotency_key' => 'launch-seed-campaign-run-3'],
+                    [
+                        'campaign_id' => $prospectingCampaign->id,
+                        'user_id' => $productOwner->id,
+                        'triggered_by_user_id' => $productOwner->id,
+                        'trigger_type' => CampaignRun::TRIGGER_MANUAL,
+                        'status' => CampaignRun::STATUS_RUNNING,
+                        'scheduled_for' => null,
+                        'started_at' => $now->copy()->subHours(18),
+                        'completed_at' => null,
+                        'audience_snapshot' => [
+                            'eligible_count' => 2,
+                            'channels' => ['EMAIL'],
+                            'source' => 'launch_seed_prospecting',
+                        ],
+                        'summary' => [
+                            'queued' => 2,
+                            'sent' => 2,
+                            'delivered' => 2,
+                            'opened' => 1,
+                            'clicked' => 1,
+                            'converted' => 1,
+                        ],
+                        'error_message' => null,
+                    ]
+                );
+
+                $persistProspect = function (CampaignProspectBatch $batch, string $emailNormalized, array $values) use ($prospectingCampaign, $productOwner, $setTimestamps) {
+                    $timestamp = $values['created_at'] ?? now();
+                    $email = $values['email'] ?? $emailNormalized;
+                    $phone = $values['phone'] ?? null;
+                    $metadata = is_array($values['metadata'] ?? null) ? $values['metadata'] : [];
+                    $metadata['seed'] = 'launch';
+
+                    $prospect = CampaignProspect::updateOrCreate(
+                        [
+                            'campaign_id' => $prospectingCampaign->id,
+                            'campaign_prospect_batch_id' => $batch->id,
+                            'email_normalized' => $emailNormalized,
+                        ],
+                        array_merge([
+                            'user_id' => $productOwner->id,
+                            'source_type' => $batch->source_type,
+                            'source_reference' => $batch->source_reference,
+                            'email' => $email,
+                            'phone_normalized' => $phone,
+                            'status' => CampaignProspect::STATUS_NEW,
+                            'match_status' => CampaignProspect::MATCH_NONE,
+                            'raw_payload' => ['seed' => 'launch', 'email' => $email],
+                            'normalized_payload' => ['seed' => 'launch', 'email' => $emailNormalized],
+                            'metadata' => $metadata,
+                        ], $values)
+                    );
+
+                    $setTimestamps($prospect, $timestamp);
+
+                    return $prospect->fresh();
+                };
+
+                $persistProspectActivity = function (
+                    CampaignProspect $prospect,
+                    string $activityType,
+                    string $summary,
+                    $occurredAt,
+                    ?CampaignRun $run = null,
+                    ?string $channel = null,
+                    array $payload = []
+                ) use ($prospectingCampaign, $productOwner, $setTimestamps) {
+                    $activity = CampaignProspectActivity::updateOrCreate(
+                        [
+                            'campaign_prospect_id' => $prospect->id,
+                            'activity_type' => $activityType,
+                            'summary' => $summary,
+                        ],
+                        [
+                            'campaign_id' => $prospectingCampaign->id,
+                            'campaign_run_id' => $run?->id,
+                            'campaign_recipient_id' => null,
+                            'user_id' => $productOwner->id,
+                            'actor_user_id' => $productOwner->id,
+                            'channel' => $channel,
+                            'payload' => $payload,
+                            'occurred_at' => $occurredAt,
+                        ]
+                    );
+
+                    $setTimestamps($activity, $occurredAt);
+
+                    return $activity;
+                };
+
+                $reviewBatch = CampaignProspectBatch::updateOrCreate(
+                    [
+                        'campaign_id' => $prospectingCampaign->id,
+                        'batch_number' => 1,
+                    ],
+                    [
+                        'user_id' => $productOwner->id,
+                        'approved_by_user_id' => null,
+                        'source_type' => CampaignProspect::SOURCE_CSV,
+                        'source_reference' => 'seed-b2b-fitness-q1.csv',
+                        'input_count' => 4,
+                        'accepted_count' => 1,
+                        'rejected_count' => 1,
+                        'duplicate_count' => 1,
+                        'blocked_count' => 1,
+                        'scored_count' => 1,
+                        'contacted_count' => 0,
+                        'replied_count' => 0,
+                        'lead_count' => 0,
+                        'customer_count' => 0,
+                        'status' => CampaignProspectBatch::STATUS_ANALYZED,
+                        'analysis_summary' => [
+                            'review_required_count' => 1,
+                            'score_distribution' => ['high' => 1, 'medium' => 1, 'low' => 2],
+                            'duplicates' => 1,
+                            'blocked' => 1,
+                        ],
+                        'approved_at' => null,
+                    ]
+                );
+                $setTimestamps($reviewBatch, $now->copy()->subDays(2)->setTime(10, 0, 0));
+
+                $outreachBatch = CampaignProspectBatch::updateOrCreate(
+                    [
+                        'campaign_id' => $prospectingCampaign->id,
+                        'batch_number' => 2,
+                    ],
+                    [
+                        'user_id' => $productOwner->id,
+                        'approved_by_user_id' => $productOwner->id,
+                        'source_type' => CampaignProspect::SOURCE_MANUAL,
+                        'source_reference' => 'launch-seeder-shortlist',
+                        'input_count' => 3,
+                        'accepted_count' => 3,
+                        'rejected_count' => 0,
+                        'duplicate_count' => 0,
+                        'blocked_count' => 0,
+                        'scored_count' => 0,
+                        'contacted_count' => 2,
+                        'replied_count' => 1,
+                        'lead_count' => 1,
+                        'customer_count' => 0,
+                        'status' => CampaignProspectBatch::STATUS_RUNNING,
+                        'analysis_summary' => [
+                            'review_required_count' => 0,
+                            'approved_count' => 3,
+                            'ready_for_outreach_count' => 1,
+                            'follow_up_due_count' => 1,
+                        ],
+                        'approved_at' => $now->copy()->subDays(1)->setTime(9, 30, 0),
+                    ]
+                );
+                $setTimestamps($outreachBatch, $now->copy()->subDays(1)->setTime(9, 0, 0));
+
+                $scoredProspect = $persistProspect($reviewBatch, 'amelie@ateliernord.ca', [
+                    'created_at' => $now->copy()->subDays(2)->setTime(10, 10, 0),
+                    'external_ref' => 'seed-prospect-001',
+                    'company_name' => 'Atelier Nord',
+                    'contact_name' => 'Amelie Gagnon',
+                    'first_name' => 'Amelie',
+                    'last_name' => 'Gagnon',
+                    'email' => 'amelie@ateliernord.ca',
+                    'phone' => '+15145551010',
+                    'website' => 'https://ateliernord.ca',
+                    'website_domain' => 'ateliernord.ca',
+                    'city' => 'Montreal',
+                    'state' => 'QC',
+                    'country' => 'Canada',
+                    'industry' => 'fitness',
+                    'company_size' => '11-50',
+                    'tags' => ['studio', 'montreal'],
+                    'fit_score' => 92,
+                    'intent_score' => 58,
+                    'priority_score' => 81,
+                    'qualification_summary' => 'Studio independant avec un besoin probable de consommables recurrents.',
+                    'status' => CampaignProspect::STATUS_SCORED,
+                    'match_status' => CampaignProspect::MATCH_MANUAL_REVIEW,
+                    'owner_notes' => 'A valider avant outreach, potentiel B2B interessant.',
+                    'last_activity_at' => $now->copy()->subDays(2)->setTime(10, 20, 0),
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'review',
+                    ],
+                ]);
+
+                $duplicateProspect = $persistProspect($reviewBatch, 'product-buyer@example.com', [
+                    'created_at' => $now->copy()->subDays(2)->setTime(10, 15, 0),
+                    'external_ref' => 'seed-prospect-002',
+                    'company_name' => 'Roy Commerce',
+                    'contact_name' => 'Mia Roy',
+                    'first_name' => 'Mia',
+                    'last_name' => 'Roy',
+                    'email' => 'product-buyer@example.com',
+                    'phone' => '+14165550001',
+                    'website' => 'https://roy-commerce.example.com',
+                    'website_domain' => 'roy-commerce.example.com',
+                    'city' => 'Toronto',
+                    'state' => 'ON',
+                    'country' => 'Canada',
+                    'industry' => 'retail',
+                    'company_size' => '1-10',
+                    'tags' => ['duplicate', 'existing_lead'],
+                    'fit_score' => 61,
+                    'intent_score' => 34,
+                    'priority_score' => 43,
+                    'qualification_summary' => 'Contact deja present dans le pipeline leads.',
+                    'status' => CampaignProspect::STATUS_DUPLICATE,
+                    'match_status' => CampaignProspect::MATCH_LEAD,
+                    'matched_lead_id' => $productLead->id,
+                    'blocked_reason' => 'existing_lead',
+                    'last_activity_at' => $now->copy()->subDays(2)->setTime(10, 22, 0),
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'duplicate',
+                    ],
+                ]);
+
+                $blockedProspect = $persistProspect($reviewBatch, 'optout@clinicriver.ca', [
+                    'created_at' => $now->copy()->subDays(2)->setTime(10, 18, 0),
+                    'external_ref' => 'seed-prospect-003',
+                    'company_name' => 'Clinique River',
+                    'contact_name' => 'Sarah Cote',
+                    'first_name' => 'Sarah',
+                    'last_name' => 'Cote',
+                    'email' => 'optout@clinicriver.ca',
+                    'phone' => '+15145551030',
+                    'website' => 'https://clinicriver.ca',
+                    'website_domain' => 'clinicriver.ca',
+                    'city' => 'Quebec',
+                    'state' => 'QC',
+                    'country' => 'Canada',
+                    'industry' => 'wellness',
+                    'company_size' => '11-50',
+                    'tags' => ['blocked'],
+                    'fit_score' => 56,
+                    'intent_score' => 22,
+                    'priority_score' => 29,
+                    'qualification_summary' => 'Adresse presente dans la liste de blocage marketing.',
+                    'status' => CampaignProspect::STATUS_BLOCKED,
+                    'match_status' => CampaignProspect::MATCH_BLOCKED_DESTINATION,
+                    'do_not_contact' => true,
+                    'blocked_reason' => 'do_not_contact_list',
+                    'last_activity_at' => $now->copy()->subDays(2)->setTime(10, 24, 0),
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'blocked',
+                    ],
+                ]);
+
+                $doNotContactProspect = $persistProspect($reviewBatch, 'camille@studiozen.ca', [
+                    'created_at' => $now->copy()->subDays(2)->setTime(10, 21, 0),
+                    'external_ref' => 'seed-prospect-004',
+                    'company_name' => 'Studio Zen',
+                    'contact_name' => 'Camille Roy',
+                    'first_name' => 'Camille',
+                    'last_name' => 'Roy',
+                    'email' => 'camille@studiozen.ca',
+                    'phone' => '+15145551040',
+                    'website' => 'https://studiozen.ca',
+                    'website_domain' => 'studiozen.ca',
+                    'city' => 'Sherbrooke',
+                    'state' => 'QC',
+                    'country' => 'Canada',
+                    'industry' => 'wellness',
+                    'company_size' => '1-10',
+                    'tags' => ['dnc'],
+                    'fit_score' => 48,
+                    'intent_score' => 12,
+                    'priority_score' => 19,
+                    'qualification_summary' => 'Demande manuelle de ne plus etre contactee.',
+                    'status' => CampaignProspect::STATUS_DO_NOT_CONTACT,
+                    'match_status' => CampaignProspect::MATCH_NONE,
+                    'do_not_contact' => true,
+                    'blocked_reason' => 'manual_opt_out',
+                    'last_activity_at' => $now->copy()->subDays(2)->setTime(10, 26, 0),
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'reject',
+                    ],
+                ]);
+
+                $approvedProspect = $persistProspect($outreachBatch, 'claire@espacerituel.ca', [
+                    'created_at' => $now->copy()->subDays(1)->setTime(9, 5, 0),
+                    'external_ref' => 'seed-prospect-005',
+                    'company_name' => 'Espace Rituel',
+                    'contact_name' => 'Claire Dubois',
+                    'first_name' => 'Claire',
+                    'last_name' => 'Dubois',
+                    'email' => 'claire@espacerituel.ca',
+                    'phone' => '+15145552010',
+                    'website' => 'https://espacerituel.ca',
+                    'website_domain' => 'espacerituel.ca',
+                    'city' => 'Montreal',
+                    'state' => 'QC',
+                    'country' => 'Canada',
+                    'industry' => 'wellness',
+                    'company_size' => '11-50',
+                    'tags' => ['approved', 'spa'],
+                    'fit_score' => 83,
+                    'intent_score' => 41,
+                    'priority_score' => 72,
+                    'qualification_summary' => 'Compte cible valide pour une premiere prise de contact.',
+                    'status' => CampaignProspect::STATUS_APPROVED,
+                    'match_status' => CampaignProspect::MATCH_NONE,
+                    'owner_notes' => 'Pret pour le prochain envoi email.',
+                    'last_activity_at' => $now->copy()->subDays(1)->setTime(9, 25, 0),
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'approved',
+                        'sequence' => [
+                            'current_step' => 0,
+                            'current_phase' => 'ready',
+                            'next_follow_up_at' => null,
+                        ],
+                    ],
+                ]);
+
+                $followUpProspect = $persistProspect($outreachBatch, 'mario@urbanbean.ca', [
+                    'created_at' => $now->copy()->subDays(1)->setTime(9, 8, 0),
+                    'external_ref' => 'seed-prospect-006',
+                    'company_name' => 'Urban Bean',
+                    'contact_name' => 'Mario Pelletier',
+                    'first_name' => 'Mario',
+                    'last_name' => 'Pelletier',
+                    'email' => 'mario@urbanbean.ca',
+                    'phone' => '+14165552110',
+                    'website' => 'https://urbanbean.ca',
+                    'website_domain' => 'urbanbean.ca',
+                    'city' => 'Ottawa',
+                    'state' => 'ON',
+                    'country' => 'Canada',
+                    'industry' => 'hospitality',
+                    'company_size' => '11-50',
+                    'tags' => ['follow-up', 'cafe'],
+                    'fit_score' => 76,
+                    'intent_score' => 66,
+                    'priority_score' => 77,
+                    'qualification_summary' => 'Premier contact envoye, relance a programmer.',
+                    'status' => CampaignProspect::STATUS_FOLLOW_UP_DUE,
+                    'match_status' => CampaignProspect::MATCH_NONE,
+                    'first_contacted_at' => $now->copy()->subHours(30),
+                    'last_contacted_at' => $now->copy()->subHours(30),
+                    'last_activity_at' => $now->copy()->subHours(6),
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'review',
+                        'sequence' => [
+                            'current_step' => 2,
+                            'current_phase' => 'follow_up_1',
+                            'next_follow_up_at' => $now->copy()->addHours(12)->toJSON(),
+                        ],
+                    ],
+                ]);
+
+                $convertedProspect = $persistProspect($outreachBatch, 'nadia@studioforma.ca', [
+                    'created_at' => $now->copy()->subDays(1)->setTime(9, 12, 0),
+                    'external_ref' => 'seed-prospect-007',
+                    'company_name' => 'Studio Forma',
+                    'contact_name' => 'Nadia Karim',
+                    'first_name' => 'Nadia',
+                    'last_name' => 'Karim',
+                    'email' => 'nadia@studioforma.ca',
+                    'phone' => '+15145552220',
+                    'website' => 'https://studioforma.ca',
+                    'website_domain' => 'studioforma.ca',
+                    'city' => 'Montreal',
+                    'state' => 'QC',
+                    'country' => 'Canada',
+                    'industry' => 'fitness',
+                    'company_size' => '11-50',
+                    'tags' => ['converted', 'gym'],
+                    'fit_score' => 94,
+                    'intent_score' => 79,
+                    'priority_score' => 91,
+                    'qualification_summary' => 'A repondu favorablement et souhaite une offre adaptee.',
+                    'status' => CampaignProspect::STATUS_CONVERTED_TO_LEAD,
+                    'match_status' => CampaignProspect::MATCH_NONE,
+                    'first_contacted_at' => $now->copy()->subHours(40),
+                    'last_contacted_at' => $now->copy()->subHours(24),
+                    'last_replied_at' => $now->copy()->subHours(20),
+                    'last_activity_at' => $now->copy()->subHours(20),
+                    'owner_notes' => 'Lead cree apres reponse positive au second message.',
+                    'metadata' => [
+                        'seed' => 'launch',
+                        'recommended_action' => 'approved',
+                        'sequence' => [
+                            'current_step' => 3,
+                            'current_phase' => 'follow_up_2',
+                            'next_follow_up_at' => null,
+                        ],
+                    ],
+                ]);
+
+                $seededProspectingLead = LeadRequest::updateOrCreate(
+                    [
+                        'user_id' => $productOwner->id,
+                        'title' => 'Lead - Studio Forma outbound',
+                    ],
+                    [
+                        'customer_id' => null,
+                        'status' => LeadRequest::STATUS_CONTACTED,
+                        'status_updated_at' => $now->copy()->subHours(20),
+                        'next_follow_up_at' => $now->copy()->addDay(),
+                        'service_type' => 'Approvisionnement B2B',
+                        'urgency' => 'normal',
+                        'channel' => 'campaign',
+                        'description' => 'Lead cree depuis la campagne de prospection seed.',
+                        'contact_name' => 'Nadia Karim',
+                        'contact_email' => 'nadia@studioforma.ca',
+                        'contact_phone' => '+15145552220',
+                        'country' => 'Canada',
+                        'state' => 'QC',
+                        'city' => 'Montreal',
+                        'street1' => '88 Avenue du Parc',
+                        'meta' => [
+                            'source_kind' => 'campaign_prospecting',
+                            'source_direction' => 'outbound',
+                            'source_campaign_direction' => $prospectingCampaign->resolvedCampaignDirection(),
+                            'source_campaign_id' => (int) $prospectingCampaign->id,
+                            'source_campaign_name' => (string) $prospectingCampaign->name,
+                            'source_campaign_run_id' => (int) $prospectingRun->id,
+                            'source_campaign_recipient_id' => null,
+                            'source_prospect_id' => (int) $convertedProspect->id,
+                            'source_prospect_batch_id' => (int) $outreachBatch->id,
+                            'source_channel' => 'EMAIL',
+                            'source_outreach_phase' => 'follow_up_2',
+                            'source_fit_score' => $convertedProspect->fit_score,
+                            'source_intent_score' => $convertedProspect->intent_score,
+                            'source_priority_score' => $convertedProspect->priority_score,
+                            'source_first_contacted_at' => optional($convertedProspect->first_contacted_at)->toJSON(),
+                            'source_last_contacted_at' => optional($convertedProspect->last_contacted_at)->toJSON(),
+                            'source_last_replied_at' => optional($convertedProspect->last_replied_at)->toJSON(),
+                            'source_converted_at' => $now->copy()->subHours(20)->toJSON(),
+                        ],
+                    ]
+                );
+                $setTimestamps($seededProspectingLead, $now->copy()->subHours(20));
+
+                $convertedMetadata = is_array($convertedProspect->metadata) ? $convertedProspect->metadata : [];
+                $convertedMetadata['lead_conversion'] = [
+                    'lead_id' => (int) $seededProspectingLead->id,
+                    'created' => true,
+                    'converted_at' => $now->copy()->subHours(20)->toJSON(),
+                    'converted_by_user_id' => $productOwner->id,
+                ];
+
+                $convertedProspect->forceFill([
+                    'matched_lead_id' => $seededProspectingLead->id,
+                    'converted_to_lead_id' => $seededProspectingLead->id,
+                    'metadata' => $convertedMetadata,
+                ])->saveQuietly();
+
+                $persistProspectActivity(
+                    $scoredProspect,
+                    'analyzed',
+                    'Prospect analyse et envoye en revue manuelle.',
+                    $now->copy()->subDays(2)->setTime(10, 20, 0),
+                    null,
+                    null,
+                    ['fit_score' => 92, 'intent_score' => 58]
+                );
+                $persistProspectActivity(
+                    $duplicateProspect,
+                    'duplicate_detected',
+                    'Doublon detecte avec un lead existant.',
+                    $now->copy()->subDays(2)->setTime(10, 22, 0),
+                    null,
+                    null,
+                    ['matched_lead_id' => $productLead->id]
+                );
+                $persistProspectActivity(
+                    $blockedProspect,
+                    'blocked',
+                    'Destination bloquee par la liste DNC.',
+                    $now->copy()->subDays(2)->setTime(10, 24, 0),
+                    null,
+                    'EMAIL',
+                    ['reason' => 'do_not_contact_list']
+                );
+                $persistProspectActivity(
+                    $doNotContactProspect,
+                    'manual_do_not_contact',
+                    'Prospect marque manuellement comme ne plus contacter.',
+                    $now->copy()->subDays(2)->setTime(10, 26, 0),
+                    null,
+                    null,
+                    ['reason' => 'manual_opt_out']
+                );
+                $persistProspectActivity(
+                    $approvedProspect,
+                    'approved',
+                    'Prospect approuve pour la prochaine vague.',
+                    $now->copy()->subDays(1)->setTime(9, 25, 0),
+                    null,
+                    null,
+                    ['batch_id' => $outreachBatch->id]
+                );
+                $persistProspectActivity(
+                    $followUpProspect,
+                    'outreach_sent',
+                    'Premier message de prospection envoye.',
+                    $now->copy()->subHours(30),
+                    $prospectingRun,
+                    'EMAIL',
+                    ['step' => 1, 'phase' => 'first_touch']
+                );
+                $persistProspectActivity(
+                    $followUpProspect,
+                    'follow_up_scheduled',
+                    'Relance planifiee pour le prochain cycle.',
+                    $now->copy()->subHours(6),
+                    $prospectingRun,
+                    'EMAIL',
+                    ['step' => 2, 'phase' => 'follow_up_1']
+                );
+                $persistProspectActivity(
+                    $convertedProspect,
+                    'outreach_sent',
+                    'Message de suivi envoye au prospect.',
+                    $now->copy()->subHours(40),
+                    $prospectingRun,
+                    'EMAIL',
+                    ['step' => 2, 'phase' => 'follow_up_1']
+                );
+                $persistProspectActivity(
+                    $convertedProspect,
+                    'prospect_replied',
+                    'Le prospect a repondu avec un interet confirme.',
+                    $now->copy()->subHours(20),
+                    $prospectingRun,
+                    'EMAIL',
+                    ['response' => 'positive']
+                );
+                $persistProspectActivity(
+                    $convertedProspect,
+                    'converted_to_lead',
+                    'Prospect converti en lead commercial.',
+                    $now->copy()->subHours(20),
+                    $prospectingRun,
+                    'EMAIL',
+                    ['lead_id' => $seededProspectingLead->id]
+                );
+
+                $reviewBatch->forceFill([
+                    'input_count' => 4,
+                    'accepted_count' => 1,
+                    'rejected_count' => 1,
+                    'duplicate_count' => 1,
+                    'blocked_count' => 1,
+                    'scored_count' => 1,
+                    'contacted_count' => 0,
+                    'replied_count' => 0,
+                    'lead_count' => 0,
+                    'customer_count' => 0,
+                    'status' => CampaignProspectBatch::STATUS_ANALYZED,
+                ])->saveQuietly();
+
+                $outreachBatch->forceFill([
+                    'input_count' => 3,
+                    'accepted_count' => 3,
+                    'rejected_count' => 0,
+                    'duplicate_count' => 0,
+                    'blocked_count' => 0,
+                    'scored_count' => 0,
+                    'contacted_count' => 2,
+                    'replied_count' => 1,
+                    'lead_count' => 1,
+                    'customer_count' => 0,
+                    'status' => CampaignProspectBatch::STATUS_RUNNING,
+                ])->saveQuietly();
+            }
         }
 
         $productSalesCatalog = $productProducts
-            ->filter(fn($product) => ($product->tracking_type ?? 'none') === 'none' && (int) $product->stock > 0)
+            ->filter(fn ($product) => ($product->tracking_type ?? 'none') === 'none' && (int) $product->stock > 0)
             ->values();
         $canSeedSales = Schema::hasTable('sales') && Schema::hasTable('sale_items');
 
@@ -3366,7 +4049,7 @@ class LaunchSeeder extends Seeder
 
             foreach ($lines as $line) {
                 $product = $line['product'] ?? null;
-                if (!$product) {
+                if (! $product) {
                     continue;
                 }
 
@@ -3473,7 +4156,7 @@ class LaunchSeeder extends Seeder
         $seedSaleTimeline = function (?User $actor, Sale $sale, array $entries) use ($setTimestamps) {
             foreach ($entries as $entry) {
                 $action = $entry['action'] ?? null;
-                if (!$action) {
+                if (! $action) {
                     continue;
                 }
                 $log = ActivityLog::record(
@@ -3483,7 +4166,7 @@ class LaunchSeeder extends Seeder
                     $entry['properties'] ?? [],
                     $entry['description'] ?? null
                 );
-                if (!empty($entry['at'])) {
+                if (! empty($entry['at'])) {
                     $setTimestamps($log, $entry['at']);
                 }
             }
@@ -3492,472 +4175,472 @@ class LaunchSeeder extends Seeder
         if ($productSalesCatalog->isNotEmpty()) {
             if ($canSeedSales) {
                 $createSale(
-                'Seeded POS sale - Mia Builds',
-                $productCustomer,
-                Sale::STATUS_PAID,
-                [
-                    ['product' => $productSalesCatalog->get(0), 'quantity' => 3],
-                    ['product' => $productSalesCatalog->get(1), 'quantity' => 2],
-                    ['product' => $productSalesCatalog->get(2), 'quantity' => 1],
-                ],
-                $now->copy()->subDays(5),
-                null,
-                [
-                    'method' => 'delivery',
-                    'status' => Sale::FULFILLMENT_OUT_FOR_DELIVERY,
-                    'delivery_fee' => 7.5,
-                    'delivery_address' => '42 Product St, Toronto, ON',
-                    'delivery_notes' => 'Leave at reception',
-                    'scheduled_for' => $now->copy()->addHours(3),
-                ]
-            );
-
-            $createSale(
-                'Seeded POS sale - City Market',
-                $productCustomerRetail,
-                Sale::STATUS_PENDING,
-                [
-                    ['product' => $productSalesCatalog->get(3), 'quantity' => 4],
-                    ['product' => $productSalesCatalog->get(4), 'quantity' => 2],
-                ],
-                $now->copy()->subDays(2)
-            );
-
-            $createSale(
-                'Seeded POS sale - Walk-in',
-                null,
-                Sale::STATUS_PAID,
-                [
-                    ['product' => $productSalesCatalog->get(5), 'quantity' => 1],
-                    ['product' => $productSalesCatalog->get(6), 'quantity' => 2],
-                ],
-                $now->copy()->subDay(),
-                $productSellerUser->id
-            );
-
-            $createSale(
-                'Seeded POS sale - Draft cart',
-                $productCustomerWholesale,
-                Sale::STATUS_DRAFT,
-                [
-                    ['product' => $productSalesCatalog->get(7), 'quantity' => 3],
-                    ['product' => $productSalesCatalog->get(8), 'quantity' => 1],
-                ],
-                $now->copy()->subHours(6)
-            );
-
-            $createSale(
-                'Seeded POS sale - Cancelled order',
-                null,
-                Sale::STATUS_CANCELED,
-                [
-                    ['product' => $productSalesCatalog->get(9), 'quantity' => 2],
-                ],
-                $now->copy()->subDays(3)
-            );
-
-            $portalPending = $createSale(
-                'Seeded portal order - Preparing',
-                $productCustomer,
-                Sale::STATUS_PENDING,
-                [
-                    ['product' => $productSalesCatalog->get(0), 'quantity' => 1],
-                    ['product' => $productSalesCatalog->get(3), 'quantity' => 2],
-                ],
-                $now->copy()->subHours(8),
-                null,
-                [
-                    'method' => 'delivery',
-                    'status' => Sale::FULFILLMENT_PREPARING,
-                    'delivery_fee' => 7.5,
-                    'delivery_address' => '42 Product St, Toronto, ON',
-                    'delivery_notes' => 'Leave at reception',
-                    'scheduled_for' => $now->copy()->addHours(4),
-                ],
-                [
-                    'source' => 'portal',
-                    'created_by_user_id' => null,
-                    'customer_notes' => 'Call before delivery.',
-                    'substitution_allowed' => true,
-                    'substitution_notes' => 'Swap with store brand if needed.',
-                ]
-            );
-
-            if ($portalPending) {
-                $seedSaleTimeline($productPortalUser, $portalPending, [
+                    'Seeded POS sale - Mia Builds',
+                    $productCustomer,
+                    Sale::STATUS_PAID,
                     [
-                        'action' => 'sale_created',
-                        'at' => $portalPending->created_at,
-                        'properties' => ['source' => 'portal'],
+                        ['product' => $productSalesCatalog->get(0), 'quantity' => 3],
+                        ['product' => $productSalesCatalog->get(1), 'quantity' => 2],
+                        ['product' => $productSalesCatalog->get(2), 'quantity' => 1],
                     ],
+                    $now->copy()->subDays(5),
+                    null,
                     [
-                        'action' => 'sale_fulfillment_changed',
-                        'at' => $portalPending->created_at->copy()->addHours(1),
-                        'properties' => [
-                            'fulfillment_from' => 'pending',
-                            'fulfillment_to' => 'preparing',
-                        ],
-                    ],
-                    [
-                        'action' => 'sale_eta_updated',
-                        'at' => $portalPending->created_at->copy()->addHours(2),
-                        'properties' => [
-                            'scheduled_for' => $portalPending->scheduled_for?->format('Y-m-d H:i'),
-                        ],
-                    ],
-                ]);
-            }
-
-            $portalDelivery = $createSale(
-                'Seeded portal order - Out for delivery',
-                $productCustomer,
-                Sale::STATUS_PENDING,
-                [
-                    ['product' => $productSalesCatalog->get(2), 'quantity' => 1],
-                    ['product' => $productSalesCatalog->get(4), 'quantity' => 3],
-                ],
-                $now->copy()->subHours(4),
-                null,
-                [
-                    'method' => 'delivery',
-                    'status' => Sale::FULFILLMENT_OUT_FOR_DELIVERY,
-                    'delivery_fee' => 7.5,
-                    'delivery_address' => '42 Product St, Toronto, ON',
-                    'delivery_notes' => 'Leave at reception',
-                    'scheduled_for' => $now->copy()->addHours(2),
-                ],
-                [
-                    'source' => 'portal',
-                    'created_by_user_id' => null,
-                    'customer_notes' => 'Ring the buzzer.',
-                    'substitution_allowed' => true,
-                ]
-            );
-
-            if ($portalDelivery) {
-                $seedSaleTimeline($productPortalUser, $portalDelivery, [
-                    [
-                        'action' => 'sale_created',
-                        'at' => $portalDelivery->created_at,
-                        'properties' => ['source' => 'portal'],
-                    ],
-                    [
-                        'action' => 'sale_fulfillment_changed',
-                        'at' => $portalDelivery->created_at->copy()->addHours(2),
-                        'properties' => [
-                            'fulfillment_from' => 'pending',
-                            'fulfillment_to' => 'out_for_delivery',
-                        ],
-                    ],
-                ]);
-            }
-
-            $portalPickupReady = $createSale(
-                'Seeded portal order - Ready pickup',
-                $productCustomer,
-                Sale::STATUS_PENDING,
-                [
-                    ['product' => $productSalesCatalog->get(1), 'quantity' => 2],
-                ],
-                $now->copy()->subHours(6),
-                null,
-                [
-                    'method' => 'pickup',
-                    'status' => Sale::FULFILLMENT_READY_FOR_PICKUP,
-                    'pickup_notes' => 'Pickup counter 2',
-                ],
-                [
-                    'source' => 'portal',
-                    'created_by_user_id' => null,
-                    'pickup_code' => 'PK-SEED-READY',
-                    'customer_notes' => 'Arrive at 17:00.',
-                    'substitution_allowed' => false,
-                    'substitution_notes' => 'No substitutions.',
-                ]
-            );
-
-            if ($portalPickupReady) {
-                $seedSaleTimeline($productPortalUser, $portalPickupReady, [
-                    [
-                        'action' => 'sale_created',
-                        'at' => $portalPickupReady->created_at,
-                        'properties' => ['source' => 'portal'],
-                    ],
-                    [
-                        'action' => 'sale_fulfillment_changed',
-                        'at' => $portalPickupReady->created_at->copy()->addHours(2),
-                        'properties' => [
-                            'fulfillment_from' => 'pending',
-                            'fulfillment_to' => 'ready_for_pickup',
-                        ],
-                    ],
-                ]);
-            }
-
-            $portalPickupDone = $createSale(
-                'Seeded portal order - Pickup complete',
-                $productCustomer,
-                Sale::STATUS_PAID,
-                [
-                    ['product' => $productSalesCatalog->get(5), 'quantity' => 1],
-                ],
-                $now->copy()->subHours(3),
-                null,
-                [
-                    'method' => 'pickup',
-                    'status' => Sale::FULFILLMENT_COMPLETED,
-                    'pickup_notes' => 'Fast pickup lane',
-                ],
-                [
-                    'source' => 'portal',
-                    'created_by_user_id' => null,
-                    'pickup_code' => 'PK-SEED-DONE',
-                    'pickup_confirmed_at' => $now->copy()->subHours(1),
-                    'pickup_confirmed_by_user_id' => $productSellerUser->id,
-                    'customer_notes' => 'No bag needed.',
-                    'substitution_allowed' => false,
-                ]
-            );
-
-            if ($portalPickupDone) {
-                $seedSaleTimeline($productPortalUser, $portalPickupDone, [
-                    [
-                        'action' => 'sale_created',
-                        'at' => $portalPickupDone->created_at,
-                        'properties' => ['source' => 'portal'],
-                    ],
-                    [
-                        'action' => 'sale_fulfillment_changed',
-                        'at' => $portalPickupDone->created_at->copy()->addHours(1),
-                        'properties' => [
-                            'fulfillment_from' => 'pending',
-                            'fulfillment_to' => 'ready_for_pickup',
-                        ],
-                    ],
-                    [
-                        'action' => 'sale_pickup_confirmed',
-                        'at' => $portalPickupDone->pickup_confirmed_at,
-                    ],
-                    [
-                        'action' => 'sale_fulfillment_changed',
-                        'at' => $portalPickupDone->pickup_confirmed_at,
-                        'properties' => [
-                            'fulfillment_from' => 'ready_for_pickup',
-                            'fulfillment_to' => 'completed',
-                        ],
-                    ],
-                ]);
-            }
-
-            $reviewSamples = [
-                [
-                    'rating' => 5,
-                    'title' => 'Excellent',
-                    'comment' => 'Great quality and fast shipping.',
-                ],
-                [
-                    'rating' => 4,
-                    'title' => 'Very good',
-                    'comment' => 'Good value for the price.',
-                ],
-                [
-                    'rating' => 3,
-                    'title' => 'Solid',
-                    'comment' => 'Works as expected.',
-                ],
-            ];
-
-            $orderReviewSamples = [
-                [
-                    'rating' => 5,
-                    'comment' => 'Delivery was on time.',
-                ],
-                [
-                    'rating' => 4,
-                    'comment' => 'Pickup was quick and easy.',
-                ],
-            ];
-
-            $paidSales = Sale::query()
-                ->with('items')
-                ->where('user_id', $productOwner->id)
-                ->where('status', Sale::STATUS_PAID)
-                ->whereNotNull('customer_id')
-                ->get();
-
-            $blockedOrderSaleId = $paidSales->get(1)?->id;
-            $blockedProductId = $paidSales->get(1)?->items->first()?->product_id;
-            $reviewIndex = 0;
-
-            foreach ($paidSales as $saleIndex => $sale) {
-                $customer = Customer::find($sale->customer_id);
-                if (!$customer) {
-                    continue;
-                }
-
-                $orderSample = $orderReviewSamples[$saleIndex % count($orderReviewSamples)];
-                $isOrderBlocked = $blockedOrderSaleId !== null && $sale->id === $blockedOrderSaleId;
-                $orderReview = OrderReview::updateOrCreate(
-                    [
-                        'sale_id' => $sale->id,
-                        'customer_id' => $customer->id,
-                    ],
-                    [
-                        'rating' => $orderSample['rating'],
-                        'comment' => $orderSample['comment'],
-                        'is_approved' => !$isOrderBlocked,
-                        'blocked_reason' => $isOrderBlocked ? 'blocked_terms' : null,
+                        'method' => 'delivery',
+                        'status' => Sale::FULFILLMENT_OUT_FOR_DELIVERY,
+                        'delivery_fee' => 7.5,
+                        'delivery_address' => '42 Product St, Toronto, ON',
+                        'delivery_notes' => 'Leave at reception',
+                        'scheduled_for' => $now->copy()->addHours(3),
                     ]
                 );
 
-                $reviewTimestamp = $sale->paid_at ?? $sale->created_at ?? $now;
-                $setTimestamps($orderReview, $reviewTimestamp);
+                $createSale(
+                    'Seeded POS sale - City Market',
+                    $productCustomerRetail,
+                    Sale::STATUS_PENDING,
+                    [
+                        ['product' => $productSalesCatalog->get(3), 'quantity' => 4],
+                        ['product' => $productSalesCatalog->get(4), 'quantity' => 2],
+                    ],
+                    $now->copy()->subDays(2)
+                );
 
-                foreach ($sale->items as $item) {
-                    if (!$item->product_id) {
+                $createSale(
+                    'Seeded POS sale - Walk-in',
+                    null,
+                    Sale::STATUS_PAID,
+                    [
+                        ['product' => $productSalesCatalog->get(5), 'quantity' => 1],
+                        ['product' => $productSalesCatalog->get(6), 'quantity' => 2],
+                    ],
+                    $now->copy()->subDay(),
+                    $productSellerUser->id
+                );
+
+                $createSale(
+                    'Seeded POS sale - Draft cart',
+                    $productCustomerWholesale,
+                    Sale::STATUS_DRAFT,
+                    [
+                        ['product' => $productSalesCatalog->get(7), 'quantity' => 3],
+                        ['product' => $productSalesCatalog->get(8), 'quantity' => 1],
+                    ],
+                    $now->copy()->subHours(6)
+                );
+
+                $createSale(
+                    'Seeded POS sale - Cancelled order',
+                    null,
+                    Sale::STATUS_CANCELED,
+                    [
+                        ['product' => $productSalesCatalog->get(9), 'quantity' => 2],
+                    ],
+                    $now->copy()->subDays(3)
+                );
+
+                $portalPending = $createSale(
+                    'Seeded portal order - Preparing',
+                    $productCustomer,
+                    Sale::STATUS_PENDING,
+                    [
+                        ['product' => $productSalesCatalog->get(0), 'quantity' => 1],
+                        ['product' => $productSalesCatalog->get(3), 'quantity' => 2],
+                    ],
+                    $now->copy()->subHours(8),
+                    null,
+                    [
+                        'method' => 'delivery',
+                        'status' => Sale::FULFILLMENT_PREPARING,
+                        'delivery_fee' => 7.5,
+                        'delivery_address' => '42 Product St, Toronto, ON',
+                        'delivery_notes' => 'Leave at reception',
+                        'scheduled_for' => $now->copy()->addHours(4),
+                    ],
+                    [
+                        'source' => 'portal',
+                        'created_by_user_id' => null,
+                        'customer_notes' => 'Call before delivery.',
+                        'substitution_allowed' => true,
+                        'substitution_notes' => 'Swap with store brand if needed.',
+                    ]
+                );
+
+                if ($portalPending) {
+                    $seedSaleTimeline($productPortalUser, $portalPending, [
+                        [
+                            'action' => 'sale_created',
+                            'at' => $portalPending->created_at,
+                            'properties' => ['source' => 'portal'],
+                        ],
+                        [
+                            'action' => 'sale_fulfillment_changed',
+                            'at' => $portalPending->created_at->copy()->addHours(1),
+                            'properties' => [
+                                'fulfillment_from' => 'pending',
+                                'fulfillment_to' => 'preparing',
+                            ],
+                        ],
+                        [
+                            'action' => 'sale_eta_updated',
+                            'at' => $portalPending->created_at->copy()->addHours(2),
+                            'properties' => [
+                                'scheduled_for' => $portalPending->scheduled_for?->format('Y-m-d H:i'),
+                            ],
+                        ],
+                    ]);
+                }
+
+                $portalDelivery = $createSale(
+                    'Seeded portal order - Out for delivery',
+                    $productCustomer,
+                    Sale::STATUS_PENDING,
+                    [
+                        ['product' => $productSalesCatalog->get(2), 'quantity' => 1],
+                        ['product' => $productSalesCatalog->get(4), 'quantity' => 3],
+                    ],
+                    $now->copy()->subHours(4),
+                    null,
+                    [
+                        'method' => 'delivery',
+                        'status' => Sale::FULFILLMENT_OUT_FOR_DELIVERY,
+                        'delivery_fee' => 7.5,
+                        'delivery_address' => '42 Product St, Toronto, ON',
+                        'delivery_notes' => 'Leave at reception',
+                        'scheduled_for' => $now->copy()->addHours(2),
+                    ],
+                    [
+                        'source' => 'portal',
+                        'created_by_user_id' => null,
+                        'customer_notes' => 'Ring the buzzer.',
+                        'substitution_allowed' => true,
+                    ]
+                );
+
+                if ($portalDelivery) {
+                    $seedSaleTimeline($productPortalUser, $portalDelivery, [
+                        [
+                            'action' => 'sale_created',
+                            'at' => $portalDelivery->created_at,
+                            'properties' => ['source' => 'portal'],
+                        ],
+                        [
+                            'action' => 'sale_fulfillment_changed',
+                            'at' => $portalDelivery->created_at->copy()->addHours(2),
+                            'properties' => [
+                                'fulfillment_from' => 'pending',
+                                'fulfillment_to' => 'out_for_delivery',
+                            ],
+                        ],
+                    ]);
+                }
+
+                $portalPickupReady = $createSale(
+                    'Seeded portal order - Ready pickup',
+                    $productCustomer,
+                    Sale::STATUS_PENDING,
+                    [
+                        ['product' => $productSalesCatalog->get(1), 'quantity' => 2],
+                    ],
+                    $now->copy()->subHours(6),
+                    null,
+                    [
+                        'method' => 'pickup',
+                        'status' => Sale::FULFILLMENT_READY_FOR_PICKUP,
+                        'pickup_notes' => 'Pickup counter 2',
+                    ],
+                    [
+                        'source' => 'portal',
+                        'created_by_user_id' => null,
+                        'pickup_code' => 'PK-SEED-READY',
+                        'customer_notes' => 'Arrive at 17:00.',
+                        'substitution_allowed' => false,
+                        'substitution_notes' => 'No substitutions.',
+                    ]
+                );
+
+                if ($portalPickupReady) {
+                    $seedSaleTimeline($productPortalUser, $portalPickupReady, [
+                        [
+                            'action' => 'sale_created',
+                            'at' => $portalPickupReady->created_at,
+                            'properties' => ['source' => 'portal'],
+                        ],
+                        [
+                            'action' => 'sale_fulfillment_changed',
+                            'at' => $portalPickupReady->created_at->copy()->addHours(2),
+                            'properties' => [
+                                'fulfillment_from' => 'pending',
+                                'fulfillment_to' => 'ready_for_pickup',
+                            ],
+                        ],
+                    ]);
+                }
+
+                $portalPickupDone = $createSale(
+                    'Seeded portal order - Pickup complete',
+                    $productCustomer,
+                    Sale::STATUS_PAID,
+                    [
+                        ['product' => $productSalesCatalog->get(5), 'quantity' => 1],
+                    ],
+                    $now->copy()->subHours(3),
+                    null,
+                    [
+                        'method' => 'pickup',
+                        'status' => Sale::FULFILLMENT_COMPLETED,
+                        'pickup_notes' => 'Fast pickup lane',
+                    ],
+                    [
+                        'source' => 'portal',
+                        'created_by_user_id' => null,
+                        'pickup_code' => 'PK-SEED-DONE',
+                        'pickup_confirmed_at' => $now->copy()->subHours(1),
+                        'pickup_confirmed_by_user_id' => $productSellerUser->id,
+                        'customer_notes' => 'No bag needed.',
+                        'substitution_allowed' => false,
+                    ]
+                );
+
+                if ($portalPickupDone) {
+                    $seedSaleTimeline($productPortalUser, $portalPickupDone, [
+                        [
+                            'action' => 'sale_created',
+                            'at' => $portalPickupDone->created_at,
+                            'properties' => ['source' => 'portal'],
+                        ],
+                        [
+                            'action' => 'sale_fulfillment_changed',
+                            'at' => $portalPickupDone->created_at->copy()->addHours(1),
+                            'properties' => [
+                                'fulfillment_from' => 'pending',
+                                'fulfillment_to' => 'ready_for_pickup',
+                            ],
+                        ],
+                        [
+                            'action' => 'sale_pickup_confirmed',
+                            'at' => $portalPickupDone->pickup_confirmed_at,
+                        ],
+                        [
+                            'action' => 'sale_fulfillment_changed',
+                            'at' => $portalPickupDone->pickup_confirmed_at,
+                            'properties' => [
+                                'fulfillment_from' => 'ready_for_pickup',
+                                'fulfillment_to' => 'completed',
+                            ],
+                        ],
+                    ]);
+                }
+
+                $reviewSamples = [
+                    [
+                        'rating' => 5,
+                        'title' => 'Excellent',
+                        'comment' => 'Great quality and fast shipping.',
+                    ],
+                    [
+                        'rating' => 4,
+                        'title' => 'Very good',
+                        'comment' => 'Good value for the price.',
+                    ],
+                    [
+                        'rating' => 3,
+                        'title' => 'Solid',
+                        'comment' => 'Works as expected.',
+                    ],
+                ];
+
+                $orderReviewSamples = [
+                    [
+                        'rating' => 5,
+                        'comment' => 'Delivery was on time.',
+                    ],
+                    [
+                        'rating' => 4,
+                        'comment' => 'Pickup was quick and easy.',
+                    ],
+                ];
+
+                $paidSales = Sale::query()
+                    ->with('items')
+                    ->where('user_id', $productOwner->id)
+                    ->where('status', Sale::STATUS_PAID)
+                    ->whereNotNull('customer_id')
+                    ->get();
+
+                $blockedOrderSaleId = $paidSales->get(1)?->id;
+                $blockedProductId = $paidSales->get(1)?->items->first()?->product_id;
+                $reviewIndex = 0;
+
+                foreach ($paidSales as $saleIndex => $sale) {
+                    $customer = Customer::find($sale->customer_id);
+                    if (! $customer) {
                         continue;
                     }
 
-                    $sample = $reviewSamples[$reviewIndex % count($reviewSamples)];
-                    $isProductBlocked = $blockedProductId !== null && $item->product_id === $blockedProductId;
-                    $productReview = ProductReview::updateOrCreate(
+                    $orderSample = $orderReviewSamples[$saleIndex % count($orderReviewSamples)];
+                    $isOrderBlocked = $blockedOrderSaleId !== null && $sale->id === $blockedOrderSaleId;
+                    $orderReview = OrderReview::updateOrCreate(
                         [
-                            'product_id' => $item->product_id,
+                            'sale_id' => $sale->id,
                             'customer_id' => $customer->id,
                         ],
                         [
-                            'sale_id' => $sale->id,
-                            'rating' => $sample['rating'],
-                            'title' => $sample['title'],
-                            'comment' => $sample['comment'],
-                            'is_approved' => !$isProductBlocked,
-                            'blocked_reason' => $isProductBlocked ? 'blocked_terms' : null,
+                            'rating' => $orderSample['rating'],
+                            'comment' => $orderSample['comment'],
+                            'is_approved' => ! $isOrderBlocked,
+                            'blocked_reason' => $isOrderBlocked ? 'blocked_terms' : null,
                         ]
                     );
 
-                    $setTimestamps($productReview, $reviewTimestamp->copy()->addMinutes($reviewIndex + 1));
-                    $reviewIndex++;
-                }
-            }
+                    $reviewTimestamp = $sale->paid_at ?? $sale->created_at ?? $now;
+                    $setTimestamps($orderReview, $reviewTimestamp);
 
-            $performanceSellerUsers = $productSellerUsers->values();
-            $performanceCustomers = collect([
-                $productCustomer,
-                $productCustomerRetail,
-                $productCustomerWholesale,
-            ])->filter()->values();
-            $performanceDayOffsets = [2, 5, 9, 12, 16, 20, 24, 27];
-            $monthsToSeed = 12;
+                    foreach ($sale->items as $item) {
+                        if (! $item->product_id) {
+                            continue;
+                        }
 
-            for ($monthOffset = 0; $monthOffset < $monthsToSeed; $monthOffset += 1) {
-                $monthDate = $now->copy()->subMonths($monthOffset);
-                $monthBase = $monthDate->copy()->startOfMonth();
-                $monthKey = $monthDate->format('Y-m');
-
-                foreach ($performanceSellerUsers as $sellerIndex => $seller) {
-                    for ($saleIndex = 0; $saleIndex < 2; $saleIndex += 1) {
-                        $dayOffset = $performanceDayOffsets[($sellerIndex + $saleIndex + $monthOffset) % count($performanceDayOffsets)];
-                        $saleDate = $monthBase->copy()->addDays($dayOffset)->setTime(10 + ($saleIndex * 2), 15);
-                        $customer = $performanceCustomers->isNotEmpty()
-                            ? $performanceCustomers[($sellerIndex + $saleIndex + $monthOffset) % $performanceCustomers->count()]
-                            : null;
-                        $productIndex = ($sellerIndex + $saleIndex + $monthOffset) % $productSalesCatalog->count();
-                        $secondaryIndex = ($productIndex + 3) % $productSalesCatalog->count();
-                        $lines = [
+                        $sample = $reviewSamples[$reviewIndex % count($reviewSamples)];
+                        $isProductBlocked = $blockedProductId !== null && $item->product_id === $blockedProductId;
+                        $productReview = ProductReview::updateOrCreate(
                             [
-                                'product' => $productSalesCatalog->get($productIndex),
-                                'quantity' => 1 + (($sellerIndex + $monthOffset) % 3),
+                                'product_id' => $item->product_id,
+                                'customer_id' => $customer->id,
                             ],
                             [
-                                'product' => $productSalesCatalog->get($secondaryIndex),
-                                'quantity' => 1 + (($saleIndex + $monthOffset) % 2),
+                                'sale_id' => $sale->id,
+                                'rating' => $sample['rating'],
+                                'title' => $sample['title'],
+                                'comment' => $sample['comment'],
+                                'is_approved' => ! $isProductBlocked,
+                                'blocked_reason' => $isProductBlocked ? 'blocked_terms' : null,
+                            ]
+                        );
+
+                        $setTimestamps($productReview, $reviewTimestamp->copy()->addMinutes($reviewIndex + 1));
+                        $reviewIndex++;
+                    }
+                }
+
+                $performanceSellerUsers = $productSellerUsers->values();
+                $performanceCustomers = collect([
+                    $productCustomer,
+                    $productCustomerRetail,
+                    $productCustomerWholesale,
+                ])->filter()->values();
+                $performanceDayOffsets = [2, 5, 9, 12, 16, 20, 24, 27];
+                $monthsToSeed = 12;
+
+                for ($monthOffset = 0; $monthOffset < $monthsToSeed; $monthOffset += 1) {
+                    $monthDate = $now->copy()->subMonths($monthOffset);
+                    $monthBase = $monthDate->copy()->startOfMonth();
+                    $monthKey = $monthDate->format('Y-m');
+
+                    foreach ($performanceSellerUsers as $sellerIndex => $seller) {
+                        for ($saleIndex = 0; $saleIndex < 2; $saleIndex += 1) {
+                            $dayOffset = $performanceDayOffsets[($sellerIndex + $saleIndex + $monthOffset) % count($performanceDayOffsets)];
+                            $saleDate = $monthBase->copy()->addDays($dayOffset)->setTime(10 + ($saleIndex * 2), 15);
+                            $customer = $performanceCustomers->isNotEmpty()
+                                ? $performanceCustomers[($sellerIndex + $saleIndex + $monthOffset) % $performanceCustomers->count()]
+                                : null;
+                            $productIndex = ($sellerIndex + $saleIndex + $monthOffset) % $productSalesCatalog->count();
+                            $secondaryIndex = ($productIndex + 3) % $productSalesCatalog->count();
+                            $lines = [
+                                [
+                                    'product' => $productSalesCatalog->get($productIndex),
+                                    'quantity' => 1 + (($sellerIndex + $monthOffset) % 3),
+                                ],
+                                [
+                                    'product' => $productSalesCatalog->get($secondaryIndex),
+                                    'quantity' => 1 + (($saleIndex + $monthOffset) % 2),
+                                ],
+                            ];
+
+                            $createSale(
+                                "Seeded performance sale {$monthKey} Seller {$seller->id} #{$saleIndex}",
+                                $customer,
+                                Sale::STATUS_PAID,
+                                $lines,
+                                $saleDate,
+                                $seller->id
+                            );
+                        }
+                    }
+
+                    if ($performanceCustomers->isNotEmpty()) {
+                        $onlineDayOffset = $performanceDayOffsets[($monthOffset + 3) % count($performanceDayOffsets)];
+                        $onlineDate = $monthBase->copy()->addDays($onlineDayOffset)->setTime(15, 30);
+                        $onlineProductIndex = ($monthOffset + 1) % $productSalesCatalog->count();
+                        $onlineLines = [
+                            [
+                                'product' => $productSalesCatalog->get($onlineProductIndex),
+                                'quantity' => 1 + ($monthOffset % 3),
                             ],
                         ];
 
                         $createSale(
-                            "Seeded performance sale {$monthKey} Seller {$seller->id} #{$saleIndex}",
-                            $customer,
+                            "Seeded performance sale {$monthKey} Online #1",
+                            $performanceCustomers[$monthOffset % $performanceCustomers->count()],
                             Sale::STATUS_PAID,
-                            $lines,
-                            $saleDate,
-                            $seller->id
+                            $onlineLines,
+                            $onlineDate,
+                            null,
+                            [],
+                            [
+                                'source' => 'portal',
+                                'created_by_user_id' => null,
+                            ]
                         );
                     }
                 }
 
-                if ($performanceCustomers->isNotEmpty()) {
-                    $onlineDayOffset = $performanceDayOffsets[($monthOffset + 3) % count($performanceDayOffsets)];
-                    $onlineDate = $monthBase->copy()->addDays($onlineDayOffset)->setTime(15, 30);
-                    $onlineProductIndex = ($monthOffset + 1) % $productSalesCatalog->count();
-                    $onlineLines = [
-                        [
-                            'product' => $productSalesCatalog->get($onlineProductIndex),
-                            'quantity' => 1 + ($monthOffset % 3),
-                        ],
-                    ];
+                if ($performanceSellerUsers->isNotEmpty() && $productSalesCatalog->isNotEmpty()) {
+                    $highlightCustomer = $performanceCustomers->first();
+                    $daySeller = $performanceSellerUsers->first();
+                    $weekSeller = $performanceSellerUsers->get(1) ?? $daySeller;
 
-                    $createSale(
-                        "Seeded performance sale {$monthKey} Online #1",
-                        $performanceCustomers[$monthOffset % $performanceCustomers->count()],
-                        Sale::STATUS_PAID,
-                        $onlineLines,
-                        $onlineDate,
-                        null,
-                        [],
-                        [
-                            'source' => 'portal',
-                            'created_by_user_id' => null,
-                        ]
-                    );
-                }
-            }
+                    if ($daySeller) {
+                        $dayLines = [
+                            ['product' => $productSalesCatalog->get(0), 'quantity' => 4],
+                            ['product' => $productSalesCatalog->get(1), 'quantity' => 2],
+                        ];
 
-            if ($performanceSellerUsers->isNotEmpty() && $productSalesCatalog->isNotEmpty()) {
-                $highlightCustomer = $performanceCustomers->first();
-                $daySeller = $performanceSellerUsers->first();
-                $weekSeller = $performanceSellerUsers->get(1) ?? $daySeller;
-
-                if ($daySeller) {
-                    $dayLines = [
-                        ['product' => $productSalesCatalog->get(0), 'quantity' => 4],
-                        ['product' => $productSalesCatalog->get(1), 'quantity' => 2],
-                    ];
-
-                    $createSale(
-                        'Seeded performance highlight - Today',
-                        $highlightCustomer,
-                        Sale::STATUS_PAID,
-                        $dayLines,
-                        $now->copy()->subHours(2),
-                        $daySeller->id
-                    );
-                }
-
-                if ($weekSeller) {
-                    $weekDate = $now->copy()->startOfWeek()->addDays(2)->setTime(11, 30);
-                    if ($weekDate->isSameDay($now)) {
-                        $alternateDate = $now->copy()->startOfWeek()->addDays(1)->setTime(11, 30);
-                        if ($alternateDate->isSameDay($now)) {
-                            $alternateDate = $now->copy()->startOfWeek()->setTime(11, 30);
-                        }
-                        $weekDate = $alternateDate;
+                        $createSale(
+                            'Seeded performance highlight - Today',
+                            $highlightCustomer,
+                            Sale::STATUS_PAID,
+                            $dayLines,
+                            $now->copy()->subHours(2),
+                            $daySeller->id
+                        );
                     }
 
-                    $weekLines = [
-                        ['product' => $productSalesCatalog->get(2), 'quantity' => 8],
-                        ['product' => $productSalesCatalog->get(3), 'quantity' => 5],
-                    ];
+                    if ($weekSeller) {
+                        $weekDate = $now->copy()->startOfWeek()->addDays(2)->setTime(11, 30);
+                        if ($weekDate->isSameDay($now)) {
+                            $alternateDate = $now->copy()->startOfWeek()->addDays(1)->setTime(11, 30);
+                            if ($alternateDate->isSameDay($now)) {
+                                $alternateDate = $now->copy()->startOfWeek()->setTime(11, 30);
+                            }
+                            $weekDate = $alternateDate;
+                        }
 
-                    $createSale(
-                        'Seeded performance highlight - Week',
-                        $highlightCustomer,
-                        Sale::STATUS_PAID,
-                        $weekLines,
-                        $weekDate,
-                        $weekSeller->id
-                    );
+                        $weekLines = [
+                            ['product' => $productSalesCatalog->get(2), 'quantity' => 8],
+                            ['product' => $productSalesCatalog->get(3), 'quantity' => 5],
+                        ];
+
+                        $createSale(
+                            'Seeded performance highlight - Week',
+                            $highlightCustomer,
+                            Sale::STATUS_PAID,
+                            $weekLines,
+                            $weekDate,
+                            $weekSeller->id
+                        );
+                    }
                 }
-            }
             } elseif ($this->command) {
                 $this->command->warn('Skipping sales seed in LaunchSeeder because sales tables are not available.');
             }
@@ -4801,13 +5484,13 @@ class LaunchSeeder extends Seeder
                 return;
             }
 
-            $slug = Str::slug($owner->company_name ?: ('company-' . $owner->id));
+            $slug = Str::slug($owner->company_name ?: ('company-'.$owner->id));
             for ($i = 1; $i <= $toCreate; $i += 1) {
                 $email = "member.{$slug}.{$i}@example.com";
                 $memberUser = User::updateOrCreate(
                     ['email' => $email],
                     [
-                        'name' => trim(($owner->company_name ?: 'Company') . " Member {$i}"),
+                        'name' => trim(($owner->company_name ?: 'Company')." Member {$i}"),
                         'password' => Hash::make('password'),
                         'role_id' => $employeeRoleId,
                         'email_verified_at' => $now,
@@ -5009,7 +5692,7 @@ class LaunchSeeder extends Seeder
                         }
 
                         [$startTime, $endTime] = $slot;
-                        $title = 'Weekly schedule ' . $date->format('D') . ' #' . ($slotIndex + 1) . ' (M' . $member->id . ')';
+                        $title = 'Weekly schedule '.$date->format('D').' #'.($slotIndex + 1).' (M'.$member->id.')';
 
                         Task::updateOrCreate(
                             [
@@ -5046,7 +5729,7 @@ class LaunchSeeder extends Seeder
                         'account_id' => $serviceOwner->id,
                         'due_date' => $conflictDateString,
                         'start_time' => $startTime,
-                        'title' => 'Conflict test ' . $conflictDate->format('D') . ' #' . ($slotIndex + 1),
+                        'title' => 'Conflict test '.$conflictDate->format('D').' #'.($slotIndex + 1),
                     ],
                     [
                         'created_by_user_id' => $serviceOwner->id,
@@ -5066,7 +5749,7 @@ class LaunchSeeder extends Seeder
                     'account_id' => $serviceOwner->id,
                     'due_date' => $conflictDateString,
                     'start_time' => '12:00:00',
-                    'title' => 'Open slot test ' . $conflictDate->format('D'),
+                    'title' => 'Open slot test '.$conflictDate->format('D'),
                 ],
                 [
                     'created_by_user_id' => $serviceOwner->id,
@@ -5455,17 +6138,17 @@ class LaunchSeeder extends Seeder
             $clientRoleId
         );
 
-        $serviceOwners = $owners->filter(fn($owner) => $owner->company_type === 'services');
+        $serviceOwners = $owners->filter(fn ($owner) => $owner->company_type === 'services');
         foreach ($serviceOwners as $owner) {
             $serviceProduct = $resolveServiceProduct($owner);
 
             Quote::query()
                 ->where('user_id', $owner->id)
-                ->each(fn($quote) => $ensureQuoteService($quote, $serviceProduct));
+                ->each(fn ($quote) => $ensureQuoteService($quote, $serviceProduct));
 
             Work::query()
                 ->where('user_id', $owner->id)
-                ->each(fn($work) => $ensureWorkService($work, $serviceProduct));
+                ->each(fn ($work) => $ensureWorkService($work, $serviceProduct));
 
             Invoice::query()
                 ->where('user_id', $owner->id)
@@ -5506,7 +6189,7 @@ class LaunchSeeder extends Seeder
         $adminUser = User::updateOrCreate(
             ['email' => "{$slug}.admin@example.com"],
             [
-                'name' => Str::title(str_replace('-', ' ', $slug)) . ' Admin',
+                'name' => Str::title(str_replace('-', ' ', $slug)).' Admin',
                 'password' => Hash::make('password'),
                 'role_id' => $employeeRoleId,
                 'email_verified_at' => $now,
@@ -5515,7 +6198,7 @@ class LaunchSeeder extends Seeder
         $memberUser = User::updateOrCreate(
             ['email' => "{$slug}.member@example.com"],
             [
-                'name' => Str::title(str_replace('-', ' ', $slug)) . ' Member',
+                'name' => Str::title(str_replace('-', ' ', $slug)).' Member',
                 'password' => Hash::make('password'),
                 'role_id' => $employeeRoleId,
                 'email_verified_at' => $now,
@@ -5524,7 +6207,7 @@ class LaunchSeeder extends Seeder
         $portalUser = User::updateOrCreate(
             ['email' => "{$slug}.client.portal@example.com"],
             [
-                'name' => Str::title(str_replace('-', ' ', $slug)) . ' Portal Client',
+                'name' => Str::title(str_replace('-', ' ', $slug)).' Portal Client',
                 'password' => Hash::make('password'),
                 'role_id' => $clientRoleId,
                 'email_verified_at' => $now,
@@ -5570,7 +6253,7 @@ class LaunchSeeder extends Seeder
                 'portal_user_id' => $portalUser->id,
                 'first_name' => 'Alex',
                 'last_name' => 'Primary',
-                'company_name' => Str::title($slug) . ' Primary Client',
+                'company_name' => Str::title($slug).' Primary Client',
                 'phone' => '+15145550201',
                 'description' => '[seed] primary customer',
                 'billing_same_as_physical' => true,
@@ -5586,7 +6269,7 @@ class LaunchSeeder extends Seeder
                 'portal_user_id' => null,
                 'first_name' => 'Taylor',
                 'last_name' => 'Alternate',
-                'company_name' => Str::title($slug) . ' Alternate Client',
+                'company_name' => Str::title($slug).' Alternate Client',
                 'phone' => '+15145550202',
                 'description' => '[seed] alternate customer',
                 'billing_same_as_physical' => true,
@@ -5632,7 +6315,7 @@ class LaunchSeeder extends Seeder
         $mainService = $services->get(0);
         $secondaryService = $services->get(1) ?: $mainService;
         $thirdService = $services->get(2) ?: $mainService;
-        if (!$mainService) {
+        if (! $mainService) {
             return;
         }
 
@@ -5652,7 +6335,7 @@ class LaunchSeeder extends Seeder
                 'queue_dispatch_mode' => 'fifo_with_appointment_priority',
                 'queue_grace_minutes' => 5,
                 'queue_pre_call_threshold' => 2,
-                'queue_no_show_on_grace_expiry' => !$isRestaurant,
+                'queue_no_show_on_grace_expiry' => ! $isRestaurant,
                 'deposit_required' => true,
                 'deposit_amount' => $isRestaurant ? 40 : 25,
                 'no_show_fee_enabled' => true,
@@ -5718,7 +6401,7 @@ class LaunchSeeder extends Seeder
                     'is_active' => true,
                 ]
             );
-            if (!empty($seed['key'])) {
+            if (! empty($seed['key'])) {
                 $resourceMap[(string) $seed['key']] = $resource;
             }
         }
@@ -5731,7 +6414,7 @@ class LaunchSeeder extends Seeder
         ];
 
         $resourceTypeFilters = collect($resourceSeeds)
-            ->map(fn(array $seed) => (string) ($seed['type'] ?? ''))
+            ->map(fn (array $seed) => (string) ($seed['type'] ?? ''))
             ->filter()
             ->unique()
             ->values()
@@ -6377,7 +7060,7 @@ class LaunchSeeder extends Seeder
             }
         }
 
-        if (!Schema::hasTable('works') || !Schema::hasTable('invoices') || !Schema::hasTable('payments')) {
+        if (! Schema::hasTable('works') || ! Schema::hasTable('invoices') || ! Schema::hasTable('payments')) {
             return;
         }
 
@@ -6389,7 +7072,7 @@ class LaunchSeeder extends Seeder
             [
                 'user_id' => $owner->id,
                 'customer_id' => $customerPrimary->id,
-                'job_title' => Str::title($slug) . ' Paid invoice scenario',
+                'job_title' => Str::title($slug).' Paid invoice scenario',
             ],
             [
                 'instructions' => '[seed] completed work with full payment and tip',
@@ -6404,7 +7087,7 @@ class LaunchSeeder extends Seeder
             [
                 'user_id' => $owner->id,
                 'customer_id' => $customerAlt->id,
-                'job_title' => Str::title($slug) . ' Partial invoice scenario',
+                'job_title' => Str::title($slug).' Partial invoice scenario',
             ],
             [
                 'instructions' => '[seed] completed work with partial payment and percent tip',
@@ -6419,7 +7102,7 @@ class LaunchSeeder extends Seeder
             [
                 'user_id' => $owner->id,
                 'customer_id' => $customerAlt->id,
-                'job_title' => Str::title($slug) . ' Reversed payment scenario',
+                'job_title' => Str::title($slug).' Reversed payment scenario',
             ],
             [
                 'instructions' => '[seed] payment reversal and tip reversal coverage',
@@ -6462,7 +7145,7 @@ class LaunchSeeder extends Seeder
 
         if (Schema::hasTable('invoice_items')) {
             InvoiceItem::query()->updateOrCreate(
-                ['invoice_id' => $paidInvoice->id, 'title' => $mainService->name . ' (paid scenario)'],
+                ['invoice_id' => $paidInvoice->id, 'title' => $mainService->name.' (paid scenario)'],
                 [
                     'work_id' => $paidWork->id,
                     'assigned_team_member_id' => $adminMember->id,
@@ -6476,7 +7159,7 @@ class LaunchSeeder extends Seeder
             );
 
             InvoiceItem::query()->updateOrCreate(
-                ['invoice_id' => $partialInvoice->id, 'title' => $secondaryService->name . ' (partial scenario)'],
+                ['invoice_id' => $partialInvoice->id, 'title' => $secondaryService->name.' (partial scenario)'],
                 [
                     'work_id' => $partialWork->id,
                     'assigned_team_member_id' => $memberMember->id,
@@ -6490,7 +7173,7 @@ class LaunchSeeder extends Seeder
             );
 
             InvoiceItem::query()->updateOrCreate(
-                ['invoice_id' => $reversedInvoice->id, 'title' => $thirdService->name . ' (reversal scenario)'],
+                ['invoice_id' => $reversedInvoice->id, 'title' => $thirdService->name.' (reversal scenario)'],
                 [
                     'work_id' => $reversedWork->id,
                     'assigned_team_member_id' => $adminMember->id,
@@ -6529,7 +7212,7 @@ class LaunchSeeder extends Seeder
 
         $tipAllocationsEnabled = Schema::hasTable('payment_tip_allocations');
         $syncTipAllocations = static function (?Payment $payment) use ($tipAllocationsEnabled): void {
-            if (!$tipAllocationsEnabled || !$payment) {
+            if (! $tipAllocationsEnabled || ! $payment) {
                 return;
             }
 
@@ -6538,7 +7221,7 @@ class LaunchSeeder extends Seeder
 
         $fullTipAmount = $isRestaurant ? 32.00 : 18.00;
         $fullPayment = Payment::query()->updateOrCreate(
-            ['invoice_id' => $paidInvoice->id, 'reference' => Str::upper($slug) . '-PAY-FULL'],
+            ['invoice_id' => $paidInvoice->id, 'reference' => Str::upper($slug).'-PAY-FULL'],
             $withTipData([
                 'customer_id' => $customerPrimary->id,
                 'user_id' => $owner->id,
@@ -6567,7 +7250,7 @@ class LaunchSeeder extends Seeder
         $partialTipPercent = 10.0;
         $partialTipAmount = round($partialAmount * ($partialTipPercent / 100), 2);
         $partialPayment = Payment::query()->updateOrCreate(
-            ['invoice_id' => $partialInvoice->id, 'reference' => Str::upper($slug) . '-PAY-PARTIAL'],
+            ['invoice_id' => $partialInvoice->id, 'reference' => Str::upper($slug).'-PAY-PARTIAL'],
             $withTipData([
                 'customer_id' => $customerAlt->id,
                 'user_id' => $owner->id,
@@ -6597,7 +7280,7 @@ class LaunchSeeder extends Seeder
         $reversedTipAmount = round($reversedAmount * ($reversedTipPercent / 100), 2);
         $reversedTipPart = round($reversedTipAmount * 0.5, 2);
         $reversedPayment = Payment::query()->updateOrCreate(
-            ['invoice_id' => $reversedInvoice->id, 'reference' => Str::upper($slug) . '-PAY-REVERSED'],
+            ['invoice_id' => $reversedInvoice->id, 'reference' => Str::upper($slug).'-PAY-REVERSED'],
             $withTipData([
                 'customer_id' => $customerAlt->id,
                 'user_id' => $owner->id,

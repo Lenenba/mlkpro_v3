@@ -1,13 +1,13 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import Modal from '@/Components/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TemplateManager from '@/Pages/Campaigns/Components/TemplateManager.vue';
 import SegmentManager from '@/Pages/Campaigns/Components/SegmentManager.vue';
 import MailingListManager from '@/Pages/Campaigns/Components/MailingListManager.vue';
 import VipManager from '@/Pages/Campaigns/Components/VipManager.vue';
@@ -64,6 +64,40 @@ const form = useForm({
     },
     templates: {
         allow_campaign_override: Boolean(props.marketingSettings?.templates?.allow_campaign_override ?? true),
+        brand_profile: {
+            name: props.marketingSettings?.templates?.brand_profile?.name || '',
+            tagline: props.marketingSettings?.templates?.brand_profile?.tagline || '',
+            description: props.marketingSettings?.templates?.brand_profile?.description || '',
+            logo_url: props.marketingSettings?.templates?.brand_profile?.logo_url || '',
+            website_url: props.marketingSettings?.templates?.brand_profile?.website_url || '',
+            contact_url: props.marketingSettings?.templates?.brand_profile?.contact_url || '',
+            support_url: props.marketingSettings?.templates?.brand_profile?.support_url || '',
+            booking_url: props.marketingSettings?.templates?.brand_profile?.booking_url || '',
+            contact_email: props.marketingSettings?.templates?.brand_profile?.contact_email || '',
+            reply_to_email: props.marketingSettings?.templates?.brand_profile?.reply_to_email || '',
+            phone: props.marketingSettings?.templates?.brand_profile?.phone || '',
+            address_line_1: props.marketingSettings?.templates?.brand_profile?.address_line_1 || '',
+            address_line_2: props.marketingSettings?.templates?.brand_profile?.address_line_2 || '',
+            city: props.marketingSettings?.templates?.brand_profile?.city || '',
+            province: props.marketingSettings?.templates?.brand_profile?.province || '',
+            country: props.marketingSettings?.templates?.brand_profile?.country || '',
+            postal_code: props.marketingSettings?.templates?.brand_profile?.postal_code || '',
+            primary_color: props.marketingSettings?.templates?.brand_profile?.primary_color || '#0F766E',
+            secondary_color: props.marketingSettings?.templates?.brand_profile?.secondary_color || '#0F172A',
+            accent_color: props.marketingSettings?.templates?.brand_profile?.accent_color || '#F59E0B',
+            surface_color: props.marketingSettings?.templates?.brand_profile?.surface_color || '#F8FAFC',
+            hero_background_color: props.marketingSettings?.templates?.brand_profile?.hero_background_color || '#ECFEFF',
+            footer_background_color: props.marketingSettings?.templates?.brand_profile?.footer_background_color || '#0F172A',
+            text_color: props.marketingSettings?.templates?.brand_profile?.text_color || '#0F172A',
+            muted_color: props.marketingSettings?.templates?.brand_profile?.muted_color || '#475569',
+            facebook_url: props.marketingSettings?.templates?.brand_profile?.facebook_url || '',
+            instagram_url: props.marketingSettings?.templates?.brand_profile?.instagram_url || '',
+            linkedin_url: props.marketingSettings?.templates?.brand_profile?.linkedin_url || '',
+            youtube_url: props.marketingSettings?.templates?.brand_profile?.youtube_url || '',
+            tiktok_url: props.marketingSettings?.templates?.brand_profile?.tiktok_url || '',
+            whatsapp_url: props.marketingSettings?.templates?.brand_profile?.whatsapp_url || '',
+            footer_note: props.marketingSettings?.templates?.brand_profile?.footer_note || '',
+        },
     },
     tracking: {
         click_tracking_enabled: Boolean(props.marketingSettings?.tracking?.click_tracking_enabled ?? true),
@@ -320,6 +354,18 @@ const toggleAllowedMode = (mode) => {
                 </div>
 
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Email brand profile</h2>
+                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        Configure colors, contact details, footer note, and social links used by marketing email templates.
+                    </p>
+                    <div class="mt-3">
+                        <PrimaryButton type="button" @click="openDialog('brand-profile-config')">
+                            {{ t('marketing.settings.open_form') }}
+                        </PrimaryButton>
+                    </div>
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.vip_automation.title') }}</h2>
                     <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
                         {{ t('marketing.settings.cards.vip_automation.description') }}
@@ -339,9 +385,11 @@ const toggleAllowedMode = (mode) => {
                         {{ t('marketing.settings.cards.template_manager.description') }}
                     </p>
                     <div class="mt-3">
-                        <PrimaryButton type="button" @click="openDialog('templates')">
-                            {{ t('marketing.settings.open_manager') }}
-                        </PrimaryButton>
+                        <Link :href="route('campaigns.templates.manage')">
+                            <PrimaryButton type="button">
+                                {{ t('marketing.settings.open_manager') }}
+                            </PrimaryButton>
+                        </Link>
                     </div>
                 </div>
 
@@ -378,6 +426,20 @@ const toggleAllowedMode = (mode) => {
                         <PrimaryButton type="button" @click="openDialog('vip-tiers')">
                             {{ t('marketing.settings.open_manager') }}
                         </PrimaryButton>
+                    </div>
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.prospect_provider_manager.title') }}</h2>
+                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.settings.cards.prospect_provider_manager.description') }}
+                    </p>
+                    <div class="mt-3">
+                        <Link :href="route('campaigns.prospect-providers.manage')">
+                            <PrimaryButton type="button">
+                                {{ t('marketing.settings.open_manager') }}
+                            </PrimaryButton>
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -570,6 +632,96 @@ const toggleAllowedMode = (mode) => {
                 </div>
             </Modal>
 
+            <Modal :show="activeDialog === 'brand-profile-config'" max-width="5xl" @close="closeDialog">
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Email brand profile</h2>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                These values feed the email builder automatically: logo, company links, colors, footer, and social proof.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                @click="closeDialog"
+                            >
+                                {{ t('marketing.common.close') }}
+                            </button>
+                            <PrimaryButton type="button" :disabled="form.processing" @click="submit">
+                                {{ t('marketing.common.save_configuration') }}
+                            </PrimaryButton>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                        <FloatingInput v-model="form.templates.brand_profile.name" label="Brand name" />
+                        <FloatingInput v-model="form.templates.brand_profile.tagline" label="Tagline" />
+                        <FloatingTextarea v-model="form.templates.brand_profile.description" label="Brand description" class="lg:col-span-2" />
+                        <FloatingInput v-model="form.templates.brand_profile.logo_url" label="Logo URL" class="lg:col-span-2" />
+                        <FloatingInput v-model="form.templates.brand_profile.website_url" label="Website URL" />
+                        <FloatingInput v-model="form.templates.brand_profile.contact_url" label="Contact URL" />
+                        <FloatingInput v-model="form.templates.brand_profile.support_url" label="Support URL" />
+                        <FloatingInput v-model="form.templates.brand_profile.booking_url" label="Booking URL" />
+                        <FloatingInput v-model="form.templates.brand_profile.contact_email" label="Contact email" />
+                        <FloatingInput v-model="form.templates.brand_profile.reply_to_email" label="Reply-to email" />
+                        <FloatingInput v-model="form.templates.brand_profile.phone" label="Phone" />
+                        <FloatingInput v-model="form.templates.brand_profile.address_line_1" label="Address line 1" />
+                        <FloatingInput v-model="form.templates.brand_profile.address_line_2" label="Address line 2" />
+                        <FloatingInput v-model="form.templates.brand_profile.city" label="City" />
+                        <FloatingInput v-model="form.templates.brand_profile.province" label="Province / state" />
+                        <FloatingInput v-model="form.templates.brand_profile.country" label="Country" />
+                        <FloatingInput v-model="form.templates.brand_profile.postal_code" label="Postal code" />
+                        <FloatingInput v-model="form.templates.brand_profile.facebook_url" label="Facebook URL" />
+                        <FloatingInput v-model="form.templates.brand_profile.instagram_url" label="Instagram URL" />
+                        <FloatingInput v-model="form.templates.brand_profile.linkedin_url" label="LinkedIn URL" />
+                        <FloatingInput v-model="form.templates.brand_profile.youtube_url" label="YouTube URL" />
+                        <FloatingInput v-model="form.templates.brand_profile.tiktok_url" label="TikTok URL" />
+                        <FloatingInput v-model="form.templates.brand_profile.whatsapp_url" label="WhatsApp URL" />
+                        <FloatingTextarea v-model="form.templates.brand_profile.footer_note" label="Footer note" class="lg:col-span-2" />
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                        <p class="text-xs font-semibold text-stone-700 dark:text-neutral-200">Color system</p>
+                        <div class="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>Primary</span>
+                                <input v-model="form.templates.brand_profile.primary_color" type="color" class="h-10 w-full rounded border border-stone-300 bg-white dark:border-neutral-600 dark:bg-neutral-900">
+                            </label>
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>Secondary</span>
+                                <input v-model="form.templates.brand_profile.secondary_color" type="color" class="h-10 w-full rounded border border-stone-300 bg-white dark:border-neutral-600 dark:bg-neutral-900">
+                            </label>
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>Accent</span>
+                                <input v-model="form.templates.brand_profile.accent_color" type="color" class="h-10 w-full rounded border border-stone-300 bg-white dark:border-neutral-600 dark:bg-neutral-900">
+                            </label>
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>Surface</span>
+                                <input v-model="form.templates.brand_profile.surface_color" type="color" class="h-10 w-full rounded border border-stone-300 bg-white dark:border-neutral-600 dark:bg-neutral-900">
+                            </label>
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>Hero background</span>
+                                <input v-model="form.templates.brand_profile.hero_background_color" type="color" class="h-10 w-full rounded border border-stone-300 bg-white dark:border-neutral-600 dark:bg-neutral-900">
+                            </label>
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>Footer background</span>
+                                <input v-model="form.templates.brand_profile.footer_background_color" type="color" class="h-10 w-full rounded border border-stone-300 bg-white dark:border-neutral-600 dark:bg-neutral-900">
+                            </label>
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>Text</span>
+                                <input v-model="form.templates.brand_profile.text_color" type="color" class="h-10 w-full rounded border border-stone-300 bg-white dark:border-neutral-600 dark:bg-neutral-900">
+                            </label>
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>Muted</span>
+                                <input v-model="form.templates.brand_profile.muted_color" type="color" class="h-10 w-full rounded border border-stone-300 bg-white dark:border-neutral-600 dark:bg-neutral-900">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </Modal>
+
             <Modal :show="activeDialog === 'vip-automation-config'" max-width="4xl" @close="closeDialog">
                 <div class="space-y-4 p-4">
                     <div class="flex flex-wrap items-center justify-between gap-2">
@@ -696,22 +848,6 @@ const toggleAllowedMode = (mode) => {
                             </div>
                         </div>
                     </div>
-                </div>
-            </Modal>
-
-            <Modal :show="activeDialog === 'templates'" max-width="4xl" @close="closeDialog">
-                <div class="space-y-3 p-4">
-                    <div class="flex items-center justify-between gap-2">
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.template_manager.title') }}</h2>
-                        <button
-                            type="button"
-                            class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                            @click="closeDialog"
-                        >
-                            {{ t('marketing.common.close') }}
-                        </button>
-                    </div>
-                    <TemplateManager v-if="activeDialog === 'templates'" :enums="enums" />
                 </div>
             </Modal>
 

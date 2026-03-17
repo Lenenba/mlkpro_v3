@@ -3,16 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\Campaign;
+use App\Models\CampaignProspect;
 use App\Models\CampaignRecipient;
 use App\Models\CampaignRun;
 use App\Models\Customer;
 use App\Models\User;
 use App\Services\Campaigns\AudienceResolver;
+use App\Services\Campaigns\CampaignProspectingOutreachService;
 use App\Services\Campaigns\CampaignService;
 use App\Services\Campaigns\CampaignTrackingService;
 use App\Services\Campaigns\TemplateRenderer;
-use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CampaignRunController extends Controller
@@ -22,13 +24,13 @@ class CampaignRunController extends Controller
         private readonly AudienceResolver $audienceResolver,
         private readonly TemplateRenderer $templateRenderer,
         private readonly CampaignTrackingService $trackingService,
-    ) {
-    }
+        private readonly CampaignProspectingOutreachService $prospectingOutreachService,
+    ) {}
 
     public function estimate(Request $request, Campaign $campaign)
     {
         [$owner, , $canManage] = $this->resolveCampaignAccess($request->user(), $campaign);
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -42,7 +44,7 @@ class CampaignRunController extends Controller
     public function preview(Request $request, Campaign $campaign)
     {
         [$owner, , $canManage] = $this->resolveCampaignAccess($request->user(), $campaign);
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -69,8 +71,23 @@ class CampaignRunController extends Controller
                 ->limit($sampleSize)
                 ->with(['defaultProperty', 'portalUser'])
                 ->get();
+        $prospectIds = collect($resolved['eligible'])
+            ->pluck('metadata.prospect_id')
+            ->filter()
+            ->unique()
+            ->take(50)
+            ->values();
+        $prospects = $prospectIds->isEmpty()
+            ? collect()
+            : CampaignProspect::query()
+                ->where('campaign_id', $campaign->id)
+                ->where('user_id', $owner->id)
+                ->whereIn('id', $prospectIds->all())
+                ->inRandomOrder()
+                ->limit($sampleSize)
+                ->get();
 
-        if ($customers->isEmpty()) {
+        if ($customers->isEmpty() && $prospects->isEmpty()) {
             $customers = collect([null]);
         }
 
@@ -85,11 +102,41 @@ class CampaignRunController extends Controller
                     'channel' => strtoupper((string) $channelModel->channel),
                     'customer' => $customer ? [
                         'id' => $customer->id,
-                        'name' => trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? '')),
+                        'name' => trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
                         'company' => $customer->company_name,
                         'email' => $customer->email,
                         'phone' => $customer->phone,
                     ] : null,
+                    'subject' => $rendered['subject'] ?? null,
+                    'title' => $rendered['title'] ?? null,
+                    'body' => $rendered['body'] ?? null,
+                    'character_count' => $rendered['character_count'] ?? null,
+                    'sms_segments' => $rendered['sms_segments'] ?? null,
+                    'sms_too_long' => $rendered['sms_too_long'] ?? false,
+                    'invalid_tokens' => $rendered['invalid_tokens'] ?? [],
+                ];
+            }
+        }
+
+        foreach ($prospects as $prospect) {
+            $context = $this->templateRenderer->buildContext(
+                $campaign,
+                null,
+                $product,
+                $this->prospectingOutreachService->contextExtrasFromProspect($prospect, $campaign)
+            );
+            foreach ($campaign->channels->where('is_enabled', true) as $channelModel) {
+                $rendered = $this->templateRenderer->renderChannel($channelModel, $context);
+                $previews[] = [
+                    'channel' => strtoupper((string) $channelModel->channel),
+                    'customer' => null,
+                    'prospect' => [
+                        'id' => $prospect->id,
+                        'name' => trim(($prospect->first_name ?? '').' '.($prospect->last_name ?? '')),
+                        'company' => $prospect->company_name,
+                        'email' => $prospect->email,
+                        'phone' => $prospect->phone,
+                    ],
                     'subject' => $rendered['subject'] ?? null,
                     'title' => $rendered['title'] ?? null,
                     'body' => $rendered['body'] ?? null,
@@ -110,7 +157,7 @@ class CampaignRunController extends Controller
     public function testSend(Request $request, Campaign $campaign)
     {
         [, , $canManage, $canSend] = $this->resolveCampaignAccess($request->user(), $campaign);
-        if (!$canManage && !$canSend) {
+        if (! $canManage && ! $canSend) {
             abort(403);
         }
 
@@ -134,7 +181,7 @@ class CampaignRunController extends Controller
     public function sendNow(Request $request, Campaign $campaign)
     {
         [, , , $canSend] = $this->resolveCampaignAccess($request->user(), $campaign);
-        if (!$canSend) {
+        if (! $canSend) {
             abort(403);
         }
 
@@ -153,7 +200,7 @@ class CampaignRunController extends Controller
     public function schedule(Request $request, Campaign $campaign)
     {
         [, , , $canSend] = $this->resolveCampaignAccess($request->user(), $campaign);
-        if (!$canSend) {
+        if (! $canSend) {
             abort(403);
         }
 
@@ -177,12 +224,12 @@ class CampaignRunController extends Controller
     public function exportRecipients(Request $request, CampaignRun $run): StreamedResponse
     {
         $campaign = $run->campaign()->first();
-        if (!$campaign) {
+        if (! $campaign) {
             abort(404);
         }
 
         [$owner, $canView] = $this->resolveCampaignAccess($request->user(), $campaign);
-        if (!$canView || (int) $campaign->user_id !== (int) $owner->id) {
+        if (! $canView || (int) $campaign->user_id !== (int) $owner->id) {
             abort(403);
         }
 
@@ -215,7 +262,7 @@ class CampaignRunController extends Controller
                     foreach ($recipients as $recipient) {
                         $name = trim(
                             ($recipient->customer?->company_name ?: '')
-                            ?: (($recipient->customer?->first_name ?? '') . ' ' . ($recipient->customer?->last_name ?? ''))
+                            ?: (($recipient->customer?->first_name ?? '').' '.($recipient->customer?->last_name ?? ''))
                         );
 
                         fputcsv($output, [
@@ -246,7 +293,7 @@ class CampaignRunController extends Controller
     public function recordConversion(Request $request, Campaign $campaign)
     {
         [, $canView] = $this->resolveCampaignAccess($request->user(), $campaign);
-        if (!$canView) {
+        if (! $canView) {
             abort(403);
         }
 
@@ -258,14 +305,14 @@ class CampaignRunController extends Controller
         ]);
 
         $recipient = null;
-        if (!empty($validated['campaign_recipient_id'])) {
+        if (! empty($validated['campaign_recipient_id'])) {
             $recipient = CampaignRecipient::query()
                 ->where('campaign_id', $campaign->id)
                 ->whereKey((int) $validated['campaign_recipient_id'])
                 ->first();
         }
 
-        if (!$recipient) {
+        if (! $recipient) {
             $recipient = CampaignRecipient::query()
                 ->where('campaign_id', $campaign->id)
                 ->where('customer_id', (int) $validated['customer_id'])
@@ -274,7 +321,7 @@ class CampaignRunController extends Controller
                 ->first();
         }
 
-        if (!$recipient) {
+        if (! $recipient) {
             return response()->json([
                 'message' => 'No eligible recipient found for conversion.',
             ], 404);
@@ -293,7 +340,7 @@ class CampaignRunController extends Controller
 
     private function resolveCampaignAccess(?User $user, Campaign $campaign): array
     {
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -302,7 +349,7 @@ class CampaignRunController extends Controller
             ? $user
             : User::query()->select(['id'])->find($ownerId);
 
-        if (!$owner) {
+        if (! $owner) {
             abort(403);
         }
 

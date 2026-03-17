@@ -9,6 +9,10 @@ use App\Models\User;
 
 class TemplateSeederService
 {
+    public function __construct(
+        private readonly EmailTemplateComposer $emailTemplateComposer,
+    ) {}
+
     /**
      * Seeds editable defaults directly into tenant templates.
      *
@@ -35,7 +39,10 @@ class TemplateSeederService
                     'updated_by_user_id' => $actorId,
                     'content' => $entry['content'],
                     'is_default' => true,
-                    'tags' => ['seed', 'starter', strtolower($entry['channel'])],
+                    'tags' => array_values(array_unique(array_merge(
+                        ['seed', 'starter', strtolower($entry['channel'])],
+                        is_array($entry['tags'] ?? null) ? $entry['tags'] : []
+                    ))),
                 ]
             );
 
@@ -65,11 +72,21 @@ class TemplateSeederService
     private function defaultTemplates(): array
     {
         $languages = ['FR', 'EN'];
-        $channels = [Campaign::CHANNEL_EMAIL, Campaign::CHANNEL_SMS, Campaign::CHANNEL_IN_APP];
-
         $rows = [];
+
+        foreach ($this->emailTemplateComposer->presetCatalog() as $preset) {
+            $rows[] = [
+                'name' => (string) $preset['name'],
+                'channel' => Campaign::CHANNEL_EMAIL,
+                'campaign_type' => (string) $preset['campaign_type'],
+                'language' => (string) $preset['language'],
+                'content' => is_array($preset['content'] ?? null) ? $preset['content'] : [],
+                'tags' => is_array($preset['tags'] ?? null) ? $preset['tags'] : [],
+            ];
+        }
+
         foreach (CampaignType::values() as $campaignType) {
-            foreach ($channels as $channel) {
+            foreach ([Campaign::CHANNEL_SMS, Campaign::CHANNEL_IN_APP] as $channel) {
                 foreach ($languages as $language) {
                     $rows[] = [
                         'name' => $this->templateName($campaignType, $channel, $language),
@@ -77,6 +94,7 @@ class TemplateSeederService
                         'campaign_type' => $campaignType,
                         'language' => $language,
                         'content' => $this->templateContent($campaignType, $channel, $language),
+                        'tags' => [],
                     ];
                 }
             }
@@ -105,7 +123,7 @@ class TemplateSeederService
             return [
                 'subject' => $isFrench
                     ? "Mise a jour {$campaignLabel} pour {firstName}"
-                    : ucfirst($campaignLabel) . ' update for {firstName}',
+                    : ucfirst($campaignLabel).' update for {firstName}',
                 'previewText' => $isFrench
                     ? 'Decouvrez votre offre: {offerName}'
                     : 'Discover your offer: {offerName}',
@@ -134,4 +152,3 @@ class TemplateSeederService
         ];
     }
 }
-
