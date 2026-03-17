@@ -403,10 +403,18 @@ class ApolloProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
 
         if (is_numeric($value)) {
             $count = (int) $value;
-            if ($count <= 10) return '1-10';
-            if ($count <= 50) return '11-50';
-            if ($count <= 200) return '51-200';
-            if ($count <= 500) return '201-500';
+            if ($count <= 10) {
+                return '1-10';
+            }
+            if ($count <= 50) {
+                return '11-50';
+            }
+            if ($count <= 200) {
+                return '51-200';
+            }
+            if ($count <= 500) {
+                return '201-500';
+            }
 
             return '500+';
         }

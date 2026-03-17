@@ -96,8 +96,7 @@ class TemplateRenderer
 
     public function __construct(
         private readonly BrandProfileService $brandProfileService,
-    ) {
-    }
+    ) {}
 
     public function allowedTokens(): array
     {
@@ -115,7 +114,7 @@ class TemplateRenderer
         $tokens = array_values(array_unique($matches[1] ?? []));
 
         return array_values(array_filter($tokens, function (string $token): bool {
-            return !in_array($token, self::ALLOWED_TOKENS, true);
+            return ! in_array($token, self::ALLOWED_TOKENS, true);
         }));
     }
 

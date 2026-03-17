@@ -12,11 +12,10 @@ class TemplateLibraryService
 {
     public function __construct(
         private readonly EmailTemplateComposer $emailTemplateComposer,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return Collection<int, MessageTemplate>
      */
     public function list(User $accountOwner, array $filters = []): Collection
@@ -33,6 +32,7 @@ class TemplateLibraryService
                 $language = $filters['language'];
                 if ($language === null || trim((string) $language) === '') {
                     $query->whereNull('language');
+
                     return;
                 }
 
@@ -41,7 +41,7 @@ class TemplateLibraryService
             ->when($filters['search'] ?? null, function (Builder $query, mixed $search): void {
                 $value = trim((string) $search);
                 if ($value !== '') {
-                    $query->where('name', 'like', '%' . $value . '%');
+                    $query->where('name', 'like', '%'.$value.'%');
                 }
             })
             ->orderByDesc('is_default')
@@ -67,7 +67,7 @@ class TemplateLibraryService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function save(
         User $accountOwner,
@@ -95,7 +95,7 @@ class TemplateLibraryService
         $content = is_array($payload['content'] ?? null) ? $payload['content'] : [];
         $normalizedContent = $this->normalizeContent($channel, $content);
 
-        $model = $template ?? new MessageTemplate();
+        $model = $template ?? new MessageTemplate;
         if ($model->exists && (int) $model->user_id !== (int) $accountOwner->id) {
             throw ValidationException::withMessages([
                 'template' => 'Template does not belong to this tenant.',
@@ -190,7 +190,7 @@ class TemplateLibraryService
     }
 
     /**
-     * @param array<string, mixed> $content
+     * @param  array<string, mixed>  $content
      * @return array<string, mixed>
      */
     public function normalizeContent(string $channel, array $content): array
@@ -271,8 +271,8 @@ class TemplateLibraryService
     }
 
     /**
-     * @param array<string, mixed> $content
-     * @param array<string, mixed> $context
+     * @param  array<string, mixed>  $content
+     * @param  array<string, mixed>  $context
      * @return array<string, mixed>
      */
     public function preview(
@@ -352,6 +352,7 @@ class TemplateLibraryService
     private function nullableString(mixed $value): ?string
     {
         $string = trim((string) $value);
+
         return $string !== '' ? $string : null;
     }
 }

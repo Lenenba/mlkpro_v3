@@ -11,8 +11,7 @@ class TemplateSeederService
 {
     public function __construct(
         private readonly EmailTemplateComposer $emailTemplateComposer,
-    ) {
-    }
+    ) {}
 
     /**
      * Seeds editable defaults directly into tenant templates.
@@ -124,7 +123,7 @@ class TemplateSeederService
             return [
                 'subject' => $isFrench
                     ? "Mise a jour {$campaignLabel} pour {firstName}"
-                    : ucfirst($campaignLabel) . ' update for {firstName}',
+                    : ucfirst($campaignLabel).' update for {firstName}',
                 'previewText' => $isFrench
                     ? 'Decouvrez votre offre: {offerName}'
                     : 'Discover your offer: {offerName}',

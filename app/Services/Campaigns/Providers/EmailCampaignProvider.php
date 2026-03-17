@@ -11,8 +11,7 @@ class EmailCampaignProvider implements CampaignChannelProvider
 {
     public function __construct(
         private readonly \App\Services\Campaigns\BrandProfileService $brandProfileService,
-    ) {
-    }
+    ) {}
 
     public function channel(): string
     {
@@ -22,7 +21,7 @@ class EmailCampaignProvider implements CampaignChannelProvider
     public function send(CampaignRecipient $recipient, CampaignMessage $message): array
     {
         $to = trim((string) $recipient->destination);
-        if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        if (! filter_var($to, FILTER_VALIDATE_EMAIL)) {
             return [
                 'ok' => false,
                 'provider' => 'mail',
