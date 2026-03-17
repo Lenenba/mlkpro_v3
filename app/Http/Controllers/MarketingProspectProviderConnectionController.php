@@ -13,8 +13,7 @@ class MarketingProspectProviderConnectionController extends Controller
     public function __construct(
         private readonly ProspectProviderConnectionService $connectionService,
         private readonly ProspectProviderRegistry $registry,
-    ) {
-    }
+    ) {}
 
     public function manage(Request $request)
     {

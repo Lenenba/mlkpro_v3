@@ -15,10 +15,9 @@ class CampaignTrackingController extends Controller
         string $token,
         CampaignTrackingService $trackingService,
         CampaignLeadAttributionService $leadAttributionService
-    )
-    {
+    ) {
         $resolved = $trackingService->resolveClickToken($token);
-        if (!$resolved || empty($resolved['url'])) {
+        if (! $resolved || empty($resolved['url'])) {
             abort(404);
         }
 
@@ -32,7 +31,7 @@ class CampaignTrackingController extends Controller
     public function unsubscribe(string $token, CampaignTrackingService $trackingService)
     {
         $recipient = $trackingService->unsubscribeByToken($token);
-        if (!$recipient) {
+        if (! $recipient) {
             abort(404);
         }
 
@@ -46,7 +45,7 @@ class CampaignTrackingController extends Controller
         CampaignTrackingService $trackingService,
         CampaignRunProgressService $progressService
     ) {
-        if (!$this->validWebhookSecret($request, 'sms_secret')) {
+        if (! $this->validWebhookSecret($request, 'sms_secret')) {
             abort(403);
         }
 
@@ -77,7 +76,7 @@ class CampaignTrackingController extends Controller
         CampaignTrackingService $trackingService,
         CampaignRunProgressService $progressService
     ) {
-        if (!$this->validWebhookSecret($request, 'email_secret')) {
+        if (! $this->validWebhookSecret($request, 'email_secret')) {
             abort(403);
         }
 
@@ -115,12 +114,13 @@ class CampaignTrackingController extends Controller
 
     private function validWebhookSecret(Request $request, string $key): bool
     {
-        $expected = (string) config('campaigns.webhooks.' . $key);
+        $expected = (string) config('campaigns.webhooks.'.$key);
         if ($expected === '') {
             return false;
         }
 
         $provided = (string) $request->header('X-Campaign-Webhook-Secret', '');
+
         return hash_equals($expected, $provided);
     }
 }

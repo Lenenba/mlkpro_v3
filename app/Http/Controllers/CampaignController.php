@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CampaignAudienceSourceLogic;
 use App\Http\Requests\Campaigns\StoreCampaignRequest;
 use App\Http\Requests\Campaigns\UpdateCampaignRequest;
-use App\Enums\CampaignAudienceSourceLogic;
 use App\Models\AudienceSegment;
 use App\Models\Campaign;
 use App\Models\CampaignProspect;
@@ -15,9 +15,9 @@ use App\Models\Product;
 use App\Models\User;
 use App\Models\VipTier;
 use App\Services\Campaigns\CampaignLeadAttributionService;
-use App\Services\Campaigns\ProspectProviderConnectionService;
 use App\Services\Campaigns\CampaignService;
 use App\Services\Campaigns\MarketingSettingsService;
+use App\Services\Campaigns\ProspectProviderConnectionService;
 use Illuminate\Http\Request;
 
 class CampaignController extends Controller
@@ -27,18 +27,17 @@ class CampaignController extends Controller
         private readonly MarketingSettingsService $marketingSettingsService,
         private readonly CampaignLeadAttributionService $leadAttributionService,
         private readonly ProspectProviderConnectionService $prospectProviderConnectionService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         [$owner, $canView, $canManage, $canSend] = $this->resolveCampaignAccess($user);
-        if (!$canView) {
+        if (! $canView) {
             abort(403);
         }
 
@@ -51,7 +50,7 @@ class CampaignController extends Controller
                     return;
                 }
 
-                $query->where('name', 'like', '%' . $search . '%');
+                $query->where('name', 'like', '%'.$search.'%');
             })
             ->when($filters['status'] ?? null, function ($query, $status): void {
                 $query->where('status', (string) $status);
@@ -99,12 +98,12 @@ class CampaignController extends Controller
     public function create(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         [$owner, , $canManage, $canSend] = $this->resolveCampaignAccess($user);
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -128,12 +127,12 @@ class CampaignController extends Controller
     public function store(StoreCampaignRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         [$owner, , $canManage] = $this->resolveCampaignAccess($user);
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -144,7 +143,7 @@ class CampaignController extends Controller
                 ->where('user_id', $owner->id)
                 ->whereKey($segmentId)
                 ->exists();
-            if (!$segmentExists) {
+            if (! $segmentExists) {
                 abort(422, 'Invalid segment for this tenant.');
             }
         }
@@ -166,12 +165,12 @@ class CampaignController extends Controller
     public function edit(Request $request, Campaign $campaign)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         [$owner, , $canManage, $canSend] = $this->resolveCampaignAccess($user);
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -208,12 +207,12 @@ class CampaignController extends Controller
     public function update(UpdateCampaignRequest $request, Campaign $campaign)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         [$owner, , $canManage] = $this->resolveCampaignAccess($user);
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -228,7 +227,7 @@ class CampaignController extends Controller
                 ->where('user_id', $owner->id)
                 ->whereKey($segmentId)
                 ->exists();
-            if (!$segmentExists) {
+            if (! $segmentExists) {
                 abort(422, 'Invalid segment for this tenant.');
             }
         }
@@ -250,12 +249,12 @@ class CampaignController extends Controller
     public function show(Request $request, Campaign $campaign)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         [$owner, $canView, $canManage, $canSend] = $this->resolveCampaignAccess($user);
-        if (!$canView) {
+        if (! $canView) {
             abort(403);
         }
 
@@ -415,12 +414,12 @@ class CampaignController extends Controller
     public function destroy(Request $request, Campaign $campaign)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         [$owner, , $canManage] = $this->resolveCampaignAccess($user);
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -669,11 +668,12 @@ class CampaignController extends Controller
         return $campaign->offers
             ->map(function ($offer) {
                 $model = $offer->offer;
-                if (!$model) {
+                if (! $model) {
                     return null;
                 }
 
                 $type = strtolower((string) ($model->item_type ?: $offer->offer_type));
+
                 return [
                     'offer_type' => $type,
                     'offer_id' => (int) $model->id,
@@ -700,7 +700,7 @@ class CampaignController extends Controller
             ? $user
             : User::query()->find($ownerId);
 
-        if (!$owner) {
+        if (! $owner) {
             abort(403);
         }
 

@@ -20,13 +20,12 @@ class MarketingMetaController extends Controller
         private readonly MarketingSettingsService $settingsService,
         private readonly ProspectProviderRegistry $prospectProviderRegistry,
         private readonly ProspectProviderConnectionService $prospectProviderConnectionService,
-    ) {
-    }
+    ) {}
 
     public function __invoke(Request $request)
     {
         [$owner, $canView] = $this->resolveAccess($request->user());
-        if (!$canView) {
+        if (! $canView) {
             abort(403);
         }
 
@@ -58,7 +57,7 @@ class MarketingMetaController extends Controller
 
     private function resolveAccess(?User $user): array
     {
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -66,7 +65,7 @@ class MarketingMetaController extends Controller
         $owner = $ownerId === $user->id
             ? $user
             : User::query()->select(['id'])->find($ownerId);
-        if (!$owner) {
+        if (! $owner) {
             abort(403);
         }
 

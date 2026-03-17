@@ -8,10 +8,10 @@ use App\Models\Customer;
 use App\Models\MessageTemplate;
 use App\Models\Product;
 use App\Models\User;
-use App\Utils\FileHandler;
+use App\Services\Campaigns\BrandProfileService;
 use App\Services\Campaigns\TemplateLibraryService;
 use App\Services\Campaigns\TemplateRenderer;
-use App\Services\Campaigns\BrandProfileService;
+use App\Utils\FileHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -24,13 +24,12 @@ class MarketingTemplateController extends Controller
         private readonly TemplateLibraryService $templateLibraryService,
         private readonly TemplateRenderer $templateRenderer,
         private readonly BrandProfileService $brandProfileService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request)
     {
         [$owner, $canView] = $this->resolveAccess($request->user());
-        if (!$canView) {
+        if (! $canView) {
             abort(403);
         }
 
@@ -72,7 +71,7 @@ class MarketingTemplateController extends Controller
     public function show(Request $request, MessageTemplate $template)
     {
         [$owner, $canView] = $this->resolveAccess($request->user());
-        if (!$canView) {
+        if (! $canView) {
             abort(403);
         }
 
@@ -90,7 +89,7 @@ class MarketingTemplateController extends Controller
     public function duplicate(Request $request, MessageTemplate $template)
     {
         [$owner, , $canManage] = $this->resolveAccess($request->user());
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -109,7 +108,7 @@ class MarketingTemplateController extends Controller
     public function store(Request $request)
     {
         [$owner, , $canManage] = $this->resolveAccess($request->user());
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -125,7 +124,7 @@ class MarketingTemplateController extends Controller
     public function update(Request $request, MessageTemplate $template)
     {
         [$owner, , $canManage] = $this->resolveAccess($request->user());
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -145,7 +144,7 @@ class MarketingTemplateController extends Controller
     public function destroy(Request $request, MessageTemplate $template)
     {
         [$owner, , $canManage] = $this->resolveAccess($request->user());
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -163,7 +162,7 @@ class MarketingTemplateController extends Controller
     public function preview(Request $request)
     {
         [$owner, , $canManage] = $this->resolveAccess($request->user());
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -197,7 +196,7 @@ class MarketingTemplateController extends Controller
     public function previewTemplate(Request $request, MessageTemplate $template)
     {
         [$owner, , $canManage] = $this->resolveAccess($request->user());
-        if (!$canManage) {
+        if (! $canManage) {
             abort(403);
         }
 
@@ -347,7 +346,7 @@ class MarketingTemplateController extends Controller
                 ->with(['defaultProperty', 'portalUser'])
                 ->first();
         }
-        if (!$customer) {
+        if (! $customer) {
             $customer = Customer::query()
                 ->where('user_id', $owner->id)
                 ->with(['defaultProperty', 'portalUser'])
@@ -362,7 +361,7 @@ class MarketingTemplateController extends Controller
                 ->whereKey($offerId)
                 ->first();
         }
-        if (!$offer) {
+        if (! $offer) {
             $offer = Product::query()
                 ->where('user_id', $owner->id)
                 ->where('is_active', true)
@@ -393,7 +392,7 @@ class MarketingTemplateController extends Controller
 
     private function resolveAccess(?User $user): array
     {
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -401,7 +400,7 @@ class MarketingTemplateController extends Controller
         $owner = $ownerId === $user->id
             ? $user
             : User::query()->find($ownerId);
-        if (!$owner) {
+        if (! $owner) {
             abort(403);
         }
 
