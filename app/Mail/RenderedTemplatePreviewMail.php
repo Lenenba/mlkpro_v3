@@ -14,8 +14,7 @@ class RenderedTemplatePreviewMail extends Mailable
     public function __construct(
         public readonly string $subjectLine,
         public readonly string $htmlBody,
-    ) {
-    }
+    ) {}
 
     public function build(): self
     {

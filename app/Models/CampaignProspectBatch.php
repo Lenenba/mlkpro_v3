@@ -12,10 +12,15 @@ class CampaignProspectBatch extends Model
     use HasFactory;
 
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_ANALYZED = 'analyzed';
+
     public const STATUS_APPROVED = 'approved';
+
     public const STATUS_RUNNING = 'running';
+
     public const STATUS_COMPLETED = 'completed';
+
     public const STATUS_CANCELED = 'canceled';
 
     protected $fillable = [

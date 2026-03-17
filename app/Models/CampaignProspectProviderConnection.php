@@ -11,14 +11,21 @@ class CampaignProspectProviderConnection extends Model
     use HasFactory;
 
     public const PROVIDER_APOLLO = 'apollo';
+
     public const PROVIDER_LUSHA = 'lusha';
+
     public const PROVIDER_UPLEAD = 'uplead';
 
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_CONNECTED = 'connected';
+
     public const STATUS_INVALID = 'invalid';
+
     public const STATUS_EXPIRED = 'expired';
+
     public const STATUS_RATE_LIMITED = 'rate_limited';
+
     public const STATUS_DISCONNECTED = 'disconnected';
 
     protected $fillable = [

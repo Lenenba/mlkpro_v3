@@ -13,33 +13,57 @@ class CampaignProspect extends Model
     use HasFactory;
 
     public const SOURCE_CSV = 'csv';
+
     public const SOURCE_CONNECTOR = 'connector';
+
     public const SOURCE_LANDING_PAGE = 'landing_page';
+
     public const SOURCE_DIRECTORY_API = 'directory_api';
+
     public const SOURCE_MANUAL = 'manual';
+
     public const SOURCE_ADS = 'ads';
+
     public const SOURCE_IMPORT = 'import';
 
     public const STATUS_NEW = 'new';
+
     public const STATUS_ENRICHED = 'enriched';
+
     public const STATUS_SCORED = 'scored';
+
     public const STATUS_APPROVED = 'approved';
+
     public const STATUS_CONTACTED = 'contacted';
+
     public const STATUS_FOLLOW_UP_DUE = 'follow_up_due';
+
     public const STATUS_REPLIED = 'replied';
+
     public const STATUS_QUALIFIED = 'qualified';
+
     public const STATUS_CONVERTED_TO_LEAD = 'converted_to_lead';
+
     public const STATUS_CONVERTED_TO_CUSTOMER = 'converted_to_customer';
+
     public const STATUS_DUPLICATE = 'duplicate';
+
     public const STATUS_BLOCKED = 'blocked';
+
     public const STATUS_DISQUALIFIED = 'disqualified';
+
     public const STATUS_DO_NOT_CONTACT = 'do_not_contact';
 
     public const MATCH_NONE = 'none';
+
     public const MATCH_CUSTOMER = 'matched_customer';
+
     public const MATCH_LEAD = 'matched_lead';
+
     public const MATCH_PROSPECT = 'matched_prospect';
+
     public const MATCH_BLOCKED_DESTINATION = 'blocked_destination';
+
     public const MATCH_MANUAL_REVIEW = 'manual_review_required';
 
     protected $fillable = [
