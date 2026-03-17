@@ -228,6 +228,9 @@ abstract class AbstractApiKeyProspectProviderAdapter implements ProspectProvider
                     'metadata' => [
                         ...((array) ($row['metadata'] ?? [])),
                         'provider_preview' => true,
+                        'provider_key' => $providerKey,
+                        'provider_label' => $providerLabel,
+                        'source_reference' => $sourceReference !== '' ? $sourceReference : null,
                         'provider_query' => $query !== '' ? $query : null,
                         'provider_query_label' => $queryLabel !== '' ? $queryLabel : null,
                     ],

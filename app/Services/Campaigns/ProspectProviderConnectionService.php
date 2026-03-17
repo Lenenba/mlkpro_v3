@@ -4,6 +4,7 @@ namespace App\Services\Campaigns;
 
 use App\Models\CampaignProspectProviderConnection;
 use App\Models\User;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -12,8 +13,7 @@ class ProspectProviderConnectionService
 {
     public function __construct(
         private readonly ProspectProviderRegistry $registry,
-    ) {
-    }
+    ) {}
 
     /**
      * @return Collection<int, CampaignProspectProviderConnection>
@@ -158,7 +158,16 @@ class ProspectProviderConnectionService
         $this->assertOwnership($owner, $connection);
 
         $adapter = $this->registry->adapter($connection->provider_key);
-        $result = $adapter->validateCredentials((array) ($connection->credentials ?? []));
+        try {
+            $result = $adapter->validateCredentials((array) ($connection->credentials ?? []));
+        } catch (ConnectionException $exception) {
+            $result = [
+                'ok' => false,
+                'status' => CampaignProspectProviderConnection::STATUS_DISCONNECTED,
+                'message' => 'The provider could not be reached while validating this connection.',
+            ];
+        }
+
         $validatedAt = Carbon::now();
 
         $connection->forceFill([

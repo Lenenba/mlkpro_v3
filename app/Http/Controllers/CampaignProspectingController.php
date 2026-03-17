@@ -21,8 +21,7 @@ class CampaignProspectingController extends Controller
         private readonly CampaignProspectingOutreachService $prospectingOutreachService,
         private readonly CampaignProspectConversionService $prospectConversionService,
         private readonly ProspectProviderPreviewService $prospectProviderPreviewService,
-    ) {
-    }
+    ) {}
 
     public function import(ImportCampaignProspectBatchRequest $request, Campaign $campaign)
     {
@@ -59,7 +58,7 @@ class CampaignProspectingController extends Controller
             'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
-        $preview = $this->prospectProviderPreviewService->preview($owner, $campaign, $validated);
+        $preview = $this->prospectProviderPreviewService->preview($owner, $request->user(), $campaign, $validated);
 
         return response()->json([
             'message' => 'Provider preview ready.',

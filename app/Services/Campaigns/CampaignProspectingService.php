@@ -20,6 +20,10 @@ use Illuminate\Validation\ValidationException;
 
 class CampaignProspectingService
 {
+    public function __construct(
+        private readonly ProspectProviderImportGuardService $importGuardService,
+    ) {}
+
     /**
      * @return Collection<int, CampaignProspectBatch>
      */
@@ -56,6 +60,14 @@ class CampaignProspectingService
         $nextBatchNumber = (int) $campaign->prospectBatches()->max('batch_number') + 1;
         $offerKeywords = $this->campaignOfferKeywords($campaign);
 
+        $this->importGuardService->assertImportableSelection(
+            owner: $accountOwner,
+            campaign: $campaign,
+            sourceType: $sourceType,
+            defaultSourceReference: is_string($sourceReference) ? $sourceReference : null,
+            rows: $rows,
+        );
+
         $batches = collect();
         foreach (array_chunk($rows, $batchSize) as $offset => $chunk) {
             $batch = DB::transaction(function () use (
@@ -87,12 +99,18 @@ class CampaignProspectingService
         ActivityLog::record(
             $actor,
             $campaign,
-            'campaign_prospects_imported',
+            $sourceType === CampaignProspect::SOURCE_CONNECTOR
+                ? 'campaign_provider_prospects_imported'
+                : 'campaign_prospects_imported',
             [
                 'campaign_id' => $campaign->id,
                 'batches_count' => $batches->count(),
                 'prospects_count' => count($rows),
                 'source_type' => $sourceType,
+                'source_reference' => $sourceReference,
+                'batch_ids' => $batches->pluck('id')->values()->all(),
+                'provider_keys' => $this->providerKeysFromRows($rows),
+                'provider_query_labels' => $this->providerQueryLabelsFromRows($rows),
             ],
             'Campaign prospect batches imported'
         );
@@ -321,10 +339,60 @@ class CampaignProspectingService
                 'blocked_reasons' => $blockedReasons,
                 'review_required_count' => $statusCounts['accepted_count'],
                 'source_type' => $sourceType,
+                'import_audit' => [
+                    'imported_at' => now()->toIso8601String(),
+                    'imported_by_user_id' => $actor->id,
+                    'source_reference' => $sourceReference,
+                    'provider_keys' => $this->providerKeysFromRows($rows),
+                    'provider_query_labels' => $this->providerQueryLabelsFromRows($rows),
+                    'provider_preview_refs' => $this->providerPreviewRefsFromRows($rows),
+                ],
             ],
         ])->save();
 
         return $batch->fresh();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, string>
+     */
+    private function providerKeysFromRows(array $rows): array
+    {
+        return collect($rows)
+            ->map(fn (array $row) => trim((string) data_get($row, 'metadata.provider_key')))
+            ->filter(fn (string $value) => $value !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, string>
+     */
+    private function providerQueryLabelsFromRows(array $rows): array
+    {
+        return collect($rows)
+            ->map(fn (array $row) => trim((string) data_get($row, 'metadata.provider_query_label')))
+            ->filter(fn (string $value) => $value !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, string>
+     */
+    private function providerPreviewRefsFromRows(array $rows): array
+    {
+        return collect($rows)
+            ->map(fn (array $row) => trim((string) data_get($row, 'metadata.provider_preview_ref')))
+            ->filter(fn (string $value) => $value !== '')
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function assertBatchReviewAccess(
@@ -896,6 +964,7 @@ class CampaignProspectingService
 
             if (! $destination) {
                 $missing[] = $channel;
+
                 continue;
             }
 
@@ -910,6 +979,7 @@ class CampaignProspectingService
 
             if ($isBlocked) {
                 $blocked[] = $channel;
+
                 continue;
             }
 
@@ -1182,7 +1252,6 @@ class CampaignProspectingService
     }
 
     /**
-     * @param  mixed  $value
      * @return array<int, string>
      */
     private function normalizeTags(mixed $value): array

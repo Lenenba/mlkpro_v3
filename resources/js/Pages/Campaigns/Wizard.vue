@@ -435,10 +435,17 @@ const canLoadProviderPreview = computed(() => {
 });
 
 const selectedProviderPreviewCount = computed(() => selectedProviderPreviewRefs.value.length);
+const importableProviderPreviewRows = computed(() => providerPreviewRows.value.filter((row) => !row?.already_imported));
+const providerPreviewFreshCount = computed(() => importableProviderPreviewRows.value.length);
+const providerPreviewAlreadyImportedCount = computed(() => providerPreviewRows.value.filter((row) => Boolean(row?.already_imported)).length);
 
 const allProviderPreviewSelected = computed(() => {
-    return providerPreviewRows.value.length > 0
-        && selectedProviderPreviewRefs.value.length === providerPreviewRows.value.length;
+    const importableRefs = importableProviderPreviewRows.value
+        .map((row) => String(row?.preview_ref || '').trim())
+        .filter((value) => value !== '');
+
+    return importableRefs.length > 0
+        && importableRefs.every((value) => selectedProviderPreviewRefs.value.includes(value));
 });
 
 const selectedProviderPreviewRows = computed(() => {
@@ -803,6 +810,17 @@ const providerPreviewMissingLabel = (field) => {
     return humanizeValue(field);
 };
 
+const providerPreviewImportedSummary = (row) => {
+    const status = row?.already_imported_status ? prospectStatusLabel(row.already_imported_status) : null;
+    const importedAt = row?.already_imported_at ? formatDateTime(row.already_imported_at) : null;
+
+    if (status && importedAt) {
+        return `${status} · ${importedAt}`;
+    }
+
+    return status || importedAt || '';
+};
+
 const toggleProviderPreviewSelection = (previewRef, checked) => {
     const normalizedRef = String(previewRef || '').trim();
     if (!normalizedRef) {
@@ -823,7 +841,7 @@ const toggleAllProviderPreviewRows = () => {
         return;
     }
 
-    selectedProviderPreviewRefs.value = providerPreviewRows.value
+    selectedProviderPreviewRefs.value = importableProviderPreviewRows.value
         .map((row) => String(row?.preview_ref || '').trim())
         .filter((value) => value !== '');
 };
@@ -1277,6 +1295,7 @@ const previewProviderProspects = async () => {
         providerPreviewMeta.value = response.data?.preview || null;
         providerPreviewConnection.value = response.data?.provider_connection || null;
         selectedProviderPreviewRefs.value = providerPreviewRows.value
+            .filter((row) => !row?.already_imported)
             .map((row) => String(row?.preview_ref || '').trim())
             .filter((value) => value !== '');
         providerPreviewMessage.value = response.data?.message || t('marketing.campaign_wizard.prospecting.messages.provider_preview_ready');
@@ -1352,7 +1371,12 @@ const importSelectedProviderProspects = async () => {
         const firstBatchId = Number(importedBatches[0]?.id || 0);
         await loadProspectBatches(firstBatchId > 0 ? firstBatchId : null);
     } catch (error) {
-        prospectingImportError.value = error?.response?.data?.message || error?.message || t('marketing.campaign_wizard.prospecting.errors.import_failed');
+        const validationErrors = error?.response?.data?.errors || {};
+        const firstValidationMessage = Object.values(validationErrors).flat()[0];
+        prospectingImportError.value = firstValidationMessage
+            || error?.response?.data?.message
+            || error?.message
+            || t('marketing.campaign_wizard.prospecting.errors.import_failed');
     } finally {
         prospectingImportBusy.value = false;
     }
@@ -2384,6 +2408,35 @@ watch(isProspectingMode, async (enabled) => {
                                 </span>
                             </div>
 
+                            <div
+                                v-if="providerPreviewRows.length"
+                                class="mt-3 grid grid-cols-1 gap-2 xl:grid-cols-3"
+                            >
+                                <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
+                                    <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.preview_fresh_rows') }}</div>
+                                    <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ providerPreviewMeta?.fresh_count ?? providerPreviewFreshCount }}</div>
+                                </div>
+                                <div class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-3 text-xs dark:border-amber-500/30 dark:bg-amber-500/10">
+                                    <div class="text-amber-700 dark:text-amber-300">{{ t('marketing.campaign_wizard.prospecting.preview_already_imported_rows') }}</div>
+                                    <div class="mt-1 text-lg font-semibold text-amber-900 dark:text-amber-100">{{ providerPreviewMeta?.already_imported_count ?? providerPreviewAlreadyImportedCount }}</div>
+                                </div>
+                                <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
+                                    <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.preview_last_imported_at') }}</div>
+                                    <div class="mt-1 font-medium text-stone-800 dark:text-neutral-100">{{ providerPreviewMeta?.latest_imported_at ? formatDateTime(providerPreviewMeta.latest_imported_at) : '-' }}</div>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 rounded-sm border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                                <div class="font-semibold">{{ t('marketing.campaign_wizard.prospecting.compliance_title') }}</div>
+                                <div class="mt-1">{{ t('marketing.campaign_wizard.prospecting.compliance_body') }}</div>
+                                <div class="mt-2">
+                                    {{ marketingSettings?.consent?.require_explicit
+                                        ? t('marketing.campaign_wizard.prospecting.compliance_consent_required')
+                                        : t('marketing.campaign_wizard.prospecting.compliance_consent_not_required') }}
+                                </div>
+                                <div class="mt-1">{{ t('marketing.campaign_wizard.prospecting.compliance_contactability') }}</div>
+                            </div>
+
                             <div v-if="providerPreviewBusy" class="mt-3 rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                                 {{ t('marketing.campaign_wizard.prospecting.preview_loading') }}
                             </div>
@@ -2449,6 +2502,7 @@ watch(isProspectingMode, async (enabled) => {
                                                     :checked="selectedProviderPreviewRefs.includes(row.preview_ref)"
                                                     type="checkbox"
                                                     class="rounded border-stone-300 text-green-600 focus:ring-green-600"
+                                                    :disabled="row.already_imported"
                                                     @change="toggleProviderPreviewSelection(row.preview_ref, $event.target.checked)"
                                                 >
                                             </td>
@@ -2480,6 +2534,13 @@ watch(isProspectingMode, async (enabled) => {
                                             <td class="px-3 py-3">
                                                 <div class="text-stone-500 dark:text-neutral-400">{{ row.provider_label || '-' }}</div>
                                                 <div class="mt-1 text-stone-500 dark:text-neutral-400">{{ row.source_reference || '-' }}</div>
+                                                <div
+                                                    v-if="row.already_imported"
+                                                    class="mt-2 rounded-sm border border-amber-200 bg-amber-50 px-2 py-2 text-[11px] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+                                                >
+                                                    <div class="font-semibold">{{ t('marketing.campaign_wizard.prospecting.preview_already_imported_badge') }}</div>
+                                                    <div class="mt-1">{{ providerPreviewImportedSummary(row) || t('marketing.campaign_wizard.prospecting.preview_already_imported_short') }}</div>
+                                                </div>
                                                 <div v-if="row.missing_fields?.length" class="mt-2 flex flex-wrap gap-1">
                                                     <span
                                                         v-for="field in row.missing_fields"

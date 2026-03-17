@@ -808,6 +808,11 @@
         "preview_loading": "Chargement de la preview fournisseur...",
         "preview_empty": "Aucune ligne de preview n est disponible pour cette requete fournisseur.",
         "preview_selected_count": "{count} selectionne(s) / {total} lignes",
+        "preview_fresh_rows": "Lignes fraiches",
+        "preview_already_imported_rows": "Deja importees",
+        "preview_last_imported_at": "Dernier import precedent",
+        "preview_already_imported_badge": "Deja importe dans cette campagne",
+        "preview_already_imported_short": "Importe plus tot pour cette campagne.",
         "preview_select_all": "Tout selectionner",
         "preview_unselect_all": "Tout deselectionner",
         "preview_columns": {
@@ -826,6 +831,11 @@
         },
         "import_summary_title": "Résumé de l import fournisseur",
         "import_summary_hint": "Les lignes de preview sélectionnées ont été envoyées dans le pipeline d analyse prospect existant et ont créé {batches} lot(s).",
+        "compliance_title": "Garde-fous d usage fournisseur",
+        "compliance_body": "Les donnees fournisseur servent uniquement a preparer des prospects candidats. Elles ne remplacent pas vos regles de consentement, vos listes d exclusion ou vos controles de contactabilite.",
+        "compliance_consent_required": "Le consentement explicite est actuellement requis par vos reglages marketing avant toute prise de contact applicable.",
+        "compliance_consent_not_required": "Le consentement explicite n est pas globalement requis dans vos reglages marketing, mais les regles de contactabilite et d opt-out continuent de s appliquer.",
+        "compliance_contactability": "Importez uniquement ce que vous etes pret a revoir, approuver et contacter dans le cadre des regles de la plateforme.",
         "import_summary": {
           "imported": "Importés",
           "analyzed": "Analysés",

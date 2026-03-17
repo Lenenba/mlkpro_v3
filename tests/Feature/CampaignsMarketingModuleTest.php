@@ -1,9 +1,11 @@
 <?php
 
+use App\Enums\CampaignType;
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Jobs\DispatchCampaignRunJob;
 use App\Jobs\SendCampaignRecipientJob;
 use App\Mail\RenderedTemplatePreviewMail;
+use App\Models\ActivityLog;
 use App\Models\Campaign;
 use App\Models\CampaignProspect;
 use App\Models\CampaignProspectActivity;
@@ -212,6 +214,41 @@ function fakeLushaPreviewResponses(array $contacts, array $enrichedContacts, str
     ]);
 }
 
+function fakeUpLeadValidationResponse(int $status = 200, array $body = ['data' => ['credits' => ['remaining' => 100]]]): void
+{
+    Http::fake([
+        'https://api.uplead.com/v2/credits' => Http::response($body, $status),
+        '*' => Http::response(['message' => 'Unexpected UpLead request'], 500),
+    ]);
+}
+
+function fakeUpLeadPreviewResponse(array $results): void
+{
+    Http::fake([
+        'https://api.uplead.com/v2/quick-search' => Http::response([
+            'data' => [
+                'results' => $results,
+                'pagination' => [
+                    'page' => 1,
+                    'total_pages' => 1,
+                    'total' => count($results),
+                ],
+            ],
+        ], 200),
+        '*' => Http::response(['message' => 'Unexpected UpLead request'], 500),
+    ]);
+}
+
+function fakeApolloValidationTimeout(): void
+{
+    Http::fake([
+        'https://api.apollo.io/v1/auth/health' => function () {
+            throw new \Illuminate\Http\Client\ConnectionException('Apollo timeout');
+        },
+        '*' => Http::response(['message' => 'Unexpected Apollo request'], 500),
+    ]);
+}
+
 beforeEach(function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $this->withoutMiddleware(EnsureTwoFactorVerified::class);
@@ -380,6 +417,47 @@ test('marketing owner can validate lusha prospect provider connection', function
     $validated->assertOk()
         ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_CONNECTED)
         ->assertJsonPath('provider_connection.is_active', true);
+});
+
+test('marketing owner can validate uplead prospect provider connection', function () {
+    $owner = marketingOwner();
+    fakeUpLeadValidationResponse();
+
+    $connection = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_UPLEAD,
+        'label' => 'UpLead main',
+        'credentials' => ['api_key' => 'uplead-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_DRAFT,
+        'is_active' => true,
+    ]);
+
+    $validated = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.validate', $connection));
+
+    $validated->assertOk()
+        ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_CONNECTED)
+        ->assertJsonPath('provider_connection.is_active', true);
+});
+
+test('marketing provider validation handles provider timeout gracefully', function () {
+    $owner = marketingOwner();
+    fakeApolloValidationTimeout();
+
+    $connection = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
+        'label' => 'Apollo timeout',
+        'credentials' => ['api_key' => 'apollo-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_DRAFT,
+        'is_active' => true,
+    ]);
+
+    $validated = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.validate', $connection));
+
+    $validated->assertOk()
+        ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_DISCONNECTED)
+        ->assertJsonPath('provider_connection.is_active', false)
+        ->assertJsonPath('provider_connection.last_error', 'The provider could not be reached while validating this connection.');
 });
 
 test('campaign team member can view prospect provider workspace in read only mode', function () {
@@ -686,6 +764,33 @@ test('campaign provider preview returns normalized rows without creating batches
         'is_marketing' => true,
     ]);
 
+    $existingBatch = CampaignProspectBatch::query()->create([
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_CONNECTOR,
+        'source_reference' => 'Apollo outbound',
+        'batch_number' => 1,
+        'input_count' => 1,
+        'accepted_count' => 1,
+        'status' => CampaignProspectBatch::STATUS_ANALYZED,
+    ]);
+
+    CampaignProspect::query()->create([
+        'campaign_id' => $campaign->id,
+        'campaign_prospect_batch_id' => $existingBatch->id,
+        'user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_CONNECTOR,
+        'source_reference' => 'Apollo outbound',
+        'external_ref' => 'apollo-person-2',
+        'company_name' => 'Summit Supply',
+        'contact_name' => 'Noah Grant',
+        'email' => 'noah.grant@summit-supply.example',
+        'email_normalized' => 'noah.grant@summit-supply.example',
+        'website' => 'https://summit-supply.example',
+        'website_domain' => 'summit-supply.example',
+        'status' => CampaignProspect::STATUS_APPROVED,
+    ]);
+
     $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
         'provider_connection_id' => $provider->id,
         'query_label' => 'Toronto retail',
@@ -697,6 +802,9 @@ test('campaign provider preview returns normalized rows without creating batches
         ->assertJsonPath('provider_connection.id', $provider->id)
         ->assertJsonPath('provider_connection.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO)
         ->assertJsonPath('preview.count', 2)
+        ->assertJsonPath('preview.selected_count', 1)
+        ->assertJsonPath('preview.fresh_count', 1)
+        ->assertJsonPath('preview.already_imported_count', 1)
         ->assertJsonPath('rows.0.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO)
         ->assertJsonPath('rows.0.source_type', CampaignProspect::SOURCE_CONNECTOR)
         ->assertJsonPath('rows.0.source_reference', 'Apollo outbound')
@@ -704,10 +812,13 @@ test('campaign provider preview returns normalized rows without creating batches
         ->assertJsonPath('rows.0.metadata.apollo_person_id', 'apollo-person-1')
         ->assertJsonPath('rows.0.metadata.apollo_organization_id', 'apollo-org-1')
         ->assertJsonPath('rows.0.email', 'mia.stone@north-retail.example')
-        ->assertJsonPath('rows.0.phone', '+14165550111');
+        ->assertJsonPath('rows.0.phone', '+14165550111')
+        ->assertJsonPath('rows.1.already_imported', true)
+        ->assertJsonPath('rows.1.already_imported_status', CampaignProspect::STATUS_APPROVED);
 
     expect((string) data_get($response->json(), 'rows.0.preview_ref'))->not->toBe('')
-        ->and(CampaignProspectBatch::query()->count())->toBe(0);
+        ->and(CampaignProspectBatch::query()->count())->toBe(1)
+        ->and(ActivityLog::query()->where('action', 'campaign_provider_preview_generated')->count())->toBe(1);
 });
 
 test('campaign provider preview rejects disconnected provider connection', function () {
@@ -859,6 +970,82 @@ test('campaign provider selection import reuses prospect batch analysis pipeline
         ->and($blocked->blocked_reason)->toBe('no_destination_for_enabled_channels');
 });
 
+test('campaign provider import rejects rows already imported for the same campaign source', function () {
+    $owner = marketingOwner();
+    allowColdOutbound($owner);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Provider duplicate guard',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $campaign->channels()->create([
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'is_enabled' => true,
+        'subject_template' => 'Hello {firstName}',
+        'body_template' => 'Body',
+    ]);
+
+    $batch = CampaignProspectBatch::query()->create([
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_CONNECTOR,
+        'source_reference' => 'Apollo outbound',
+        'batch_number' => 1,
+        'input_count' => 1,
+        'accepted_count' => 1,
+        'status' => CampaignProspectBatch::STATUS_ANALYZED,
+    ]);
+
+    CampaignProspect::query()->create([
+        'campaign_id' => $campaign->id,
+        'campaign_prospect_batch_id' => $batch->id,
+        'user_id' => $owner->id,
+        'source_type' => CampaignProspect::SOURCE_CONNECTOR,
+        'source_reference' => 'Apollo outbound',
+        'external_ref' => 'APOLLO-ROW-001',
+        'company_name' => 'North Retail Group',
+        'contact_name' => 'Mia Stone',
+        'email' => 'mia.stone@north-retail.example',
+        'email_normalized' => 'mia.stone@north-retail.example',
+        'status' => CampaignProspect::STATUS_APPROVED,
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-batches.import', $campaign), [
+        'source_type' => CampaignProspect::SOURCE_CONNECTOR,
+        'source_reference' => 'Apollo outbound',
+        'prospects' => [
+            [
+                'external_ref' => 'APOLLO-ROW-001',
+                'source_reference' => 'Apollo outbound',
+                'company_name' => 'North Retail Group',
+                'contact_name' => 'Mia Stone',
+                'email' => 'mia.stone@north-retail.example',
+                'metadata' => [
+                    'provider_key' => 'apollo',
+                    'provider_preview_ref' => 'APOLLO-PREVIEW-001',
+                ],
+            ],
+        ],
+    ]);
+
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['prospects']);
+
+    expect(CampaignProspectBatch::query()->count())->toBe(1)
+        ->and(ActivityLog::query()->where('action', 'campaign_provider_prospects_imported')->count())->toBe(0);
+});
+
 test('campaign lusha preview returns enriched rows and imported prospects keep lusha metadata', function () {
     $owner = marketingOwner();
     allowColdOutbound($owner);
@@ -982,6 +1169,126 @@ test('campaign lusha preview returns enriched rows and imported prospects keep l
         ->and(data_get($prospect->metadata, 'lusha_contact_id'))->toBe('lusha-contact-1')
         ->and(data_get($prospect->metadata, 'lusha_company_id'))->toBe('lusha-company-1')
         ->and(data_get($prospect->metadata, 'lusha_search_result'))->toBeTrue();
+});
+
+test('campaign uplead preview returns normalized rows and imported prospects keep uplead metadata', function () {
+    $owner = marketingOwner();
+    allowColdOutbound($owner);
+
+    fakeUpLeadPreviewResponse([
+        [
+            'id' => 'uplead-contact-1',
+            'first_name' => 'Liam',
+            'last_name' => 'Roy',
+            'title' => 'Procurement Director',
+            'email' => 'liam.roy@atlas-industrial.example',
+            'email_status' => 'verified',
+            'phone_number' => '+14165550333',
+            'linkedin_url' => 'https://linkedin.com/in/liam-roy',
+            'city' => 'Quebec City',
+            'state' => 'Quebec',
+            'country' => 'Canada',
+            'company' => [
+                'id' => 'uplead-company-1',
+                'company_name' => 'Atlas Industrial',
+                'domain' => 'atlas-industrial.example',
+                'industry' => 'Manufacturing',
+                'employees' => 140,
+                'city' => 'Quebec City',
+                'state' => 'Quebec',
+                'country' => 'Canada',
+            ],
+        ],
+    ]);
+
+    $provider = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_UPLEAD,
+        'label' => 'UpLead outbound',
+        'credentials' => ['api_key' => 'uplead-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'UpLead preview campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $campaign->channels()->create([
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'is_enabled' => true,
+        'subject_template' => 'Hello {firstName}',
+        'body_template' => 'Body',
+    ]);
+
+    $preview = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
+        'provider_connection_id' => $provider->id,
+        'query_label' => 'Quebec manufacturing',
+        'query' => 'Manufacturing companies in Quebec, procurement director',
+        'limit' => 1,
+    ]);
+
+    $preview->assertOk()
+        ->assertJsonPath('rows.0.provider_key', CampaignProspectProviderConnection::PROVIDER_UPLEAD)
+        ->assertJsonPath('rows.0.email', 'liam.roy@atlas-industrial.example')
+        ->assertJsonPath('rows.0.phone', '+14165550333')
+        ->assertJsonPath('rows.0.website', 'https://atlas-industrial.example')
+        ->assertJsonPath('rows.0.metadata.uplead_contact_id', 'uplead-contact-1')
+        ->assertJsonPath('rows.0.metadata.uplead_company_id', 'uplead-company-1')
+        ->assertJsonPath('rows.0.metadata.uplead_email_status', 'verified');
+
+    $previewRow = $preview->json('rows.0');
+
+    $import = $this->actingAs($owner)->postJson(route('campaigns.prospect-batches.import', $campaign), [
+        'source_type' => CampaignProspect::SOURCE_CONNECTOR,
+        'source_reference' => 'UpLead outbound',
+        'prospects' => [[
+            'external_ref' => $previewRow['external_ref'],
+            'source_reference' => $previewRow['source_reference'],
+            'company_name' => $previewRow['company_name'],
+            'contact_name' => $previewRow['contact_name'],
+            'first_name' => $previewRow['first_name'],
+            'last_name' => $previewRow['last_name'],
+            'email' => $previewRow['email'],
+            'phone' => $previewRow['phone'],
+            'website' => $previewRow['website'],
+            'city' => $previewRow['city'],
+            'state' => $previewRow['state'],
+            'country' => $previewRow['country'],
+            'industry' => $previewRow['industry'],
+            'company_size' => $previewRow['company_size'],
+            'tags' => $previewRow['tags'],
+            'metadata' => $previewRow['metadata'],
+        ]],
+    ]);
+
+    $import->assertCreated()
+        ->assertJsonPath('batches.0.accepted_count', 1)
+        ->assertJsonPath('batches.0.source_reference', 'UpLead outbound');
+
+    $prospect = CampaignProspect::query()->where('external_ref', 'uplead-contact-1')->firstOrFail();
+
+    expect($prospect->status)->toBe(CampaignProspect::STATUS_SCORED)
+        ->and(data_get($prospect->metadata, 'uplead_contact_id'))->toBe('uplead-contact-1')
+        ->and(data_get($prospect->metadata, 'uplead_company_id'))->toBe('uplead-company-1')
+        ->and(data_get($prospect->metadata, 'uplead_email_status'))->toBe('verified')
+        ->and(data_get($prospect->metadata, 'uplead_search_result'))->toBeTrue();
+
+    $batch = CampaignProspectBatch::query()->latest('id')->firstOrFail();
+    expect(data_get($batch->analysis_summary, 'import_audit.provider_keys'))->toBe(['uplead'])
+        ->and(data_get($batch->analysis_summary, 'import_audit.provider_query_labels'))->toBe(['Quebec manufacturing']);
 });
 
 test('segment can be saved loaded and counted', function () {
@@ -2260,11 +2567,20 @@ test('template seeder is idempotent for tenant defaults', function () {
 
     /** @var TemplateSeederService $templateSeeder */
     $templateSeeder = app(TemplateSeederService::class);
-    $templateSeeder->seedDefaultsForTenant($owner, $owner);
-    $templateSeeder->seedDefaultsForTenant($owner, $owner);
+    /** @var EmailTemplateComposer $emailTemplateComposer */
+    $emailTemplateComposer = app(EmailTemplateComposer::class);
 
+    $templateSeeder->seedDefaultsForTenant($owner, $owner);
+    $countAfterFirstSeed = MessageTemplate::query()->where('user_id', $owner->id)->count();
+
+    $expectedTemplateCount = count($emailTemplateComposer->presetCatalog())
+        + (count(CampaignType::values()) * 2 * 2);
+
+    $templateSeeder->seedDefaultsForTenant($owner, $owner);
     $templates = MessageTemplate::query()->where('user_id', $owner->id)->get();
-    expect($templates->count())->toBe(36);
+
+    expect($countAfterFirstSeed)->toBe($expectedTemplateCount)
+        ->and($templates->count())->toBe($expectedTemplateCount);
 
     $duplicates = DB::table('message_templates')
         ->select(['campaign_type', 'channel', 'language'])

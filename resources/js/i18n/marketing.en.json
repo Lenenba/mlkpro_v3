@@ -808,6 +808,11 @@
         "preview_loading": "Loading provider preview...",
         "preview_empty": "No preview row is available yet for this provider request.",
         "preview_selected_count": "{count} selected / {total} rows",
+        "preview_fresh_rows": "Fresh rows",
+        "preview_already_imported_rows": "Already imported",
+        "preview_last_imported_at": "Latest prior import",
+        "preview_already_imported_badge": "Already imported in this campaign",
+        "preview_already_imported_short": "Imported earlier for this campaign.",
         "preview_select_all": "Select all",
         "preview_unselect_all": "Unselect all",
         "preview_columns": {
@@ -826,6 +831,11 @@
         },
         "import_summary_title": "Provider import summary",
         "import_summary_hint": "The selected preview rows were sent through the existing prospect analysis pipeline and created {batches} batch(es).",
+        "compliance_title": "Provider usage guardrails",
+        "compliance_body": "Provider data only prepares candidate prospects. It does not replace your consent rules, suppression lists, or outreach eligibility checks.",
+        "compliance_consent_required": "Explicit consent is currently required by your marketing settings before outreach can proceed where applicable.",
+        "compliance_consent_not_required": "Explicit consent is not globally required in your marketing settings, but contactability and opt-out rules still apply.",
+        "compliance_contactability": "Only import what you are prepared to review, approve, and contact within the platform rules.",
         "import_summary": {
           "imported": "Imported",
           "analyzed": "Analyzed",
