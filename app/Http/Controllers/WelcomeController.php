@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\MegaMenus\MegaMenuRenderer;
+use App\Services\PublicLeadFormUrlService;
+use App\Services\TrackingService;
+use App\Services\WelcomeContentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Services\MegaMenus\MegaMenuRenderer;
-use App\Services\TrackingService;
-use App\Services\PublicLeadFormUrlService;
-use App\Services\WelcomeContentService;
 
 class WelcomeController extends Controller
 {

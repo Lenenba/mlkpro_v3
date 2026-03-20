@@ -210,7 +210,7 @@ class PlatformSettingsController extends BaseSuperAdminController
     {
         $contactFormUrl = trim((string) ($input['contact_form_url'] ?? ''));
 
-        if ($contactFormUrl !== '' && !str_starts_with($contactFormUrl, '/')) {
+        if ($contactFormUrl !== '' && ! str_starts_with($contactFormUrl, '/')) {
             $contactFormUrl = filter_var($contactFormUrl, FILTER_VALIDATE_URL) ? $contactFormUrl : '';
         }
 

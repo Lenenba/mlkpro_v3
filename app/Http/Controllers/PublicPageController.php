@@ -35,7 +35,7 @@ class PublicPageController extends Controller
                     $accountOwner = User::query()->find($customer->user_id);
                 }
             }
-            if (!$accountOwner) {
+            if (! $accountOwner) {
                 $ownerId = $user->accountOwnerId();
                 if ($ownerId) {
                     $accountOwner = $ownerId === $user->id ? $user : User::query()->find($ownerId);

@@ -29,7 +29,7 @@ class PlatformPageController extends BaseSuperAdminController
         $query = PlatformPage::query()
             ->with(['updatedBy:id,name,email'])
             ->when($filters['search'] !== '', function ($builder) use ($filters) {
-                $term = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $filters['search']) . '%';
+                $term = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $filters['search']).'%';
 
                 $builder->where(function ($nested) use ($term) {
                     $nested
@@ -180,7 +180,7 @@ class PlatformPageController extends BaseSuperAdminController
         $meta = $service->meta($page);
 
         $updatedBy = null;
-        if (!empty($meta['updated_by'])) {
+        if (! empty($meta['updated_by'])) {
             $user = User::query()->select(['id', 'name', 'email'])->find($meta['updated_by']);
             if ($user) {
                 $updatedBy = [

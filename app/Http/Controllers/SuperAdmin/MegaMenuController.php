@@ -24,8 +24,7 @@ class MegaMenuController extends BaseSuperAdminController
         private readonly MegaMenuManagerService $manager,
         private readonly MegaMenuRenderer $renderer,
         private readonly MegaMenuPayloadSanitizer $sanitizer,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -42,7 +41,7 @@ class MegaMenuController extends BaseSuperAdminController
             ->orderBy('ordering')
             ->orderBy('title');
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = trim((string) $filters['search']);
             $query->where(function ($builder) use ($search) {
                 $builder->where('title', 'like', "%{$search}%")
@@ -51,11 +50,11 @@ class MegaMenuController extends BaseSuperAdminController
             });
         }
 
-        if (!empty($filters['status']) && in_array($filters['status'], MegaMenuOptions::statuses(), true)) {
+        if (! empty($filters['status']) && in_array($filters['status'], MegaMenuOptions::statuses(), true)) {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['location']) && in_array($filters['location'], MegaMenuOptions::displayLocations(), true)) {
+        if (! empty($filters['location']) && in_array($filters['location'], MegaMenuOptions::displayLocations(), true)) {
             $query->where('display_location', $filters['location']);
         }
 
