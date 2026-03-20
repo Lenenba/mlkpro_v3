@@ -52,6 +52,7 @@ class PublicRequestController extends Controller
                 'logo_url' => $user->company_logo_url,
                 'phone' => $user->phone_number ?: config('app.support_phone'),
             ],
+            'embed' => $request->boolean('embed'),
             'submit_url' => URL::signedRoute('public.requests.store', ['user' => $user->id]),
             'suggest_url' => URL::signedRoute('public.requests.suggest', ['user' => $user->id]),
             'address_search_url' => URL::signedRoute('public.requests.address-search', ['user' => $user->id]),

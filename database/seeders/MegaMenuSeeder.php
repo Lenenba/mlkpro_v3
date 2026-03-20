@@ -7,13 +7,11 @@ use App\Models\PlatformPage;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Services\MegaMenus\MegaMenuManagerService;
+use App\Services\PublicLeadFormUrlService;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\URL;
 
 class MegaMenuSeeder extends Seeder
 {
-    private const CONTACT_FORM_FALLBACK_URL = 'https://malikiapro.com/public/requests/2?signature=8cbc3fe74d1a31d73705bcd0c2f357f518eeed1c9b83cdbae69444614e4166eb';
-
     public function run(): void
     {
         $userId = User::query()->where('email', 'superadmin@example.com')->value('id');
@@ -25,6 +23,7 @@ class MegaMenuSeeder extends Seeder
 
         $productPages = $this->syncProductPages($userId);
         $industryPages = $this->syncIndustryPages($userId);
+        $solutionPages = $this->syncSolutionPages($userId);
         $contactPage = $this->upsertPage(
             slug: 'contact-us',
             title: 'Contact us',
@@ -33,7 +32,7 @@ class MegaMenuSeeder extends Seeder
         );
         $manager = app(MegaMenuManagerService::class);
 
-        foreach ($this->menus($productPages, $industryPages, $contactPage) as $payload) {
+        foreach ($this->menus($productPages, $industryPages, $solutionPages, $contactPage) as $payload) {
             $existing = MegaMenu::query()->where('slug', $payload['slug'])->first();
 
             if ($existing) {
@@ -48,12 +47,13 @@ class MegaMenuSeeder extends Seeder
     /**
      * @param  array<string, PlatformPage>  $productPages
      * @param  array<string, PlatformPage>  $industryPages
+     * @param  array<string, PlatformPage>  $solutionPages
      * @return array<int, array<string, mixed>>
      */
-    private function menus(array $productPages, array $industryPages, PlatformPage $contactPage): array
+    private function menus(array $productPages, array $industryPages, array $solutionPages, PlatformPage $contactPage): array
     {
         return [
-            $this->mainHeaderMenu($productPages, $industryPages, $contactPage),
+            $this->mainHeaderMenu($productPages, $industryPages, $solutionPages, $contactPage),
             $this->footerMenu(),
         ];
     }
@@ -61,9 +61,10 @@ class MegaMenuSeeder extends Seeder
     /**
      * @param  array<string, PlatformPage>  $productPages
      * @param  array<string, PlatformPage>  $industryPages
+     * @param  array<string, PlatformPage>  $solutionPages
      * @return array<string, mixed>
      */
-    private function mainHeaderMenu(array $productPages, array $industryPages, PlatformPage $contactPage): array
+    private function mainHeaderMenu(array $productPages, array $industryPages, array $solutionPages, PlatformPage $contactPage): array
     {
         return [
             'slug' => 'main-header-menu',
@@ -82,7 +83,7 @@ class MegaMenuSeeder extends Seeder
             ],
             'items' => [
                 $this->productsAndServicesItem($productPages),
-                $this->solutionsItem(),
+                $this->solutionsItem($solutionPages),
                 $this->pricingItem(),
                 $this->industriesItem($industryPages),
                 $this->contactItem($contactPage),
@@ -150,6 +151,25 @@ class MegaMenuSeeder extends Seeder
                 slug: $industry['slug'],
                 title: $industry['title'],
                 content: $this->industryPageContent($industry),
+                userId: $userId
+            );
+        }
+
+        return $pages;
+    }
+
+    /**
+     * @return array<string, PlatformPage>
+     */
+    private function syncSolutionPages(?int $userId): array
+    {
+        $pages = [];
+
+        foreach ($this->solutionCatalog() as $key => $solution) {
+            $pages[$key] = $this->upsertPage(
+                slug: $solution['slug'],
+                title: $solution['title'],
+                content: $this->solutionPageContent($solution),
                 userId: $userId
             );
         }
@@ -249,6 +269,91 @@ class MegaMenuSeeder extends Seeder
     }
 
     /**
+     * @param  array<string, mixed>  $solution
+     * @return array<string, mixed>
+     */
+    private function solutionPageContent(array $solution): array
+    {
+        return [
+            'locales' => [
+                'fr' => [
+                    'page_title' => $solution['title'],
+                    'page_subtitle' => $solution['fr']['subtitle'],
+                    'sections' => $this->localizedSolutionSections($solution, 'fr'),
+                ],
+                'en' => [
+                    'page_title' => $solution['en']['title'],
+                    'page_subtitle' => $solution['en']['subtitle'],
+                    'sections' => $this->localizedSolutionSections($solution, 'en'),
+                ],
+            ],
+            'theme' => $this->publicPageTheme(),
+            'updated_at' => now()->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $solution
+     * @return array<int, array<string, mixed>>
+     */
+    private function localizedSolutionSections(array $solution, string $locale): array
+    {
+        $copy = $solution[$locale];
+        $imageAlt = $locale === 'fr' ? $solution['image_alt_fr'] : $solution['image_alt_en'];
+
+        $labels = $locale === 'fr'
+            ? [
+                'overview_kicker' => 'Solution',
+                'workflow_kicker' => 'Mode operatoire',
+                'modules_kicker' => 'Modules et pages',
+                'primary_label' => 'Voir les tarifs',
+                'secondary_label' => 'Contact us',
+            ]
+            : [
+                'overview_kicker' => 'Solution',
+                'workflow_kicker' => 'Operating model',
+                'modules_kicker' => 'Modules and pages',
+                'primary_label' => 'View pricing',
+                'secondary_label' => 'Contact us',
+            ];
+
+        return [
+            $this->pageSection(
+                id: 'solution-overview',
+                kicker: $labels['overview_kicker'],
+                title: $copy['overview_title'],
+                body: $copy['overview_body'],
+                items: $copy['overview_items'],
+                imageUrl: $solution['image_url'],
+                imageAlt: $imageAlt,
+                primaryLabel: $labels['primary_label'],
+                primaryHref: '/pricing',
+                secondaryLabel: $labels['secondary_label'],
+                secondaryHref: '/pages/contact-us'
+            ),
+            $this->pageSection(
+                id: 'solution-workflow',
+                kicker: $labels['workflow_kicker'],
+                title: $copy['workflow_title'],
+                body: $copy['workflow_body'],
+                items: $copy['workflow_items'],
+                imageUrl: $solution['image_url'],
+                imageAlt: $imageAlt,
+                backgroundColor: '#f8fafc'
+            ),
+            $this->pageSection(
+                id: 'solution-modules',
+                kicker: $labels['modules_kicker'],
+                title: $copy['modules_title'],
+                body: $copy['modules_body'],
+                items: $copy['modules_items'],
+                imageUrl: $solution['image_url'],
+                imageAlt: $imageAlt
+            ),
+        ];
+    }
+
+    /**
      * @param  array<int, string>  $items
      * @return array<string, mixed>
      */
@@ -304,15 +409,9 @@ class MegaMenuSeeder extends Seeder
         ];
     }
 
-    private function contactFormUrl(): string
+    private function contactFormUrl(array $parameters = []): string
     {
-        $userId = (int) config('app.lead_intake_user_id');
-
-        if ($userId > 0) {
-            return URL::signedRoute('public.requests.form', ['user' => $userId]);
-        }
-
-        return self::CONTACT_FORM_FALLBACK_URL;
+        return app(PublicLeadFormUrlService::class)->resolve((int) config('app.lead_intake_user_id'), $parameters) ?? '';
     }
 
     /**
@@ -462,6 +561,8 @@ class MegaMenuSeeder extends Seeder
     private function contactPageContent(): array
     {
         $formUrl = $this->contactFormUrl();
+        $embeddedFormUrl = $this->contactFormUrl(['embed' => 1]);
+        $hasEmbeddedForm = $formUrl !== '';
 
         return [
             'locales' => [
@@ -482,12 +583,12 @@ class MegaMenuSeeder extends Seeder
                             ],
                             imageUrl: '/images/mega-menu/platform-command-center.svg',
                             imageAlt: 'Illustration de contact plateforme',
-                            primaryLabel: 'Ouvrir le formulaire',
+                            primaryLabel: $hasEmbeddedForm ? 'Ouvrir le formulaire' : '',
                             primaryHref: $formUrl,
                             secondaryLabel: 'Voir les tarifs',
                             secondaryHref: '/pricing',
-                            embedUrl: $formUrl,
-                            embedTitle: 'Formulaire de demande commerciale',
+                            embedUrl: $hasEmbeddedForm ? $embeddedFormUrl : '',
+                            embedTitle: $hasEmbeddedForm ? 'Formulaire de demande commerciale' : '',
                             embedHeight: 820
                         ),
                     ],
@@ -509,12 +610,12 @@ class MegaMenuSeeder extends Seeder
                             ],
                             imageUrl: '/images/mega-menu/platform-command-center.svg',
                             imageAlt: 'Platform contact illustration',
-                            primaryLabel: 'Open the form',
+                            primaryLabel: $hasEmbeddedForm ? 'Open the form' : '',
                             primaryHref: $formUrl,
                             secondaryLabel: 'View pricing',
                             secondaryHref: '/pricing',
-                            embedUrl: $formUrl,
-                            embedTitle: 'Commercial inquiry form',
+                            embedUrl: $hasEmbeddedForm ? $embeddedFormUrl : '',
+                            embedTitle: $hasEmbeddedForm ? 'Commercial inquiry form' : '',
                             embedHeight: 820
                         ),
                     ],
@@ -638,7 +739,7 @@ class MegaMenuSeeder extends Seeder
     /**
      * @return array<string, mixed>
      */
-    private function solutionsItem(): array
+    private function solutionsItem(array $solutionPages): array
     {
         return [
             'label' => 'Solutions',
@@ -656,12 +757,12 @@ class MegaMenuSeeder extends Seeder
                 ],
             ],
             'children' => [
-                $this->classicLink('Services terrain', '/pricing#operations', 'Planification, interventions, preuves et suivi terrain.', 'Field services', 'Scheduling, field work, proofs, and operational follow-up.'),
-                $this->classicLink('Reservations & files', '/pricing#reservations', 'Prise de rendez-vous, disponibilite, kiosque et check-in.', 'Reservations & queues', 'Bookings, availability, kiosk, and check-in.'),
-                $this->classicLink('Vente & devis', '/pricing#sales-crm', 'Demandes, devis, clients et pipeline commercial.', 'Sales & quoting', 'Requests, quotes, customers, and pipeline.'),
-                $this->classicLink('Commerce & catalogue', '/pricing#commerce', 'Produits, services, boutique et commandes.', 'Commerce & catalog', 'Products, services, storefront, and orders.'),
-                $this->classicLink('Marketing & fidelisation', '/pricing#marketing', 'Campagnes, segments, VIP et automatisations.', 'Marketing & loyalty', 'Campaigns, segments, VIP, and automations.'),
-                $this->classicLink('Pilotage multi-entreprise', '/pricing#platform', 'Vue globale sur plusieurs entites et modules.', 'Multi-entity oversight', 'Shared visibility across entities and modules.'),
+                $this->classicLink('Services terrain', $this->pagePath($solutionPages['field-services']), 'Planification, interventions, preuves et suivi terrain.', 'Field services', 'Scheduling, field work, proofs, and operational follow-up.'),
+                $this->classicLink('Reservations & files', $this->pagePath($solutionPages['reservations-queues']), 'Prise de rendez-vous, disponibilite, kiosque et check-in.', 'Reservations & queues', 'Bookings, availability, kiosk, and check-in.'),
+                $this->classicLink('Vente & devis', $this->pagePath($solutionPages['sales-quoting']), 'Demandes, devis, clients et pipeline commercial.', 'Sales & quoting', 'Requests, quotes, customers, and pipeline.'),
+                $this->classicLink('Commerce & catalogue', $this->pagePath($solutionPages['commerce-catalog']), 'Produits, services, boutique et commandes.', 'Commerce & catalog', 'Products, services, storefront, and orders.'),
+                $this->classicLink('Marketing & fidelisation', $this->pagePath($solutionPages['marketing-loyalty']), 'Campagnes, segments, VIP et automatisations.', 'Marketing & loyalty', 'Campaigns, segments, VIP, and automations.'),
+                $this->classicLink('Pilotage multi-entreprise', $this->pagePath($solutionPages['multi-entity-oversight']), 'Vue globale sur plusieurs entites et modules.', 'Multi-entity oversight', 'Shared visibility across entities and modules.'),
             ],
         ];
     }
@@ -1168,6 +1269,411 @@ class MegaMenuSeeder extends Seeder
                         '2. Confirm bookings and deposits',
                         '3. Manage waiting and front-of-house arrival',
                         '4. Follow up after the visit',
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function solutionCatalog(): array
+    {
+        return [
+            'field-services' => [
+                'slug' => 'solution-field-services',
+                'title' => 'Services terrain',
+                'image_url' => '/images/mega-menu/operations-suite.svg',
+                'image_alt_fr' => 'Illustration de la solution services terrain',
+                'image_alt_en' => 'Field services solution illustration',
+                'fr' => [
+                    'subtitle' => '<p>Coordonnez la planification, l\'execution et la preuve de travail dans une seule solution pour les equipes terrain.</p>',
+                    'overview_title' => 'Une solution complete pour les operations terrain',
+                    'overview_body' => '<p>Cette solution rassemble la planification, les interventions, les taches et le suivi quotidien pour donner a chaque equipe le bon contexte au bon moment.</p>',
+                    'overview_items' => [
+                        'Planning equipe et dispatch centralises',
+                        'Jobs terrain avec preuves, notes et statuts',
+                        'Taches internes visibles par role ou equipe',
+                        'Suivi operationnel sans perte de contexte',
+                    ],
+                    'workflow_title' => 'Le parcours type de l\'intervention a la cloture',
+                    'workflow_body' => '<p>Les responsables planifient, assignent, suivent l\'execution puis valident la fin des travaux avec tout le contexte utile a disposition.</p>',
+                    'workflow_items' => [
+                        '1. Planifier les ressources et les plages de travail',
+                        '2. Assigner les jobs et interventions',
+                        '3. Suivre l\'avancement sur le terrain',
+                        '4. Cloturer avec preuve de travail et validation',
+                    ],
+                    'modules_title' => 'Modules et pages cles de la solution',
+                    'modules_body' => '<p>La solution active les espaces essentiels pour piloter une equipe terrain du debut a la fin.</p>',
+                    'modules_items' => [
+                        'Planning',
+                        'Jobs',
+                        'Taches',
+                        'Presence',
+                        'Equipe',
+                        'Preuves de travail',
+                    ],
+                ],
+                'en' => [
+                    'title' => 'Field services',
+                    'subtitle' => '<p>Coordinate scheduling, execution, and proof of work in one operating solution for field teams.</p>',
+                    'overview_title' => 'A complete solution for field operations',
+                    'overview_body' => '<p>This solution brings scheduling, jobs, tasks, and daily follow-up together so each team works with the right context at the right time.</p>',
+                    'overview_items' => [
+                        'Centralized team scheduling and dispatch',
+                        'Field jobs with proof, notes, and statuses',
+                        'Internal tasks visible by role or team',
+                        'Operational follow-up without context loss',
+                    ],
+                    'workflow_title' => 'The standard flow from dispatch to completion',
+                    'workflow_body' => '<p>Managers plan, assign, monitor execution, and validate completed work with all supporting context in one place.</p>',
+                    'workflow_items' => [
+                        '1. Plan resources and work windows',
+                        '2. Assign jobs and field visits',
+                        '3. Track execution on the ground',
+                        '4. Close the work with proof and validation',
+                    ],
+                    'modules_title' => 'Key modules and pages in the solution',
+                    'modules_body' => '<p>The solution activates the core spaces required to run a field team end to end.</p>',
+                    'modules_items' => [
+                        'Planning',
+                        'Jobs',
+                        'Tasks',
+                        'Presence',
+                        'Team',
+                        'Proofs',
+                    ],
+                ],
+            ],
+            'reservations-queues' => [
+                'slug' => 'solution-reservations-queues',
+                'title' => 'Reservations & files',
+                'image_url' => '/images/mega-menu/reservations-suite.svg',
+                'image_alt_fr' => 'Illustration de la solution reservations et files',
+                'image_alt_en' => 'Reservations and queues solution illustration',
+                'fr' => [
+                    'subtitle' => '<p>Transformez la reservation, l\'accueil et la file d\'attente en une experience fluide et visible en temps reel.</p>',
+                    'overview_title' => 'Une solution pour gerer le flux client avant et pendant la visite',
+                    'overview_body' => '<p>Reservations & files aligne disponibilites, confirmations, check-in et file d\'attente dans un seul parcours client.</p>',
+                    'overview_items' => [
+                        'Reservations en ligne avec disponibilite en direct',
+                        'Rappels et confirmations automatises',
+                        'Check-in sur site et kiosques en libre-service',
+                        'Vue temps reel sur la file et les arrivees',
+                    ],
+                    'workflow_title' => 'Du rendez-vous a l\'arrivee sans rupture',
+                    'workflow_body' => '<p>Le client reserve, l\'equipe confirme, la visite est geree sur place et les changements restent visibles pour tous les intervenants.</p>',
+                    'workflow_items' => [
+                        '1. Publier les plages et les ressources',
+                        '2. Accepter les reservations en self-service',
+                        '3. Gerer confirmations, retards et annulations',
+                        '4. Suivre la file et le check-in en direct',
+                    ],
+                    'modules_title' => 'Modules et pages cles de la solution',
+                    'modules_body' => '<p>La solution couvre la reservation avant visite et la gestion d\'accueil sur place.</p>',
+                    'modules_items' => [
+                        'Agenda',
+                        'Disponibilites',
+                        'Reservations client',
+                        'Kiosque client',
+                        'Kiosque public',
+                        'File d\'attente',
+                    ],
+                ],
+                'en' => [
+                    'title' => 'Reservations & queues',
+                    'subtitle' => '<p>Turn booking, reception, and queue handling into one smooth experience with live visibility.</p>',
+                    'overview_title' => 'A solution to manage customer flow before and during the visit',
+                    'overview_body' => '<p>Reservations & queues aligns availability, confirmations, check-in, and waitlist handling into one customer journey.</p>',
+                    'overview_items' => [
+                        'Online booking with live availability',
+                        'Automated reminders and confirmations',
+                        'On-site check-in and self-service kiosks',
+                        'Real-time view of queues and arrivals',
+                    ],
+                    'workflow_title' => 'From booking to arrival without friction',
+                    'workflow_body' => '<p>The customer books, the team confirms, the visit is handled on site, and every change stays visible to the whole team.</p>',
+                    'workflow_items' => [
+                        '1. Publish slots and resources',
+                        '2. Accept self-service bookings',
+                        '3. Handle confirmations, delays, and cancellations',
+                        '4. Track queue and check-in activity live',
+                    ],
+                    'modules_title' => 'Key modules and pages in the solution',
+                    'modules_body' => '<p>The solution covers pre-visit booking and on-site reception handling.</p>',
+                    'modules_items' => [
+                        'Calendar',
+                        'Availability',
+                        'Customer bookings',
+                        'Client kiosk',
+                        'Public kiosk',
+                        'Queue board',
+                    ],
+                ],
+            ],
+            'sales-quoting' => [
+                'slug' => 'solution-sales-quoting',
+                'title' => 'Vente & devis',
+                'image_url' => '/images/mega-menu/sales-crm-suite.svg',
+                'image_alt_fr' => 'Illustration de la solution vente et devis',
+                'image_alt_en' => 'Sales and quoting solution illustration',
+                'fr' => [
+                    'subtitle' => '<p>Captez les demandes, preparez les devis et suivez les opportunites dans un seul flux commercial.</p>',
+                    'overview_title' => 'Une solution pour structurer la conversion commerciale',
+                    'overview_body' => '<p>Vente & devis relie la capture de demande, la qualification, la preparation du devis et le suivi des opportunites jusqu\'a la signature.</p>',
+                    'overview_items' => [
+                        'Demandes centralisees depuis le web ou l\'equipe',
+                        'Fiches clients partagees et historique visible',
+                        'Devis avec statut, relance et approbation',
+                        'Pipeline commercial pour prioriser les opportunites',
+                    ],
+                    'workflow_title' => 'Du lead a la vente dans un seul parcours',
+                    'workflow_body' => '<p>L\'equipe capte la demande, qualifie le besoin, envoie le devis puis suit la decision sans sortir du meme espace de travail.</p>',
+                    'workflow_items' => [
+                        '1. Capturer le lead entrant',
+                        '2. Qualifier et enrichir le dossier client',
+                        '3. Preparer puis envoyer le devis',
+                        '4. Relancer et convertir en vente ou intervention',
+                    ],
+                    'modules_title' => 'Modules et pages cles de la solution',
+                    'modules_body' => '<p>La solution couvre les espaces commerciaux qui servent a convertir plus vite et mieux suivre.</p>',
+                    'modules_items' => [
+                        'Dashboard commercial',
+                        'Demandes',
+                        'Devis',
+                        'Clients',
+                        'Pipeline',
+                        'Scan de plans',
+                    ],
+                ],
+                'en' => [
+                    'title' => 'Sales & quoting',
+                    'subtitle' => '<p>Capture inbound demand, prepare quotes, and track opportunities inside one revenue workflow.</p>',
+                    'overview_title' => 'A solution to structure commercial conversion',
+                    'overview_body' => '<p>Sales & quoting connects demand capture, qualification, quote preparation, and opportunity follow-up through to signature.</p>',
+                    'overview_items' => [
+                        'Requests centralized from the web or team intake',
+                        'Shared customer records and visible history',
+                        'Quotes with status, follow-up, and approval',
+                        'A sales pipeline to prioritize opportunities',
+                    ],
+                    'workflow_title' => 'From lead to revenue in one path',
+                    'workflow_body' => '<p>The team captures demand, qualifies the request, sends the quote, and tracks the decision without leaving the same workspace.</p>',
+                    'workflow_items' => [
+                        '1. Capture inbound leads',
+                        '2. Qualify and enrich the customer record',
+                        '3. Prepare and send the quote',
+                        '4. Follow up and convert into work or revenue',
+                    ],
+                    'modules_title' => 'Key modules and pages in the solution',
+                    'modules_body' => '<p>The solution covers the commercial spaces used to convert faster and keep opportunity follow-up visible.</p>',
+                    'modules_items' => [
+                        'Sales dashboard',
+                        'Requests',
+                        'Quotes',
+                        'Customers',
+                        'Pipeline',
+                        'Plan scan',
+                    ],
+                ],
+            ],
+            'commerce-catalog' => [
+                'slug' => 'solution-commerce-catalog',
+                'title' => 'Commerce & catalogue',
+                'image_url' => '/images/mega-menu/commerce-suite.svg',
+                'image_alt_fr' => 'Illustration de la solution commerce et catalogue',
+                'image_alt_en' => 'Commerce and catalog solution illustration',
+                'fr' => [
+                    'subtitle' => '<p>Publiez votre offre, vendez, facturez et encaissez dans un meme environnement commercial.</p>',
+                    'overview_title' => 'Une solution pour monetiser sans fragmenter le parcours',
+                    'overview_body' => '<p>Commerce & catalogue relie le catalogue, la boutique, les commandes, les factures et les paiements dans un seul parcours de monetisation.</p>',
+                    'overview_items' => [
+                        'Catalogue produits et services unifie',
+                        'Boutique et parcours de commande coherents',
+                        'Facturation et suivi de paiement integres',
+                        'Paiements relies aux ventes et aux commandes',
+                    ],
+                    'workflow_title' => 'De l\'offre a l\'encaissement',
+                    'workflow_body' => '<p>Les equipes definissent l\'offre, vendent via la boutique ou en interne, generent la commande puis suivent le paiement sans ressaisie.</p>',
+                    'workflow_items' => [
+                        '1. Configurer produits, services et prix',
+                        '2. Ouvrir la vente via la boutique ou l\'equipe',
+                        '3. Generer commandes ou factures',
+                        '4. Suivre l\'encaissement et la finalisation',
+                    ],
+                    'modules_title' => 'Modules et pages cles de la solution',
+                    'modules_body' => '<p>La solution rassemble les espaces necessaires pour vendre et encaisser dans le meme cadre.</p>',
+                    'modules_items' => [
+                        'Produits',
+                        'Services',
+                        'Boutique',
+                        'Commandes',
+                        'Factures',
+                        'Paiements',
+                    ],
+                ],
+                'en' => [
+                    'title' => 'Commerce & catalog',
+                    'subtitle' => '<p>Publish your offer, sell, invoice, and collect payments inside one commercial environment.</p>',
+                    'overview_title' => 'A solution to monetize without fragmenting the journey',
+                    'overview_body' => '<p>Commerce & catalog connects the catalog, storefront, orders, invoices, and payments inside one monetization flow.</p>',
+                    'overview_items' => [
+                        'Unified product and service catalog',
+                        'Consistent storefront and ordering flow',
+                        'Integrated invoicing and payment tracking',
+                        'Payments connected to orders and sales',
+                    ],
+                    'workflow_title' => 'From offer to collection',
+                    'workflow_body' => '<p>Teams define the offer, sell through the storefront or internally, generate the order, and track collection without re-entering data.</p>',
+                    'workflow_items' => [
+                        '1. Configure products, services, and pricing',
+                        '2. Sell through the storefront or the internal team',
+                        '3. Generate orders or invoices',
+                        '4. Track collection and completion',
+                    ],
+                    'modules_title' => 'Key modules and pages in the solution',
+                    'modules_body' => '<p>The solution brings together the spaces required to sell and collect within one operating frame.</p>',
+                    'modules_items' => [
+                        'Products',
+                        'Services',
+                        'Storefront',
+                        'Orders',
+                        'Invoices',
+                        'Payments',
+                    ],
+                ],
+            ],
+            'marketing-loyalty' => [
+                'slug' => 'solution-marketing-loyalty',
+                'title' => 'Marketing & fidelisation',
+                'image_url' => '/images/mega-menu/marketing-loyalty-suite.svg',
+                'image_alt_fr' => 'Illustration de la solution marketing et fidelisation',
+                'image_alt_en' => 'Marketing and loyalty solution illustration',
+                'fr' => [
+                    'subtitle' => '<p>Activez la retention et les campagnes clients a partir des bons signaux, pas de listes statiques.</p>',
+                    'overview_title' => 'Une solution pour relancer, segmenter et fideliser',
+                    'overview_body' => '<p>Marketing & fidelisation relie l\'audience, les campagnes, les programmes VIP et les scenarios de relance aux donnees reelles du client.</p>',
+                    'overview_items' => [
+                        'Campagnes email et SMS plus pertinentes',
+                        'Segments bases sur l\'historique et le comportement',
+                        'Programmes VIP et avantages de fidelite',
+                        'Automatisations pour relancer au bon moment',
+                    ],
+                    'workflow_title' => 'Une execution marketing branchee sur la realite client',
+                    'workflow_body' => '<p>Les equipes choisissent l\'audience, preparent le message, lancent la campagne puis mesurent les retours avec le meme contexte client que le reste de la plateforme.</p>',
+                    'workflow_items' => [
+                        '1. Construire les segments utiles',
+                        '2. Creer le message ou le scenario',
+                        '3. Activer la diffusion sur les bons canaux',
+                        '4. Suivre reactivation, fidelite et valeur',
+                    ],
+                    'modules_title' => 'Modules et pages cles de la solution',
+                    'modules_body' => '<p>La solution regroupe l\'activation marketing et les programmes de retention dans un seul ensemble coherent.</p>',
+                    'modules_items' => [
+                        'Campagnes',
+                        'Mailing lists',
+                        'Audience segments',
+                        'Loyalty',
+                        'VIP tiers',
+                        'Prospect providers',
+                    ],
+                ],
+                'en' => [
+                    'title' => 'Marketing & loyalty',
+                    'subtitle' => '<p>Activate retention and customer campaigns from real operating signals, not static lists.</p>',
+                    'overview_title' => 'A solution to re-engage, segment, and retain',
+                    'overview_body' => '<p>Marketing & loyalty connects audience building, campaigns, VIP programs, and follow-up scenarios to real customer data.</p>',
+                    'overview_items' => [
+                        'More relevant email and SMS campaigns',
+                        'Segments based on history and behavior',
+                        'VIP programs and loyalty benefits',
+                        'Automations to re-engage at the right time',
+                    ],
+                    'workflow_title' => 'Marketing execution driven by real customer context',
+                    'workflow_body' => '<p>Teams choose the audience, prepare the message, launch the campaign, and measure results with the same customer context used across the platform.</p>',
+                    'workflow_items' => [
+                        '1. Build the right segments',
+                        '2. Create the message or scenario',
+                        '3. Activate delivery on the right channels',
+                        '4. Track reactivation, loyalty, and value',
+                    ],
+                    'modules_title' => 'Key modules and pages in the solution',
+                    'modules_body' => '<p>The solution groups campaign activation and retention programs into one coherent operating set.</p>',
+                    'modules_items' => [
+                        'Campaigns',
+                        'Mailing lists',
+                        'Audience segments',
+                        'Loyalty',
+                        'VIP tiers',
+                        'Prospect providers',
+                    ],
+                ],
+            ],
+            'multi-entity-oversight' => [
+                'slug' => 'solution-multi-entity-oversight',
+                'title' => 'Pilotage multi-entreprise',
+                'image_url' => '/images/mega-menu/platform-command-center.svg',
+                'image_alt_fr' => 'Illustration de la solution pilotage multi-entreprise',
+                'image_alt_en' => 'Multi-entity oversight solution illustration',
+                'fr' => [
+                    'subtitle' => '<p>Pilotez plusieurs entites, activites ou equipes avec une vue partagee sur les indicateurs et les priorites.</p>',
+                    'overview_title' => 'Une solution de pilotage pour les structures complexes',
+                    'overview_body' => '<p>Pilotage multi-entreprise offre une vue transverse sur les ventes, les operations et l\'activite client pour coordonner plusieurs entites sans perdre la lecture globale.</p>',
+                    'overview_items' => [
+                        'Vue consolidee sur plusieurs entites ou business units',
+                        'Indicateurs partages entre les modules cles',
+                        'Priorites et points d\'attention visibles rapidement',
+                        'Pilotage direction et responsables dans le meme espace',
+                    ],
+                    'workflow_title' => 'De la vision globale a l\'action terrain',
+                    'workflow_body' => '<p>Les responsables surveillent les indicateurs, detectent les priorites puis basculent vers le bon module ou la bonne equipe pour agir sans rupture.</p>',
+                    'workflow_items' => [
+                        '1. Lire les indicateurs globaux',
+                        '2. Identifier les ecarts ou opportunites',
+                        '3. Explorer le detail par equipe ou entite',
+                        '4. Coordonner les prochaines actions',
+                    ],
+                    'modules_title' => 'Modules et pages cles de la solution',
+                    'modules_body' => '<p>La solution s\'appuie sur des vues transverses et des espaces de commandement partages.</p>',
+                    'modules_items' => [
+                        'Dashboard global',
+                        'Vue revenu',
+                        'Vue operations',
+                        'Vue equipe',
+                        'Alertes',
+                        'Rapports partages',
+                    ],
+                ],
+                'en' => [
+                    'title' => 'Multi-entity oversight',
+                    'subtitle' => '<p>Lead multiple entities, business units, or teams with a shared view of indicators and priorities.</p>',
+                    'overview_title' => 'A leadership solution for more complex structures',
+                    'overview_body' => '<p>Multi-entity oversight gives leadership a cross-functional view of sales, operations, and customer activity so several entities can be coordinated without losing the big picture.</p>',
+                    'overview_items' => [
+                        'Consolidated view across entities or business units',
+                        'Shared indicators across core modules',
+                        'Attention points surfaced quickly',
+                        'Leadership and managers working from the same view',
+                    ],
+                    'workflow_title' => 'From top-level visibility to action in the field',
+                    'workflow_body' => '<p>Leaders monitor indicators, detect priorities, and jump into the right module or team to act without breaking context.</p>',
+                    'workflow_items' => [
+                        '1. Review top-level indicators',
+                        '2. Identify gaps or opportunities',
+                        '3. Drill into detail by team or entity',
+                        '4. Coordinate next actions',
+                    ],
+                    'modules_title' => 'Key modules and pages in the solution',
+                    'modules_body' => '<p>The solution relies on shared command views and cross-functional operating spaces.</p>',
+                    'modules_items' => [
+                        'Global dashboard',
+                        'Revenue view',
+                        'Operations view',
+                        'Team view',
+                        'Alerts',
+                        'Shared reports',
                     ],
                 ],
             ],

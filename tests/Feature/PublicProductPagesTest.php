@@ -2,6 +2,8 @@
 
 use App\Models\PlatformSetting;
 use App\Models\PlatformPage;
+use App\Models\Role;
+use App\Models\User;
 use App\Services\MegaMenus\MegaMenuRenderer;
 use Database\Seeders\MegaMenuSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,6 +31,15 @@ it('seeds public product pages and links the showcase menu to them', function ()
 });
 
 it('seeds industries and contact us in the public header', function () {
+    $ownerRole = Role::query()->firstOrCreate(['name' => 'owner'], ['description' => 'Owner']);
+    User::query()->create([
+        'name' => 'Owner Services',
+        'email' => 'owner.services@example.com',
+        'role_id' => $ownerRole->id,
+        'password' => 'password',
+        'company_features' => ['requests' => true],
+    ]);
+
     $this->seed(MegaMenuSeeder::class);
 
     $menu = app(MegaMenuRenderer::class)->resolveBySlug('main-header-menu');
@@ -50,6 +61,11 @@ it('seeds industries and contact us in the public header', function () {
     expect($contact)->not->toBeNull();
     expect($contact['resolved_href'])->toBe('/pages/contact-us');
 
+    $contactPage = PlatformPage::query()
+        ->where('slug', 'contact-us')
+        ->firstOrFail();
+    $embedUrl = $contactPage->content['locales']['fr']['sections'][0]['embed_url'] ?? '';
+
     $this->get(route('public.pages.show', ['slug' => 'contact-us']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -57,7 +73,34 @@ it('seeds industries and contact us in the public header', function () {
             ->where('page.slug', 'contact-us')
             ->where('content.sections.0.embed_height', 820)
             ->where('content.sections.0.embed_title', fn ($value) => in_array($value, ['Formulaire de demande commerciale', 'Commercial inquiry form'], true))
-            ->where('content.sections.0.embed_url', fn ($value) => is_string($value) && str_contains($value, '/public/requests/'))
+            ->where('content.sections.0.embed_url', fn ($value) => is_string($value) && str_contains($value, '/public/requests/') && str_contains($value, 'embed=1'))
+        );
+
+    expect($embedUrl)->not->toBeEmpty();
+
+    $this->get($embedUrl)->assertOk();
+});
+
+it('seeds public solution pages and links the solutions menu to them', function () {
+    $this->seed(MegaMenuSeeder::class);
+
+    $menu = app(MegaMenuRenderer::class)->resolveBySlug('main-header-menu');
+    $solutions = $menu['items'][1] ?? null;
+    $firstSolution = $solutions['children'][0] ?? null;
+
+    expect($solutions)->not->toBeNull();
+    expect($solutions['label'])->toBe('Solutions');
+    expect($solutions['children'])->toHaveCount(6);
+    expect($firstSolution)->not->toBeNull();
+    expect($firstSolution['resolved_href'])->toBe('/pages/solution-field-services');
+
+    $this->get(route('public.pages.show', ['slug' => 'solution-field-services']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Public/Page')
+            ->where('page.slug', 'solution-field-services')
+            ->where('content.page_title', fn ($value) => in_array($value, ['Services terrain', 'Field services'], true))
+            ->has('content.sections', 3)
         );
 });
 

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
@@ -12,6 +12,10 @@ const props = defineProps({
     company: {
         type: Object,
         required: true,
+    },
+    embed: {
+        type: Boolean,
+        default: false,
     },
     submit_url: {
         type: String,
@@ -28,6 +32,8 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const isEmbedded = computed(() => props.embed === true);
+const logoVisible = ref(Boolean(props.company?.logo_url));
 
 const contactPhone = computed(() => (props.company?.phone || '').trim());
 const phoneHref = computed(() => {
@@ -96,6 +102,17 @@ const submitLabel = computed(() => (
         ? t('requests.form.receive_quote')
         : t('requests.form.request_call')
 ));
+const shellComponent = computed(() => (isEmbedded.value ? 'div' : GuestLayout));
+const shellProps = computed(() => (
+    isEmbedded.value
+        ? { class: 'min-h-full w-full overflow-hidden bg-white p-4 text-stone-900 sm:p-5' }
+        : {
+            cardClass: 'mt-6 w-full max-w-2xl rounded-sm border border-stone-200 bg-white px-6 py-6 shadow-md dark:border-neutral-700 dark:bg-neutral-900',
+        }
+));
+const contentClass = computed(() => (isEmbedded.value ? 'w-full space-y-6' : 'space-y-6'));
+let embeddedResizeObserver = null;
+let embeddedMutationObserver = null;
 
 const addressQuery = ref('');
 const addressSuggestions = ref([]);
@@ -287,11 +304,32 @@ const syncSelectedServiceIds = () => {
 };
 
 watch(catalogServices, syncSelectedServiceIds, { immediate: true });
+watch(
+    () => props.company?.logo_url,
+    (value) => {
+        logoVisible.value = Boolean(value);
+    },
+    { immediate: true }
+);
 seedAddressFromForm();
 
 onBeforeUnmount(() => {
     if (addressSearchTimeout) {
         clearTimeout(addressSearchTimeout);
+    }
+
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', postEmbeddedHeight);
+    }
+
+    if (embeddedResizeObserver) {
+        embeddedResizeObserver.disconnect();
+        embeddedResizeObserver = null;
+    }
+
+    if (embeddedMutationObserver) {
+        embeddedMutationObserver.disconnect();
+        embeddedMutationObserver = null;
     }
 });
 
@@ -324,20 +362,77 @@ const submit = () => {
         },
     });
 };
+
+const handleLogoError = () => {
+    logoVisible.value = false;
+};
+
+const postEmbeddedHeight = () => {
+    if (!isEmbedded.value || typeof window === 'undefined' || window.parent === window) {
+        return;
+    }
+
+    window.requestAnimationFrame(() => {
+        const body = document.body;
+        const root = document.documentElement;
+        const height = Math.max(
+            body?.scrollHeight ?? 0,
+            body?.offsetHeight ?? 0,
+            root?.scrollHeight ?? 0,
+            root?.offsetHeight ?? 0,
+            root?.clientHeight ?? 0
+        );
+
+        if (height > 0) {
+            window.parent.postMessage(
+                {
+                    type: 'public-lead-form-height',
+                    height,
+                },
+                '*'
+            );
+        }
+    });
+};
+
+onMounted(() => {
+    if (!isEmbedded.value || typeof window === 'undefined') {
+        return;
+    }
+
+    window.addEventListener('resize', postEmbeddedHeight);
+    nextTick(() => postEmbeddedHeight());
+
+    if ('ResizeObserver' in window && document.body) {
+        embeddedResizeObserver = new ResizeObserver(() => postEmbeddedHeight());
+        embeddedResizeObserver.observe(document.body);
+    }
+
+    if ('MutationObserver' in window && document.body) {
+        embeddedMutationObserver = new MutationObserver(() => postEmbeddedHeight());
+        embeddedMutationObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+        });
+    }
+});
 </script>
 
 <template>
-    <GuestLayout :card-class="'mt-6 w-full max-w-2xl rounded-sm border border-stone-200 bg-white px-6 py-6 shadow-md dark:border-neutral-700 dark:bg-neutral-900'">
+    <component :is="shellComponent" v-bind="shellProps">
         <Head :title="$t('requests.form.title')" />
 
+        <div :class="contentClass">
         <div class="flex flex-col items-center gap-2 text-center">
             <img
-                v-if="company.logo_url"
+                v-if="logoVisible && company.logo_url"
                 :src="company.logo_url"
                 :alt="company.name"
                 class="h-12 w-12 rounded-sm object-contain"
                 loading="lazy"
                 decoding="async"
+                @error="handleLogoError"
             >
             <div class="text-sm text-stone-500 dark:text-neutral-400">{{ company.name }}</div>
             <h1 class="text-2xl font-semibold text-stone-800 dark:text-neutral-100">
@@ -563,5 +658,6 @@ const submit = () => {
                 </div>
             </div>
         </form>
-    </GuestLayout>
+        </div>
+    </component>
 </template>

@@ -117,6 +117,8 @@ const themeStyle = computed(() => {
 });
 
 const primaryButtonClass = computed(() => `public-button--${theme.value?.button_style || 'solid'}`);
+const embeddedFrameRefs = ref({});
+const embeddedFrameHeights = ref({});
 
 const pageHeader = computed(() => ({
     background_type: props.content?.header?.background_type || 'none',
@@ -192,14 +194,88 @@ const heroContentClass = computed(() => {
     return 'mx-auto max-w-4xl text-center';
 });
 
+const resolveSectionKey = (section, index) => section?.id || `section-${index}`;
+
+const setEmbeddedFrameRef = (sectionKey, element) => {
+    if (!sectionKey) {
+        return;
+    }
+
+    if (element) {
+        embeddedFrameRefs.value[sectionKey] = element;
+        return;
+    }
+
+    delete embeddedFrameRefs.value[sectionKey];
+};
+
+const updateEmbeddedFrameHeight = (sectionKey, height, fallback = 760) => {
+    const numericHeight = Number(height);
+    if (!Number.isFinite(numericHeight) || numericHeight <= 0) {
+        return;
+    }
+
+    embeddedFrameHeights.value = {
+        ...embeddedFrameHeights.value,
+        [sectionKey]: Math.max(Math.ceil(numericHeight), fallback),
+    };
+};
+
+const resolvedEmbedHeight = (section, index) => {
+    const sectionKey = resolveSectionKey(section, index);
+    return embeddedFrameHeights.value[sectionKey] || sectionEmbedHeight(section);
+};
+
+const handleEmbeddedFrameLoad = (section, index, event) => {
+    const frame = event?.target;
+    if (!(frame instanceof HTMLIFrameElement)) {
+        return;
+    }
+
+    const fallbackHeight = sectionEmbedHeight(section);
+    const sectionKey = resolveSectionKey(section, index);
+
+    try {
+        const body = frame.contentWindow?.document?.body;
+        const root = frame.contentWindow?.document?.documentElement;
+        const height = Math.max(
+            body?.scrollHeight ?? 0,
+            body?.offsetHeight ?? 0,
+            root?.scrollHeight ?? 0,
+            root?.offsetHeight ?? 0,
+            root?.clientHeight ?? 0
+        );
+
+        updateEmbeddedFrameHeight(sectionKey, height, fallbackHeight);
+    } catch (error) {
+        updateEmbeddedFrameHeight(sectionKey, fallbackHeight, fallbackHeight);
+    }
+};
+
+const handleEmbeddedFrameMessage = (event) => {
+    if (!event?.data || event.data.type !== 'public-lead-form-height') {
+        return;
+    }
+
+    const match = Object.entries(embeddedFrameRefs.value).find(([, frame]) => frame?.contentWindow === event.source);
+    if (!match) {
+        return;
+    }
+
+    const [sectionKey, frame] = match;
+    updateEmbeddedFrameHeight(sectionKey, event.data.height, frame?.clientHeight || 760);
+};
+
 onMounted(() => {
     document.addEventListener('click', handleLangOutsideClick);
+    window.addEventListener('message', handleEmbeddedFrameMessage);
     updateDevice();
     window.addEventListener('resize', updateDevice);
 });
 
 onBeforeUnmount(() => {
     document.removeEventListener('click', handleLangOutsideClick);
+    window.removeEventListener('message', handleEmbeddedFrameMessage);
     window.removeEventListener('resize', updateDevice);
 });
 
@@ -306,7 +382,18 @@ const sections = computed(() =>
     (props.content.sections || []).filter((section) => section && section.enabled !== false && matchesVisibility(section))
 );
 
-const layoutClass = (layout) => {
+const sectionContainerClass = (section) => (
+    section?.embed_url
+        ? 'public-container public-container--embed'
+        : 'public-container'
+);
+
+const layoutClass = (section) => {
+    if (section?.embed_url) {
+        return 'grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,0.62fr)_minmax(0,1.48fr)] xl:grid-cols-[minmax(0,0.56fr)_minmax(0,1.64fr)]';
+    }
+
+    const layout = section?.layout;
     if (layout === 'stack') {
         return 'mx-auto flex max-w-3xl flex-col gap-5';
     }
@@ -432,8 +519,8 @@ const headerMenuItems = computed(() => ([
             <section v-for="(section, index) in sections" :key="section.id || index"
                 :class="['public-section public-block', densityClass(section.density), toneClass(section.tone)]"
                 :style="sectionStyle(section.background_color)">
-                <div class="public-container">
-                    <div :class="layoutClass(section.layout)">
+                <div :class="sectionContainerClass(section)">
+                    <div :class="layoutClass(section)">
                         <div class="space-y-4" :class="alignmentClass(section.alignment)">
                             <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
                             <h2 class="public-title text-3xl font-semibold">{{ section.title }}</h2>
@@ -474,14 +561,20 @@ const headerMenuItems = computed(() => ([
                             </div>
                         </div>
 
-                        <div v-if="section.embed_url || section.image_url" class="public-media">
-                            <div v-if="section.embed_url" class="public-media-card overflow-hidden">
+                        <div
+                            v-if="section.embed_url || section.image_url"
+                            :class="section.embed_url ? 'public-media public-media--embed' : 'public-media'"
+                        >
+                            <div v-if="section.embed_url" class="public-media-card public-media-card--embed overflow-hidden">
                                 <iframe
                                     :src="sectionEmbedUrl(section)"
                                     :title="sectionEmbedTitle(section)"
+                                    :ref="(element) => setEmbeddedFrameRef(resolveSectionKey(section, index), element)"
                                     class="w-full border-0 bg-white"
-                                    :style="{ height: `${sectionEmbedHeight(section)}px` }"
+                                    :style="{ height: `${resolvedEmbedHeight(section, index)}px` }"
                                     loading="lazy"
+                                    scrolling="no"
+                                    @load="handleEmbeddedFrameLoad(section, index, $event)"
                                 />
                             </div>
                             <div v-else class="public-media-card">
@@ -526,6 +619,10 @@ const headerMenuItems = computed(() => ([
 .public-container {
     width: min(1100px, 92vw);
     margin-inline: auto;
+}
+
+.public-container--embed {
+    width: min(1100px, 92vw);
 }
 
 .public-header {
@@ -658,12 +755,26 @@ const headerMenuItems = computed(() => ([
     justify-content: center;
 }
 
+.public-media--embed {
+    width: 100%;
+    justify-content: stretch;
+}
+
 .public-media-card {
     border-radius: var(--page-radius, 4px);
     border: 1px solid var(--page-border, #e2e8f0);
     background: var(--page-surface, #ffffff);
     padding: 1rem;
     box-shadow: var(--page-shadow, 0 18px 40px -30px rgba(15, 23, 42, 0.4));
+}
+
+.public-media-card--embed {
+    width: 100%;
+    padding: 0;
+}
+
+.public-media-card--embed iframe {
+    display: block;
 }
 
 .public-footer {
