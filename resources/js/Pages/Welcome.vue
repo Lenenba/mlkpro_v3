@@ -31,6 +31,7 @@ const props = defineProps({
 const page = usePage();
 const { t } = useI18n();
 const currentLocale = computed(() => page.props.locale || 'fr');
+const currentLocaleCode = computed(() => String(currentLocale.value || 'fr').toUpperCase());
 const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
 const welcomeContent = computed(() => props.welcomeContent || {});
 const langMenuOpen = ref(false);
@@ -196,25 +197,26 @@ onBeforeUnmount(() => {
                         :href="route('login')"
                         class="hidden rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50 lg:inline-flex"
                     >
-                        Connexion
+                        {{ $t('legal.actions.sign_in') }}
                     </Link>
                     <Link
                         v-if="canRegister"
                         :href="route('onboarding.index')"
                         class="hidden rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 xl:inline-flex"
                     >
-                        Créer un espace
+                        {{ $t('legal.actions.create_account') }}
                     </Link>
                     <div ref="langMenuRef" class="welcome-lang">
                         <button
                             type="button"
                             class="welcome-lang__toggle"
                             aria-haspopup="listbox"
+                            :aria-label="$t('account.language')"
                             :aria-expanded="langMenuOpen"
                             @click="toggleLangMenu"
                             @keydown.escape="closeLangMenu"
                         >
-                            <span>{{ $t('account.language') }}</span>
+                            <span>{{ currentLocaleCode }}</span>
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 width="16"

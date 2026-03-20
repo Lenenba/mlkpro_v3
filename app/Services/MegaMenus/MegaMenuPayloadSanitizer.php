@@ -12,6 +12,7 @@ use Illuminate\Validation\Validator;
 
 class MegaMenuPayloadSanitizer
 {
+    private const SUPPORTED_LOCALES = ['fr', 'en'];
     private const MAX_TOP_LEVEL_ITEMS = 16;
     private const MAX_NESTED_ITEMS = 24;
     private const MAX_COLUMNS = 6;
@@ -68,6 +69,7 @@ class MegaMenuPayloadSanitizer
             'note' => '',
             'featured' => false,
             'highlight_color' => '',
+            'dynamic_href_setting' => '',
         ];
     }
 
@@ -553,6 +555,10 @@ class MegaMenuPayloadSanitizer
             'panel_background' => $this->cleanColor($incoming['panel_background'] ?? $defaults['panel_background']) ?: $defaults['panel_background'],
             'open_on_hover' => array_key_exists('open_on_hover', $incoming) ? (bool) $incoming['open_on_hover'] : (bool) $defaults['open_on_hover'],
             'show_dividers' => array_key_exists('show_dividers', $incoming) ? (bool) $incoming['show_dividers'] : (bool) $defaults['show_dividers'],
+            'translations' => $this->sanitizeTranslationFields($incoming['translations'] ?? [], [
+                'title' => 160,
+                'description' => 2000,
+            ]),
         ];
     }
 
@@ -570,6 +576,18 @@ class MegaMenuPayloadSanitizer
             'note' => $this->cleanText($incoming['note'] ?? $defaults['note'], 140),
             'featured' => array_key_exists('featured', $incoming) ? (bool) $incoming['featured'] : (bool) $defaults['featured'],
             'highlight_color' => $this->cleanColor($incoming['highlight_color'] ?? $defaults['highlight_color']),
+            'dynamic_href_setting' => $this->cleanChoice(
+                $incoming['dynamic_href_setting'] ?? $defaults['dynamic_href_setting'],
+                ['', 'contact_form_url'],
+                ''
+            ),
+            'translations' => $this->sanitizeTranslationFields($incoming['translations'] ?? [], [
+                'label' => 160,
+                'description' => 255,
+                'badge_text' => 60,
+                'eyebrow' => 80,
+                'note' => 140,
+            ]),
         ];
     }
 
@@ -586,6 +604,9 @@ class MegaMenuPayloadSanitizer
             'alignment' => $this->cleanChoice($incoming['alignment'] ?? $defaults['alignment'], ['start', 'center', 'end'], $defaults['alignment']),
             'background_color' => $this->cleanColor($incoming['background_color'] ?? $defaults['background_color']),
             'row' => $this->cleanChoice($incoming['row'] ?? $defaults['row'], ['main', 'footer'], $defaults['row']),
+            'translations' => $this->sanitizeTranslationFields($incoming['translations'] ?? [], [
+                'title' => 160,
+            ]),
         ];
     }
 
@@ -601,6 +622,9 @@ class MegaMenuPayloadSanitizer
         return [
             'tone' => $this->cleanChoice($incoming['tone'] ?? $defaults['tone'], ['default', 'muted', 'contrast'], $defaults['tone']),
             'show_border' => array_key_exists('show_border', $incoming) ? (bool) $incoming['show_border'] : (bool) $defaults['show_border'],
+            'translations' => $this->sanitizeTranslationFields($incoming['translations'] ?? [], [
+                'title' => 160,
+            ]),
         ];
     }
 
@@ -608,13 +632,18 @@ class MegaMenuPayloadSanitizer
      * @param  mixed  $payload
      * @return array<string, mixed>
      */
-    private function sanitizeBlockPayload(string $type, $payload): array
+    private function sanitizeBlockPayload(string $type, $payload, bool $allowTranslations = true): array
     {
         $incoming = is_array($payload) ? $payload : [];
+        $translations = $allowTranslations
+            ? $this->sanitizeLocalizedBlockPayloads($type, $incoming['translations'] ?? [])
+            : [];
+
+        unset($incoming['translations']);
+
         $default = MegaMenuBlockRegistry::defaultPayload($type);
         $payload = array_replace_recursive($default, $incoming);
-
-        return match ($type) {
+        $sanitized = match ($type) {
             'navigation_group' => [
                 'title' => $this->cleanText($payload['title'] ?? '', 160),
                 'description' => $this->cleanText($payload['description'] ?? '', 255),
@@ -692,6 +721,71 @@ class MegaMenuPayloadSanitizer
             ],
             default => $default,
         };
+
+        if ($allowTranslations && $translations !== []) {
+            $sanitized['translations'] = $translations;
+        }
+
+        return $sanitized;
+    }
+
+    /**
+     * @param  mixed  $translations
+     * @param  array<string, int>  $fieldLengths
+     * @return array<string, array<string, string>>
+     */
+    private function sanitizeTranslationFields($translations, array $fieldLengths): array
+    {
+        if (!is_array($translations)) {
+            return [];
+        }
+
+        $sanitized = [];
+
+        foreach (self::SUPPORTED_LOCALES as $locale) {
+            $values = $translations[$locale] ?? null;
+            if (!is_array($values)) {
+                continue;
+            }
+
+            $row = [];
+            foreach ($fieldLengths as $field => $maxLength) {
+                $value = $this->cleanText($values[$field] ?? '', $maxLength);
+                if ($value !== '') {
+                    $row[$field] = $value;
+                }
+            }
+
+            if ($row !== []) {
+                $sanitized[$locale] = $row;
+            }
+        }
+
+        return $sanitized;
+    }
+
+    /**
+     * @param  mixed  $translations
+     * @return array<string, array<string, mixed>>
+     */
+    private function sanitizeLocalizedBlockPayloads(string $type, $translations): array
+    {
+        if (!is_array($translations)) {
+            return [];
+        }
+
+        $sanitized = [];
+
+        foreach (self::SUPPORTED_LOCALES as $locale) {
+            $payload = $translations[$locale] ?? null;
+            if (!is_array($payload) || $payload === []) {
+                continue;
+            }
+
+            $sanitized[$locale] = $this->sanitizeBlockPayload($type, $payload, false);
+        }
+
+        return $sanitized;
     }
 
     /**

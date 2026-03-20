@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     page: { type: Object, required: true },
@@ -12,7 +13,9 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t } = useI18n();
 const currentLocale = computed(() => page.props.locale || 'fr');
+const currentLocaleCode = computed(() => String(currentLocale.value || 'fr').toUpperCase());
 const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
 const planKey = computed(() => {
     const raw = props.plan_key || page.props.plan_key || null;
@@ -243,13 +246,13 @@ const toneClass = (tone) => {
 
 const headerMenuItems = computed(() => ([
     {
-        label: 'Home',
+        label: t('public_pages.actions.home'),
         resolved_href: route('welcome'),
         link_target: '_self',
         panel_type: 'link',
     },
     {
-        label: 'Login',
+        label: t('public_pages.actions.login'),
         resolved_href: route('login'),
         link_target: '_self',
         panel_type: 'link',
@@ -277,19 +280,19 @@ const headerMenuItems = computed(() => ([
                         :href="route('login')"
                         class="hidden rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50 md:inline-flex"
                     >
-                        Connexion
+                        {{ $t('legal.actions.sign_in') }}
                     </Link>
                     <Link
                         v-if="!isAuthenticated"
                         :href="route('onboarding.index')"
                         class="hidden rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 xl:inline-flex"
                     >
-                        Créer un espace
+                        {{ $t('legal.actions.create_account') }}
                     </Link>
                     <div ref="langMenuRef" class="public-lang">
                         <button type="button" class="public-lang__toggle" aria-haspopup="listbox"
-                            :aria-expanded="langMenuOpen" @click="toggleLangMenu" @keydown.escape="closeLangMenu">
-                            <span>{{ $t('account.language') }}</span>
+                            :aria-label="$t('account.language')" :aria-expanded="langMenuOpen" @click="toggleLangMenu" @keydown.escape="closeLangMenu">
+                            <span>{{ currentLocaleCode }}</span>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                                 class="public-lang__chevron">

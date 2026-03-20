@@ -17,6 +17,10 @@ const props = defineProps({
         type: Object,
         default: () => ({ email_default: '', quote_default: '', invoice_default: '' }),
     },
+    public_navigation: {
+        type: Object,
+        default: () => ({ contact_form_url: '' }),
+    },
     plans: {
         type: Array,
         default: () => [],
@@ -84,6 +88,9 @@ const form = useForm({
         email_default: props.templates?.email_default ?? '',
         quote_default: props.templates?.quote_default ?? '',
         invoice_default: props.templates?.invoice_default ?? '',
+    },
+    public_navigation: {
+        contact_form_url: props.public_navigation?.contact_form_url ?? '',
     },
     plan_limits: props.plans.reduce((acc, plan) => {
         const existing = props.plan_limits?.[plan.key] || {};
@@ -338,6 +345,33 @@ const submitPlanPricing = () => {
                         <button type="submit" :disabled="form.processing"
                             class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
                             {{ $t('super_admin.settings.templates.save') }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="rounded-sm border border-stone-200 border-t-4 border-t-teal-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    Public navigation
+                </h2>
+                <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                    Use this to control where the public header item <span class="font-semibold">Contact us</span> sends visitors. Leave it empty to keep the fallback page <span class="font-semibold">/pages/contact-us</span>.
+                </p>
+                <form class="mt-4 space-y-4" @submit.prevent="submit">
+                    <div>
+                        <FloatingInput
+                            v-model="form.public_navigation.contact_form_url"
+                            label="Contact form URL or internal path"
+                        />
+                        <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                            Examples: <span class="font-medium">https://tally.so/r/xxxxxx</span> or <span class="font-medium">/pages/contact-us</span>
+                        </p>
+                        <InputError class="mt-1" :message="form.errors['public_navigation.contact_form_url']" />
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit" :disabled="form.processing"
+                            class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 disabled:pointer-events-none">
+                            Save public navigation
                         </button>
                     </div>
                 </form>

@@ -375,3 +375,128 @@ it('returns a fallback payload when no active menu exists for a location', funct
     expect($fallback['is_fallback'])->toBeTrue();
     expect($fallback['items'])->toBeArray()->toBeEmpty();
 });
+
+it('renders translated mega menu fields for the active locale', function () {
+    $user = megaMenuTestUser();
+    $service = app(MegaMenuManagerService::class);
+
+    $service->create(megaMenuPayload([
+        'slug' => 'translated-header',
+        'status' => 'active',
+        'settings' => [
+            'theme' => 'default',
+            'container_width' => 'xl',
+            'accent_color' => '#16a34a',
+            'panel_background' => '#ffffff',
+            'open_on_hover' => true,
+            'show_dividers' => true,
+            'translations' => [
+                'en' => [
+                    'title' => 'Translated Header',
+                    'description' => 'Localized header menu',
+                ],
+            ],
+        ],
+        'items' => [
+            [
+                'label' => 'Produits & Services',
+                'description' => 'Catalogue complet',
+                'link_type' => 'none',
+                'link_target' => '_self',
+                'panel_type' => 'mega',
+                'icon' => 'grid',
+                'badge_text' => 'Nouveau',
+                'badge_variant' => 'new',
+                'is_visible' => true,
+                'settings' => [
+                    'eyebrow' => 'Modules',
+                    'note' => 'Navigation principale',
+                    'featured' => false,
+                    'highlight_color' => '#16a34a',
+                    'translations' => [
+                        'en' => [
+                            'label' => 'Products & Services',
+                            'description' => 'Full product catalog',
+                            'badge_text' => 'New',
+                            'eyebrow' => 'Modules',
+                            'note' => 'Primary navigation',
+                        ],
+                    ],
+                ],
+                'columns' => [
+                    [
+                        'title' => 'Primaire',
+                        'width' => '1fr',
+                        'settings' => [
+                            'alignment' => 'start',
+                            'background_color' => '',
+                            'translations' => [
+                                'en' => [
+                                    'title' => 'Primary',
+                                ],
+                            ],
+                        ],
+                        'blocks' => [
+                            [
+                                'type' => 'navigation_group',
+                                'title' => 'Explorer',
+                                'settings' => [
+                                    'tone' => 'default',
+                                    'show_border' => false,
+                                    'translations' => [
+                                        'en' => [
+                                            'title' => 'Explore',
+                                        ],
+                                    ],
+                                ],
+                                'payload' => [
+                                    'title' => 'Explorer',
+                                    'description' => 'Liens principaux',
+                                    'links' => [
+                                        [
+                                            'label' => 'Tarifs',
+                                            'href' => '/pricing',
+                                            'note' => 'Forfaits et modules',
+                                            'badge' => 'Populaire',
+                                            'target' => '_self',
+                                        ],
+                                    ],
+                                    'translations' => [
+                                        'en' => [
+                                            'title' => 'Explore',
+                                            'description' => 'Primary links',
+                                            'links' => [
+                                                [
+                                                    'label' => 'Pricing',
+                                                    'href' => '/pricing',
+                                                    'note' => 'Plans and modules',
+                                                    'badge' => 'Popular',
+                                                    'target' => '_self',
+                                                ],
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]), $user->id);
+
+    app()->setLocale('en');
+
+    $menu = app(MegaMenuRenderer::class)->resolveBySlug('translated-header');
+
+    expect($menu['title'])->toBe('Translated Header');
+    expect($menu['description'])->toBe('Localized header menu');
+    expect($menu['items'][0]['label'])->toBe('Products & Services');
+    expect($menu['items'][0]['badge_text'])->toBe('New');
+    expect($menu['items'][0]['settings']['note'])->toBe('Primary navigation');
+    expect($menu['items'][0]['columns'][0]['title'])->toBe('Primary');
+    expect($menu['items'][0]['columns'][0]['blocks'][0]['title'])->toBe('Explore');
+    expect($menu['items'][0]['columns'][0]['blocks'][0]['payload']['title'])->toBe('Explore');
+    expect($menu['items'][0]['columns'][0]['blocks'][0]['payload']['links'][0]['label'])->toBe('Pricing');
+    expect($menu['items'][0]['columns'][0]['blocks'][0]['payload']['links'][0]['badge'])->toBe('Popular');
+});

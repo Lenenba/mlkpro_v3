@@ -6501,7 +6501,7 @@
     },
     "footer": {
       "terms": "Conditions d’utilisation",
-      "copy": "MLK Pro. Tous droits réservés."
+      "copy": "Malikia Pro. Tous droits réservés."
     }
   },
   "terms": {
@@ -6576,7 +6576,7 @@
       }
     },
     "note": "Questions? Contactez le proprietaire du compte ou utilisez le support dans l application.",
-    "footer": "MLK Pro. Tous droits reserves. {year}"
+    "footer": "Malikia Pro. Tous droits reserves. {year}"
   },
   "legal": {
     "header": {
@@ -6639,6 +6639,43 @@
     "actions": {
       "primary": "Demarrer l onboarding",
       "secondary": "Se connecter"
+    },
+    "comparison": {
+      "title": "Comparer les forfaits",
+      "subtitle": "Retrouvez les limites et capacites principales de chaque offre.",
+      "columns": {
+        "feature": "Fonctionnalites"
+      },
+      "sections": {
+        "fundamentals": "Fondamentaux",
+        "operations": "Operations terrain",
+        "growth": "Croissance et automatisation"
+      },
+      "rows": {
+        "team_members": "Employes inclus",
+        "clients": "Clients",
+        "requests": "Demandes / leads",
+        "estimates": "Devis",
+        "invoices": "Factures",
+        "catalog": "Catalogue produits et services",
+        "client_portal": "Portail client",
+        "team_planning": "Planning d equipe",
+        "time_tracking": "Presence et pointage",
+        "reservations": "Reservations et check-in",
+        "recurring_jobs": "Jobs recurrents",
+        "reports": "Rapports integres",
+        "permissions": "Equipe et permissions",
+        "automations": "Automatisations avancees",
+        "plan_scan": "Scan de plan et devis IA",
+        "ai_assistant": "Assistant IA",
+        "onboarding": "Onboarding dedie",
+        "custom_integrations": "Integrations et SLA sur mesure"
+      },
+      "values": {
+        "unlimited": "Illimite",
+        "optional": "Option",
+        "contact": "Contact us"
+      }
     }
   },
   "privacy": {

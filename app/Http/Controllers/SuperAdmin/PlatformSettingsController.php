@@ -26,6 +26,9 @@ class PlatformSettingsController extends BaseSuperAdminController
             'quote_default' => '',
             'invoice_default' => '',
         ]);
+        $publicNavigation = PlatformSetting::getValue('public_navigation', [
+            'contact_form_url' => '',
+        ]);
         $planLimits = PlatformSetting::getValue('plan_limits', []);
         $planModules = PlatformSetting::getValue('plan_modules', []);
         $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
@@ -44,6 +47,7 @@ class PlatformSettingsController extends BaseSuperAdminController
         return Inertia::render('SuperAdmin/Settings/Edit', [
             'maintenance' => $maintenance,
             'templates' => $templates,
+            'public_navigation' => $publicNavigation,
             'plans' => $plans,
             'plan_prices' => app(BillingPlanService::class)->priceMatrix(),
             'plan_limits' => $planLimits,
@@ -63,6 +67,7 @@ class PlatformSettingsController extends BaseSuperAdminController
             'templates.email_default' => 'nullable|string|max:5000',
             'templates.quote_default' => 'nullable|string|max:5000',
             'templates.invoice_default' => 'nullable|string|max:5000',
+            'public_navigation.contact_form_url' => 'nullable|string|max:2048',
             'plan_limits' => 'nullable|array',
             'plan_limits.*' => 'array',
             'plan_limits.*.*' => 'nullable|numeric|min:0',
@@ -95,6 +100,10 @@ class PlatformSettingsController extends BaseSuperAdminController
             'quote_default' => $validated['templates']['quote_default'] ?? '',
             'invoice_default' => $validated['templates']['invoice_default'] ?? '',
         ]);
+
+        PlatformSetting::setValue('public_navigation', $this->sanitizePublicNavigation(
+            $validated['public_navigation'] ?? []
+        ));
 
         $limitKeys = [
             'quotes',
@@ -191,5 +200,22 @@ class PlatformSettingsController extends BaseSuperAdminController
         $this->logAudit($request, 'platform_settings.updated');
 
         return redirect()->back()->with('success', 'Platform settings updated.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array<string, string>
+     */
+    private function sanitizePublicNavigation(array $input): array
+    {
+        $contactFormUrl = trim((string) ($input['contact_form_url'] ?? ''));
+
+        if ($contactFormUrl !== '' && !str_starts_with($contactFormUrl, '/')) {
+            $contactFormUrl = filter_var($contactFormUrl, FILTER_VALIDATE_URL) ? $contactFormUrl : '';
+        }
+
+        return [
+            'contact_form_url' => $contactFormUrl,
+        ];
     }
 }

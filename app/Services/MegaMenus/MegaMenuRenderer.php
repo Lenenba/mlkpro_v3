@@ -6,11 +6,15 @@ use App\Models\MegaMenu;
 use App\Models\MegaMenuBlock;
 use App\Models\MegaMenuColumn;
 use App\Models\MegaMenuItem;
+use App\Models\PlatformSetting;
 use App\Support\MegaMenuOptions;
 use Illuminate\Support\Facades\Route;
 
 class MegaMenuRenderer
 {
+    private const DEFAULT_LOCALE = 'fr';
+    private const SUPPORTED_LOCALES = ['fr', 'en'];
+
     public function resolveForLocation(string $location, ?string $zone = null): array
     {
         $location = in_array($location, MegaMenuOptions::displayLocations(), true)
@@ -53,20 +57,22 @@ class MegaMenuRenderer
     public function serialize(MegaMenu $menu, string $resolvedBy = 'direct'): array
     {
         $menu->loadMissing($this->relations());
+        $settings = is_array($menu->settings) ? $menu->settings : [];
+        $translations = $this->translationBuckets($settings);
 
         return [
             'exists' => true,
             'is_fallback' => false,
             'resolved_by' => $resolvedBy,
             'id' => $menu->id,
-            'title' => $menu->title,
+            'title' => $this->resolveTranslatedText($menu->title, $translations, 'title'),
             'slug' => $menu->slug,
             'status' => $menu->status,
             'display_location' => $menu->display_location,
             'custom_zone' => $menu->custom_zone,
-            'description' => $menu->description,
+            'description' => $this->resolveTranslatedText($menu->description, $translations, 'description'),
             'css_classes' => $menu->css_classes,
-            'settings' => $menu->settings ?? [],
+            'settings' => $this->stripTranslations($settings),
             'items' => $menu->items->map(fn (MegaMenuItem $item) => $this->mapItem($item))->all(),
         ];
     }
@@ -119,22 +125,27 @@ class MegaMenuRenderer
     private function mapItem(MegaMenuItem $item): array
     {
         $item->loadMissing(['children.children', 'columns.blocks']);
+        $settings = is_array($item->settings) ? $item->settings : [];
+        $translations = $this->translationBuckets($settings);
+        $resolvedSettings = $this->stripTranslations($settings);
+        $resolvedSettings['eyebrow'] = $this->resolveTranslatedText((string) ($settings['eyebrow'] ?? ''), $translations, 'eyebrow') ?? '';
+        $resolvedSettings['note'] = $this->resolveTranslatedText((string) ($settings['note'] ?? ''), $translations, 'note') ?? '';
 
         return [
             'id' => $item->id,
-            'label' => $item->label,
-            'description' => $item->description,
+            'label' => $this->resolveTranslatedText($item->label, $translations, 'label'),
+            'description' => $this->resolveTranslatedText($item->description, $translations, 'description'),
             'link_type' => $item->link_type,
             'link_value' => $item->link_value,
             'link_target' => $item->link_target,
-            'resolved_href' => $this->resolveMenuLink($item->link_type, $item->link_value),
+            'resolved_href' => $this->resolveItemHref($item),
             'panel_type' => $item->panel_type,
             'icon' => $item->icon,
-            'badge_text' => $item->badge_text,
+            'badge_text' => $this->resolveTranslatedText($item->badge_text, $translations, 'badge_text'),
             'badge_variant' => $item->badge_variant,
             'is_visible' => (bool) $item->is_visible,
             'css_classes' => $item->css_classes,
-            'settings' => $item->settings ?? [],
+            'settings' => $resolvedSettings,
             'children' => $item->children->map(fn (MegaMenuItem $child) => $this->mapItem($child))->all(),
             'columns' => $item->columns->map(fn (MegaMenuColumn $column) => $this->mapColumn($column))->all(),
         ];
@@ -145,12 +156,15 @@ class MegaMenuRenderer
      */
     private function mapColumn(MegaMenuColumn $column): array
     {
+        $settings = is_array($column->settings) ? $column->settings : [];
+        $translations = $this->translationBuckets($settings);
+
         return [
             'id' => $column->id,
-            'title' => $column->title,
+            'title' => $this->resolveTranslatedText($column->title, $translations, 'title'),
             'width' => $column->width ?: '1fr',
             'css_classes' => $column->css_classes,
-            'settings' => $column->settings ?? [],
+            'settings' => $this->stripTranslations($settings),
             'blocks' => $column->blocks->map(fn (MegaMenuBlock $block) => $this->mapBlock($block))->all(),
         ];
     }
@@ -160,14 +174,16 @@ class MegaMenuRenderer
      */
     private function mapBlock(MegaMenuBlock $block): array
     {
-        $payload = is_array($block->payload) ? $block->payload : [];
+        $payload = $this->resolveLocalizedPayload(is_array($block->payload) ? $block->payload : []);
+        $settings = is_array($block->settings) ? $block->settings : [];
+        $translations = $this->translationBuckets($settings);
 
         return [
             'id' => $block->id,
             'type' => $block->type,
-            'title' => $block->title,
+            'title' => $this->resolveTranslatedText($block->title, $translations, 'title'),
             'css_classes' => $block->css_classes,
-            'settings' => $block->settings ?? [],
+            'settings' => $this->stripTranslations($settings),
             'payload' => $this->mapBlockPayload($block->type, $payload),
         ];
     }
@@ -239,6 +255,16 @@ class MegaMenuRenderer
         };
     }
 
+    private function resolveItemHref(MegaMenuItem $item): ?string
+    {
+        $dynamicHref = $this->resolveDynamicHrefSetting($item->settings ?? []);
+        if ($dynamicHref !== null) {
+            return $dynamicHref;
+        }
+
+        return $this->resolveMenuLink($item->link_type, $item->link_value);
+    }
+
     private function resolveMenuLink(?string $type, ?string $value): ?string
     {
         return match ($type) {
@@ -264,6 +290,28 @@ class MegaMenuRenderer
         }
     }
 
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function resolveDynamicHrefSetting(array $settings): ?string
+    {
+        $settingKey = trim((string) ($settings['dynamic_href_setting'] ?? ''));
+        if ($settingKey === '') {
+            return null;
+        }
+
+        if ($settingKey !== 'contact_form_url') {
+            return null;
+        }
+
+        $publicNavigation = PlatformSetting::getValue('public_navigation', []);
+        if (!is_array($publicNavigation)) {
+            return null;
+        }
+
+        return $this->resolveGenericHref($publicNavigation['contact_form_url'] ?? null);
+    }
+
     private function resolveGenericHref(?string $href): ?string
     {
         $href = trim((string) $href);
@@ -276,5 +324,93 @@ class MegaMenuRenderer
         }
 
         return filter_var($href, FILTER_VALIDATE_URL) ? $href : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     * @return array<string, array<string, mixed>>
+     */
+    private function translationBuckets(array $settings): array
+    {
+        return is_array($settings['translations'] ?? null) ? $settings['translations'] : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     * @return array<string, mixed>
+     */
+    private function stripTranslations(array $settings): array
+    {
+        unset($settings['translations']);
+
+        return $settings;
+    }
+
+    private function resolveTranslatedText(?string $default, array $translations, string $field): ?string
+    {
+        $localized = $this->translatedFieldValue($translations, $this->currentLocale(), $field);
+        if ($localized !== null) {
+            return $localized;
+        }
+
+        $fallback = $this->translatedFieldValue($translations, self::DEFAULT_LOCALE, $field);
+
+        return $fallback ?? $default;
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $translations
+     */
+    private function translatedFieldValue(array $translations, string $locale, string $field): ?string
+    {
+        $value = $translations[$locale][$field] ?? null;
+        if (!is_string($value) && !is_numeric($value)) {
+            return null;
+        }
+
+        $text = trim((string) $value);
+
+        return $text !== '' ? $text : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function resolveLocalizedPayload(array $payload): array
+    {
+        $translations = is_array($payload['translations'] ?? null) ? $payload['translations'] : [];
+        unset($payload['translations']);
+
+        $localized = $this->resolvePayloadTranslation($translations, $this->currentLocale())
+            ?? $this->resolvePayloadTranslation($translations, self::DEFAULT_LOCALE)
+            ?? [];
+
+        return array_replace_recursive($payload, $localized);
+    }
+
+    /**
+     * @param  array<string, mixed>  $translations
+     * @return array<string, mixed>|null
+     */
+    private function resolvePayloadTranslation(array $translations, string $locale): ?array
+    {
+        $payload = $translations[$locale] ?? null;
+        if (!is_array($payload)) {
+            return null;
+        }
+
+        unset($payload['translations']);
+
+        return $payload;
+    }
+
+    private function currentLocale(): string
+    {
+        $locale = (string) app()->getLocale();
+
+        return in_array($locale, self::SUPPORTED_LOCALES, true)
+            ? $locale
+            : self::DEFAULT_LOCALE;
     }
 }

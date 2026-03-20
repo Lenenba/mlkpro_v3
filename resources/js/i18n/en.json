@@ -6501,7 +6501,7 @@
     },
     "footer": {
       "terms": "Terms and conditions",
-      "copy": "MLK Pro. All rights reserved."
+      "copy": "MalikiaPro. All rights reserved."
     }
   },
   "terms": {
@@ -6576,7 +6576,7 @@
       }
     },
     "note": "Questions? Contact your account owner or use the in-app support channel.",
-    "footer": "MLK Pro. All rights reserved. {year}"
+    "footer": "Malikia Pro. All rights reserved. {year}"
   },
   "legal": {
     "header": {
@@ -6639,6 +6639,43 @@
     "actions": {
       "primary": "Start onboarding",
       "secondary": "Sign in"
+    },
+    "comparison": {
+      "title": "Compare plans",
+      "subtitle": "Review the main limits and capabilities included with each offer.",
+      "columns": {
+        "feature": "Features"
+      },
+      "sections": {
+        "fundamentals": "Fundamentals",
+        "operations": "Field operations",
+        "growth": "Growth and automation"
+      },
+      "rows": {
+        "team_members": "Included employees",
+        "clients": "Clients",
+        "requests": "Requests / leads",
+        "estimates": "Estimates",
+        "invoices": "Invoices",
+        "catalog": "Products and services catalog",
+        "client_portal": "Client portal",
+        "team_planning": "Team planning",
+        "time_tracking": "Time tracking",
+        "reservations": "Reservations and check-in",
+        "recurring_jobs": "Recurring jobs",
+        "reports": "Built-in reports",
+        "permissions": "Team permissions",
+        "automations": "Advanced automations",
+        "plan_scan": "Plan scan and AI quotes",
+        "ai_assistant": "AI assistant",
+        "onboarding": "Dedicated onboarding",
+        "custom_integrations": "Custom integrations and SLA"
+      },
+      "values": {
+        "unlimited": "Unlimited",
+        "optional": "Optional add-on",
+        "contact": "Contact us"
+      }
     }
   },
   "privacy": {

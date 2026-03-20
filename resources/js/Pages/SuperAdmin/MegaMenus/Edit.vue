@@ -1,6 +1,6 @@
 <script setup>
-import { computed, reactive, ref } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { computed, reactive, ref, watch } from 'vue';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import draggable from 'vuedraggable';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -11,11 +11,14 @@ import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
 import MegaMenuBlockPayloadEditor from '@/Components/MegaMenu/MegaMenuBlockPayloadEditor.vue';
 import {
+    applyMegaMenuLocale,
     cloneMegaMenu,
     createMegaMenuBlock,
     createMegaMenuColumn,
     createMegaMenuItem,
+    ensureMegaMenuTranslations,
     normalizeMegaMenu,
+    persistMegaMenuLocale,
     prepareMegaMenuForSubmit,
 } from '@/utils/megaMenuBuilder';
 
@@ -34,12 +37,22 @@ const props = defineProps({
     deactivate_url: { type: String, default: null },
 });
 
+const page = usePage();
 const isCreateMode = computed(() => props.mode === 'create');
 const blockDefinitions = computed(() => props.choices?.block_types || []);
 const defaults = computed(() => props.choices?.defaults || {});
+const localeList = computed(() => page.props.locales || ['fr', 'en']);
+const fallbackLocale = computed(() => localeList.value[0] || 'fr');
+const editorLocale = ref(page.props.locale || fallbackLocale.value);
+const localeOptions = computed(() =>
+    localeList.value.map((locale) => ({ value: locale, label: locale.toUpperCase() }))
+);
+const editorLocaleCode = computed(() => String(editorLocale.value || fallbackLocale.value).toUpperCase());
 
 const initialState = normalizeMegaMenu(cloneMegaMenu(props.menu || {}), defaults.value, blockDefinitions.value);
 const form = useForm(initialState);
+ensureMegaMenuTranslations(form, localeList.value, fallbackLocale.value);
+applyMegaMenuLocale(form, editorLocale.value, fallbackLocale.value);
 
 const previewDevice = ref('desktop');
 const assetPickerOpen = ref(false);
@@ -406,7 +419,10 @@ const previewMenu = computed(() => {
 });
 
 const submit = () => {
-    const payload = prepareMegaMenuForSubmit(form);
+    const workingCopy = cloneMegaMenu(form);
+    persistMegaMenuLocale(workingCopy, editorLocale.value, fallbackLocale.value);
+    applyMegaMenuLocale(workingCopy, fallbackLocale.value, fallbackLocale.value);
+    const payload = prepareMegaMenuForSubmit(workingCopy);
     form.transform(() => payload);
 
     if (isCreateMode.value) {
@@ -423,6 +439,15 @@ const deleteCurrent = () => {
 };
 
 const activeSelection = computed(() => selectedEntity.value);
+
+watch(editorLocale, (nextLocale, previousLocale) => {
+    if (!nextLocale || nextLocale === previousLocale) {
+        return;
+    }
+
+    persistMegaMenuLocale(form, previousLocale || fallbackLocale.value, fallbackLocale.value);
+    applyMegaMenuLocale(form, nextLocale, fallbackLocale.value);
+});
 </script>
 
 <template>
@@ -641,7 +666,7 @@ const activeSelection = computed(() => selectedEntity.value);
                                         type="button"
                                         class="inline-flex shrink-0 items-center gap-2 rounded-sm border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-800 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                                     >
-                                        <span>Langue</span>
+                                        <span>{{ editorLocaleCode }}</span>
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="m6 9 6 6 6-6" />
                                         </svg>
@@ -673,6 +698,13 @@ const activeSelection = computed(() => selectedEntity.value);
                 </div>
 
                 <aside class="space-y-4">
+                    <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <FloatingSelect v-model="editorLocale" :options="localeOptions" label="Editing locale" />
+                        <div class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                            Text edits apply to the selected locale only. Structure, links, visibility, and ordering stay shared.
+                        </div>
+                    </div>
+
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ selectionTitle }}</div>
                         <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">

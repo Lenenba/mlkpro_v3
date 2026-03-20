@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
@@ -11,6 +11,9 @@ const props = defineProps({
     index_url: { type: String, required: true },
     edit_url: { type: String, required: true },
 });
+
+const page = usePage();
+const currentLocaleCode = computed(() => String(page.props.locale || 'fr').toUpperCase());
 
 const previewMedia = computed(() => {
     const items = Array.isArray(props.menu?.items) ? props.menu.items : [];
@@ -107,7 +110,7 @@ const previewMedia = computed(() => {
                                 type="button"
                                 class="inline-flex shrink-0 items-center gap-2 rounded-sm border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-800 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                             >
-                                <span>Langue</span>
+                                <span>{{ currentLocaleCode }}</span>
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="m6 9 6 6 6-6" />
                                 </svg>
