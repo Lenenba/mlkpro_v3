@@ -8,9 +8,12 @@ use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Services\MegaMenus\MegaMenuManagerService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\URL;
 
 class MegaMenuSeeder extends Seeder
 {
+    private const CONTACT_FORM_FALLBACK_URL = 'https://malikiapro.com/public/requests/2?signature=8cbc3fe74d1a31d73705bcd0c2f357f518eeed1c9b83cdbae69444614e4166eb';
+
     public function run(): void
     {
         $userId = User::query()->where('email', 'superadmin@example.com')->value('id');
@@ -261,7 +264,10 @@ class MegaMenuSeeder extends Seeder
         string $primaryHref = '',
         string $secondaryLabel = '',
         string $secondaryHref = '',
-        string $backgroundColor = ''
+        string $backgroundColor = '',
+        string $embedUrl = '',
+        string $embedTitle = '',
+        int $embedHeight = 760
     ): array {
         return [
             'id' => $id,
@@ -288,11 +294,25 @@ class MegaMenuSeeder extends Seeder
             'items' => $items,
             'image_url' => $imageUrl,
             'image_alt' => $imageAlt,
+            'embed_url' => $embedUrl,
+            'embed_title' => $embedTitle,
+            'embed_height' => $embedHeight,
             'primary_label' => $primaryLabel,
             'primary_href' => $primaryHref,
             'secondary_label' => $secondaryLabel,
             'secondary_href' => $secondaryHref,
         ];
+    }
+
+    private function contactFormUrl(): string
+    {
+        $userId = (int) config('app.lead_intake_user_id');
+
+        if ($userId > 0) {
+            return URL::signedRoute('public.requests.form', ['user' => $userId]);
+        }
+
+        return self::CONTACT_FORM_FALLBACK_URL;
     }
 
     /**
@@ -441,51 +461,61 @@ class MegaMenuSeeder extends Seeder
      */
     private function contactPageContent(): array
     {
+        $formUrl = $this->contactFormUrl();
+
         return [
             'locales' => [
                 'fr' => [
                     'page_title' => 'Contact us',
-                    'page_subtitle' => '<p>Parlez-nous de votre contexte, de votre equipe et de votre mode operatoire. Le lien du formulaire reste modifiable depuis l\'admin Pages.</p>',
+                    'page_subtitle' => '<p>Parlez-nous de votre contexte, de votre equipe et de votre mode operatoire. Le formulaire integre reste modifiable depuis l\'admin Pages.</p>',
                     'sections' => [
                         $this->pageSection(
                             id: 'contact-overview',
                             kicker: 'Contact',
                             title: 'Expliquez-nous votre besoin',
-                            body: '<p>Utilisez cette page comme point d\'entree public pour vos demandes commerciales. Depuis l\'admin Pages, vous pouvez remplacer le bouton principal par le formulaire de votre choix.</p>',
+                            body: '<p>Utilisez cette page comme point d\'entree public pour vos demandes commerciales. Depuis l\'admin Pages, vous pouvez remplacer ou reconfigurer le formulaire embarque a tout moment.</p>',
                             items: [
-                                'Lien du formulaire editable dans l\'admin Pages',
+                                'Formulaire integre directement dans la page',
+                                'URL du formulaire editable dans l\'admin Pages',
                                 'Possibilite d\'adapter le message par langue',
                                 'Page publique coherente avec le reste du site',
                             ],
                             imageUrl: '/images/mega-menu/platform-command-center.svg',
                             imageAlt: 'Illustration de contact plateforme',
                             primaryLabel: 'Ouvrir le formulaire',
-                            primaryHref: '/demo',
+                            primaryHref: $formUrl,
                             secondaryLabel: 'Voir les tarifs',
-                            secondaryHref: '/pricing'
+                            secondaryHref: '/pricing',
+                            embedUrl: $formUrl,
+                            embedTitle: 'Formulaire de demande commerciale',
+                            embedHeight: 820
                         ),
                     ],
                 ],
                 'en' => [
                     'page_title' => 'Contact us',
-                    'page_subtitle' => '<p>Tell us about your team, your workflow, and your business model. The form link can be edited later from the Pages admin.</p>',
+                    'page_subtitle' => '<p>Tell us about your team, your workflow, and your business model. The embedded form stays editable from the Pages admin.</p>',
                     'sections' => [
                         $this->pageSection(
                             id: 'contact-overview',
                             kicker: 'Contact',
                             title: 'Tell us what you need',
-                            body: '<p>Use this page as the public entry point for commercial inquiries. From the Pages admin, you can replace the primary button with any form URL you want.</p>',
+                            body: '<p>Use this page as the public entry point for commercial inquiries. From the Pages admin, you can replace or reconfigure the embedded form at any time.</p>',
                             items: [
-                                'Editable form link from the Pages admin',
+                                'Form embedded directly on the page',
+                                'Editable form URL from the Pages admin',
                                 'Localized messaging per language',
                                 'A public page aligned with the rest of the site',
                             ],
                             imageUrl: '/images/mega-menu/platform-command-center.svg',
                             imageAlt: 'Platform contact illustration',
                             primaryLabel: 'Open the form',
-                            primaryHref: '/demo',
+                            primaryHref: $formUrl,
                             secondaryLabel: 'View pricing',
-                            secondaryHref: '/pricing'
+                            secondaryHref: '/pricing',
+                            embedUrl: $formUrl,
+                            embedTitle: 'Commercial inquiry form',
+                            embedHeight: 820
                         ),
                     ],
                 ],

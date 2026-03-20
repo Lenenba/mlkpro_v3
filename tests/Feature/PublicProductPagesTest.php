@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\PlatformSetting;
+use App\Models\PlatformPage;
 use App\Services\MegaMenus\MegaMenuRenderer;
 use Database\Seeders\MegaMenuSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,6 +55,9 @@ it('seeds industries and contact us in the public header', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Public/Page')
             ->where('page.slug', 'contact-us')
+            ->where('content.sections.0.embed_height', 820)
+            ->where('content.sections.0.embed_title', fn ($value) => in_array($value, ['Formulaire de demande commerciale', 'Commercial inquiry form'], true))
+            ->where('content.sections.0.embed_url', fn ($value) => is_string($value) && str_contains($value, '/public/requests/'))
         );
 });
 
@@ -69,4 +73,47 @@ it('uses the configurable contact form url for the contact us header item', func
 
     expect($contact)->not->toBeNull();
     expect($contact['resolved_href'])->toBe('https://example.com/forms/contact');
+});
+
+it('resolves header presentation settings for public pages', function () {
+    $page = PlatformPage::query()->create([
+        'slug' => 'header-showcase',
+        'title' => 'Header showcase',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'fr' => [
+                    'page_title' => 'Header dynamique',
+                    'page_subtitle' => '<p>Contenu de test</p>',
+                    'header' => [
+                        'background_type' => 'image',
+                        'background_image_url' => '/images/mega-menu/commerce-dashboard.jpg',
+                        'background_image_alt' => 'Tableau de bord commerce',
+                        'alignment' => 'right',
+                    ],
+                    'sections' => [],
+                ],
+                'en' => [
+                    'page_title' => 'Dynamic header',
+                    'page_subtitle' => '<p>Test content</p>',
+                    'header' => [
+                        'background_type' => 'image',
+                        'background_image_url' => '/images/mega-menu/commerce-dashboard.jpg',
+                        'background_image_alt' => 'Commerce dashboard',
+                        'alignment' => 'right',
+                    ],
+                    'sections' => [],
+                ],
+            ],
+        ],
+    ]);
+
+    $this->get(route('public.pages.show', ['slug' => $page->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $inertia) => $inertia
+            ->component('Public/Page')
+            ->where('content.header.background_type', 'image')
+            ->where('content.header.background_image_url', '/images/mega-menu/commerce-dashboard.jpg')
+            ->where('content.header.alignment', 'right')
+        );
 });

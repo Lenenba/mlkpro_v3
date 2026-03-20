@@ -1523,6 +1523,15 @@
         "active": "Active",
         "draft": "Brouillon"
       },
+      "filters": {
+        "search": "Recherche",
+        "search_placeholder": "Titre ou slug",
+        "status": "Statut",
+        "all_statuses": "Tous les statuts",
+        "clear": "Effacer",
+        "apply": "Appliquer",
+        "results": "{count} page(s)"
+      },
       "table": {
         "slug": "Slug",
         "title": "Titre",
@@ -1533,6 +1542,20 @@
       "locale": {
         "label": "Langue",
         "hint": "Les changements s'appliquent uniquement a la langue selectionnee."
+      },
+      "header": {
+        "title": "Header",
+        "subtitle": "Configurez le fond du hero et l'alignement du titre public.",
+        "alignment": "Alignement du texte",
+        "background_type": "Type de fond",
+        "background_color": "Couleur de fond",
+        "background_image_url": "Image de fond",
+        "background_image_alt": "Texte alternatif image de fond",
+        "background": {
+          "none": "Aucun",
+          "color": "Couleur",
+          "image": "Image"
+        }
       },
       "templates": {
         "title": "Templates",
@@ -1660,6 +1683,9 @@
         "body": "Corps",
         "image_url": "URL image",
         "image_alt": "Texte alternatif",
+        "embed_url": "URL du formulaire embarque",
+        "embed_title": "Titre du formulaire embarque",
+        "embed_height": "Hauteur du formulaire (px)",
         "primary_label": "Label principal",
         "primary_href": "Lien/route principal",
         "secondary_label": "Label secondaire",

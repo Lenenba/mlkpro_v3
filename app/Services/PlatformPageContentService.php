@@ -15,6 +15,7 @@ class PlatformPageContentService
     private const THEME_SHADOWS = ['none', 'soft', 'deep'];
     private const THEME_BUTTON_STYLES = ['solid', 'outline', 'soft', 'ghost'];
     private const THEME_BACKGROUND_STYLES = ['solid', 'gradient'];
+    private const HEADER_BACKGROUND_TYPES = ['none', 'color', 'image'];
     private const VISIBILITY_AUTH = ['any', 'auth', 'guest'];
     private const VISIBILITY_DEVICES = ['all', 'mobile', 'desktop'];
 
@@ -73,6 +74,7 @@ class PlatformPageContentService
         $merged = $this->mergeContent($default, is_array($stored) ? $stored : []);
         $merged['page_title'] = $this->cleanText($merged['page_title'] ?? $page->title);
         $merged['page_subtitle'] = $this->cleanHtml($merged['page_subtitle'] ?? '');
+        $merged['header'] = $this->sanitizeHeader($merged['header'] ?? null);
 
         $sections = $merged['sections'] ?? [];
         if (!is_array($sections)) {
@@ -102,6 +104,9 @@ class PlatformPageContentService
                     'items' => $this->sanitizeStringList($section['items'] ?? []),
                     'image_url' => $this->cleanText($section['image_url'] ?? ''),
                     'image_alt' => $this->cleanText($section['image_alt'] ?? ''),
+                    'embed_url' => $this->sanitizeEmbedUrl($section['embed_url'] ?? ''),
+                    'embed_title' => $this->cleanText($section['embed_title'] ?? ''),
+                    'embed_height' => $this->cleanEmbedHeight($section['embed_height'] ?? null),
                     'primary_label' => $this->cleanText($section['primary_label'] ?? ''),
                     'primary_href' => $this->cleanText($section['primary_href'] ?? ''),
                     'secondary_label' => $this->cleanText($section['secondary_label'] ?? ''),
@@ -154,9 +159,21 @@ class PlatformPageContentService
         return [
             'page_title' => $page->title,
             'page_subtitle' => '',
+            'header' => $this->defaultHeader(),
             'sections' => [
                 $this->defaultSection('section-1'),
             ],
+        ];
+    }
+
+    private function defaultHeader(): array
+    {
+        return [
+            'background_type' => 'none',
+            'background_color' => '',
+            'background_image_url' => '',
+            'background_image_alt' => '',
+            'alignment' => 'center',
         ];
     }
 
@@ -179,6 +196,9 @@ class PlatformPageContentService
             'items' => [],
             'image_url' => '',
             'image_alt' => '',
+            'embed_url' => '',
+            'embed_title' => '',
+            'embed_height' => 760,
             'primary_label' => '',
             'primary_href' => '',
             'secondary_label' => '',
@@ -191,7 +211,26 @@ class PlatformPageContentService
         return [
             'page_title' => $this->cleanText($incoming['page_title'] ?? $default['page_title'] ?? $page->title),
             'page_subtitle' => $this->cleanHtml($incoming['page_subtitle'] ?? $default['page_subtitle'] ?? ''),
+            'header' => $this->sanitizeHeader($incoming['header'] ?? $default['header'] ?? null),
             'sections' => $this->sanitizeSections($incoming['sections'] ?? $default['sections'] ?? []),
+        ];
+    }
+
+    private function sanitizeHeader($incoming): array
+    {
+        $default = $this->defaultHeader();
+        $incoming = is_array($incoming) ? $incoming : [];
+
+        return [
+            'background_type' => $this->cleanThemeChoice(
+                $incoming['background_type'] ?? null,
+                self::HEADER_BACKGROUND_TYPES,
+                $default['background_type']
+            ),
+            'background_color' => $this->cleanColor($incoming['background_color'] ?? null) ?? '',
+            'background_image_url' => $this->sanitizeUrl($incoming['background_image_url'] ?? '', 'image') ?? '',
+            'background_image_alt' => $this->cleanText($incoming['background_image_alt'] ?? ''),
+            'alignment' => $this->cleanAlignment($incoming['alignment'] ?? $default['alignment']),
         ];
     }
 
@@ -224,6 +263,9 @@ class PlatformPageContentService
                 'items' => $this->sanitizeStringList($section['items'] ?? []),
                 'image_url' => $this->cleanText($section['image_url'] ?? ''),
                 'image_alt' => $this->cleanText($section['image_alt'] ?? ''),
+                'embed_url' => $this->sanitizeEmbedUrl($section['embed_url'] ?? ''),
+                'embed_title' => $this->cleanText($section['embed_title'] ?? ''),
+                'embed_height' => $this->cleanEmbedHeight($section['embed_height'] ?? null),
                 'primary_label' => $this->cleanText($section['primary_label'] ?? ''),
                 'primary_href' => $this->cleanText($section['primary_href'] ?? ''),
                 'secondary_label' => $this->cleanText($section['secondary_label'] ?? ''),
@@ -427,6 +469,32 @@ class PlatformPageContentService
         }
 
         return strtolower($color);
+    }
+
+    private function sanitizeEmbedUrl($value): string
+    {
+        $url = $this->sanitizeUrl($value, 'link');
+        if ($url === null) {
+            return '';
+        }
+
+        $lower = strtolower($url);
+        if (str_starts_with($url, '#') || str_starts_with($lower, 'mailto:') || str_starts_with($lower, 'tel:')) {
+            return '';
+        }
+
+        return $url;
+    }
+
+    private function cleanEmbedHeight($value): int
+    {
+        $height = (int) $value;
+
+        if ($height < 420) {
+            return 760;
+        }
+
+        return min($height, 1600);
     }
 
     private function cleanSourceId($value): ?int
@@ -679,6 +747,9 @@ class PlatformPageContentService
 
         $section['image_url'] = $section['image_url'] !== '' ? $section['image_url'] : ($source['image_url'] ?? '');
         $section['image_alt'] = $section['image_alt'] !== '' ? $section['image_alt'] : ($source['image_alt'] ?? '');
+        $section['embed_url'] = $section['embed_url'] !== '' ? $section['embed_url'] : ($source['embed_url'] ?? '');
+        $section['embed_title'] = $section['embed_title'] !== '' ? $section['embed_title'] : ($source['embed_title'] ?? '');
+        $section['embed_height'] = !empty($section['embed_height']) ? $section['embed_height'] : ($source['embed_height'] ?? 760);
         $section['primary_label'] = $section['primary_label'] !== '' ? $section['primary_label'] : ($source['primary_label'] ?? '');
         $section['primary_href'] = $section['primary_href'] !== '' ? $section['primary_href'] : ($source['primary_href'] ?? '');
         $section['secondary_label'] = $section['secondary_label'] !== '' ? $section['secondary_label'] : ($source['secondary_label'] ?? '');

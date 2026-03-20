@@ -7,7 +7,21 @@ import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     page: { type: Object, required: true },
-    content: { type: Object, default: () => ({ page_title: '', page_subtitle: '', sections: [] }) },
+    content: {
+        type: Object,
+        default: () => ({
+            page_title: '',
+            page_subtitle: '',
+            header: {
+                background_type: 'none',
+                background_color: '',
+                background_image_url: '',
+                background_image_alt: '',
+                alignment: 'center',
+            },
+            sections: [],
+        }),
+    },
     plan_key: { type: String, default: null },
     megaMenu: { type: Object, default: () => ({}) },
 });
@@ -104,6 +118,80 @@ const themeStyle = computed(() => {
 
 const primaryButtonClass = computed(() => `public-button--${theme.value?.button_style || 'solid'}`);
 
+const pageHeader = computed(() => ({
+    background_type: props.content?.header?.background_type || 'none',
+    background_color: props.content?.header?.background_color || '',
+    background_image_url: props.content?.header?.background_image_url || '',
+    background_image_alt: props.content?.header?.background_image_alt || '',
+    alignment: props.content?.header?.alignment || 'center',
+}));
+
+const isDarkHexColor = (value) => {
+    const input = String(value || '').trim().replace('#', '');
+    if (!/^[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(input)) {
+        return false;
+    }
+
+    const normalized = input.length === 3
+        ? input.split('').map((char) => `${char}${char}`).join('')
+        : input;
+    const red = Number.parseInt(normalized.slice(0, 2), 16);
+    const green = Number.parseInt(normalized.slice(2, 4), 16);
+    const blue = Number.parseInt(normalized.slice(4, 6), 16);
+    const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+
+    return luminance < 0.55;
+};
+
+const heroUsesContrast = computed(() => {
+    if (pageHeader.value.background_type === 'image' && pageHeader.value.background_image_url) {
+        return true;
+    }
+
+    if (pageHeader.value.background_type === 'color' && pageHeader.value.background_color) {
+        return isDarkHexColor(pageHeader.value.background_color);
+    }
+
+    return false;
+});
+
+const escapeCssUrl = (value) =>
+    String(value || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, '%27')
+        .replace(/"/g, '%22');
+
+const heroStyle = computed(() => {
+    if (pageHeader.value.background_type === 'image' && pageHeader.value.background_image_url) {
+        return {
+            backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.42), rgba(15, 23, 42, 0.42)), url('${escapeCssUrl(pageHeader.value.background_image_url)}')`,
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'cover',
+        };
+    }
+
+    if (pageHeader.value.background_type === 'color' && pageHeader.value.background_color) {
+        return {
+            background: pageHeader.value.background_color,
+        };
+    }
+
+    return {};
+});
+
+const heroContentClass = computed(() => {
+    if (pageHeader.value.alignment === 'left') {
+        return 'mr-auto max-w-4xl text-left';
+    }
+
+    if (pageHeader.value.alignment === 'right') {
+        return 'ml-auto max-w-4xl text-right';
+    }
+
+    return 'mx-auto max-w-4xl text-center';
+});
+
 onMounted(() => {
     document.addEventListener('click', handleLangOutsideClick);
     updateDevice();
@@ -131,6 +219,17 @@ const resolveHref = (href) => {
     } catch (error) {
         return `/${value}`;
     }
+};
+
+const sectionEmbedUrl = (section) => resolveHref(section?.embed_url || '');
+const sectionEmbedTitle = (section) => String(section?.embed_title || section?.title || 'Embedded form');
+const sectionEmbedHeight = (section) => {
+    const height = Number(section?.embed_height);
+    if (!Number.isFinite(height) || height < 420) {
+        return 760;
+    }
+
+    return Math.min(height, 1600);
 };
 
 const isExternalHref = (href) => {
@@ -314,9 +413,13 @@ const headerMenuItems = computed(() => ([
         </header>
 
         <main>
-            <section class="public-section public-hero">
+            <section
+                class="public-section public-hero"
+                :class="{ 'public-hero--contrast': heroUsesContrast }"
+                :style="heroStyle"
+            >
                 <div class="public-container">
-                    <div class="mx-auto flex max-w-4xl flex-col gap-4 text-center">
+                    <div :class="['flex flex-col gap-4', heroContentClass]">
                         <h1 class="public-title text-4xl font-semibold tracking-tight sm:text-5xl">
                             {{ content.page_title || page.title }}
                         </h1>
@@ -371,8 +474,17 @@ const headerMenuItems = computed(() => ([
                             </div>
                         </div>
 
-                        <div v-if="section.image_url" class="public-media">
-                            <div class="public-media-card">
+                        <div v-if="section.embed_url || section.image_url" class="public-media">
+                            <div v-if="section.embed_url" class="public-media-card overflow-hidden">
+                                <iframe
+                                    :src="sectionEmbedUrl(section)"
+                                    :title="sectionEmbedTitle(section)"
+                                    class="w-full border-0 bg-white"
+                                    :style="{ height: `${sectionEmbedHeight(section)}px` }"
+                                    loading="lazy"
+                                />
+                            </div>
+                            <div v-else class="public-media-card">
                                 <img :src="section.image_url" :alt="section.image_alt || section.title"
                                     class="h-auto w-full rounded-sm object-cover" loading="lazy" decoding="async" />
                             </div>
@@ -431,6 +543,14 @@ const headerMenuItems = computed(() => ([
 
 .public-hero {
     padding-block: clamp(3.5rem, 9vw, 8rem);
+}
+
+.public-hero--contrast .public-title {
+    color: #ffffff;
+}
+
+.public-hero--contrast .public-rich {
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .public-section.public-density--compact {

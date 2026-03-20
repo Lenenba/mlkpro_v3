@@ -197,6 +197,12 @@ const alignmentOptions = computed(() => [
     { value: 'right', label: t('super_admin.pages.alignments.right') },
 ]);
 
+const headerBackgroundTypeOptions = computed(() => [
+    { value: 'none', label: t('super_admin.pages.header.background.none') },
+    { value: 'color', label: t('super_admin.pages.header.background.color') },
+    { value: 'image', label: t('super_admin.pages.header.background.image') },
+]);
+
 const densityOptions = computed(() => [
     { value: 'compact', label: t('super_admin.pages.densities.compact') },
     { value: 'normal', label: t('super_admin.pages.densities.normal') },
@@ -302,6 +308,14 @@ const ensureVisibility = (visibility) => ({
     end_at: formatVisibilityDate(visibility?.end_at),
 });
 
+const ensureHeader = (header) => ({
+    background_type: header?.background_type || 'none',
+    background_color: header?.background_color || '',
+    background_image_url: header?.background_image_url || '',
+    background_image_alt: header?.background_image_alt || '',
+    alignment: header?.alignment || 'center',
+});
+
 const parseCommaList = (value) =>
     String(value || '')
         .split(',')
@@ -325,6 +339,9 @@ const ensureSection = (section, index) => ({
     items: Array.isArray(section?.items) ? section.items : [],
     image_url: section?.image_url || '',
     image_alt: section?.image_alt || '',
+    embed_url: section?.embed_url || '',
+    embed_title: section?.embed_title || '',
+    embed_height: Number(section?.embed_height) > 0 ? Number(section.embed_height) : 760,
     primary_label: section?.primary_label || '',
     primary_href: section?.primary_href || '',
     secondary_label: section?.secondary_label || '',
@@ -335,6 +352,7 @@ const ensureStructure = (content) => {
     const next = clone(content);
     next.page_title = next.page_title ?? props.page.title ?? '';
     next.page_subtitle = next.page_subtitle ?? '';
+    next.header = ensureHeader(next.header);
     next.sections = Array.isArray(next.sections) ? next.sections : [];
     next.sections = next.sections.map((section, index) => ensureSection(section, index));
 
@@ -402,9 +420,9 @@ const updateVisibilityList = (section, key, value) => {
     section.visibility[key] = parseCommaList(value);
 };
 
-const openAssetPicker = (section) => {
-    if (!section) return;
-    assetTarget.value = section;
+const openAssetPicker = (target, urlKey = 'image_url', altKey = 'image_alt') => {
+    if (!target) return;
+    assetTarget.value = { target, urlKey, altKey };
     assetPickerOpen.value = true;
 };
 
@@ -414,12 +432,13 @@ const closeAssetPicker = () => {
 };
 
 const handleAssetSelect = (asset) => {
-    if (!assetTarget.value || !asset) {
+    if (!assetTarget.value?.target || !asset) {
         return;
     }
-    assetTarget.value.image_url = asset.url || '';
-    if (!assetTarget.value.image_alt) {
-        assetTarget.value.image_alt = asset.alt || asset.name || '';
+    const { target, urlKey, altKey } = assetTarget.value;
+    target[urlKey] = asset.url || '';
+    if (!target[altKey]) {
+        target[altKey] = asset.alt || asset.name || '';
     }
     closeAssetPicker();
 };
@@ -451,6 +470,9 @@ const applyLibraryToSection = (section) => {
     section.items = Array.isArray(content.items) ? content.items : [];
     section.image_url = content.image_url ?? '';
     section.image_alt = content.image_alt ?? '';
+    section.embed_url = content.embed_url ?? '';
+    section.embed_title = content.embed_title ?? '';
+    section.embed_height = Number(content.embed_height) > 0 ? Number(content.embed_height) : 760;
     section.primary_label = content.primary_label ?? '';
     section.primary_href = content.primary_href ?? '';
     section.secondary_label = content.secondary_label ?? '';
@@ -669,10 +691,26 @@ syncFormFromProps(currentLocale.value);
                 </div>
             </section>
 
-            <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="grid gap-3 md:grid-cols-2">
+            <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 space-y-4">
+                <div class="space-y-1">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('super_admin.pages.header.title') }}
+                    </h2>
+                    <p class="text-sm text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.pages.header.subtitle') }}
+                    </p>
+                </div>
+
+                <div class="grid gap-3 md:grid-cols-3">
                     <FloatingSelect v-model="currentLocale" :options="localeOptions"
                         :label="$t('super_admin.pages.locale.label')" />
+                    <FloatingSelect v-model="form.content.header.alignment" :options="alignmentOptions"
+                        :label="$t('super_admin.pages.header.alignment')" />
+                    <FloatingSelect v-model="form.content.header.background_type" :options="headerBackgroundTypeOptions"
+                        :label="$t('super_admin.pages.header.background_type')" />
+                </div>
+
+                <div class="grid gap-3 md:grid-cols-2">
                     <FloatingInput v-model="form.content.page_title" :label="$t('super_admin.pages.fields.page_title')" />
                     <div class="md:col-span-2">
                         <RichTextEditor
@@ -687,7 +725,54 @@ syncFormFromProps(currentLocale.value);
                         />
                     </div>
                 </div>
-                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+
+                <div v-if="form.content.header.background_type === 'color'"
+                    class="grid gap-2 md:grid-cols-[160px_1fr] md:items-center">
+                    <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.pages.header.background_color') }}
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <input v-model="form.content.header.background_color" type="color"
+                            class="h-10 w-14 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
+                        <div class="min-w-[220px] flex-1">
+                            <FloatingInput v-model="form.content.header.background_color"
+                                :label="$t('super_admin.pages.header.background_color')" />
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="form.content.header.background_type === 'image'" class="space-y-3">
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <div class="space-y-2">
+                            <FloatingInput v-model="form.content.header.background_image_url"
+                                :label="$t('super_admin.pages.header.background_image_url')" />
+                            <div class="flex flex-wrap items-center gap-2 text-xs">
+                                <button v-if="asset_list_url" type="button"
+                                    class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                    @click="openAssetPicker(form.content.header, 'background_image_url', 'background_image_alt')">
+                                    {{ $t('super_admin.pages.assets.choose') }}
+                                </button>
+                                <span v-if="form.content.header.background_image_url" class="text-stone-500">
+                                    {{ $t('super_admin.pages.assets.preview') }}
+                                </span>
+                            </div>
+                            <div v-if="form.content.header.background_image_url"
+                                class="overflow-hidden rounded-sm border border-stone-200 bg-white">
+                                <img
+                                    :src="form.content.header.background_image_url"
+                                    :alt="form.content.header.background_image_alt || form.content.page_title"
+                                    class="h-40 w-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </div>
+                        </div>
+                        <FloatingInput v-model="form.content.header.background_image_alt"
+                            :label="$t('super_admin.pages.header.background_image_alt')" />
+                    </div>
+                </div>
+
+                <div class="text-xs text-stone-500 dark:text-neutral-400">
                     {{ $t('super_admin.pages.locale.hint') }}
                 </div>
             </section>
@@ -824,7 +909,7 @@ syncFormFromProps(currentLocale.value);
                                 <div class="flex flex-wrap items-center gap-2 text-xs">
                                     <button v-if="asset_list_url" type="button"
                                         class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
-                                        @click="openAssetPicker(section)">
+                                        @click="openAssetPicker(section, 'image_url', 'image_alt')">
                                         {{ $t('super_admin.pages.assets.choose') }}
                                     </button>
                                     <span v-if="section.image_url" class="text-stone-500">
@@ -836,6 +921,12 @@ syncFormFromProps(currentLocale.value);
                                 </div>
                             </div>
                             <FloatingInput v-model="section.image_alt" :label="$t('super_admin.pages.common.image_alt')" />
+                        </div>
+
+                        <div class="grid gap-3 md:grid-cols-3">
+                            <FloatingInput v-model="section.embed_url" :label="$t('super_admin.pages.common.embed_url')" />
+                            <FloatingInput v-model="section.embed_title" :label="$t('super_admin.pages.common.embed_title')" />
+                            <FloatingInput v-model="section.embed_height" type="number" :label="$t('super_admin.pages.common.embed_height')" />
                         </div>
 
                         <div class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">

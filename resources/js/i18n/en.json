@@ -1523,6 +1523,15 @@
         "active": "Active",
         "draft": "Draft"
       },
+      "filters": {
+        "search": "Search",
+        "search_placeholder": "Title or slug",
+        "status": "Status",
+        "all_statuses": "All statuses",
+        "clear": "Clear",
+        "apply": "Apply",
+        "results": "{count} page(s)"
+      },
       "table": {
         "slug": "Slug",
         "title": "Title",
@@ -1533,6 +1542,20 @@
       "locale": {
         "label": "Language",
         "hint": "Edits apply to the selected locale only."
+      },
+      "header": {
+        "title": "Header",
+        "subtitle": "Configure the hero background and public title alignment.",
+        "alignment": "Text alignment",
+        "background_type": "Background type",
+        "background_color": "Background color",
+        "background_image_url": "Background image",
+        "background_image_alt": "Background image alt text",
+        "background": {
+          "none": "None",
+          "color": "Color",
+          "image": "Image"
+        }
       },
       "templates": {
         "title": "Templates",
@@ -1660,6 +1683,9 @@
         "body": "Body",
         "image_url": "Image URL",
         "image_alt": "Image alt text",
+        "embed_url": "Embedded form URL",
+        "embed_title": "Embedded form title",
+        "embed_height": "Embedded form height (px)",
         "primary_label": "Primary label",
         "primary_href": "Primary href/route",
         "secondary_label": "Secondary label",
