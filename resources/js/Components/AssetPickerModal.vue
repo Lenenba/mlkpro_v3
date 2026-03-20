@@ -1,11 +1,12 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import Modal from '@/Components/Modal.vue';
 import { formatBytes } from '@/utils/media';
 
 const props = defineProps({
     show: { type: Boolean, default: false },
     listUrl: { type: String, default: '' },
+    uploadUrl: { type: String, default: '' },
     title: { type: String, default: '' },
 });
 
@@ -17,6 +18,11 @@ const filters = ref({
     search: '',
     tag: '',
 });
+const uploadFile = ref(null);
+const uploadAlt = ref('');
+const uploadTags = ref('');
+const uploadBusy = ref(false);
+const uploadError = ref('');
 
 const isImage = (asset) => Boolean(asset?.is_image);
 const isVideo = (asset) => String(asset?.mime || '').startsWith('video/');
@@ -63,10 +69,53 @@ const resetFilters = () => {
 const close = () => emit('close');
 const selectAsset = (asset) => emit('select', asset);
 
+const handleFileChange = (event) => {
+    const [file] = event?.target?.files || [];
+    uploadFile.value = file || null;
+};
+
+const uploadAsset = async () => {
+    if (!props.uploadUrl || !uploadFile.value) {
+        return;
+    }
+
+    uploadBusy.value = true;
+    uploadError.value = '';
+
+    try {
+        const formData = new FormData();
+        formData.append('files[]', uploadFile.value);
+        formData.append('alt', uploadAlt.value || '');
+        formData.append('tags', uploadTags.value || '');
+
+        const response = await window.axios.post(props.uploadUrl, formData, {
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        const uploadedAsset = response?.data?.assets?.[0] || null;
+        uploadFile.value = null;
+        uploadAlt.value = '';
+        uploadTags.value = '';
+        await fetchAssets();
+
+        if (uploadedAsset) {
+            emit('select', uploadedAsset);
+        }
+    } catch (error) {
+        uploadError.value = error?.response?.data?.message || 'Upload failed.';
+    } finally {
+        uploadBusy.value = false;
+    }
+};
+
 watch(
     () => props.show,
     (show) => {
         if (show) {
+            uploadError.value = '';
             fetchAssets();
         }
     }
@@ -115,6 +164,38 @@ watch(
                     class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700">
                     {{ $t('super_admin.common.apply') }}
                 </button>
+            </div>
+
+            <div v-if="uploadUrl" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700">
+                <div class="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
+                    <div>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Upload image or file</label>
+                        <input
+                            type="file"
+                            class="mt-1 block w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                            @change="handleFileChange"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Alt text</label>
+                        <input v-model="uploadAlt" type="text"
+                            class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Tags</label>
+                        <input v-model="uploadTags" type="text"
+                            class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                            placeholder="menu, hero, banner" />
+                    </div>
+                    <button type="button" @click="uploadAsset"
+                        class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                        :disabled="!uploadFile || uploadBusy">
+                        {{ uploadBusy ? 'Uploading...' : 'Upload and use' }}
+                    </button>
+                </div>
+                <p v-if="uploadError" class="mt-2 text-xs font-semibold text-red-600">
+                    {{ uploadError }}
+                </p>
             </div>
 
             <div v-if="loading" class="rounded-sm border border-dashed border-stone-200 p-6 text-center text-sm text-stone-500">

@@ -1,0 +1,836 @@
+<script setup>
+import { computed, reactive, ref } from 'vue';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import draggable from 'vuedraggable';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import Checkbox from '@/Components/Checkbox.vue';
+import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
+import AssetPickerModal from '@/Components/AssetPickerModal.vue';
+import ApplicationLogo from '@/Components/ApplicationLogo.vue';
+import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
+import MegaMenuBlockPayloadEditor from '@/Components/MegaMenu/MegaMenuBlockPayloadEditor.vue';
+import {
+    cloneMegaMenu,
+    createMegaMenuBlock,
+    createMegaMenuColumn,
+    createMegaMenuItem,
+    normalizeMegaMenu,
+    prepareMegaMenuForSubmit,
+} from '@/utils/megaMenuBuilder';
+
+const props = defineProps({
+    mode: { type: String, default: 'create' },
+    menu: { type: Object, default: () => ({}) },
+    meta: { type: Object, default: () => ({}) },
+    choices: { type: Object, default: () => ({}) },
+    internal_page_options: { type: Array, default: () => [] },
+    asset_list_url: { type: String, default: '' },
+    asset_upload_url: { type: String, default: '' },
+    dashboard_url: { type: String, required: true },
+    index_url: { type: String, required: true },
+    preview_url: { type: String, default: null },
+    activate_url: { type: String, default: null },
+    deactivate_url: { type: String, default: null },
+});
+
+const isCreateMode = computed(() => props.mode === 'create');
+const blockDefinitions = computed(() => props.choices?.block_types || []);
+const defaults = computed(() => props.choices?.defaults || {});
+
+const initialState = normalizeMegaMenu(cloneMegaMenu(props.menu || {}), defaults.value, blockDefinitions.value);
+const form = useForm(initialState);
+
+const previewDevice = ref('desktop');
+const assetPickerOpen = ref(false);
+const assetTarget = ref(null);
+
+const selection = reactive({
+    type: 'menu',
+    itemKey: null,
+    columnKey: null,
+    blockKey: null,
+});
+
+const optionValues = (key) => props.choices?.[key] || [];
+const statusOptions = computed(() => optionValues('statuses'));
+const locationOptions = computed(() => optionValues('display_locations'));
+const panelTypeOptions = computed(() => optionValues('panel_types'));
+const linkTypeOptions = computed(() => optionValues('link_types'));
+const linkTargetOptions = computed(() => optionValues('link_targets'));
+const badgeVariantOptions = computed(() => [{ value: '', label: 'None' }, ...optionValues('badge_variants')]);
+const themeOptions = computed(() => [
+    { value: 'default', label: 'Default' },
+    { value: 'brand', label: 'Brand' },
+    { value: 'contrast', label: 'Contrast' },
+]);
+const containerWidthOptions = computed(() => [
+    { value: 'lg', label: 'Large' },
+    { value: 'xl', label: 'Extra large' },
+    { value: '2xl', label: '2XL' },
+    { value: 'full', label: 'Full width' },
+]);
+const alignmentOptions = computed(() => [
+    { value: 'start', label: 'Start' },
+    { value: 'center', label: 'Center' },
+    { value: 'end', label: 'End' },
+]);
+const rowOptions = computed(() => [
+    { value: 'main', label: 'Main row' },
+    { value: 'footer', label: 'Footer row' },
+]);
+const toneOptions = computed(() => [
+    { value: 'default', label: 'Default' },
+    { value: 'muted', label: 'Muted' },
+    { value: 'contrast', label: 'Contrast' },
+]);
+
+const findItemContext = (key, items = form.items, parentList = null, parentItem = null) => {
+    for (let index = 0; index < items.length; index += 1) {
+        const item = items[index];
+        if (item.builder_key === key) {
+            return { item, list: items, index, parentList, parentItem };
+        }
+        if (Array.isArray(item.children) && item.children.length) {
+            const result = findItemContext(key, item.children, items, item);
+            if (result) return result;
+        }
+    }
+    return null;
+};
+
+const findColumnContext = (key) => {
+    for (const item of form.items) {
+        for (let index = 0; index < (item.columns || []).length; index += 1) {
+            const column = item.columns[index];
+            if (column.builder_key === key) {
+                return { column, item, list: item.columns, index };
+            }
+        }
+    }
+    return null;
+};
+
+const findBlockContext = (key) => {
+    for (const item of form.items) {
+        for (const column of item.columns || []) {
+            for (let index = 0; index < (column.blocks || []).length; index += 1) {
+                const block = column.blocks[index];
+                if (block.builder_key === key) {
+                    return { block, column, item, list: column.blocks, index };
+                }
+            }
+        }
+    }
+    return null;
+};
+
+const selectedItemContext = computed(() => selection.itemKey ? findItemContext(selection.itemKey) : null);
+const selectedColumnContext = computed(() => selection.columnKey ? findColumnContext(selection.columnKey) : null);
+const selectedBlockContext = computed(() => selection.blockKey ? findBlockContext(selection.blockKey) : null);
+
+const selectedEntity = computed(() => {
+    if (selection.type === 'block') return selectedBlockContext.value?.block || null;
+    if (selection.type === 'column') return selectedColumnContext.value?.column || null;
+    if (selection.type === 'item') return selectedItemContext.value?.item || null;
+    return form;
+});
+
+const selectionTitle = computed(() => {
+    if (selection.type === 'block') return `Block settings${selectedBlockContext.value?.block?.type ? ` · ${selectedBlockContext.value.block.type}` : ''}`;
+    if (selection.type === 'column') return 'Column settings';
+    if (selection.type === 'item') return 'Item settings';
+    return 'Menu settings';
+});
+
+const errorEntries = computed(() => Object.entries(form.errors || {}));
+
+const formatDate = (value) => {
+    if (!value) return 'Not available';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+};
+
+const findBlockDefinition = (type) => blockDefinitions.value.find((definition) => definition.type === type) || blockDefinitions.value[0] || {
+    type: 'text',
+    label: 'Text',
+    default_payload: { title: 'Text block', body: '<p>Content</p>' },
+};
+
+const createBlock = (type = null, overrides = {}) => {
+    const definition = findBlockDefinition(type || blockDefinitions.value[0]?.type || 'navigation_group');
+
+    return createMegaMenuBlock(definition, {
+        ...overrides,
+        type: definition.type,
+        settings: {
+            ...(cloneMegaMenu(defaults.value.block_settings) || {}),
+            ...(cloneMegaMenu(overrides.settings) || {}),
+        },
+        payload: cloneMegaMenu(overrides.payload ?? definition.default_payload),
+    });
+};
+
+const createColumn = (overrides = {}) => {
+    const column = createMegaMenuColumn([], {
+        ...overrides,
+        settings: {
+            ...(cloneMegaMenu(defaults.value.column_settings) || {}),
+            ...(cloneMegaMenu(overrides.settings) || {}),
+        },
+        blocks: [],
+    });
+
+    column.blocks = Array.isArray(overrides.blocks) && overrides.blocks.length
+        ? overrides.blocks.map((block) => createBlock(block.type, block))
+        : [createBlock()];
+
+    return column;
+};
+
+const createItem = (overrides = {}) => {
+    const item = createMegaMenuItem([], {
+        ...overrides,
+        settings: {
+            ...(cloneMegaMenu(defaults.value.item_settings) || {}),
+            ...(cloneMegaMenu(overrides.settings) || {}),
+        },
+        children: [],
+        columns: [],
+    });
+
+    if (item.panel_type === 'classic') {
+        item.children = Array.isArray(overrides.children) && overrides.children.length
+            ? overrides.children.map((child) => createItem(child))
+            : [createItem({ panel_type: 'link', label: 'Dropdown link', link_type: 'internal_page', link_value: '/' })];
+    }
+
+    if (item.panel_type === 'mega') {
+        item.columns = Array.isArray(overrides.columns) && overrides.columns.length
+            ? overrides.columns.map((column) => createColumn(column))
+            : [createColumn()];
+    }
+
+    return item;
+};
+
+const resetSelectionToMenu = () => {
+    selection.type = 'menu';
+    selection.itemKey = null;
+    selection.columnKey = null;
+    selection.blockKey = null;
+};
+
+const selectMenu = () => resetSelectionToMenu();
+const selectItem = (item) => {
+    selection.type = 'item';
+    selection.itemKey = item.builder_key;
+    selection.columnKey = null;
+    selection.blockKey = null;
+};
+const selectColumn = (item, column) => {
+    selectItem(item);
+    selection.type = 'column';
+    selection.columnKey = column.builder_key;
+};
+const selectBlock = (item, column, block) => {
+    selectColumn(item, column);
+    selection.type = 'block';
+    selection.blockKey = block.builder_key;
+};
+
+const ensurePanelStructure = (item) => {
+    if (item.panel_type === 'classic') {
+        item.columns = [];
+        if (!Array.isArray(item.children) || !item.children.length) {
+            item.children = [createItem({ panel_type: 'link', label: 'Dropdown link', link_type: 'internal_page', link_value: '/' })];
+        }
+    } else if (item.panel_type === 'mega') {
+        item.children = [];
+        if (!Array.isArray(item.columns) || !item.columns.length) {
+            item.columns = [createColumn()];
+        }
+    } else {
+        item.children = [];
+        item.columns = [];
+    }
+};
+
+const addTopLevelItem = () => {
+    const item = createItem({ label: 'New menu item', panel_type: 'mega' });
+    form.items.push(item);
+    selectItem(item);
+};
+
+const addChildItem = (item) => {
+    item.panel_type = 'classic';
+    ensurePanelStructure(item);
+    const child = createItem({ label: 'New child link', panel_type: 'link', link_type: 'internal_page', link_value: '/' });
+    item.children.push(child);
+    selectItem(child);
+};
+
+const addColumnToItem = (item) => {
+    item.panel_type = 'mega';
+    ensurePanelStructure(item);
+    const column = createColumn({ title: 'New column' });
+    item.columns.push(column);
+    selectColumn(item, column);
+};
+
+const addBlockToColumn = (item, column, type = null) => {
+    const block = createBlock(type);
+    column.blocks.push(block);
+    selectBlock(item, column, block);
+};
+
+const duplicateItem = (context) => {
+    const copy = createItem({
+        ...cloneMegaMenu(context.item),
+        id: null,
+        label: `${context.item.label} Copy`,
+    });
+    context.list.splice(context.index + 1, 0, copy);
+    selectItem(copy);
+};
+
+const removeItem = (context) => {
+    if (!window.confirm(`Delete "${context.item.label}"?`)) return;
+    context.list.splice(context.index, 1);
+    resetSelectionToMenu();
+};
+
+const duplicateColumn = (context) => {
+    const copy = createColumn({
+        ...cloneMegaMenu(context.column),
+        id: null,
+        title: `${context.column.title || 'Column'} Copy`,
+    });
+    context.list.splice(context.index + 1, 0, copy);
+    selectColumn(context.item, copy);
+};
+
+const removeColumn = (context) => {
+    if (!window.confirm('Delete this column?')) return;
+    context.list.splice(context.index, 1);
+    if (!context.item.columns.length) {
+        context.item.columns.push(createColumn());
+    }
+    resetSelectionToMenu();
+};
+
+const duplicateBlock = (context) => {
+    const copy = createBlock(context.block.type, {
+        ...cloneMegaMenu(context.block),
+        id: null,
+        title: `${context.block.title || context.block.type} Copy`,
+    });
+    context.list.splice(context.index + 1, 0, copy);
+    selectBlock(context.item, context.column, copy);
+};
+
+const removeBlock = (context) => {
+    if (!window.confirm('Delete this block?')) return;
+    context.list.splice(context.index, 1);
+    if (!context.column.blocks.length) {
+        context.column.blocks.push(createBlock());
+    }
+    resetSelectionToMenu();
+};
+
+const changeBlockType = (block) => {
+    const definition = findBlockDefinition(block.type);
+    block.payload = cloneMegaMenu(definition.default_payload);
+    if (!block.title) {
+        block.title = definition.label;
+    }
+};
+
+const openAssetPicker = (target, field = 'image_url', altField = null) => {
+    assetTarget.value = { target, field, altField };
+    assetPickerOpen.value = true;
+};
+
+const handleAssetSelect = (asset) => {
+    if (!assetTarget.value) return;
+    assetTarget.value.target[assetTarget.value.field] = asset.url || '';
+    if (assetTarget.value.altField && !assetTarget.value.target[assetTarget.value.altField]) {
+        assetTarget.value.target[assetTarget.value.altField] = asset.alt || asset.name || '';
+    }
+    assetPickerOpen.value = false;
+    assetTarget.value = null;
+};
+
+const closeAssetPicker = () => {
+    assetPickerOpen.value = false;
+    assetTarget.value = null;
+};
+
+const resolveRoutePreview = (name) => {
+    try {
+        return route(name);
+    } catch (error) {
+        return null;
+    }
+};
+
+const previewMenu = computed(() => {
+    const decorateItem = (item) => ({
+        ...item,
+        resolved_href: item.link_type === 'route' ? resolveRoutePreview(item.link_value) : item.link_value,
+        children: (item.children || []).map(decorateItem),
+        columns: (item.columns || []).map((column) => ({
+            ...column,
+            blocks: (column.blocks || []).map((block) => {
+                if (block.type === 'module_shortcut') {
+                    return {
+                        ...block,
+                        payload: {
+                            ...block.payload,
+                            shortcuts: (block.payload?.shortcuts || []).map((shortcut) => ({
+                                ...shortcut,
+                                resolved_href: resolveRoutePreview(shortcut.route_name),
+                            })),
+                        },
+                    };
+                }
+                return block;
+            }),
+        })),
+    });
+
+    return {
+        ...form,
+        items: (form.items || []).map(decorateItem),
+    };
+});
+
+const submit = () => {
+    const payload = prepareMegaMenuForSubmit(form);
+    form.transform(() => payload);
+
+    if (isCreateMode.value) {
+        form.post(route('superadmin.mega-menus.store'));
+        return;
+    }
+
+    form.put(route('superadmin.mega-menus.update', form.id));
+};
+
+const deleteCurrent = () => {
+    if (!form.id || !window.confirm(`Delete mega menu "${form.title}"?`)) return;
+    router.delete(route('superadmin.mega-menus.destroy', form.id));
+};
+
+const activeSelection = computed(() => selectedEntity.value);
+</script>
+
+<template>
+    <Head :title="isCreateMode ? 'Create Mega Menu' : `Edit ${form.title || 'Mega Menu'}`" />
+
+    <AuthenticatedLayout>
+        <div class="space-y-5">
+            <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="space-y-1">
+                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ isCreateMode ? 'Create Mega Menu' : 'Mega Menu Builder' }}
+                        </h1>
+                        <p class="text-sm text-stone-600 dark:text-neutral-400">
+                            Build rich, multi-column navigation with reusable content blocks and a live frontend preview.
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <Link :href="dashboard_url"
+                            class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
+                            Dashboard
+                        </Link>
+                        <Link :href="index_url"
+                            class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
+                            Mega menus
+                        </Link>
+                        <Link v-if="preview_url" :href="preview_url"
+                            class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
+                            Preview page
+                        </Link>
+                        <button v-if="activate_url && form.status !== 'active'" type="button"
+                            class="rounded-sm border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                            @click="router.post(activate_url)">
+                            Activate
+                        </button>
+                        <button v-if="deactivate_url && form.status === 'active'" type="button"
+                            class="rounded-sm border border-amber-200 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-50"
+                            @click="router.post(deactivate_url)">
+                            Deactivate
+                        </button>
+                        <button type="button"
+                            class="rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                            :disabled="form.processing"
+                            @click="submit">
+                            {{ form.processing ? 'Saving...' : 'Save mega menu' }}
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section v-if="errorEntries.length" class="rounded-sm border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                <div class="font-semibold">Validation issues</div>
+                <ul class="mt-2 space-y-1">
+                    <li v-for="[key, message] in errorEntries" :key="key">
+                        <span class="font-mono text-xs">{{ key }}</span> · {{ message }}
+                    </li>
+                </ul>
+            </section>
+
+            <section class="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
+                <aside class="space-y-4">
+                    <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Structure</div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">Drag nodes to reorder the builder tree.</div>
+                            </div>
+                            <button type="button"
+                                class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+                                @click="addTopLevelItem">
+                                Add item
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <button type="button"
+                            class="mb-3 w-full rounded-sm border px-3 py-2 text-left text-sm font-semibold"
+                            :class="selection.type === 'menu'
+                                ? 'border-green-600 bg-emerald-50 text-emerald-700'
+                                : 'border-stone-200 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800'"
+                            @click="selectMenu">
+                            Menu root
+                        </button>
+
+                        <draggable v-model="form.items" item-key="builder_key" handle=".builder-handle" class="space-y-3">
+                            <template #item="{ element: item }">
+                                <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                                    <div class="flex items-start gap-2">
+                                        <button type="button" class="builder-handle mt-1 cursor-grab rounded-sm border border-stone-200 px-2 py-1 text-[11px] font-semibold text-stone-500 dark:border-neutral-700 dark:text-neutral-400">
+                                            Drag
+                                        </button>
+                                        <button type="button" class="min-w-0 flex-1 text-left" @click="selectItem(item)">
+                                            <div class="truncate text-sm font-semibold" :class="selection.itemKey === item.builder_key ? 'text-emerald-700 dark:text-emerald-300' : 'text-stone-800 dark:text-neutral-100'">
+                                                {{ item.label || 'Untitled item' }}
+                                            </div>
+                                            <div class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                                {{ item.panel_type }} · {{ item.link_type }}
+                                            </div>
+                                        </button>
+                                    </div>
+                                    <div class="mt-3 flex flex-wrap gap-2 text-[11px]">
+                                        <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800" @click="duplicateItem(findItemContext(item.builder_key))">
+                                            Duplicate
+                                        </button>
+                                        <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800" @click="addChildItem(item)">
+                                            Add child
+                                        </button>
+                                        <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800" @click="addColumnToItem(item)">
+                                            Add column
+                                        </button>
+                                        <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50" @click="removeItem(findItemContext(item.builder_key))">
+                                            Remove
+                                        </button>
+                                    </div>
+
+                                    <div v-if="item.panel_type === 'classic'" class="mt-3 space-y-2 border-t border-stone-200 pt-3 dark:border-neutral-700">
+                                        <div class="text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Children</div>
+                                        <draggable v-model="item.children" item-key="builder_key" handle=".builder-child-handle" class="space-y-2">
+                                            <template #item="{ element: child }">
+                                                <div class="rounded-sm border border-stone-200 bg-stone-50 p-2 dark:border-neutral-700 dark:bg-neutral-800">
+                                                    <div class="flex items-start gap-2">
+                                                        <button type="button" class="builder-child-handle mt-1 cursor-grab rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-500 dark:border-neutral-700 dark:text-neutral-400">Drag</button>
+                                                        <button type="button" class="min-w-0 flex-1 text-left" @click="selectItem(child)">
+                                                            <div class="truncate text-sm font-medium">{{ child.label || 'Untitled child' }}</div>
+                                                            <div class="text-[10px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ child.link_type }}</div>
+                                                        </button>
+                                                        <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-[10px] font-semibold text-red-700 hover:bg-red-50" @click="removeItem(findItemContext(child.builder_key))">X</button>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </draggable>
+                                    </div>
+
+                                    <div v-if="item.panel_type === 'mega'" class="mt-3 space-y-3 border-t border-stone-200 pt-3 dark:border-neutral-700">
+                                        <div class="text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Columns</div>
+                                        <draggable v-model="item.columns" item-key="builder_key" handle=".builder-column-handle" class="space-y-3">
+                                            <template #item="{ element: column }">
+                                                <div class="rounded-sm border border-stone-200 bg-stone-50 p-2 dark:border-neutral-700 dark:bg-neutral-800">
+                                                    <div class="flex items-start gap-2">
+                                                        <button type="button" class="builder-column-handle mt-1 cursor-grab rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-500 dark:border-neutral-700 dark:text-neutral-400">Drag</button>
+                                                        <button type="button" class="min-w-0 flex-1 text-left" @click="selectColumn(item, column)">
+                                                            <div class="truncate text-sm font-medium">{{ column.title || 'Untitled column' }}</div>
+                                                            <div class="text-[10px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ column.width }}</div>
+                                                        </button>
+                                                        <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-700 hover:bg-white dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-900" @click="duplicateColumn(findColumnContext(column.builder_key))">Copy</button>
+                                                        <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-[10px] font-semibold text-red-700 hover:bg-red-50" @click="removeColumn(findColumnContext(column.builder_key))">X</button>
+                                                    </div>
+                                                    <div class="mt-2 flex justify-end gap-2">
+                                                        <button type="button" class="rounded-sm border border-emerald-200 px-2 py-1 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-50" @click="addBlockToColumn(item, column, 'image')">
+                                                            Add image
+                                                        </button>
+                                                        <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-700 hover:bg-white dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-900" @click="addBlockToColumn(item, column)">
+                                                            Add block
+                                                        </button>
+                                                    </div>
+                                                    <draggable v-model="column.blocks" item-key="builder_key" handle=".builder-block-handle" class="mt-2 space-y-2">
+                                                        <template #item="{ element: block }">
+                                                            <div class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
+                                                                <div class="flex items-start gap-2">
+                                                                    <button type="button" class="builder-block-handle mt-1 cursor-grab rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-500 dark:border-neutral-700 dark:text-neutral-400">Drag</button>
+                                                                    <button type="button" class="min-w-0 flex-1 text-left" @click="selectBlock(item, column, block)">
+                                                                        <div class="truncate text-sm font-medium">{{ block.title || block.type }}</div>
+                                                                        <div class="text-[10px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ block.type }}</div>
+                                                                    </button>
+                                                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800" @click="duplicateBlock(findBlockContext(block.builder_key))">Copy</button>
+                                                                    <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-[10px] font-semibold text-red-700 hover:bg-red-50" @click="removeBlock(findBlockContext(block.builder_key))">X</button>
+                                                                </div>
+                                                            </div>
+                                                        </template>
+                                                    </draggable>
+                                                </div>
+                                            </template>
+                                        </draggable>
+                                    </div>
+                                </div>
+                            </template>
+                        </draggable>
+                    </div>
+                </aside>
+
+                <div class="space-y-4">
+                    <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Live preview</div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">Desktop and tablet render share the same reusable renderer used by the public site.</div>
+                            </div>
+                            <div class="flex gap-2 text-xs">
+                                <button type="button" class="rounded-sm border px-2 py-1 font-semibold"
+                                    :class="previewDevice === 'desktop' ? 'border-green-600 bg-emerald-50 text-emerald-700' : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
+                                    @click="previewDevice = 'desktop'">
+                                    Desktop
+                                </button>
+                                <button type="button" class="rounded-sm border px-2 py-1 font-semibold"
+                                    :class="previewDevice === 'tablet' ? 'border-green-600 bg-emerald-50 text-emerald-700' : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
+                                    @click="previewDevice = 'tablet'">
+                                    Tablet
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden rounded-sm border border-stone-200 bg-gradient-to-br from-stone-100 via-white to-emerald-50 p-4 shadow-sm dark:border-neutral-700 dark:from-neutral-900 dark:via-neutral-900 dark:to-neutral-800">
+                        <div class="mx-auto rounded-sm border border-stone-200 bg-white shadow-xl transition-all dark:border-neutral-700 dark:bg-neutral-950"
+                            :class="previewDevice === 'tablet' ? 'max-w-3xl' : 'max-w-[1400px]'">
+                            <div class="border-b border-stone-200 dark:border-neutral-700">
+                                <div class="mx-auto flex w-full max-w-[88rem] items-center gap-5 px-5 py-5 xl:px-8">
+                                    <div class="flex shrink-0 items-center">
+                                        <ApplicationLogo class="h-10 w-36 sm:h-11 sm:w-40" />
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <MegaMenuDisplay :menu="previewMenu" preview default-open-first-panel />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="inline-flex shrink-0 items-center gap-2 rounded-sm border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-800 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                                    >
+                                        <span>Langue</span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="m6 9 6 6 6-6" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="grid gap-6 p-6 lg:grid-cols-[1.1fr_0.9fr]">
+                                <div class="space-y-4">
+                                    <div class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">Context area</div>
+                                    <h2 class="text-3xl font-semibold tracking-tight text-stone-900 dark:text-white">
+                                        Preview how the menu opens inside the frontend shell.
+                                    </h2>
+                                    <p class="text-sm text-stone-600 dark:text-neutral-300">
+                                        The center canvas uses the same data structure as the frontend renderer, so hover states, classic dropdowns, and multi-column panels stay aligned with production output.
+                                    </p>
+                                </div>
+                                <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                    <div class="font-semibold text-stone-900 dark:text-white">Metadata</div>
+                                    <div class="mt-2 space-y-2 text-xs">
+                                        <div>Created: {{ formatDate(meta.created_at) }}</div>
+                                        <div>Updated: {{ formatDate(meta.updated_at) }}</div>
+                                        <div>Created by: {{ meta.created_by?.name || meta.created_by?.email || 'Unknown' }}</div>
+                                        <div>Updated by: {{ meta.updated_by?.name || meta.updated_by?.email || 'Unknown' }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="space-y-4">
+                    <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ selectionTitle }}</div>
+                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                            Settings update the currently selected node in the structure tree.
+                        </div>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <template v-if="selection.type === 'menu'">
+                            <div class="space-y-4">
+                                <FloatingInput v-model="form.title" label="Title" />
+                                <FloatingInput v-model="form.slug" label="Slug" />
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingSelect v-model="form.status" :options="statusOptions" label="Status" />
+                                    <FloatingSelect v-model="form.display_location" :options="locationOptions" label="Display location" />
+                                </div>
+                                <FloatingInput v-if="form.display_location === 'custom'" v-model="form.custom_zone" label="Custom zone" />
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Description</label>
+                                    <textarea v-model="form.description" rows="3" class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"></textarea>
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingInput v-model="form.css_classes" label="CSS classes" />
+                                    <FloatingInput v-model="form.ordering" type="number" label="Priority" />
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingSelect v-model="form.settings.theme" :options="themeOptions" label="Theme" />
+                                    <FloatingSelect v-model="form.settings.container_width" :options="containerWidthOptions" label="Container width" />
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <div>
+                                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Accent color</label>
+                                        <div class="mt-1 flex gap-2">
+                                            <input v-model="form.settings.accent_color" type="color" class="h-11 w-14 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
+                                            <input v-model="form.settings.accent_color" type="text" class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Panel background</label>
+                                        <div class="mt-1 flex gap-2">
+                                            <input v-model="form.settings.panel_background" type="color" class="h-11 w-14 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
+                                            <input v-model="form.settings.panel_background" type="text" class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
+                                        <Checkbox v-model:checked="form.settings.open_on_hover" />
+                                        <span>Open on hover</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
+                                        <Checkbox v-model:checked="form.settings.show_dividers" />
+                                        <span>Show dividers</span>
+                                    </label>
+                                </div>
+                                <div v-if="!isCreateMode" class="pt-2">
+                                    <button type="button" class="rounded-sm border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50" @click="deleteCurrent">
+                                        Delete mega menu
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-else-if="selection.type === 'item' && activeSelection">
+                            <div class="space-y-4">
+                                <FloatingInput v-model="activeSelection.label" label="Label" />
+                                <FloatingInput v-model="activeSelection.description" label="Description" />
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingSelect v-model="activeSelection.panel_type" :options="panelTypeOptions" label="Panel type" @update:modelValue="ensurePanelStructure(activeSelection)" />
+                                    <FloatingSelect v-model="activeSelection.link_type" :options="linkTypeOptions" label="Link type" />
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <div v-if="activeSelection.link_type === 'internal_page'">
+                                        <FloatingSelect v-model="activeSelection.link_value" :options="internal_page_options" label="Internal page" option-value="value" option-label="label" filterable />
+                                    </div>
+                                    <FloatingInput v-else-if="activeSelection.link_type !== 'none'" v-model="activeSelection.link_value" :label="activeSelection.link_type === 'route' ? 'Route name' : activeSelection.link_type === 'anchor' ? 'Anchor' : 'Href / URL'" />
+                                    <FloatingSelect v-model="activeSelection.link_target" :options="linkTargetOptions" label="Target" />
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingInput v-model="activeSelection.icon" label="Icon" />
+                                    <FloatingInput v-model="activeSelection.css_classes" label="CSS classes" />
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingInput v-model="activeSelection.badge_text" label="Badge text" />
+                                    <FloatingSelect v-model="activeSelection.badge_variant" :options="badgeVariantOptions" label="Badge variant" />
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingInput v-model="activeSelection.settings.eyebrow" label="Eyebrow" />
+                                    <FloatingInput v-model="activeSelection.settings.note" label="Note" />
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
+                                        <Checkbox v-model:checked="activeSelection.is_visible" />
+                                        <span>Visible</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
+                                        <Checkbox v-model:checked="activeSelection.settings.featured" />
+                                        <span>Featured item</span>
+                                    </label>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Highlight color</label>
+                                    <div class="mt-1 flex gap-2">
+                                        <input v-model="activeSelection.settings.highlight_color" type="color" class="h-11 w-14 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
+                                        <input v-model="activeSelection.settings.highlight_color" type="text" class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" />
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-else-if="selection.type === 'column' && activeSelection">
+                            <div class="space-y-4">
+                                <FloatingInput v-model="activeSelection.title" label="Column title" />
+                                <FloatingInput v-model="activeSelection.width" label="Width (e.g. 1fr, 240px, 40%)" />
+                                <FloatingInput v-model="activeSelection.css_classes" label="CSS classes" />
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingSelect v-model="activeSelection.settings.alignment" :options="alignmentOptions" label="Alignment" />
+                                    <FloatingSelect v-model="activeSelection.settings.row" :options="rowOptions" label="Row" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Background color</label>
+                                    <div class="mt-1 flex gap-2">
+                                        <input v-model="activeSelection.settings.background_color" type="color" class="h-11 w-14 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
+                                        <input v-model="activeSelection.settings.background_color" type="text" class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" />
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-else-if="selection.type === 'block' && activeSelection">
+                            <div class="space-y-4">
+                                <FloatingSelect v-model="activeSelection.type" :options="blockDefinitions.map((definition) => ({ value: definition.type, label: definition.label }))" label="Block type" @update:modelValue="changeBlockType(activeSelection)" />
+                                <FloatingInput v-model="activeSelection.title" label="Block title" />
+                                <FloatingInput v-model="activeSelection.css_classes" label="CSS classes" />
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingSelect v-model="activeSelection.settings.tone" :options="toneOptions" label="Tone" />
+                                    <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
+                                        <Checkbox v-model:checked="activeSelection.settings.show_border" />
+                                        <span>Show border</span>
+                                    </label>
+                                </div>
+                                <div class="border-t border-stone-200 pt-4 dark:border-neutral-700">
+                                    <MegaMenuBlockPayloadEditor :block="activeSelection" @pick-asset="({ target, field, altField }) => openAssetPicker(target || activeSelection.payload, field, altField)" />
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </aside>
+            </section>
+        </div>
+
+        <AssetPickerModal
+            :show="assetPickerOpen"
+            :list-url="asset_list_url"
+            :upload-url="asset_upload_url"
+            title="Choose or upload media"
+            @close="closeAssetPicker"
+            @select="handleAssetSelect"
+        />
+    </AuthenticatedLayout>
+</template>

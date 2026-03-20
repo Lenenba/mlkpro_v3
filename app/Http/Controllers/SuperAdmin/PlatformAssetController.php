@@ -5,6 +5,7 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Models\PlatformAsset;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -50,7 +51,7 @@ class PlatformAssetController extends BaseSuperAdminController
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
 
@@ -64,6 +65,8 @@ class PlatformAssetController extends BaseSuperAdminController
         $tags = $this->parseTags($validated['tags'] ?? null);
         $alt = trim((string) ($validated['alt'] ?? ''));
 
+        $createdAssets = [];
+
         foreach ($request->file('files', []) as $file) {
             if (!$file) {
                 continue;
@@ -73,7 +76,7 @@ class PlatformAssetController extends BaseSuperAdminController
                 continue;
             }
 
-            PlatformAsset::create([
+            $asset = PlatformAsset::create([
                 'name' => $file->getClientOriginalName() ?: basename($path),
                 'path' => $path,
                 'mime' => $file->getClientMimeType() ?: 'application/octet-stream',
@@ -81,6 +84,15 @@ class PlatformAssetController extends BaseSuperAdminController
                 'tags' => $tags,
                 'alt' => $alt !== '' ? $alt : null,
                 'uploaded_by' => $request->user()?->id,
+            ]);
+
+            $createdAssets[] = $asset;
+        }
+
+        if ($request->expectsJson() || $request->wantsJson()) {
+            return response()->json([
+                'message' => 'Assets uploaded.',
+                'assets' => array_map(fn (PlatformAsset $asset) => $this->mapAsset($asset), $createdAssets),
             ]);
         }
 

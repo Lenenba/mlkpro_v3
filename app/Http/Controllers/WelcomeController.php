@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\MegaMenus\MegaMenuRenderer;
 use App\Services\TrackingService;
 use App\Services\WelcomeContentService;
 use App\Services\CompanyFeatureService;
@@ -28,6 +29,7 @@ class WelcomeController extends Controller
             'canRegister' => Route::has('onboarding.index'),
             'welcomeContent' => app(WelcomeContentService::class)->resolveForLocale(app()->getLocale()),
             'leadFormUrl' => $this->resolveLeadFormUrl(),
+            'megaMenu' => app(MegaMenuRenderer::class)->resolveForLocation('header', 'welcome'),
         ]);
     }
 

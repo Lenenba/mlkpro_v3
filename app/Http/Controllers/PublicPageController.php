@@ -6,6 +6,7 @@ use App\Models\PlatformPage;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Services\BillingSubscriptionService;
+use App\Services\MegaMenus\MegaMenuRenderer;
 use App\Services\PlatformPageContentService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -55,6 +56,7 @@ class PublicPageController extends Controller
             ],
             'content' => $service->resolveForLocale($page, $locale),
             'plan_key' => $planKey,
+            'megaMenu' => app(MegaMenuRenderer::class)->resolveForLocation('header', 'public-pages'),
         ]);
     }
 }

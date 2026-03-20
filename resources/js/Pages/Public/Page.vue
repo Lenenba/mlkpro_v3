@@ -1,12 +1,14 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
+import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
     page: { type: Object, required: true },
     content: { type: Object, default: () => ({ page_title: '', page_subtitle: '', sections: [] }) },
     plan_key: { type: String, default: null },
+    megaMenu: { type: Object, default: () => ({}) },
 });
 
 const page = usePage();
@@ -238,6 +240,21 @@ const toneClass = (tone) => {
     }
     return 'public-tone--default';
 };
+
+const headerMenuItems = computed(() => ([
+    {
+        label: 'Home',
+        resolved_href: route('welcome'),
+        link_target: '_self',
+        panel_type: 'link',
+    },
+    {
+        label: 'Login',
+        resolved_href: route('login'),
+        link_target: '_self',
+        panel_type: 'link',
+    },
+]));
 </script>
 
 <template>
@@ -245,16 +262,16 @@ const toneClass = (tone) => {
 
     <div class="public-page" :style="themeStyle">
         <header class="public-header">
-            <div class="public-container flex items-center justify-between py-6">
-                <Link :href="route('welcome')" class="flex items-center gap-3">
-                    <ApplicationLogo class="h-8 w-28 sm:h-10 sm:w-32" />
-                    <div class="leading-tight">
-                        <div class="text-sm font-semibold">MLK Pro</div>
-                        <div class="public-muted text-xs">/pages/{{ page.slug }}</div>
-                    </div>
+            <div class="mx-auto flex w-full max-w-[88rem] items-center gap-5 px-5 py-5 xl:px-8">
+                <Link :href="route('welcome')" class="flex shrink-0 items-center">
+                    <ApplicationLogo class="h-10 w-36 sm:h-11 sm:w-40" />
                 </Link>
 
-                <div class="flex items-center gap-3">
+                <div class="min-w-0 flex-1">
+                    <MegaMenuDisplay :menu="megaMenu" :fallback-items="headerMenuItems" />
+                </div>
+
+                <div class="flex shrink-0 items-center gap-3">
                     <div ref="langMenuRef" class="public-lang">
                         <button type="button" class="public-lang__toggle" aria-haspopup="listbox"
                             :aria-expanded="langMenuOpen" @click="toggleLangMenu" @keydown.escape="closeLangMenu">
@@ -274,17 +291,6 @@ const toneClass = (tone) => {
                                 {{ $t(`language.${locale}`) }}
                             </button>
                         </div>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        <Link :href="route('welcome')"
-                            class="public-button public-button--secondary">
-                            {{ $t('public_pages.actions.home') }}
-                        </Link>
-                        <Link :href="route('login')"
-                            :class="['public-button', 'public-button--primary', primaryButtonClass]">
-                            {{ $t('public_pages.actions.login') }}
-                        </Link>
                     </div>
                 </div>
             </div>

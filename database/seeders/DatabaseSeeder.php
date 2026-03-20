@@ -81,6 +81,7 @@ class DatabaseSeeder extends Seeder
                     'tenants.view',
                     'tenants.manage',
                     'settings.manage',
+                    'mega_menus.manage',
                     'audit.view',
                 ],
                 'is_active' => true,
@@ -97,6 +98,7 @@ class DatabaseSeeder extends Seeder
             TeamModuleSeeder::class,
             QuoteModuleSeeder::class,
             InvoiceModuleSeeder::class,
+            MegaMenuSeeder::class,
         ]);
     }
 }
