@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 class OfferSearchService
 {
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function search(User $accountOwner, array $filters): array
@@ -88,6 +88,7 @@ class OfferSearchService
     private function normalizedCursor(mixed $cursor): ?string
     {
         $candidate = trim((string) $cursor);
+
         return $candidate !== '' ? $candidate : null;
     }
 
@@ -99,10 +100,10 @@ class OfferSearchService
 
         $query->where(function (Builder $builder) use ($search): void {
             $builder
-                ->where('products.name', 'like', '%' . $search . '%')
-                ->orWhere('products.description', 'like', '%' . $search . '%')
-                ->orWhere('products.sku', 'like', '%' . $search . '%')
-                ->orWhere('products.number', 'like', '%' . $search . '%');
+                ->where('products.name', 'like', '%'.$search.'%')
+                ->orWhere('products.description', 'like', '%'.$search.'%')
+                ->orWhere('products.sku', 'like', '%'.$search.'%')
+                ->orWhere('products.number', 'like', '%'.$search.'%');
         });
 
         if ($sort !== 'relevance') {
@@ -119,17 +120,17 @@ class OfferSearchService
                 ELSE 0
             END AS relevance_score',
             [
-                $search . '%',
-                '%' . $search . '%',
-                $search . '%',
-                $search . '%',
-                '%' . $search . '%',
+                $search.'%',
+                '%'.$search.'%',
+                $search.'%',
+                $search.'%',
+                '%'.$search.'%',
             ]
         );
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     private function applyFilters(Builder $query, array $filters): void
     {
@@ -182,6 +183,7 @@ class OfferSearchService
                 foreach ($tags as $index => $tag) {
                     if ($index === 0) {
                         $builder->whereJsonContains('products.tags', $tag);
+
                         continue;
                     }
 
@@ -208,34 +210,39 @@ class OfferSearchService
                 $query->selectRaw('COALESCE(offer_sales.sold_qty, 0) as best_sellers_count')
                     ->orderByDesc('best_sellers_count')
                     ->orderByDesc('products.id');
+
                 return;
 
             case 'alphabetical':
                 $query->orderBy('products.name')
                     ->orderBy('products.id');
+
                 return;
 
             case 'relevance':
                 if ($search !== '') {
                     $query->orderByDesc('relevance_score')
                         ->orderByDesc('products.id');
+
                     return;
                 }
 
                 $query->orderByDesc('products.created_at')
                     ->orderByDesc('products.id');
+
                 return;
 
             case 'newest':
             default:
                 $query->orderByDesc('products.created_at')
                     ->orderByDesc('products.id');
+
                 return;
         }
     }
 
     /**
-     * @param Collection<int, Product> $items
+     * @param  Collection<int, Product>  $items
      * @return array<int, array<string, mixed>>
      */
     private function mapItems(Collection $items): array

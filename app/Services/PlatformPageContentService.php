@@ -10,13 +10,21 @@ use Illuminate\Support\Str;
 class PlatformPageContentService
 {
     private const LOCALES = ['fr', 'en'];
+
     private const THEME_FONTS = ['work-sans', 'space-grotesk', 'sora', 'dm-sans'];
+
     private const THEME_RADII = ['sm', 'md', 'lg', 'xl'];
+
     private const THEME_SHADOWS = ['none', 'soft', 'deep'];
+
     private const THEME_BUTTON_STYLES = ['solid', 'outline', 'soft', 'ghost'];
+
     private const THEME_BACKGROUND_STYLES = ['solid', 'gradient'];
+
     private const HEADER_BACKGROUND_TYPES = ['none', 'color', 'image'];
+
     private const VISIBILITY_AUTH = ['any', 'auth', 'guest'];
+
     private const VISIBILITY_DEVICES = ['all', 'mobile', 'desktop'];
 
     private const ALLOWED_HTML_TAGS = [
@@ -77,13 +85,13 @@ class PlatformPageContentService
         $merged['header'] = $this->sanitizeHeader($merged['header'] ?? null);
 
         $sections = $merged['sections'] ?? [];
-        if (!is_array($sections)) {
+        if (! is_array($sections)) {
             $sections = [];
         }
 
         $merged['sections'] = collect($sections)
             ->map(function ($section, $index) {
-                if (!is_array($section)) {
+                if (! is_array($section)) {
                     return null;
                 }
 
@@ -236,13 +244,13 @@ class PlatformPageContentService
 
     private function sanitizeSections($sections): array
     {
-        if (!is_array($sections)) {
+        if (! is_array($sections)) {
             return [];
         }
 
         $items = [];
         foreach ($sections as $section) {
-            if (!is_array($section)) {
+            if (! is_array($section)) {
                 continue;
             }
 
@@ -288,17 +296,19 @@ class PlatformPageContentService
     {
         $merged = $default;
         foreach ($stored as $key => $value) {
-            if (!array_key_exists($key, $default)) {
+            if (! array_key_exists($key, $default)) {
                 continue;
             }
 
             if (is_array($value) && is_array($default[$key])) {
                 if (array_is_list($value) || array_is_list($default[$key])) {
                     $merged[$key] = $value;
+
                     continue;
                 }
 
                 $merged[$key] = $this->mergeContent($default[$key], $value);
+
                 continue;
             }
 
@@ -310,7 +320,7 @@ class PlatformPageContentService
 
     private function sanitizeStringList($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
@@ -319,7 +329,7 @@ class PlatformPageContentService
 
     private function stringify($value): string
     {
-        if (!is_string($value) && !is_numeric($value)) {
+        if (! is_string($value) && ! is_numeric($value)) {
             return '';
         }
 
@@ -340,17 +350,17 @@ class PlatformPageContentService
             return '';
         }
 
-        $allowed = '<' . implode('><', self::ALLOWED_HTML_TAGS) . '>';
+        $allowed = '<'.implode('><', self::ALLOWED_HTML_TAGS).'>';
         $html = strip_tags($html, $allowed);
 
         $previous = libxml_use_internal_errors(true);
         $doc = new \DOMDocument('1.0', 'UTF-8');
-        $doc->loadHTML('<div>' . $html . '</div>', \LIBXML_HTML_NOIMPLIED | \LIBXML_HTML_NODEFDTD);
+        $doc->loadHTML('<div>'.$html.'</div>', \LIBXML_HTML_NOIMPLIED | \LIBXML_HTML_NODEFDTD);
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
 
         $root = $doc->getElementsByTagName('div')->item(0);
-        if (!$root) {
+        if (! $root) {
             return '';
         }
 
@@ -366,7 +376,7 @@ class PlatformPageContentService
 
     private function sanitizeHtmlNode(\DOMNode $node): void
     {
-        if (!$node->hasChildNodes()) {
+        if (! $node->hasChildNodes()) {
             return;
         }
 
@@ -374,9 +384,10 @@ class PlatformPageContentService
         foreach (iterator_to_array($node->childNodes) as $child) {
             if ($child instanceof \DOMElement) {
                 $tag = strtolower($child->tagName);
-                if (!in_array($tag, $allowedTags, true)) {
+                if (! in_array($tag, $allowedTags, true)) {
                     $text = $child->textContent ?? '';
                     $node->replaceChild($node->ownerDocument->createTextNode($text), $child);
+
                     continue;
                 }
 
@@ -384,11 +395,11 @@ class PlatformPageContentService
                 if ($child->hasAttributes()) {
                     for ($i = $child->attributes->length - 1; $i >= 0; $i--) {
                         $attribute = $child->attributes->item($i);
-                        if (!$attribute) {
+                        if (! $attribute) {
                             continue;
                         }
                         $name = strtolower($attribute->name);
-                        if (!in_array($name, $allowedAttributes, true)) {
+                        if (! in_array($name, $allowedAttributes, true)) {
                             $child->removeAttribute($attribute->name);
                         }
                     }
@@ -411,6 +422,7 @@ class PlatformPageContentService
                     $src = $this->sanitizeUrl($child->getAttribute('src'), 'image');
                     if ($src === null) {
                         $node->removeChild($child);
+
                         continue;
                     }
                     $child->setAttribute('src', $src);
@@ -464,7 +476,7 @@ class PlatformPageContentService
             return null;
         }
 
-        if (!preg_match('/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $color)) {
+        if (! preg_match('/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $color)) {
             return null;
         }
 
@@ -504,6 +516,7 @@ class PlatformPageContentService
         }
 
         $id = (int) $value;
+
         return $id > 0 ? $id : null;
     }
 
@@ -608,6 +621,7 @@ class PlatformPageContentService
     private function cleanThemeChoice($value, array $allowed, string $fallback): string
     {
         $choice = $this->cleanText($value);
+
         return in_array($choice, $allowed, true) ? $choice : $fallback;
     }
 
@@ -650,7 +664,7 @@ class PlatformPageContentService
 
     private function cleanVisibilityLocales($locales): array
     {
-        if (!is_array($locales)) {
+        if (! is_array($locales)) {
             return [];
         }
 
@@ -662,7 +676,7 @@ class PlatformPageContentService
 
     private function cleanIdentifierList($values): array
     {
-        if (!is_array($values)) {
+        if (! is_array($values)) {
             return [];
         }
 
@@ -696,13 +710,13 @@ class PlatformPageContentService
     private function applyLibrarySections(array $sections, string $locale): array
     {
         $sourceIds = collect($sections)
-            ->filter(fn ($section) => !empty($section['use_source']) && !empty($section['source_id']))
+            ->filter(fn ($section) => ! empty($section['use_source']) && ! empty($section['source_id']))
             ->pluck('source_id')
             ->unique()
             ->values()
             ->all();
 
-        if (!$sourceIds) {
+        if (! $sourceIds) {
             return $sections;
         }
 
@@ -727,7 +741,7 @@ class PlatformPageContentService
             }
 
             $source = $resolved[$section['source_id']] ?? null;
-            if (!$source) {
+            if (! $source) {
                 return $section;
             }
 
@@ -749,7 +763,7 @@ class PlatformPageContentService
         $section['image_alt'] = $section['image_alt'] !== '' ? $section['image_alt'] : ($source['image_alt'] ?? '');
         $section['embed_url'] = $section['embed_url'] !== '' ? $section['embed_url'] : ($source['embed_url'] ?? '');
         $section['embed_title'] = $section['embed_title'] !== '' ? $section['embed_title'] : ($source['embed_title'] ?? '');
-        $section['embed_height'] = !empty($section['embed_height']) ? $section['embed_height'] : ($source['embed_height'] ?? 760);
+        $section['embed_height'] = ! empty($section['embed_height']) ? $section['embed_height'] : ($source['embed_height'] ?? 760);
         $section['primary_label'] = $section['primary_label'] !== '' ? $section['primary_label'] : ($source['primary_label'] ?? '');
         $section['primary_href'] = $section['primary_href'] !== '' ? $section['primary_href'] : ($source['primary_href'] ?? '');
         $section['secondary_label'] = $section['secondary_label'] !== '' ? $section['secondary_label'] : ($source['secondary_label'] ?? '');

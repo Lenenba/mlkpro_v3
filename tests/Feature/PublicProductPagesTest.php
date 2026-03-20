@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\PlatformSetting;
 use App\Models\PlatformPage;
+use App\Models\PlatformSetting;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\MegaMenus\MegaMenuRenderer;

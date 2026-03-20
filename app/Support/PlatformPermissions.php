@@ -5,19 +5,33 @@ namespace App\Support;
 class PlatformPermissions
 {
     public const ANALYTICS_VIEW = 'analytics.view';
+
     public const TENANTS_VIEW = 'tenants.view';
+
     public const TENANTS_MANAGE = 'tenants.manage';
+
     public const BILLING_VIEW = 'billing.view';
+
     public const BILLING_MANAGE = 'billing.manage';
+
     public const NOTIFICATIONS_MANAGE = 'notifications.manage';
+
     public const ANNOUNCEMENTS_MANAGE = 'announcements.manage';
+
     public const SETTINGS_MANAGE = 'settings.manage';
+
     public const WELCOME_MANAGE = 'welcome.manage';
+
     public const PAGES_MANAGE = 'pages.manage';
+
     public const MEGA_MENUS_MANAGE = 'mega_menus.manage';
+
     public const ADMINS_MANAGE = 'admins.manage';
+
     public const SUPPORT_IMPERSONATE = 'support.impersonate';
+
     public const SUPPORT_MANAGE = 'support.manage';
+
     public const AUDIT_VIEW = 'audit.view';
 
     public static function all(): array

@@ -5,31 +5,47 @@ namespace App\Support;
 class MegaMenuOptions
 {
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_INACTIVE = 'inactive';
 
     public const LOCATION_HEADER = 'header';
+
     public const LOCATION_FOOTER = 'footer';
+
     public const LOCATION_SIDEBAR = 'sidebar';
+
     public const LOCATION_CUSTOM = 'custom';
 
     public const LINK_INTERNAL_PAGE = 'internal_page';
+
     public const LINK_EXTERNAL_URL = 'external_url';
+
     public const LINK_ROUTE = 'route';
+
     public const LINK_ANCHOR = 'anchor';
+
     public const LINK_NONE = 'none';
 
     public const TARGET_SELF = '_self';
+
     public const TARGET_BLANK = '_blank';
 
     public const PANEL_LINK = 'link';
+
     public const PANEL_CLASSIC = 'classic';
+
     public const PANEL_MEGA = 'mega';
 
     public const BADGE_NEW = 'new';
+
     public const BADGE_HOT = 'hot';
+
     public const BADGE_FEATURED = 'featured';
+
     public const BADGE_PROMO = 'promo';
+
     public const BADGE_INFO = 'info';
 
     /**

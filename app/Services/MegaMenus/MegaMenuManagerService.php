@@ -14,8 +14,7 @@ class MegaMenuManagerService
 {
     public function __construct(
         private readonly MegaMenuPayloadSanitizer $sanitizer,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array<string, mixed>  $input
@@ -25,7 +24,7 @@ class MegaMenuManagerService
         $data = $this->sanitizer->sanitize($input);
 
         return DB::transaction(function () use ($data, $userId) {
-            $menu = new MegaMenu();
+            $menu = new MegaMenu;
             $this->fillMenu($menu, $data, $userId, true);
             $this->replaceStructure($menu, $data['items']);
             $this->deactivateOtherActiveMenus($menu, $userId);

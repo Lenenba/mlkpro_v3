@@ -10,7 +10,7 @@ class PublicLeadFormUrlService
     public function resolve(?int $preferredUserId = null, array $parameters = []): ?string
     {
         $user = $this->resolveEligibleUser($preferredUserId);
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -37,7 +37,7 @@ class PublicLeadFormUrlService
 
     private function supportsLeadForm(?User $user): bool
     {
-        if (!$user || $user->isSuspended()) {
+        if (! $user || $user->isSuspended()) {
             return false;
         }
 

@@ -1,10 +1,10 @@
 <?php
 
+use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\MegaMenu;
 use App\Models\PlatformAdmin;
 use App\Models\Role;
 use App\Models\User;
-use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Support\PlatformPermissions;
 use Inertia\Testing\AssertableInertia as Assert;
 

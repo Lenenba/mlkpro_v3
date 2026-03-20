@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Route;
 class MegaMenuRenderer
 {
     private const DEFAULT_LOCALE = 'fr';
+
     private const SUPPORTED_LOCALES = ['fr', 'en'];
 
     public function resolveForLocation(string $location, ?string $zone = null): array
@@ -29,7 +30,7 @@ class MegaMenuRenderer
                 ->first();
         }
 
-        if (!$menu) {
+        if (! $menu) {
             $menu = $this->queryActive()
                 ->where('display_location', $location)
                 ->whereNull('custom_zone')
@@ -45,7 +46,7 @@ class MegaMenuRenderer
     {
         $query = MegaMenu::query()->with($this->relations())->where('slug', $slug);
 
-        if (!$includeInactive) {
+        if (! $includeInactive) {
             $query->where('status', MegaMenuOptions::STATUS_ACTIVE);
         }
 
@@ -279,7 +280,7 @@ class MegaMenuRenderer
     private function resolveRouteName(?string $routeName): ?string
     {
         $routeName = trim((string) $routeName);
-        if ($routeName === '' || !Route::has($routeName)) {
+        if ($routeName === '' || ! Route::has($routeName)) {
             return null;
         }
 
@@ -305,7 +306,7 @@ class MegaMenuRenderer
         }
 
         $publicNavigation = PlatformSetting::getValue('public_navigation', []);
-        if (!is_array($publicNavigation)) {
+        if (! is_array($publicNavigation)) {
             return null;
         }
 
@@ -364,7 +365,7 @@ class MegaMenuRenderer
     private function translatedFieldValue(array $translations, string $locale, string $field): ?string
     {
         $value = $translations[$locale][$field] ?? null;
-        if (!is_string($value) && !is_numeric($value)) {
+        if (! is_string($value) && ! is_numeric($value)) {
             return null;
         }
 
@@ -396,7 +397,7 @@ class MegaMenuRenderer
     private function resolvePayloadTranslation(array $translations, string $locale): ?array
     {
         $payload = $translations[$locale] ?? null;
-        if (!is_array($payload)) {
+        if (! is_array($payload)) {
             return null;
         }
 

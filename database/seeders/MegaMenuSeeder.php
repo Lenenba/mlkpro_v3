@@ -37,6 +37,7 @@ class MegaMenuSeeder extends Seeder
 
             if ($existing) {
                 $manager->update($existing, $payload, $userId);
+
                 continue;
             }
 
@@ -924,8 +925,7 @@ class MegaMenuSeeder extends Seeder
         string $description = '',
         ?string $englishLabel = null,
         ?string $englishDescription = null
-    ): array
-    {
+    ): array {
         $settings = [];
 
         if ($englishLabel !== null || $englishDescription !== null) {

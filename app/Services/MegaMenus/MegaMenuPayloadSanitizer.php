@@ -13,14 +13,23 @@ use Illuminate\Validation\Validator;
 class MegaMenuPayloadSanitizer
 {
     private const SUPPORTED_LOCALES = ['fr', 'en'];
+
     private const MAX_TOP_LEVEL_ITEMS = 16;
+
     private const MAX_NESTED_ITEMS = 24;
+
     private const MAX_COLUMNS = 6;
+
     private const MAX_BLOCKS = 12;
+
     private const MAX_LINK_ROWS = 12;
+
     private const MAX_SHOWCASE_ROWS = 12;
+
     private const MAX_CARD_ROWS = 8;
+
     private const MAX_SHORTCUT_ROWS = 8;
+
     private const MAX_METRIC_ROWS = 6;
 
     private const ALLOWED_HTML_TAGS = [
@@ -140,7 +149,7 @@ class MegaMenuPayloadSanitizer
             $validator->errors()->add('custom_zone', 'A custom zone is required when the display location is custom.');
         }
 
-        if (!isset($input['items']) || !is_array($input['items']) || count($input['items']) === 0) {
+        if (! isset($input['items']) || ! is_array($input['items']) || count($input['items']) === 0) {
             $validator->errors()->add('items', 'At least one top-level item is required.');
 
             return;
@@ -159,7 +168,7 @@ class MegaMenuPayloadSanitizer
      */
     private function sanitizeItems($items, int $depth): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
@@ -167,7 +176,7 @@ class MegaMenuPayloadSanitizer
         $sanitized = [];
 
         foreach (array_slice(array_values($items), 0, $max) as $index => $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
@@ -219,13 +228,13 @@ class MegaMenuPayloadSanitizer
      */
     private function sanitizeColumns($columns): array
     {
-        if (!is_array($columns)) {
+        if (! is_array($columns)) {
             return [];
         }
 
         $sanitized = [];
         foreach (array_slice(array_values($columns), 0, self::MAX_COLUMNS) as $index => $column) {
-            if (!is_array($column)) {
+            if (! is_array($column)) {
                 continue;
             }
 
@@ -249,18 +258,18 @@ class MegaMenuPayloadSanitizer
      */
     private function sanitizeBlocks($blocks): array
     {
-        if (!is_array($blocks)) {
+        if (! is_array($blocks)) {
             return [];
         }
 
         $sanitized = [];
         foreach (array_slice(array_values($blocks), 0, self::MAX_BLOCKS) as $index => $block) {
-            if (!is_array($block)) {
+            if (! is_array($block)) {
                 continue;
             }
 
             $type = $this->cleanText($block['type'] ?? '', 80);
-            if (!MegaMenuBlockRegistry::exists($type)) {
+            if (! MegaMenuBlockRegistry::exists($type)) {
                 continue;
             }
 
@@ -290,8 +299,9 @@ class MegaMenuPayloadSanitizer
 
         foreach ($items as $index => $item) {
             $itemPath = $path.'.'.$index;
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 $validator->errors()->add($itemPath, 'Each menu item must be an object.');
+
                 continue;
             }
 
@@ -306,18 +316,18 @@ class MegaMenuPayloadSanitizer
                 $validator
             );
 
-            if (!in_array((string) ($item['link_target'] ?? MegaMenuOptions::TARGET_SELF), MegaMenuOptions::linkTargets(), true)) {
+            if (! in_array((string) ($item['link_target'] ?? MegaMenuOptions::TARGET_SELF), MegaMenuOptions::linkTargets(), true)) {
                 $validator->errors()->add($itemPath.'.link_target', 'The link target is invalid.');
             }
 
             $panelType = (string) ($item['panel_type'] ?? MegaMenuOptions::PANEL_LINK);
-            if (!in_array($panelType, MegaMenuOptions::panelTypes(), true)) {
+            if (! in_array($panelType, MegaMenuOptions::panelTypes(), true)) {
                 $validator->errors()->add($itemPath.'.panel_type', 'The panel type is invalid.');
             }
 
             if ($panelType === MegaMenuOptions::PANEL_CLASSIC) {
                 $children = $item['children'] ?? [];
-                if (!is_array($children) || count($children) === 0) {
+                if (! is_array($children) || count($children) === 0) {
                     $validator->errors()->add($itemPath.'.children', 'A classic dropdown needs at least one child item.');
                 } else {
                     $this->validateItems($children, $itemPath.'.children', $validator, $depth + 1);
@@ -326,7 +336,7 @@ class MegaMenuPayloadSanitizer
 
             if ($panelType === MegaMenuOptions::PANEL_MEGA) {
                 $columns = $item['columns'] ?? [];
-                if (!is_array($columns) || count($columns) === 0) {
+                if (! is_array($columns) || count($columns) === 0) {
                     $validator->errors()->add($itemPath.'.columns', 'A mega panel needs at least one column.');
                 } else {
                     $this->validateColumns($columns, $itemPath.'.columns', $validator);
@@ -346,19 +356,21 @@ class MegaMenuPayloadSanitizer
 
         foreach ($columns as $index => $column) {
             $columnPath = $path.'.'.$index;
-            if (!is_array($column)) {
+            if (! is_array($column)) {
                 $validator->errors()->add($columnPath, 'Each column must be an object.');
+
                 continue;
             }
 
             $width = trim((string) ($column['width'] ?? ''));
-            if ($width !== '' && !$this->isValidWidth($width)) {
+            if ($width !== '' && ! $this->isValidWidth($width)) {
                 $validator->errors()->add($columnPath.'.width', 'Column width must use fr, %, or px values.');
             }
 
             $blocks = $column['blocks'] ?? [];
-            if (!is_array($blocks) || count($blocks) === 0) {
+            if (! is_array($blocks) || count($blocks) === 0) {
                 $validator->errors()->add($columnPath.'.blocks', 'Each column needs at least one block.');
+
                 continue;
             }
 
@@ -377,14 +389,16 @@ class MegaMenuPayloadSanitizer
 
         foreach ($blocks as $index => $block) {
             $blockPath = $path.'.'.$index;
-            if (!is_array($block)) {
+            if (! is_array($block)) {
                 $validator->errors()->add($blockPath, 'Each block must be an object.');
+
                 continue;
             }
 
             $type = trim((string) ($block['type'] ?? ''));
-            if (!MegaMenuBlockRegistry::exists($type)) {
+            if (! MegaMenuBlockRegistry::exists($type)) {
                 $validator->errors()->add($blockPath.'.type', 'The block type is invalid.');
+
                 continue;
             }
 
@@ -396,33 +410,33 @@ class MegaMenuPayloadSanitizer
 
             if ($type === 'navigation_group') {
                 $links = $payload['links'] ?? [];
-                if (!is_array($links) || count($links) === 0) {
+                if (! is_array($links) || count($links) === 0) {
                     $validator->errors()->add($blockPath.'.payload.links', 'The navigation group needs at least one link.');
                 }
             }
 
             if ($type === 'product_showcase') {
                 $items = $payload['items'] ?? [];
-                if (!is_array($items) || count($items) === 0) {
+                if (! is_array($items) || count($items) === 0) {
                     $validator->errors()->add($blockPath.'.payload.items', 'The product showcase needs at least one product.');
                 }
             }
 
             if ($type === 'quick_links') {
                 $links = $payload['links'] ?? [];
-                if (!is_array($links) || count($links) === 0) {
+                if (! is_array($links) || count($links) === 0) {
                     $validator->errors()->add($blockPath.'.payload.links', 'The quick links block needs at least one link.');
                 }
             }
 
             if ($type === 'module_shortcut') {
                 foreach (($payload['shortcuts'] ?? []) as $shortcutIndex => $shortcut) {
-                    if (!is_array($shortcut)) {
+                    if (! is_array($shortcut)) {
                         continue;
                     }
 
                     $routeName = trim((string) ($shortcut['route_name'] ?? ''));
-                    if ($routeName !== '' && !Route::has($routeName)) {
+                    if ($routeName !== '' && ! Route::has($routeName)) {
                         $validator->errors()->add(
                             $blockPath.".payload.shortcuts.{$shortcutIndex}.route_name",
                             'The route shortcut reference is invalid.'
@@ -473,7 +487,7 @@ class MegaMenuPayloadSanitizer
      */
     private function cleanText($value, int $maxLength = 255): string
     {
-        if (!is_string($value) && !is_numeric($value)) {
+        if (! is_string($value) && ! is_numeric($value)) {
             return '';
         }
 
@@ -736,7 +750,7 @@ class MegaMenuPayloadSanitizer
      */
     private function sanitizeTranslationFields($translations, array $fieldLengths): array
     {
-        if (!is_array($translations)) {
+        if (! is_array($translations)) {
             return [];
         }
 
@@ -744,7 +758,7 @@ class MegaMenuPayloadSanitizer
 
         foreach (self::SUPPORTED_LOCALES as $locale) {
             $values = $translations[$locale] ?? null;
-            if (!is_array($values)) {
+            if (! is_array($values)) {
                 continue;
             }
 
@@ -770,7 +784,7 @@ class MegaMenuPayloadSanitizer
      */
     private function sanitizeLocalizedBlockPayloads(string $type, $translations): array
     {
-        if (!is_array($translations)) {
+        if (! is_array($translations)) {
             return [];
         }
 
@@ -778,7 +792,7 @@ class MegaMenuPayloadSanitizer
 
         foreach (self::SUPPORTED_LOCALES as $locale) {
             $payload = $translations[$locale] ?? null;
-            if (!is_array($payload) || $payload === []) {
+            if (! is_array($payload) || $payload === []) {
                 continue;
             }
 
@@ -794,13 +808,13 @@ class MegaMenuPayloadSanitizer
      */
     private function sanitizeLinkRows($rows): array
     {
-        if (!is_array($rows)) {
+        if (! is_array($rows)) {
             return [];
         }
 
         $sanitized = [];
         foreach (array_slice(array_values($rows), 0, self::MAX_LINK_ROWS) as $row) {
-            if (!is_array($row)) {
+            if (! is_array($row)) {
                 continue;
             }
 
@@ -822,13 +836,13 @@ class MegaMenuPayloadSanitizer
      */
     private function sanitizeCategoryRows($rows): array
     {
-        if (!is_array($rows)) {
+        if (! is_array($rows)) {
             return [];
         }
 
         $sanitized = [];
         foreach (array_slice(array_values($rows), 0, self::MAX_LINK_ROWS) as $row) {
-            if (!is_array($row)) {
+            if (! is_array($row)) {
                 continue;
             }
 
@@ -848,13 +862,13 @@ class MegaMenuPayloadSanitizer
      */
     private function sanitizeShowcaseRows($rows): array
     {
-        if (!is_array($rows)) {
+        if (! is_array($rows)) {
             return [];
         }
 
         $sanitized = [];
         foreach (array_slice(array_values($rows), 0, self::MAX_SHOWCASE_ROWS) as $row) {
-            if (!is_array($row)) {
+            if (! is_array($row)) {
                 continue;
             }
 
@@ -880,13 +894,13 @@ class MegaMenuPayloadSanitizer
      */
     private function sanitizeQuickLinkRows($rows): array
     {
-        if (!is_array($rows)) {
+        if (! is_array($rows)) {
             return [];
         }
 
         $sanitized = [];
         foreach (array_slice(array_values($rows), 0, self::MAX_LINK_ROWS) as $row) {
-            if (!is_array($row)) {
+            if (! is_array($row)) {
                 continue;
             }
 
@@ -906,13 +920,13 @@ class MegaMenuPayloadSanitizer
      */
     private function sanitizeCardRows($rows): array
     {
-        if (!is_array($rows)) {
+        if (! is_array($rows)) {
             return [];
         }
 
         $sanitized = [];
         foreach (array_slice(array_values($rows), 0, self::MAX_CARD_ROWS) as $row) {
-            if (!is_array($row)) {
+            if (! is_array($row)) {
                 continue;
             }
 
@@ -936,13 +950,13 @@ class MegaMenuPayloadSanitizer
      */
     private function sanitizeShortcutRows($rows): array
     {
-        if (!is_array($rows)) {
+        if (! is_array($rows)) {
             return [];
         }
 
         $sanitized = [];
         foreach (array_slice(array_values($rows), 0, self::MAX_SHORTCUT_ROWS) as $row) {
-            if (!is_array($row)) {
+            if (! is_array($row)) {
                 continue;
             }
 
@@ -964,13 +978,13 @@ class MegaMenuPayloadSanitizer
      */
     private function sanitizeMetricRows($rows): array
     {
-        if (!is_array($rows)) {
+        if (! is_array($rows)) {
             return [];
         }
 
         $sanitized = [];
         foreach (array_slice(array_values($rows), 0, self::MAX_METRIC_ROWS) as $row) {
-            if (!is_array($row)) {
+            if (! is_array($row)) {
                 continue;
             }
 
@@ -1013,7 +1027,7 @@ class MegaMenuPayloadSanitizer
     private function cleanExternalUrl($value): ?string
     {
         $url = trim((string) $value);
-        if ($url === '' || !filter_var($url, FILTER_VALIDATE_URL)) {
+        if ($url === '' || ! filter_var($url, FILTER_VALIDATE_URL)) {
             return null;
         }
 
@@ -1087,7 +1101,7 @@ class MegaMenuPayloadSanitizer
      */
     private function cleanHtml($value): string
     {
-        if (!is_string($value) && !is_numeric($value)) {
+        if (! is_string($value) && ! is_numeric($value)) {
             return '';
         }
 
@@ -1096,7 +1110,7 @@ class MegaMenuPayloadSanitizer
             return '';
         }
 
-        $allowed = '<' . implode('><', self::ALLOWED_HTML_TAGS) . '>';
+        $allowed = '<'.implode('><', self::ALLOWED_HTML_TAGS).'>';
         $html = strip_tags($html, $allowed);
 
         $previous = libxml_use_internal_errors(true);
@@ -1106,7 +1120,7 @@ class MegaMenuPayloadSanitizer
         libxml_use_internal_errors($previous);
 
         $root = $doc->getElementsByTagName('div')->item(0);
-        if (!$root) {
+        if (! $root) {
             return '';
         }
 
@@ -1122,16 +1136,17 @@ class MegaMenuPayloadSanitizer
 
     private function sanitizeHtmlNode(\DOMNode $node): void
     {
-        if (!$node->hasChildNodes()) {
+        if (! $node->hasChildNodes()) {
             return;
         }
 
         foreach (iterator_to_array($node->childNodes) as $child) {
             if ($child instanceof \DOMElement) {
                 $tag = strtolower($child->tagName);
-                if (!in_array($tag, self::ALLOWED_HTML_TAGS, true)) {
+                if (! in_array($tag, self::ALLOWED_HTML_TAGS, true)) {
                     $text = $child->textContent ?? '';
                     $node->replaceChild($node->ownerDocument->createTextNode($text), $child);
+
                     continue;
                 }
 
@@ -1144,11 +1159,11 @@ class MegaMenuPayloadSanitizer
                 if ($child->hasAttributes()) {
                     for ($i = $child->attributes->length - 1; $i >= 0; $i--) {
                         $attribute = $child->attributes->item($i);
-                        if (!$attribute) {
+                        if (! $attribute) {
                             continue;
                         }
 
-                        if (!in_array(strtolower($attribute->name), $allowedAttributes, true)) {
+                        if (! in_array(strtolower($attribute->name), $allowedAttributes, true)) {
                             $child->removeAttribute($attribute->name);
                         }
                     }
@@ -1171,6 +1186,7 @@ class MegaMenuPayloadSanitizer
                     $src = $this->cleanMediaUrl($child->getAttribute('src'));
                     if ($src === '') {
                         $node->removeChild($child);
+
                         continue;
                     }
 
@@ -1211,6 +1227,7 @@ class MegaMenuPayloadSanitizer
         $text = trim((string) $value);
         if ($text === '') {
             $validator->errors()->add($path, 'This link type requires a value.');
+
             return;
         }
 
@@ -1222,7 +1239,7 @@ class MegaMenuPayloadSanitizer
             default => false,
         };
 
-        if (!$isValid) {
+        if (! $isValid) {
             $validator->errors()->add($path, 'The selected link reference is invalid.');
         }
     }
