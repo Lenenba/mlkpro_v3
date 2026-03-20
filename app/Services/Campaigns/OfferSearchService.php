@@ -4,6 +4,7 @@ namespace App\Services\Campaigns;
 
 use App\Enums\OfferType;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\Sale;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\CursorPaginator;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 class OfferSearchService
 {
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function search(User $accountOwner, array $filters): array
@@ -49,6 +50,7 @@ class OfferSearchService
                 'type' => $type,
                 'hasMore' => $paginator->hasMorePages(),
             ],
+            'filters' => $this->filterOptions($accountOwner),
         ];
     }
 
@@ -86,6 +88,7 @@ class OfferSearchService
     private function normalizedCursor(mixed $cursor): ?string
     {
         $candidate = trim((string) $cursor);
+
         return $candidate !== '' ? $candidate : null;
     }
 
@@ -97,10 +100,10 @@ class OfferSearchService
 
         $query->where(function (Builder $builder) use ($search): void {
             $builder
-                ->where('products.name', 'like', '%' . $search . '%')
-                ->orWhere('products.description', 'like', '%' . $search . '%')
-                ->orWhere('products.sku', 'like', '%' . $search . '%')
-                ->orWhere('products.number', 'like', '%' . $search . '%');
+                ->where('products.name', 'like', '%'.$search.'%')
+                ->orWhere('products.description', 'like', '%'.$search.'%')
+                ->orWhere('products.sku', 'like', '%'.$search.'%')
+                ->orWhere('products.number', 'like', '%'.$search.'%');
         });
 
         if ($sort !== 'relevance') {
@@ -117,17 +120,17 @@ class OfferSearchService
                 ELSE 0
             END AS relevance_score',
             [
-                $search . '%',
-                '%' . $search . '%',
-                $search . '%',
-                $search . '%',
-                '%' . $search . '%',
+                $search.'%',
+                '%'.$search.'%',
+                $search.'%',
+                $search.'%',
+                '%'.$search.'%',
             ]
         );
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     private function applyFilters(Builder $query, array $filters): void
     {
@@ -180,6 +183,7 @@ class OfferSearchService
                 foreach ($tags as $index => $tag) {
                     if ($index === 0) {
                         $builder->whereJsonContains('products.tags', $tag);
+
                         continue;
                     }
 
@@ -206,34 +210,39 @@ class OfferSearchService
                 $query->selectRaw('COALESCE(offer_sales.sold_qty, 0) as best_sellers_count')
                     ->orderByDesc('best_sellers_count')
                     ->orderByDesc('products.id');
+
                 return;
 
             case 'alphabetical':
                 $query->orderBy('products.name')
                     ->orderBy('products.id');
+
                 return;
 
             case 'relevance':
                 if ($search !== '') {
                     $query->orderByDesc('relevance_score')
                         ->orderByDesc('products.id');
+
                     return;
                 }
 
                 $query->orderByDesc('products.created_at')
                     ->orderByDesc('products.id');
+
                 return;
 
             case 'newest':
             default:
                 $query->orderByDesc('products.created_at')
                     ->orderByDesc('products.id');
+
                 return;
         }
     }
 
     /**
-     * @param Collection<int, Product> $items
+     * @param  Collection<int, Product>  $items
      * @return array<int, array<string, mixed>>
      */
     private function mapItems(Collection $items): array
@@ -260,5 +269,44 @@ class OfferSearchService
                 'tags' => is_array($offer->tags) ? $offer->tags : [],
             ];
         })->values()->all();
+    }
+
+    /**
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    private function filterOptions(User $accountOwner): array
+    {
+        $categories = ProductCategory::query()
+            ->forAccount($accountOwner->id)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ProductCategory $category): array => [
+                'id' => (int) $category->id,
+                'name' => (string) $category->name,
+            ])
+            ->values()
+            ->all();
+
+        $tags = Product::query()
+            ->where('user_id', $accountOwner->id)
+            ->pluck('tags')
+            ->filter(fn ($value) => is_array($value))
+            ->flatMap(fn (array $value) => $value)
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->map(fn (string $tag): array => [
+                'value' => $tag,
+                'label' => $tag,
+            ])
+            ->all();
+
+        return [
+            'categories' => $categories,
+            'tags' => $tags,
+        ];
     }
 }

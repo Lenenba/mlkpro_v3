@@ -4,7 +4,6 @@ import axios from 'axios';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
-import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import EmailBodyEditor from '@/Pages/Campaigns/Components/EmailBodyEditor.vue';
 
@@ -704,10 +703,11 @@ const applyBrandColorPreset = () => {
                                 label="Title"
                                 @focusin="setActiveBuilderField(sectionDefinition, column, columnIndex, 'title', 'Title')"
                             />
-                            <FloatingTextarea
+                            <EmailBodyEditor
                                 :id="inputId(sectionDefinition.key, column.id, 'body')"
                                 v-model="column.body"
                                 label="Body"
+                                compact
                                 @focusin="setActiveBuilderField(sectionDefinition, column, columnIndex, 'body', 'Body')"
                             />
                             <div class="space-y-2">

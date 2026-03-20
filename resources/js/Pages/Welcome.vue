@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
+import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 
@@ -21,11 +22,16 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    megaMenu: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const page = usePage();
 const { t } = useI18n();
 const currentLocale = computed(() => page.props.locale || 'fr');
+const currentLocaleCode = computed(() => String(currentLocale.value || 'fr').toUpperCase());
 const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
 const welcomeContent = computed(() => props.welcomeContent || {});
 const langMenuOpen = ref(false);
@@ -122,6 +128,15 @@ const navMenuWithContact = computed(() => {
     return [contact, ...items];
 });
 
+const headerMenuItems = computed(() =>
+    navMenuWithContact.value.map((item) => ({
+        label: item.label || item.href,
+        resolved_href: resolveHref(item.href),
+        link_target: isExternalHref(resolveHref(item.href)) ? '_blank' : '_self',
+        panel_type: 'link',
+    }))
+);
+
 const customSections = computed(() =>
     (welcomeContent.value.custom_sections || []).filter((section) => section && section.enabled !== false)
 );
@@ -167,26 +182,41 @@ onBeforeUnmount(() => {
 
     <div class="welcome-page text-stone-900 dark:text-neutral-100">
         <header class="welcome-header">
-            <div class="welcome-container flex items-center justify-between py-6">
-                <Link :href="route('welcome')" class="flex items-center gap-3">
-                    <ApplicationLogo class="h-8 w-28 sm:h-10 sm:w-32" />
-                    <div class="leading-tight">
-                        <div class="text-sm font-semibold">MLK Pro</div>
-                        <div class="text-xs text-stone-500">{{ welcomeContent.nav?.tagline || $t('welcome.nav.tagline') }}</div>
-                    </div>
+            <div class="mx-auto flex w-full max-w-[88rem] items-center gap-5 px-5 py-5 xl:px-8">
+                <Link :href="route('welcome')" class="flex shrink-0 items-center">
+                    <ApplicationLogo class="h-10 w-36 sm:h-11 sm:w-40" />
                 </Link>
 
-                <div class="flex items-center gap-3">
+                <div class="min-w-0 flex-1">
+                    <MegaMenuDisplay :menu="megaMenu" :fallback-items="headerMenuItems" />
+                </div>
+
+                <div class="flex shrink-0 items-center gap-3">
+                    <Link
+                        v-if="canLogin"
+                        :href="route('login')"
+                        class="hidden rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50 lg:inline-flex"
+                    >
+                        {{ $t('legal.actions.sign_in') }}
+                    </Link>
+                    <Link
+                        v-if="canRegister"
+                        :href="route('onboarding.index')"
+                        class="hidden rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 xl:inline-flex"
+                    >
+                        {{ $t('legal.actions.create_account') }}
+                    </Link>
                     <div ref="langMenuRef" class="welcome-lang">
                         <button
                             type="button"
                             class="welcome-lang__toggle"
                             aria-haspopup="listbox"
+                            :aria-label="$t('account.language')"
                             :aria-expanded="langMenuOpen"
                             @click="toggleLangMenu"
                             @keydown.escape="closeLangMenu"
                         >
-                            <span>{{ $t('account.language') }}</span>
+                            <span>{{ currentLocaleCode }}</span>
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 width="16"
@@ -223,29 +253,6 @@ onBeforeUnmount(() => {
                                 {{ $t(`language.${locale}`) }}
                             </button>
                         </div>
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-2">
-                        <template v-for="item in navMenuWithContact" :key="item.id || item.label || item.href">
-                            <a
-                                v-if="isExternalHref(resolveHref(item.href))"
-                                :href="resolveHref(item.href)"
-                                class="inline-flex items-center"
-                                :class="navButtonClass(item.style)"
-                                rel="noopener noreferrer"
-                                target="_blank"
-                            >
-                                {{ item.label || item.href }}
-                            </a>
-                            <Link
-                                v-else
-                                :href="resolveHref(item.href)"
-                                class="inline-flex items-center"
-                                :class="navButtonClass(item.style)"
-                            >
-                                {{ item.label || item.href }}
-                            </Link>
-                        </template>
                     </div>
                 </div>
             </div>

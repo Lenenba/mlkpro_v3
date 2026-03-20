@@ -140,4 +140,208 @@ return [
             ],
         ],
     ],
+    'public_order' => [
+        'free',
+        'starter',
+        'growth',
+        'scale',
+        'enterprise',
+    ],
+    'comparison' => [
+        [
+            'label_key' => 'pricing.comparison.sections.fundamentals',
+            'rows' => [
+                [
+                    'label_key' => 'pricing.comparison.rows.team_members',
+                    'values' => [
+                        'free' => '3',
+                        'starter' => '10',
+                        'growth' => '25',
+                        'scale' => '50',
+                        'enterprise' => '50+',
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.clients',
+                    'values' => [
+                        'free' => 'unlimited',
+                        'starter' => 'unlimited',
+                        'growth' => 'unlimited',
+                        'scale' => 'unlimited',
+                        'enterprise' => 'unlimited',
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.requests',
+                    'values' => [
+                        'free' => '20',
+                        'starter' => 'unlimited',
+                        'growth' => 'unlimited',
+                        'scale' => 'unlimited',
+                        'enterprise' => 'unlimited',
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.estimates',
+                    'values' => [
+                        'free' => '20',
+                        'starter' => 'unlimited',
+                        'growth' => 'unlimited',
+                        'scale' => 'unlimited',
+                        'enterprise' => 'unlimited',
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.invoices',
+                    'values' => [
+                        'free' => '20',
+                        'starter' => 'unlimited',
+                        'growth' => 'unlimited',
+                        'scale' => 'unlimited',
+                        'enterprise' => 'unlimited',
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.catalog',
+                    'values' => [
+                        'free' => true,
+                        'starter' => true,
+                        'growth' => true,
+                        'scale' => true,
+                        'enterprise' => true,
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.client_portal',
+                    'values' => [
+                        'free' => true,
+                        'starter' => true,
+                        'growth' => true,
+                        'scale' => true,
+                        'enterprise' => true,
+                    ],
+                ],
+            ],
+        ],
+        [
+            'label_key' => 'pricing.comparison.sections.operations',
+            'rows' => [
+                [
+                    'label_key' => 'pricing.comparison.rows.team_planning',
+                    'values' => [
+                        'free' => true,
+                        'starter' => true,
+                        'growth' => true,
+                        'scale' => true,
+                        'enterprise' => true,
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.time_tracking',
+                    'values' => [
+                        'free' => false,
+                        'starter' => true,
+                        'growth' => true,
+                        'scale' => true,
+                        'enterprise' => true,
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.reservations',
+                    'values' => [
+                        'free' => false,
+                        'starter' => true,
+                        'growth' => true,
+                        'scale' => true,
+                        'enterprise' => true,
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.recurring_jobs',
+                    'values' => [
+                        'free' => false,
+                        'starter' => false,
+                        'growth' => true,
+                        'scale' => true,
+                        'enterprise' => true,
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.reports',
+                    'values' => [
+                        'free' => false,
+                        'starter' => true,
+                        'growth' => true,
+                        'scale' => true,
+                        'enterprise' => true,
+                    ],
+                ],
+            ],
+        ],
+        [
+            'label_key' => 'pricing.comparison.sections.growth',
+            'rows' => [
+                [
+                    'label_key' => 'pricing.comparison.rows.permissions',
+                    'values' => [
+                        'free' => false,
+                        'starter' => false,
+                        'growth' => true,
+                        'scale' => true,
+                        'enterprise' => true,
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.automations',
+                    'values' => [
+                        'free' => false,
+                        'starter' => false,
+                        'growth' => true,
+                        'scale' => true,
+                        'enterprise' => true,
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.plan_scan',
+                    'values' => [
+                        'free' => false,
+                        'starter' => false,
+                        'growth' => true,
+                        'scale' => true,
+                        'enterprise' => true,
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.ai_assistant',
+                    'values' => [
+                        'free' => false,
+                        'starter' => 'optional',
+                        'growth' => 'optional',
+                        'scale' => true,
+                        'enterprise' => true,
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.onboarding',
+                    'values' => [
+                        'free' => false,
+                        'starter' => false,
+                        'growth' => false,
+                        'scale' => true,
+                        'enterprise' => true,
+                    ],
+                ],
+                [
+                    'label_key' => 'pricing.comparison.rows.custom_integrations',
+                    'values' => [
+                        'free' => false,
+                        'starter' => false,
+                        'growth' => false,
+                        'scale' => false,
+                        'enterprise' => 'contact',
+                    ],
+                ],
+            ],
+        ],
+    ],
 ];

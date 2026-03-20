@@ -73,24 +73,40 @@ class CampaignProspectingController extends Controller
             abort(403);
         }
 
-        $limit = max(1, min(25, (int) $request->integer('limit', 12)));
+        return response()->json($this->batchIndexPayload($campaign, $owner, max(1, min(25, (int) $request->integer('limit', 12)))));
+    }
 
-        $baseQuery = CampaignProspectBatch::query()
-            ->where('campaign_id', $campaign->id)
-            ->where('user_id', $owner->id);
+    public function workspace(Request $request, Campaign $campaign, CampaignProspectBatch $batch)
+    {
+        [$owner, $canView, $canManage, $canSend] = $this->resolveCampaignAccess($request->user(), $campaign);
+        if (! $canView) {
+            abort(403);
+        }
 
-        $batches = (clone $baseQuery)
-            ->orderByDesc('batch_number')
-            ->limit($limit)
-            ->get();
+        $this->ensureBatchBelongsToCampaign($campaign, $batch, $owner);
 
-        return response()->json([
-            'batches' => $batches->map(fn (CampaignProspectBatch $batch) => $this->batchPayload($batch))->values()->all(),
-            'summary' => [
-                'total_batches' => (clone $baseQuery)->count(),
-                'analyzed_batches' => (clone $baseQuery)->where('status', CampaignProspectBatch::STATUS_ANALYZED)->count(),
-                'approved_batches' => (clone $baseQuery)->where('status', CampaignProspectBatch::STATUS_APPROVED)->count(),
-                'canceled_batches' => (clone $baseQuery)->where('status', CampaignProspectBatch::STATUS_CANCELED)->count(),
+        $filters = $this->validatedBatchFilters($request);
+        $prospects = $this->paginatedBatchProspects($batch, $filters);
+        $batchIndex = $this->batchIndexPayload($campaign, $owner, 12);
+
+        return $this->inertiaOrJson('Campaigns/ProspectBatchWorkspace', [
+            'campaign' => [
+                'id' => $campaign->id,
+                'name' => $campaign->name,
+                'status' => $campaign->status,
+                'campaign_type' => $campaign->campaign_type ?: $campaign->type,
+                'campaign_direction' => $campaign->campaign_direction,
+                'updated_at' => optional($campaign->updated_at)->toJSON(),
+            ],
+            'batch' => $this->batchPayload($batch->fresh()),
+            'batches' => $batchIndex['batches'],
+            'summary' => $batchIndex['summary'],
+            'filters' => $filters,
+            'prospects' => $prospects,
+            'access' => [
+                'can_view' => $canView,
+                'can_manage' => $canManage,
+                'can_send' => $canSend,
             ],
         ]);
     }
@@ -102,42 +118,10 @@ class CampaignProspectingController extends Controller
             abort(403);
         }
 
-        if ((int) $batch->campaign_id !== (int) $campaign->id || (int) $batch->user_id !== (int) $owner->id) {
-            abort(404);
-        }
+        $this->ensureBatchBelongsToCampaign($campaign, $batch, $owner);
 
-        $filters = $request->validate([
-            'search' => ['nullable', 'string', 'max:255'],
-            'status' => ['nullable', 'string', 'max:40'],
-            'match_status' => ['nullable', 'string', 'max:40'],
-        ]);
-
-        $prospects = CampaignProspect::query()
-            ->where('campaign_prospect_batch_id', $batch->id)
-            ->with([
-                'matchedCustomer:id,first_name,last_name,company_name,email,phone',
-                'matchedLead:id,title,contact_name,contact_email,contact_phone,status',
-            ])
-            ->when($filters['search'] ?? null, function ($query, $search): void {
-                $search = trim((string) $search);
-                if ($search === '') {
-                    return;
-                }
-
-                $query->where(function ($builder) use ($search): void {
-                    $builder->where('company_name', 'like', '%'.$search.'%')
-                        ->orWhere('contact_name', 'like', '%'.$search.'%')
-                        ->orWhere('email', 'like', '%'.$search.'%')
-                        ->orWhere('phone', 'like', '%'.$search.'%')
-                        ->orWhere('website_domain', 'like', '%'.$search.'%');
-                });
-            })
-            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', (string) $status))
-            ->when($filters['match_status'] ?? null, fn ($query, $matchStatus) => $query->where('match_status', (string) $matchStatus))
-            ->orderByDesc('priority_score')
-            ->orderBy('id')
-            ->paginate(25)
-            ->withQueryString();
+        $filters = $this->validatedBatchFilters($request);
+        $prospects = $this->paginatedBatchProspects($batch, $filters);
 
         return response()->json([
             'batch' => $this->batchPayload($batch->fresh()),
@@ -461,6 +445,74 @@ class CampaignProspectingController extends Controller
             'created_at' => optional($batch->created_at)->toJSON(),
             'updated_at' => optional($batch->updated_at)->toJSON(),
         ];
+    }
+
+    private function batchIndexPayload(Campaign $campaign, User $owner, int $limit = 12): array
+    {
+        $baseQuery = CampaignProspectBatch::query()
+            ->where('campaign_id', $campaign->id)
+            ->where('user_id', $owner->id);
+
+        $batches = (clone $baseQuery)
+            ->orderByDesc('batch_number')
+            ->limit(max(1, min(25, $limit)))
+            ->get();
+
+        return [
+            'batches' => $batches->map(fn (CampaignProspectBatch $batch) => $this->batchPayload($batch))->values()->all(),
+            'summary' => [
+                'total_batches' => (clone $baseQuery)->count(),
+                'analyzed_batches' => (clone $baseQuery)->where('status', CampaignProspectBatch::STATUS_ANALYZED)->count(),
+                'approved_batches' => (clone $baseQuery)->where('status', CampaignProspectBatch::STATUS_APPROVED)->count(),
+                'canceled_batches' => (clone $baseQuery)->where('status', CampaignProspectBatch::STATUS_CANCELED)->count(),
+            ],
+        ];
+    }
+
+    private function ensureBatchBelongsToCampaign(Campaign $campaign, CampaignProspectBatch $batch, User $owner): void
+    {
+        if ((int) $batch->campaign_id !== (int) $campaign->id || (int) $batch->user_id !== (int) $owner->id) {
+            abort(404);
+        }
+    }
+
+    private function validatedBatchFilters(Request $request): array
+    {
+        return $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'status' => ['nullable', 'string', 'max:40'],
+            'match_status' => ['nullable', 'string', 'max:40'],
+        ]);
+    }
+
+    private function paginatedBatchProspects(CampaignProspectBatch $batch, array $filters)
+    {
+        return CampaignProspect::query()
+            ->where('campaign_prospect_batch_id', $batch->id)
+            ->with([
+                'matchedCustomer:id,first_name,last_name,company_name,email,phone',
+                'matchedLead:id,title,contact_name,contact_email,contact_phone,status',
+            ])
+            ->when($filters['search'] ?? null, function ($query, $search): void {
+                $search = trim((string) $search);
+                if ($search === '') {
+                    return;
+                }
+
+                $query->where(function ($builder) use ($search): void {
+                    $builder->where('company_name', 'like', '%'.$search.'%')
+                        ->orWhere('contact_name', 'like', '%'.$search.'%')
+                        ->orWhere('email', 'like', '%'.$search.'%')
+                        ->orWhere('phone', 'like', '%'.$search.'%')
+                        ->orWhere('website_domain', 'like', '%'.$search.'%');
+                });
+            })
+            ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', (string) $status))
+            ->when($filters['match_status'] ?? null, fn ($query, $matchStatus) => $query->where('match_status', (string) $matchStatus))
+            ->orderByDesc('priority_score')
+            ->orderBy('id')
+            ->paginate(25)
+            ->withQueryString();
     }
 
     /**

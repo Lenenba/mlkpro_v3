@@ -1,0 +1,25 @@
+<svg width="640" height="420" viewBox="0 0 640 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="640" height="420" rx="32" fill="#250A0A"/>
+<rect x="28" y="28" width="584" height="364" rx="24" fill="url(#paint0_linear)"/>
+<rect x="78" y="90" width="484" height="236" rx="26" fill="#FFF7F7"/>
+<rect x="110" y="118" width="182" height="180" rx="22" fill="#FEE2E2"/>
+<rect x="314" y="118" width="216" height="70" rx="18" fill="#111827"/>
+<rect x="314" y="204" width="216" height="94" rx="22" fill="#F3F4F6"/>
+<circle cx="166" cy="168" r="44" fill="#DC2626"/>
+<path d="M150 168H182" stroke="#FFF7F7" stroke-width="10" stroke-linecap="round"/>
+<path d="M166 152V184" stroke="#FFF7F7" stroke-width="10" stroke-linecap="round"/>
+<rect x="128" y="236" width="146" height="14" rx="7" fill="#7F1D1D"/>
+<rect x="128" y="262" width="118" height="10" rx="5" fill="#B91C1C"/>
+<rect x="340" y="140" width="96" height="12" rx="6" fill="#F9FAFB"/>
+<rect x="340" y="164" width="148" height="10" rx="5" fill="#FCA5A5"/>
+<rect x="340" y="228" width="98" height="12" rx="6" fill="#111827"/>
+<rect x="340" y="254" width="162" height="10" rx="5" fill="#4B5563"/>
+<path d="M348 286L388 246L422 262L460 218L500 236" stroke="#DC2626" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="70" y="378" fill="#FEE2E2" font-family="Arial, sans-serif" font-size="28" font-weight="700">AI &amp; Automation</text>
+<defs>
+<linearGradient id="paint0_linear" x1="50" y1="46" x2="598" y2="372" gradientUnits="userSpaceOnUse">
+<stop stop-color="#7F1D1D"/>
+<stop offset="1" stop-color="#B91C1C"/>
+</linearGradient>
+</defs>
+</svg>

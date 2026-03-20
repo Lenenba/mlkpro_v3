@@ -146,6 +146,12 @@ const actionCenterItems = computed(() => ([
         route: 'superadmin.settings.edit',
         count: null,
     },
+    {
+        key: 'mega_menus',
+        label: 'Mega Menus',
+        route: 'superadmin.mega-menus.index',
+        count: null,
+    },
 ]));
 
 const limitAlerts = computed(() => props.metrics.alerts?.limit_warnings || { count: 0, tenants: [] });

@@ -1,16 +1,35 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
+import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     page: { type: Object, required: true },
-    content: { type: Object, default: () => ({ page_title: '', page_subtitle: '', sections: [] }) },
+    content: {
+        type: Object,
+        default: () => ({
+            page_title: '',
+            page_subtitle: '',
+            header: {
+                background_type: 'none',
+                background_color: '',
+                background_image_url: '',
+                background_image_alt: '',
+                alignment: 'center',
+            },
+            sections: [],
+        }),
+    },
     plan_key: { type: String, default: null },
+    megaMenu: { type: Object, default: () => ({}) },
 });
 
 const page = usePage();
+const { t } = useI18n();
 const currentLocale = computed(() => page.props.locale || 'fr');
+const currentLocaleCode = computed(() => String(currentLocale.value || 'fr').toUpperCase());
 const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
 const planKey = computed(() => {
     const raw = props.plan_key || page.props.plan_key || null;
@@ -98,15 +117,165 @@ const themeStyle = computed(() => {
 });
 
 const primaryButtonClass = computed(() => `public-button--${theme.value?.button_style || 'solid'}`);
+const embeddedFrameRefs = ref({});
+const embeddedFrameHeights = ref({});
+
+const pageHeader = computed(() => ({
+    background_type: props.content?.header?.background_type || 'none',
+    background_color: props.content?.header?.background_color || '',
+    background_image_url: props.content?.header?.background_image_url || '',
+    background_image_alt: props.content?.header?.background_image_alt || '',
+    alignment: props.content?.header?.alignment || 'center',
+}));
+
+const isDarkHexColor = (value) => {
+    const input = String(value || '').trim().replace('#', '');
+    if (!/^[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(input)) {
+        return false;
+    }
+
+    const normalized = input.length === 3
+        ? input.split('').map((char) => `${char}${char}`).join('')
+        : input;
+    const red = Number.parseInt(normalized.slice(0, 2), 16);
+    const green = Number.parseInt(normalized.slice(2, 4), 16);
+    const blue = Number.parseInt(normalized.slice(4, 6), 16);
+    const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+
+    return luminance < 0.55;
+};
+
+const heroUsesContrast = computed(() => {
+    if (pageHeader.value.background_type === 'image' && pageHeader.value.background_image_url) {
+        return true;
+    }
+
+    if (pageHeader.value.background_type === 'color' && pageHeader.value.background_color) {
+        return isDarkHexColor(pageHeader.value.background_color);
+    }
+
+    return false;
+});
+
+const escapeCssUrl = (value) =>
+    String(value || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, '%27')
+        .replace(/"/g, '%22');
+
+const heroStyle = computed(() => {
+    if (pageHeader.value.background_type === 'image' && pageHeader.value.background_image_url) {
+        return {
+            backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.42), rgba(15, 23, 42, 0.42)), url('${escapeCssUrl(pageHeader.value.background_image_url)}')`,
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'cover',
+        };
+    }
+
+    if (pageHeader.value.background_type === 'color' && pageHeader.value.background_color) {
+        return {
+            background: pageHeader.value.background_color,
+        };
+    }
+
+    return {};
+});
+
+const heroContentClass = computed(() => {
+    if (pageHeader.value.alignment === 'left') {
+        return 'mr-auto max-w-4xl text-left';
+    }
+
+    if (pageHeader.value.alignment === 'right') {
+        return 'ml-auto max-w-4xl text-right';
+    }
+
+    return 'mx-auto max-w-4xl text-center';
+});
+
+const resolveSectionKey = (section, index) => section?.id || `section-${index}`;
+
+const setEmbeddedFrameRef = (sectionKey, element) => {
+    if (!sectionKey) {
+        return;
+    }
+
+    if (element) {
+        embeddedFrameRefs.value[sectionKey] = element;
+        return;
+    }
+
+    delete embeddedFrameRefs.value[sectionKey];
+};
+
+const updateEmbeddedFrameHeight = (sectionKey, height, fallback = 760) => {
+    const numericHeight = Number(height);
+    if (!Number.isFinite(numericHeight) || numericHeight <= 0) {
+        return;
+    }
+
+    embeddedFrameHeights.value = {
+        ...embeddedFrameHeights.value,
+        [sectionKey]: Math.max(Math.ceil(numericHeight), fallback),
+    };
+};
+
+const resolvedEmbedHeight = (section, index) => {
+    const sectionKey = resolveSectionKey(section, index);
+    return embeddedFrameHeights.value[sectionKey] || sectionEmbedHeight(section);
+};
+
+const handleEmbeddedFrameLoad = (section, index, event) => {
+    const frame = event?.target;
+    if (!(frame instanceof HTMLIFrameElement)) {
+        return;
+    }
+
+    const fallbackHeight = sectionEmbedHeight(section);
+    const sectionKey = resolveSectionKey(section, index);
+
+    try {
+        const body = frame.contentWindow?.document?.body;
+        const root = frame.contentWindow?.document?.documentElement;
+        const height = Math.max(
+            body?.scrollHeight ?? 0,
+            body?.offsetHeight ?? 0,
+            root?.scrollHeight ?? 0,
+            root?.offsetHeight ?? 0,
+            root?.clientHeight ?? 0
+        );
+
+        updateEmbeddedFrameHeight(sectionKey, height, fallbackHeight);
+    } catch (error) {
+        updateEmbeddedFrameHeight(sectionKey, fallbackHeight, fallbackHeight);
+    }
+};
+
+const handleEmbeddedFrameMessage = (event) => {
+    if (!event?.data || event.data.type !== 'public-lead-form-height') {
+        return;
+    }
+
+    const match = Object.entries(embeddedFrameRefs.value).find(([, frame]) => frame?.contentWindow === event.source);
+    if (!match) {
+        return;
+    }
+
+    const [sectionKey, frame] = match;
+    updateEmbeddedFrameHeight(sectionKey, event.data.height, frame?.clientHeight || 760);
+};
 
 onMounted(() => {
     document.addEventListener('click', handleLangOutsideClick);
+    window.addEventListener('message', handleEmbeddedFrameMessage);
     updateDevice();
     window.addEventListener('resize', updateDevice);
 });
 
 onBeforeUnmount(() => {
     document.removeEventListener('click', handleLangOutsideClick);
+    window.removeEventListener('message', handleEmbeddedFrameMessage);
     window.removeEventListener('resize', updateDevice);
 });
 
@@ -126,6 +295,17 @@ const resolveHref = (href) => {
     } catch (error) {
         return `/${value}`;
     }
+};
+
+const sectionEmbedUrl = (section) => resolveHref(section?.embed_url || '');
+const sectionEmbedTitle = (section) => String(section?.embed_title || section?.title || 'Embedded form');
+const sectionEmbedHeight = (section) => {
+    const height = Number(section?.embed_height);
+    if (!Number.isFinite(height) || height < 420) {
+        return 760;
+    }
+
+    return Math.min(height, 1600);
 };
 
 const isExternalHref = (href) => {
@@ -202,7 +382,18 @@ const sections = computed(() =>
     (props.content.sections || []).filter((section) => section && section.enabled !== false && matchesVisibility(section))
 );
 
-const layoutClass = (layout) => {
+const sectionContainerClass = (section) => (
+    section?.embed_url
+        ? 'public-container public-container--embed'
+        : 'public-container'
+);
+
+const layoutClass = (section) => {
+    if (section?.embed_url) {
+        return 'grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,0.62fr)_minmax(0,1.48fr)] xl:grid-cols-[minmax(0,0.56fr)_minmax(0,1.64fr)]';
+    }
+
+    const layout = section?.layout;
     if (layout === 'stack') {
         return 'mx-auto flex max-w-3xl flex-col gap-5';
     }
@@ -238,6 +429,21 @@ const toneClass = (tone) => {
     }
     return 'public-tone--default';
 };
+
+const headerMenuItems = computed(() => ([
+    {
+        label: t('public_pages.actions.home'),
+        resolved_href: route('welcome'),
+        link_target: '_self',
+        panel_type: 'link',
+    },
+    {
+        label: t('public_pages.actions.login'),
+        resolved_href: route('login'),
+        link_target: '_self',
+        panel_type: 'link',
+    },
+]));
 </script>
 
 <template>
@@ -245,20 +451,34 @@ const toneClass = (tone) => {
 
     <div class="public-page" :style="themeStyle">
         <header class="public-header">
-            <div class="public-container flex items-center justify-between py-6">
-                <Link :href="route('welcome')" class="flex items-center gap-3">
-                    <ApplicationLogo class="h-8 w-28 sm:h-10 sm:w-32" />
-                    <div class="leading-tight">
-                        <div class="text-sm font-semibold">MLK Pro</div>
-                        <div class="public-muted text-xs">/pages/{{ page.slug }}</div>
-                    </div>
+            <div class="mx-auto flex w-full max-w-[88rem] items-center gap-5 px-5 py-5 xl:px-8">
+                <Link :href="route('welcome')" class="flex shrink-0 items-center">
+                    <ApplicationLogo class="h-10 w-36 sm:h-11 sm:w-40" />
                 </Link>
 
-                <div class="flex items-center gap-3">
+                <div class="min-w-0 flex-1">
+                    <MegaMenuDisplay :menu="megaMenu" :fallback-items="headerMenuItems" />
+                </div>
+
+                <div class="flex shrink-0 items-center gap-3">
+                    <Link
+                        v-if="!isAuthenticated"
+                        :href="route('login')"
+                        class="hidden rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50 md:inline-flex"
+                    >
+                        {{ $t('legal.actions.sign_in') }}
+                    </Link>
+                    <Link
+                        v-if="!isAuthenticated"
+                        :href="route('onboarding.index')"
+                        class="hidden rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 xl:inline-flex"
+                    >
+                        {{ $t('legal.actions.create_account') }}
+                    </Link>
                     <div ref="langMenuRef" class="public-lang">
                         <button type="button" class="public-lang__toggle" aria-haspopup="listbox"
-                            :aria-expanded="langMenuOpen" @click="toggleLangMenu" @keydown.escape="closeLangMenu">
-                            <span>{{ $t('account.language') }}</span>
+                            :aria-label="$t('account.language')" :aria-expanded="langMenuOpen" @click="toggleLangMenu" @keydown.escape="closeLangMenu">
+                            <span>{{ currentLocaleCode }}</span>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                                 class="public-lang__chevron">
@@ -275,25 +495,18 @@ const toneClass = (tone) => {
                             </button>
                         </div>
                     </div>
-
-                    <div class="flex items-center gap-2">
-                        <Link :href="route('welcome')"
-                            class="public-button public-button--secondary">
-                            {{ $t('public_pages.actions.home') }}
-                        </Link>
-                        <Link :href="route('login')"
-                            :class="['public-button', 'public-button--primary', primaryButtonClass]">
-                            {{ $t('public_pages.actions.login') }}
-                        </Link>
-                    </div>
                 </div>
             </div>
         </header>
 
         <main>
-            <section class="public-section public-hero">
+            <section
+                class="public-section public-hero"
+                :class="{ 'public-hero--contrast': heroUsesContrast }"
+                :style="heroStyle"
+            >
                 <div class="public-container">
-                    <div class="mx-auto flex max-w-4xl flex-col gap-4 text-center">
+                    <div :class="['flex flex-col gap-4', heroContentClass]">
                         <h1 class="public-title text-4xl font-semibold tracking-tight sm:text-5xl">
                             {{ content.page_title || page.title }}
                         </h1>
@@ -306,8 +519,8 @@ const toneClass = (tone) => {
             <section v-for="(section, index) in sections" :key="section.id || index"
                 :class="['public-section public-block', densityClass(section.density), toneClass(section.tone)]"
                 :style="sectionStyle(section.background_color)">
-                <div class="public-container">
-                    <div :class="layoutClass(section.layout)">
+                <div :class="sectionContainerClass(section)">
+                    <div :class="layoutClass(section)">
                         <div class="space-y-4" :class="alignmentClass(section.alignment)">
                             <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
                             <h2 class="public-title text-3xl font-semibold">{{ section.title }}</h2>
@@ -348,8 +561,23 @@ const toneClass = (tone) => {
                             </div>
                         </div>
 
-                        <div v-if="section.image_url" class="public-media">
-                            <div class="public-media-card">
+                        <div
+                            v-if="section.embed_url || section.image_url"
+                            :class="section.embed_url ? 'public-media public-media--embed' : 'public-media'"
+                        >
+                            <div v-if="section.embed_url" class="public-media-card public-media-card--embed overflow-hidden">
+                                <iframe
+                                    :src="sectionEmbedUrl(section)"
+                                    :title="sectionEmbedTitle(section)"
+                                    :ref="(element) => setEmbeddedFrameRef(resolveSectionKey(section, index), element)"
+                                    class="w-full border-0 bg-white"
+                                    :style="{ height: `${resolvedEmbedHeight(section, index)}px` }"
+                                    loading="lazy"
+                                    scrolling="no"
+                                    @load="handleEmbeddedFrameLoad(section, index, $event)"
+                                />
+                            </div>
+                            <div v-else class="public-media-card">
                                 <img :src="section.image_url" :alt="section.image_alt || section.title"
                                     class="h-auto w-full rounded-sm object-cover" loading="lazy" decoding="async" />
                             </div>
@@ -393,6 +621,10 @@ const toneClass = (tone) => {
     margin-inline: auto;
 }
 
+.public-container--embed {
+    width: min(1100px, 92vw);
+}
+
 .public-header {
     background: var(--page-surface, #ffffff);
     border-bottom: 1px solid var(--page-border, #e2e8f0);
@@ -408,6 +640,14 @@ const toneClass = (tone) => {
 
 .public-hero {
     padding-block: clamp(3.5rem, 9vw, 8rem);
+}
+
+.public-hero--contrast .public-title {
+    color: #ffffff;
+}
+
+.public-hero--contrast .public-rich {
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .public-section.public-density--compact {
@@ -515,12 +755,26 @@ const toneClass = (tone) => {
     justify-content: center;
 }
 
+.public-media--embed {
+    width: 100%;
+    justify-content: stretch;
+}
+
 .public-media-card {
     border-radius: var(--page-radius, 4px);
     border: 1px solid var(--page-border, #e2e8f0);
     background: var(--page-surface, #ffffff);
     padding: 1rem;
     box-shadow: var(--page-shadow, 0 18px 40px -30px rgba(15, 23, 42, 0.4));
+}
+
+.public-media-card--embed {
+    width: 100%;
+    padding: 0;
+}
+
+.public-media-card--embed iframe {
+    display: block;
 }
 
 .public-footer {

@@ -21,11 +21,31 @@ class PlatformPageController extends BaseSuperAdminController
     {
         $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
 
-        $pages = PlatformPage::query()
+        $filters = [
+            'search' => trim((string) $request->query('search', '')),
+            'status' => trim((string) $request->query('status', '')),
+        ];
+
+        $query = PlatformPage::query()
             ->with(['updatedBy:id,name,email'])
-            ->orderBy('slug')
-            ->get()
-            ->map(function (PlatformPage $page) {
+            ->when($filters['search'] !== '', function ($builder) use ($filters) {
+                $term = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $filters['search']).'%';
+
+                $builder->where(function ($nested) use ($term) {
+                    $nested
+                        ->where('slug', 'like', $term)
+                        ->orWhere('title', 'like', $term);
+                });
+            })
+            ->when(in_array($filters['status'], ['active', 'draft'], true), function ($builder) use ($filters) {
+                $builder->where('is_active', $filters['status'] === 'active');
+            })
+            ->orderBy('slug');
+
+        $pages = $query
+            ->paginate(10)
+            ->withQueryString()
+            ->through(function (PlatformPage $page) {
                 $meta = app(PlatformPageContentService::class)->meta($page);
 
                 return [
@@ -41,11 +61,17 @@ class PlatformPageController extends BaseSuperAdminController
                     ] : null,
                     'public_url' => route('public.pages.show', ['slug' => $page->slug]),
                 ];
-            })
-            ->values();
+            });
 
         return Inertia::render('SuperAdmin/Pages/Index', [
             'pages' => $pages,
+            'filters' => $filters,
+            'choices' => [
+                'statuses' => [
+                    ['value' => 'active', 'label' => 'Active'],
+                    ['value' => 'draft', 'label' => 'Draft'],
+                ],
+            ],
             'dashboard_url' => route('superadmin.dashboard'),
             'create_url' => route('superadmin.pages.create'),
         ]);
@@ -154,7 +180,7 @@ class PlatformPageController extends BaseSuperAdminController
         $meta = $service->meta($page);
 
         $updatedBy = null;
-        if (!empty($meta['updated_by'])) {
+        if (! empty($meta['updated_by'])) {
             $user = User::query()->select(['id', 'name', 'email'])->find($meta['updated_by']);
             if ($user) {
                 $updatedBy = [

@@ -143,13 +143,17 @@ class TemplateRenderer
 
     public function renderChannel(CampaignChannel $channel, array $context): array
     {
+        $isEmailChannel = strtoupper((string) $channel->channel) === Campaign::CHANNEL_EMAIL;
         $subject = $this->render($channel->subject_template, $context, false);
         $title = $this->render($channel->title_template, $context, false);
         $body = $this->render(
             $channel->body_template,
             $context,
-            strtoupper((string) $channel->channel) === Campaign::CHANNEL_EMAIL
+            $isEmailChannel
         );
+        if (! $isEmailChannel) {
+            $body = $this->plainTextFromHtml($body);
+        }
 
         $invalid = array_values(array_unique(array_merge(
             $this->validateTemplate($channel->subject_template),
@@ -171,6 +175,18 @@ class TemplateRenderer
             'sms_segments' => $segments,
             'sms_too_long' => $segments > $maxSegments,
         ];
+    }
+
+    private function plainTextFromHtml(string $html): string
+    {
+        $text = preg_replace('/<\s*br\s*\/?\s*>/i', "\n", $html) ?? $html;
+        $text = preg_replace('/<\/p>/i', "\n\n", $text) ?? $text;
+        $text = preg_replace('/<\/div>/i', "\n", $text) ?? $text;
+        $text = strip_tags($text);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace("/\n{3,}/", "\n\n", $text) ?? $text;
+
+        return trim($text);
     }
 
     public function buildContext(

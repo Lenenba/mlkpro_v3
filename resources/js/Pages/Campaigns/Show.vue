@@ -145,6 +145,20 @@ const statusLabel = (status) => {
     return key ? t(key) : status;
 };
 
+const bodyTemplatePreview = (channel) => {
+    const body = String(channel?.body_template || '');
+    if (String(channel?.channel || '').toUpperCase() === 'EMAIL') {
+        return body;
+    }
+
+    return body
+        .replace(/<\s*br\s*\/?>/gi, '\n')
+        .replace(/<\/(p|div)>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+};
+
 const markConverted = async (recipient) => {
     if (!canManage.value || conversionBusy.value) return;
 
@@ -480,7 +494,10 @@ const openProspectingWorkspace = (step = 3) => {
                             </div>
                             <div v-if="channel.subject_template" class="mt-2 text-xs text-stone-600 dark:text-neutral-300">{{ t('marketing.campaign_show.channel.subject') }}: {{ channel.subject_template }}</div>
                             <div v-if="channel.title_template" class="mt-1 text-xs text-stone-600 dark:text-neutral-300">{{ t('marketing.campaign_show.channel.title') }}: {{ channel.title_template }}</div>
-                            <div v-if="channel.body_template" class="mt-1 whitespace-pre-wrap text-xs text-stone-600 dark:text-neutral-300">{{ channel.body_template }}</div>
+                            <div v-if="channel.body_template" class="mt-2 rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                <div v-if="String(channel.channel || '').toUpperCase() === 'EMAIL'" class="leading-5" v-html="bodyTemplatePreview(channel)"></div>
+                                <div v-else class="whitespace-pre-wrap leading-5">{{ bodyTemplatePreview(channel) }}</div>
+                            </div>
                         </div>
                     </div>
                 </div>

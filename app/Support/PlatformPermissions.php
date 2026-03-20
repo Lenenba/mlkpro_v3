@@ -5,18 +5,33 @@ namespace App\Support;
 class PlatformPermissions
 {
     public const ANALYTICS_VIEW = 'analytics.view';
+
     public const TENANTS_VIEW = 'tenants.view';
+
     public const TENANTS_MANAGE = 'tenants.manage';
+
     public const BILLING_VIEW = 'billing.view';
+
     public const BILLING_MANAGE = 'billing.manage';
+
     public const NOTIFICATIONS_MANAGE = 'notifications.manage';
+
     public const ANNOUNCEMENTS_MANAGE = 'announcements.manage';
+
     public const SETTINGS_MANAGE = 'settings.manage';
+
     public const WELCOME_MANAGE = 'welcome.manage';
+
     public const PAGES_MANAGE = 'pages.manage';
+
+    public const MEGA_MENUS_MANAGE = 'mega_menus.manage';
+
     public const ADMINS_MANAGE = 'admins.manage';
+
     public const SUPPORT_IMPERSONATE = 'support.impersonate';
+
     public const SUPPORT_MANAGE = 'support.manage';
+
     public const AUDIT_VIEW = 'audit.view';
 
     public static function all(): array
@@ -32,6 +47,7 @@ class PlatformPermissions
             self::SETTINGS_MANAGE,
             self::WELCOME_MANAGE,
             self::PAGES_MANAGE,
+            self::MEGA_MENUS_MANAGE,
             self::ADMINS_MANAGE,
             self::SUPPORT_IMPERSONATE,
             self::SUPPORT_MANAGE,
@@ -52,6 +68,7 @@ class PlatformPermissions
             self::SETTINGS_MANAGE => 'Settings manage',
             self::WELCOME_MANAGE => 'Welcome manage',
             self::PAGES_MANAGE => 'Pages manage',
+            self::MEGA_MENUS_MANAGE => 'Mega menus manage',
             self::ADMINS_MANAGE => 'Admins manage',
             self::SUPPORT_IMPERSONATE => 'Support impersonate',
             self::SUPPORT_MANAGE => 'Support manage',
@@ -77,6 +94,7 @@ class PlatformPermissions
                 self::TENANTS_MANAGE,
                 self::SETTINGS_MANAGE,
                 self::ANNOUNCEMENTS_MANAGE,
+                self::MEGA_MENUS_MANAGE,
                 self::AUDIT_VIEW,
             ],
             'analytics' => [
@@ -87,6 +105,7 @@ class PlatformPermissions
                 self::ANNOUNCEMENTS_MANAGE,
                 self::WELCOME_MANAGE,
                 self::PAGES_MANAGE,
+                self::MEGA_MENUS_MANAGE,
             ],
             default => [
                 self::TENANTS_VIEW,

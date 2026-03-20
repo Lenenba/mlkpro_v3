@@ -81,6 +81,7 @@ use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController
 use App\Http\Controllers\SuperAdmin\AiImageController as SuperAdminAiImageController;
 use App\Http\Controllers\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
+use App\Http\Controllers\SuperAdmin\MegaMenuController as SuperAdminMegaMenuController;
 use App\Http\Controllers\SuperAdmin\NotificationController as SuperAdminNotificationController;
 use App\Http\Controllers\SuperAdmin\PlatformAssetController as SuperAdminPlatformAssetController;
 use App\Http\Controllers\SuperAdmin\PlatformPageController as SuperAdminPlatformPageController;
@@ -551,6 +552,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('campaigns.prospect-provider-preview');
         Route::post('/campaigns/{campaign}/prospect-batches/import', [CampaignProspectingController::class, 'import'])
             ->name('campaigns.prospect-batches.import');
+        Route::get('/campaigns/{campaign}/prospect-batches/{batch}/workspace', [CampaignProspectingController::class, 'workspace'])
+            ->name('campaigns.prospect-batches.workspace');
         Route::get('/campaigns/{campaign}/prospect-batches/{batch}', [CampaignProspectingController::class, 'showBatch'])
             ->name('campaigns.prospect-batches.show');
         Route::post('/campaigns/{campaign}/prospect-batches/{batch}/approve', [CampaignProspectingController::class, 'approveBatch'])
@@ -796,6 +799,18 @@ Route::prefix('super-admin')
         Route::get('/pages/{page}/edit', [SuperAdminPlatformPageController::class, 'edit'])->name('pages.edit');
         Route::put('/pages/{page}', [SuperAdminPlatformPageController::class, 'update'])->name('pages.update');
         Route::delete('/pages/{page}', [SuperAdminPlatformPageController::class, 'destroy'])->name('pages.destroy');
+
+        Route::get('/mega-menus', [SuperAdminMegaMenuController::class, 'index'])->name('mega-menus.index');
+        Route::get('/mega-menus/create', [SuperAdminMegaMenuController::class, 'create'])->name('mega-menus.create');
+        Route::post('/mega-menus', [SuperAdminMegaMenuController::class, 'store'])->name('mega-menus.store');
+        Route::post('/mega-menus/reorder', [SuperAdminMegaMenuController::class, 'reorder'])->name('mega-menus.reorder');
+        Route::get('/mega-menus/{megaMenu}/edit', [SuperAdminMegaMenuController::class, 'edit'])->name('mega-menus.edit');
+        Route::put('/mega-menus/{megaMenu}', [SuperAdminMegaMenuController::class, 'update'])->name('mega-menus.update');
+        Route::delete('/mega-menus/{megaMenu}', [SuperAdminMegaMenuController::class, 'destroy'])->name('mega-menus.destroy');
+        Route::post('/mega-menus/{megaMenu}/duplicate', [SuperAdminMegaMenuController::class, 'duplicate'])->name('mega-menus.duplicate');
+        Route::post('/mega-menus/{megaMenu}/activate', [SuperAdminMegaMenuController::class, 'activate'])->name('mega-menus.activate');
+        Route::post('/mega-menus/{megaMenu}/deactivate', [SuperAdminMegaMenuController::class, 'deactivate'])->name('mega-menus.deactivate');
+        Route::get('/mega-menus/{megaMenu}/preview', [SuperAdminMegaMenuController::class, 'preview'])->name('mega-menus.preview');
 
         Route::get('/sections', [SuperAdminPlatformSectionController::class, 'index'])->name('sections.index');
         Route::get('/sections/create', [SuperAdminPlatformSectionController::class, 'create'])->name('sections.create');

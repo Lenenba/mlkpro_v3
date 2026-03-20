@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import RichTextEditor from '@/Components/RichTextEditor.vue';
+import { neutralizeTemplateAssetSources } from '@/utils/templatePlaceholderHtml';
 
 const props = defineProps({
     modelValue: {
@@ -63,6 +64,8 @@ const editorPlaceholder = computed(() => {
     }
     return t('marketing.rich_text.placeholder');
 });
+
+const previewMarkup = computed(() => neutralizeTemplateAssetSources(value.value));
 
 const tabClass = (tab) => {
     if (mode.value === tab) {
@@ -131,7 +134,7 @@ const tabClass = (tab) => {
             class="rounded-sm border border-stone-200 bg-white p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
             :class="props.compact ? 'min-h-[96px]' : 'min-h-[130px]'"
         >
-            <div v-if="value.trim() !== ''" class="wysiwyg-preview leading-6" v-html="value"></div>
+            <div v-if="value.trim() !== ''" class="wysiwyg-preview leading-6" v-html="previewMarkup"></div>
             <p v-else class="text-xs text-stone-500 dark:text-neutral-400">
                 {{ t('marketing.rich_text.empty_preview') }}
             </p>

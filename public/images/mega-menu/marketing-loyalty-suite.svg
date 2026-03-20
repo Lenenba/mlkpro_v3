@@ -1,0 +1,26 @@
+<svg width="640" height="420" viewBox="0 0 640 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="640" height="420" rx="32" fill="#22063B"/>
+<rect x="28" y="28" width="584" height="364" rx="24" fill="url(#paint0_linear)"/>
+<rect x="76" y="90" width="220" height="236" rx="24" fill="#FDF4FF"/>
+<rect x="318" y="90" width="246" height="112" rx="24" fill="#FAF5FF"/>
+<rect x="318" y="222" width="246" height="104" rx="24" fill="#F5F3FF"/>
+<circle cx="132" cy="146" r="28" fill="#A855F7"/>
+<circle cx="188" cy="146" r="28" fill="#C084FC"/>
+<circle cx="244" cy="146" r="28" fill="#E9D5FF"/>
+<rect x="108" y="196" width="156" height="16" rx="8" fill="#581C87"/>
+<rect x="108" y="226" width="122" height="10" rx="5" fill="#7E22CE"/>
+<rect x="108" y="250" width="140" height="10" rx="5" fill="#A855F7" fill-opacity="0.55"/>
+<rect x="352" y="122" width="108" height="14" rx="7" fill="#581C87"/>
+<rect x="352" y="150" width="160" height="10" rx="5" fill="#A855F7"/>
+<path d="M352 276C380 230 420 216 456 234C480 246 500 244 530 222" stroke="#7E22CE" stroke-width="10" stroke-linecap="round"/>
+<circle cx="352" cy="276" r="8" fill="#7E22CE"/>
+<circle cx="456" cy="234" r="8" fill="#A855F7"/>
+<circle cx="530" cy="222" r="8" fill="#C084FC"/>
+<text x="70" y="378" fill="#F3E8FF" font-family="Arial, sans-serif" font-size="28" font-weight="700">Marketing &amp; Loyalty</text>
+<defs>
+<linearGradient id="paint0_linear" x1="46" y1="48" x2="596" y2="370" gradientUnits="userSpaceOnUse">
+<stop stop-color="#581C87"/>
+<stop offset="1" stop-color="#7E22CE"/>
+</linearGradient>
+</defs>
+</svg>

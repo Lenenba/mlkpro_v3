@@ -48,6 +48,13 @@ class PlatformBaselineSeeder extends Seeder
             ]]
         );
 
+        PlatformSetting::query()->firstOrCreate(
+            ['key' => 'public_navigation'],
+            ['value' => [
+                'contact_form_url' => '',
+            ]]
+        );
+
         $limitKeys = [
             'quotes',
             'requests',

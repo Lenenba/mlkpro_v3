@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
+import { neutralizeTemplateAssetSources, restoreTemplateAssetSources } from '@/utils/templatePlaceholderHtml';
 
 const props = defineProps({
     modelValue: {
@@ -86,14 +87,14 @@ const updateValue = () => {
     if (!editorRef.value) {
         return;
     }
-    emit('update:modelValue', editorRef.value.innerHTML);
+    emit('update:modelValue', restoreTemplateAssetSources(editorRef.value.innerHTML));
 };
 
 const setContent = (value) => {
     if (!editorRef.value) {
         return;
     }
-    editorRef.value.innerHTML = value || '';
+    editorRef.value.innerHTML = neutralizeTemplateAssetSources(value || '');
 };
 
 const focusEditor = () => {
@@ -204,8 +205,9 @@ watch(
         if (isFocused.value && value) {
             return;
         }
-        if (editorRef.value && editorRef.value.innerHTML !== (value || '')) {
-            editorRef.value.innerHTML = value || '';
+        const nextValue = neutralizeTemplateAssetSources(value || '');
+        if (editorRef.value && editorRef.value.innerHTML !== nextValue) {
+            editorRef.value.innerHTML = nextValue;
         }
     }
 );

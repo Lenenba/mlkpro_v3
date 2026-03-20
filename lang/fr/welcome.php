@@ -142,6 +142,6 @@ return [
     ],
     'footer' => [
         'terms' => "Conditions d'utilisation",
-        'copy' => 'MLK Pro. Tous droits reserves.',
+        'copy' => 'Malikia Pro. Tous droits reserves.',
     ],
 ];

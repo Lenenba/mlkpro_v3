@@ -1,15 +1,18 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
-import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import CampaignSectionCard from '@/Pages/Campaigns/Components/CampaignSectionCard.vue';
+import CampaignStickyActionBar from '@/Pages/Campaigns/Components/CampaignStickyActionBar.vue';
+import CampaignStepHeading from '@/Pages/Campaigns/Components/CampaignStepHeading.vue';
+import CampaignStepRail from '@/Pages/Campaigns/Components/CampaignStepRail.vue';
 import EmailBodyEditor from '@/Pages/Campaigns/Components/EmailBodyEditor.vue';
 import OfferSelector from '@/Pages/Campaigns/Components/OfferSelector.vue';
 
@@ -32,6 +35,14 @@ const canSend = computed(() => Boolean(props.access?.can_send));
 const isEdit = computed(() => Boolean(props.campaign?.id));
 const campaignId = computed(() => props.campaign?.id || null);
 const step = ref(1);
+const totalWizardSteps = 5;
+const stepBlueprints = [
+    { id: 1, key: 'setup' },
+    { id: 2, key: 'audience' },
+    { id: 3, key: 'message' },
+    { id: 4, key: 'review' },
+    { id: 5, key: 'results' },
+];
 
 const humanizeValue = (value) => String(value || '')
     .replaceAll('_', ' ')
@@ -41,6 +52,33 @@ const humanizeValue = (value) => String(value || '')
 const translateWithFallback = (key, fallback) => {
     const translated = t(key);
     return translated === key ? fallback : translated;
+};
+
+const richTextToPlainText = (value) => {
+    const source = String(value || '');
+    if (source.trim() === '') {
+        return '';
+    }
+
+    const withBreaks = source
+        .replace(/<\s*br\s*\/?>/gi, '\n')
+        .replace(/<\/(p|div|h2|h3|blockquote|pre)>/gi, '\n')
+        .replace(/<li[^>]*>/gi, '- ')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<hr[^>]*>/gi, '\n');
+
+    const withoutTags = withBreaks.replace(/<[^>]+>/g, '');
+
+    return withoutTags
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, '\'')
+        .replace(/\r/g, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
 };
 
 const campaignTypeLabel = (value) => {
@@ -73,11 +111,59 @@ const sourceLogicLabel = (value) => {
     return translateWithFallback(`marketing.source_logic.${normalized}`, humanizeValue(value));
 };
 
+const prospectingImportModeLabel = (value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (!normalized) return '-';
+    return translateWithFallback(`marketing.campaign_wizard.prospecting.import_modes.${normalized}`, humanizeValue(value));
+};
+
+const prospectingSourceTypeLabel = (value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (!normalized) return '-';
+    return translateWithFallback(`marketing.campaign_wizard.prospecting.source_types.${normalized}`, humanizeValue(value));
+};
+
 const channelLabel = (value) => {
     const normalized = String(value || '').toLowerCase();
     if (!normalized) return '-';
     return translateWithFallback(`marketing.channels.${normalized}`, humanizeValue(value));
 };
+
+const campaignStatusLabel = (value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (!normalized) return '-';
+    return translateWithFallback(`marketing.campaign_status.${normalized}`, humanizeValue(value));
+};
+
+const runStatusLabel = (value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (!normalized) return '-';
+    return translateWithFallback(`marketing.campaign_run_status.${normalized}`, humanizeValue(value));
+};
+
+const statusBadgeClass = (status) => {
+    const normalized = String(status || '').toLowerCase();
+
+    if (normalized === 'running') {
+        return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-200';
+    }
+
+    if (['scheduled', 'pending'].includes(normalized)) {
+        return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/15 dark:text-sky-200';
+    }
+
+    if (normalized === 'completed') {
+        return 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-200';
+    }
+
+    if (['failed', 'canceled'].includes(normalized)) {
+        return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-200';
+    }
+
+    return 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300';
+};
+
+const formatNumber = (value) => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 const channels = (props.enums?.channels || ['EMAIL', 'SMS', 'IN_APP']).map((v) => String(v).toUpperCase());
 const types = props.enums?.types || ['PROMOTION'];
@@ -230,7 +316,9 @@ const singleMailingListId = ref(initialSingleMailingListId ? String(initialSingl
 const templates = ref([]);
 const requestBusy = ref(false);
 const requestError = ref('');
-const estimate = ref(null);
+const estimate = ref(props.campaign?.audience?.estimated_counts && typeof props.campaign.audience.estimated_counts === 'object'
+    ? props.campaign.audience.estimated_counts
+    : null);
 const previews = ref([]);
 const testResults = ref([]);
 const runMessage = ref('');
@@ -377,7 +465,10 @@ const prospectingSortOptions = computed(() => ([
     { value: 'identity_asc', label: t('marketing.campaign_wizard.prospecting.sorts.identity_asc') },
 ]));
 
-const manualProspectLineCount = computed(() => String(prospectingManualInput.value || '')
+const normalizedProspectingManualInput = computed(() => richTextToPlainText(prospectingManualInput.value));
+const normalizedProspectingProviderQuery = computed(() => richTextToPlainText(prospectingProviderQuery.value));
+
+const manualProspectLineCount = computed(() => String(normalizedProspectingManualInput.value || '')
     .split(/\r?\n/)
     .map((value) => value.trim())
     .filter((value) => value !== '')
@@ -405,7 +496,7 @@ const canSaveProviderSelection = computed(() => {
         && isEdit.value
         && prospectingImportMode.value === 'provider'
         && selectedProspectProvider.value
-        && String(prospectingProviderQuery.value || '').trim() !== ''
+        && String(normalizedProspectingProviderQuery.value || '').trim() !== ''
         && !form.processing
     );
 });
@@ -429,7 +520,7 @@ const canLoadProviderPreview = computed(() => {
         && campaignId.value
         && prospectingImportMode.value === 'provider'
         && selectedProspectProvider.value
-        && String(prospectingProviderQuery.value || '').trim() !== ''
+        && String(normalizedProspectingProviderQuery.value || '').trim() !== ''
         && !providerPreviewBusy.value
     );
 });
@@ -668,7 +759,7 @@ const resolveManualProspectField = (header) => {
 };
 
 const parseManualProspectsInput = () => {
-    const lines = String(prospectingManualInput.value || '')
+    const lines = String(normalizedProspectingManualInput.value || '')
         .split(/\r?\n/)
         .map((value) => value.trim())
         .filter((value) => value !== '');
@@ -1248,13 +1339,10 @@ const loadProspectBatches = async (selectedBatchId = null) => {
         prospectingBatchSummary.value = response.data?.summary || null;
 
         const targetBatchId = Number(selectedBatchId || activeProspectBatchId.value || prospectingBatches.value[0]?.id || 0);
-        if (targetBatchId > 0) {
+        if (targetBatchId > 0 && activeProspectBatch.value?.id) {
             await loadProspectBatch(targetBatchId);
         } else {
-            activeProspectBatchId.value = null;
-            activeProspectBatch.value = null;
-            activeProspectRows.value = [];
-            activeProspectPagination.value = null;
+            activeProspectBatchId.value = targetBatchId > 0 ? targetBatchId : null;
         }
     } catch (error) {
         prospectingBatchError.value = error?.response?.data?.message || error?.message || t('marketing.campaign_wizard.prospecting.errors.load_batches');
@@ -1274,7 +1362,7 @@ const previewProviderProspects = async () => {
         return;
     }
 
-    if (String(prospectingProviderQuery.value || '').trim() === '') {
+    if (String(normalizedProspectingProviderQuery.value || '').trim() === '') {
         providerPreviewError.value = t('marketing.campaign_wizard.prospecting.errors.provider_query_required');
         return;
     }
@@ -1287,7 +1375,7 @@ const previewProviderProspects = async () => {
         const response = await axios.post(route('campaigns.prospect-provider-preview', campaignId.value), {
             provider_connection_id: Number(prospectingProviderConnectionId.value || 0),
             query_label: String(prospectingProviderQueryLabel.value || '').trim() || null,
-            query: String(prospectingProviderQuery.value || '').trim(),
+            query: String(normalizedProspectingProviderQuery.value || '').trim(),
             limit: 25,
         });
 
@@ -1354,7 +1442,7 @@ const importSelectedProviderProspects = async () => {
                     provider_connection_id: selectedProspectProvider.value?.id || null,
                     provider_connection_label: selectedProspectProvider.value?.label || null,
                     provider_query_label: providerPreviewMeta.value?.query_label || String(prospectingProviderQueryLabel.value || '').trim() || null,
-                    provider_query: providerPreviewMeta.value?.query || String(prospectingProviderQuery.value || '').trim() || null,
+                    provider_query: providerPreviewMeta.value?.query || String(normalizedProspectingProviderQuery.value || '').trim() || null,
                     provider_import_confirmed_at: new Date().toISOString(),
                 },
             })),
@@ -1490,6 +1578,16 @@ const resetProspectFilters = async () => {
 
 const saveProspectingDraft = () => {
     save(2);
+};
+
+const openProspectBatchWorkspace = (batchId) => {
+    const normalizedBatchId = Number(batchId || 0);
+    if (!campaignId.value || normalizedBatchId <= 0) {
+        return;
+    }
+
+    rememberWizardStep(2);
+    router.visit(route('campaigns.prospect-batches.workspace', [campaignId.value, normalizedBatchId]));
 };
 
 watch(
@@ -1813,6 +1911,849 @@ const logicSummary = computed(() => {
     });
 });
 
+const selectedAudienceSegment = computed(() => props.segments.find((segment) => String(segment?.id || '') === String(form.audience_segment_id || '')) || null);
+const selectedSingleAudienceMailingList = computed(() => singleMailingListOptions.value.find((option) => String(option?.value || '') === String(singleMailingListId.value || '')) || null);
+const audienceEstimateTotal = computed(() => Number(estimate.value?.total_eligible || 0));
+const hasAudienceEstimate = computed(() => Boolean(estimate.value));
+const audienceEstimateChannels = computed(() => Object.entries(estimate.value?.eligible_by_channel || {})
+    .map(([channel, count]) => ({
+        key: String(channel || '').toUpperCase(),
+        label: channelLabel(channel),
+        count: Number(count || 0),
+    }))
+    .filter((entry) => entry.count > 0));
+
+const audiencePrimarySourceValue = computed(() => {
+    if (useSingleMailingList.value && selectedSingleAudienceMailingList.value?.label) {
+        return selectedSingleAudienceMailingList.value.label;
+    }
+
+    if (selectedAudienceSegment.value?.name) {
+        return selectedAudienceSegment.value.name;
+    }
+
+    return t('marketing.campaign_wizard.audience.builder_fallback');
+});
+
+const audienceOverviewCards = computed(() => ([
+    {
+        key: 'source',
+        label: t('marketing.campaign_wizard.audience.overview_cards.source'),
+        value: audiencePrimarySourceValue.value,
+        helper: useSingleMailingList.value
+            ? t('marketing.campaign_wizard.audience.source_logic_locked')
+            : sourceLogicLabel(sourceLogic.value),
+    },
+    {
+        key: 'lists',
+        label: t('marketing.campaign_wizard.audience.overview_cards.included_lists'),
+        value: String(useSingleMailingList.value ? (singleMailingListId.value ? 1 : 0) : includeMailingListIds.value.length),
+        helper: useSingleMailingList.value
+            ? (selectedSingleAudienceMailingList.value?.label || t('marketing.campaign_wizard.no_single_mailing_list'))
+            : t('marketing.campaign_wizard.audience.list_helper', { exclude: excludeMailingListIds.value.length }),
+    },
+    {
+        key: 'manual',
+        label: t('marketing.campaign_wizard.audience.overview_cards.manual_customers'),
+        value: String(selectedAudienceCustomerIds.value.length),
+        helper: selectedAudienceCustomerIds.value.length > 0
+            ? t('marketing.campaign_wizard.selected_customers_count', { count: selectedAudienceCustomerIds.value.length })
+            : t('marketing.campaign_wizard.selected_customers_empty'),
+    },
+    {
+        key: 'estimate',
+        label: t('marketing.campaign_wizard.audience.overview_cards.eligible_estimate'),
+        value: estimate.value ? String(audienceEstimateTotal.value) : '-',
+        helper: estimate.value
+            ? t('marketing.campaign_wizard.audience.estimate_ready')
+            : t('marketing.campaign_wizard.audience.estimate_pending'),
+    },
+]));
+
+const prospectingOverviewCards = computed(() => ([
+    {
+        key: 'mode',
+        label: t('marketing.campaign_wizard.audience.overview_cards.import_mode'),
+        value: prospectingImportModeLabel(prospectingImportMode.value),
+        helper: `${t('marketing.campaign_wizard.prospecting.fields.batch_size')}: ${prospectingBatchSize.value || '-'}`,
+    },
+    {
+        key: 'source',
+        label: t('marketing.campaign_wizard.audience.overview_cards.source_reference'),
+        value: prospectingImportMode.value === 'provider'
+            ? (prospectingProviderSelectionSummary.value || '-')
+            : (String(prospectingSourceReference.value || '').trim() || prospectingSourceTypeLabel(prospectingSourceType.value)),
+        helper: prospectingImportMode.value === 'provider'
+            ? (String(prospectingProviderQueryLabel.value || normalizedProspectingProviderQuery.value || '').trim() || t('marketing.campaign_wizard.audience.no_query_saved'))
+            : prospectingSourceTypeLabel(prospectingSourceType.value),
+    },
+    {
+        key: 'preview',
+        label: t('marketing.campaign_wizard.audience.overview_cards.preview'),
+        value: String(providerPreviewRows.value.length || 0),
+        helper: providerPreviewRows.value.length > 0
+            ? t('marketing.campaign_wizard.prospecting.preview_selected_count', { count: selectedProviderPreviewCount.value, total: providerPreviewRows.value.length || 0 })
+            : t('marketing.campaign_wizard.audience.preview_pending'),
+    },
+    {
+        key: 'batches',
+        label: t('marketing.campaign_wizard.audience.overview_cards.batches'),
+        value: String(prospectingBatchSummary.value?.total_batches || prospectingBatches.value.length || 0),
+        helper: t('marketing.campaign_wizard.audience.batch_helper', {
+            approved: prospectingBatchSummary.value?.approved_batches || 0,
+            analyzed: prospectingBatchSummary.value?.analyzed_batches || 0,
+        }),
+    },
+]));
+
+const hasProspectingDraftInput = computed(() => (
+    String(normalizedProspectingManualInput.value || '').trim() !== ''
+    || Boolean(prospectingSelectedFile.value)
+    || String(prospectingProviderConnectionId.value || '').trim() !== ''
+    || String(normalizedProspectingProviderQuery.value || '').trim() !== ''
+    || providerPreviewRows.value.length > 0
+    || prospectingBatches.value.length > 0
+    || Number(prospectingBatchSummary.value?.total_batches || 0) > 0
+    || Boolean(activeProspectBatch.value?.id)
+));
+
+const hasAudienceSetup = computed(() => {
+    if (isProspectingMode.value) {
+        return hasProspectingDraftInput.value;
+    }
+
+    return Boolean(
+        form.audience_segment_id
+        || includeMailingListIds.value.length
+        || excludeMailingListIds.value.length
+        || selectedAudienceCustomerIds.value.length
+        || (useSingleMailingList.value && singleMailingListId.value)
+    );
+});
+
+const enabledChannelsCount = computed(() => form.channels.filter((row) => row.is_enabled).length);
+const enabledChannels = computed(() => form.channels.filter((row) => row.is_enabled));
+
+const isChannelConfigured = (channel) => {
+    if (!channel?.is_enabled) {
+        return true;
+    }
+
+    const name = String(channel.channel || '').toUpperCase();
+    const subject = String(channel.subject_template || '').trim();
+    const title = String(channel.title_template || '').trim();
+    const body = String(channel.body_template || '').trim();
+
+    if (name === 'EMAIL') {
+        return subject !== '' && body !== '';
+    }
+
+    if (name === 'IN_APP') {
+        return title !== '' && body !== '';
+    }
+
+    return body !== '';
+};
+
+const hasMessageSetup = computed(() => (
+    enabledChannelsCount.value > 0
+    && form.channels.every((channel) => isChannelConfigured(channel))
+));
+
+const activeMessageChannelKey = ref(
+    String(form.channels.find((row) => row.is_enabled)?.channel || form.channels[0]?.channel || channels[0] || 'EMAIL').toUpperCase()
+);
+
+const activeMessageChannel = computed(() => {
+    const requestedKey = String(activeMessageChannelKey.value || '').toUpperCase();
+    return form.channels.find((row) => String(row.channel || '').toUpperCase() === requestedKey)
+        || form.channels[0]
+        || null;
+});
+
+const configuredMessageChannelsCount = computed(() => (
+    form.channels.filter((channel) => channel.is_enabled && isChannelConfigured(channel)).length
+));
+const enabledChannelLabels = computed(() => enabledChannels.value.map((channel) => channelLabel(channel.channel)));
+const abEnabledChannels = computed(() => form.channels.filter((channel) => channel.is_enabled && Boolean(channel.ab_testing?.enabled)));
+const unconfiguredEnabledChannels = computed(() => enabledChannels.value.filter((channel) => !isChannelConfigured(channel)));
+const fallbackConfiguredSources = computed(() => enabledChannels.value
+    .map((channel) => String(channel.channel || '').toUpperCase())
+    .filter((source) => Array.isArray(form.settings.channel_fallback?.map?.[source]) && form.settings.channel_fallback.map[source].length > 0));
+const campaignRuns = computed(() => (Array.isArray(props.campaign?.runs) ? props.campaign.runs : []));
+const latestCampaignRun = computed(() => campaignRuns.value[0] || null);
+const latestRunSummary = computed(() => {
+    const summary = latestCampaignRun.value?.summary;
+    return summary && typeof summary === 'object' ? summary : {};
+});
+const reviewOverviewCards = computed(() => {
+    const audienceValue = hasAudienceSetup.value
+        ? (hasAudienceEstimate.value
+            ? `${formatNumber(audienceEstimateTotal.value)} eligible`
+            : (isProspectingMode.value
+                ? (prospectingProviderSelectionSummary.value || prospectingSourceTypeLabel(prospectingSourceType.value))
+                : audiencePrimarySourceValue.value))
+        : '-';
+
+    return [
+        {
+            key: 'strategy',
+            label: translateWithFallback('marketing.campaign_wizard.steps.setup', 'Parameters'),
+            value: `${campaignTypeLabel(form.campaign_type)} | ${directionLabel(form.campaign_direction)}`,
+            helper: `${formatNumber(selectedOfferCount.value)} offers | ${scheduleSummary.value}`,
+        },
+        {
+            key: 'audience',
+            label: translateWithFallback('marketing.campaign_wizard.steps.audience', 'Audience'),
+            value: audienceValue,
+            helper: isProspectingMode.value
+                ? `${formatNumber(prospectingBatchSummary.value?.approved_batches || 0)} approved batches`
+                : logicSummary.value,
+        },
+        {
+            key: 'message',
+            label: translateWithFallback('marketing.campaign_wizard.steps.message', 'Message'),
+            value: enabledChannelsCount.value > 0 ? enabledChannelLabels.value.join(', ') : 'No active channel',
+            helper: `${formatNumber(configuredMessageChannelsCount.value)}/${formatNumber(enabledChannelsCount.value)} channels ready`,
+        },
+        {
+            key: 'lifecycle',
+            label: translateWithFallback('marketing.campaign_wizard.steps.results', 'Results'),
+            value: campaignStatusLabel(props.campaign?.status || 'draft'),
+            helper: latestCampaignRun.value
+                ? `Latest run #${latestCampaignRun.value.id}`
+                : 'No run yet',
+        },
+    ];
+});
+const reviewSections = computed(() => ([
+    {
+        key: 'setup',
+        title: translateWithFallback('marketing.campaign_wizard.steps.setup', 'Parameters'),
+        ready: setupStepComplete.value,
+        step: 1,
+        summary: String(form.name || '').trim() || 'Campaign name missing',
+        helper: `${campaignTypeLabel(form.campaign_type)} | ${offerModeLabel(form.offer_mode)} | ${scheduleSummary.value}`,
+    },
+    {
+        key: 'audience',
+        title: translateWithFallback('marketing.campaign_wizard.steps.audience', 'Audience'),
+        ready: hasAudienceSetup.value,
+        step: 2,
+        summary: isProspectingMode.value
+            ? (prospectingProviderSelectionSummary.value || prospectingSourceTypeLabel(prospectingSourceType.value))
+            : audiencePrimarySourceValue.value,
+        helper: hasAudienceEstimate.value
+            ? `${formatNumber(audienceEstimateTotal.value)} eligible | ${formatNumber(includeMailingListIds.value.length)} lists`
+            : 'Estimate not refreshed yet',
+    },
+    {
+        key: 'message',
+        title: translateWithFallback('marketing.campaign_wizard.steps.message', 'Message'),
+        ready: hasMessageSetup.value,
+        step: 3,
+        summary: enabledChannelsCount.value > 0 ? enabledChannelLabels.value.join(', ') : 'No active channel',
+        helper: enabledChannelsCount.value > 0
+            ? `${formatNumber(configuredMessageChannelsCount.value)}/${formatNumber(enabledChannelsCount.value)} channels configured`
+            : 'Enable at least one channel',
+    },
+]));
+const reviewBlockers = computed(() => {
+    const items = [];
+
+    if (!isEdit.value) {
+        items.push({
+            key: 'save-first',
+            title: 'Save the draft first',
+            description: 'Create the campaign record before opening lifecycle data or launching it.',
+            step: 1,
+        });
+    }
+
+    if (String(form.name || '').trim() === '') {
+        items.push({
+            key: 'name',
+            title: 'Campaign name is missing',
+            description: 'Parameters still need a clear campaign name.',
+            step: 1,
+        });
+    }
+
+    if (offersPayload.value.length === 0) {
+        items.push({
+            key: 'offers',
+            title: 'No offer selected',
+            description: 'Choose at least one product or service before launch.',
+            step: 1,
+        });
+    }
+
+    if (String(form.schedule_type || '') === 'scheduled' && !form.scheduled_at) {
+        items.push({
+            key: 'schedule',
+            title: 'Scheduled send has no date',
+            description: 'Pick a date and time for the scheduled run.',
+            step: 1,
+        });
+    }
+
+    if (!hasAudienceSetup.value) {
+        items.push({
+            key: 'audience',
+            title: 'Audience is not configured',
+            description: 'Select a segment, lists, manual customers, or a prospecting source.',
+            step: 2,
+        });
+    }
+
+    if (hasAudienceEstimate.value && audienceEstimateTotal.value <= 0) {
+        items.push({
+            key: 'empty-audience',
+            title: 'Audience estimate is empty',
+            description: 'The current selection returns zero eligible recipients.',
+            step: 2,
+        });
+    }
+
+    if (enabledChannelsCount.value === 0) {
+        items.push({
+            key: 'channels',
+            title: 'No channel is enabled',
+            description: 'Enable at least one delivery channel.',
+            step: 3,
+        });
+    }
+
+    if (unconfiguredEnabledChannels.value.length > 0) {
+        items.push({
+            key: 'message',
+            title: 'Message content is incomplete',
+            description: `Finish ${unconfiguredEnabledChannels.value.map((channel) => channelLabel(channel.channel)).join(', ')} before sending.`,
+            step: 3,
+        });
+    }
+
+    return items;
+});
+const reviewWarnings = computed(() => {
+    const items = [];
+
+    if (!hasAudienceEstimate.value) {
+        items.push({
+            key: 'estimate',
+            title: 'Audience estimate was not refreshed',
+            description: 'Run the estimate once to validate volume and channel coverage.',
+            step: 2,
+        });
+    }
+
+    if (isProspectingMode.value && Number(prospectingBatchSummary.value?.total_batches || 0) > 0 && Number(prospectingBatchSummary.value?.approved_batches || 0) === 0) {
+        items.push({
+            key: 'prospecting-review',
+            title: 'No approved prospect batch yet',
+            description: 'Review at least one batch before treating the prospecting audience as ready.',
+            step: 2,
+        });
+    }
+
+    if (form.settings.holdout?.enabled && Number(form.settings.holdout?.percent || 0) === 0) {
+        items.push({
+            key: 'holdout',
+            title: 'Holdout is enabled with 0%',
+            description: 'Increase the holdout percentage or disable the option.',
+            step: 4,
+        });
+    }
+
+    if (form.settings.channel_fallback?.enabled && fallbackConfiguredSources.value.length === 0) {
+        items.push({
+            key: 'fallback',
+            title: 'Fallback is enabled without targets',
+            description: 'Map at least one fallback route for the enabled channels.',
+            step: 4,
+        });
+    }
+
+    if (isEdit.value && previews.value.length === 0) {
+        items.push({
+            key: 'preview',
+            title: 'Preview has not been generated',
+            description: 'Generate a live preview once before the launch decision.',
+            step: 3,
+        });
+    }
+
+    if (isEdit.value && canSend.value && testResults.value.length === 0) {
+        items.push({
+            key: 'test-send',
+            title: 'No test send has been executed',
+            description: 'A quick test send is still recommended for final reassurance.',
+            step: 3,
+        });
+    }
+
+    if (Boolean(props.marketingSettings?.consent?.require_explicit)) {
+        items.push({
+            key: 'consent',
+            title: 'Explicit consent is required',
+            description: 'Double-check coverage and legal readiness for the selected audience.',
+            step: 2,
+        });
+    }
+
+    return items;
+});
+
+const messageOverviewCards = computed(() => ([
+    {
+        key: 'enabled',
+        label: t('marketing.campaign_wizard.review.enabled_channels'),
+        value: String(enabledChannelsCount.value),
+        helper: t('marketing.campaign_wizard.parameters.overview_cards.delivery'),
+    },
+    {
+        key: 'configured',
+        label: t('marketing.campaign_wizard.foundation.statuses.complete'),
+        value: String(configuredMessageChannelsCount.value),
+        helper: hasMessageSetup.value
+            ? t('marketing.campaign_wizard.foundation.statuses.complete')
+            : t('marketing.campaign_wizard.foundation.statuses.attention'),
+    },
+    {
+        key: 'templates',
+        label: t('marketing.campaign_wizard.fields.template'),
+        value: String(form.channels.filter((channel) => Number(channel.message_template_id || 0) > 0).length),
+        helper: t('marketing.campaign_wizard.actions.live_preview'),
+    },
+    {
+        key: 'ab',
+        label: t('marketing.campaign_wizard.ab_testing.title'),
+        value: String(form.channels.filter((channel) => Boolean(channel.ab_testing?.enabled)).length),
+        helper: t('marketing.campaign_wizard.review.ab_enabled_channels'),
+    },
+]));
+
+const setActiveMessageChannel = (channelKey) => {
+    activeMessageChannelKey.value = String(channelKey || '').toUpperCase();
+};
+
+const channelRequiresSubject = (channel) => String(channel?.channel || '').toUpperCase() === 'EMAIL';
+const channelRequiresTitle = (channel) => String(channel?.channel || '').toUpperCase() === 'IN_APP';
+
+const messageChecklist = (channel) => {
+    if (!channel?.is_enabled) {
+        return [];
+    }
+
+    return [
+        {
+            key: 'template',
+            label: t('marketing.campaign_wizard.fields.template'),
+            ready: Number(channel.message_template_id || 0) > 0,
+        },
+        {
+            key: 'subject',
+            label: t('marketing.campaign_wizard.fields.subject'),
+            ready: !channelRequiresSubject(channel) || String(channel.subject_template || '').trim() !== '',
+        },
+        {
+            key: 'title',
+            label: t('marketing.campaign_wizard.fields.title'),
+            ready: !channelRequiresTitle(channel) || String(channel.title_template || '').trim() !== '',
+        },
+        {
+            key: 'body',
+            label: t('marketing.campaign_wizard.fields.body_template'),
+            ready: String(channel.body_template || '').trim() !== '',
+        },
+    ].filter((item) => {
+        if (item.key === 'subject') return channelRequiresSubject(channel);
+        if (item.key === 'title') return channelRequiresTitle(channel);
+        return true;
+    });
+};
+
+const messageChannelStateClass = (channel) => {
+    const isActive = String(activeMessageChannel.value?.channel || '').toUpperCase() === String(channel?.channel || '').toUpperCase();
+    if (isActive) {
+        return 'border-green-500 bg-green-50 dark:border-green-400 dark:bg-green-500/10';
+    }
+
+    return 'border-stone-200 bg-white hover:border-green-300 dark:border-neutral-700 dark:bg-neutral-900';
+};
+
+watch(
+    () => form.channels.map((channel) => String(channel.channel || '').toUpperCase()),
+    (keys) => {
+        if (keys.includes(String(activeMessageChannelKey.value || '').toUpperCase())) {
+            return;
+        }
+
+        activeMessageChannelKey.value = keys[0] || channels[0] || 'EMAIL';
+    },
+    { immediate: true }
+);
+
+const setupStepComplete = computed(() => Boolean(
+    String(form.name || '').trim() !== ''
+    && offersPayload.value.length > 0
+    && form.campaign_type
+));
+
+const reviewStepReady = computed(() => Boolean(
+    isEdit.value
+    && setupStepComplete.value
+    && hasAudienceSetup.value
+    && hasMessageSetup.value
+    && reviewBlockers.value.length === 0
+));
+
+const reviewReadinessScore = computed(() => {
+    const checks = [
+        isEdit.value,
+        setupStepComplete.value,
+        hasAudienceSetup.value,
+        hasMessageSetup.value,
+        hasAudienceEstimate.value,
+        previews.value.length > 0 || testResults.value.length > 0,
+    ];
+
+    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+});
+
+const reviewReadinessState = computed(() => {
+    if (reviewBlockers.value.length > 0) {
+        return 'blocked';
+    }
+
+    if (reviewWarnings.value.length > 0) {
+        return 'attention';
+    }
+
+    return 'ready';
+});
+
+const reviewReadinessLabel = computed(() => {
+    if (reviewReadinessState.value === 'blocked') {
+        return 'Blocked';
+    }
+
+    if (reviewReadinessState.value === 'attention') {
+        return 'Needs attention';
+    }
+
+    return 'Ready to send';
+});
+
+const reviewReadinessDescription = computed(() => {
+    if (reviewReadinessState.value === 'blocked') {
+        return `${reviewBlockers.value.length} blocking item(s) must be fixed before send.`;
+    }
+
+    if (reviewReadinessState.value === 'attention') {
+        return `${reviewWarnings.value.length} recommended check(s) are still open before launch.`;
+    }
+
+    return 'Parameters, audience, and message are aligned for launch.';
+});
+
+const reviewReadinessPanelClass = computed(() => {
+    if (reviewReadinessState.value === 'blocked') {
+        return 'border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10';
+    }
+
+    if (reviewReadinessState.value === 'attention') {
+        return 'border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10';
+    }
+
+    return 'border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10';
+});
+
+const resultsOverviewCards = computed(() => ([
+    {
+        key: 'campaign-status',
+        label: 'Campaign status',
+        value: campaignStatusLabel(props.campaign?.status || 'draft'),
+        helper: props.campaign?.updated_at ? `Updated ${formatDateTime(props.campaign.updated_at)}` : 'Save the draft to start the lifecycle.',
+    },
+    {
+        key: 'latest-run',
+        label: 'Latest run',
+        value: latestCampaignRun.value ? `#${latestCampaignRun.value.id}` : 'No run yet',
+        helper: latestCampaignRun.value
+            ? `${runStatusLabel(latestCampaignRun.value.status)} | ${formatDateTime(latestCampaignRun.value.started_at || latestCampaignRun.value.created_at)}`
+            : 'Launch from Review to create the first run.',
+    },
+    {
+        key: 'targeted',
+        label: 'Targeted',
+        value: latestCampaignRun.value
+            ? formatNumber(latestRunSummary.value?.targeted || latestCampaignRun.value?.audience_snapshot?.eligible || 0)
+            : (hasAudienceEstimate.value ? formatNumber(audienceEstimateTotal.value) : '-'),
+        helper: latestCampaignRun.value ? 'Recipients in the latest run' : 'Estimated eligible recipients',
+    },
+    {
+        key: 'delivery',
+        label: 'Delivered',
+        value: latestCampaignRun.value ? formatNumber(latestRunSummary.value?.delivered || 0) : '-',
+        helper: latestCampaignRun.value
+            ? `${formatNumber(latestRunSummary.value?.sent || 0)} sent | ${formatNumber(latestRunSummary.value?.failed || 0)} failed`
+            : 'Delivery metrics appear after launch.',
+    },
+]));
+
+const latestRunHighlights = computed(() => {
+    if (!latestCampaignRun.value) {
+        return [];
+    }
+
+    return [
+        {
+            key: 'trigger',
+            label: 'Trigger',
+            value: humanizeValue(latestCampaignRun.value.trigger_type || 'manual'),
+        },
+        {
+            key: 'started',
+            label: 'Started',
+            value: formatDateTime(latestCampaignRun.value.started_at || latestCampaignRun.value.created_at),
+        },
+        {
+            key: 'completed',
+            label: 'Completed',
+            value: formatDateTime(latestCampaignRun.value.completed_at),
+        },
+        {
+            key: 'engagement',
+            label: 'Engagement',
+            value: `${formatNumber(latestRunSummary.value?.opened || 0)} opened | ${formatNumber(latestRunSummary.value?.clicked || 0)} clicked`,
+        },
+    ];
+});
+
+const resultsEmptyStateMessage = computed(() => {
+    if (String(form.schedule_type || '') === 'scheduled' && form.scheduled_at) {
+        return `This campaign is saved and scheduled for ${form.scheduled_at}. The first run will appear here once dispatch starts.`;
+    }
+
+    return 'No execution has started yet. Launch the campaign from Review to unlock run history and analytics.';
+});
+
+const stepCompletion = computed(() => ({
+    1: setupStepComplete.value,
+    2: hasAudienceSetup.value,
+    3: hasMessageSetup.value,
+    4: reviewStepReady.value,
+    5: Boolean(isEdit.value),
+}));
+
+const stepState = (stepId) => {
+    if (step.value === stepId) {
+        return 'current';
+    }
+
+    if (stepCompletion.value[stepId]) {
+        return 'complete';
+    }
+
+    if (stepId < step.value) {
+        return 'attention';
+    }
+
+    return 'upcoming';
+};
+
+const wizardSteps = computed(() => {
+    return stepBlueprints.map((stepItem) => {
+        const state = stepState(stepItem.id);
+
+        return {
+            ...stepItem,
+            title: t(`marketing.campaign_wizard.steps.${stepItem.key}`),
+            summary: t(`marketing.campaign_wizard.foundation.summaries.${stepItem.key}`),
+            description: t(`marketing.campaign_wizard.foundation.descriptions.${stepItem.key}`),
+            recommendation: t(`marketing.campaign_wizard.foundation.recommendations.${stepItem.key}`),
+            state,
+            statusLabel: t(`marketing.campaign_wizard.foundation.statuses.${state}`),
+        };
+    });
+});
+
+const stepMeta = (stepId) => wizardSteps.value.find((item) => item.id === stepId) || wizardSteps.value[0];
+
+const currentStepMeta = computed(() => stepMeta(step.value));
+
+const completedStepCount = computed(() => (
+    [1, 2, 3, 4].filter((stepId) => stepCompletion.value[stepId]).length
+));
+
+const journeyProgressPercent = computed(() => Math.max(
+    Math.round((step.value / totalWizardSteps) * 100),
+    10
+));
+
+const campaignHeaderStatus = computed(() => {
+    if (!canManage.value) {
+        return t('marketing.campaign_wizard.foundation.header_status.read_only');
+    }
+
+    return isEdit.value
+        ? t('marketing.campaign_wizard.foundation.header_status.draft')
+        : t('marketing.campaign_wizard.foundation.header_status.new');
+});
+
+const saveDraftLabel = computed(() => (
+    isEdit.value
+        ? t('marketing.campaign_wizard.actions.update_draft')
+        : t('marketing.campaign_wizard.actions.save_draft')
+));
+
+const primaryActionLabel = computed(() => {
+    if (step.value === 5) {
+        return isEdit.value
+            ? t('marketing.campaign_wizard.actions.open_results')
+            : t('marketing.campaign_wizard.actions.save_draft');
+    }
+
+    if (step.value === 4) {
+        return t('marketing.campaign_wizard.actions.save_and_open_results');
+    }
+
+    return isEdit.value
+        ? t('marketing.campaign_wizard.actions.update_and_continue')
+        : t('marketing.campaign_wizard.actions.save_and_continue');
+});
+
+const stickyGuidance = computed(() => {
+    if (requestError.value) {
+        return requestError.value;
+    }
+
+    if (Object.keys(form.errors || {}).length > 0) {
+        return t('marketing.campaign_wizard.foundation.validation_hint');
+    }
+
+    if (step.value === 4) {
+        return reviewReadinessDescription.value;
+    }
+
+    if (step.value === 5) {
+        return latestCampaignRun.value
+            ? `Latest run ${runStatusLabel(latestCampaignRun.value.status)}. Open results for the full analytics view.`
+            : resultsEmptyStateMessage.value;
+    }
+
+    return currentStepMeta.value?.recommendation || '';
+});
+
+const selectedOfferCount = computed(() => (
+    Array.isArray(form.offers) ? form.offers.length : 0
+));
+
+const automaticOfferRuleCount = computed(() => {
+    const selectors = form.offer_selectors || {};
+    const categoryCount = Array.isArray(selectors.category_ids) ? selectors.category_ids.length : 0;
+    const tagCount = Array.isArray(selectors.tags) ? selectors.tags.length : 0;
+
+    return categoryCount + tagCount;
+});
+
+const configuredAdvancedParameterCount = computed(() => (
+    [
+        String(form.locale || '').trim() !== '',
+        String(form.cta_url || '').trim() !== '',
+    ].filter(Boolean).length
+));
+
+const parametersAdvancedOpen = ref(Boolean(
+    String(form.locale || '').trim() !== ''
+    || String(form.cta_url || '').trim() !== ''
+));
+
+const scheduleSummary = computed(() => {
+    const scheduleType = String(form.schedule_type || 'manual');
+    const base = t(`marketing.campaign_wizard.schedule_type_options.${scheduleType}`);
+
+    if (scheduleType === 'scheduled' && form.scheduled_at) {
+        return `${base} | ${form.scheduled_at}`;
+    }
+
+    return base;
+});
+
+const parametersDirectionHint = computed(() => {
+    const direction = String(form.campaign_direction || 'customer_marketing');
+
+    return t(`marketing.campaign_wizard.parameters.direction_hints.${direction}`);
+});
+
+const parametersScheduleHint = computed(() => {
+    const scheduleType = String(form.schedule_type || 'manual');
+
+    return t(`marketing.campaign_wizard.parameters.schedule_hints.${scheduleType}`);
+});
+
+const setupOverviewCards = computed(() => ([
+    {
+        key: 'strategy',
+        label: t('marketing.campaign_wizard.parameters.overview_cards.strategy'),
+        value: `${campaignTypeLabel(form.campaign_type)} | ${offerModeLabel(form.offer_mode)}`,
+    },
+    {
+        key: 'direction',
+        label: t('marketing.campaign_wizard.parameters.overview_cards.direction'),
+        value: `${directionLabel(form.campaign_direction)} | ${form.prospecting_enabled ? t('marketing.campaign_wizard.parameters.prospecting_on') : t('marketing.campaign_wizard.parameters.prospecting_off')}`,
+    },
+    {
+        key: 'delivery',
+        label: t('marketing.campaign_wizard.parameters.overview_cards.delivery'),
+        value: scheduleSummary.value,
+    },
+    {
+        key: 'offers',
+        label: t('marketing.campaign_wizard.parameters.overview_cards.offers'),
+        value: t('marketing.campaign_wizard.parameters.offers_summary', {
+            selected: selectedOfferCount.value,
+            rules: automaticOfferRuleCount.value,
+        }),
+    },
+]));
+
+const setStep = (nextStep) => {
+    const candidate = Number(nextStep || 0);
+    if (!Number.isInteger(candidate) || candidate < 1 || candidate > totalWizardSteps) {
+        return;
+    }
+
+    step.value = candidate;
+};
+
+const saveStepProgress = () => {
+    if (step.value === 5) {
+        return;
+    }
+
+    save(step.value);
+};
+
+const goToPreviousStep = () => {
+    setStep(step.value - 1);
+};
+
+const runPrimaryWizardAction = () => {
+    if (step.value === 5) {
+        if (!isEdit.value) {
+            save(step.value);
+            return;
+        }
+
+        router.visit(route('campaigns.show', campaignId.value));
+        return;
+    }
+
+    save(Math.min(totalWizardSteps, step.value + 1));
+};
+
 const audiencePayload = () => {
     const providerContext = prospectingImportMode.value === 'provider'
         ? {
@@ -1823,7 +2764,7 @@ const audiencePayload = () => {
             provider_label: selectedProspectProvider.value?.provider_label || savedAudienceSourceSummary?.provider_label || null,
             provider_connection_label: selectedProspectProvider.value?.label || savedAudienceSourceSummary?.provider_connection_label || null,
             provider_query_label: String(prospectingProviderQueryLabel.value || '').trim() || null,
-            provider_query: String(prospectingProviderQuery.value || '').trim() || null,
+            provider_query: String(normalizedProspectingProviderQuery.value || '').trim() || null,
         }
         : {
             provider_connection_id: null,
@@ -2102,104 +3043,288 @@ watch(isProspectingMode, async (enabled) => {
 <template>
     <Head :title="isEdit ? t('marketing.campaign_wizard.head_edit', { id: campaignId }) : t('marketing.campaign_wizard.head_new')" />
     <AuthenticatedLayout>
-        <div class="space-y-4">
-            <section class="rounded-sm border border-stone-200 border-t-4 border-t-green-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h1 class="inline-flex items-center gap-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                            <svg class="size-5 text-green-600 dark:text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M4 4h16v16H4z" />
-                                <path d="M8 8h8" />
-                                <path d="M8 12h8" />
-                                <path d="M8 16h5" />
-                            </svg>
-                            <span>{{ isEdit ? t('marketing.campaign_wizard.header_edit', { id: campaignId }) : t('marketing.campaign_wizard.header_new') }}</span>
-                        </h1>
-                        <p class="text-sm text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.description') }}</p>
+        <div class="space-y-6 pb-28">
+            <section class="rounded-lg border border-stone-200 border-t-4 border-t-green-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div class="space-y-3">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="inline-flex rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200">
+                                {{ campaignHeaderStatus }}
+                            </span>
+                            <span class="inline-flex rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                                {{ t('marketing.campaign_wizard.foundation.current_step', { current: step, total: totalWizardSteps }) }}
+                            </span>
+                        </div>
+
+                        <div>
+                            <h1 class="inline-flex items-center gap-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                                <svg class="size-5 text-green-600 dark:text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 4h16v16H4z" />
+                                    <path d="M8 8h8" />
+                                    <path d="M8 12h8" />
+                                    <path d="M8 16h5" />
+                                </svg>
+                                <span>{{ isEdit ? t('marketing.campaign_wizard.header_edit', { id: campaignId }) : t('marketing.campaign_wizard.header_new') }}</span>
+                            </h1>
+                            <p class="mt-2 max-w-3xl text-sm leading-6 text-stone-500 dark:text-neutral-400">
+                                {{ t('marketing.campaign_wizard.description') }}
+                            </p>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
+
+                    <div class="flex flex-wrap items-center gap-2 xl:justify-end">
                         <Link :href="route('campaigns.index')">
-                            <SecondaryButton>{{ t('marketing.campaign_wizard.actions.back') }}</SecondaryButton>
+                            <SecondaryButton>{{ t('marketing.campaign_wizard.actions.back_to_list') }}</SecondaryButton>
                         </Link>
                         <Link v-if="isEdit" :href="route('campaigns.show', campaignId)">
                             <SecondaryButton>{{ t('marketing.campaign_wizard.actions.details') }}</SecondaryButton>
                         </Link>
-                        <PrimaryButton type="button" :disabled="form.processing || !canManage" @click="save">
-                            {{ form.processing ? t('marketing.campaign_wizard.actions.saving') : (isEdit ? t('marketing.campaign_wizard.actions.update') : t('marketing.campaign_wizard.actions.create')) }}
-                        </PrimaryButton>
+                        <SecondaryButton type="button" :disabled="form.processing || !canManage" @click="saveStepProgress">
+                            {{ form.processing ? t('marketing.campaign_wizard.actions.saving') : saveDraftLabel }}
+                        </SecondaryButton>
                     </div>
                 </div>
-                <div class="mt-3 flex flex-wrap gap-2">
-                    <button type="button" class="rounded-sm px-2 py-1 text-xs font-semibold" :class="step === 1 ? 'bg-green-600 text-white' : 'border border-stone-200 bg-white text-stone-700'" @click="step = 1">{{ t('marketing.campaign_wizard.steps.setup') }}</button>
-                    <button type="button" class="rounded-sm px-2 py-1 text-xs font-semibold" :class="step === 2 ? 'bg-green-600 text-white' : 'border border-stone-200 bg-white text-stone-700'" @click="step = 2">{{ t('marketing.campaign_wizard.steps.audience') }}</button>
-                    <button type="button" class="rounded-sm px-2 py-1 text-xs font-semibold" :class="step === 3 ? 'bg-green-600 text-white' : 'border border-stone-200 bg-white text-stone-700'" @click="step = 3">{{ t('marketing.campaign_wizard.steps.message') }}</button>
-                    <button type="button" class="rounded-sm px-2 py-1 text-xs font-semibold" :class="step === 4 ? 'bg-green-600 text-white' : 'border border-stone-200 bg-white text-stone-700'" @click="step = 4">{{ t('marketing.campaign_wizard.steps.review') }}</button>
-                    <button type="button" class="rounded-sm px-2 py-1 text-xs font-semibold" :class="step === 5 ? 'bg-green-600 text-white' : 'border border-stone-200 bg-white text-stone-700'" @click="step = 5">{{ t('marketing.campaign_wizard.steps.results') }}</button>
+
+                <div class="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr),340px]">
+                    <div>
+                        <div class="flex items-center justify-between gap-2 text-xs font-medium text-stone-500 dark:text-neutral-400">
+                            <span>{{ currentStepMeta.title }}</span>
+                            <span>{{ t('marketing.campaign_wizard.foundation.progress_ready', { count: completedStepCount }) }}</span>
+                        </div>
+                        <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-neutral-800">
+                            <div class="h-full rounded-full bg-green-600 transition-all dark:bg-green-500" :style="{ width: `${journeyProgressPercent}%` }"></div>
+                        </div>
+                        <p class="mt-3 text-sm leading-6 text-stone-500 dark:text-neutral-400">
+                            {{ currentStepMeta.description }}
+                        </p>
+                    </div>
+
+                    <div class="rounded-lg border border-stone-200 bg-stone-50 px-4 py-4 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
+                            {{ t('marketing.campaign_wizard.foundation.recommended_next') }}
+                        </div>
+                        <p class="mt-2 text-sm font-medium leading-6 text-stone-800 dark:text-neutral-100">
+                            {{ currentStepMeta.recommendation }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mt-5">
+                    <CampaignStepRail :steps="wizardSteps" :current-step="step" @select="setStep" />
                 </div>
             </section>
 
             <section v-show="step === 1" class="space-y-4 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <FloatingInput v-model="form.name" :label="t('marketing.campaign_wizard.fields.campaign_name')" />
-                    <FloatingSelect
-                        v-model="form.campaign_type"
-                        :label="t('marketing.campaign_wizard.fields.campaign_type')"
-                        :options="types.map((type) => ({ value: type, label: campaignTypeLabel(type) }))"
-                        option-value="value"
-                        option-label="label"
-                    />
-                    <FloatingSelect
-                        v-model="form.offer_mode"
-                        :label="t('marketing.campaign_wizard.fields.offer_mode')"
-                        :options="offerModes.map((mode) => ({ value: mode, label: offerModeLabel(mode) }))"
-                        option-value="value"
-                        option-label="label"
-                    />
-                    <FloatingSelect
-                        v-model="form.language_mode"
-                        :label="t('marketing.campaign_wizard.fields.language_mode')"
-                        :options="languageModes.map((mode) => ({ value: mode, label: languageModeLabel(mode) }))"
-                        option-value="value"
-                        option-label="label"
-                    />
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-4 dark:border-neutral-700 dark:bg-neutral-800">
-                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-stone-700 dark:text-neutral-200">
-                            <input
-                                v-model="form.prospecting_enabled"
-                                type="checkbox"
-                                class="rounded border-stone-300 text-green-600 focus:ring-green-600"
-                            >
-                            <span>{{ t('marketing.campaign_wizard.fields.prospecting_enabled') }}</span>
-                        </label>
+                <CampaignStepHeading
+                    :eyebrow="t('marketing.campaign_wizard.foundation.current_step', { current: 1, total: totalWizardSteps })"
+                    :title="stepMeta(1).title"
+                    :description="stepMeta(1).description"
+                    :recommendation="stepMeta(1).recommendation"
+                    :recommendation-label="t('marketing.campaign_wizard.foundation.recommended_next')"
+                />
+                <div class="grid grid-cols-1 gap-3 xl:grid-cols-4">
+                    <div
+                        v-for="item in setupOverviewCards"
+                        :key="item.key"
+                        class="rounded-lg border border-stone-200 bg-stone-50 px-4 py-4 dark:border-neutral-700 dark:bg-neutral-800"
+                    >
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
+                            {{ item.label }}
+                        </div>
+                        <div class="mt-2 text-sm font-medium leading-6 text-stone-800 dark:text-neutral-100">
+                            {{ item.value }}
+                        </div>
                     </div>
-                    <FloatingSelect
-                        v-model="form.campaign_direction"
-                        :label="t('marketing.campaign_wizard.fields.campaign_direction')"
-                        :options="directions.map((direction) => ({ value: direction, label: directionLabel(direction) }))"
-                        option-value="value"
-                        option-label="label"
-                    />
-                    <FloatingSelect
-                        v-model="form.schedule_type"
-                        :label="t('marketing.campaign_wizard.fields.schedule_type')"
-                        :options="scheduleTypeOptions"
-                        option-value="value"
-                        option-label="label"
-                    />
-                    <FloatingInput
-                        v-if="form.schedule_type === 'scheduled'"
-                        v-model="form.scheduled_at"
-                        type="datetime-local"
-                        :label="t('marketing.campaign_wizard.fields.scheduled_at')"
-                    />
-                    <FloatingInput v-model="form.locale" :label="t('marketing.campaign_wizard.fields.locale')" />
-                    <FloatingInput v-model="form.cta_url" type="url" :label="t('marketing.campaign_wizard.fields.cta_url')" />
                 </div>
-                <OfferSelector v-model="form.offers" v-model:selectors="form.offer_selectors" :offer-mode="form.offer_mode" :disabled="!canManage" />
+
+                <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.3fr),minmax(320px,0.9fr)]">
+                    <CampaignSectionCard
+                        :title="t('marketing.campaign_wizard.parameters.essentials_title')"
+                        :description="t('marketing.campaign_wizard.parameters.essentials_description')"
+                    >
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <FloatingInput v-model="form.name" :label="t('marketing.campaign_wizard.fields.campaign_name')" />
+                            <FloatingSelect
+                                v-model="form.campaign_type"
+                                :label="t('marketing.campaign_wizard.fields.campaign_type')"
+                                :options="types.map((type) => ({ value: type, label: campaignTypeLabel(type) }))"
+                                option-value="value"
+                                option-label="label"
+                            />
+                            <FloatingSelect
+                                v-model="form.offer_mode"
+                                :label="t('marketing.campaign_wizard.fields.offer_mode')"
+                                :options="offerModes.map((mode) => ({ value: mode, label: offerModeLabel(mode) }))"
+                                option-value="value"
+                                option-label="label"
+                            />
+                            <FloatingSelect
+                                v-model="form.language_mode"
+                                :label="t('marketing.campaign_wizard.fields.language_mode')"
+                                :options="languageModes.map((mode) => ({ value: mode, label: languageModeLabel(mode) }))"
+                                option-value="value"
+                                option-label="label"
+                            />
+                        </div>
+                    </CampaignSectionCard>
+
+                    <CampaignSectionCard
+                        :title="t('marketing.campaign_wizard.parameters.advanced_title')"
+                        :description="t('marketing.campaign_wizard.parameters.advanced_description')"
+                        compact
+                    >
+                        <template #actions>
+                            <button
+                                type="button"
+                                class="text-xs font-medium text-green-700 underline underline-offset-2 dark:text-green-300"
+                                @click="parametersAdvancedOpen = !parametersAdvancedOpen"
+                            >
+                                {{ parametersAdvancedOpen ? t('marketing.campaign_wizard.parameters.hide_advanced') : t('marketing.campaign_wizard.parameters.show_advanced') }}
+                            </button>
+                        </template>
+
+                        <div class="rounded-lg border border-dashed border-stone-300 bg-stone-50 px-4 py-3 text-xs leading-5 text-stone-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                            {{
+                                parametersAdvancedOpen
+                                    ? t('marketing.campaign_wizard.parameters.advanced_open_summary')
+                                    : (
+                                        configuredAdvancedParameterCount > 0
+                                            ? t('marketing.campaign_wizard.parameters.advanced_configured_summary', { count: configuredAdvancedParameterCount })
+                                            : t('marketing.campaign_wizard.parameters.advanced_closed_summary')
+                                    )
+                            }}
+                        </div>
+
+                        <div v-if="parametersAdvancedOpen" class="mt-4 grid grid-cols-1 gap-3">
+                            <FloatingInput v-model="form.locale" :label="t('marketing.campaign_wizard.fields.locale')" />
+                            <FloatingInput v-model="form.cta_url" type="url" :label="t('marketing.campaign_wizard.fields.cta_url')" />
+                        </div>
+                    </CampaignSectionCard>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    <CampaignSectionCard
+                        :title="t('marketing.campaign_wizard.parameters.mode_title')"
+                        :description="t('marketing.campaign_wizard.parameters.mode_description')"
+                    >
+                        <div class="grid grid-cols-1 gap-3 lg:grid-cols-[280px,minmax(0,1fr)]">
+                            <div class="rounded-lg border border-stone-200 bg-stone-50 px-4 py-4 dark:border-neutral-700 dark:bg-neutral-800">
+                                <label class="inline-flex items-start gap-3 text-sm font-medium text-stone-800 dark:text-neutral-100">
+                                    <input
+                                        v-model="form.prospecting_enabled"
+                                        type="checkbox"
+                                        class="mt-0.5 rounded border-stone-300 text-green-600 focus:ring-green-600"
+                                    >
+                                    <span>
+                                        <span class="block">{{ t('marketing.campaign_wizard.fields.prospecting_enabled') }}</span>
+                                        <span class="mt-1 block text-xs font-normal leading-5 text-stone-500 dark:text-neutral-400">
+                                            {{ t('marketing.campaign_wizard.parameters.prospecting_help') }}
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="space-y-3">
+                                <FloatingSelect
+                                    v-model="form.campaign_direction"
+                                    :label="t('marketing.campaign_wizard.fields.campaign_direction')"
+                                    :options="directions.map((direction) => ({ value: direction, label: directionLabel(direction) }))"
+                                    option-value="value"
+                                    option-label="label"
+                                />
+                                <div class="rounded-lg border border-dashed border-stone-300 bg-white px-4 py-3 text-xs leading-5 text-stone-500 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-400">
+                                    {{ parametersDirectionHint }}
+                                </div>
+                            </div>
+                        </div>
+                    </CampaignSectionCard>
+
+                    <CampaignSectionCard
+                        :title="t('marketing.campaign_wizard.parameters.delivery_title')"
+                        :description="t('marketing.campaign_wizard.parameters.delivery_description')"
+                    >
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <FloatingSelect
+                                v-model="form.schedule_type"
+                                :label="t('marketing.campaign_wizard.fields.schedule_type')"
+                                :options="scheduleTypeOptions"
+                                option-value="value"
+                                option-label="label"
+                            />
+                            <FloatingInput
+                                v-if="form.schedule_type === 'scheduled'"
+                                v-model="form.scheduled_at"
+                                type="datetime-local"
+                                :label="t('marketing.campaign_wizard.fields.scheduled_at')"
+                            />
+                        </div>
+                        <div class="mt-4 rounded-lg border border-dashed border-stone-300 bg-stone-50 px-4 py-3 text-xs leading-5 text-stone-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                            {{ parametersScheduleHint }}
+                        </div>
+                    </CampaignSectionCard>
+                </div>
+
+                <div class="space-y-2">
+                    <div>
+                        <h3 class="text-base font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ t('marketing.campaign_wizard.parameters.offers_title') }}
+                        </h3>
+                        <p class="mt-1 text-sm leading-6 text-stone-500 dark:text-neutral-400">
+                            {{ t('marketing.campaign_wizard.parameters.offers_description') }}
+                        </p>
+                    </div>
+                    <OfferSelector v-model="form.offers" v-model:selectors="form.offer_selectors" :offer-mode="form.offer_mode" :disabled="!canManage" />
+                </div>
                 <p v-if="form.errors.offers" class="text-xs text-rose-600">{{ form.errors.offers }}</p>
             </section>
 
             <section v-show="step === 2" class="space-y-3 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <CampaignStepHeading
+                    :eyebrow="t('marketing.campaign_wizard.foundation.current_step', { current: 2, total: totalWizardSteps })"
+                    :title="stepMeta(2).title"
+                    :description="stepMeta(2).description"
+                    :recommendation="stepMeta(2).recommendation"
+                    :recommendation-label="t('marketing.campaign_wizard.foundation.recommended_next')"
+                />
+                <div
+                    v-if="isProspectingMode"
+                    class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4"
+                >
+                    <div
+                        v-for="card in prospectingOverviewCards"
+                        :key="`prospecting-audience-overview-${card.key}`"
+                        class="rounded-lg border border-stone-200 bg-stone-50 px-4 py-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800/80"
+                    >
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500 dark:text-neutral-400">
+                            {{ card.label }}
+                        </div>
+                        <div class="mt-2 text-base font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ card.value }}
+                        </div>
+                        <div class="mt-1 text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                            {{ card.helper }}
+                        </div>
+                    </div>
+                </div>
+                <div
+                    v-else
+                    class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4"
+                >
+                    <div
+                        v-for="card in audienceOverviewCards"
+                        :key="`audience-overview-${card.key}`"
+                        class="rounded-lg border border-stone-200 bg-stone-50 px-4 py-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800/80"
+                    >
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500 dark:text-neutral-400">
+                            {{ card.label }}
+                        </div>
+                        <div class="mt-2 text-base font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ card.value }}
+                        </div>
+                        <div class="mt-1 text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                            {{ card.helper }}
+                        </div>
+                    </div>
+                </div>
                 <template v-if="isProspectingMode">
                     <div class="rounded-sm border border-green-200 bg-green-50 px-3 py-3 text-xs text-green-800 dark:border-green-500/20 dark:bg-green-500/10 dark:text-green-200">
                         <div class="font-semibold">{{ t('marketing.campaign_wizard.prospecting.title') }}</div>
@@ -2257,15 +3382,11 @@ watch(isProspectingMode, async (enabled) => {
                             </div>
 
                             <div v-if="prospectingImportMode === 'manual'" class="mt-3 space-y-2">
-                                <label class="block text-xs font-medium text-stone-600 dark:text-neutral-300">
-                                    {{ t('marketing.campaign_wizard.prospecting.fields.manual_input') }}
-                                </label>
-                                <textarea
+                                <EmailBodyEditor
                                     v-model="prospectingManualInput"
-                                    rows="8"
-                                    class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:focus:ring-neutral-600"
+                                    :label="t('marketing.campaign_wizard.prospecting.fields.manual_input')"
                                     :placeholder="t('marketing.campaign_wizard.prospecting.manual_placeholder')"
-                                ></textarea>
+                                />
                                 <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 dark:text-neutral-400">
                                     <span>{{ t('marketing.campaign_wizard.prospecting.manual_hint') }}</span>
                                     <span>{{ t('marketing.campaign_wizard.prospecting.manual_line_count', { count: manualProspectLineCount }) }}</span>
@@ -2316,10 +3437,11 @@ watch(isProspectingMode, async (enabled) => {
                                             :label="t('marketing.campaign_wizard.prospecting.fields.provider_query_label')"
                                         />
                                     </div>
-                                    <FloatingTextarea
+                                    <EmailBodyEditor
                                         v-model="prospectingProviderQuery"
                                         :label="t('marketing.campaign_wizard.prospecting.fields.provider_query')"
                                         :placeholder="prospectingProviderPlaceholder"
+                                        compact
                                     />
                                     <div class="rounded-sm border border-dashed border-stone-300 bg-white px-3 py-2 text-xs text-stone-500 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-400">
                                         {{ t('marketing.campaign_wizard.prospecting.provider_query_hint') }}
@@ -2430,7 +3552,7 @@ watch(isProspectingMode, async (enabled) => {
                                 <div class="font-semibold">{{ t('marketing.campaign_wizard.prospecting.compliance_title') }}</div>
                                 <div class="mt-1">{{ t('marketing.campaign_wizard.prospecting.compliance_body') }}</div>
                                 <div class="mt-2">
-                                    {{ marketingSettings?.consent?.require_explicit
+                                    {{ props.marketingSettings?.consent?.require_explicit
                                         ? t('marketing.campaign_wizard.prospecting.compliance_consent_required')
                                         : t('marketing.campaign_wizard.prospecting.compliance_consent_not_required') }}
                                 </div>
@@ -2596,8 +3718,8 @@ watch(isProspectingMode, async (enabled) => {
                                     :key="`prospecting-batch-${batch.id}`"
                                     type="button"
                                     class="rounded-sm border px-3 py-3 text-left transition"
-                                    :class="Number(activeProspectBatchId || 0) === Number(batch.id) ? 'border-green-500 bg-green-50 dark:border-green-400 dark:bg-green-500/10' : 'border-stone-200 bg-white hover:border-green-300 dark:border-neutral-700 dark:bg-neutral-900'"
-                                    @click="loadProspectBatch(batch.id)"
+                                    :class="'border-stone-200 bg-white hover:border-green-300 dark:border-neutral-700 dark:bg-neutral-900'"
+                                    @click="openProspectBatchWorkspace(batch.id)"
                                 >
                                     <div class="flex flex-wrap items-center justify-between gap-2">
                                         <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -2620,7 +3742,7 @@ watch(isProspectingMode, async (enabled) => {
                             </div>
                         </div>
 
-                        <div v-if="activeProspectBatch" class="space-y-3 rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div v-if="false && activeProspectBatch" class="space-y-3 rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
                             <div class="flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                     <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -3053,125 +4175,213 @@ watch(isProspectingMode, async (enabled) => {
                 </template>
 
                 <template v-else>
-                <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <FloatingSelect
-                        v-model="form.audience_segment_id"
-                        :label="t('marketing.campaign_wizard.fields.segment')"
-                        :disabled="useSingleMailingList"
-                        :options="[
-                            { value: '', label: t('marketing.campaign_wizard.no_segment') },
-                            ...segments.map((segment) => ({
-                                value: segment.id,
-                                label: `${segment.name} (${segment.cached_count || 0})`,
-                            })),
-                        ]"
-                        option-value="value"
-                        option-label="label"
-                    />
-                    <FloatingSelect
-                        v-model="sourceLogic"
-                        :label="t('marketing.campaign_wizard.fields.source_logic')"
-                        :disabled="useSingleMailingList"
-                        :options="audienceSourceLogicOptions.map((mode) => ({ value: mode, label: sourceLogicLabel(mode) }))"
-                        option-value="value"
-                        option-label="label"
-                    />
-                </div>
-
-                <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                    <label class="inline-flex items-center gap-2 text-xs text-stone-700 dark:text-neutral-200">
-                        <input
-                            v-model="useSingleMailingList"
-                            type="checkbox"
-                            class="rounded border-stone-300 text-green-600 focus:ring-green-600"
+                    <div class="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.18fr),minmax(320px,0.82fr)]">
+                        <CampaignSectionCard
+                            compact
+                            :title="t('marketing.campaign_wizard.audience.source_title')"
+                            :description="t('marketing.campaign_wizard.audience.source_description')"
                         >
-                        <span>{{ t('marketing.campaign_wizard.use_single_mailing_list') }}</span>
-                    </label>
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <FloatingSelect
+                                    v-model="form.audience_segment_id"
+                                    :label="t('marketing.campaign_wizard.fields.segment')"
+                                    :disabled="useSingleMailingList"
+                                    :options="[
+                                        { value: '', label: t('marketing.campaign_wizard.no_segment') },
+                                        ...segments.map((segment) => ({
+                                            value: segment.id,
+                                            label: `${segment.name} (${segment.cached_count || 0})`,
+                                        })),
+                                    ]"
+                                    option-value="value"
+                                    option-label="label"
+                                />
+                                <FloatingSelect
+                                    v-model="sourceLogic"
+                                    :label="t('marketing.campaign_wizard.fields.source_logic')"
+                                    :disabled="useSingleMailingList"
+                                    :options="audienceSourceLogicOptions.map((mode) => ({ value: mode, label: sourceLogicLabel(mode) }))"
+                                    option-value="value"
+                                    option-label="label"
+                                />
+                            </div>
 
-                    <div v-if="useSingleMailingList" class="mt-3">
-                        <FloatingSelect
-                            v-model="singleMailingListId"
-                            :label="t('marketing.campaign_wizard.single_mailing_list')"
-                            :options="singleMailingListOptions"
-                            option-value="value"
-                            option-label="label"
-                        />
-                    </div>
-                </div>
+                            <div class="mt-3 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                                <label class="inline-flex items-center gap-2 text-xs text-stone-700 dark:text-neutral-200">
+                                    <input
+                                        v-model="useSingleMailingList"
+                                        type="checkbox"
+                                        class="rounded border-stone-300 text-green-600 focus:ring-green-600"
+                                    >
+                                    <span>{{ t('marketing.campaign_wizard.use_single_mailing_list') }}</span>
+                                </label>
+                                <p class="mt-2 text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                                    {{ t('marketing.campaign_wizard.audience.single_list_help') }}
+                                </p>
 
-                <div v-if="!useSingleMailingList" class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                    <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.mailing_lists_title') }}</div>
-                    <div v-if="!mailingLists.length" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.campaign_wizard.no_mailing_list') }}
-                    </div>
-                    <div v-else class="mt-2 space-y-2">
-                        <div v-for="list in mailingLists" :key="`audience-list-${list.id}`" class="rounded-sm border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900">
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
-                                    {{ list.name }} ({{ list.customers_count || 0 }})
+                                <div v-if="useSingleMailingList" class="mt-3">
+                                    <FloatingSelect
+                                        v-model="singleMailingListId"
+                                        :label="t('marketing.campaign_wizard.single_mailing_list')"
+                                        :options="singleMailingListOptions"
+                                        option-value="value"
+                                        option-label="label"
+                                    />
                                 </div>
-                                <div class="flex items-center gap-4 text-xs">
-                                    <label class="inline-flex items-center gap-2 text-stone-600 dark:text-neutral-300">
-                                        <input
-                                            :checked="isMailingListIncluded(list.id)"
-                                            type="checkbox"
-                                            class="rounded border-stone-300 text-green-600 focus:ring-green-600"
-                                            @change="toggleIncludeMailingList(list.id)"
-                                        >
-                                        <span>{{ t('marketing.campaign_wizard.include') }}</span>
-                                    </label>
-                                    <label class="inline-flex items-center gap-2 text-stone-600 dark:text-neutral-300">
-                                        <input
-                                            :checked="isMailingListExcluded(list.id)"
-                                            type="checkbox"
-                                            class="rounded border-stone-300 text-rose-600 focus:ring-rose-600"
-                                            @change="toggleExcludeMailingList(list.id)"
-                                        >
-                                        <span>{{ t('marketing.campaign_wizard.exclude') }}</span>
-                                    </label>
+                            </div>
+
+                            <div class="mt-3 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-xs text-stone-600 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+                                <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                    {{ t('marketing.campaign_wizard.logic_summary') }}
+                                </div>
+                                <p class="mt-1">{{ logicSummary }}</p>
+                                <p class="mt-2 text-stone-500 dark:text-neutral-400">
+                                    {{ useSingleMailingList ? t('marketing.campaign_wizard.audience.source_logic_locked') : t('marketing.campaign_wizard.audience.source_logic_help') }}
+                                </p>
+                            </div>
+                        </CampaignSectionCard>
+
+                        <CampaignSectionCard
+                            compact
+                            :title="t('marketing.campaign_wizard.selected_customers_title')"
+                            :description="t('marketing.campaign_wizard.audience.manual_customers_description')"
+                        >
+                            <template #actions>
+                                <SecondaryButton type="button" :disabled="!canManage" @click="openAudienceCustomerPicker">
+                                    {{ t('marketing.campaign_wizard.search_customers') }}
+                                </SecondaryButton>
+                            </template>
+
+                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                                {{ t('marketing.campaign_wizard.selected_customers_count', { count: selectedAudienceCustomerIds.length }) }}
+                            </div>
+
+                            <div v-if="selectedAudienceCustomers.length === 0" class="mt-3 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-4 text-xs text-stone-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                                {{ t('marketing.campaign_wizard.selected_customers_empty') }}
+                            </div>
+                            <div v-else class="mt-3 max-h-[220px] overflow-y-auto pr-1">
+                                <div class="flex flex-wrap gap-2">
+                                    <button
+                                        v-for="customer in selectedAudienceCustomers"
+                                        :key="`audience-selected-customer-${customer.id}`"
+                                        type="button"
+                                        class="inline-flex items-center gap-1 rounded-sm border border-green-200 bg-green-50 px-2 py-1 text-xs text-green-700 dark:border-green-500/20 dark:bg-green-500/10 dark:text-green-300"
+                                        @click="removeAudienceCustomer(customer.id)"
+                                    >
+                                        <span>{{ audienceCustomerDisplayName(customer) }}</span>
+                                        <span class="font-semibold">x</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </CampaignSectionCard>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.18fr),minmax(320px,0.82fr)]">
+                    <CampaignSectionCard
+                        v-if="!useSingleMailingList"
+                        compact
+                        :title="t('marketing.campaign_wizard.mailing_lists_title')"
+                        :description="t('marketing.campaign_wizard.audience.mailing_lists_description')"
+                    >
+                        <div v-if="!mailingLists.length" class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-4 text-xs text-stone-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                            {{ t('marketing.campaign_wizard.no_mailing_list') }}
+                        </div>
+                        <div v-else class="grid max-h-[340px] grid-cols-1 gap-2 overflow-y-auto pr-1 xl:grid-cols-2">
+                            <div v-for="list in mailingLists" :key="`audience-list-${list.id}`" class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-800">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                        <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                            {{ list.name }}
+                                        </div>
+                                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ t('marketing.campaign_wizard.audience.list_size', { count: list.customers_count || 0 }) }}
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-4 text-xs">
+                                        <label class="inline-flex items-center gap-2 text-stone-600 dark:text-neutral-300">
+                                            <input
+                                                :checked="isMailingListIncluded(list.id)"
+                                                type="checkbox"
+                                                class="rounded border-stone-300 text-green-600 focus:ring-green-600"
+                                                @change="toggleIncludeMailingList(list.id)"
+                                            >
+                                            <span>{{ t('marketing.campaign_wizard.include') }}</span>
+                                        </label>
+                                        <label class="inline-flex items-center gap-2 text-stone-600 dark:text-neutral-300">
+                                            <input
+                                                :checked="isMailingListExcluded(list.id)"
+                                                type="checkbox"
+                                                class="rounded border-stone-300 text-rose-600 focus:ring-rose-600"
+                                                @change="toggleExcludeMailingList(list.id)"
+                                            >
+                                            <span>{{ t('marketing.campaign_wizard.exclude') }}</span>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </CampaignSectionCard>
 
-                <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
-                            {{ t('marketing.campaign_wizard.selected_customers_title') }}
+                    <CampaignSectionCard
+                        compact
+                        :title="t('marketing.campaign_wizard.audience.estimate_title')"
+                        :description="t('marketing.campaign_wizard.audience.estimate_description')"
+                    >
+                        <template #actions>
+                            <SecondaryButton type="button" :disabled="requestBusy || !canManage || !isEdit" @click="estimateAudience">
+                                {{ t('marketing.campaign_wizard.actions.estimate_audience') }}
+                            </SecondaryButton>
+                        </template>
+
+                        <div class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-xs text-stone-600 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+                            <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                {{ t('marketing.campaign_wizard.logic_summary') }}
+                            </div>
+                            <p class="mt-1">{{ logicSummary }}</p>
                         </div>
-                        <SecondaryButton type="button" :disabled="!canManage" @click="openAudienceCustomerPicker">
-                            {{ t('marketing.campaign_wizard.search_customers') }}
-                        </SecondaryButton>
-                    </div>
 
-                    <div class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.campaign_wizard.selected_customers_count', { count: selectedAudienceCustomerIds.length }) }}
-                    </div>
+                        <div v-if="estimate" class="mt-4 space-y-3">
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,0.7fr),minmax(0,1.3fr)]">
+                                <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-4 text-xs dark:border-neutral-700 dark:bg-neutral-800">
+                                    <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.audience.estimate_total') }}</div>
+                                    <div class="mt-2 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ audienceEstimateTotal }}</div>
+                                </div>
+                                <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-4 text-xs dark:border-neutral-700 dark:bg-neutral-800">
+                                    <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.audience.estimate_channels') }}</div>
+                                    <div v-if="audienceEstimateChannels.length" class="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-3">
+                                        <div
+                                            v-for="entry in audienceEstimateChannels"
+                                            :key="`audience-estimate-channel-${entry.key}`"
+                                            class="rounded-sm border border-white/80 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900"
+                                        >
+                                            <div class="text-stone-500 dark:text-neutral-400">{{ entry.label }}</div>
+                                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ entry.count }}</div>
+                                        </div>
+                                    </div>
+                                    <div v-else class="mt-3 text-stone-500 dark:text-neutral-400">
+                                        {{ t('marketing.campaign_wizard.audience.estimate_channel_empty') }}
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div v-if="selectedAudienceCustomers.length === 0" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ t('marketing.campaign_wizard.selected_customers_empty') }}
-                    </div>
-                    <div v-else class="mt-2 flex flex-wrap gap-2">
-                        <button
-                            v-for="customer in selectedAudienceCustomers"
-                            :key="`audience-selected-customer-${customer.id}`"
-                            type="button"
-                            class="inline-flex items-center gap-1 rounded-sm border border-green-200 bg-green-50 px-2 py-1 text-xs text-green-700 dark:border-green-500/20 dark:bg-green-500/10 dark:text-green-300"
-                            @click="removeAudienceCustomer(customer.id)"
-                        >
-                            <span>{{ audienceCustomerDisplayName(customer) }}</span>
-                            <span class="font-semibold">x</span>
-                        </button>
-                    </div>
-                </div>
+                            <details class="rounded-sm border border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
+                                <summary class="cursor-pointer px-3 py-3 text-xs font-medium text-stone-600 dark:text-neutral-300">
+                                    {{ t('marketing.campaign_wizard.audience.estimate_details') }}
+                                </summary>
+                                <pre class="overflow-x-auto border-t border-stone-200 bg-stone-50 p-3 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">{{ JSON.stringify(estimate, null, 2) }}</pre>
+                            </details>
+                        </div>
 
-                <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                    <strong>{{ t('marketing.campaign_wizard.logic_summary') }}</strong> {{ logicSummary }}
-                </div>
-
-                <SecondaryButton type="button" :disabled="requestBusy || !canManage || !isEdit" @click="estimateAudience">{{ t('marketing.campaign_wizard.actions.estimate_audience') }}</SecondaryButton>
-                <pre v-if="estimate" class="overflow-x-auto rounded-sm border border-stone-200 bg-stone-50 p-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">{{ JSON.stringify(estimate, null, 2) }}</pre>
+                        <div v-else class="mt-4 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-4 text-xs text-stone-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                            <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                {{ t('marketing.campaign_wizard.audience.estimate_empty') }}
+                            </div>
+                            <p class="mt-1">
+                                {{ isEdit ? t('marketing.campaign_wizard.audience.estimate_empty_help') : t('marketing.campaign_wizard.audience.estimate_requires_save') }}
+                            </p>
+                        </div>
+                    </CampaignSectionCard>
+                    </div>
                 </template>
             </section>
 
@@ -3273,200 +4483,533 @@ watch(isProspectingMode, async (enabled) => {
             </Modal>
 
             <section v-show="step === 3" class="space-y-3 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div v-for="channel in form.channels" :key="channel.channel" class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                    <div class="mb-2 flex items-center justify-between">
-                        <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">{{ channelLabel(channel.channel) }}</div>
-                        <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300"><input v-model="channel.is_enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600"> {{ t('marketing.campaign_wizard.enabled') }}</label>
-                    </div>
-                    <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
-                        <FloatingSelect
-                            v-model="channel.message_template_id"
-                            :label="t('marketing.campaign_wizard.fields.template')"
-                            :options="[
-                                { value: '', label: t('marketing.campaign_wizard.no_template') },
-                                ...templatesForChannel(channel.channel).map((template) => ({
-                                    value: template.id,
-                                    label: `${template.name} ${template.is_default ? `(${t('marketing.campaign_wizard.default')})` : ''}`,
-                                })),
-                            ]"
-                            option-value="value"
-                            option-label="label"
-                            @update:modelValue="applyTemplate(channel)"
-                        />
-                        <FloatingInput v-model="channel.subject_template" :label="t('marketing.campaign_wizard.fields.subject')" />
-                        <FloatingInput v-model="channel.title_template" :label="t('marketing.campaign_wizard.fields.title')" />
-                        <EmailBodyEditor
-                            v-if="channel.channel === 'EMAIL'"
-                            v-model="channel.body_template"
-                            class="md:col-span-2"
-                            :label="t('marketing.campaign_wizard.fields.body_template')"
-                        />
-                        <FloatingTextarea
-                            v-else
-                            v-model="channel.body_template"
-                            class="md:col-span-2"
-                            :label="t('marketing.campaign_wizard.fields.body_template')"
-                        />
-                    </div>
-
-                    <div class="mt-3 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.ab_testing.title') }}</div>
-                            <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
-                                <input v-model="channel.ab_testing.enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                                <span>{{ t('marketing.campaign_wizard.ab_testing.enable_for', { channel: channelLabel(channel.channel) }) }}</span>
-                            </label>
+                <CampaignStepHeading
+                    :eyebrow="t('marketing.campaign_wizard.foundation.current_step', { current: 3, total: totalWizardSteps })"
+                    :title="stepMeta(3).title"
+                    :description="stepMeta(3).description"
+                    :recommendation="stepMeta(3).recommendation"
+                    :recommendation-label="t('marketing.campaign_wizard.foundation.recommended_next')"
+                />
+                <div class="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.18fr),minmax(320px,0.82fr)]">
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-2 xl:grid-cols-4">
+                            <div
+                                v-for="card in messageOverviewCards"
+                                :key="`message-overview-${card.key}`"
+                                class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800"
+                            >
+                                <div class="text-stone-500 dark:text-neutral-400">{{ card.label }}</div>
+                                <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</div>
+                                <div class="mt-2 text-stone-500 dark:text-neutral-400">{{ card.helper }}</div>
+                            </div>
                         </div>
 
-                        <div v-if="channel.ab_testing.enabled" class="mt-3 space-y-3">
-                            <FloatingInput
-                                v-model="channel.ab_testing.split_a_percent"
-                                type="number"
-                                :label="t('marketing.campaign_wizard.ab_testing.split_percent')"
-                            />
+                        <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="flex flex-wrap gap-2 border-b border-stone-200 pb-3 dark:border-neutral-700">
+                                <button
+                                    v-for="channel in form.channels"
+                                    :key="`message-channel-tab-${channel.channel}`"
+                                    type="button"
+                                    class="rounded-sm border px-3 py-2 text-left text-xs transition"
+                                    :class="messageChannelStateClass(channel)"
+                                    @click="setActiveMessageChannel(channel.channel)"
+                                >
+                                    <div class="font-semibold text-stone-800 dark:text-neutral-100">{{ channelLabel(channel.channel) }}</div>
+                                    <div class="mt-1 text-stone-500 dark:text-neutral-400">
+                                        {{ channel.is_enabled ? (isChannelConfigured(channel) ? t('marketing.campaign_wizard.foundation.statuses.complete') : t('marketing.campaign_wizard.foundation.statuses.attention')) : t('marketing.campaign_wizard.disabled') }}
+                                    </div>
+                                </button>
+                            </div>
 
-                            <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                                <div class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
-                                    <p class="mb-2 text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.ab_testing.variant_a') }}</p>
-                                    <div class="space-y-2">
-                                        <FloatingInput v-model="channel.ab_testing.variant_a.subject_template" :label="t('marketing.campaign_wizard.ab_testing.subject_a')" />
-                                        <FloatingInput v-model="channel.ab_testing.variant_a.title_template" :label="t('marketing.campaign_wizard.ab_testing.title_a')" />
-                                        <EmailBodyEditor
-                                            v-if="channel.channel === 'EMAIL'"
-                                            v-model="channel.ab_testing.variant_a.body_template"
-                                            :label="t('marketing.campaign_wizard.ab_testing.body_a')"
-                                            compact
-                                        />
-                                        <FloatingTextarea
-                                            v-else
-                                            v-model="channel.ab_testing.variant_a.body_template"
-                                            :label="t('marketing.campaign_wizard.ab_testing.body_a')"
-                                        />
+                            <div v-if="activeMessageChannel" class="mt-4 space-y-4">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ channelLabel(activeMessageChannel.channel) }}</h3>
+                                        <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ activeMessageChannel.is_enabled ? stepMeta(3).recommendation : t('marketing.campaign_wizard.disabled') }}
+                                        </p>
                                     </div>
+                                    <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                                        <input v-model="activeMessageChannel.is_enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
+                                        <span>{{ t('marketing.campaign_wizard.enabled') }}</span>
+                                    </label>
                                 </div>
-                                <div class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
-                                    <p class="mb-2 text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.ab_testing.variant_b') }}</p>
-                                    <div class="space-y-2">
-                                        <FloatingInput v-model="channel.ab_testing.variant_b.subject_template" :label="t('marketing.campaign_wizard.ab_testing.subject_b')" />
-                                        <FloatingInput v-model="channel.ab_testing.variant_b.title_template" :label="t('marketing.campaign_wizard.ab_testing.title_b')" />
-                                        <EmailBodyEditor
-                                            v-if="channel.channel === 'EMAIL'"
-                                            v-model="channel.ab_testing.variant_b.body_template"
-                                            :label="t('marketing.campaign_wizard.ab_testing.body_b')"
-                                            compact
+
+                                <div v-if="!activeMessageChannel.is_enabled" class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-4 text-xs text-stone-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                                    {{ channelLabel(activeMessageChannel.channel) }} {{ t('marketing.campaign_wizard.disabled') }}
+                                </div>
+
+                                <template v-else>
+                                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                        <FloatingSelect
+                                            v-model="activeMessageChannel.message_template_id"
+                                            class="md:col-span-2"
+                                            :label="t('marketing.campaign_wizard.fields.template')"
+                                            :options="[
+                                                { value: '', label: t('marketing.campaign_wizard.no_template') },
+                                                ...templatesForChannel(activeMessageChannel.channel).map((template) => ({
+                                                    value: template.id,
+                                                    label: `${template.name} ${template.is_default ? `(${t('marketing.campaign_wizard.default')})` : ''}`,
+                                                })),
+                                            ]"
+                                            option-value="value"
+                                            option-label="label"
+                                            @update:modelValue="applyTemplate(activeMessageChannel)"
                                         />
-                                        <FloatingTextarea
-                                            v-else
-                                            v-model="channel.ab_testing.variant_b.body_template"
-                                            :label="t('marketing.campaign_wizard.ab_testing.body_b')"
+                                        <FloatingInput
+                                            v-if="channelRequiresSubject(activeMessageChannel)"
+                                            v-model="activeMessageChannel.subject_template"
+                                            :label="t('marketing.campaign_wizard.fields.subject')"
+                                        />
+                                        <FloatingInput
+                                            v-if="channelRequiresTitle(activeMessageChannel)"
+                                            v-model="activeMessageChannel.title_template"
+                                            :label="t('marketing.campaign_wizard.fields.title')"
+                                        />
+                                        <EmailBodyEditor
+                                            v-model="activeMessageChannel.body_template"
+                                            class="md:col-span-2"
+                                            :label="t('marketing.campaign_wizard.fields.body_template')"
+                                            :compact="activeMessageChannel.channel !== 'EMAIL'"
                                         />
                                     </div>
+
+                                    <details class="rounded-sm border border-stone-200 bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800">
+                                        <summary class="cursor-pointer px-3 py-3 text-xs font-medium text-stone-600 dark:text-neutral-300">
+                                            {{ t('marketing.campaign_wizard.ab_testing.title') }}
+                                        </summary>
+                                        <div class="border-t border-stone-200 p-3 dark:border-neutral-700">
+                                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                                <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.ab_testing.title') }}</div>
+                                                <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                                                    <input v-model="activeMessageChannel.ab_testing.enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
+                                                    <span>{{ t('marketing.campaign_wizard.ab_testing.enable_for', { channel: channelLabel(activeMessageChannel.channel) }) }}</span>
+                                                </label>
+                                            </div>
+
+                                            <div v-if="activeMessageChannel.ab_testing.enabled" class="mt-3 space-y-3">
+                                                <FloatingInput
+                                                    v-model="activeMessageChannel.ab_testing.split_a_percent"
+                                                    type="number"
+                                                    :label="t('marketing.campaign_wizard.ab_testing.split_percent')"
+                                                />
+
+                                                <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                                                        <p class="mb-2 text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.ab_testing.variant_a') }}</p>
+                                                        <div class="space-y-2">
+                                                            <FloatingInput v-if="channelRequiresSubject(activeMessageChannel)" v-model="activeMessageChannel.ab_testing.variant_a.subject_template" :label="t('marketing.campaign_wizard.ab_testing.subject_a')" />
+                                                            <FloatingInput v-if="channelRequiresTitle(activeMessageChannel)" v-model="activeMessageChannel.ab_testing.variant_a.title_template" :label="t('marketing.campaign_wizard.ab_testing.title_a')" />
+                                                            <EmailBodyEditor
+                                                                v-model="activeMessageChannel.ab_testing.variant_a.body_template"
+                                                                :label="t('marketing.campaign_wizard.ab_testing.body_a')"
+                                                                compact
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                                                        <p class="mb-2 text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.ab_testing.variant_b') }}</p>
+                                                        <div class="space-y-2">
+                                                            <FloatingInput v-if="channelRequiresSubject(activeMessageChannel)" v-model="activeMessageChannel.ab_testing.variant_b.subject_template" :label="t('marketing.campaign_wizard.ab_testing.subject_b')" />
+                                                            <FloatingInput v-if="channelRequiresTitle(activeMessageChannel)" v-model="activeMessageChannel.ab_testing.variant_b.title_template" :label="t('marketing.campaign_wizard.ab_testing.title_b')" />
+                                                            <EmailBodyEditor
+                                                                v-model="activeMessageChannel.ab_testing.variant_b.body_template"
+                                                                :label="t('marketing.campaign_wizard.ab_testing.body_b')"
+                                                                compact
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                                    {{ t('marketing.campaign_wizard.ab_testing.fallback_hint') }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </details>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                            <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
+                                {{ activeMessageChannel ? channelLabel(activeMessageChannel.channel) : stepMeta(3).title }}
+                            </div>
+                            <div class="mt-3 space-y-2">
+                                <div v-if="activeMessageChannel && !activeMessageChannel.is_enabled" class="rounded-sm border border-dashed border-stone-300 bg-white px-3 py-3 text-xs text-stone-500 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-400">
+                                    {{ t('marketing.campaign_wizard.disabled') }}
+                                </div>
+                                <div
+                                    v-for="item in activeMessageChannel ? messageChecklist(activeMessageChannel) : []"
+                                    :key="`message-check-${item.key}`"
+                                    class="flex items-center justify-between gap-2 rounded-sm border border-white/80 bg-white px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-900"
+                                >
+                                    <span class="text-stone-600 dark:text-neutral-300">{{ item.label }}</span>
+                                    <span class="font-medium" :class="item.ready ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'">
+                                        {{ item.ready ? t('marketing.campaign_wizard.foundation.statuses.complete') : t('marketing.campaign_wizard.foundation.statuses.attention') }}
+                                    </span>
                                 </div>
                             </div>
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ t('marketing.campaign_wizard.ab_testing.fallback_hint') }}
+                        </div>
+
+                        <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.actions.live_preview') }}</div>
+                            <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ isEdit ? stepMeta(3).recommendation : saveDraftLabel }}
                             </p>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <SecondaryButton type="button" :disabled="requestBusy || !canManage || !isEdit" @click="previewMessages">{{ t('marketing.campaign_wizard.actions.live_preview') }}</SecondaryButton>
+                                <SecondaryButton type="button" :disabled="requestBusy || (!canManage && !canSend) || !isEdit" @click="testSend">{{ t('marketing.campaign_wizard.actions.test_send') }}</SecondaryButton>
+                            </div>
+                            <p v-if="requestError" class="mt-3 text-xs text-rose-600">{{ requestError }}</p>
+                        </div>
+
+                        <div v-if="previews.length" class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                            <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.actions.live_preview') }}</div>
+                            <pre class="mt-3 overflow-x-auto rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">{{ JSON.stringify(previews, null, 2) }}</pre>
+                        </div>
+
+                        <div v-if="testResults.length" class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                            <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.actions.test_send') }}</div>
+                            <pre class="mt-3 overflow-x-auto rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">{{ JSON.stringify(testResults, null, 2) }}</pre>
                         </div>
                     </div>
                 </div>
             </section>
 
             <section v-show="step === 4" class="space-y-3 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs text-stone-600 dark:text-neutral-300">
-                    <div><strong>{{ t('marketing.campaign_wizard.review.type') }}:</strong> {{ campaignTypeLabel(form.campaign_type) }}</div>
-                    <div><strong>{{ t('marketing.campaign_wizard.review.direction') }}:</strong> {{ directionLabel(form.campaign_direction) }}</div>
-                    <div><strong>{{ t('marketing.campaign_wizard.review.prospecting_enabled') }}:</strong> {{ form.prospecting_enabled ? t('marketing.campaign_wizard.yes') : t('marketing.campaign_wizard.no') }}</div>
-                    <div v-if="isProspectingMode"><strong>{{ t('marketing.campaign_wizard.prospecting.fields.import_mode') }}:</strong> {{ t(`marketing.campaign_wizard.prospecting.import_modes.${prospectingImportMode}`) }}</div>
-                    <div v-if="isProspectingMode && prospectingImportMode === 'provider'"><strong>{{ t('marketing.campaign_wizard.prospecting.fields.provider_connection') }}:</strong> {{ prospectingProviderSelectionSummary || '-' }}</div>
-                    <div v-if="isProspectingMode && prospectingImportMode === 'provider' && prospectingProviderQuery"><strong>{{ t('marketing.campaign_wizard.prospecting.fields.provider_query') }}:</strong> {{ prospectingProviderQuery }}</div>
-                    <div><strong>{{ t('marketing.campaign_wizard.review.offer_mode') }}:</strong> {{ offerModeLabel(form.offer_mode) }}</div>
-                    <div><strong>{{ t('marketing.campaign_wizard.review.offers') }}:</strong> {{ offersPayload.length }}</div>
-                    <div><strong>{{ t('marketing.campaign_wizard.review.enabled_channels') }}:</strong> {{ form.channels.filter((row) => row.is_enabled).length }}</div>
-                    <div><strong>{{ t('marketing.campaign_wizard.review.ab_enabled_channels') }}:</strong> {{ form.channels.filter((row) => row.ab_testing?.enabled).length }}</div>
-                    <div><strong>{{ t('marketing.campaign_wizard.review.holdout') }}:</strong> {{ form.settings.holdout.enabled ? `${form.settings.holdout.percent}%` : t('marketing.campaign_wizard.disabled') }}</div>
-                    <div><strong>{{ t('marketing.campaign_wizard.review.channel_fallback') }}:</strong> {{ form.settings.channel_fallback.enabled ? t('marketing.campaign_wizard.enabled') : t('marketing.campaign_wizard.disabled') }}</div>
-                    <div><strong>{{ t('marketing.campaign_wizard.review.require_explicit_consent') }}:</strong> {{ marketingSettings?.consent?.require_explicit ? t('marketing.campaign_wizard.yes') : t('marketing.campaign_wizard.no') }}</div>
-                </div>
+                <CampaignStepHeading
+                    :eyebrow="t('marketing.campaign_wizard.foundation.current_step', { current: 4, total: totalWizardSteps })"
+                    :title="stepMeta(4).title"
+                    :description="stepMeta(4).description"
+                    :recommendation="stepMeta(4).recommendation"
+                    :recommendation-label="t('marketing.campaign_wizard.foundation.recommended_next')"
+                />
+                <div class="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
+                    <div class="space-y-4">
+                        <div class="rounded-lg border p-5" :class="reviewReadinessPanelClass">
+                            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                <div>
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.18em]" :class="reviewReadinessState === 'blocked' ? 'text-rose-700 dark:text-rose-200' : (reviewReadinessState === 'attention' ? 'text-amber-700 dark:text-amber-200' : 'text-emerald-700 dark:text-emerald-200')">
+                                        Pre-flight
+                                    </p>
+                                    <div class="mt-2 flex flex-wrap items-end gap-3">
+                                        <div class="text-4xl font-semibold text-stone-900 dark:text-neutral-100">{{ reviewReadinessScore }}%</div>
+                                        <span
+                                            class="inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
+                                            :class="reviewReadinessState === 'blocked' ? 'border-rose-200 bg-white/80 text-rose-700 dark:border-rose-500/30 dark:bg-neutral-900/70 dark:text-rose-200' : (reviewReadinessState === 'attention' ? 'border-amber-200 bg-white/80 text-amber-700 dark:border-amber-500/30 dark:bg-neutral-900/70 dark:text-amber-200' : 'border-emerald-200 bg-white/80 text-emerald-700 dark:border-emerald-500/30 dark:bg-neutral-900/70 dark:text-emerald-200')"
+                                        >
+                                            {{ reviewReadinessLabel }}
+                                        </span>
+                                    </div>
+                                    <p class="mt-2 max-w-2xl text-sm text-stone-600 dark:text-neutral-300">{{ reviewReadinessDescription }}</p>
+                                </div>
 
-                <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="flex items-center justify-between">
-                            <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.holdout.title') }}</div>
-                            <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
-                                <input v-model="form.settings.holdout.enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                                <span>{{ t('marketing.campaign_wizard.holdout.enable') }}</span>
-                            </label>
+                                <div class="grid grid-cols-2 gap-2 sm:min-w-[220px]">
+                                    <div class="rounded-sm border border-white/80 bg-white/80 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-900/70">
+                                        <div class="text-stone-500 dark:text-neutral-400">Blockers</div>
+                                        <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">{{ reviewBlockers.length }}</div>
+                                    </div>
+                                    <div class="rounded-sm border border-white/80 bg-white/80 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-900/70">
+                                        <div class="text-stone-500 dark:text-neutral-400">Warnings</div>
+                                        <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">{{ reviewWarnings.length }}</div>
+                                    </div>
+                                    <div class="rounded-sm border border-white/80 bg-white/80 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-900/70">
+                                        <div class="text-stone-500 dark:text-neutral-400">Channels</div>
+                                        <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">{{ enabledChannelsCount }}</div>
+                                    </div>
+                                    <div class="rounded-sm border border-white/80 bg-white/80 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-900/70">
+                                        <div class="text-stone-500 dark:text-neutral-400">Audience</div>
+                                        <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">{{ hasAudienceEstimate ? formatNumber(audienceEstimateTotal) : '-' }}</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="mt-2">
-                            <FloatingInput
-                                v-model="form.settings.holdout.percent"
-                                type="number"
-                                :label="t('marketing.campaign_wizard.holdout.percent')"
-                            />
+
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div
+                                v-for="card in reviewOverviewCards"
+                                :key="`review-overview-${card.key}`"
+                                class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
+                            >
+                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ card.label }}</div>
+                                <div class="mt-2 text-sm font-semibold text-stone-900 dark:text-neutral-100">{{ card.value }}</div>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ card.helper }}</p>
+                            </div>
+                        </div>
+
+                        <div class="grid gap-3 lg:grid-cols-3">
+                            <div
+                                v-for="section in reviewSections"
+                                :key="`review-section-${section.key}`"
+                                class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+                            >
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="text-sm font-semibold text-stone-900 dark:text-neutral-100">{{ section.title }}</div>
+                                    <span
+                                        class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide"
+                                        :class="section.ready ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-200' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-200'"
+                                    >
+                                        {{ section.ready ? t('marketing.campaign_wizard.foundation.statuses.complete') : t('marketing.campaign_wizard.foundation.statuses.attention') }}
+                                    </span>
+                                </div>
+                                <p class="mt-3 text-sm font-medium text-stone-700 dark:text-neutral-200">{{ section.summary }}</p>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ section.helper }}</p>
+                                <div class="mt-3">
+                                    <SecondaryButton type="button" @click="setStep(section.step)">Review step</SecondaryButton>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="flex items-center justify-between">
-                            <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.fallback.title') }}</div>
-                            <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
-                                <input v-model="form.settings.channel_fallback.enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                                <span>{{ t('marketing.campaign_wizard.fallback.enable') }}</span>
-                            </label>
+                    <div class="space-y-4">
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <div class="text-sm font-semibold text-stone-900 dark:text-neutral-100">Blockers</div>
+                                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">What must be fixed before launch.</p>
+                                </div>
+                                <span class="inline-flex rounded-full border border-rose-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:border-rose-500/30 dark:bg-neutral-900 dark:text-rose-200">{{ reviewBlockers.length }}</span>
+                            </div>
+
+                            <div v-if="reviewBlockers.length" class="mt-3 space-y-2">
+                                <div
+                                    v-for="item in reviewBlockers"
+                                    :key="`review-blocker-${item.key}`"
+                                    class="rounded-sm border border-rose-200 bg-white p-3 dark:border-rose-500/30 dark:bg-neutral-900"
+                                >
+                                    <div class="flex flex-wrap items-start justify-between gap-2">
+                                        <div>
+                                            <div class="text-sm font-semibold text-stone-900 dark:text-neutral-100">{{ item.title }}</div>
+                                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ item.description }}</p>
+                                        </div>
+                                        <SecondaryButton type="button" @click="setStep(item.step)">{{ stepMeta(item.step).title }}</SecondaryButton>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else class="mt-3 rounded-sm border border-emerald-200 bg-white px-3 py-3 text-xs text-emerald-700 dark:border-emerald-500/30 dark:bg-neutral-900 dark:text-emerald-200">
+                                All blocking checks are clear.
+                            </div>
                         </div>
-                        <div class="mt-2">
-                            <FloatingInput
-                                v-model="form.settings.channel_fallback.max_depth"
-                                type="number"
-                                :label="t('marketing.campaign_wizard.fallback.max_depth')"
-                            />
+
+                        <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <div class="text-sm font-semibold text-stone-900 dark:text-neutral-100">Recommended checks</div>
+                                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">Helpful checks before the send decision.</p>
+                                </div>
+                                <span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-200">{{ reviewWarnings.length }}</span>
+                            </div>
+
+                            <div v-if="reviewWarnings.length" class="mt-3 space-y-2">
+                                <div
+                                    v-for="item in reviewWarnings"
+                                    :key="`review-warning-${item.key}`"
+                                    class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                                >
+                                    <div class="flex flex-wrap items-start justify-between gap-2">
+                                        <div>
+                                            <div class="text-sm font-semibold text-stone-900 dark:text-neutral-100">{{ item.title }}</div>
+                                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ item.description }}</p>
+                                        </div>
+                                        <SecondaryButton type="button" @click="setStep(item.step)">{{ stepMeta(item.step).title }}</SecondaryButton>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else class="mt-3 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+                                No extra recommendations are pending.
+                            </div>
                         </div>
-                        <div class="mt-2 space-y-2">
-                            <div
-                                v-for="source in channels"
-                                :key="`fallback-${source}`"
-                                class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
-                            >
-                                <p class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.fallback.targets', { source }) }}</p>
-                                <div class="mt-1 flex flex-wrap gap-2">
-                                    <label
-                                        v-for="target in channels.filter((candidate) => candidate !== source)"
-                                        :key="`fallback-${source}-${target}`"
-                                        class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
-                                    >
-                                        <input
-                                            :checked="fallbackTargets(source).includes(target)"
-                                            type="checkbox"
-                                            class="rounded border-stone-300 text-green-600 focus:ring-green-600"
-                                            @change="toggleFallbackTarget(source, target)"
-                                        >
-                                        <span>{{ target }}</span>
+
+                        <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <div class="text-sm font-semibold text-stone-900 dark:text-neutral-100">Launch controls</div>
+                                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">Final distribution settings before send.</p>
+                                </div>
+                                <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold" :class="statusBadgeClass(props.campaign?.status || 'draft')">
+                                    {{ campaignStatusLabel(props.campaign?.status || 'draft') }}
+                                </span>
+                            </div>
+
+                            <details class="mt-3 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800" :open="form.settings.holdout.enabled">
+                                <summary class="cursor-pointer text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.holdout.title') }}</summary>
+                                <div class="mt-3 space-y-3">
+                                    <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                                        <input v-model="form.settings.holdout.enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
+                                        <span>{{ t('marketing.campaign_wizard.holdout.enable') }}</span>
                                     </label>
+                                    <FloatingInput
+                                        v-model="form.settings.holdout.percent"
+                                        type="number"
+                                        :label="t('marketing.campaign_wizard.holdout.percent')"
+                                    />
+                                </div>
+                            </details>
+
+                            <details class="mt-3 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800" :open="form.settings.channel_fallback.enabled">
+                                <summary class="cursor-pointer text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.fallback.title') }}</summary>
+                                <div class="mt-3 space-y-3">
+                                    <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                                        <input v-model="form.settings.channel_fallback.enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
+                                        <span>{{ t('marketing.campaign_wizard.fallback.enable') }}</span>
+                                    </label>
+                                    <FloatingInput
+                                        v-model="form.settings.channel_fallback.max_depth"
+                                        type="number"
+                                        :label="t('marketing.campaign_wizard.fallback.max_depth')"
+                                    />
+                                    <div class="space-y-2">
+                                        <div
+                                            v-for="source in channels"
+                                            :key="`fallback-${source}`"
+                                            class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                        >
+                                            <p class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.fallback.targets', { source }) }}</p>
+                                            <div class="mt-1 flex flex-wrap gap-2">
+                                                <label
+                                                    v-for="target in channels.filter((candidate) => candidate !== source)"
+                                                    :key="`fallback-${source}-${target}`"
+                                                    class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                                >
+                                                    <input
+                                                        :checked="fallbackTargets(source).includes(target)"
+                                                        type="checkbox"
+                                                        class="rounded border-stone-300 text-green-600 focus:ring-green-600"
+                                                        @change="toggleFallbackTarget(source, target)"
+                                                    >
+                                                    <span>{{ target }}</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <div class="mt-4 flex flex-wrap gap-2">
+                                <PrimaryButton type="button" :disabled="requestBusy || !canSend || !isEdit || reviewBlockers.length > 0" @click="sendNow">{{ t('marketing.campaign_wizard.actions.send_now') }}</PrimaryButton>
+                                <Link v-if="isEdit" :href="route('campaigns.show', campaignId)">
+                                    <SecondaryButton type="button">{{ t('marketing.campaign_wizard.actions.open_results') }}</SecondaryButton>
+                                </Link>
+                            </div>
+                            <p v-if="requestError" class="mt-3 text-xs text-rose-600">{{ requestError }}</p>
+                            <p v-if="runMessage" class="mt-3 text-xs text-emerald-700 dark:text-emerald-300">{{ runMessage }}</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section v-show="step === 5" class="space-y-4 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <CampaignStepHeading
+                    :eyebrow="t('marketing.campaign_wizard.foundation.current_step', { current: 5, total: totalWizardSteps })"
+                    :title="stepMeta(5).title"
+                    :description="stepMeta(5).description"
+                    :recommendation="stepMeta(5).recommendation"
+                    :recommendation-label="t('marketing.campaign_wizard.foundation.recommended_next')"
+                />
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div
+                        v-for="card in resultsOverviewCards"
+                        :key="`results-card-${card.key}`"
+                        class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
+                    >
+                        <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ card.label }}</div>
+                        <div class="mt-2 text-sm font-semibold text-stone-900 dark:text-neutral-100">{{ card.value }}</div>
+                        <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ card.helper }}</p>
+                    </div>
+                </div>
+
+                <div v-if="!latestCampaignRun" class="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-6 dark:border-neutral-600 dark:bg-neutral-800">
+                    <div class="max-w-2xl">
+                        <div class="text-base font-semibold text-stone-900 dark:text-neutral-100">No run yet</div>
+                        <p class="mt-2 text-sm text-stone-600 dark:text-neutral-300">{{ resultsEmptyStateMessage }}</p>
+                        <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.results_hint') }}</p>
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <SecondaryButton type="button" @click="setStep(4)">Back to review</SecondaryButton>
+                        <Link v-if="isEdit" :href="route('campaigns.show', campaignId)">
+                            <PrimaryButton>{{ t('marketing.campaign_wizard.actions.open_results') }}</PrimaryButton>
+                        </Link>
+                    </div>
+                </div>
+
+                <div v-else class="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
+                    <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <div class="text-sm font-semibold text-stone-900 dark:text-neutral-100">Latest run</div>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">High-level delivery progress for the newest execution.</p>
+                            </div>
+                            <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold" :class="statusBadgeClass(latestCampaignRun.status)">
+                                {{ runStatusLabel(latestCampaignRun.status) }}
+                            </span>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div
+                                v-for="item in latestRunHighlights"
+                                :key="`latest-run-highlight-${item.key}`"
+                                class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                            >
+                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ item.label }}</div>
+                                <div class="mt-2 text-sm font-semibold text-stone-900 dark:text-neutral-100">{{ item.value }}</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <Link v-if="isEdit" :href="route('campaigns.show', campaignId)">
+                                <PrimaryButton>{{ t('marketing.campaign_wizard.actions.open_results') }}</PrimaryButton>
+                            </Link>
+                            <SecondaryButton type="button" @click="setStep(4)">Back to review</SecondaryButton>
+                        </div>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-sm font-semibold text-stone-900 dark:text-neutral-100">Recent runs</div>
+                        <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">Lifecycle continuity from the wizard before opening the full analytics page.</p>
+
+                        <div class="mt-3 space-y-2">
+                            <div
+                                v-for="run in campaignRuns"
+                                :key="`recent-run-${run.id}`"
+                                class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900"
+                            >
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="text-sm font-semibold text-stone-900 dark:text-neutral-100">Run #{{ run.id }}</div>
+                                    <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold" :class="statusBadgeClass(run.status)">
+                                        {{ runStatusLabel(run.status) }}
+                                    </span>
+                                </div>
+                                <div class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ humanizeValue(run.trigger_type || 'manual') }} | {{ formatDateTime(run.started_at || run.created_at) }}
+                                </div>
+                                <div class="mt-2 text-xs text-stone-600 dark:text-neutral-300">
+                                    {{ formatNumber(run.summary?.targeted || run.audience_snapshot?.eligible || 0) }} targeted
+                                    | {{ formatNumber(run.summary?.delivered || 0) }} delivered
+                                    | {{ formatNumber(run.summary?.failed || 0) }} failed
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <div class="flex flex-wrap gap-2">
-                    <SecondaryButton type="button" :disabled="requestBusy || !canManage || !isEdit" @click="previewMessages">{{ t('marketing.campaign_wizard.actions.live_preview') }}</SecondaryButton>
-                    <SecondaryButton type="button" :disabled="requestBusy || (!canManage && !canSend) || !isEdit" @click="testSend">{{ t('marketing.campaign_wizard.actions.test_send') }}</SecondaryButton>
-                    <PrimaryButton type="button" :disabled="requestBusy || !canSend || !isEdit" @click="sendNow">{{ t('marketing.campaign_wizard.actions.send_now') }}</PrimaryButton>
-                </div>
-                <p v-if="requestError" class="text-xs text-rose-600">{{ requestError }}</p>
-                <p v-if="runMessage" class="text-xs text-emerald-700 dark:text-emerald-300">{{ runMessage }}</p>
-                <pre v-if="previews.length" class="overflow-x-auto rounded-sm border border-stone-200 bg-stone-50 p-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">{{ JSON.stringify(previews, null, 2) }}</pre>
-                <pre v-if="testResults.length" class="overflow-x-auto rounded-sm border border-stone-200 bg-stone-50 p-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">{{ JSON.stringify(testResults, null, 2) }}</pre>
             </section>
 
-            <section v-show="step === 5" class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <p class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.results_hint') }}</p>
-                <div class="mt-3">
-                    <Link v-if="isEdit" :href="route('campaigns.show', campaignId)">
-                        <PrimaryButton>{{ t('marketing.campaign_wizard.actions.open_results') }}</PrimaryButton>
-                    </Link>
-                </div>
-            </section>
+            <CampaignStickyActionBar
+                :current-step-label="t('marketing.campaign_wizard.foundation.current_step', { current: step, total: totalWizardSteps })"
+                :current-step-title="currentStepMeta.title"
+                :guidance="stickyGuidance"
+                :show-previous="step > 1"
+                :previous-disabled="step <= 1"
+                :save-disabled="form.processing || !canManage || step === 5"
+                :primary-disabled="form.processing || (!canManage && step !== 5) || (step === 4 && reviewBlockers.length > 0) || (step === 5 && !isEdit && !canManage)"
+                :previous-label="t('marketing.common.previous')"
+                :save-label="step === 5 ? '' : saveDraftLabel"
+                :primary-label="primaryActionLabel"
+                @previous="goToPreviousStep"
+                @save="saveStepProgress"
+                @primary="runPrimaryWizardAction"
+            />
         </div>
     </AuthenticatedLayout>
 </template>

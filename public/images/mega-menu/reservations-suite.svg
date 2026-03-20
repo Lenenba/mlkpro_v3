@@ -1,0 +1,26 @@
+<svg width="640" height="420" viewBox="0 0 640 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="640" height="420" rx="32" fill="#06251C"/>
+<rect x="28" y="28" width="584" height="364" rx="24" fill="url(#paint0_linear)"/>
+<rect x="84" y="90" width="472" height="240" rx="24" fill="#F0FDFA"/>
+<rect x="110" y="116" width="200" height="188" rx="22" fill="#CCFBF1"/>
+<rect x="334" y="116" width="196" height="78" rx="20" fill="#0F172A"/>
+<rect x="334" y="212" width="196" height="92" rx="20" fill="#FFFFFF"/>
+<rect x="138" y="144" width="144" height="18" rx="9" fill="#0F766E"/>
+<rect x="138" y="180" width="34" height="34" rx="10" fill="#14B8A6"/>
+<rect x="188" y="180" width="34" height="34" rx="10" fill="#2DD4BF"/>
+<rect x="238" y="180" width="34" height="34" rx="10" fill="#5EEAD4"/>
+<rect x="138" y="230" width="108" height="14" rx="7" fill="#115E59"/>
+<rect x="138" y="256" width="84" height="10" rx="5" fill="#0F766E" fill-opacity="0.6"/>
+<rect x="360" y="140" width="96" height="12" rx="6" fill="#F8FAFC"/>
+<rect x="360" y="164" width="146" height="10" rx="5" fill="#99F6E4"/>
+<path d="M360 252H504" stroke="#14B8A6" stroke-width="12" stroke-linecap="round"/>
+<path d="M392 230V274" stroke="#14B8A6" stroke-width="12" stroke-linecap="round"/>
+<circle cx="432" cy="252" r="44" stroke="#0F766E" stroke-width="10"/>
+<text x="70" y="378" fill="#CCFBF1" font-family="Arial, sans-serif" font-size="28" font-weight="700">Reservations</text>
+<defs>
+<linearGradient id="paint0_linear" x1="46" y1="44" x2="592" y2="374" gradientUnits="userSpaceOnUse">
+<stop stop-color="#115E59"/>
+<stop offset="1" stop-color="#0F766E"/>
+</linearGradient>
+</defs>
+</svg>

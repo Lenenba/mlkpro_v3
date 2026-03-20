@@ -1523,6 +1523,15 @@
         "active": "Active",
         "draft": "Draft"
       },
+      "filters": {
+        "search": "Search",
+        "search_placeholder": "Title or slug",
+        "status": "Status",
+        "all_statuses": "All statuses",
+        "clear": "Clear",
+        "apply": "Apply",
+        "results": "{count} page(s)"
+      },
       "table": {
         "slug": "Slug",
         "title": "Title",
@@ -1533,6 +1542,20 @@
       "locale": {
         "label": "Language",
         "hint": "Edits apply to the selected locale only."
+      },
+      "header": {
+        "title": "Header",
+        "subtitle": "Configure the hero background and public title alignment.",
+        "alignment": "Text alignment",
+        "background_type": "Background type",
+        "background_color": "Background color",
+        "background_image_url": "Background image",
+        "background_image_alt": "Background image alt text",
+        "background": {
+          "none": "None",
+          "color": "Color",
+          "image": "Image"
+        }
       },
       "templates": {
         "title": "Templates",
@@ -1660,6 +1683,9 @@
         "body": "Body",
         "image_url": "Image URL",
         "image_alt": "Image alt text",
+        "embed_url": "Embedded form URL",
+        "embed_title": "Embedded form title",
+        "embed_height": "Embedded form height (px)",
         "primary_label": "Primary label",
         "primary_href": "Primary href/route",
         "secondary_label": "Secondary label",
@@ -6501,7 +6527,7 @@
     },
     "footer": {
       "terms": "Terms and conditions",
-      "copy": "MLK Pro. All rights reserved."
+      "copy": "MalikiaPro. All rights reserved."
     }
   },
   "terms": {
@@ -6576,7 +6602,7 @@
       }
     },
     "note": "Questions? Contact your account owner or use the in-app support channel.",
-    "footer": "MLK Pro. All rights reserved. {year}"
+    "footer": "Malikia Pro. All rights reserved. {year}"
   },
   "legal": {
     "header": {
@@ -6639,6 +6665,43 @@
     "actions": {
       "primary": "Start onboarding",
       "secondary": "Sign in"
+    },
+    "comparison": {
+      "title": "Compare plans",
+      "subtitle": "Review the main limits and capabilities included with each offer.",
+      "columns": {
+        "feature": "Features"
+      },
+      "sections": {
+        "fundamentals": "Fundamentals",
+        "operations": "Field operations",
+        "growth": "Growth and automation"
+      },
+      "rows": {
+        "team_members": "Included employees",
+        "clients": "Clients",
+        "requests": "Requests / leads",
+        "estimates": "Estimates",
+        "invoices": "Invoices",
+        "catalog": "Products and services catalog",
+        "client_portal": "Client portal",
+        "team_planning": "Team planning",
+        "time_tracking": "Time tracking",
+        "reservations": "Reservations and check-in",
+        "recurring_jobs": "Recurring jobs",
+        "reports": "Built-in reports",
+        "permissions": "Team permissions",
+        "automations": "Advanced automations",
+        "plan_scan": "Plan scan and AI quotes",
+        "ai_assistant": "AI assistant",
+        "onboarding": "Dedicated onboarding",
+        "custom_integrations": "Custom integrations and SLA"
+      },
+      "values": {
+        "unlimited": "Unlimited",
+        "optional": "Optional add-on",
+        "contact": "Contact us"
+      }
     }
   },
   "privacy": {

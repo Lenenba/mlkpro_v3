@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Models\PlatformAsset;
 use App\Support\PlatformPermissions;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -22,7 +23,7 @@ class PlatformAssetController extends BaseSuperAdminController
         ]);
 
         $query = PlatformAsset::query()->latest();
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($builder) use ($search) {
                 $builder->where('name', 'like', "%{$search}%")
@@ -30,7 +31,7 @@ class PlatformAssetController extends BaseSuperAdminController
             });
         }
 
-        if (!empty($filters['tag'])) {
+        if (! empty($filters['tag'])) {
             $tag = $filters['tag'];
             $query->whereJsonContains('tags', $tag);
         }
@@ -50,7 +51,7 @@ class PlatformAssetController extends BaseSuperAdminController
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
 
@@ -64,16 +65,18 @@ class PlatformAssetController extends BaseSuperAdminController
         $tags = $this->parseTags($validated['tags'] ?? null);
         $alt = trim((string) ($validated['alt'] ?? ''));
 
+        $createdAssets = [];
+
         foreach ($request->file('files', []) as $file) {
-            if (!$file) {
+            if (! $file) {
                 continue;
             }
             $path = $file->storePublicly('assets', ['disk' => 'public']);
-            if (!$path) {
+            if (! $path) {
                 continue;
             }
 
-            PlatformAsset::create([
+            $asset = PlatformAsset::create([
                 'name' => $file->getClientOriginalName() ?: basename($path),
                 'path' => $path,
                 'mime' => $file->getClientMimeType() ?: 'application/octet-stream',
@@ -81,6 +84,15 @@ class PlatformAssetController extends BaseSuperAdminController
                 'tags' => $tags,
                 'alt' => $alt !== '' ? $alt : null,
                 'uploaded_by' => $request->user()?->id,
+            ]);
+
+            $createdAssets[] = $asset;
+        }
+
+        if ($request->expectsJson() || $request->wantsJson()) {
+            return response()->json([
+                'message' => 'Assets uploaded.',
+                'assets' => array_map(fn (PlatformAsset $asset) => $this->mapAsset($asset), $createdAssets),
             ]);
         }
 
@@ -110,14 +122,14 @@ class PlatformAssetController extends BaseSuperAdminController
         ]);
 
         $query = PlatformAsset::query()->latest();
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($builder) use ($search) {
                 $builder->where('name', 'like', "%{$search}%")
                     ->orWhere('mime', 'like', "%{$search}%");
             });
         }
-        if (!empty($filters['tag'])) {
+        if (! empty($filters['tag'])) {
             $query->whereJsonContains('tags', $filters['tag']);
         }
 

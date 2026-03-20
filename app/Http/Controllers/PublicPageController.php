@@ -6,6 +6,7 @@ use App\Models\PlatformPage;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Services\BillingSubscriptionService;
+use App\Services\MegaMenus\MegaMenuRenderer;
 use App\Services\PlatformPageContentService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -34,7 +35,7 @@ class PublicPageController extends Controller
                     $accountOwner = User::query()->find($customer->user_id);
                 }
             }
-            if (!$accountOwner) {
+            if (! $accountOwner) {
                 $ownerId = $user->accountOwnerId();
                 if ($ownerId) {
                     $accountOwner = $ownerId === $user->id ? $user : User::query()->find($ownerId);
@@ -55,6 +56,7 @@ class PublicPageController extends Controller
             ],
             'content' => $service->resolveForLocale($page, $locale),
             'plan_key' => $planKey,
+            'megaMenu' => app(MegaMenuRenderer::class)->resolveForLocation('header', 'public-pages'),
         ]);
     }
 }
