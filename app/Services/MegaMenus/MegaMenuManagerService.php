@@ -151,7 +151,7 @@ class MegaMenuManagerService
      */
     private function replaceStructure(MegaMenu $menu, array $items): void
     {
-        $menu->allItems()->delete();
+        $this->purgeStructure($menu);
 
         foreach ($items as $index => $itemData) {
             $itemData['sort_order'] = $index;
@@ -212,6 +212,54 @@ class MegaMenuManagerService
         }
 
         return $item;
+    }
+
+    private function purgeStructure(MegaMenu $menu): void
+    {
+        $itemIds = MegaMenuItem::query()
+            ->where('mega_menu_id', $menu->id)
+            ->pluck('id');
+
+        if ($itemIds->isEmpty()) {
+            return;
+        }
+
+        MegaMenuBlock::query()
+            ->whereIn(
+                'mega_menu_column_id',
+                MegaMenuColumn::query()
+                    ->select('id')
+                    ->whereIn('mega_menu_item_id', $itemIds)
+            )
+            ->delete();
+
+        MegaMenuColumn::query()
+            ->whereIn('mega_menu_item_id', $itemIds)
+            ->delete();
+
+        while (true) {
+            $leafIds = MegaMenuItem::query()
+                ->where('mega_menu_id', $menu->id)
+                ->whereNotIn(
+                    'id',
+                    MegaMenuItem::query()
+                        ->where('mega_menu_id', $menu->id)
+                        ->whereNotNull('parent_id')
+                        ->pluck('parent_id')
+                        ->filter()
+                        ->values()
+                        ->all()
+                )
+                ->pluck('id');
+
+            if ($leafIds->isEmpty()) {
+                break;
+            }
+
+            MegaMenuItem::query()
+                ->whereIn('id', $leafIds)
+                ->delete();
+        }
     }
 
     private function deactivateOtherActiveMenus(MegaMenu $menu, ?int $userId = null): void

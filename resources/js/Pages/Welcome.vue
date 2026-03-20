@@ -191,6 +191,20 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="flex shrink-0 items-center gap-3">
+                    <Link
+                        v-if="canLogin"
+                        :href="route('login')"
+                        class="hidden rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50 lg:inline-flex"
+                    >
+                        Connexion
+                    </Link>
+                    <Link
+                        v-if="canRegister"
+                        :href="route('onboarding.index')"
+                        class="hidden rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 xl:inline-flex"
+                    >
+                        Créer un espace
+                    </Link>
                     <div ref="langMenuRef" class="welcome-lang">
                         <button
                             type="button"

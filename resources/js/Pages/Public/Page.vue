@@ -272,6 +272,20 @@ const headerMenuItems = computed(() => ([
                 </div>
 
                 <div class="flex shrink-0 items-center gap-3">
+                    <Link
+                        v-if="!isAuthenticated"
+                        :href="route('login')"
+                        class="hidden rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50 md:inline-flex"
+                    >
+                        Connexion
+                    </Link>
+                    <Link
+                        v-if="!isAuthenticated"
+                        :href="route('onboarding.index')"
+                        class="hidden rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 xl:inline-flex"
+                    >
+                        Créer un espace
+                    </Link>
                     <div ref="langMenuRef" class="public-lang">
                         <button type="button" class="public-lang__toggle" aria-haspopup="listbox"
                             :aria-expanded="langMenuOpen" @click="toggleLangMenu" @keydown.escape="closeLangMenu">

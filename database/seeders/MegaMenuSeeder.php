@@ -77,6 +77,10 @@ class MegaMenuSeeder extends Seeder
             ],
             'items' => [
                 $this->productsAndServicesItem(),
+                $this->solutionsItem(),
+                $this->pricingItem(),
+                $this->demoItem(),
+                $this->resourcesItem($partnersPage),
             ],
         ];
     }
@@ -116,16 +120,18 @@ class MegaMenuSeeder extends Seeder
     private function resourcesItem(PlatformPage $partnersPage): array
     {
         return [
-            'label' => 'Resources',
-            'description' => 'Browse supporting pages and public information.',
+            'label' => 'Ressources',
+            'description' => 'Pages utiles, informations publiques et contenus de référence.',
             'link_type' => 'none',
             'link_target' => '_self',
             'panel_type' => 'classic',
             'is_visible' => true,
             'children' => [
-                $this->classicLink('Pricing', '/pricing', 'Plans and modules'),
-                $this->classicLink('Partners', "/pages/{$partnersPage->slug}", 'Our ecosystem'),
-                $this->classicLink('Privacy', '/privacy', 'Privacy and compliance'),
+                $this->classicLink('Tarifs', '/pricing', 'Plans, modules et options de déploiement.'),
+                $this->classicLink('Partenaires', "/pages/{$partnersPage->slug}", 'Explorez l’écosystème autour de la plateforme.'),
+                $this->classicLink('Conditions', '/terms', 'Conditions d’utilisation de la plateforme.'),
+                $this->classicLink('Confidentialité', '/privacy', 'Sécurité, données et conformité.'),
+                $this->classicLink('Remboursement', '/refund', 'Politique de remboursement et facturation.'),
             ],
         ];
     }
@@ -133,18 +139,55 @@ class MegaMenuSeeder extends Seeder
     /**
      * @return array<string, mixed>
      */
-    private function getStartedItem(): array
+    private function pricingItem(): array
     {
         return [
-            'label' => 'Get started',
-            'description' => 'Primary CTA',
-            'link_type' => 'route',
-            'link_value' => 'login',
+            'label' => 'Tarifs',
+            'description' => 'Comparez les offres et les modules.',
+            'link_type' => 'internal_page',
+            'link_value' => '/pricing',
             'link_target' => '_self',
             'panel_type' => 'link',
-            'badge_text' => 'Live',
-            'badge_variant' => 'new',
             'is_visible' => true,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function demoItem(): array
+    {
+        return [
+            'label' => 'Démo',
+            'description' => 'Explorez la plateforme avec des données de démonstration.',
+            'link_type' => 'internal_page',
+            'link_value' => '/demo',
+            'link_target' => '_self',
+            'panel_type' => 'link',
+            'is_visible' => true,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function solutionsItem(): array
+    {
+        return [
+            'label' => 'Solutions',
+            'description' => 'Choisissez un parcours selon le mode opératoire de votre équipe.',
+            'link_type' => 'none',
+            'link_target' => '_self',
+            'panel_type' => 'classic',
+            'is_visible' => true,
+            'children' => [
+                $this->classicLink('Services terrain', '/pricing#operations', 'Planification, interventions, preuves et suivi terrain.'),
+                $this->classicLink('Réservations & files', '/pricing#reservations', 'Prise de rendez-vous, disponibilité, kiosque et check-in.'),
+                $this->classicLink('Vente & devis', '/pricing#sales-crm', 'Demandes, devis, clients et pipeline commercial.'),
+                $this->classicLink('Commerce & catalogue', '/pricing#commerce', 'Produits, services, boutique et commandes.'),
+                $this->classicLink('Marketing & fidélisation', '/pricing#marketing', 'Campagnes, segments, VIP et automatisations.'),
+                $this->classicLink('Pilotage multi-entreprise', '/pricing#platform', 'Vue globale sur plusieurs entités et modules.'),
+            ],
         ];
     }
 
@@ -154,16 +197,16 @@ class MegaMenuSeeder extends Seeder
     private function productsAndServicesItem(): array
     {
         $item = $this->megaItem(
-            'Products & Services',
-            'Explore the full platform catalog from one unified mega menu.',
+            'Produits & Services',
+            'Explorez tout le catalogue plateforme depuis un point d’entrée unique.',
             '/pricing',
             'grid-2x2',
             '#0f766e',
             [
                 $this->column('', '1fr', [
                     $this->productShowcaseBlock(
-                        'Products & Services',
-                        'Hover a product to preview the interface and understand what each module unlocks for the business.',
+                        'Produits & Services',
+                        'Survolez un produit pour voir l’interface et comprendre ce qu’il débloque pour votre équipe.',
                         [
                             $this->showcaseProduct(
                                 'Sales & CRM',

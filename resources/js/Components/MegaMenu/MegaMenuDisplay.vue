@@ -25,6 +25,7 @@ const desktopOpenKey = ref(null);
 const mobileOpen = ref(false);
 const mobilePanelKeys = ref([]);
 const rootRef = ref(null);
+const closeDesktopPanelTimer = ref(null);
 const desktopPanelMetrics = ref({
     left: 0,
     top: 0,
@@ -116,11 +117,43 @@ const openDesktopPanel = (item) => {
         return;
     }
 
+    if (closeDesktopPanelTimer.value) {
+        window.clearTimeout(closeDesktopPanelTimer.value);
+        closeDesktopPanelTimer.value = null;
+    }
+
     desktopOpenKey.value = itemKey(item);
 };
 
 const closeDesktopPanel = () => {
+    if (closeDesktopPanelTimer.value) {
+        window.clearTimeout(closeDesktopPanelTimer.value);
+        closeDesktopPanelTimer.value = null;
+    }
+
     desktopOpenKey.value = null;
+};
+
+const clearDesktopCloseTimer = () => {
+    if (!closeDesktopPanelTimer.value) {
+        return;
+    }
+
+    window.clearTimeout(closeDesktopPanelTimer.value);
+    closeDesktopPanelTimer.value = null;
+};
+
+const scheduleDesktopPanelClose = () => {
+    if (typeof window === 'undefined') {
+        closeDesktopPanel();
+        return;
+    }
+
+    clearDesktopCloseTimer();
+    closeDesktopPanelTimer.value = window.setTimeout(() => {
+        desktopOpenKey.value = null;
+        closeDesktopPanelTimer.value = null;
+    }, 180);
 };
 
 const toggleDesktopPanel = (item, event) => {
@@ -185,18 +218,26 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    clearDesktopCloseTimer();
     window.removeEventListener('resize', syncDesktopPanelMetrics);
 });
 </script>
 
 <template>
-    <div ref="rootRef" class="relative w-full" :style="menuStyle" @mouseleave="shouldOpenOnHover ? closeDesktopPanel() : null">
+    <div
+        ref="rootRef"
+        class="relative w-full"
+        :style="menuStyle"
+        @mouseenter="clearDesktopCloseTimer"
+        @mouseleave="shouldOpenOnHover ? scheduleDesktopPanelClose() : null"
+    >
         <div class="hidden w-full min-w-0 items-center justify-center gap-6 lg:flex xl:gap-8 2xl:gap-10">
             <div
                 v-for="(item, index) in normalizedMenu.items"
                 :key="itemKey(item, index)"
                 class="shrink-0"
                 @mouseenter="shouldOpenOnHover ? openDesktopPanel(item) : null"
+                @mouseleave="shouldOpenOnHover ? scheduleDesktopPanelClose() : null"
             >
                 <a
                     :href="preview ? '#' : itemHref(item)"
@@ -222,6 +263,8 @@ onBeforeUnmount(() => {
             v-if="activeDesktopItem && activeDesktopItem.panel_type === 'classic'"
             class="absolute z-40 border-y border-stone-200 bg-[var(--mega-menu-panel)] shadow-[0_24px_60px_-35px_rgba(15,23,42,0.28)] dark:border-neutral-700 dark:bg-neutral-900"
             :style="desktopPanelShellStyle"
+            @mouseenter="clearDesktopCloseTimer"
+            @mouseleave="shouldOpenOnHover ? scheduleDesktopPanelClose() : null"
         >
             <div class="mx-auto" :style="megaPanelStyle">
                 <div class="grid gap-10 px-8 py-8 md:grid-cols-2 xl:grid-cols-3">
@@ -245,6 +288,8 @@ onBeforeUnmount(() => {
             v-if="activeDesktopItem && activeDesktopItem.panel_type === 'mega'"
             class="absolute z-40 border-y border-stone-200 bg-[var(--mega-menu-panel)] shadow-[0_24px_60px_-35px_rgba(15,23,42,0.3)] dark:border-neutral-700 dark:bg-neutral-900"
             :style="desktopPanelShellStyle"
+            @mouseenter="clearDesktopCloseTimer"
+            @mouseleave="shouldOpenOnHover ? scheduleDesktopPanelClose() : null"
         >
             <div class="mx-auto" :style="megaPanelStyle">
                 <div class="px-8 py-8">

@@ -146,6 +146,152 @@ it('duplicates nested structure into a new draft menu', function () {
     expect($copy->items->first()->columns->first()->blocks)->toHaveCount(1);
 });
 
+it('replaces an existing nested header structure without accumulating top-level items', function () {
+    $user = megaMenuTestUser();
+    $service = app(MegaMenuManagerService::class);
+
+    $menu = $service->create(megaMenuPayload([
+        'slug' => 'showcase-header',
+        'title' => 'Showcase Header',
+        'items' => [
+            megaMenuPayload()['items'][0],
+            [
+                'label' => 'Solutions',
+                'description' => 'Solution paths',
+                'link_type' => 'none',
+                'link_target' => '_self',
+                'panel_type' => 'classic',
+                'is_visible' => true,
+                'children' => [
+                    [
+                        'label' => 'Field teams',
+                        'description' => 'Operations and jobs',
+                        'link_type' => 'internal_page',
+                        'link_value' => '/jobs',
+                        'link_target' => '_self',
+                        'panel_type' => 'link',
+                        'is_visible' => true,
+                    ],
+                ],
+            ],
+            [
+                'label' => 'Pricing',
+                'description' => 'Plans',
+                'link_type' => 'internal_page',
+                'link_value' => '/pricing',
+                'link_target' => '_self',
+                'panel_type' => 'link',
+                'is_visible' => true,
+            ],
+            [
+                'label' => 'Demo',
+                'description' => 'Demo access',
+                'link_type' => 'internal_page',
+                'link_value' => '/demo',
+                'link_target' => '_self',
+                'panel_type' => 'link',
+                'is_visible' => true,
+            ],
+            [
+                'label' => 'Resources',
+                'description' => 'Guides and legal pages',
+                'link_type' => 'none',
+                'link_target' => '_self',
+                'panel_type' => 'classic',
+                'is_visible' => true,
+                'children' => [
+                    [
+                        'label' => 'Terms',
+                        'description' => 'Usage terms',
+                        'link_type' => 'internal_page',
+                        'link_value' => '/terms',
+                        'link_target' => '_self',
+                        'panel_type' => 'link',
+                        'is_visible' => true,
+                    ],
+                ],
+            ],
+        ],
+    ]), $user->id);
+
+    $updatePayload = megaMenuPayload([
+        'slug' => 'showcase-header',
+        'title' => 'Showcase Header',
+        'items' => [
+            megaMenuPayload()['items'][0],
+            [
+                'label' => 'Solutions',
+                'description' => 'Updated solution paths',
+                'link_type' => 'none',
+                'link_target' => '_self',
+                'panel_type' => 'classic',
+                'is_visible' => true,
+                'children' => [
+                    [
+                        'label' => 'Reservations',
+                        'description' => 'Booking workflows',
+                        'link_type' => 'internal_page',
+                        'link_value' => '/app/reservations',
+                        'link_target' => '_self',
+                        'panel_type' => 'link',
+                        'is_visible' => true,
+                    ],
+                ],
+            ],
+            [
+                'label' => 'Tarifs',
+                'description' => 'Plans',
+                'link_type' => 'internal_page',
+                'link_value' => '/pricing',
+                'link_target' => '_self',
+                'panel_type' => 'link',
+                'is_visible' => true,
+            ],
+            [
+                'label' => 'Démo',
+                'description' => 'Demo access',
+                'link_type' => 'internal_page',
+                'link_value' => '/demo',
+                'link_target' => '_self',
+                'panel_type' => 'link',
+                'is_visible' => true,
+            ],
+            [
+                'label' => 'Ressources',
+                'description' => 'Guides and legal pages',
+                'link_type' => 'none',
+                'link_target' => '_self',
+                'panel_type' => 'classic',
+                'is_visible' => true,
+                'children' => [
+                    [
+                        'label' => 'Confidentialité',
+                        'description' => 'Privacy policy',
+                        'link_type' => 'internal_page',
+                        'link_value' => '/privacy',
+                        'link_target' => '_self',
+                        'panel_type' => 'link',
+                        'is_visible' => true,
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $service->update($menu, $updatePayload, $user->id);
+    $service->update($menu->fresh(), $updatePayload, $user->id);
+
+    $labels = $menu->fresh()->items->pluck('label')->values()->all();
+
+    expect($labels)->toBe([
+        'Platform',
+        'Solutions',
+        'Tarifs',
+        'Démo',
+        'Ressources',
+    ]);
+});
+
 it('persists product showcase blocks with hover preview items', function () {
     $user = megaMenuTestUser();
     $service = app(MegaMenuManagerService::class);
