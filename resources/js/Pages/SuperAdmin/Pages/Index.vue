@@ -214,7 +214,7 @@ const deletePage = (page) => {
                                             </svg>
                                         </button>
                                         <div
-                                            class="hs-dropdown-menu hs-dropdown-open:opacity-100 hidden w-36 rounded-sm bg-white opacity-0 shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] transition-[opacity,margin] duration dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
+                                            class="hs-dropdown-menu hs-dropdown-open:opacity-100 hidden z-10 w-36 rounded-sm bg-white opacity-0 shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] transition-[opacity,margin] duration dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
                                             role="menu" aria-orientation="vertical">
                                             <div class="p-1">
                                                 <a v-if="page.public_url" :href="page.public_url" target="_blank" rel="noopener"

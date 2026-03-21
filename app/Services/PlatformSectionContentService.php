@@ -8,6 +8,16 @@ class PlatformSectionContentService
 {
     private const LOCALES = ['fr', 'en'];
 
+    private const LAYOUTS = ['split', 'duo', 'stack', 'contact', 'testimonial'];
+
+    private const IMAGE_POSITIONS = ['left', 'right'];
+
+    private const ALIGNMENTS = ['left', 'center', 'right'];
+
+    private const DENSITIES = ['compact', 'normal', 'spacious'];
+
+    private const TONES = ['default', 'muted', 'contrast'];
+
     private const ALLOWED_HTML_TAGS = [
         'div',
         'p',
@@ -57,7 +67,7 @@ class PlatformSectionContentService
     public function resolveForLocale(PlatformSection $section, string $locale): array
     {
         $locale = $this->normalizeLocale($locale);
-        $default = $this->defaultContent($locale);
+        $default = $this->defaultContent($locale, $section->type);
         $stored = $this->storedLocales($section)[$locale] ?? [];
 
         $merged = $this->mergeContent($default, is_array($stored) ? $stored : []);
@@ -68,7 +78,7 @@ class PlatformSectionContentService
     public function updateLocale(PlatformSection $section, string $locale, array $incoming, ?int $userId = null): array
     {
         $locale = $this->normalizeLocale($locale);
-        $default = $this->defaultContent($locale);
+        $default = $this->defaultContent($locale, $section->type);
         $sanitized = $this->sanitizeSection($this->mergeContent($default, $incoming));
 
         $payload = is_array($section->content) ? $section->content : [];
@@ -86,20 +96,30 @@ class PlatformSectionContentService
         return $this->resolveForLocale($section, $locale);
     }
 
-    public function defaultContent(string $locale): array
+    public function defaultContent(string $locale, ?string $type = null): array
     {
         $locale = $this->normalizeLocale($locale);
 
-        return $this->defaultSection();
+        return $this->defaultSection($type);
     }
 
-    private function defaultSection(): array
+    private function defaultSection(?string $type = null): array
     {
+        $defaultLayout = $this->defaultLayoutForType($type);
+
         return [
+            'layout' => $defaultLayout,
+            'background_color' => $this->defaultBackgroundColorForLayout($defaultLayout),
+            'image_position' => $defaultLayout === 'testimonial' ? 'right' : 'left',
+            'alignment' => 'left',
+            'density' => 'normal',
+            'tone' => $defaultLayout === 'duo' ? 'contrast' : 'default',
             'kicker' => '',
             'title' => '',
             'body' => '',
             'items' => [],
+            'testimonial_author' => '',
+            'testimonial_role' => '',
             'image_url' => '',
             'image_alt' => '',
             'primary_label' => '',
@@ -112,10 +132,38 @@ class PlatformSectionContentService
     private function sanitizeSection(array $section): array
     {
         return [
+            'layout' => $this->cleanThemeChoice(
+                $section['layout'] ?? null,
+                self::LAYOUTS,
+                $this->defaultLayoutForType(null)
+            ),
+            'background_color' => $this->cleanColor($section['background_color'] ?? null) ?? '',
+            'image_position' => $this->cleanThemeChoice(
+                $section['image_position'] ?? null,
+                self::IMAGE_POSITIONS,
+                'left'
+            ),
+            'alignment' => $this->cleanThemeChoice(
+                $section['alignment'] ?? null,
+                self::ALIGNMENTS,
+                'left'
+            ),
+            'density' => $this->cleanThemeChoice(
+                $section['density'] ?? null,
+                self::DENSITIES,
+                'normal'
+            ),
+            'tone' => $this->cleanThemeChoice(
+                $section['tone'] ?? null,
+                self::TONES,
+                'default'
+            ),
             'kicker' => $this->cleanText($section['kicker'] ?? ''),
             'title' => $this->cleanText($section['title'] ?? ''),
             'body' => $this->cleanHtml($section['body'] ?? ''),
             'items' => $this->sanitizeStringList($section['items'] ?? []),
+            'testimonial_author' => $this->cleanText($section['testimonial_author'] ?? ''),
+            'testimonial_role' => $this->cleanText($section['testimonial_role'] ?? ''),
             'image_url' => $this->cleanText($section['image_url'] ?? ''),
             'image_alt' => $this->cleanText($section['image_alt'] ?? ''),
             'primary_label' => $this->cleanText($section['primary_label'] ?? ''),
@@ -180,6 +228,27 @@ class PlatformSectionContentService
         $text = $this->stringify($value);
 
         return trim(strip_tags($text));
+    }
+
+    private function cleanColor($value): ?string
+    {
+        $color = ltrim($this->cleanText($value), '#');
+        if ($color === '') {
+            return null;
+        }
+
+        if (preg_match('/^[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/', $color) !== 1) {
+            return null;
+        }
+
+        return '#'.strtolower($color);
+    }
+
+    private function cleanThemeChoice($value, array $allowed, string $default): string
+    {
+        $choice = strtolower($this->cleanText($value));
+
+        return in_array($choice, $allowed, true) ? $choice : $default;
     }
 
     private function cleanHtml($value): string
@@ -304,6 +373,24 @@ class PlatformSectionContentService
         }
 
         return null;
+    }
+
+    private function defaultLayoutForType(?string $type): string
+    {
+        return match (strtolower(trim((string) $type))) {
+            'duo' => 'duo',
+            'testimonial' => 'testimonial',
+            default => 'split',
+        };
+    }
+
+    private function defaultBackgroundColorForLayout(string $layout): string
+    {
+        return match ($layout) {
+            'duo' => '#0f172a',
+            'testimonial' => '#e5ecef',
+            default => '',
+        };
     }
 
     private function normalizeLocale(string $locale): string

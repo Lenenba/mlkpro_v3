@@ -1625,6 +1625,7 @@
       "sections": {
         "title": "Sections",
         "add": "Ajouter une section",
+        "add_type": "Type de section a ajouter",
         "section_label": "Section"
       },
       "library": {
@@ -1638,12 +1639,19 @@
       },
       "layouts": {
         "split": "Split (texte + image)",
-        "stack": "Stack (centre)"
+        "duo": "2 blocs (image + bloc couleur)",
+        "testimonial": "Temoignage (citation + image)",
+        "stack": "Stack (centre)",
+        "contact": "Contact (3 colonnes)"
       },
       "alignments": {
         "left": "Gauche",
         "center": "Centre",
         "right": "Droite"
+      },
+      "image_positions": {
+        "left": "Image a gauche",
+        "right": "Image a droite"
       },
       "densities": {
         "compact": "Compact",
@@ -1675,12 +1683,23 @@
         "remove": "Supprimer",
         "background": "Background",
         "background_hex": "Couleur de fond (#hex)",
+        "panel_background": "Fond du bloc contenu",
+        "panel_background_hex": "Couleur du bloc contenu (#hex)",
+        "image_position": "Position de l'image",
         "alignment": "Alignement",
         "density": "Densite",
         "tone": "Ton",
         "kicker": "Kicker",
         "title": "Titre",
         "body": "Corps",
+        "testimonial_author": "Nom du temoin",
+        "testimonial_role": "Fonction du temoin",
+        "aside_kicker": "Kicker colonne droite",
+        "aside_title": "Titre colonne droite",
+        "aside_body": "Corps colonne droite",
+        "aside_items": "Puces colonne droite (une ligne par item)",
+        "aside_link_label": "Label lien colonne droite",
+        "aside_link_href": "Lien/route colonne droite",
         "image_url": "URL image",
         "image_alt": "Texte alternatif",
         "embed_url": "URL du formulaire embarque",
@@ -1690,6 +1709,14 @@
         "primary_href": "Lien/route principal",
         "secondary_label": "Label secondaire",
         "secondary_href": "Lien/route secondaire"
+      },
+      "contact_aside": {
+        "title": "Colonne details",
+        "subtitle": "Ajoutez les informations du bureau, du support ou d'un point de contact."
+      },
+      "testimonial": {
+        "title": "Attribution du temoignage",
+        "subtitle": "Ajoutez le nom et la fonction affiches sous la citation."
       },
       "theme": {
         "title": "Theme",
@@ -1815,6 +1842,9 @@
         "type": "Type",
         "is_active": "Active"
       },
+      "layout": {
+        "subtitle": "Configurez les options visuelles du bloc reutilisable avant de l'inserer dans une page."
+      },
       "types": {
         "generic": "Generique",
         "hero": "Hero",
@@ -1822,7 +1852,9 @@
         "faq": "FAQ",
         "testimonials": "Temoignages",
         "cta": "Appel a l'action",
-        "gallery": "Galerie"
+        "gallery": "Galerie",
+        "duo": "2 blocs reutilisables",
+        "testimonial": "Temoignage reutilisable"
       }
     },
     "assets": {

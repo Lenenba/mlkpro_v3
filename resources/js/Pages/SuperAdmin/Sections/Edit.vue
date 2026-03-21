@@ -50,6 +50,29 @@ const localeOptions = computed(() =>
     (props.locales || []).map((locale) => ({ value: locale, label: locale.toUpperCase() }))
 );
 
+const imagePositionOptions = computed(() => [
+    { value: 'left', label: t('super_admin.pages.image_positions.left') },
+    { value: 'right', label: t('super_admin.pages.image_positions.right') },
+]);
+
+const alignmentOptions = computed(() => [
+    { value: 'left', label: t('super_admin.pages.alignments.left') },
+    { value: 'center', label: t('super_admin.pages.alignments.center') },
+    { value: 'right', label: t('super_admin.pages.alignments.right') },
+]);
+
+const densityOptions = computed(() => [
+    { value: 'compact', label: t('super_admin.pages.densities.compact') },
+    { value: 'normal', label: t('super_admin.pages.densities.normal') },
+    { value: 'spacious', label: t('super_admin.pages.densities.spacious') },
+]);
+
+const toneOptions = computed(() => [
+    { value: 'default', label: t('super_admin.pages.tones.default') },
+    { value: 'muted', label: t('super_admin.pages.tones.muted') },
+    { value: 'contrast', label: t('super_admin.pages.tones.contrast') },
+]);
+
 const editorLabels = computed(() => ({
     heading2: t('super_admin.support.editor.heading_2'),
     heading3: t('super_admin.support.editor.heading_3'),
@@ -71,18 +94,63 @@ const editorLinkPrompt = computed(() => t('super_admin.support.editor.link_promp
 const editorImagePrompt = computed(() => t('super_admin.support.editor.image_prompt'));
 const editorAiPrompt = computed(() => t('super_admin.support.editor.ai_prompt'));
 
-const ensureStructure = (content) => ({
-    kicker: content?.kicker || '',
-    title: content?.title || '',
-    body: content?.body || '',
-    items: Array.isArray(content?.items) ? content.items : [],
-    image_url: content?.image_url || '',
-    image_alt: content?.image_alt || '',
-    primary_label: content?.primary_label || '',
-    primary_href: content?.primary_href || '',
-    secondary_label: content?.secondary_label || '',
-    secondary_href: content?.secondary_href || '',
-});
+const sectionTypePreset = (type) => {
+    if (type === 'duo') {
+        return {
+            layout: 'duo',
+            background_color: '#0f172a',
+            image_position: 'left',
+            alignment: 'left',
+            density: 'normal',
+            tone: 'contrast',
+        };
+    }
+
+    if (type === 'testimonial') {
+        return {
+            layout: 'testimonial',
+            background_color: '#e5ecef',
+            image_position: 'right',
+            alignment: 'left',
+            density: 'normal',
+            tone: 'default',
+        };
+    }
+
+    return {
+        layout: 'split',
+        background_color: '',
+        image_position: 'left',
+        alignment: 'left',
+        density: 'normal',
+        tone: 'default',
+    };
+};
+
+const ensureStructure = (content, type = form.type) => {
+    const preset = sectionTypePreset(type);
+
+    return {
+        layout: content?.layout || preset.layout,
+        background_color: content?.background_color ?? preset.background_color,
+        image_position: content?.image_position || preset.image_position,
+        alignment: content?.alignment || preset.alignment,
+        density: content?.density || preset.density,
+        tone: content?.tone || preset.tone,
+        kicker: content?.kicker || '',
+        title: content?.title || '',
+        body: content?.body || '',
+        items: Array.isArray(content?.items) ? content.items : [],
+        testimonial_author: content?.testimonial_author || '',
+        testimonial_role: content?.testimonial_role || '',
+        image_url: content?.image_url || '',
+        image_alt: content?.image_alt || '',
+        primary_label: content?.primary_label || '',
+        primary_href: content?.primary_href || '',
+        secondary_label: content?.secondary_label || '',
+        secondary_href: content?.secondary_href || '',
+    };
+};
 
 const syncLinesFromContent = () => {
     itemsLines.value = (form.content.items || []).join('\n');
@@ -91,7 +159,7 @@ const syncLinesFromContent = () => {
 const syncFormFromProps = (locale = currentLocale.value) => {
     const incoming = props.content?.[locale] || {};
     form.locale = locale;
-    form.content = ensureStructure(incoming);
+    form.content = ensureStructure(incoming, form.type);
     syncLinesFromContent();
 };
 
@@ -108,6 +176,39 @@ watch(itemsLines, (value) => {
         .map((line) => line.trim())
         .filter((line) => line.length > 0);
 });
+
+watch(
+    () => form.type,
+    (type, previousType) => {
+        const current = ensureStructure(form.content, type);
+        const previous = sectionTypePreset(previousType);
+        const next = sectionTypePreset(type);
+
+        form.content = {
+            ...current,
+            layout: next.layout,
+            image_position: current.image_position === previous.image_position ? next.image_position : current.image_position,
+            background_color: current.background_color === previous.background_color ? next.background_color : current.background_color,
+            tone: current.tone === previous.tone ? next.tone : current.tone,
+        };
+    }
+);
+
+const isDuoType = computed(() => form.type === 'duo');
+const isTestimonialType = computed(() => form.type === 'testimonial');
+const usesEnhancedLayout = computed(() => isDuoType.value || isTestimonialType.value);
+
+const backgroundFieldLabel = computed(() => (
+    isDuoType.value
+        ? t('super_admin.pages.common.panel_background_hex')
+        : t('super_admin.pages.common.background_hex')
+));
+
+const backgroundHeadingLabel = computed(() => (
+    isDuoType.value
+        ? t('super_admin.pages.common.panel_background')
+        : t('super_admin.pages.common.background')
+));
 
 const updatedAtLabel = computed(() => {
     if (!props.meta?.updated_at) return t('super_admin.sections.meta.never');
@@ -222,6 +323,43 @@ syncFormFromProps(currentLocale.value);
                 <InputError class="mt-1" :message="form.errors.content" />
             </section>
 
+            <section v-if="usesEnhancedLayout"
+                class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 space-y-4">
+                <div>
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ backgroundHeadingLabel }}
+                    </h2>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.sections.layout.subtitle') }}
+                    </p>
+                </div>
+
+                <div class="grid gap-3 md:grid-cols-4">
+                    <FloatingSelect v-model="form.content.image_position" :options="imagePositionOptions"
+                        :label="$t('super_admin.pages.common.image_position')" />
+                    <FloatingSelect v-model="form.content.alignment" :options="alignmentOptions"
+                        :label="$t('super_admin.pages.common.alignment')" />
+                    <FloatingSelect v-model="form.content.density" :options="densityOptions"
+                        :label="$t('super_admin.pages.common.density')" />
+                    <FloatingSelect v-model="form.content.tone" :options="toneOptions"
+                        :label="$t('super_admin.pages.common.tone')" />
+                </div>
+
+                <div class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700">
+                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                        {{ backgroundHeadingLabel }}
+                    </label>
+                    <div class="mt-2 flex flex-wrap items-center gap-3">
+                        <input v-model="form.content.background_color" type="color"
+                            class="h-11 w-14 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
+                        <div class="min-w-[220px] flex-1">
+                            <FloatingInput v-model="form.content.background_color"
+                                :label="backgroundFieldLabel" />
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 space-y-4">
                 <RichTextEditor
                     v-model="form.content.body"
@@ -234,12 +372,29 @@ syncFormFromProps(currentLocale.value);
                     :labels="editorLabels"
                 />
 
-                <div>
+                <div v-if="!isTestimonialType">
                     <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                         {{ $t('super_admin.pages.fields.items') }}
                     </label>
                     <textarea v-model="itemsLines" rows="4"
                         class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"></textarea>
+                </div>
+
+                <div v-if="isTestimonialType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700">
+                    <div class="mb-3">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('super_admin.pages.testimonial.title') }}
+                        </h2>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.pages.testimonial.subtitle') }}
+                        </p>
+                    </div>
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <FloatingInput v-model="form.content.testimonial_author"
+                            :label="$t('super_admin.pages.common.testimonial_author')" />
+                        <FloatingInput v-model="form.content.testimonial_role"
+                            :label="$t('super_admin.pages.common.testimonial_role')" />
+                    </div>
                 </div>
 
                 <div class="grid gap-3 md:grid-cols-2">

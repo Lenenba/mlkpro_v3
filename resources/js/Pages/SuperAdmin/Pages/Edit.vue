@@ -64,6 +64,7 @@ const form = useForm({
 });
 
 const sectionItemsLines = ref({});
+const sectionAsideItemsLines = ref({});
 const visibilityRoleLines = ref({});
 const visibilityPlanLines = ref({});
 const assetPickerOpen = ref(false);
@@ -188,13 +189,21 @@ const editorAiPrompt = computed(() => t('super_admin.support.editor.ai_prompt'))
 
 const layoutOptions = computed(() => [
     { value: 'split', label: t('super_admin.pages.layouts.split') },
+    { value: 'duo', label: t('super_admin.pages.layouts.duo') },
+    { value: 'testimonial', label: t('super_admin.pages.layouts.testimonial') },
     { value: 'stack', label: t('super_admin.pages.layouts.stack') },
+    { value: 'contact', label: t('super_admin.pages.layouts.contact') },
 ]);
 
 const alignmentOptions = computed(() => [
     { value: 'left', label: t('super_admin.pages.alignments.left') },
     { value: 'center', label: t('super_admin.pages.alignments.center') },
     { value: 'right', label: t('super_admin.pages.alignments.right') },
+]);
+
+const imagePositionOptions = computed(() => [
+    { value: 'left', label: t('super_admin.pages.image_positions.left') },
+    { value: 'right', label: t('super_admin.pages.image_positions.right') },
 ]);
 
 const headerBackgroundTypeOptions = computed(() => [
@@ -285,6 +294,7 @@ const visibleThemeColorFields = computed(() =>
 );
 
 const selectedLibraryId = ref('');
+const selectedSectionLayout = ref('split');
 
 const linesToArray = (value) =>
     String(value || '')
@@ -316,6 +326,46 @@ const ensureHeader = (header) => ({
     alignment: header?.alignment || 'center',
 });
 
+const sectionPreset = (layout) => {
+    if (layout === 'duo') {
+        return {
+            layout: 'duo',
+            image_position: 'left',
+            alignment: 'left',
+            tone: 'contrast',
+            background_color: '#0f172a',
+        };
+    }
+
+    if (layout === 'testimonial') {
+        return {
+            layout: 'testimonial',
+            image_position: 'right',
+            alignment: 'left',
+            background_color: '#e5ecef',
+        };
+    }
+
+    if (layout === 'stack') {
+        return {
+            layout: 'stack',
+            alignment: 'center',
+        };
+    }
+
+    if (layout === 'contact') {
+        return {
+            layout: 'contact',
+            alignment: 'left',
+        };
+    }
+
+    return {
+        layout: 'split',
+        alignment: 'left',
+    };
+};
+
 const parseCommaList = (value) =>
     String(value || '')
         .split(',')
@@ -329,6 +379,7 @@ const ensureSection = (section, index) => ({
     use_source: section?.use_source ?? false,
     background_color: section?.background_color ?? '',
     layout: section?.layout || 'split',
+    image_position: section?.image_position || 'left',
     alignment: section?.alignment || 'left',
     density: section?.density || 'normal',
     tone: section?.tone || 'default',
@@ -337,6 +388,14 @@ const ensureSection = (section, index) => ({
     title: section?.title || '',
     body: section?.body || '',
     items: Array.isArray(section?.items) ? section.items : [],
+    testimonial_author: section?.testimonial_author || '',
+    testimonial_role: section?.testimonial_role || '',
+    aside_kicker: section?.aside_kicker || '',
+    aside_title: section?.aside_title || '',
+    aside_body: section?.aside_body || '',
+    aside_items: Array.isArray(section?.aside_items) ? section.aside_items : [],
+    aside_link_label: section?.aside_link_label || '',
+    aside_link_href: section?.aside_link_href || '',
     image_url: section?.image_url || '',
     image_alt: section?.image_alt || '',
     embed_url: section?.embed_url || '',
@@ -365,10 +424,13 @@ const ensureStructure = (content) => {
 
 const rebuildItemsLines = () => {
     const map = {};
+    const asideMap = {};
     (form.content.sections || []).forEach((section) => {
         map[section.id] = (section.items || []).join('\n');
+        asideMap[section.id] = (section.aside_items || []).join('\n');
     });
     sectionItemsLines.value = map;
+    sectionAsideItemsLines.value = asideMap;
     const rolesMap = {};
     const plansMap = {};
     (form.content.sections || []).forEach((section) => {
@@ -407,6 +469,11 @@ const updateSectionItems = (section, value) => {
     section.items = linesToArray(value);
 };
 
+const updateSectionAsideItems = (section, value) => {
+    sectionAsideItemsLines.value = { ...sectionAsideItemsLines.value, [section.id]: value };
+    section.aside_items = linesToArray(value);
+};
+
 const updateVisibilityList = (section, key, value) => {
     if (!section?.visibility) {
         section.visibility = ensureVisibility({});
@@ -419,6 +486,18 @@ const updateVisibilityList = (section, key, value) => {
     }
     section.visibility[key] = parseCommaList(value);
 };
+
+const backgroundFieldLabel = (section) => (
+    section?.layout === 'duo'
+        ? t('super_admin.pages.common.panel_background_hex')
+        : t('super_admin.pages.common.background_hex')
+);
+
+const backgroundHeadingLabel = (section) => (
+    section?.layout === 'duo'
+        ? t('super_admin.pages.common.panel_background')
+        : t('super_admin.pages.common.background')
+);
 
 const openAssetPicker = (target, urlKey = 'image_url', altKey = 'image_alt') => {
     if (!target) return;
@@ -464,10 +543,24 @@ const applyLibraryToSection = (section) => {
         return;
     }
     section.use_source = true;
+    section.background_color = content.background_color ?? section.background_color ?? '';
+    section.layout = content.layout ?? section.layout ?? 'split';
+    section.image_position = content.image_position ?? section.image_position ?? 'left';
+    section.alignment = content.alignment ?? section.alignment ?? 'left';
+    section.density = content.density ?? section.density ?? 'normal';
+    section.tone = content.tone ?? section.tone ?? 'default';
     section.kicker = content.kicker ?? '';
     section.title = content.title ?? '';
     section.body = content.body ?? '';
     section.items = Array.isArray(content.items) ? content.items : [];
+    section.testimonial_author = content.testimonial_author ?? '';
+    section.testimonial_role = content.testimonial_role ?? '';
+    section.aside_kicker = content.aside_kicker ?? '';
+    section.aside_title = content.aside_title ?? '';
+    section.aside_body = content.aside_body ?? '';
+    section.aside_items = Array.isArray(content.aside_items) ? content.aside_items : [];
+    section.aside_link_label = content.aside_link_label ?? '';
+    section.aside_link_href = content.aside_link_href ?? '';
     section.image_url = content.image_url ?? '';
     section.image_alt = content.image_alt ?? '';
     section.embed_url = content.embed_url ?? '';
@@ -515,6 +608,7 @@ const addSection = () => {
         ensureSection(
             {
                 id: `section-${Date.now()}`,
+                ...sectionPreset(selectedSectionLayout.value),
             },
             nextIndex
         )
@@ -778,15 +872,22 @@ syncFormFromProps(currentLocale.value);
             </section>
 
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 space-y-4">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-wrap items-end justify-between gap-3">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                         {{ $t('super_admin.pages.sections.title') }}
                     </h2>
-                    <button type="button"
-                        class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                        @click="addSection">
-                        {{ $t('super_admin.pages.sections.add') }}
-                    </button>
+                    <div class="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(220px,15rem)_auto] sm:items-end">
+                        <FloatingSelect
+                            v-model="selectedSectionLayout"
+                            :options="layoutOptions"
+                            :label="$t('super_admin.pages.sections.add_type')"
+                        />
+                        <button type="button"
+                            class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            @click="addSection">
+                            {{ $t('super_admin.pages.sections.add') }}
+                        </button>
+                    </div>
                 </div>
 
                 <div class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700">
@@ -838,6 +939,8 @@ syncFormFromProps(currentLocale.value);
                         <div class="grid gap-3 md:grid-cols-2">
                             <FloatingSelect v-model="section.layout" :options="layoutOptions"
                                 :label="$t('super_admin.pages.fields.layout')" />
+                            <FloatingSelect v-if="['duo', 'testimonial'].includes(section.layout)" v-model="section.image_position" :options="imagePositionOptions"
+                                :label="$t('super_admin.pages.fields.image_position')" />
                             <FloatingSelect v-model="section.alignment" :options="alignmentOptions"
                                 :label="$t('super_admin.pages.common.alignment')" />
                             <FloatingSelect v-model="section.density" :options="densityOptions"
@@ -846,14 +949,14 @@ syncFormFromProps(currentLocale.value);
                                 :label="$t('super_admin.pages.common.tone')" />
                             <div class="grid gap-2 md:col-span-2 md:grid-cols-[140px_1fr] md:items-center">
                                 <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.pages.common.background') }}
+                                    {{ backgroundHeadingLabel(section) }}
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
                                     <input v-model="section.background_color" type="color"
                                         class="h-10 w-14 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
                                     <div class="min-w-[200px] flex-1">
                                         <FloatingInput v-model="section.background_color"
-                                            :label="$t('super_admin.pages.common.background_hex')" />
+                                            :label="backgroundFieldLabel(section)" />
                                     </div>
                                 </div>
                             </div>
@@ -894,13 +997,80 @@ syncFormFromProps(currentLocale.value);
                             </div>
                         </div>
 
-                        <div>
+                        <div
+                            v-if="section.layout === 'testimonial'"
+                            class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3"
+                        >
+                            <div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.testimonial.title') }}
+                                </h3>
+                                <p class="text-xs text-stone-500 dark:text-neutral-500">
+                                    {{ $t('super_admin.pages.testimonial.subtitle') }}
+                                </p>
+                            </div>
+
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <FloatingInput v-model="section.testimonial_author" :label="$t('super_admin.pages.common.testimonial_author')" />
+                                <FloatingInput v-model="section.testimonial_role" :label="$t('super_admin.pages.common.testimonial_role')" />
+                            </div>
+                        </div>
+
+                        <div v-if="section.layout !== 'testimonial'">
                             <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 {{ $t('super_admin.pages.fields.items') }}
                             </label>
                             <textarea :value="sectionItemsLines[section.id] ?? (section.items || []).join('\n')" rows="4"
                                 class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                                 @input="updateSectionItems(section, $event.target.value)"></textarea>
+                        </div>
+
+                        <div
+                            v-if="section.layout === 'contact'"
+                            class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3"
+                        >
+                            <div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.contact_aside.title') }}
+                                </h3>
+                                <p class="text-xs text-stone-500 dark:text-neutral-500">
+                                    {{ $t('super_admin.pages.contact_aside.subtitle') }}
+                                </p>
+                            </div>
+
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <FloatingInput v-model="section.aside_kicker" :label="$t('super_admin.pages.common.aside_kicker')" />
+                                <FloatingInput v-model="section.aside_title" :label="$t('super_admin.pages.common.aside_title')" />
+                                <div class="md:col-span-2">
+                                    <RichTextEditor
+                                        v-model="section.aside_body"
+                                        :label="$t('super_admin.pages.common.aside_body')"
+                                        :link-prompt="editorLinkPrompt"
+                                        :image-prompt="editorImagePrompt"
+                                        :ai-enabled="ai_enabled"
+                                        :ai-generate-url="ai_image_generate_url"
+                                        :ai-prompt="editorAiPrompt"
+                                        :labels="editorLabels"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.common.aside_items') }}
+                                </label>
+                                <textarea
+                                    :value="sectionAsideItemsLines[section.id] ?? (section.aside_items || []).join('\n')"
+                                    rows="4"
+                                    class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                    @input="updateSectionAsideItems(section, $event.target.value)"
+                                ></textarea>
+                            </div>
+
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <FloatingInput v-model="section.aside_link_label" :label="$t('super_admin.pages.common.aside_link_label')" />
+                                <FloatingInput v-model="section.aside_link_href" :label="$t('super_admin.pages.common.aside_link_href')" />
+                            </div>
                         </div>
 
                         <div class="grid gap-3 md:grid-cols-2">

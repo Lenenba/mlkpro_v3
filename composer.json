@@ -64,7 +64,7 @@
         ],
         "dev": "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"npm run dev\" --names='server,queue,vite'",
         "test:safe": "powershell -ExecutionPolicy Bypass -File scripts/run-tests-safe.ps1",
-        "qa:test": "@php artisan test",
+        "qa:test": "@php -d memory_limit=512M artisan test",
         "qa:test:mysql": "powershell -ExecutionPolicy Bypass -File scripts/run-tests-mysql.ps1",
         "qa:format": "@php scripts/run-pint-diff.php",
         "qa:analyse": "vendor/bin/phpstan analyse --memory-limit=1G",

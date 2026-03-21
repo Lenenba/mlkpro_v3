@@ -102,6 +102,7 @@ class PlatformPageContentService
                     'use_source' => array_key_exists('use_source', $section) ? (bool) $section['use_source'] : false,
                     'background_color' => $this->cleanColor($section['background_color'] ?? null) ?? '',
                     'layout' => $this->cleanLayout($section['layout'] ?? 'split'),
+                    'image_position' => $this->cleanImagePosition($section['image_position'] ?? 'left'),
                     'alignment' => $this->cleanAlignment($section['alignment'] ?? 'left'),
                     'density' => $this->cleanDensity($section['density'] ?? 'normal'),
                     'tone' => $this->cleanTone($section['tone'] ?? 'default'),
@@ -110,6 +111,14 @@ class PlatformPageContentService
                     'title' => $this->cleanText($section['title'] ?? ''),
                     'body' => $this->cleanHtml($section['body'] ?? ''),
                     'items' => $this->sanitizeStringList($section['items'] ?? []),
+                    'testimonial_author' => $this->cleanText($section['testimonial_author'] ?? ''),
+                    'testimonial_role' => $this->cleanText($section['testimonial_role'] ?? ''),
+                    'aside_kicker' => $this->cleanText($section['aside_kicker'] ?? ''),
+                    'aside_title' => $this->cleanText($section['aside_title'] ?? ''),
+                    'aside_body' => $this->cleanHtml($section['aside_body'] ?? ''),
+                    'aside_items' => $this->sanitizeStringList($section['aside_items'] ?? []),
+                    'aside_link_label' => $this->cleanText($section['aside_link_label'] ?? ''),
+                    'aside_link_href' => $this->cleanText($section['aside_link_href'] ?? ''),
                     'image_url' => $this->cleanText($section['image_url'] ?? ''),
                     'image_alt' => $this->cleanText($section['image_alt'] ?? ''),
                     'embed_url' => $this->sanitizeEmbedUrl($section['embed_url'] ?? ''),
@@ -194,6 +203,7 @@ class PlatformPageContentService
             'use_source' => false,
             'background_color' => '',
             'layout' => 'split',
+            'image_position' => 'left',
             'alignment' => 'left',
             'density' => 'normal',
             'tone' => 'default',
@@ -202,6 +212,14 @@ class PlatformPageContentService
             'title' => '',
             'body' => '',
             'items' => [],
+            'testimonial_author' => '',
+            'testimonial_role' => '',
+            'aside_kicker' => '',
+            'aside_title' => '',
+            'aside_body' => '',
+            'aside_items' => [],
+            'aside_link_label' => '',
+            'aside_link_href' => '',
             'image_url' => '',
             'image_alt' => '',
             'embed_url' => '',
@@ -261,6 +279,7 @@ class PlatformPageContentService
                 'use_source' => array_key_exists('use_source', $section) ? (bool) $section['use_source'] : false,
                 'background_color' => $this->cleanColor($section['background_color'] ?? null) ?? '',
                 'layout' => $this->cleanLayout($section['layout'] ?? 'split'),
+                'image_position' => $this->cleanImagePosition($section['image_position'] ?? 'left'),
                 'alignment' => $this->cleanAlignment($section['alignment'] ?? 'left'),
                 'density' => $this->cleanDensity($section['density'] ?? 'normal'),
                 'tone' => $this->cleanTone($section['tone'] ?? 'default'),
@@ -269,6 +288,14 @@ class PlatformPageContentService
                 'title' => $this->cleanText($section['title'] ?? ''),
                 'body' => $this->cleanHtml($section['body'] ?? ''),
                 'items' => $this->sanitizeStringList($section['items'] ?? []),
+                'testimonial_author' => $this->cleanText($section['testimonial_author'] ?? ''),
+                'testimonial_role' => $this->cleanText($section['testimonial_role'] ?? ''),
+                'aside_kicker' => $this->cleanText($section['aside_kicker'] ?? ''),
+                'aside_title' => $this->cleanText($section['aside_title'] ?? ''),
+                'aside_body' => $this->cleanHtml($section['aside_body'] ?? ''),
+                'aside_items' => $this->sanitizeStringList($section['aside_items'] ?? []),
+                'aside_link_label' => $this->cleanText($section['aside_link_label'] ?? ''),
+                'aside_link_href' => $this->cleanText($section['aside_link_href'] ?? ''),
                 'image_url' => $this->cleanText($section['image_url'] ?? ''),
                 'image_alt' => $this->cleanText($section['image_alt'] ?? ''),
                 'embed_url' => $this->sanitizeEmbedUrl($section['embed_url'] ?? ''),
@@ -355,7 +382,7 @@ class PlatformPageContentService
 
         $previous = libxml_use_internal_errors(true);
         $doc = new \DOMDocument('1.0', 'UTF-8');
-        $doc->loadHTML('<div>'.$html.'</div>', \LIBXML_HTML_NOIMPLIED | \LIBXML_HTML_NODEFDTD);
+        $doc->loadHTML('<?xml encoding="UTF-8"><div>'.$html.'</div>', \LIBXML_HTML_NOIMPLIED | \LIBXML_HTML_NODEFDTD);
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
 
@@ -524,7 +551,7 @@ class PlatformPageContentService
     {
         $layout = $this->cleanText($value);
 
-        return in_array($layout, ['split', 'stack'], true) ? $layout : 'split';
+        return in_array($layout, ['split', 'duo', 'stack', 'contact', 'testimonial'], true) ? $layout : 'split';
     }
 
     private function cleanAlignment($value): string
@@ -532,6 +559,13 @@ class PlatformPageContentService
         $alignment = $this->cleanText($value);
 
         return in_array($alignment, ['left', 'center', 'right'], true) ? $alignment : 'left';
+    }
+
+    private function cleanImagePosition($value): string
+    {
+        $position = $this->cleanText($value);
+
+        return in_array($position, ['left', 'right'], true) ? $position : 'left';
     }
 
     private function cleanDensity($value): string
@@ -754,11 +788,22 @@ class PlatformPageContentService
         $section['kicker'] = $section['kicker'] !== '' ? $section['kicker'] : ($source['kicker'] ?? '');
         $section['title'] = $section['title'] !== '' ? $section['title'] : ($source['title'] ?? '');
         $section['body'] = $section['body'] !== '' ? $section['body'] : ($source['body'] ?? '');
+        $section['image_position'] = $section['image_position'] !== '' ? $section['image_position'] : ($source['image_position'] ?? 'left');
 
         if (empty($section['items'])) {
             $section['items'] = $source['items'] ?? [];
         }
 
+        $section['testimonial_author'] = $section['testimonial_author'] !== '' ? $section['testimonial_author'] : ($source['testimonial_author'] ?? '');
+        $section['testimonial_role'] = $section['testimonial_role'] !== '' ? $section['testimonial_role'] : ($source['testimonial_role'] ?? '');
+        $section['aside_kicker'] = $section['aside_kicker'] !== '' ? $section['aside_kicker'] : ($source['aside_kicker'] ?? '');
+        $section['aside_title'] = $section['aside_title'] !== '' ? $section['aside_title'] : ($source['aside_title'] ?? '');
+        $section['aside_body'] = $section['aside_body'] !== '' ? $section['aside_body'] : ($source['aside_body'] ?? '');
+        if (empty($section['aside_items'])) {
+            $section['aside_items'] = $source['aside_items'] ?? [];
+        }
+        $section['aside_link_label'] = $section['aside_link_label'] !== '' ? $section['aside_link_label'] : ($source['aside_link_label'] ?? '');
+        $section['aside_link_href'] = $section['aside_link_href'] !== '' ? $section['aside_link_href'] : ($source['aside_link_href'] ?? '');
         $section['image_url'] = $section['image_url'] !== '' ? $section['image_url'] : ($source['image_url'] ?? '');
         $section['image_alt'] = $section['image_alt'] !== '' ? $section['image_alt'] : ($source['image_alt'] ?? '');
         $section['embed_url'] = $section['embed_url'] !== '' ? $section['embed_url'] : ($source['embed_url'] ?? '');

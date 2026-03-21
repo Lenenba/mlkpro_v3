@@ -1625,6 +1625,7 @@
       "sections": {
         "title": "Sections",
         "add": "Add section",
+        "add_type": "Section type to add",
         "section_label": "Section"
       },
       "library": {
@@ -1638,12 +1639,19 @@
       },
       "layouts": {
         "split": "Split (text + image)",
-        "stack": "Stack (centered)"
+        "duo": "2 blocks (image + color panel)",
+        "testimonial": "Testimonial (quote + image)",
+        "stack": "Stack (centered)",
+        "contact": "Contact (3 columns)"
       },
       "alignments": {
         "left": "Left",
         "center": "Center",
         "right": "Right"
+      },
+      "image_positions": {
+        "left": "Image left",
+        "right": "Image right"
       },
       "densities": {
         "compact": "Compact",
@@ -1675,12 +1683,23 @@
         "remove": "Remove",
         "background": "Background",
         "background_hex": "Background color (#hex)",
+        "panel_background": "Content panel background",
+        "panel_background_hex": "Content panel color (#hex)",
+        "image_position": "Image position",
         "alignment": "Alignment",
         "density": "Density",
         "tone": "Tone",
         "kicker": "Kicker",
         "title": "Title",
         "body": "Body",
+        "testimonial_author": "Testimonial author",
+        "testimonial_role": "Testimonial role",
+        "aside_kicker": "Right column kicker",
+        "aside_title": "Right column title",
+        "aside_body": "Right column body",
+        "aside_items": "Right column bullets (one per line)",
+        "aside_link_label": "Right column link label",
+        "aside_link_href": "Right column href/route",
         "image_url": "Image URL",
         "image_alt": "Image alt text",
         "embed_url": "Embedded form URL",
@@ -1690,6 +1709,14 @@
         "primary_href": "Primary href/route",
         "secondary_label": "Secondary label",
         "secondary_href": "Secondary href/route"
+      },
+      "contact_aside": {
+        "title": "Details column",
+        "subtitle": "Add office, support, or contact-point details for the third column."
+      },
+      "testimonial": {
+        "title": "Testimonial attribution",
+        "subtitle": "Add the name and role shown below the quote."
       },
       "theme": {
         "title": "Theme",
@@ -1815,6 +1842,9 @@
         "type": "Type",
         "is_active": "Active"
       },
+      "layout": {
+        "subtitle": "Configure the reusable block visuals before inserting it into a page."
+      },
       "types": {
         "generic": "Generic",
         "hero": "Hero",
@@ -1822,7 +1852,9 @@
         "faq": "FAQ",
         "testimonials": "Testimonials",
         "cta": "Call to action",
-        "gallery": "Gallery"
+        "gallery": "Gallery",
+        "duo": "Reusable 2-block",
+        "testimonial": "Reusable testimonial"
       }
     },
     "assets": {
