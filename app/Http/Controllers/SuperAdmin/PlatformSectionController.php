@@ -14,7 +14,7 @@ use Inertia\Response;
 
 class PlatformSectionController extends BaseSuperAdminController
 {
-    private const TYPES = ['generic', 'hero', 'features', 'faq', 'testimonials', 'cta', 'gallery', 'duo', 'testimonial'];
+    private const TYPES = ['generic', 'hero', 'features', 'faq', 'testimonials', 'cta', 'gallery', 'duo', 'testimonial', 'feature_pairs', 'industry_grid', 'feature_tabs', 'testimonial_grid'];
 
     public function index(Request $request): Response
     {
@@ -201,6 +201,31 @@ class PlatformSectionController extends BaseSuperAdminController
         return redirect()->back()->with('success', 'Section updated.');
     }
 
+    public function duplicate(Request $request, PlatformSection $section): RedirectResponse
+    {
+        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+
+        $payload = is_array($section->content) ? $section->content : [];
+
+        $copy = PlatformSection::create([
+            'name' => $this->duplicateName($section->name),
+            'type' => $section->type,
+            'is_active' => $section->is_active,
+            'content' => array_merge($payload, [
+                'updated_by' => $request->user()?->id,
+                'updated_at' => now()->toIso8601String(),
+            ]),
+            'updated_by' => $request->user()?->id,
+        ]);
+
+        $this->logAudit($request, 'platform_section.duplicated', $copy, [
+            'source_id' => $section->id,
+            'name' => $copy->name,
+        ]);
+
+        return redirect()->route('superadmin.sections.edit', $copy)->with('success', 'Section duplicated.');
+    }
+
     public function destroy(Request $request, PlatformSection $section): RedirectResponse
     {
         $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
@@ -213,5 +238,19 @@ class PlatformSectionController extends BaseSuperAdminController
         ]);
 
         return redirect()->route('superadmin.sections.index')->with('success', 'Section deleted.');
+    }
+
+    private function duplicateName(string $name): string
+    {
+        $base = trim($name) !== '' ? trim($name) : 'Section';
+        $candidate = $base.' Copy';
+        $suffix = 2;
+
+        while (PlatformSection::query()->where('name', $candidate)->exists()) {
+            $candidate = $base.' Copy '.$suffix;
+            $suffix++;
+        }
+
+        return mb_substr($candidate, 0, 160);
     }
 }

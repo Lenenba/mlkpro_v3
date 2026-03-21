@@ -1626,7 +1626,13 @@
         "title": "Sections",
         "add": "Add section",
         "add_type": "Section type to add",
-        "section_label": "Section"
+        "section_label": "Section",
+        "edit": "Edit",
+        "close_editor": "Close",
+        "cards_count": "{count} cards",
+        "tabs_count": "{count} tabs",
+        "items_count": "{count} bullets",
+        "images_count": "{count} images"
       },
       "library": {
         "select": "Library block",
@@ -1641,6 +1647,10 @@
         "split": "Split (text + image)",
         "duo": "2 blocks (image + color panel)",
         "testimonial": "Testimonial (quote + image)",
+        "feature_pairs": "2 images + 2 text blocks",
+        "industry_grid": "Industries (card grid)",
+        "feature_tabs": "Feature tabs (accordion + media)",
+        "testimonial_grid": "Testimonials (card grid)",
         "stack": "Stack (centered)",
         "contact": "Contact (3 columns)"
       },
@@ -1692,6 +1702,31 @@
         "kicker": "Kicker",
         "title": "Title",
         "body": "Body",
+        "card_label": "Card title",
+        "card_href": "Card href/route",
+        "card_icon": "Card icon",
+        "tab_label": "Tab label",
+        "tab_icon": "Tab icon",
+        "tab_title": "Panel title",
+        "tab_body": "Panel body",
+        "tab_items": "Tab sub-points (one per line)",
+        "tab_image_url": "Panel image URL",
+        "tab_image_alt": "Panel image alt text",
+        "tab_cta_label": "Panel CTA label",
+        "tab_cta_href": "Panel CTA href/route",
+        "feature_item_label": "Clickable item label",
+        "feature_item_title": "Clickable item panel title",
+        "feature_item_body": "Clickable item panel body",
+        "feature_item_image_url": "Clickable item image URL",
+        "feature_item_image_alt": "Clickable item image alt text",
+        "feature_item_cta_label": "Clickable item CTA label",
+        "feature_item_cta_href": "Clickable item CTA href/route",
+        "testimonial_card_quote": "Quote",
+        "testimonial_card_author_name": "Name",
+        "testimonial_card_author_role": "Role",
+        "testimonial_card_author_company": "Company",
+        "testimonial_card_image_url": "Photo URL",
+        "testimonial_card_image_alt": "Photo alt text",
         "testimonial_author": "Testimonial author",
         "testimonial_role": "Testimonial role",
         "aside_kicker": "Right column kicker",
@@ -1700,6 +1735,8 @@
         "aside_items": "Right column bullets (one per line)",
         "aside_link_label": "Right column link label",
         "aside_link_href": "Right column href/route",
+        "aside_image_url": "Block 2 image URL",
+        "aside_image_alt": "Block 2 image alt text",
         "image_url": "Image URL",
         "image_alt": "Image alt text",
         "embed_url": "Embedded form URL",
@@ -1717,6 +1754,35 @@
       "testimonial": {
         "title": "Testimonial attribution",
         "subtitle": "Add the name and role shown below the quote."
+      },
+      "feature_pairs": {
+        "secondary_title": "Text + image block 2",
+        "secondary_subtitle": "Configure the alternate secondary content and image."
+      },
+      "industry_grid": {
+        "cards_title": "Industry cards",
+        "cards_subtitle": "Add the industries shown in the grid and an optional link for each card.",
+        "icon_auto": "Automatic icon",
+        "add_card": "Add card",
+        "card_label": "Card {number}"
+      },
+      "testimonial_grid": {
+        "title": "Testimonial grid",
+        "subtitle": "Add the quotes, names, and photos displayed in the card grid.",
+        "add_card": "Add testimonial",
+        "card_label": "Testimonial {number}"
+      },
+      "feature_tabs": {
+        "title": "Feature tabs",
+        "subtitle": "Add the accordion groups on the left and the detailed content shown on the right.",
+        "add_tab": "Add tab",
+        "tab_label": "Tab {number}",
+        "font_size_label": "Accordion title size (px)",
+        "icon_auto": "Select an icon",
+        "children_title": "Clickable items",
+        "children_subtitle": "Each item can control its own text, image, and CTA in the right-side panel.",
+        "add_child": "Add clickable item",
+        "child_label": "Item {number}"
       },
       "theme": {
         "title": "Theme",
@@ -1814,6 +1880,7 @@
         "back_list": "Back to sections",
         "create": "New section",
         "edit": "Edit",
+        "duplicate": "Duplicate",
         "delete": "Delete",
         "save": "Save section",
         "confirm_delete": "Delete {name}?"
@@ -1854,7 +1921,11 @@
         "cta": "Call to action",
         "gallery": "Gallery",
         "duo": "Reusable 2-block",
-        "testimonial": "Reusable testimonial"
+        "testimonial": "Reusable testimonial",
+        "feature_pairs": "Reusable 2 images + 2 text blocks",
+        "industry_grid": "Reusable industries",
+        "feature_tabs": "Reusable feature tabs",
+        "testimonial_grid": "Reusable testimonials"
       }
     },
     "assets": {

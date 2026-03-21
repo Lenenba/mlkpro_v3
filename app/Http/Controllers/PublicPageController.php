@@ -57,6 +57,7 @@ class PublicPageController extends Controller
             'content' => $service->resolveForLocale($page, $locale),
             'plan_key' => $planKey,
             'megaMenu' => app(MegaMenuRenderer::class)->resolveForLocation('header', 'public-pages'),
+            'footerMenu' => app(MegaMenuRenderer::class)->resolveForLocation('footer', 'public-pages'),
         ]);
     }
 }

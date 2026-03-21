@@ -1,9 +1,13 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
+import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
 import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import { ArrowRight, ChevronDown, ChevronRight } from 'lucide-vue-next';
+import { resolveIndustryIconComponent } from '@/utils/industryGrid';
+import { resolveFeatureTabIconComponent } from '@/utils/featureTabs';
 
 const props = defineProps({
     page: { type: Object, required: true },
@@ -24,6 +28,7 @@ const props = defineProps({
     },
     plan_key: { type: String, default: null },
     megaMenu: { type: Object, default: () => ({}) },
+    footerMenu: { type: Object, default: () => ({}) },
 });
 
 const page = usePage();
@@ -119,6 +124,8 @@ const themeStyle = computed(() => {
 const primaryButtonClass = computed(() => `public-button--${theme.value?.button_style || 'solid'}`);
 const embeddedFrameRefs = ref({});
 const embeddedFrameHeights = ref({});
+const openFeatureTabIds = ref({});
+const activeFeaturePanelIds = ref({});
 
 const pageHeader = computed(() => ({
     background_type: props.content?.header?.background_type || 'none',
@@ -403,9 +410,239 @@ const sections = computed(() =>
     (props.content.sections || []).filter((section) => section && section.enabled !== false && matchesVisibility(section))
 );
 
+const testimonialCardsForSection = (section) => (
+    Array.isArray(section?.testimonial_cards) ? section.testimonial_cards : []
+);
+
+const testimonialCardInitials = (card) => {
+    const parts = String(card?.author_name || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2);
+
+    const initials = parts.map((part) => part.charAt(0).toUpperCase()).join('');
+    return initials || '?';
+};
+
+const testimonialCardMetaLine = (card) => (
+    [card?.author_role, card?.author_company]
+        .map((value) => String(value || '').trim())
+        .filter((value) => value.length > 0)
+        .join(' - ')
+);
+
+const featureTabsForSection = (section) => (
+    Array.isArray(section?.feature_tabs) ? section.feature_tabs : []
+);
+
+const featureTabsStyle = (section) => {
+    const size = Number(section?.feature_tabs_font_size);
+
+    if (!Number.isFinite(size) || size <= 0) {
+        return {};
+    }
+
+    return {
+        '--feature-tabs-trigger-label-size': `${Math.min(Math.max(size, 18), 40)}px`,
+    };
+};
+
+const featureTabChildren = (tab) => (
+    Array.isArray(tab?.children) ? tab.children : []
+);
+
+const featurePanelKeyForTab = (tab) => (
+    tab?.id ? `tab:${tab.id}` : ''
+);
+
+const featurePanelKeyForChild = (tab, child) => (
+    tab?.id && child?.id ? `child:${tab.id}:${child.id}` : ''
+);
+
+const buildFeaturePanelFromTab = (tab) => (
+    tab
+        ? {
+            key: featurePanelKeyForTab(tab),
+            tabId: tab.id,
+            childId: null,
+            label: tab.label || '',
+            title: tab.title || tab.label || '',
+            body: tab.body || '',
+            image_url: tab.image_url || '',
+            image_alt: tab.image_alt || '',
+            cta_label: tab.cta_label || '',
+            cta_href: tab.cta_href || '',
+            source: 'tab',
+        }
+        : null
+);
+
+const buildFeaturePanelFromChild = (tab, child) => (
+    tab && child
+        ? {
+            key: featurePanelKeyForChild(tab, child),
+            tabId: tab.id,
+            childId: child.id,
+            label: child.label || '',
+            title: child.title || tab.title || child.label || tab.label || '',
+            body: child.body || '',
+            image_url: child.image_url || tab.image_url || '',
+            image_alt: child.image_alt || tab.image_alt || '',
+            cta_label: child.cta_label || tab.cta_label || '',
+            cta_href: child.cta_href || tab.cta_href || '',
+            source: 'child',
+        }
+        : null
+);
+
+const resolveFeaturePanel = (section, key) => {
+    const tabs = featureTabsForSection(section);
+    if (!tabs.length) {
+        return null;
+    }
+
+    if (!key) {
+        return null;
+    }
+
+    for (const tab of tabs) {
+        if (featurePanelKeyForTab(tab) === key) {
+            return buildFeaturePanelFromTab(tab);
+        }
+
+        for (const child of featureTabChildren(tab)) {
+            if (featurePanelKeyForChild(tab, child) === key) {
+                return buildFeaturePanelFromChild(tab, child);
+            }
+        }
+    }
+
+    return null;
+};
+
+const defaultFeaturePanel = (section) => {
+    const tabs = featureTabsForSection(section);
+    for (const tab of tabs) {
+        const firstChild = featureTabChildren(tab)[0];
+        if (firstChild) {
+            return buildFeaturePanelFromChild(tab, firstChild);
+        }
+    }
+
+    return tabs[0] ? buildFeaturePanelFromTab(tabs[0]) : null;
+};
+
+const openFeatureTabId = (section, index) => {
+    const tabs = featureTabsForSection(section);
+    if (!tabs.length) {
+        return null;
+    }
+
+    const sectionKey = resolveSectionKey(section, index);
+    if (Object.prototype.hasOwnProperty.call(openFeatureTabIds.value, sectionKey)) {
+        return openFeatureTabIds.value[sectionKey];
+    }
+
+    return tabs[0]?.id || null;
+};
+
+const activeFeaturePanel = (section, index) => {
+    const sectionKey = resolveSectionKey(section, index);
+    const storedKey = activeFeaturePanelIds.value[sectionKey];
+
+    return resolveFeaturePanel(section, storedKey) || defaultFeaturePanel(section);
+};
+
+const isFeatureTabOpen = (section, index, tab) => (
+    openFeatureTabId(section, index) === tab?.id
+);
+
+const isCurrentFeatureTab = (section, index, tab) => (
+    Boolean(openFeatureTabId(section, index)) && activeFeaturePanel(section, index)?.tabId === tab?.id
+);
+
+const isActiveFeatureTabChild = (section, index, tab, child) => {
+    const panel = activeFeaturePanel(section, index);
+    return panel?.tabId === tab?.id && panel?.childId === child?.id;
+};
+
+const toggleFeatureTab = (section, index, tab) => {
+    if (!tab?.id) {
+        return;
+    }
+
+    const sectionKey = resolveSectionKey(section, index);
+    const isOpen = openFeatureTabId(section, index) === tab.id;
+
+    openFeatureTabIds.value = {
+        ...openFeatureTabIds.value,
+        [sectionKey]: isOpen ? null : tab.id,
+    };
+
+    if (isOpen) {
+        return;
+    }
+
+    const currentPanel = activeFeaturePanel(section, index);
+    if (currentPanel?.tabId === tab.id) {
+        return;
+    }
+
+    const nextPanel = featureTabChildren(tab)[0]
+        ? buildFeaturePanelFromChild(tab, featureTabChildren(tab)[0])
+        : buildFeaturePanelFromTab(tab);
+
+    if (!nextPanel) {
+        return;
+    }
+
+    activeFeaturePanelIds.value = {
+        ...activeFeaturePanelIds.value,
+        [sectionKey]: nextPanel.key,
+    };
+};
+
+const setActiveFeatureTabChild = (section, index, tab, child) => {
+    const panel = buildFeaturePanelFromChild(tab, child);
+    if (!panel) {
+        return;
+    }
+
+    const sectionKey = resolveSectionKey(section, index);
+    openFeatureTabIds.value = {
+        ...openFeatureTabIds.value,
+        [sectionKey]: tab.id,
+    };
+    activeFeaturePanelIds.value = {
+        ...activeFeaturePanelIds.value,
+        [sectionKey]: panel.key,
+    };
+};
+
+const showFeatureTabChildren = (section, index, tab) => (
+    isFeatureTabOpen(section, index, tab) && featureTabChildren(tab).length > 0
+);
+
 const sectionContainerClass = (section) => {
     if (section?.layout === 'duo') {
         return 'public-container public-container--duo';
+    }
+
+    if (section?.layout === 'feature_pairs') {
+        return 'public-container public-container--feature-pairs';
+    }
+
+    if (section?.layout === 'industry_grid') {
+        return 'public-container public-container--industry-grid';
+    }
+
+    if (section?.layout === 'testimonial_grid') {
+        return 'public-container public-container--testimonial-grid';
+    }
+
+    if (section?.layout === 'feature_tabs') {
+        return 'public-container public-container--feature-tabs';
     }
 
     return section?.embed_url
@@ -417,6 +654,18 @@ const layoutClass = (section) => {
     const layout = section?.layout;
     if (layout === 'testimonial') {
         return 'public-testimonial-shell';
+    }
+    if (layout === 'feature_pairs') {
+        return 'public-feature-pairs-shell';
+    }
+    if (layout === 'industry_grid') {
+        return 'public-industry-grid-shell';
+    }
+    if (layout === 'testimonial_grid') {
+        return 'public-testimonial-grid-shell';
+    }
+    if (layout === 'feature_tabs') {
+        return 'public-feature-tabs-shell';
     }
     if (layout === 'duo') {
         return 'public-duo-grid';
@@ -447,6 +696,16 @@ const sectionHasTestimonialMeta = (section) =>
         section?.testimonial_author ||
         section?.testimonial_role ||
         section?.secondary_label
+    );
+
+const sectionHasFeaturePairsAside = (section) =>
+    Boolean(
+        section?.aside_kicker ||
+        section?.aside_title ||
+        section?.aside_body ||
+        section?.aside_items?.length ||
+        section?.aside_link_label ||
+        section?.aside_image_url
     );
 
 const alignmentClass = (alignment) => {
@@ -569,6 +828,10 @@ const headerMenuItems = computed(() => ([
                 :class="['public-section public-block', densityClass(section.density), toneClass(section.tone), {
                     'public-block--duo': section.layout === 'duo',
                     'public-block--testimonial': section.layout === 'testimonial',
+                    'public-block--feature-pairs': section.layout === 'feature_pairs',
+                    'public-block--industry-grid': section.layout === 'industry_grid',
+                    'public-block--testimonial-grid': section.layout === 'testimonial_grid',
+                    'public-block--feature-tabs': section.layout === 'feature_tabs',
                 }]"
                 :style="sectionStyle(section)">
                 <div :class="sectionContainerClass(section)">
@@ -786,6 +1049,451 @@ const headerMenuItems = computed(() => ([
                             </div>
                         </template>
 
+                        <template v-else-if="section.layout === 'testimonial_grid'">
+                            <div class="public-testimonial-grid">
+                                <div
+                                    v-if="section.kicker || section.title || section.body || section.primary_label || section.secondary_label"
+                                    class="public-testimonial-grid__header"
+                                    :class="alignmentClass(section.alignment)"
+                                >
+                                    <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
+                                    <h2 v-if="section.title" class="public-testimonial-grid__title">{{ section.title }}</h2>
+                                    <div
+                                        v-if="section.body"
+                                        class="public-rich public-testimonial-grid__body"
+                                        v-html="section.body"
+                                    ></div>
+
+                                    <div v-if="section.primary_label || section.secondary_label" class="public-testimonial-grid__actions">
+                                        <template v-if="section.primary_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.primary_href))"
+                                                :href="resolveHref(section.primary_href)"
+                                                class="public-inline-link"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.primary_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.primary_href)"
+                                                class="public-inline-link"
+                                            >
+                                                {{ section.primary_label }}
+                                            </Link>
+                                        </template>
+
+                                        <template v-if="section.secondary_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                                :href="resolveHref(section.secondary_href)"
+                                                class="public-inline-link public-inline-link--muted"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.secondary_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.secondary_href)"
+                                                class="public-inline-link public-inline-link--muted"
+                                            >
+                                                {{ section.secondary_label }}
+                                            </Link>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div v-if="testimonialCardsForSection(section).length" class="public-testimonial-grid__cards">
+                                    <article
+                                        v-for="card in testimonialCardsForSection(section)"
+                                        :key="card.id"
+                                        class="public-testimonial-grid__card"
+                                    >
+                                        <div
+                                            v-if="card.quote"
+                                            class="public-rich public-testimonial-grid__quote"
+                                            v-html="card.quote"
+                                        ></div>
+
+                                        <div class="public-testimonial-grid__meta">
+                                            <div class="public-testimonial-grid__avatar" :class="{ 'is-empty': !card.image_url }">
+                                                <img
+                                                    v-if="card.image_url"
+                                                    :src="card.image_url"
+                                                    :alt="card.image_alt || card.author_name"
+                                                    class="h-full w-full object-cover"
+                                                    loading="lazy"
+                                                    decoding="async"
+                                                />
+                                                <span v-else>{{ testimonialCardInitials(card) }}</span>
+                                            </div>
+
+                                            <div class="public-testimonial-grid__person">
+                                                <div v-if="card.author_name" class="public-testimonial-grid__name">{{ card.author_name }}</div>
+                                                <div v-if="testimonialCardMetaLine(card)" class="public-testimonial-grid__role">
+                                                    {{ testimonialCardMetaLine(card) }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-else-if="section.layout === 'feature_pairs'">
+                            <div class="public-feature-pairs">
+                                <article class="public-feature-pairs__row">
+                                    <div
+                                        class="public-feature-pairs__media"
+                                        :class="{ 'public-feature-pairs__media--empty': !section.image_url }"
+                                    >
+                                        <img
+                                            v-if="section.image_url"
+                                            :src="section.image_url"
+                                            :alt="section.image_alt || section.title"
+                                            class="h-full w-full object-cover"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    </div>
+
+                                    <div class="public-feature-pairs__copy" :class="alignmentClass(section.alignment)">
+                                        <div v-if="section.kicker" class="public-feature-pairs__kicker">{{ section.kicker }}</div>
+                                        <h2 v-if="section.title" class="public-feature-pairs__title">{{ section.title }}</h2>
+                                        <div
+                                            v-if="section.body"
+                                            class="public-rich public-feature-pairs__body"
+                                            v-html="section.body"
+                                        ></div>
+
+                                        <ul v-if="section.items?.length" class="public-feature-pairs__list">
+                                            <li v-for="(item, itemIndex) in section.items" :key="itemIndex" class="public-bullet">
+                                                {{ item }}
+                                            </li>
+                                        </ul>
+
+                                        <div v-if="section.primary_label || section.secondary_label" class="flex flex-wrap gap-3">
+                                            <template v-if="section.primary_label">
+                                                <a
+                                                    v-if="isExternalHref(resolveHref(section.primary_href))"
+                                                    :href="resolveHref(section.primary_href)"
+                                                    class="public-feature-pairs__link"
+                                                    rel="noopener noreferrer"
+                                                    target="_blank"
+                                                >
+                                                    {{ section.primary_label }}
+                                                </a>
+                                                <Link
+                                                    v-else
+                                                    :href="resolveHref(section.primary_href)"
+                                                    class="public-feature-pairs__link"
+                                                >
+                                                    {{ section.primary_label }}
+                                                </Link>
+                                            </template>
+
+                                            <template v-if="section.secondary_label">
+                                                <a
+                                                    v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                                    :href="resolveHref(section.secondary_href)"
+                                                    class="public-feature-pairs__link public-feature-pairs__link--muted"
+                                                    rel="noopener noreferrer"
+                                                    target="_blank"
+                                                >
+                                                    {{ section.secondary_label }}
+                                                </a>
+                                                <Link
+                                                    v-else
+                                                    :href="resolveHref(section.secondary_href)"
+                                                    class="public-feature-pairs__link public-feature-pairs__link--muted"
+                                                >
+                                                    {{ section.secondary_label }}
+                                                </Link>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </article>
+
+                                <article v-if="sectionHasFeaturePairsAside(section)" class="public-feature-pairs__row public-feature-pairs__row--reverse">
+                                    <div class="public-feature-pairs__copy" :class="alignmentClass(section.alignment)">
+                                        <div v-if="section.aside_kicker" class="public-feature-pairs__kicker">{{ section.aside_kicker }}</div>
+                                        <h2 v-if="section.aside_title" class="public-feature-pairs__title">{{ section.aside_title }}</h2>
+                                        <div
+                                            v-if="section.aside_body"
+                                            class="public-rich public-feature-pairs__body"
+                                            v-html="section.aside_body"
+                                        ></div>
+
+                                        <ul v-if="section.aside_items?.length" class="public-feature-pairs__list">
+                                            <li v-for="(item, itemIndex) in section.aside_items" :key="`feature-aside-${itemIndex}`" class="public-bullet">
+                                                {{ item }}
+                                            </li>
+                                        </ul>
+
+                                        <template v-if="section.aside_link_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.aside_link_href))"
+                                                :href="resolveHref(section.aside_link_href)"
+                                                class="public-feature-pairs__link"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.aside_link_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.aside_link_href)"
+                                                class="public-feature-pairs__link"
+                                            >
+                                                {{ section.aside_link_label }}
+                                            </Link>
+                                        </template>
+                                    </div>
+
+                                    <div
+                                        class="public-feature-pairs__media"
+                                        :class="{ 'public-feature-pairs__media--empty': !section.aside_image_url }"
+                                    >
+                                        <img
+                                            v-if="section.aside_image_url"
+                                            :src="section.aside_image_url"
+                                            :alt="section.aside_image_alt || section.aside_title || section.title"
+                                            class="h-full w-full object-cover"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    </div>
+                                </article>
+                            </div>
+                        </template>
+
+                        <template v-else-if="section.layout === 'industry_grid'">
+                            <div class="public-industry-grid">
+                                <div v-if="section.kicker || section.title || section.body" class="public-industry-grid__header">
+                                    <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
+                                    <h2 v-if="section.title" class="public-industry-grid__title">{{ section.title }}</h2>
+                                    <div v-if="section.body" class="public-rich public-industry-grid__body" v-html="section.body"></div>
+                                </div>
+
+                                <div v-if="section.industry_cards?.length" class="public-industry-grid__cards">
+                                    <template v-for="card in section.industry_cards" :key="card.id || card.label">
+                                        <a
+                                            v-if="card.href && isExternalHref(resolveHref(card.href))"
+                                            :href="resolveHref(card.href)"
+                                            class="public-industry-grid__card"
+                                            rel="noopener noreferrer"
+                                            target="_blank"
+                                        >
+                                            <span class="public-industry-grid__icon" aria-hidden="true">
+                                                <component :is="resolveIndustryIconComponent(card)" class="h-full w-full" />
+                                            </span>
+                                            <span class="public-industry-grid__label">{{ card.label }}</span>
+                                        </a>
+                                        <Link
+                                            v-else-if="card.href"
+                                            :href="resolveHref(card.href)"
+                                            class="public-industry-grid__card"
+                                        >
+                                            <span class="public-industry-grid__icon" aria-hidden="true">
+                                                <component :is="resolveIndustryIconComponent(card)" class="h-full w-full" />
+                                            </span>
+                                            <span class="public-industry-grid__label">{{ card.label }}</span>
+                                        </Link>
+                                        <div v-else class="public-industry-grid__card">
+                                            <span class="public-industry-grid__icon" aria-hidden="true">
+                                                <component :is="resolveIndustryIconComponent(card)" class="h-full w-full" />
+                                            </span>
+                                            <span class="public-industry-grid__label">{{ card.label }}</span>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div v-if="section.primary_label" class="public-industry-grid__footer">
+                                    <a
+                                        v-if="section.primary_href && isExternalHref(resolveHref(section.primary_href))"
+                                        :href="resolveHref(section.primary_href)"
+                                        class="public-industry-grid__cta"
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    >
+                                        {{ section.primary_label }}
+                                    </a>
+                                    <Link
+                                        v-else-if="section.primary_href"
+                                        :href="resolveHref(section.primary_href)"
+                                        class="public-industry-grid__cta"
+                                    >
+                                        {{ section.primary_label }}
+                                    </Link>
+                                    <span v-else class="public-industry-grid__cta">
+                                        {{ section.primary_label }}
+                                    </span>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-else-if="section.layout === 'feature_tabs'">
+                            <div class="public-feature-tabs" :style="featureTabsStyle(section)">
+                                <div v-if="section.kicker || section.title || section.body || section.primary_label || section.secondary_label"
+                                    class="public-feature-tabs__header">
+                                    <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
+                                    <h2 v-if="section.title" class="public-feature-tabs__title">{{ section.title }}</h2>
+                                    <div v-if="section.body" class="public-rich public-feature-tabs__body" v-html="section.body"></div>
+
+                                    <div v-if="section.primary_label || section.secondary_label" class="public-feature-tabs__header-actions">
+                                        <template v-if="section.primary_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.primary_href))"
+                                                :href="resolveHref(section.primary_href)"
+                                                class="public-inline-link"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.primary_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.primary_href)"
+                                                class="public-inline-link"
+                                            >
+                                                {{ section.primary_label }}
+                                            </Link>
+                                        </template>
+
+                                        <template v-if="section.secondary_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                                :href="resolveHref(section.secondary_href)"
+                                                class="public-inline-link public-inline-link--muted"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.secondary_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.secondary_href)"
+                                                class="public-inline-link public-inline-link--muted"
+                                            >
+                                                {{ section.secondary_label }}
+                                            </Link>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div v-if="featureTabsForSection(section).length" class="public-feature-tabs__grid">
+                                    <div class="public-feature-tabs__nav">
+                                        <div
+                                            v-for="tab in featureTabsForSection(section)"
+                                            :key="tab.id"
+                                            class="public-feature-tabs__nav-item"
+                                            :class="{
+                                                'is-open': isFeatureTabOpen(section, index, tab),
+                                                'is-current': isCurrentFeatureTab(section, index, tab),
+                                            }"
+                                        >
+                                            <button
+                                                type="button"
+                                                class="public-feature-tabs__trigger"
+                                                :class="{
+                                                    'is-open': isFeatureTabOpen(section, index, tab),
+                                                    'is-current': isCurrentFeatureTab(section, index, tab),
+                                                }"
+                                                :aria-expanded="isFeatureTabOpen(section, index, tab)"
+                                                @click="toggleFeatureTab(section, index, tab)"
+                                            >
+                                                <span class="public-feature-tabs__trigger-main">
+                                                    <span class="public-feature-tabs__trigger-icon" aria-hidden="true">
+                                                        <component :is="resolveFeatureTabIconComponent(tab)" class="h-full w-full" />
+                                                    </span>
+                                                    <span class="public-feature-tabs__trigger-label">{{ tab.label }}</span>
+                                                </span>
+                                                <component
+                                                    :is="isFeatureTabOpen(section, index, tab) ? ChevronDown : ChevronRight"
+                                                    class="h-4 w-4 shrink-0"
+                                                    aria-hidden="true"
+                                                />
+                                            </button>
+
+                                            <div v-if="showFeatureTabChildren(section, index, tab)" class="public-feature-tabs__sublist">
+                                                <button
+                                                    v-for="child in featureTabChildren(tab)"
+                                                    :key="child.id"
+                                                    type="button"
+                                                    class="public-feature-tabs__subitem"
+                                                    :class="{ 'is-active': isActiveFeatureTabChild(section, index, tab, child) }"
+                                                    @click="setActiveFeatureTabChild(section, index, tab, child)"
+                                                >
+                                                    <ArrowRight class="h-4 w-4 shrink-0" aria-hidden="true" />
+                                                    <span class="public-feature-tabs__subitem-label">{{ child.label }}</span>
+                                                </button>
+                                            </div>
+
+                                            <ul v-else-if="isFeatureTabOpen(section, index, tab) && tab.items?.length" class="public-feature-tabs__sublist public-feature-tabs__sublist--static">
+                                                <li
+                                                    v-for="(item, itemIndex) in tab.items"
+                                                    :key="`${tab.id}-item-${itemIndex}`"
+                                                    class="public-feature-tabs__subitem"
+                                                >
+                                                    {{ item }}
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <article v-if="activeFeaturePanel(section, index)" class="public-feature-tabs__panel">
+                                        <div
+                                            class="public-feature-tabs__panel-media"
+                                            :class="{ 'public-feature-tabs__panel-media--empty': !activeFeaturePanel(section, index)?.image_url }"
+                                        >
+                                            <img
+                                                v-if="activeFeaturePanel(section, index)?.image_url"
+                                                :src="activeFeaturePanel(section, index).image_url"
+                                                :alt="activeFeaturePanel(section, index).image_alt || activeFeaturePanel(section, index).title || activeFeaturePanel(section, index).label"
+                                                class="public-feature-tabs__panel-image"
+                                                loading="lazy"
+                                                decoding="async"
+                                            />
+                                        </div>
+
+                                        <div class="public-feature-tabs__panel-copy">
+                                            <h3 v-if="activeFeaturePanel(section, index)?.title" class="public-feature-tabs__panel-title">
+                                                {{ activeFeaturePanel(section, index).title }}
+                                            </h3>
+                                            <div
+                                                v-if="activeFeaturePanel(section, index)?.body"
+                                                class="public-rich public-feature-tabs__panel-body"
+                                                v-html="activeFeaturePanel(section, index).body"
+                                            ></div>
+
+                                            <template v-if="activeFeaturePanel(section, index)?.cta_label">
+                                                <a
+                                                    v-if="isExternalHref(resolveHref(activeFeaturePanel(section, index).cta_href))"
+                                                    :href="resolveHref(activeFeaturePanel(section, index).cta_href)"
+                                                    class="public-feature-tabs__panel-link"
+                                                    rel="noopener noreferrer"
+                                                    target="_blank"
+                                                >
+                                                    <span>{{ activeFeaturePanel(section, index).cta_label }}</span>
+                                                    <ArrowRight class="h-4 w-4" aria-hidden="true" />
+                                                </a>
+                                                <Link
+                                                    v-else
+                                                    :href="resolveHref(activeFeaturePanel(section, index).cta_href)"
+                                                    class="public-feature-tabs__panel-link"
+                                                >
+                                                    <span>{{ activeFeaturePanel(section, index).cta_label }}</span>
+                                                    <ArrowRight class="h-4 w-4" aria-hidden="true" />
+                                                </Link>
+                                            </template>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+                        </template>
+
                         <template v-else-if="section.layout === 'duo'">
                             <div
                                 class="public-duo-media"
@@ -918,22 +1626,7 @@ const headerMenuItems = computed(() => ([
             </section>
         </main>
 
-        <footer class="public-footer">
-            <div class="public-container py-8 text-center text-xs">
-                <div class="flex flex-wrap items-center justify-center gap-4">
-                    <Link :href="route('welcome')" class="public-footer-link">
-                        {{ $t('public_pages.actions.home') }}
-                    </Link>
-                    <Link :href="route('pricing')" class="public-footer-link">
-                        {{ $t('legal.links.pricing') }}
-                    </Link>
-                    <Link :href="route('terms')" class="public-footer-link">
-                        {{ $t('legal.links.terms') }}
-                    </Link>
-                </div>
-                <div class="mt-2">{{ $t('welcome.footer.copy') }} {{ new Date().getFullYear() }}</div>
-            </div>
-        </footer>
+        <PublicFooterMenu :menu="footerMenu" />
     </div>
 </template>
 
@@ -964,6 +1657,18 @@ const headerMenuItems = computed(() => ([
 
 .public-container--duo {
     width: 100%;
+}
+
+.public-container--feature-pairs {
+    width: min(1100px, 92vw);
+}
+
+.public-container--industry-grid {
+    width: min(1360px, 92vw);
+}
+
+.public-container--feature-tabs {
+    width: min(1120px, 92vw);
 }
 
 .public-header {
@@ -1009,6 +1714,18 @@ const headerMenuItems = computed(() => ([
 }
 
 .public-block--testimonial {
+    border-top: 0;
+}
+
+.public-block--feature-pairs {
+    border-top: 0;
+}
+
+.public-block--industry-grid {
+    border-top: 0;
+}
+
+.public-block--feature-tabs {
     border-top: 0;
 }
 
@@ -1264,6 +1981,665 @@ const headerMenuItems = computed(() => ([
     background: rgba(255, 255, 255, 0.06);
 }
 
+.public-testimonial-grid-shell {
+    display: block;
+}
+
+.public-testimonial-grid {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2rem, 5vw, 3.1rem);
+}
+
+.public-testimonial-grid__header {
+    max-width: 58rem;
+    margin-inline: auto;
+}
+
+.public-testimonial-grid__header.text-left {
+    margin-inline: 0 auto;
+}
+
+.public-testimonial-grid__header.text-right {
+    margin-inline: auto 0;
+}
+
+.public-testimonial-grid__title {
+    margin: 0;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(2.15rem, 1.72rem + 1vw, 3.55rem);
+    line-height: 1.03;
+    letter-spacing: -0.05em;
+}
+
+.public-testimonial-grid__body {
+    margin-top: 1rem;
+    color: #334155;
+    font-size: 1rem;
+    line-height: 1.7;
+}
+
+.public-testimonial-grid__body :deep(p),
+.public-testimonial-grid__body :deep(div) {
+    margin: 0 0 1rem;
+}
+
+.public-testimonial-grid__body :deep(p:last-child),
+.public-testimonial-grid__body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-testimonial-grid__actions {
+    margin-top: 1.15rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.9rem 1.2rem;
+}
+
+.public-testimonial-grid__header.text-left .public-testimonial-grid__actions {
+    justify-content: flex-start;
+}
+
+.public-testimonial-grid__header.text-right .public-testimonial-grid__actions {
+    justify-content: flex-end;
+}
+
+.public-testimonial-grid__cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.1rem;
+}
+
+.public-testimonial-grid__card {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    padding: clamp(1.5rem, 3vw, 2rem);
+    border-radius: var(--page-radius, 4px);
+    background: #e9e2d6;
+    box-shadow: 0 24px 52px -42px rgba(15, 23, 42, 0.28);
+}
+
+.public-testimonial-grid__quote {
+    color: #082c45;
+    font-size: 1.04rem;
+    line-height: 1.72;
+}
+
+.public-testimonial-grid__quote :deep(p),
+.public-testimonial-grid__quote :deep(div) {
+    margin: 0 0 0.95rem;
+}
+
+.public-testimonial-grid__quote :deep(p:last-child),
+.public-testimonial-grid__quote :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-testimonial-grid__quote :deep(strong) {
+    font-weight: 800;
+}
+
+.public-testimonial-grid__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.95rem;
+    margin-top: auto;
+    padding-top: 1.6rem;
+}
+
+.public-testimonial-grid__avatar {
+    width: 3.7rem;
+    height: 3.7rem;
+    border-radius: 999px;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #d7d0c3;
+    color: #083a5c;
+    font-size: 1rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.public-testimonial-grid__avatar.is-empty {
+    border: 1px solid rgba(8, 58, 92, 0.08);
+}
+
+.public-testimonial-grid__person {
+    min-width: 0;
+}
+
+.public-testimonial-grid__name {
+    color: #082c45;
+    font-size: 1.08rem;
+    font-weight: 800;
+}
+
+.public-testimonial-grid__role {
+    margin-top: 0.15rem;
+    color: #0f3550;
+    font-size: 0.96rem;
+}
+
+.public-feature-pairs {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3rem, 8vw, 5.5rem);
+}
+
+.public-feature-pairs__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(1.5rem, 4vw, 4.5rem);
+    align-items: center;
+}
+
+.public-feature-pairs__media {
+    overflow: hidden;
+    min-height: clamp(14rem, 28vw, 19rem);
+    border-radius: var(--page-radius, 4px);
+    background: linear-gradient(135deg, rgba(191, 219, 254, 0.85), rgba(219, 234, 254, 0.55));
+    box-shadow: 0 22px 52px -40px rgba(15, 23, 42, 0.4);
+}
+
+.public-feature-pairs__media--empty {
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 38%),
+        linear-gradient(135deg, rgba(191, 219, 254, 0.85), rgba(226, 232, 240, 0.85));
+}
+
+.public-feature-pairs__copy {
+    min-width: 0;
+    max-width: 24rem;
+}
+
+.public-feature-pairs__copy.text-center {
+    margin-inline: auto;
+}
+
+.public-feature-pairs__copy.text-right {
+    margin-left: auto;
+}
+
+.public-feature-pairs__kicker {
+    margin-bottom: 0.7rem;
+    color: #2563eb;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.public-feature-pairs__title {
+    margin: 0 0 0.95rem;
+    color: #23282b;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(1.75rem, 1.45rem + 0.55vw, 2.1rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+}
+
+.public-feature-pairs__body {
+    color: #4b5563;
+    font-size: 0.96rem;
+    line-height: 1.6;
+}
+
+.public-feature-pairs__body :deep(p),
+.public-feature-pairs__body :deep(div) {
+    margin: 0 0 1rem;
+}
+
+.public-feature-pairs__body :deep(p:last-child),
+.public-feature-pairs__body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-feature-pairs__list {
+    margin-top: 1.1rem;
+    display: grid;
+    gap: 0.55rem;
+    color: #4b5563;
+    font-size: 0.94rem;
+}
+
+.public-feature-pairs__link {
+    display: inline-flex;
+    align-items: center;
+    color: #23282b;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.public-feature-pairs__link::after {
+    content: '\2197';
+    margin-left: 0.35rem;
+    font-size: 0.9em;
+}
+
+.public-feature-pairs__link:hover {
+    color: var(--page-primary, #2563eb);
+}
+
+.public-feature-pairs__link--muted {
+    color: var(--page-muted, #64748b);
+}
+
+.public-feature-tabs-shell {
+    display: block;
+}
+
+.public-feature-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2rem, 5vw, 3.25rem);
+}
+
+.public-feature-tabs__header {
+    max-width: 48rem;
+    margin-inline: auto;
+    text-align: center;
+}
+
+.public-feature-tabs__header .public-kicker {
+    margin-bottom: 1rem;
+}
+
+.public-feature-tabs__title {
+    margin: 0;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(2.1rem, 1.75rem + 0.9vw, 3.2rem);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+}
+
+.public-feature-tabs__body {
+    margin-top: 1rem;
+    color: #334155;
+    font-size: 1rem;
+    line-height: 1.65;
+}
+
+.public-feature-tabs__body :deep(p),
+.public-feature-tabs__body :deep(div) {
+    margin: 0 0 1rem;
+}
+
+.public-feature-tabs__body :deep(p:last-child),
+.public-feature-tabs__body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-feature-tabs__header-actions {
+    margin-top: 1.1rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.9rem 1.2rem;
+}
+
+.public-feature-tabs__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.public-feature-tabs__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.public-feature-tabs__nav-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+
+.public-feature-tabs__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    padding: 1rem 1.15rem;
+    border: 1px solid transparent;
+    border-radius: var(--page-radius, 4px);
+    background: #0b3446;
+    color: #ffffff;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: 1.15rem;
+    line-height: 1;
+    text-align: left;
+    box-shadow: 0 20px 42px -34px rgba(15, 23, 42, 0.45);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.public-feature-tabs__trigger:hover,
+.public-feature-tabs__trigger:focus-visible {
+    background: #0a2d3d;
+    transform: translateY(-1px);
+    box-shadow: 0 24px 48px -34px rgba(15, 23, 42, 0.52);
+}
+
+.public-feature-tabs__trigger.is-open {
+    background: #0a2d3d;
+    box-shadow: 0 24px 48px -34px rgba(15, 23, 42, 0.52);
+}
+
+.public-feature-tabs__trigger.is-current {
+    border-color: var(--page-primary-soft, #dcfce7);
+}
+
+.public-feature-tabs__trigger-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    min-width: 0;
+}
+
+.public-feature-tabs__trigger-label {
+    font-size: var(--feature-tabs-trigger-label-size, 1.15rem);
+    line-height: 1.05;
+    text-decoration-line: underline;
+    text-decoration-thickness: 0.22rem;
+    text-decoration-color: transparent;
+    text-underline-offset: 0.34rem;
+    transition: text-decoration-color 0.2s ease;
+}
+
+.public-feature-tabs__trigger.is-open .public-feature-tabs__trigger-label,
+.public-feature-tabs__trigger.is-current .public-feature-tabs__trigger-label {
+    text-decoration-color: var(--page-primary, #84cc16);
+}
+
+.public-feature-tabs__trigger-icon {
+    display: inline-flex;
+    width: 1.2rem;
+    height: 1.2rem;
+    color: var(--page-primary, #84cc16);
+    flex-shrink: 0;
+}
+
+.public-feature-tabs__trigger-icon :deep(svg) {
+    width: 100%;
+    height: 100%;
+}
+
+.public-feature-tabs__sublist {
+    display: grid;
+    gap: 0.8rem;
+    padding: 0 0 0.1rem 1.15rem;
+}
+
+.public-feature-tabs__sublist--static {
+    padding-right: 1.1rem;
+}
+
+.public-feature-tabs__subitem {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    border-radius: calc(var(--page-radius, 4px) - 1px);
+    text-align: left;
+    color: #0f172a;
+    font-size: 0.98rem;
+    line-height: 1.45;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.public-feature-tabs__subitem-label {
+    min-width: 0;
+}
+
+button.public-feature-tabs__subitem {
+    background: transparent;
+}
+
+button.public-feature-tabs__subitem:hover,
+button.public-feature-tabs__subitem:focus-visible {
+    color: #083a5c;
+    background: rgba(132, 204, 22, 0.12);
+    transform: translateX(2px);
+}
+
+button.public-feature-tabs__subitem.is-active {
+    color: #072b41;
+    background: var(--page-primary, #84cc16);
+    box-shadow: 0 16px 34px -28px rgba(132, 204, 22, 0.55);
+}
+
+ul .public-feature-tabs__subitem {
+    display: block;
+    padding: 0 0 0 1.45rem;
+}
+
+ul .public-feature-tabs__subitem::before {
+    content: '->';
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #0b3446;
+    font-weight: 700;
+}
+
+.public-feature-tabs__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.public-feature-tabs__panel-media {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+    min-height: clamp(16rem, 36vw, 26rem);
+    border-radius: var(--page-radius, 4px);
+    background: #d8e2ea;
+    box-shadow: 0 24px 56px -42px rgba(15, 23, 42, 0.38);
+}
+
+.public-feature-tabs__panel-image {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.public-feature-tabs__panel-media--empty {
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 35%),
+        linear-gradient(135deg, rgba(216, 226, 234, 0.95), rgba(191, 219, 254, 0.82));
+}
+
+.public-feature-tabs__panel-copy {
+    max-width: 32rem;
+}
+
+.public-feature-tabs__panel-title {
+    margin: 0;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(1.7rem, 1.48rem + 0.55vw, 2.2rem);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+}
+
+.public-feature-tabs__panel-body {
+    margin-top: 0.9rem;
+    color: #334155;
+    font-size: 0.98rem;
+    line-height: 1.65;
+}
+
+.public-feature-tabs__panel-body :deep(p),
+.public-feature-tabs__panel-body :deep(div) {
+    margin: 0 0 1rem;
+}
+
+.public-feature-tabs__panel-body :deep(p:last-child),
+.public-feature-tabs__panel-body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-feature-tabs__panel-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-top: 1.2rem;
+    padding: 0.7rem 1rem;
+    border: 1px solid #0b3446;
+    color: #0b3446;
+    font-size: 0.92rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.public-feature-tabs__panel-link:hover {
+    background: #0b3446;
+    color: #ffffff;
+}
+
+.public-industry-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    text-align: center;
+}
+
+.public-industry-grid__header {
+    max-width: 60rem;
+    margin-inline: auto;
+}
+
+.public-industry-grid__header .public-kicker {
+    margin-bottom: 1rem;
+}
+
+.public-industry-grid__title {
+    margin: 0;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(2.25rem, 1.95rem + 1vw, 3.55rem);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+}
+
+.public-industry-grid__body {
+    margin-top: 1rem;
+    color: #4b5563;
+    font-size: 1rem;
+    line-height: 1.65;
+}
+
+.public-industry-grid__body :deep(p),
+.public-industry-grid__body :deep(div) {
+    margin: 0 0 1rem;
+}
+
+.public-industry-grid__body :deep(p:last-child),
+.public-industry-grid__body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-industry-grid__cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+}
+
+.public-industry-grid__card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.4rem;
+    min-height: 6rem;
+    padding: 1.2rem 1rem 1rem;
+    border-radius: var(--page-radius, 4px);
+    border: 1px solid rgba(15, 23, 42, 0.05);
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 35%),
+        rgba(255, 255, 255, 0.68);
+    color: #083a5c;
+    text-decoration: none;
+    text-align: left;
+    box-shadow: 0 20px 50px -42px rgba(15, 23, 42, 0.28);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.public-industry-grid__card:hover,
+.public-industry-grid__card:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 24px 60px -42px rgba(15, 23, 42, 0.35);
+    border-color: rgba(8, 58, 92, 0.16);
+}
+
+.public-industry-grid__icon {
+    display: inline-flex;
+    width: 1.75rem;
+    height: 1.75rem;
+    color: #083a5c;
+    transition: color 0.2s ease;
+}
+
+.public-industry-grid__icon :deep(svg) {
+    width: 100%;
+    height: 100%;
+}
+
+.public-industry-grid__label {
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: 1.1rem;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+}
+
+.public-industry-grid__card:hover .public-industry-grid__icon,
+.public-industry-grid__card:focus-visible .public-industry-grid__icon {
+    color: var(--page-primary, #16a34a);
+}
+
+.public-industry-grid__footer {
+    display: flex;
+    justify-content: center;
+}
+
+.public-industry-grid__cta {
+    display: inline-flex;
+    align-items: center;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: 1.25rem;
+    text-decoration: none;
+}
+
+.public-industry-grid__cta::after {
+    content: '->';
+    margin-left: 0.45rem;
+    font-size: 0.9em;
+}
+
+.public-industry-grid__cta:hover {
+    color: var(--page-primary, #16a34a);
+}
+
 .public-duo-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -1396,20 +2772,6 @@ const headerMenuItems = computed(() => ([
 
 .public-contact-aside {
     min-width: 0;
-}
-
-.public-footer {
-    background: var(--page-surface, #ffffff);
-    border-top: 1px solid var(--page-border, #e2e8f0);
-    color: var(--page-muted, #64748b);
-}
-
-.public-footer-link {
-    transition: color 0.2s ease;
-}
-
-.public-footer-link:hover {
-    color: var(--page-text, #0f172a);
 }
 
 .public-lang {
@@ -1560,6 +2922,10 @@ const headerMenuItems = computed(() => ([
 }
 
 @media (min-width: 1024px) {
+    .public-industry-grid__cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
     .public-contact-grid {
         grid-template-columns: minmax(0, 0.9fr) minmax(300px, 1fr) minmax(0, 0.95fr);
         gap: 2.5rem;
@@ -1574,12 +2940,39 @@ const headerMenuItems = computed(() => ([
         order: -1;
     }
 
+    .public-feature-pairs__row {
+        grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.88fr);
+    }
+
+    .public-feature-pairs__row--reverse {
+        grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.02fr);
+    }
+
+    .public-testimonial-grid__cards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .public-feature-tabs__grid {
+        grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
+        gap: 2rem;
+    }
+
     .public-duo-grid {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
 
     .public-duo-media--image-right {
         order: 2;
+    }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+    .public-industry-grid__cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .public-testimonial-grid__cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 </style>

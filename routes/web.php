@@ -815,6 +815,7 @@ Route::prefix('super-admin')
         Route::get('/sections', [SuperAdminPlatformSectionController::class, 'index'])->name('sections.index');
         Route::get('/sections/create', [SuperAdminPlatformSectionController::class, 'create'])->name('sections.create');
         Route::post('/sections', [SuperAdminPlatformSectionController::class, 'store'])->name('sections.store');
+        Route::post('/sections/{section}/duplicate', [SuperAdminPlatformSectionController::class, 'duplicate'])->name('sections.duplicate');
         Route::get('/sections/{section}/edit', [SuperAdminPlatformSectionController::class, 'edit'])->name('sections.edit');
         Route::put('/sections/{section}', [SuperAdminPlatformSectionController::class, 'update'])->name('sections.update');
         Route::delete('/sections/{section}', [SuperAdminPlatformSectionController::class, 'destroy'])->name('sections.destroy');

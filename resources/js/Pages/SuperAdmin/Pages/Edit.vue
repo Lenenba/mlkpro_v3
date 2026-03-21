@@ -5,10 +5,33 @@ import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import RichTextEditor from '@/Components/RichTextEditor.vue';
 import AssetPickerModal from '@/Components/AssetPickerModal.vue';
+import {
+    createIndustryCard,
+    defaultIndustryCards,
+    ensureIndustryCards,
+    industryIconOptions,
+    resolveIndustryIconComponent,
+} from '@/utils/industryGrid';
+import {
+    createTestimonialCard,
+    defaultTestimonialCards,
+    ensureTestimonialCards,
+} from '@/utils/testimonialGrid';
+import {
+    createFeatureTabChild,
+    createFeatureTab,
+    defaultFeatureTabsTriggerFontSize,
+    defaultFeatureTabs,
+    ensureFeatureTabs,
+    featureTabIconOptions,
+    normalizeFeatureTabsTriggerFontSize,
+    resolveFeatureTabIconComponent,
+} from '@/utils/featureTabs';
 
 const props = defineProps({
     mode: { type: String, default: 'edit' },
@@ -67,6 +90,7 @@ const sectionItemsLines = ref({});
 const sectionAsideItemsLines = ref({});
 const visibilityRoleLines = ref({});
 const visibilityPlanLines = ref({});
+const sectionEditorOpen = ref({});
 const assetPickerOpen = ref(false);
 const assetTarget = ref(null);
 
@@ -191,6 +215,10 @@ const layoutOptions = computed(() => [
     { value: 'split', label: t('super_admin.pages.layouts.split') },
     { value: 'duo', label: t('super_admin.pages.layouts.duo') },
     { value: 'testimonial', label: t('super_admin.pages.layouts.testimonial') },
+    { value: 'feature_pairs', label: t('super_admin.pages.layouts.feature_pairs') },
+    { value: 'industry_grid', label: t('super_admin.pages.layouts.industry_grid') },
+    { value: 'feature_tabs', label: t('super_admin.pages.layouts.feature_tabs') },
+    { value: 'testimonial_grid', label: t('super_admin.pages.layouts.testimonial_grid') },
     { value: 'stack', label: t('super_admin.pages.layouts.stack') },
     { value: 'contact', label: t('super_admin.pages.layouts.contact') },
 ]);
@@ -295,12 +323,36 @@ const visibleThemeColorFields = computed(() =>
 
 const selectedLibraryId = ref('');
 const selectedSectionLayout = ref('split');
+const industryCardIconOptions = computed(() => [
+    { value: '', label: t('super_admin.pages.industry_grid.icon_auto') },
+    ...industryIconOptions,
+]);
+const featureTabIconSelectOptions = computed(() => [
+    { value: '', label: t('super_admin.pages.feature_tabs.icon_auto') },
+    ...featureTabIconOptions,
+]);
 
 const linesToArray = (value) =>
     String(value || '')
         .split('\n')
         .map((line) => line.trim())
         .filter((line) => line.length > 0);
+
+const stripHtml = (value) =>
+    String(value || '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+const truncateText = (value, max = 180) => {
+    const text = String(value || '').trim();
+    if (text.length <= max) {
+        return text;
+    }
+
+    return `${text.slice(0, max - 1).trimEnd()}…`;
+};
 
 const formatVisibilityDate = (value) => {
     if (!value) return '';
@@ -346,6 +398,59 @@ const sectionPreset = (layout) => {
         };
     }
 
+    if (layout === 'feature_pairs') {
+        return {
+            layout: 'feature_pairs',
+            alignment: 'left',
+        };
+    }
+
+    if (layout === 'industry_grid') {
+        return {
+            layout: 'industry_grid',
+            alignment: 'center',
+            background_color: '#f7f2e8',
+            title: currentLocale.value === 'fr'
+                ? 'Fier partenaire des services a domicile dans plus de 50 industries.'
+                : 'Proud partner to home services in over 50 industries.',
+            primary_label: currentLocale.value === 'fr' ? 'Voir toutes les industries' : 'See All Industries',
+            industry_cards: defaultIndustryCards(currentLocale.value),
+        };
+    }
+
+    if (layout === 'feature_tabs') {
+        return {
+            layout: 'feature_tabs',
+            alignment: 'center',
+            background_color: '#f7f2e8',
+            title: currentLocale.value === 'fr'
+                ? 'Un logiciel de gestion terrain qui travaille pour vous.'
+                : 'Field service management software that works for you.',
+            body: currentLocale.value === 'fr'
+                ? '<p>De la premiere visite jusqu au paiement final, centralisez votre operation dans un seul flux.</p>'
+                : '<p>From the first visit to final payment, keep your entire operation in a single workflow.</p>',
+            primary_label: currentLocale.value === 'fr' ? 'Voir comment ca marche' : 'See how it works',
+            primary_href: '#',
+            feature_tabs_font_size: defaultFeatureTabsTriggerFontSize,
+            feature_tabs: defaultFeatureTabs(currentLocale.value),
+        };
+    }
+
+    if (layout === 'testimonial_grid') {
+        return {
+            layout: 'testimonial_grid',
+            alignment: 'center',
+            background_color: '#f7f2e8',
+            title: currentLocale.value === 'fr'
+                ? 'Approuve par les meilleures equipes d entretien.'
+                : 'Trusted by the best cleaning teams.',
+            body: currentLocale.value === 'fr'
+                ? '<p>Les pros de l entretien utilisent MLK Pro pour simplifier la planification, suivre les preferences clients et mieux coordonner leur equipe.</p>'
+                : '<p>Cleaning pros use MLK Pro to simplify scheduling, track client preferences, and coordinate their crews with less friction.</p>',
+            testimonial_cards: defaultTestimonialCards(currentLocale.value),
+        };
+    }
+
     if (layout === 'stack') {
         return {
             layout: 'stack',
@@ -387,6 +492,10 @@ const ensureSection = (section, index) => ({
     kicker: section?.kicker || '',
     title: section?.title || '',
     body: section?.body || '',
+    industry_cards: ensureIndustryCards(section?.industry_cards),
+    feature_tabs: ensureFeatureTabs(section?.feature_tabs),
+    feature_tabs_font_size: normalizeFeatureTabsTriggerFontSize(section?.feature_tabs_font_size),
+    testimonial_cards: ensureTestimonialCards(section?.testimonial_cards),
     items: Array.isArray(section?.items) ? section.items : [],
     testimonial_author: section?.testimonial_author || '',
     testimonial_role: section?.testimonial_role || '',
@@ -396,6 +505,8 @@ const ensureSection = (section, index) => ({
     aside_items: Array.isArray(section?.aside_items) ? section.aside_items : [],
     aside_link_label: section?.aside_link_label || '',
     aside_link_href: section?.aside_link_href || '',
+    aside_image_url: section?.aside_image_url || '',
+    aside_image_alt: section?.aside_image_alt || '',
     image_url: section?.image_url || '',
     image_alt: section?.image_alt || '',
     embed_url: section?.embed_url || '',
@@ -422,6 +533,20 @@ const ensureStructure = (content) => {
     return next;
 };
 
+const syncSectionEditorState = ({ openSectionId = null } = {}) => {
+    const previous = sectionEditorOpen.value || {};
+    const shouldOpenFirst = !Object.keys(previous).length && isCreateMode.value;
+    const next = {};
+
+    (form.content.sections || []).forEach((section, index) => {
+        next[section.id] = section.id === openSectionId
+            ? true
+            : previous[section.id] ?? (shouldOpenFirst && index === 0);
+    });
+
+    sectionEditorOpen.value = next;
+};
+
 const rebuildItemsLines = () => {
     const map = {};
     const asideMap = {};
@@ -446,6 +571,7 @@ const syncFormFromProps = (locale = currentLocale.value) => {
     form.locale = locale;
     form.content = ensureStructure(incoming);
     rebuildItemsLines();
+    syncSectionEditorState();
 };
 
 watch(
@@ -525,6 +651,114 @@ const handleAssetSelect = (asset) => {
 const findLibrarySection = (id) =>
     (props.library_sections || []).find((section) => String(section.id) === String(id));
 
+const sectionLayoutLabel = (layout) =>
+    layoutOptions.value.find((option) => option.value === layout)?.label || layout;
+
+const sectionPreviewHeading = (section, index) => (
+    section?.title ||
+    section?.feature_tabs?.[0]?.children?.[0]?.label ||
+    section?.feature_tabs?.[0]?.label ||
+    section?.feature_tabs?.[0]?.title ||
+    section?.testimonial_cards?.[0]?.author_name ||
+    section?.aside_title ||
+    section?.kicker ||
+    sectionLayoutLabel(section?.layout) ||
+    `${t('super_admin.pages.sections.section_label')} #${index + 1}`
+);
+
+const sectionPreviewText = (section) => {
+    const bulletText = Array.isArray(section?.items) ? section.items.join(' • ') : '';
+    const asideBulletText = Array.isArray(section?.aside_items) ? section.aside_items.join(' • ') : '';
+    const featureTabText = Array.isArray(section?.feature_tabs)
+        ? section.feature_tabs
+            .map((tab) => (
+                tab?.children?.[0]?.title ||
+                stripHtml(tab?.children?.[0]?.body) ||
+                tab?.title ||
+                stripHtml(tab?.body) ||
+                (Array.isArray(tab?.items) ? tab.items.join(' • ') : '')
+            ))
+            .find((value) => String(value || '').trim().length > 0) || ''
+        : '';
+    const testimonialGridText = Array.isArray(section?.testimonial_cards)
+        ? section.testimonial_cards
+            .map((card) => stripHtml(card?.quote) || card?.author_company || card?.author_role || '')
+            .find((value) => String(value || '').trim().length > 0) || ''
+        : '';
+    const testimonialMeta = section?.testimonial_author
+        ? `${section.testimonial_author}${section?.testimonial_role ? ` · ${section.testimonial_role}` : ''}`
+        : '';
+
+    return truncateText(
+        stripHtml(section?.body) ||
+        featureTabText ||
+        testimonialGridText ||
+        stripHtml(section?.aside_body) ||
+        bulletText ||
+        asideBulletText ||
+        testimonialMeta
+    );
+};
+
+const sectionPreviewImages = (section) =>
+    [
+        section?.image_url,
+        section?.aside_image_url,
+        ...(Array.isArray(section?.feature_tabs) ? section.feature_tabs.map((tab) => tab?.image_url) : []),
+        ...(Array.isArray(section?.feature_tabs)
+            ? section.feature_tabs.flatMap((tab) => Array.isArray(tab?.children) ? tab.children.map((child) => child?.image_url) : [])
+            : []),
+        ...(Array.isArray(section?.testimonial_cards) ? section.testimonial_cards.map((card) => card?.image_url) : []),
+    ]
+        .filter((value) => String(value || '').trim().length > 0)
+        .slice(0, 3);
+
+const sectionPreviewBadges = (section) => {
+    const badges = [sectionLayoutLabel(section?.layout)];
+    const sourceName = section?.source_id ? findLibrarySection(section.source_id)?.name : '';
+    const bulletCount = (section?.items?.length || 0) + (section?.aside_items?.length || 0);
+    const imageCount = sectionPreviewImages(section).length;
+
+    if (sourceName) {
+        badges.push(sourceName);
+    }
+
+    if (section?.layout === 'industry_grid' && section?.industry_cards?.length) {
+        badges.push(t('super_admin.pages.sections.cards_count', { count: section.industry_cards.length }));
+    }
+
+    if (section?.layout === 'testimonial_grid' && section?.testimonial_cards?.length) {
+        badges.push(t('super_admin.pages.sections.cards_count', { count: section.testimonial_cards.length }));
+    }
+
+    if (section?.layout === 'feature_tabs' && section?.feature_tabs?.length) {
+        badges.push(t('super_admin.pages.sections.tabs_count', { count: section.feature_tabs.length }));
+    }
+
+    if (!['industry_grid', 'feature_tabs', 'testimonial_grid'].includes(section?.layout) && bulletCount) {
+        badges.push(t('super_admin.pages.sections.items_count', { count: bulletCount }));
+    }
+
+    if (imageCount) {
+        badges.push(t('super_admin.pages.sections.images_count', { count: imageCount }));
+    }
+
+    return badges;
+};
+
+const isSectionEditorOpen = (sectionId) => Boolean(sectionEditorOpen.value?.[sectionId]);
+
+const toggleSectionEditor = (sectionId, force = null) => {
+    if (!sectionId) {
+        return;
+    }
+
+    sectionEditorOpen.value = {
+        ...sectionEditorOpen.value,
+        [sectionId]: force === null ? !sectionEditorOpen.value?.[sectionId] : Boolean(force),
+    };
+};
+
 const resolveLibraryContent = (section) => {
     if (!section?.source_id) {
         return null;
@@ -552,6 +786,10 @@ const applyLibraryToSection = (section) => {
     section.kicker = content.kicker ?? '';
     section.title = content.title ?? '';
     section.body = content.body ?? '';
+    section.industry_cards = ensureIndustryCards(content.industry_cards);
+    section.feature_tabs = ensureFeatureTabs(content.feature_tabs);
+    section.feature_tabs_font_size = normalizeFeatureTabsTriggerFontSize(content.feature_tabs_font_size);
+    section.testimonial_cards = ensureTestimonialCards(content.testimonial_cards);
     section.items = Array.isArray(content.items) ? content.items : [];
     section.testimonial_author = content.testimonial_author ?? '';
     section.testimonial_role = content.testimonial_role ?? '';
@@ -561,6 +799,8 @@ const applyLibraryToSection = (section) => {
     section.aside_items = Array.isArray(content.aside_items) ? content.aside_items : [];
     section.aside_link_label = content.aside_link_label ?? '';
     section.aside_link_href = content.aside_link_href ?? '';
+    section.aside_image_url = content.aside_image_url ?? '';
+    section.aside_image_alt = content.aside_image_alt ?? '';
     section.image_url = content.image_url ?? '';
     section.image_alt = content.image_alt ?? '';
     section.embed_url = content.embed_url ?? '';
@@ -590,6 +830,7 @@ const addFromLibrary = () => {
     form.content.sections.push(section);
     applyLibraryToSection(section);
     selectedLibraryId.value = '';
+    syncSectionEditorState({ openSectionId: section.id });
 };
 
 const moveItem = (list, index, direction) => {
@@ -602,18 +843,82 @@ const moveItem = (list, index, direction) => {
     rebuildItemsLines();
 };
 
+const addIndustryCard = (section) => {
+    if (!section) return;
+    section.industry_cards = [...(section.industry_cards || []), createIndustryCard()];
+};
+
+const addTestimonialCard = (section) => {
+    if (!section) return;
+    section.testimonial_cards = [...(section.testimonial_cards || []), createTestimonialCard()];
+};
+
+const moveIndustryCard = (section, index, direction) => {
+    if (!section?.industry_cards?.length) return;
+    moveItem(section.industry_cards, index, direction);
+};
+
+const moveTestimonialCard = (section, index, direction) => {
+    if (!section?.testimonial_cards?.length) return;
+    moveItem(section.testimonial_cards, index, direction);
+};
+
+const removeIndustryCard = (section, index) => {
+    if (!section?.industry_cards) return;
+    section.industry_cards.splice(index, 1);
+};
+
+const removeTestimonialCard = (section, index) => {
+    if (!section?.testimonial_cards) return;
+    section.testimonial_cards.splice(index, 1);
+};
+
+const addFeatureTab = (section) => {
+    if (!section) return;
+    section.feature_tabs = [...(section.feature_tabs || []), createFeatureTab()];
+};
+
+const addFeatureTabChild = (tab) => {
+    if (!tab) return;
+    tab.children = [...(tab.children || []), createFeatureTabChild()];
+};
+
+const moveFeatureTab = (section, index, direction) => {
+    if (!section?.feature_tabs?.length) return;
+    moveItem(section.feature_tabs, index, direction);
+};
+
+const moveFeatureTabChild = (tab, index, direction) => {
+    if (!tab?.children?.length) return;
+    moveItem(tab.children, index, direction);
+};
+
+const removeFeatureTab = (section, index) => {
+    if (!section?.feature_tabs) return;
+    section.feature_tabs.splice(index, 1);
+};
+
+const removeFeatureTabChild = (tab, index) => {
+    if (!tab?.children) return;
+    tab.children.splice(index, 1);
+};
+
+const updateFeatureTabItems = (tab, value) => {
+    tab.items = linesToArray(value);
+};
+
 const addSection = () => {
     const nextIndex = (form.content.sections || []).length;
-    form.content.sections.push(
-        ensureSection(
-            {
-                id: `section-${Date.now()}`,
-                ...sectionPreset(selectedSectionLayout.value),
-            },
-            nextIndex
-        )
+    const section = ensureSection(
+        {
+            id: `section-${Date.now()}`,
+            ...sectionPreset(selectedSectionLayout.value),
+        },
+        nextIndex
     );
+    form.content.sections.push(section);
     rebuildItemsLines();
+    syncSectionEditorState({ openSectionId: section.id });
 };
 
 const removeSection = (index) => {
@@ -626,7 +931,9 @@ const removeSection = (index) => {
     }
     if (!form.content.sections.length) {
         addSection();
+        return;
     }
+    syncSectionEditorState();
 };
 
 const updatedAtLabel = computed(() => {
@@ -911,21 +1218,43 @@ syncFormFromProps(currentLocale.value);
 
                 <div class="space-y-4">
                     <div v-for="(section, index) in form.content.sections" :key="section.id || index"
-                        class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700 space-y-3">
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('super_admin.pages.sections.section_label') }} #{{ index + 1 }}
+                        class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700 space-y-4">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div class="min-w-0 space-y-2">
+                                <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('super_admin.pages.sections.section_label') }} #{{ index + 1 }}
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <span
+                                        v-for="badge in sectionPreviewBadges(section)"
+                                        :key="`${section.id}-${badge}`"
+                                        class="inline-flex items-center rounded-sm bg-stone-100 px-2 py-1 text-xs font-medium text-stone-600 dark:bg-neutral-800 dark:text-neutral-300"
+                                    >
+                                        {{ badge }}
+                                    </span>
+                                </div>
                             </div>
                             <div class="flex flex-wrap items-center gap-2 text-xs">
                                 <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                     <Checkbox v-model:checked="section.enabled" />
                                     <span>{{ $t('super_admin.pages.common.enabled') }}</span>
                                 </label>
-                                <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                <button
+                                    type="button"
+                                    class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    @click="toggleSectionEditor(section.id)"
+                                >
+                                    {{
+                                        isSectionEditorOpen(section.id)
+                                            ? $t('super_admin.pages.sections.close_editor')
+                                            : $t('super_admin.pages.sections.edit')
+                                    }}
+                                </button>
+                                <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
                                     @click="moveItem(form.content.sections, index, -1)">
                                     {{ $t('super_admin.pages.common.move_up') }}
                                 </button>
-                                <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
                                     @click="moveItem(form.content.sections, index, 1)">
                                     {{ $t('super_admin.pages.common.move_down') }}
                                 </button>
@@ -935,6 +1264,46 @@ syncFormFromProps(currentLocale.value);
                                 </button>
                             </div>
                         </div>
+
+                        <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(220px,260px)] xl:items-start">
+                            <div class="min-w-0 space-y-2">
+                                <div class="text-lg font-semibold leading-tight text-stone-900 dark:text-white">
+                                    {{ sectionPreviewHeading(section, index) }}
+                                </div>
+                                <p v-if="sectionPreviewText(section)" class="max-w-3xl text-sm leading-6 text-stone-600 dark:text-neutral-300">
+                                    {{ sectionPreviewText(section) }}
+                                </p>
+                            </div>
+
+                            <div
+                                class="grid gap-2"
+                                :class="sectionPreviewImages(section).length > 1 ? 'grid-cols-2' : 'grid-cols-1'"
+                            >
+                                <template v-if="sectionPreviewImages(section).length">
+                                    <div
+                                        v-for="(imageUrl, imageIndex) in sectionPreviewImages(section)"
+                                        :key="`${section.id}-preview-${imageIndex}`"
+                                        class="overflow-hidden rounded-sm border border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-900"
+                                    >
+                                        <img
+                                            :src="imageUrl"
+                                            :alt="section.image_alt || section.aside_image_alt || section.title || sectionPreviewHeading(section, index)"
+                                            class="h-24 w-full object-cover"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    </div>
+                                </template>
+                                <div
+                                    v-else
+                                    class="flex h-24 items-center justify-center rounded-sm border border-dashed border-stone-200 bg-stone-50 px-3 text-center text-xs font-medium uppercase tracking-wide text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                                >
+                                    {{ sectionLayoutLabel(section.layout) }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="isSectionEditorOpen(section.id)" class="space-y-4 border-t border-stone-200 pt-4 dark:border-neutral-700">
 
                         <div class="grid gap-3 md:grid-cols-2">
                             <FloatingSelect v-model="section.layout" :options="layoutOptions"
@@ -980,6 +1349,8 @@ syncFormFromProps(currentLocale.value);
                             </button>
                         </div>
 
+                        <div class="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.9fr)]">
+                            <div class="space-y-3">
                         <div class="grid gap-3 md:grid-cols-2">
                             <FloatingInput v-model="section.kicker" :label="$t('super_admin.pages.common.kicker')" />
                             <FloatingInput v-model="section.title" :label="$t('super_admin.pages.common.title')" />
@@ -1016,7 +1387,7 @@ syncFormFromProps(currentLocale.value);
                             </div>
                         </div>
 
-                        <div v-if="section.layout !== 'testimonial'">
+                        <div v-if="!['testimonial', 'industry_grid', 'feature_tabs', 'testimonial_grid'].includes(section.layout)">
                             <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 {{ $t('super_admin.pages.fields.items') }}
                             </label>
@@ -1026,15 +1397,358 @@ syncFormFromProps(currentLocale.value);
                         </div>
 
                         <div
-                            v-if="section.layout === 'contact'"
+                            v-if="section.layout === 'industry_grid'"
+                            class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3"
+                        >
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ $t('super_admin.pages.industry_grid.cards_title') }}
+                                    </h3>
+                                    <p class="text-xs text-stone-500 dark:text-neutral-500">
+                                        {{ $t('super_admin.pages.industry_grid.cards_subtitle') }}
+                                    </p>
+                                </div>
+                                <button type="button"
+                                    class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    @click="addIndustryCard(section)">
+                                    {{ $t('super_admin.pages.industry_grid.add_card') }}
+                                </button>
+                            </div>
+
+                            <div class="space-y-3">
+                                <div v-for="(card, cardIndex) in section.industry_cards" :key="card.id"
+                                    class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                        <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                            {{ $t('super_admin.pages.industry_grid.card_label', { number: cardIndex + 1 }) }}
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                @click="moveIndustryCard(section, cardIndex, -1)">
+                                                {{ $t('super_admin.pages.common.move_up') }}
+                                            </button>
+                                            <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                @click="moveIndustryCard(section, cardIndex, 1)">
+                                                {{ $t('super_admin.pages.common.move_down') }}
+                                            </button>
+                                            <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                                @click="removeIndustryCard(section, cardIndex)">
+                                                {{ $t('super_admin.pages.common.remove') }}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_220px]">
+                                        <FloatingInput v-model="card.label" :label="$t('super_admin.pages.common.card_label')" />
+                                        <FloatingInput v-model="card.href" :label="$t('super_admin.pages.common.card_href')" />
+                                        <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_44px] md:items-end">
+                                            <FloatingSelect v-model="card.icon" :options="industryCardIconOptions"
+                                                :label="$t('super_admin.pages.common.card_icon')" />
+                                            <div class="flex h-11 items-center justify-center rounded-sm border border-stone-200 bg-stone-50 text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                                                <component :is="resolveIndustryIconComponent(card)" class="h-5 w-5" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="section.layout === 'testimonial_grid'"
+                            class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3"
+                        >
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ $t('super_admin.pages.testimonial_grid.title') }}
+                                    </h3>
+                                    <p class="text-xs text-stone-500 dark:text-neutral-500">
+                                        {{ $t('super_admin.pages.testimonial_grid.subtitle') }}
+                                    </p>
+                                </div>
+                                <button type="button"
+                                    class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    @click="addTestimonialCard(section)">
+                                    {{ $t('super_admin.pages.testimonial_grid.add_card') }}
+                                </button>
+                            </div>
+
+                            <div class="space-y-3">
+                                <div v-for="(card, cardIndex) in section.testimonial_cards" :key="card.id"
+                                    class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                        <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                            {{ $t('super_admin.pages.testimonial_grid.card_label', { number: cardIndex + 1 }) }}
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                @click="moveTestimonialCard(section, cardIndex, -1)">
+                                                {{ $t('super_admin.pages.common.move_up') }}
+                                            </button>
+                                            <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                @click="moveTestimonialCard(section, cardIndex, 1)">
+                                                {{ $t('super_admin.pages.common.move_down') }}
+                                            </button>
+                                            <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                                @click="removeTestimonialCard(section, cardIndex)">
+                                                {{ $t('super_admin.pages.common.remove') }}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <RichTextEditor
+                                        v-model="card.quote"
+                                        :label="$t('super_admin.pages.common.testimonial_card_quote')"
+                                        :link-prompt="editorLinkPrompt"
+                                        :image-prompt="editorImagePrompt"
+                                        :ai-enabled="ai_enabled"
+                                        :ai-generate-url="ai_image_generate_url"
+                                        :ai-prompt="editorAiPrompt"
+                                        :labels="editorLabels"
+                                    />
+
+                                    <div class="grid gap-3 md:grid-cols-3">
+                                        <FloatingInput v-model="card.author_name" :label="$t('super_admin.pages.common.testimonial_card_author_name')" />
+                                        <FloatingInput v-model="card.author_role" :label="$t('super_admin.pages.common.testimonial_card_author_role')" />
+                                        <FloatingInput v-model="card.author_company" :label="$t('super_admin.pages.common.testimonial_card_author_company')" />
+                                    </div>
+
+                                    <div class="grid gap-3 md:grid-cols-2">
+                                        <div class="space-y-2">
+                                            <FloatingInput v-model="card.image_url" :label="$t('super_admin.pages.common.testimonial_card_image_url')" />
+                                            <div class="flex flex-wrap items-center gap-2 text-xs">
+                                                <button v-if="asset_list_url" type="button"
+                                                    class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                                    @click="openAssetPicker(card, 'image_url', 'image_alt')">
+                                                    {{ $t('super_admin.pages.assets.choose') }}
+                                                </button>
+                                                <span v-if="card.image_url" class="text-stone-500">
+                                                    {{ $t('super_admin.pages.assets.preview') }}
+                                                </span>
+                                            </div>
+                                            <div v-if="card.image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white">
+                                                <img :src="card.image_url" :alt="card.image_alt || card.author_name" class="h-28 w-28 rounded-full object-cover" loading="lazy" decoding="async" />
+                                            </div>
+                                        </div>
+                                        <FloatingInput v-model="card.image_alt" :label="$t('super_admin.pages.common.testimonial_card_image_alt')" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="section.layout === 'feature_tabs'"
+                            class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3"
+                        >
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ $t('super_admin.pages.feature_tabs.title') }}
+                                    </h3>
+                                    <p class="text-xs text-stone-500 dark:text-neutral-500">
+                                        {{ $t('super_admin.pages.feature_tabs.subtitle') }}
+                                    </p>
+                                </div>
+                                <button type="button"
+                                    class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    @click="addFeatureTab(section)">
+                                    {{ $t('super_admin.pages.feature_tabs.add_tab') }}
+                                </button>
+                            </div>
+
+                            <div class="max-w-xs">
+                                <FloatingNumberInput
+                                    v-model="section.feature_tabs_font_size"
+                                    :label="$t('super_admin.pages.feature_tabs.font_size_label')"
+                                    :step="1"
+                                />
+                            </div>
+
+                            <div class="space-y-3">
+                                <div v-for="(tab, tabIndex) in section.feature_tabs" :key="tab.id"
+                                    class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                        <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                            {{ $t('super_admin.pages.feature_tabs.tab_label', { number: tabIndex + 1 }) }}
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                @click="moveFeatureTab(section, tabIndex, -1)">
+                                                {{ $t('super_admin.pages.common.move_up') }}
+                                            </button>
+                                            <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                @click="moveFeatureTab(section, tabIndex, 1)">
+                                                {{ $t('super_admin.pages.common.move_down') }}
+                                            </button>
+                                            <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                                @click="removeFeatureTab(section, tabIndex)">
+                                                {{ $t('super_admin.pages.common.remove') }}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+                                        <FloatingInput v-model="tab.label" :label="$t('super_admin.pages.common.tab_label')" />
+                                        <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_44px] md:items-end">
+                                            <FloatingSelect v-model="tab.icon" :options="featureTabIconSelectOptions"
+                                                :label="$t('super_admin.pages.common.tab_icon')" />
+                                            <div class="flex h-11 items-center justify-center rounded-sm border border-stone-200 bg-stone-50 text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                                                <component :is="resolveFeatureTabIconComponent(tab)" class="h-5 w-5" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid gap-3 md:grid-cols-2">
+                                        <FloatingInput v-model="tab.title" :label="$t('super_admin.pages.common.tab_title')" />
+                                        <FloatingInput v-model="tab.cta_label" :label="$t('super_admin.pages.common.tab_cta_label')" />
+                                        <div class="md:col-span-2">
+                                            <FloatingInput v-model="tab.cta_href" :label="$t('super_admin.pages.common.tab_cta_href')" />
+                                        </div>
+                                    </div>
+
+                                    <RichTextEditor
+                                        v-model="tab.body"
+                                        :label="$t('super_admin.pages.common.tab_body')"
+                                        :link-prompt="editorLinkPrompt"
+                                        :image-prompt="editorImagePrompt"
+                                        :ai-enabled="ai_enabled"
+                                        :ai-generate-url="ai_image_generate_url"
+                                        :ai-prompt="editorAiPrompt"
+                                        :labels="editorLabels"
+                                    />
+
+                                    <div class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                            <div>
+                                                <h4 class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                                    {{ $t('super_admin.pages.feature_tabs.children_title') }}
+                                                </h4>
+                                                <p class="text-xs text-stone-500 dark:text-neutral-500">
+                                                    {{ $t('super_admin.pages.feature_tabs.children_subtitle') }}
+                                                </p>
+                                            </div>
+                                            <button type="button"
+                                                class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                                @click="addFeatureTabChild(tab)">
+                                                {{ $t('super_admin.pages.feature_tabs.add_child') }}
+                                            </button>
+                                        </div>
+
+                                        <div v-if="tab.children?.length" class="space-y-3">
+                                            <div v-for="(child, childIndex) in tab.children" :key="child.id"
+                                                class="rounded-sm border border-stone-200 bg-stone-50/60 p-3 dark:border-neutral-700 dark:bg-neutral-950/40 space-y-3">
+                                                <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                                    <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                                        {{ $t('super_admin.pages.feature_tabs.child_label', { number: childIndex + 1 }) }}
+                                                    </div>
+                                                    <div class="flex flex-wrap gap-2">
+                                                        <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                            @click="moveFeatureTabChild(tab, childIndex, -1)">
+                                                            {{ $t('super_admin.pages.common.move_up') }}
+                                                        </button>
+                                                        <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                            @click="moveFeatureTabChild(tab, childIndex, 1)">
+                                                            {{ $t('super_admin.pages.common.move_down') }}
+                                                        </button>
+                                                        <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                                            @click="removeFeatureTabChild(tab, childIndex)">
+                                                            {{ $t('super_admin.pages.common.remove') }}
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div class="grid gap-3 md:grid-cols-2">
+                                                    <FloatingInput v-model="child.label" :label="$t('super_admin.pages.common.feature_item_label')" />
+                                                    <FloatingInput v-model="child.title" :label="$t('super_admin.pages.common.feature_item_title')" />
+                                                    <FloatingInput v-model="child.cta_label" :label="$t('super_admin.pages.common.feature_item_cta_label')" />
+                                                    <FloatingInput v-model="child.cta_href" :label="$t('super_admin.pages.common.feature_item_cta_href')" />
+                                                </div>
+
+                                                <RichTextEditor
+                                                    v-model="child.body"
+                                                    :label="$t('super_admin.pages.common.feature_item_body')"
+                                                    :link-prompt="editorLinkPrompt"
+                                                    :image-prompt="editorImagePrompt"
+                                                    :ai-enabled="ai_enabled"
+                                                    :ai-generate-url="ai_image_generate_url"
+                                                    :ai-prompt="editorAiPrompt"
+                                                    :labels="editorLabels"
+                                                />
+
+                                                <div class="grid gap-3 md:grid-cols-2">
+                                                    <div class="space-y-2">
+                                                        <FloatingInput v-model="child.image_url" :label="$t('super_admin.pages.common.feature_item_image_url')" />
+                                                        <div class="flex flex-wrap items-center gap-2 text-xs">
+                                                            <button v-if="asset_list_url" type="button"
+                                                                class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                                                @click="openAssetPicker(child, 'image_url', 'image_alt')">
+                                                                {{ $t('super_admin.pages.assets.choose') }}
+                                                            </button>
+                                                            <span v-if="child.image_url" class="text-stone-500">
+                                                                {{ $t('super_admin.pages.assets.preview') }}
+                                                            </span>
+                                                        </div>
+                                                        <div v-if="child.image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white">
+                                                            <img :src="child.image_url" :alt="child.image_alt || child.title || child.label" class="h-36 w-full object-cover" loading="lazy" decoding="async" />
+                                                        </div>
+                                                    </div>
+                                                    <FloatingInput v-model="child.image_alt" :label="$t('super_admin.pages.common.feature_item_image_alt')" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                            {{ $t('super_admin.pages.common.tab_items') }}
+                                        </label>
+                                        <textarea :value="(tab.items || []).join('\n')" rows="4"
+                                            class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                            @input="updateFeatureTabItems(tab, $event.target.value)"></textarea>
+                                    </div>
+
+                                    <div class="grid gap-3 md:grid-cols-2">
+                                        <div class="space-y-2">
+                                            <FloatingInput v-model="tab.image_url" :label="$t('super_admin.pages.common.tab_image_url')" />
+                                            <div class="flex flex-wrap items-center gap-2 text-xs">
+                                                <button v-if="asset_list_url" type="button"
+                                                    class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                                    @click="openAssetPicker(tab, 'image_url', 'image_alt')">
+                                                    {{ $t('super_admin.pages.assets.choose') }}
+                                                </button>
+                                                <span v-if="tab.image_url" class="text-stone-500">
+                                                    {{ $t('super_admin.pages.assets.preview') }}
+                                                </span>
+                                            </div>
+                                            <div v-if="tab.image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white">
+                                                <img :src="tab.image_url" :alt="tab.image_alt || tab.title || tab.label" class="h-36 w-full object-cover" loading="lazy" decoding="async" />
+                                            </div>
+                                        </div>
+                                        <FloatingInput v-model="tab.image_alt" :label="$t('super_admin.pages.common.tab_image_alt')" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="['contact', 'feature_pairs'].includes(section.layout)"
                             class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3"
                         >
                             <div>
                                 <h3 class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.pages.contact_aside.title') }}
+                                    {{
+                                        section.layout === 'feature_pairs'
+                                            ? $t('super_admin.pages.feature_pairs.secondary_title')
+                                            : $t('super_admin.pages.contact_aside.title')
+                                    }}
                                 </h3>
                                 <p class="text-xs text-stone-500 dark:text-neutral-500">
-                                    {{ $t('super_admin.pages.contact_aside.subtitle') }}
+                                    {{
+                                        section.layout === 'feature_pairs'
+                                            ? $t('super_admin.pages.feature_pairs.secondary_subtitle')
+                                            : $t('super_admin.pages.contact_aside.subtitle')
+                                    }}
                                 </p>
                             </div>
 
@@ -1055,7 +1769,7 @@ syncFormFromProps(currentLocale.value);
                                 </div>
                             </div>
 
-                            <div>
+                            <div v-if="section.layout === 'contact'">
                                 <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                     {{ $t('super_admin.pages.common.aside_items') }}
                                 </label>
@@ -1071,9 +1785,31 @@ syncFormFromProps(currentLocale.value);
                                 <FloatingInput v-model="section.aside_link_label" :label="$t('super_admin.pages.common.aside_link_label')" />
                                 <FloatingInput v-model="section.aside_link_href" :label="$t('super_admin.pages.common.aside_link_href')" />
                             </div>
+
+                            <div v-if="section.layout === 'feature_pairs'" class="grid gap-3 md:grid-cols-2">
+                                <div class="space-y-2">
+                                    <FloatingInput v-model="section.aside_image_url" :label="$t('super_admin.pages.common.aside_image_url')" />
+                                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                                        <button v-if="asset_list_url" type="button"
+                                            class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                            @click="openAssetPicker(section, 'aside_image_url', 'aside_image_alt')">
+                                            {{ $t('super_admin.pages.assets.choose') }}
+                                        </button>
+                                        <span v-if="section.aside_image_url" class="text-stone-500">
+                                            {{ $t('super_admin.pages.assets.preview') }}
+                                        </span>
+                                    </div>
+                                    <div v-if="section.aside_image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white">
+                                        <img :src="section.aside_image_url" :alt="section.aside_image_alt || section.aside_title || section.title" class="h-36 w-full object-cover" loading="lazy" decoding="async" />
+                                    </div>
+                                </div>
+                                <FloatingInput v-model="section.aside_image_alt" :label="$t('super_admin.pages.common.aside_image_alt')" />
+                            </div>
                         </div>
 
-                        <div class="grid gap-3 md:grid-cols-2">
+                            </div>
+                            <div class="space-y-3">
+                        <div v-if="!['industry_grid', 'feature_tabs', 'testimonial_grid'].includes(section.layout)" class="grid gap-3 md:grid-cols-2">
                             <div class="space-y-2">
                                 <FloatingInput v-model="section.image_url" :label="$t('super_admin.pages.common.image_url')" />
                                 <div class="flex flex-wrap items-center gap-2 text-xs">
@@ -1093,7 +1829,7 @@ syncFormFromProps(currentLocale.value);
                             <FloatingInput v-model="section.image_alt" :label="$t('super_admin.pages.common.image_alt')" />
                         </div>
 
-                        <div class="grid gap-3 md:grid-cols-3">
+                        <div v-if="!['industry_grid', 'feature_tabs', 'testimonial_grid'].includes(section.layout)" class="grid gap-3 md:grid-cols-3">
                             <FloatingInput v-model="section.embed_url" :label="$t('super_admin.pages.common.embed_url')" />
                             <FloatingInput v-model="section.embed_title" :label="$t('super_admin.pages.common.embed_title')" />
                             <FloatingInput v-model="section.embed_height" type="number" :label="$t('super_admin.pages.common.embed_height')" />
@@ -1173,7 +1909,10 @@ syncFormFromProps(currentLocale.value);
                             <FloatingInput v-model="section.secondary_label" :label="$t('super_admin.pages.common.secondary_label')" />
                             <FloatingInput v-model="section.secondary_href" :label="$t('super_admin.pages.common.secondary_href')" />
                         </div>
+                            </div>
+                        </div>
                     </div>
+                </div>
                 </div>
             </section>
         </div>

@@ -1626,7 +1626,13 @@
         "title": "Sections",
         "add": "Ajouter une section",
         "add_type": "Type de section a ajouter",
-        "section_label": "Section"
+        "section_label": "Section",
+        "edit": "Editer",
+        "close_editor": "Fermer",
+        "cards_count": "{count} cartes",
+        "tabs_count": "{count} onglets",
+        "items_count": "{count} puces",
+        "images_count": "{count} images"
       },
       "library": {
         "select": "Bloc de la librairie",
@@ -1641,6 +1647,10 @@
         "split": "Split (texte + image)",
         "duo": "2 blocs (image + bloc couleur)",
         "testimonial": "Temoignage (citation + image)",
+        "feature_pairs": "2 images + 2 textes",
+        "industry_grid": "Industries (grille de cartes)",
+        "feature_tabs": "Onglets fonctionnels (accordeon + media)",
+        "testimonial_grid": "Temoignages (grille de cartes)",
         "stack": "Stack (centre)",
         "contact": "Contact (3 colonnes)"
       },
@@ -1692,6 +1702,31 @@
         "kicker": "Kicker",
         "title": "Titre",
         "body": "Corps",
+        "card_label": "Titre de la carte",
+        "card_href": "Lien/route de la carte",
+        "card_icon": "Icone de la carte",
+        "tab_label": "Titre de l'onglet",
+        "tab_icon": "Icone de l'onglet",
+        "tab_title": "Titre du panneau",
+        "tab_body": "Corps du panneau",
+        "tab_items": "Sous-points de l'onglet (une ligne par item)",
+        "tab_image_url": "URL image du panneau",
+        "tab_image_alt": "Texte alternatif image du panneau",
+        "tab_cta_label": "Label CTA du panneau",
+        "tab_cta_href": "Lien/route CTA du panneau",
+        "feature_item_label": "Label de l'item cliquable",
+        "feature_item_title": "Titre du panneau de l'item",
+        "feature_item_body": "Corps du panneau de l'item",
+        "feature_item_image_url": "URL image de l'item",
+        "feature_item_image_alt": "Texte alternatif image de l'item",
+        "feature_item_cta_label": "Label CTA de l'item",
+        "feature_item_cta_href": "Lien/route CTA de l'item",
+        "testimonial_card_quote": "Citation",
+        "testimonial_card_author_name": "Nom",
+        "testimonial_card_author_role": "Fonction",
+        "testimonial_card_author_company": "Entreprise",
+        "testimonial_card_image_url": "URL photo",
+        "testimonial_card_image_alt": "Texte alternatif photo",
         "testimonial_author": "Nom du temoin",
         "testimonial_role": "Fonction du temoin",
         "aside_kicker": "Kicker colonne droite",
@@ -1700,6 +1735,8 @@
         "aside_items": "Puces colonne droite (une ligne par item)",
         "aside_link_label": "Label lien colonne droite",
         "aside_link_href": "Lien/route colonne droite",
+        "aside_image_url": "URL image bloc 2",
+        "aside_image_alt": "Texte alternatif image bloc 2",
         "image_url": "URL image",
         "image_alt": "Texte alternatif",
         "embed_url": "URL du formulaire embarque",
@@ -1717,6 +1754,35 @@
       "testimonial": {
         "title": "Attribution du temoignage",
         "subtitle": "Ajoutez le nom et la fonction affiches sous la citation."
+      },
+      "feature_pairs": {
+        "secondary_title": "Bloc texte + image 2",
+        "secondary_subtitle": "Configurez le second contenu et son visuel alterne."
+      },
+      "industry_grid": {
+        "cards_title": "Cartes industries",
+        "cards_subtitle": "Ajoutez les industries affichees dans la grille et le lien de chaque carte si besoin.",
+        "icon_auto": "Icone automatique",
+        "add_card": "Ajouter une carte",
+        "card_label": "Carte {number}"
+      },
+      "testimonial_grid": {
+        "title": "Temoignages en grille",
+        "subtitle": "Ajoutez les citations, les noms et les photos affiches dans la grille.",
+        "add_card": "Ajouter un temoignage",
+        "card_label": "Temoignage {number}"
+      },
+      "feature_tabs": {
+        "title": "Onglets fonctionnels",
+        "subtitle": "Ajoutez les groupes de l'accordeon a gauche et le contenu detaille affiche a droite.",
+        "add_tab": "Ajouter un onglet",
+        "tab_label": "Onglet {number}",
+        "font_size_label": "Taille des titres d'accordeon (px)",
+        "icon_auto": "Selectionner une icone",
+        "children_title": "Items cliquables",
+        "children_subtitle": "Chaque item peut piloter son propre texte, image et CTA dans le panneau de droite.",
+        "add_child": "Ajouter un item cliquable",
+        "child_label": "Item {number}"
       },
       "theme": {
         "title": "Theme",
@@ -1814,6 +1880,7 @@
         "back_list": "Retour aux sections",
         "create": "Nouvelle section",
         "edit": "Editer",
+        "duplicate": "Dupliquer",
         "delete": "Supprimer",
         "save": "Enregistrer la section",
         "confirm_delete": "Supprimer {name} ?"
@@ -1854,7 +1921,11 @@
         "cta": "Appel a l'action",
         "gallery": "Galerie",
         "duo": "2 blocs reutilisables",
-        "testimonial": "Temoignage reutilisable"
+        "testimonial": "Temoignage reutilisable",
+        "feature_pairs": "2 images + 2 textes reutilisable",
+        "industry_grid": "Industries reutilisable",
+        "feature_tabs": "Onglets fonctionnels reutilisable",
+        "testimonial_grid": "Temoignages reutilisables"
       }
     },
     "assets": {
