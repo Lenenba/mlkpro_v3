@@ -25,8 +25,7 @@ import {
 import {
     createFeatureTabChild,
     createFeatureTab,
-    defaultFeatureTabsTriggerFontSize,
-    defaultFeatureTabs,
+    defaultFeatureTabsShowcaseSection,
     ensureFeatureTabs,
     featureTabIconOptions,
     normalizeFeatureTabsTriggerFontSize,
@@ -182,23 +181,51 @@ const sectionTypePreset = (type) => {
     }
 
     if (type === 'feature_tabs') {
+        const showcaseSection = defaultFeatureTabsShowcaseSection(currentLocale.value);
+
         return {
-            layout: 'feature_tabs',
-            background_color: '#f7f2e8',
+            ...showcaseSection,
+        };
+    }
+
+    if (type === 'footer') {
+        return {
+            layout: 'footer',
+            background_color: '#062f3f',
             image_position: 'left',
-            alignment: 'center',
+            alignment: 'left',
             density: 'normal',
             tone: 'default',
-            title: currentLocale.value === 'fr'
-                ? 'Un logiciel de gestion terrain qui travaille pour vous.'
-                : 'Field service management software that works for you.',
+            kicker: currentLocale.value === 'fr' ? 'Accompagnement' : 'Support',
+            title: currentLocale.value === 'fr' ? 'Parlez a notre equipe' : 'Talk to our team',
             body: currentLocale.value === 'fr'
-                ? '<p>De la premiere visite jusqu au paiement final, centralisez votre operation dans un seul flux.</p>'
-                : '<p>From the first visit to final payment, keep your entire operation in a single workflow.</p>',
-            primary_label: currentLocale.value === 'fr' ? 'Voir comment ca marche' : 'See how it works',
-            primary_href: '#',
-            feature_tabs_font_size: defaultFeatureTabsTriggerFontSize,
-            feature_tabs: defaultFeatureTabs(currentLocale.value),
+                ? '<p>Besoin d un parcours produit plus precis ou d une page publique sur mesure ? On peut vous guider.</p>'
+                : '<p>Need a sharper product journey or a custom public page setup? Our team can help.</p>',
+            items: currentLocale.value === 'fr'
+                ? [
+                    'Parcours public et modules metier',
+                    'Support produit et accompagnement',
+                    'Disponible en francais et en anglais',
+                ]
+                : [
+                    'Public pages and business modules',
+                    'Product support and enablement',
+                    'Available in French and English',
+                ],
+            primary_label: currentLocale.value === 'fr' ? 'Nous contacter' : 'Contact us',
+            primary_href: '/pages/contact-us',
+            secondary_label: currentLocale.value === 'fr' ? 'Voir les tarifs' : 'View pricing',
+            secondary_href: '/pricing',
+            copy: currentLocale.value === 'fr' ? 'Tous droits reserves.' : 'All rights reserved.',
+            contact_phone: '',
+            contact_email: '',
+            social_facebook_href: '',
+            social_x_href: '',
+            social_instagram_href: '',
+            social_youtube_href: '',
+            social_linkedin_href: '',
+            google_play_href: '',
+            app_store_href: '',
         };
     }
 
@@ -264,6 +291,16 @@ const ensureStructure = (content, type = form.type) => {
         primary_href: content?.primary_href || '',
         secondary_label: content?.secondary_label || '',
         secondary_href: content?.secondary_href || '',
+        copy: content?.copy ?? preset.copy ?? '',
+        contact_phone: content?.contact_phone ?? preset.contact_phone ?? '',
+        contact_email: content?.contact_email ?? preset.contact_email ?? '',
+        social_facebook_href: content?.social_facebook_href ?? preset.social_facebook_href ?? '',
+        social_x_href: content?.social_x_href ?? preset.social_x_href ?? '',
+        social_instagram_href: content?.social_instagram_href ?? preset.social_instagram_href ?? '',
+        social_youtube_href: content?.social_youtube_href ?? preset.social_youtube_href ?? '',
+        social_linkedin_href: content?.social_linkedin_href ?? preset.social_linkedin_href ?? '',
+        google_play_href: content?.google_play_href ?? preset.google_play_href ?? '',
+        app_store_href: content?.app_store_href ?? preset.app_store_href ?? '',
     };
 };
 
@@ -303,8 +340,24 @@ watch(
             background_color: current.background_color === previous.background_color ? next.background_color : current.background_color,
             tone: current.tone === previous.tone ? next.tone : current.tone,
             alignment: current.alignment === previous.alignment ? next.alignment : current.alignment,
+            kicker: current.kicker || next.kicker || '',
             title: current.title || next.title || '',
+            body: current.body || next.body || '',
+            items: current.items?.length ? current.items : (Array.isArray(next.items) ? [...next.items] : []),
             primary_label: current.primary_label || next.primary_label || '',
+            primary_href: current.primary_href || next.primary_href || '',
+            secondary_label: current.secondary_label || next.secondary_label || '',
+            secondary_href: current.secondary_href || next.secondary_href || '',
+            copy: current.copy || next.copy || '',
+            contact_phone: current.contact_phone || next.contact_phone || '',
+            contact_email: current.contact_email || next.contact_email || '',
+            social_facebook_href: current.social_facebook_href || next.social_facebook_href || '',
+            social_x_href: current.social_x_href || next.social_x_href || '',
+            social_instagram_href: current.social_instagram_href || next.social_instagram_href || '',
+            social_youtube_href: current.social_youtube_href || next.social_youtube_href || '',
+            social_linkedin_href: current.social_linkedin_href || next.social_linkedin_href || '',
+            google_play_href: current.google_play_href || next.google_play_href || '',
+            app_store_href: current.app_store_href || next.app_store_href || '',
             industry_cards: current.industry_cards?.length ? current.industry_cards : ensureIndustryCards(next.industry_cards),
             feature_tabs: current.feature_tabs?.length ? current.feature_tabs : ensureFeatureTabs(next.feature_tabs),
             feature_tabs_font_size: current.feature_tabs_font_size === previous.feature_tabs_font_size
@@ -312,6 +365,8 @@ watch(
                 : normalizeFeatureTabsTriggerFontSize(current.feature_tabs_font_size),
             testimonial_cards: current.testimonial_cards?.length ? current.testimonial_cards : ensureTestimonialCards(next.testimonial_cards),
         };
+
+        syncLinesFromContent();
     }
 );
 
@@ -321,8 +376,14 @@ const isFeaturePairsType = computed(() => form.type === 'feature_pairs');
 const isIndustryGridType = computed(() => form.type === 'industry_grid');
 const isFeatureTabsType = computed(() => form.type === 'feature_tabs');
 const isTestimonialGridType = computed(() => form.type === 'testimonial_grid');
-const usesEnhancedLayout = computed(() => isDuoType.value || isTestimonialType.value || isFeaturePairsType.value || isIndustryGridType.value || isFeatureTabsType.value || isTestimonialGridType.value);
+const isFooterType = computed(() => form.type === 'footer');
+const usesEnhancedLayout = computed(() => isDuoType.value || isTestimonialType.value || isFeaturePairsType.value || isIndustryGridType.value || isFeatureTabsType.value || isTestimonialGridType.value || isFooterType.value);
 const showImagePosition = computed(() => isDuoType.value || isTestimonialType.value);
+const itemsFieldLabel = computed(() => (
+    isFooterType.value
+        ? t('super_admin.pages.footer.items_label')
+        : t('super_admin.pages.fields.items')
+));
 
 const backgroundFieldLabel = computed(() => (
     isDuoType.value
@@ -607,10 +668,43 @@ syncFormFromProps(currentLocale.value);
 
                 <div v-if="!isTestimonialType && !isIndustryGridType && !isFeatureTabsType && !isTestimonialGridType">
                     <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.pages.fields.items') }}
+                        {{ itemsFieldLabel }}
                     </label>
                     <textarea v-model="itemsLines" rows="4"
                         class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"></textarea>
+                </div>
+
+                <div v-if="isFooterType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700">
+                    <div class="mb-3">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('super_admin.pages.footer.title') }}
+                        </h2>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.pages.footer.subtitle') }}
+                        </p>
+                    </div>
+
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <FloatingInput v-model="form.content.contact_phone" :label="$t('super_admin.pages.common.contact_phone')" />
+                        <FloatingInput v-model="form.content.contact_email" :label="$t('super_admin.pages.common.contact_email')" />
+                    </div>
+
+                    <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <FloatingInput v-model="form.content.social_facebook_href" :label="$t('super_admin.pages.common.social_facebook_href')" />
+                        <FloatingInput v-model="form.content.social_x_href" :label="$t('super_admin.pages.common.social_x_href')" />
+                        <FloatingInput v-model="form.content.social_instagram_href" :label="$t('super_admin.pages.common.social_instagram_href')" />
+                        <FloatingInput v-model="form.content.social_youtube_href" :label="$t('super_admin.pages.common.social_youtube_href')" />
+                        <FloatingInput v-model="form.content.social_linkedin_href" :label="$t('super_admin.pages.common.social_linkedin_href')" />
+                    </div>
+
+                    <div class="mt-3 grid gap-3 md:grid-cols-2">
+                        <FloatingInput v-model="form.content.google_play_href" :label="$t('super_admin.pages.common.google_play_href')" />
+                        <FloatingInput v-model="form.content.app_store_href" :label="$t('super_admin.pages.common.app_store_href')" />
+                    </div>
+
+                    <div class="mt-3">
+                        <FloatingInput v-model="form.content.copy" :label="$t('super_admin.pages.common.copy')" />
+                    </div>
                 </div>
 
                 <div v-if="isTestimonialType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700">
@@ -630,7 +724,7 @@ syncFormFromProps(currentLocale.value);
                     </div>
                 </div>
 
-                <div v-if="!isIndustryGridType && !isFeatureTabsType && !isTestimonialGridType" class="grid gap-3 md:grid-cols-2">
+                <div v-if="!isIndustryGridType && !isFeatureTabsType && !isTestimonialGridType && !isFooterType" class="grid gap-3 md:grid-cols-2">
                     <div class="space-y-2">
                         <FloatingInput v-model="form.content.image_url" :label="$t('super_admin.pages.common.image_url')" />
                         <div class="flex flex-wrap items-center gap-2 text-xs">
@@ -727,6 +821,43 @@ syncFormFromProps(currentLocale.value);
                                 :ai-prompt="editorAiPrompt"
                                 :labels="editorLabels"
                             />
+
+                            <div class="grid gap-3 md:grid-cols-3">
+                                <FloatingInput v-model="tab.metric" :label="$t('super_admin.pages.common.tab_metric')" />
+                                <FloatingInput v-model="tab.person" :label="$t('super_admin.pages.common.tab_person')" />
+                                <FloatingInput v-model="tab.role" :label="$t('super_admin.pages.common.tab_role')" />
+                            </div>
+
+                            <RichTextEditor
+                                v-model="tab.story"
+                                :label="$t('super_admin.pages.common.tab_story')"
+                                :link-prompt="editorLinkPrompt"
+                                :image-prompt="editorImagePrompt"
+                                :ai-enabled="ai_enabled"
+                                :ai-generate-url="ai_image_generate_url"
+                                :ai-prompt="editorAiPrompt"
+                                :labels="editorLabels"
+                            />
+
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <div class="space-y-2">
+                                    <FloatingInput v-model="tab.avatar_url" :label="$t('super_admin.pages.common.tab_avatar_url')" />
+                                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                                        <button v-if="asset_list_url" type="button"
+                                            class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                            @click="openAssetPicker(tab, 'avatar_url', 'avatar_alt')">
+                                            {{ $t('super_admin.pages.assets.choose') }}
+                                        </button>
+                                        <span v-if="tab.avatar_url" class="text-stone-500">
+                                            {{ $t('super_admin.pages.assets.preview') }}
+                                        </span>
+                                    </div>
+                                    <div v-if="tab.avatar_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white p-3">
+                                        <img :src="tab.avatar_url" :alt="tab.avatar_alt || tab.person || tab.label" class="h-24 w-24 rounded-full object-cover" loading="lazy" decoding="async" />
+                                    </div>
+                                </div>
+                                <FloatingInput v-model="tab.avatar_alt" :label="$t('super_admin.pages.common.tab_avatar_alt')" />
+                            </div>
 
                             <div class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
                                 <div class="flex flex-wrap items-start justify-between gap-3">

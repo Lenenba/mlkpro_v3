@@ -1651,6 +1651,7 @@
         "industry_grid": "Industries (grille de cartes)",
         "feature_tabs": "Onglets fonctionnels (accordeon + media)",
         "testimonial_grid": "Temoignages (grille de cartes)",
+        "footer": "Footer reutilisable",
         "stack": "Stack (centre)",
         "contact": "Contact (3 colonnes)"
       },
@@ -1702,6 +1703,7 @@
         "kicker": "Kicker",
         "title": "Titre",
         "body": "Corps",
+        "copy": "Texte de bas de page",
         "card_label": "Titre de la carte",
         "card_href": "Lien/route de la carte",
         "card_icon": "Icone de la carte",
@@ -1709,6 +1711,12 @@
         "tab_icon": "Icone de l'onglet",
         "tab_title": "Titre du panneau",
         "tab_body": "Corps du panneau",
+        "tab_metric": "Metrique mise en avant",
+        "tab_story": "Citation / preuve sociale",
+        "tab_person": "Nom de la personne",
+        "tab_role": "Role de la personne",
+        "tab_avatar_url": "URL avatar de la personne",
+        "tab_avatar_alt": "Texte alternatif avatar",
         "tab_items": "Sous-points de l'onglet (une ligne par item)",
         "tab_image_url": "URL image du panneau",
         "tab_image_alt": "Texte alternatif image du panneau",
@@ -1745,7 +1753,16 @@
         "primary_label": "Label principal",
         "primary_href": "Lien/route principal",
         "secondary_label": "Label secondaire",
-        "secondary_href": "Lien/route secondaire"
+        "secondary_href": "Lien/route secondaire",
+        "contact_phone": "Telephone de contact",
+        "contact_email": "Email de contact",
+        "social_facebook_href": "Lien Facebook",
+        "social_x_href": "Lien X",
+        "social_instagram_href": "Lien Instagram",
+        "social_youtube_href": "Lien YouTube",
+        "social_linkedin_href": "Lien LinkedIn",
+        "google_play_href": "Lien Google Play",
+        "app_store_href": "Lien App Store"
       },
       "contact_aside": {
         "title": "Colonne details",
@@ -1783,6 +1800,11 @@
         "children_subtitle": "Chaque item peut piloter son propre texte, image et CTA dans le panneau de droite.",
         "add_child": "Ajouter un item cliquable",
         "child_label": "Item {number}"
+      },
+      "footer": {
+        "title": "Contenu du footer reutilisable",
+        "subtitle": "Configurez le bloc de support partage, les coordonnees, les reseaux, les badges stores et le texte de bas de page.",
+        "items_label": "Points de support"
       },
       "theme": {
         "title": "Theme",
@@ -1925,7 +1947,8 @@
         "feature_pairs": "2 images + 2 textes reutilisable",
         "industry_grid": "Industries reutilisable",
         "feature_tabs": "Onglets fonctionnels reutilisable",
-        "testimonial_grid": "Temoignages reutilisables"
+        "testimonial_grid": "Temoignages reutilisables",
+        "footer": "Footer reutilisable"
       }
     },
     "assets": {

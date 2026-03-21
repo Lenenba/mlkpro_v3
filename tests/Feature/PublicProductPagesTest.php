@@ -30,6 +30,7 @@ it('seeds public product pages and links the showcase menu to them', function ()
             ->where('content.page_title', 'Sales & CRM')
             ->has('content.sections', 3)
             ->where('footerMenu.display_location', 'footer')
+            ->where('footerSection.layout', 'footer')
             ->where('footerMenu.items.0.label', 'Legal')
         );
 });
@@ -578,6 +579,12 @@ it('supports the feature tabs section layout for public pages', function () {
                 'image_alt' => 'Paiement mobile',
                 'cta_label' => 'Voir les paiements',
                 'cta_href' => 'https://example.com/payments',
+                'metric' => 'Encaissements 2x plus rapides',
+                'story' => '<p>Les rappels automatiques ont reduit nos retards de paiement.</p>',
+                'person' => 'Equipe finance',
+                'role' => 'Facturation',
+                'avatar_url' => 'https://example.com/feature-tabs-finance-avatar.jpg',
+                'avatar_alt' => 'Portrait equipe finance',
             ],
         ],
     ]);
@@ -592,6 +599,8 @@ it('supports the feature tabs section layout for public pages', function () {
     expect($resolved['sections'][0]['feature_tabs_font_size'])->toBe(32);
     expect($resolved['sections'][0]['feature_tabs'][0]['icon'])->toBe('calendar-days');
     expect($resolved['sections'][0]['feature_tabs'][1]['cta_label'])->toBe('Voir les paiements');
+    expect($resolved['sections'][0]['feature_tabs'][1]['metric'])->toBe('Encaissements 2x plus rapides');
+    expect($resolved['sections'][0]['feature_tabs'][1]['person'])->toBe('Equipe finance');
     expect($resolved['sections'][0]['feature_tabs'][0]['children'])->toHaveCount(2);
     expect($resolved['sections'][0]['feature_tabs'][0]['children'][1]['label'])->toBe('Affectation equipe');
 
@@ -605,6 +614,7 @@ it('supports the feature tabs section layout for public pages', function () {
             ->where('content.sections.0.feature_tabs.0.label', 'Planifier')
             ->where('content.sections.0.feature_tabs.0.children.0.label', 'Calendrier glisser-deposer')
             ->where('content.sections.0.feature_tabs.1.icon', 'circle-dollar-sign')
+            ->where('content.sections.0.feature_tabs.1.metric', 'Encaissements 2x plus rapides')
             ->where('content.sections.0.primary_label', 'Voir comment ca marche')
         );
 });
@@ -805,6 +815,12 @@ it('stores reusable feature tabs library sections with tab content', function ()
                 'image_alt' => 'Paiement mobile',
                 'cta_label' => 'Voir les paiements',
                 'cta_href' => 'https://example.com/payments',
+                'metric' => 'Encaissements 2x plus rapides',
+                'story' => '<p>Les rappels automatiques ont reduit nos retards de paiement.</p>',
+                'person' => 'Equipe finance',
+                'role' => 'Facturation',
+                'avatar_url' => 'https://example.com/reusable-feature-tabs-finance-avatar.jpg',
+                'avatar_alt' => 'Portrait equipe finance',
             ],
         ],
     ], $user->id);
@@ -817,6 +833,8 @@ it('stores reusable feature tabs library sections with tab content', function ()
     expect($resolved['feature_tabs'][0]['label'])->toBe('Planifier');
     expect($resolved['feature_tabs'][1]['icon'])->toBe('circle-dollar-sign');
     expect($resolved['feature_tabs'][1]['cta_label'])->toBe('Voir les paiements');
+    expect($resolved['feature_tabs'][1]['metric'])->toBe('Encaissements 2x plus rapides');
+    expect($resolved['feature_tabs'][1]['person'])->toBe('Equipe finance');
     expect($resolved['feature_tabs'][1]['children'])->toHaveCount(1);
     expect($resolved['feature_tabs'][1]['children'][0]['label'])->toBe('Paiements sur place');
 });
@@ -861,4 +879,121 @@ it('stores reusable testimonial grid library sections with card content', functi
     expect($resolved['testimonial_cards'])->toHaveCount(2);
     expect($resolved['testimonial_cards'][0]['author_role'])->toBe('Fondatrice');
     expect($resolved['testimonial_cards'][1]['author_company'])->toBe('Nordik Clean');
+});
+
+it('stores reusable footer library sections with support content', function () {
+    $user = User::factory()->create();
+    $service = app(\App\Services\PlatformSectionContentService::class);
+
+    $footerSection = PlatformSection::query()->create([
+        'name' => 'Reusable footer',
+        'type' => 'footer',
+        'is_active' => true,
+        'content' => ['locales' => []],
+    ]);
+
+    $service->updateLocale($footerSection, 'fr', [
+        'background_color' => '#0b3b4a',
+        'kicker' => 'Accompagnement',
+        'title' => 'Parlez a notre equipe',
+        'body' => '<p>Un bloc de footer partage pour toutes les pages publiques.</p>',
+        'items' => [
+            'Accompagnement produit',
+            'Parcours public personnalise',
+            'Disponible en francais et en anglais',
+        ],
+        'primary_label' => 'Nous contacter',
+        'primary_href' => '/pages/contact-us',
+        'secondary_label' => 'Voir les tarifs',
+        'secondary_href' => '/pricing',
+        'copy' => 'Tous droits reserves.',
+        'contact_phone' => '+1 514 555 0189',
+        'contact_email' => 'bonjour@example.test',
+        'social_instagram_href' => 'https://instagram.com/example',
+        'social_linkedin_href' => 'https://linkedin.com/company/example',
+        'google_play_href' => 'https://play.google.com/store/apps/details?id=example.app',
+        'app_store_href' => 'https://apps.apple.com/app/example-app/id123456789',
+    ], $user->id);
+
+    $resolved = $service->resolveForLocale($footerSection->fresh(), 'fr');
+
+    expect($resolved['layout'])->toBe('footer');
+    expect($resolved['background_color'])->toBe('#0b3b4a');
+    expect($resolved['title'])->toBe('Parlez a notre equipe');
+    expect($resolved['items'])->toHaveCount(3);
+    expect($resolved['primary_label'])->toBe('Nous contacter');
+    expect($resolved['secondary_href'])->toBe('/pricing');
+    expect($resolved['copy'])->toBe('Tous droits reserves.');
+    expect($resolved['contact_phone'])->toBe('+1 514 555 0189');
+    expect($resolved['contact_email'])->toBe('bonjour@example.test');
+    expect($resolved['social_instagram_href'])->toBe('https://instagram.com/example');
+    expect($resolved['google_play_href'])->toContain('play.google.com');
+    expect($resolved['app_store_href'])->toContain('apps.apple.com');
+});
+
+it('exposes the active reusable footer section on public pages', function () {
+    $this->seed(MegaMenuSeeder::class);
+
+    PlatformSection::query()->create([
+        'name' => 'Shared footer',
+        'type' => 'footer',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'fr' => [
+                    'layout' => 'footer',
+                    'background_color' => '#0b3b4a',
+                    'kicker' => 'Accompagnement',
+                    'title' => 'Parlez a notre equipe',
+                    'body' => '<p>Un footer partage.</p>',
+                    'items' => ['Equipe produit', 'Setup public', 'Bilingue'],
+                    'primary_label' => 'Nous contacter',
+                    'primary_href' => '/pages/contact-us',
+                    'secondary_label' => 'Voir les tarifs',
+                    'secondary_href' => '/pricing',
+                    'copy' => 'Tous droits reserves.',
+                    'contact_phone' => '+1 514 555 0189',
+                    'contact_email' => 'bonjour@example.test',
+                    'social_x_href' => 'https://x.com/example',
+                    'google_play_href' => 'https://play.google.com/store/apps/details?id=example.app',
+                    'app_store_href' => 'https://apps.apple.com/app/example-app/id123456789',
+                ],
+                'en' => [
+                    'layout' => 'footer',
+                    'background_color' => '#0b3b4a',
+                    'kicker' => 'Support',
+                    'title' => 'Talk to our team',
+                    'body' => '<p>A shared footer section.</p>',
+                    'items' => ['Product enablement', 'Public setup', 'Bilingual support'],
+                    'primary_label' => 'Contact us',
+                    'primary_href' => '/pages/contact-us',
+                    'secondary_label' => 'View pricing',
+                    'secondary_href' => '/pricing',
+                    'copy' => 'All rights reserved.',
+                    'contact_phone' => '+1 514 555 0189',
+                    'contact_email' => 'hello@example.test',
+                    'social_x_href' => 'https://x.com/example',
+                    'google_play_href' => 'https://play.google.com/store/apps/details?id=example.app',
+                    'app_store_href' => 'https://apps.apple.com/app/example-app/id123456789',
+                ],
+            ],
+            'updated_by' => null,
+            'updated_at' => now()->toIso8601String(),
+        ],
+    ]);
+
+    $this->get(route('public.pages.show', ['slug' => 'sales-crm']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Public/Page')
+            ->where('footerSection.layout', 'footer')
+            ->where('footerSection.background_color', '#0b3b4a')
+            ->where('footerSection.title', 'Talk to our team')
+            ->where('footerSection.items.0', 'Product enablement')
+            ->where('footerSection.copy', 'All rights reserved.')
+            ->where('footerSection.contact_phone', '+1 514 555 0189')
+            ->where('footerSection.contact_email', 'hello@example.test')
+            ->where('footerSection.social_x_href', 'https://x.com/example')
+            ->where('footerSection.google_play_href', 'https://play.google.com/store/apps/details?id=example.app')
+        );
 });

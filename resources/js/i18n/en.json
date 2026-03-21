@@ -1651,6 +1651,7 @@
         "industry_grid": "Industries (card grid)",
         "feature_tabs": "Feature tabs (accordion + media)",
         "testimonial_grid": "Testimonials (card grid)",
+        "footer": "Reusable footer",
         "stack": "Stack (centered)",
         "contact": "Contact (3 columns)"
       },
@@ -1702,6 +1703,7 @@
         "kicker": "Kicker",
         "title": "Title",
         "body": "Body",
+        "copy": "Footer copy",
         "card_label": "Card title",
         "card_href": "Card href/route",
         "card_icon": "Card icon",
@@ -1709,6 +1711,12 @@
         "tab_icon": "Tab icon",
         "tab_title": "Panel title",
         "tab_body": "Panel body",
+        "tab_metric": "Featured metric",
+        "tab_story": "Quote / social proof",
+        "tab_person": "Person name",
+        "tab_role": "Person role",
+        "tab_avatar_url": "Person avatar URL",
+        "tab_avatar_alt": "Avatar alt text",
         "tab_items": "Tab sub-points (one per line)",
         "tab_image_url": "Panel image URL",
         "tab_image_alt": "Panel image alt text",
@@ -1745,7 +1753,16 @@
         "primary_label": "Primary label",
         "primary_href": "Primary href/route",
         "secondary_label": "Secondary label",
-        "secondary_href": "Secondary href/route"
+        "secondary_href": "Secondary href/route",
+        "contact_phone": "Contact phone",
+        "contact_email": "Contact email",
+        "social_facebook_href": "Facebook link",
+        "social_x_href": "X link",
+        "social_instagram_href": "Instagram link",
+        "social_youtube_href": "YouTube link",
+        "social_linkedin_href": "LinkedIn link",
+        "google_play_href": "Google Play link",
+        "app_store_href": "App Store link"
       },
       "contact_aside": {
         "title": "Details column",
@@ -1783,6 +1800,11 @@
         "children_subtitle": "Each item can control its own text, image, and CTA in the right-side panel.",
         "add_child": "Add clickable item",
         "child_label": "Item {number}"
+      },
+      "footer": {
+        "title": "Reusable footer content",
+        "subtitle": "Configure the shared support card, contact details, social links, store badges, and footer copy.",
+        "items_label": "Support bullets"
       },
       "theme": {
         "title": "Theme",
@@ -1925,7 +1947,8 @@
         "feature_pairs": "Reusable 2 images + 2 text blocks",
         "industry_grid": "Reusable industries",
         "feature_tabs": "Reusable feature tabs",
-        "testimonial_grid": "Reusable testimonials"
+        "testimonial_grid": "Reusable testimonials",
+        "footer": "Reusable footer"
       }
     },
     "assets": {

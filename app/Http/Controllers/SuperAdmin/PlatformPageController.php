@@ -297,6 +297,7 @@ class PlatformPageController extends BaseSuperAdminController
     private function mapLibrarySections(PlatformSectionContentService $sectionService): array
     {
         return PlatformSection::query()
+            ->where('type', '!=', 'footer')
             ->orderBy('name')
             ->get()
             ->map(function (PlatformSection $section) use ($sectionService) {

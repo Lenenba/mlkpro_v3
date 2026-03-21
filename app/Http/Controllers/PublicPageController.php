@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\BillingSubscriptionService;
 use App\Services\MegaMenus\MegaMenuRenderer;
 use App\Services\PlatformPageContentService;
+use App\Services\PublicFooterSectionResolver;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -58,6 +59,7 @@ class PublicPageController extends Controller
             'plan_key' => $planKey,
             'megaMenu' => app(MegaMenuRenderer::class)->resolveForLocation('header', 'public-pages'),
             'footerMenu' => app(MegaMenuRenderer::class)->resolveForLocation('footer', 'public-pages'),
+            'footerSection' => app(PublicFooterSectionResolver::class)->resolve($locale),
         ]);
     }
 }

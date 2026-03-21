@@ -7,6 +7,9 @@ test('pricing page exposes all public plans and comparison sections', function (
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Pricing')
+            ->where('megaMenu.display_location', 'header')
+            ->where('footerMenu.display_location', 'footer')
+            ->where('footerSection.layout', 'footer')
             ->has('pricingPlans', 5)
             ->where('pricingPlans.0.key', 'free')
             ->where('pricingPlans.1.key', 'starter')

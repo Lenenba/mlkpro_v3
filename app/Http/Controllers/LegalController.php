@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PlatformSetting;
 use App\Services\MegaMenus\MegaMenuRenderer;
+use App\Services\PublicFooterSectionResolver;
 use App\Support\PlanDisplay;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -17,6 +18,7 @@ class LegalController extends Controller
         return Inertia::render('Terms', [
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('onboarding.index'),
+            ...$this->publicChrome('terms'),
         ]);
     }
 
@@ -25,6 +27,7 @@ class LegalController extends Controller
         return Inertia::render('Privacy', [
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('onboarding.index'),
+            ...$this->publicChrome('privacy'),
         ]);
     }
 
@@ -33,6 +36,7 @@ class LegalController extends Controller
         return Inertia::render('Refund', [
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('onboarding.index'),
+            ...$this->publicChrome('refund'),
         ]);
     }
 
@@ -66,7 +70,18 @@ class LegalController extends Controller
             'highlightedPlanKey' => in_array('growth', $order, true) ? 'growth' : ($order[1] ?? ($order[0] ?? null)),
             'comparisonSections' => $this->resolveComparisonSections($order),
             'megaMenu' => app(MegaMenuRenderer::class)->resolveForLocation('header', 'pricing'),
+            'footerMenu' => app(MegaMenuRenderer::class)->resolveForLocation('footer', 'pricing'),
+            'footerSection' => app(PublicFooterSectionResolver::class)->resolve(app()->getLocale()),
         ]);
+    }
+
+    private function publicChrome(string $zone): array
+    {
+        return [
+            'megaMenu' => app(MegaMenuRenderer::class)->resolveForLocation('header', $zone),
+            'footerMenu' => app(MegaMenuRenderer::class)->resolveForLocation('footer', $zone),
+            'footerSection' => app(PublicFooterSectionResolver::class)->resolve(app()->getLocale()),
+        ];
     }
 
     private function resolvePlanDisplayPrice($raw): ?string

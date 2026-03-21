@@ -25,8 +25,7 @@ import {
 import {
     createFeatureTabChild,
     createFeatureTab,
-    defaultFeatureTabsTriggerFontSize,
-    defaultFeatureTabs,
+    defaultFeatureTabsShowcaseSection,
     ensureFeatureTabs,
     featureTabIconOptions,
     normalizeFeatureTabsTriggerFontSize,
@@ -419,20 +418,10 @@ const sectionPreset = (layout) => {
     }
 
     if (layout === 'feature_tabs') {
+        const showcaseSection = defaultFeatureTabsShowcaseSection(currentLocale.value);
+
         return {
-            layout: 'feature_tabs',
-            alignment: 'center',
-            background_color: '#f7f2e8',
-            title: currentLocale.value === 'fr'
-                ? 'Un logiciel de gestion terrain qui travaille pour vous.'
-                : 'Field service management software that works for you.',
-            body: currentLocale.value === 'fr'
-                ? '<p>De la premiere visite jusqu au paiement final, centralisez votre operation dans un seul flux.</p>'
-                : '<p>From the first visit to final payment, keep your entire operation in a single workflow.</p>',
-            primary_label: currentLocale.value === 'fr' ? 'Voir comment ca marche' : 'See how it works',
-            primary_href: '#',
-            feature_tabs_font_size: defaultFeatureTabsTriggerFontSize,
-            feature_tabs: defaultFeatureTabs(currentLocale.value),
+            ...showcaseSection,
         };
     }
 
@@ -1617,6 +1606,43 @@ syncFormFromProps(currentLocale.value);
                                         :ai-prompt="editorAiPrompt"
                                         :labels="editorLabels"
                                     />
+
+                                    <div class="grid gap-3 md:grid-cols-3">
+                                        <FloatingInput v-model="tab.metric" :label="$t('super_admin.pages.common.tab_metric')" />
+                                        <FloatingInput v-model="tab.person" :label="$t('super_admin.pages.common.tab_person')" />
+                                        <FloatingInput v-model="tab.role" :label="$t('super_admin.pages.common.tab_role')" />
+                                    </div>
+
+                                    <RichTextEditor
+                                        v-model="tab.story"
+                                        :label="$t('super_admin.pages.common.tab_story')"
+                                        :link-prompt="editorLinkPrompt"
+                                        :image-prompt="editorImagePrompt"
+                                        :ai-enabled="ai_enabled"
+                                        :ai-generate-url="ai_image_generate_url"
+                                        :ai-prompt="editorAiPrompt"
+                                        :labels="editorLabels"
+                                    />
+
+                                    <div class="grid gap-3 md:grid-cols-2">
+                                        <div class="space-y-2">
+                                            <FloatingInput v-model="tab.avatar_url" :label="$t('super_admin.pages.common.tab_avatar_url')" />
+                                            <div class="flex flex-wrap items-center gap-2 text-xs">
+                                                <button v-if="asset_list_url" type="button"
+                                                    class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                                    @click="openAssetPicker(tab, 'avatar_url', 'avatar_alt')">
+                                                    {{ $t('super_admin.pages.assets.choose') }}
+                                                </button>
+                                                <span v-if="tab.avatar_url" class="text-stone-500">
+                                                    {{ $t('super_admin.pages.assets.preview') }}
+                                                </span>
+                                            </div>
+                                            <div v-if="tab.avatar_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white p-3">
+                                                <img :src="tab.avatar_url" :alt="tab.avatar_alt || tab.person || tab.label" class="h-24 w-24 rounded-full object-cover" loading="lazy" decoding="async" />
+                                            </div>
+                                        </div>
+                                        <FloatingInput v-model="tab.avatar_alt" :label="$t('super_admin.pages.common.tab_avatar_alt')" />
+                                    </div>
 
                                     <div class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
                                         <div class="flex flex-wrap items-start justify-between gap-3">

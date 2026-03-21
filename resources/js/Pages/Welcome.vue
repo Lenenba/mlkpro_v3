@@ -1,9 +1,11 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import ApplicationLogo from '@/Components/ApplicationLogo.vue';
-import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import FeatureTabsShowcaseSection from '@/Components/Public/FeatureTabsShowcaseSection.vue';
+import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
+import PublicSiteHeader from '@/Components/Public/PublicSiteHeader.vue';
+import { Head, Link } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import { defaultFeatureTabsShowcaseSection } from '@/utils/featureTabs';
 
 const props = defineProps({
     canLogin: {
@@ -26,16 +28,37 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    footerMenu: {
+        type: Object,
+        default: () => ({}),
+    },
+    footerSection: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
-const page = usePage();
-const { t } = useI18n();
-const currentLocale = computed(() => page.props.locale || 'fr');
-const currentLocaleCode = computed(() => String(currentLocale.value || 'fr').toUpperCase());
-const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
+const { t, locale } = useI18n();
 const welcomeContent = computed(() => props.welcomeContent || {});
-const langMenuOpen = ref(false);
-const langMenuRef = ref(null);
+const normalizedLocale = computed(() => (
+    String(locale.value || 'fr').toLowerCase().startsWith('fr') ? 'fr' : 'en'
+));
+const welcomeShowcaseSection = computed(() => {
+    const fallback = defaultFeatureTabsShowcaseSection(normalizedLocale.value);
+    const custom = welcomeContent.value.home_service_showcase;
+
+    if (!custom || typeof custom !== 'object') {
+        return fallback;
+    }
+
+    return {
+        ...fallback,
+        ...custom,
+        feature_tabs: Array.isArray(custom.feature_tabs) && custom.feature_tabs.length
+            ? custom.feature_tabs
+            : fallback.feature_tabs,
+    };
+});
 
 const isHrefAllowed = (href) => {
     const key = String(href || '').trim();
@@ -74,16 +97,6 @@ const isExternalHref = (href) => {
     } catch (error) {
         return true;
     }
-};
-
-const navButtonClass = (style) => {
-    if (style === 'solid') {
-        return 'rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700';
-    }
-    if (style === 'ghost') {
-        return 'rounded-sm border border-stone-200 bg-white/90 px-3 py-2 text-sm font-medium text-stone-800 shadow-sm hover:bg-stone-50';
-    }
-    return 'rounded-sm border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-900 shadow-sm hover:bg-stone-50';
 };
 
 const sectionStyle = (color) => {
@@ -140,123 +153,18 @@ const headerMenuItems = computed(() =>
 const customSections = computed(() =>
     (welcomeContent.value.custom_sections || []).filter((section) => section && section.enabled !== false)
 );
-
-const setLocale = (locale) => {
-    if (locale === currentLocale.value) {
-        return;
-    }
-
-    langMenuOpen.value = false;
-    router.post(route('locale.update'), { locale }, { preserveScroll: true });
-};
-
-const toggleLangMenu = () => {
-    langMenuOpen.value = !langMenuOpen.value;
-};
-
-const closeLangMenu = () => {
-    langMenuOpen.value = false;
-};
-
-const handleLangOutsideClick = (event) => {
-    if (!langMenuRef.value) {
-        return;
-    }
-
-    if (!langMenuRef.value.contains(event.target)) {
-        langMenuOpen.value = false;
-    }
-};
-
-onMounted(() => {
-    document.addEventListener('click', handleLangOutsideClick);
-});
-
-onBeforeUnmount(() => {
-    document.removeEventListener('click', handleLangOutsideClick);
-});
 </script>
 
 <template>
     <Head :title="$t('welcome.meta.title')" />
 
     <div class="welcome-page text-stone-900 dark:text-neutral-100">
-        <header class="welcome-header">
-            <div class="mx-auto flex w-full max-w-[88rem] items-center gap-5 px-5 py-5 xl:px-8">
-                <Link :href="route('welcome')" class="flex shrink-0 items-center">
-                    <ApplicationLogo class="h-10 w-36 sm:h-11 sm:w-40" />
-                </Link>
-
-                <div class="min-w-0 flex-1">
-                    <MegaMenuDisplay :menu="megaMenu" :fallback-items="headerMenuItems" />
-                </div>
-
-                <div class="flex shrink-0 items-center gap-3">
-                    <Link
-                        v-if="canLogin"
-                        :href="route('login')"
-                        class="hidden rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50 lg:inline-flex"
-                    >
-                        {{ $t('legal.actions.sign_in') }}
-                    </Link>
-                    <Link
-                        v-if="canRegister"
-                        :href="route('onboarding.index')"
-                        class="hidden rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 xl:inline-flex"
-                    >
-                        {{ $t('legal.actions.create_account') }}
-                    </Link>
-                    <div ref="langMenuRef" class="welcome-lang">
-                        <button
-                            type="button"
-                            class="welcome-lang__toggle"
-                            aria-haspopup="listbox"
-                            :aria-label="$t('account.language')"
-                            :aria-expanded="langMenuOpen"
-                            @click="toggleLangMenu"
-                            @keydown.escape="closeLangMenu"
-                        >
-                            <span>{{ currentLocaleCode }}</span>
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                class="welcome-lang__chevron"
-                            >
-                                <path d="m6 9 6 6 6-6" />
-                            </svg>
-                        </button>
-                        <div
-                            v-if="langMenuOpen"
-                            class="welcome-lang__menu"
-                            role="listbox"
-                            :aria-activedescendant="`lang-${currentLocale}`"
-                            @keydown.escape="closeLangMenu"
-                        >
-                            <button
-                                v-for="locale in availableLocales"
-                                :id="`lang-${locale}`"
-                                :key="locale"
-                                type="button"
-                                role="option"
-                                class="welcome-lang__item"
-                                :class="currentLocale === locale ? 'is-active' : ''"
-                                :aria-selected="currentLocale === locale"
-                                @click="setLocale(locale)"
-                            >
-                                {{ $t(`language.${locale}`) }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </header>
+        <PublicSiteHeader
+            :mega-menu="megaMenu"
+            :fallback-items="headerMenuItems"
+            :can-login="canLogin"
+            :can-register="canRegister"
+        />
 
         <main>
             <section v-if="welcomeContent.hero?.enabled !== false" class="welcome-section welcome-hero"
@@ -374,6 +282,8 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
             </section>
+
+            <FeatureTabsShowcaseSection :section="welcomeShowcaseSection" />
 
             <section v-if="welcomeContent.features?.enabled !== false" class="welcome-section welcome-features"
                 :style="sectionStyle(welcomeContent.features?.background_color)">
@@ -619,40 +529,7 @@ onBeforeUnmount(() => {
             </section>
         </main>
 
-        <footer class="welcome-footer">
-            <div class="welcome-container py-8 text-center text-xs text-stone-500">
-                <div class="flex flex-col items-center gap-2">
-                    <div class="flex flex-wrap items-center justify-center gap-4 text-stone-600">
-                        <Link :href="route('pricing')" class="hover:text-stone-900">
-                            {{ $t('legal.links.pricing') }}
-                        </Link>
-                        <a
-                            v-if="isExternalHref(resolveHref(welcomeContent.footer?.terms_href || 'terms'))"
-                            :href="resolveHref(welcomeContent.footer?.terms_href || 'terms')"
-                            class="hover:text-stone-900"
-                            rel="noopener noreferrer"
-                            target="_blank"
-                        >
-                            {{ welcomeContent.footer?.terms_label || $t('legal.links.terms') }}
-                        </a>
-                        <Link
-                            v-else
-                            :href="resolveHref(welcomeContent.footer?.terms_href || 'terms')"
-                            class="hover:text-stone-900"
-                        >
-                            {{ welcomeContent.footer?.terms_label || $t('legal.links.terms') }}
-                        </Link>
-                        <Link :href="route('privacy')" class="hover:text-stone-900">
-                            {{ $t('legal.links.privacy') }}
-                        </Link>
-                        <Link :href="route('refund')" class="hover:text-stone-900">
-                            {{ $t('legal.links.refund') }}
-                        </Link>
-                    </div>
-                    <div>{{ welcomeContent.footer?.copy || $t('welcome.footer.copy') }} {{ new Date().getFullYear() }}</div>
-                </div>
-            </div>
-        </footer>
+        <PublicFooterMenu :menu="footerMenu" :section="footerSection" :copy="welcomeContent.footer?.copy || ''" />
     </div>
 </template>
 
@@ -678,81 +555,6 @@ onBeforeUnmount(() => {
     margin: 0 auto;
     padding-left: 1.25rem;
     padding-right: 1.25rem;
-}
-
-.welcome-header {
-    position: sticky;
-    top: 0;
-    z-index: 40;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.welcome-lang {
-    position: relative;
-}
-
-.welcome-lang__toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
-    padding: 0.5rem 1rem;
-    border-radius: 0.125rem;
-    border: 1px solid #e2e8f0;
-    background: #ffffff;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #0f172a;
-    box-shadow: 0 12px 24px -20px rgba(15, 23, 42, 0.5);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.welcome-lang__toggle:hover {
-    border-color: #16a34a;
-    box-shadow: 0 16px 30px -22px rgba(15, 23, 42, 0.6);
-}
-
-.welcome-lang__toggle:focus-visible {
-    outline: 2px solid rgba(16, 185, 129, 0.5);
-    outline-offset: 2px;
-}
-
-.welcome-lang__chevron {
-    color: #0f172a;
-}
-
-.welcome-lang__menu {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 0.5rem);
-    min-width: 10.5rem;
-    padding: 0.4rem;
-    border-radius: 0.125rem;
-    border: 1px solid #e2e8f0;
-    background: #ffffff;
-    box-shadow: 0 16px 36px -24px rgba(15, 23, 42, 0.6);
-    z-index: 50;
-}
-
-.welcome-lang__item {
-    width: 100%;
-    padding: 0.45rem 0.75rem;
-    border-radius: 0.125rem;
-    text-align: left;
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: #0f172a;
-    transition: background 0.2s ease, color 0.2s ease;
-}
-
-.welcome-lang__item:hover {
-    background: #f1f5f9;
-}
-
-.welcome-lang__item.is-active {
-    background: #16a34a;
-    color: #ffffff;
 }
 
 .welcome-section {
@@ -800,11 +602,6 @@ onBeforeUnmount(() => {
 .welcome-cta {
     background: linear-gradient(120deg, #0f172a 0%, #0f766e 100%);
     --section-pad: clamp(3.5rem, 7vw, 7.5rem);
-}
-
-.welcome-footer {
-    background: #ffffff;
-    border-top: 1px solid #e2e8f0;
 }
 
 .welcome-kicker {

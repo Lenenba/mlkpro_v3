@@ -8,7 +8,7 @@ class PlatformSectionContentService
 {
     private const LOCALES = ['fr', 'en'];
 
-    private const LAYOUTS = ['split', 'duo', 'stack', 'contact', 'testimonial', 'feature_pairs', 'industry_grid', 'feature_tabs', 'testimonial_grid'];
+    private const LAYOUTS = ['split', 'duo', 'stack', 'contact', 'testimonial', 'feature_pairs', 'industry_grid', 'feature_tabs', 'testimonial_grid', 'footer'];
 
     private const IMAGE_POSITIONS = ['left', 'right'];
 
@@ -137,6 +137,10 @@ class PlatformSectionContentService
     {
         $locale = $this->normalizeLocale($locale);
 
+        if (strtolower(trim((string) $type)) === 'footer') {
+            return $this->defaultFooterContent($locale);
+        }
+
         return $this->defaultSection($type);
     }
 
@@ -175,6 +179,16 @@ class PlatformSectionContentService
             'primary_href' => '',
             'secondary_label' => '',
             'secondary_href' => '',
+            'copy' => '',
+            'contact_phone' => '',
+            'contact_email' => '',
+            'social_facebook_href' => '',
+            'social_x_href' => '',
+            'social_instagram_href' => '',
+            'social_youtube_href' => '',
+            'social_linkedin_href' => '',
+            'google_play_href' => '',
+            'app_store_href' => '',
         ];
     }
 
@@ -231,6 +245,16 @@ class PlatformSectionContentService
             'primary_href' => $this->cleanText($section['primary_href'] ?? ''),
             'secondary_label' => $this->cleanText($section['secondary_label'] ?? ''),
             'secondary_href' => $this->cleanText($section['secondary_href'] ?? ''),
+            'copy' => $this->cleanText($section['copy'] ?? ''),
+            'contact_phone' => $this->cleanText($section['contact_phone'] ?? ''),
+            'contact_email' => $this->cleanText($section['contact_email'] ?? ''),
+            'social_facebook_href' => $this->cleanText($section['social_facebook_href'] ?? ''),
+            'social_x_href' => $this->cleanText($section['social_x_href'] ?? ''),
+            'social_instagram_href' => $this->cleanText($section['social_instagram_href'] ?? ''),
+            'social_youtube_href' => $this->cleanText($section['social_youtube_href'] ?? ''),
+            'social_linkedin_href' => $this->cleanText($section['social_linkedin_href'] ?? ''),
+            'google_play_href' => $this->cleanText($section['google_play_href'] ?? ''),
+            'app_store_href' => $this->cleanText($section['app_store_href'] ?? ''),
         ];
     }
 
@@ -334,6 +358,12 @@ class PlatformSectionContentService
                 'image_alt' => $this->cleanText($item['image_alt'] ?? ''),
                 'cta_label' => $this->cleanText($item['cta_label'] ?? ''),
                 'cta_href' => $this->cleanText($item['cta_href'] ?? ''),
+                'metric' => $this->cleanText($item['metric'] ?? ''),
+                'story' => $this->cleanHtml($item['story'] ?? ''),
+                'person' => $this->cleanText($item['person'] ?? ''),
+                'role' => $this->cleanText($item['role'] ?? ''),
+                'avatar_url' => $this->cleanText($item['avatar_url'] ?? ''),
+                'avatar_alt' => $this->cleanText($item['avatar_alt'] ?? ''),
             ];
         }
 
@@ -604,6 +634,7 @@ class PlatformSectionContentService
             'industry_grid' => 'industry_grid',
             'feature_tabs' => 'feature_tabs',
             'testimonial_grid' => 'testimonial_grid',
+            'footer' => 'footer',
             default => 'split',
         };
     }
@@ -616,8 +647,57 @@ class PlatformSectionContentService
             'industry_grid' => '#f7f2e8',
             'feature_tabs' => '#f7f2e8',
             'testimonial_grid' => '#f7f2e8',
+            'footer' => '#062f3f',
             default => '',
         };
+    }
+
+    public function defaultFooterContent(string $locale): array
+    {
+        $normalized = $this->normalizeLocale($locale);
+
+        if ($normalized === 'fr') {
+            return array_merge($this->defaultSection('footer'), [
+                'kicker' => 'Accompagnement',
+                'title' => 'Parlez a notre equipe',
+                'body' => '<p>Besoin d un parcours produit plus precis ou d une page publique sur mesure ? On peut vous guider.</p>',
+                'items' => [
+                    'Parcours public et modules metier',
+                    'Support produit et accompagnement',
+                    'Disponible en francais et en anglais',
+                ],
+                'primary_label' => 'Nous contacter',
+                'primary_href' => '/pages/contact-us',
+                'secondary_label' => 'Voir les tarifs',
+                'secondary_href' => '/pricing',
+                'copy' => 'Tous droits reserves.',
+                'contact_phone' => (string) (config('app.support_phone') ?? ''),
+                'contact_email' => $this->defaultFooterEmail(),
+            ]);
+        }
+
+        return array_merge($this->defaultSection('footer'), [
+            'kicker' => 'Support',
+            'title' => 'Talk to our team',
+            'body' => '<p>Need a sharper product journey or a custom public page setup? Our team can help.</p>',
+            'items' => [
+                'Public pages and business modules',
+                'Product support and enablement',
+                'Available in French and English',
+            ],
+            'primary_label' => 'Contact us',
+            'primary_href' => '/pages/contact-us',
+            'secondary_label' => 'View pricing',
+            'secondary_href' => '/pricing',
+            'copy' => 'All rights reserved.',
+            'contact_phone' => (string) (config('app.support_phone') ?? ''),
+            'contact_email' => $this->defaultFooterEmail(),
+        ]);
+    }
+
+    private function defaultFooterEmail(): string
+    {
+        return trim((string) config('mail.from.address', ''));
     }
 
     private function normalizeLocale(string $locale): string

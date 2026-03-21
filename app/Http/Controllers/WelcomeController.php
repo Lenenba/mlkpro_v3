@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\MegaMenus\MegaMenuRenderer;
+use App\Services\PublicFooterSectionResolver;
 use App\Services\PublicLeadFormUrlService;
 use App\Services\TrackingService;
 use App\Services\WelcomeContentService;
@@ -28,6 +29,8 @@ class WelcomeController extends Controller
             'welcomeContent' => app(WelcomeContentService::class)->resolveForLocale(app()->getLocale()),
             'leadFormUrl' => app(PublicLeadFormUrlService::class)->resolve((int) config('app.lead_intake_user_id')),
             'megaMenu' => app(MegaMenuRenderer::class)->resolveForLocation('header', 'welcome'),
+            'footerMenu' => app(MegaMenuRenderer::class)->resolveForLocation('footer', 'welcome'),
+            'footerSection' => app(PublicFooterSectionResolver::class)->resolve(app()->getLocale()),
         ]);
     }
 }

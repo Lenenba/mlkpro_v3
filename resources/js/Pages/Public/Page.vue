@@ -1,13 +1,11 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import ApplicationLogo from '@/Components/ApplicationLogo.vue';
+import FeatureTabsShowcaseSection from '@/Components/Public/FeatureTabsShowcaseSection.vue';
 import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
-import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import PublicSiteHeader from '@/Components/Public/PublicSiteHeader.vue';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
-import { ArrowRight, ChevronDown, ChevronRight } from 'lucide-vue-next';
 import { resolveIndustryIconComponent } from '@/utils/industryGrid';
-import { resolveFeatureTabIconComponent } from '@/utils/featureTabs';
 
 const props = defineProps({
     page: { type: Object, required: true },
@@ -29,13 +27,12 @@ const props = defineProps({
     plan_key: { type: String, default: null },
     megaMenu: { type: Object, default: () => ({}) },
     footerMenu: { type: Object, default: () => ({}) },
+    footerSection: { type: Object, default: () => ({}) },
 });
 
 const page = usePage();
 const { t } = useI18n();
 const currentLocale = computed(() => page.props.locale || 'fr');
-const currentLocaleCode = computed(() => String(currentLocale.value || 'fr').toUpperCase());
-const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
 const planKey = computed(() => {
     const raw = props.plan_key || page.props.plan_key || null;
     return raw ? String(raw).toLowerCase() : null;
@@ -52,29 +49,6 @@ const userRoles = computed(() => {
     return roles;
 });
 const isMobile = ref(false);
-const langMenuOpen = ref(false);
-const langMenuRef = ref(null);
-
-const setLocale = (locale) => {
-    if (locale === currentLocale.value) return;
-    langMenuOpen.value = false;
-    router.post(route('locale.update'), { locale }, { preserveScroll: true });
-};
-
-const toggleLangMenu = () => {
-    langMenuOpen.value = !langMenuOpen.value;
-};
-
-const closeLangMenu = () => {
-    langMenuOpen.value = false;
-};
-
-const handleLangOutsideClick = (event) => {
-    if (!langMenuRef.value) return;
-    if (!langMenuRef.value.contains(event.target)) {
-        langMenuOpen.value = false;
-    }
-};
 
 const updateDevice = () => {
     if (typeof window === 'undefined') return;
@@ -286,14 +260,12 @@ const handleEmbeddedFrameMessage = (event) => {
 };
 
 onMounted(() => {
-    document.addEventListener('click', handleLangOutsideClick);
     window.addEventListener('message', handleEmbeddedFrameMessage);
     updateDevice();
     window.addEventListener('resize', updateDevice);
 });
 
 onBeforeUnmount(() => {
-    document.removeEventListener('click', handleLangOutsideClick);
     window.removeEventListener('message', handleEmbeddedFrameMessage);
     window.removeEventListener('resize', updateDevice);
 });
@@ -758,54 +730,13 @@ const headerMenuItems = computed(() => ([
     <Head :title="content.page_title || page.title" />
 
     <div class="public-page" :style="themeStyle">
-        <header class="public-header">
-            <div class="mx-auto flex w-full max-w-[88rem] items-center gap-5 px-5 py-5 xl:px-8">
-                <Link :href="route('welcome')" class="flex shrink-0 items-center">
-                    <ApplicationLogo class="h-10 w-36 sm:h-11 sm:w-40" />
-                </Link>
-
-                <div class="min-w-0 flex-1">
-                    <MegaMenuDisplay :menu="megaMenu" :fallback-items="headerMenuItems" />
-                </div>
-
-                <div class="flex shrink-0 items-center gap-3">
-                    <Link
-                        v-if="!isAuthenticated"
-                        :href="route('login')"
-                        class="hidden rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50 md:inline-flex"
-                    >
-                        {{ $t('legal.actions.sign_in') }}
-                    </Link>
-                    <Link
-                        v-if="!isAuthenticated"
-                        :href="route('onboarding.index')"
-                        class="hidden rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 xl:inline-flex"
-                    >
-                        {{ $t('legal.actions.create_account') }}
-                    </Link>
-                    <div ref="langMenuRef" class="public-lang">
-                        <button type="button" class="public-lang__toggle" aria-haspopup="listbox"
-                            :aria-label="$t('account.language')" :aria-expanded="langMenuOpen" @click="toggleLangMenu" @keydown.escape="closeLangMenu">
-                            <span>{{ currentLocaleCode }}</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                class="public-lang__chevron">
-                                <path d="m6 9 6 6 6-6" />
-                            </svg>
-                        </button>
-                        <div v-if="langMenuOpen" class="public-lang__menu" role="listbox"
-                            :aria-activedescendant="`lang-${currentLocale}`" @keydown.escape="closeLangMenu">
-                            <button v-for="locale in availableLocales" :id="`lang-${locale}`" :key="locale"
-                                type="button" role="option" class="public-lang__item"
-                                :class="currentLocale === locale ? 'is-active' : ''"
-                                :aria-selected="currentLocale === locale" @click="setLocale(locale)">
-                                {{ $t(`language.${locale}`) }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </header>
+        <PublicSiteHeader
+            :mega-menu="megaMenu"
+            :fallback-items="headerMenuItems"
+            :can-login="!isAuthenticated"
+            :can-register="!isAuthenticated"
+            :is-authenticated="isAuthenticated"
+        />
 
         <main>
             <section
@@ -1335,163 +1266,7 @@ const headerMenuItems = computed(() => ([
                         </template>
 
                         <template v-else-if="section.layout === 'feature_tabs'">
-                            <div class="public-feature-tabs" :style="featureTabsStyle(section)">
-                                <div v-if="section.kicker || section.title || section.body || section.primary_label || section.secondary_label"
-                                    class="public-feature-tabs__header">
-                                    <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
-                                    <h2 v-if="section.title" class="public-feature-tabs__title">{{ section.title }}</h2>
-                                    <div v-if="section.body" class="public-rich public-feature-tabs__body" v-html="section.body"></div>
-
-                                    <div v-if="section.primary_label || section.secondary_label" class="public-feature-tabs__header-actions">
-                                        <template v-if="section.primary_label">
-                                            <a
-                                                v-if="isExternalHref(resolveHref(section.primary_href))"
-                                                :href="resolveHref(section.primary_href)"
-                                                class="public-inline-link"
-                                                rel="noopener noreferrer"
-                                                target="_blank"
-                                            >
-                                                {{ section.primary_label }}
-                                            </a>
-                                            <Link
-                                                v-else
-                                                :href="resolveHref(section.primary_href)"
-                                                class="public-inline-link"
-                                            >
-                                                {{ section.primary_label }}
-                                            </Link>
-                                        </template>
-
-                                        <template v-if="section.secondary_label">
-                                            <a
-                                                v-if="isExternalHref(resolveHref(section.secondary_href))"
-                                                :href="resolveHref(section.secondary_href)"
-                                                class="public-inline-link public-inline-link--muted"
-                                                rel="noopener noreferrer"
-                                                target="_blank"
-                                            >
-                                                {{ section.secondary_label }}
-                                            </a>
-                                            <Link
-                                                v-else
-                                                :href="resolveHref(section.secondary_href)"
-                                                class="public-inline-link public-inline-link--muted"
-                                            >
-                                                {{ section.secondary_label }}
-                                            </Link>
-                                        </template>
-                                    </div>
-                                </div>
-
-                                <div v-if="featureTabsForSection(section).length" class="public-feature-tabs__grid">
-                                    <div class="public-feature-tabs__nav">
-                                        <div
-                                            v-for="tab in featureTabsForSection(section)"
-                                            :key="tab.id"
-                                            class="public-feature-tabs__nav-item"
-                                            :class="{
-                                                'is-open': isFeatureTabOpen(section, index, tab),
-                                                'is-current': isCurrentFeatureTab(section, index, tab),
-                                            }"
-                                        >
-                                            <button
-                                                type="button"
-                                                class="public-feature-tabs__trigger"
-                                                :class="{
-                                                    'is-open': isFeatureTabOpen(section, index, tab),
-                                                    'is-current': isCurrentFeatureTab(section, index, tab),
-                                                }"
-                                                :aria-expanded="isFeatureTabOpen(section, index, tab)"
-                                                @click="toggleFeatureTab(section, index, tab)"
-                                            >
-                                                <span class="public-feature-tabs__trigger-main">
-                                                    <span class="public-feature-tabs__trigger-icon" aria-hidden="true">
-                                                        <component :is="resolveFeatureTabIconComponent(tab)" class="h-full w-full" />
-                                                    </span>
-                                                    <span class="public-feature-tabs__trigger-label">{{ tab.label }}</span>
-                                                </span>
-                                                <component
-                                                    :is="isFeatureTabOpen(section, index, tab) ? ChevronDown : ChevronRight"
-                                                    class="h-4 w-4 shrink-0"
-                                                    aria-hidden="true"
-                                                />
-                                            </button>
-
-                                            <div v-if="showFeatureTabChildren(section, index, tab)" class="public-feature-tabs__sublist">
-                                                <button
-                                                    v-for="child in featureTabChildren(tab)"
-                                                    :key="child.id"
-                                                    type="button"
-                                                    class="public-feature-tabs__subitem"
-                                                    :class="{ 'is-active': isActiveFeatureTabChild(section, index, tab, child) }"
-                                                    @click="setActiveFeatureTabChild(section, index, tab, child)"
-                                                >
-                                                    <ArrowRight class="h-4 w-4 shrink-0" aria-hidden="true" />
-                                                    <span class="public-feature-tabs__subitem-label">{{ child.label }}</span>
-                                                </button>
-                                            </div>
-
-                                            <ul v-else-if="isFeatureTabOpen(section, index, tab) && tab.items?.length" class="public-feature-tabs__sublist public-feature-tabs__sublist--static">
-                                                <li
-                                                    v-for="(item, itemIndex) in tab.items"
-                                                    :key="`${tab.id}-item-${itemIndex}`"
-                                                    class="public-feature-tabs__subitem"
-                                                >
-                                                    {{ item }}
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-
-                                    <article v-if="activeFeaturePanel(section, index)" class="public-feature-tabs__panel">
-                                        <div
-                                            class="public-feature-tabs__panel-media"
-                                            :class="{ 'public-feature-tabs__panel-media--empty': !activeFeaturePanel(section, index)?.image_url }"
-                                        >
-                                            <img
-                                                v-if="activeFeaturePanel(section, index)?.image_url"
-                                                :src="activeFeaturePanel(section, index).image_url"
-                                                :alt="activeFeaturePanel(section, index).image_alt || activeFeaturePanel(section, index).title || activeFeaturePanel(section, index).label"
-                                                class="public-feature-tabs__panel-image"
-                                                loading="lazy"
-                                                decoding="async"
-                                            />
-                                        </div>
-
-                                        <div class="public-feature-tabs__panel-copy">
-                                            <h3 v-if="activeFeaturePanel(section, index)?.title" class="public-feature-tabs__panel-title">
-                                                {{ activeFeaturePanel(section, index).title }}
-                                            </h3>
-                                            <div
-                                                v-if="activeFeaturePanel(section, index)?.body"
-                                                class="public-rich public-feature-tabs__panel-body"
-                                                v-html="activeFeaturePanel(section, index).body"
-                                            ></div>
-
-                                            <template v-if="activeFeaturePanel(section, index)?.cta_label">
-                                                <a
-                                                    v-if="isExternalHref(resolveHref(activeFeaturePanel(section, index).cta_href))"
-                                                    :href="resolveHref(activeFeaturePanel(section, index).cta_href)"
-                                                    class="public-feature-tabs__panel-link"
-                                                    rel="noopener noreferrer"
-                                                    target="_blank"
-                                                >
-                                                    <span>{{ activeFeaturePanel(section, index).cta_label }}</span>
-                                                    <ArrowRight class="h-4 w-4" aria-hidden="true" />
-                                                </a>
-                                                <Link
-                                                    v-else
-                                                    :href="resolveHref(activeFeaturePanel(section, index).cta_href)"
-                                                    class="public-feature-tabs__panel-link"
-                                                >
-                                                    <span>{{ activeFeaturePanel(section, index).cta_label }}</span>
-                                                    <ArrowRight class="h-4 w-4" aria-hidden="true" />
-                                                </Link>
-                                            </template>
-                                        </div>
-                                    </article>
-                                </div>
-                            </div>
+                            <FeatureTabsShowcaseSection v-if="featureTabsForSection(section).length" :section="section" />
                         </template>
 
                         <template v-else-if="section.layout === 'duo'">
@@ -1626,7 +1401,7 @@ const headerMenuItems = computed(() => ([
             </section>
         </main>
 
-        <PublicFooterMenu :menu="footerMenu" />
+        <PublicFooterMenu :menu="footerMenu" :section="footerSection" />
     </div>
 </template>
 
@@ -1669,15 +1444,6 @@ const headerMenuItems = computed(() => ([
 
 .public-container--feature-tabs {
     width: min(1120px, 92vw);
-}
-
-.public-header {
-    background: var(--page-surface, #ffffff);
-    border-bottom: 1px solid var(--page-border, #e2e8f0);
-    backdrop-filter: blur(12px);
-    position: sticky;
-    top: 0;
-    z-index: 30;
 }
 
 .public-section {
@@ -2772,60 +2538,6 @@ ul .public-feature-tabs__subitem::before {
 
 .public-contact-aside {
     min-width: 0;
-}
-
-.public-lang {
-    position: relative;
-}
-
-.public-lang__toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: var(--page-radius, 0.125rem);
-    border: 1px solid var(--page-border, #e2e8f0);
-    background: var(--page-surface, #ffffff);
-    color: var(--page-text, #0f172a);
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.public-lang__chevron {
-    transition: transform 0.2s ease;
-}
-
-.public-lang__menu {
-    position: absolute;
-    right: 0;
-    margin-top: 0.35rem;
-    min-width: 10.5rem;
-    padding: 0.4rem;
-    border-radius: var(--page-radius, 0.125rem);
-    border: 1px solid var(--page-border, #e2e8f0);
-    background: var(--page-surface, #ffffff);
-    box-shadow: 0 16px 36px -24px rgba(15, 23, 42, 0.6);
-    z-index: 40;
-}
-
-.public-lang__item {
-    width: 100%;
-    padding: 0.45rem 0.75rem;
-    border-radius: var(--page-radius, 0.125rem);
-    text-align: left;
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--page-text, #0f172a);
-    transition: background 0.2s ease, color 0.2s ease;
-}
-
-.public-lang__item:hover {
-    background: rgba(148, 163, 184, 0.15);
-}
-
-.public-lang__item.is-active {
-    background: var(--page-primary, #16a34a);
-    color: var(--page-primary-contrast, #ffffff);
 }
 
 .public-button {

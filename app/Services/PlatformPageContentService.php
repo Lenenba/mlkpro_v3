@@ -468,6 +468,12 @@ class PlatformPageContentService
                 'image_alt' => $this->cleanText($item['image_alt'] ?? ''),
                 'cta_label' => $this->cleanText($item['cta_label'] ?? ''),
                 'cta_href' => $this->cleanText($item['cta_href'] ?? ''),
+                'metric' => $this->cleanText($item['metric'] ?? ''),
+                'story' => $this->cleanHtml($item['story'] ?? ''),
+                'person' => $this->cleanText($item['person'] ?? ''),
+                'role' => $this->cleanText($item['role'] ?? ''),
+                'avatar_url' => $this->cleanText($item['avatar_url'] ?? ''),
+                'avatar_alt' => $this->cleanText($item['avatar_alt'] ?? ''),
             ];
         }
 

@@ -14,7 +14,7 @@ use Inertia\Response;
 
 class PlatformSectionController extends BaseSuperAdminController
 {
-    private const TYPES = ['generic', 'hero', 'features', 'faq', 'testimonials', 'cta', 'gallery', 'duo', 'testimonial', 'feature_pairs', 'industry_grid', 'feature_tabs', 'testimonial_grid'];
+    private const TYPES = ['generic', 'hero', 'features', 'faq', 'testimonials', 'cta', 'gallery', 'duo', 'testimonial', 'feature_pairs', 'industry_grid', 'feature_tabs', 'testimonial_grid', 'footer'];
 
     public function index(Request $request): Response
     {
