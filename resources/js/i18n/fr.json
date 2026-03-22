@@ -1643,12 +1643,24 @@
         "copy": "Copier depuis la librairie",
         "draft": "Brouillon"
       },
+      "shared_footer": {
+        "title": "Footer partage",
+        "subtitle": "Ce footer s applique automatiquement a toutes les pages publiques. Modifiez-le une fois ici et le rendu se met a jour partout.",
+        "edit": "Editer le footer",
+        "manage": "Voir la librairie",
+        "navigation": "Colonnes",
+        "legal_links": "Liens legaux",
+        "contact": "Contact",
+        "note": "Le footer ne se gere pas comme une section normale du corps de page. Il reste global et partage entre toutes les pages publiques.",
+        "empty_title": "Footer partage"
+      },
       "layouts": {
         "split": "Split (texte + image)",
         "duo": "2 blocs (image + bloc couleur)",
         "testimonial": "Temoignage (citation + image)",
         "feature_pairs": "2 images + 2 textes",
         "industry_grid": "Industries (grille de cartes)",
+        "story_grid": "Triptyque visuel (3 cartes)",
         "feature_tabs": "Onglets fonctionnels (accordeon + media)",
         "testimonial_grid": "Temoignages (grille de cartes)",
         "footer": "Footer reutilisable",
@@ -1707,6 +1719,10 @@
         "card_label": "Titre de la carte",
         "card_href": "Lien/route de la carte",
         "card_icon": "Icone de la carte",
+        "story_card_title": "Titre de la carte visuelle",
+        "story_card_body": "Texte de la carte visuelle",
+        "story_card_image_url": "URL image de la carte visuelle",
+        "story_card_image_alt": "Texte alternatif image de la carte visuelle",
         "tab_label": "Titre de l'onglet",
         "tab_icon": "Icone de l'onglet",
         "tab_title": "Titre du panneau",
@@ -1762,7 +1778,15 @@
         "social_youtube_href": "Lien YouTube",
         "social_linkedin_href": "Lien LinkedIn",
         "google_play_href": "Lien Google Play",
-        "app_store_href": "Lien App Store"
+        "app_store_href": "Lien App Store",
+        "brand_logo_url": "URL du logo footer",
+        "brand_logo_alt": "Texte alternatif logo footer",
+        "brand_href": "Lien du logo footer",
+        "footer_group_title": "Titre de la colonne",
+        "footer_group_layout": "Disposition des liens",
+        "footer_link_label": "Label du lien",
+        "footer_link_href": "Lien/route",
+        "footer_link_note": "Note optionnelle"
       },
       "contact_aside": {
         "title": "Colonne details",
@@ -1782,6 +1806,12 @@
         "icon_auto": "Icone automatique",
         "add_card": "Ajouter une carte",
         "card_label": "Carte {number}"
+      },
+      "story_grid": {
+        "title": "Triptyque visuel",
+        "subtitle": "Ajoutez des cartes avec un visuel fort au-dessus et un texte de preuve ou d'explication en dessous.",
+        "add_card": "Ajouter une carte",
+        "card_label": "Carte visuelle {number}"
       },
       "testimonial_grid": {
         "title": "Temoignages en grille",
@@ -1803,8 +1833,42 @@
       },
       "footer": {
         "title": "Contenu du footer reutilisable",
-        "subtitle": "Configurez le bloc de support partage, les coordonnees, les reseaux, les badges stores et le texte de bas de page.",
-        "items_label": "Points de support"
+        "subtitle": "Configurez le logo, les colonnes de navigation, les liens legaux, le bloc de support partage, les coordonnees, les reseaux, les badges stores et le texte de bas de page.",
+        "preview_title": "Ordre d affichage",
+        "preview_subtitle": "Ce resume suit le meme ordre que le footer public: marque, contact, navigation, accompagnement, puis ligne basse.",
+        "order_brand": "Marque",
+        "order_contact": "Contact",
+        "order_navigation": "Navigation",
+        "order_support": "Accompagnement",
+        "order_bottom": "Bas de page",
+        "preview_groups": "groupes",
+        "preview_links": "liens",
+        "preview_items": "points",
+        "preview_socials": "reseaux",
+        "preview_stores": "stores",
+        "appearance_title": "Marque et apparence",
+        "appearance_subtitle": "Reglez d abord le fond du footer et la ligne de marque affichee en haut.",
+        "contact_title": "Contact et applications",
+        "contact_subtitle": "Ces elements sortent dans la colonne gauche du footer public.",
+        "items_label": "Points de support",
+        "brand_title": "Marque",
+        "brand_subtitle": "Logo et lien principal affiches au debut du footer.",
+        "navigation_title": "Colonnes de navigation",
+        "navigation_subtitle": "Chaque colonne du footer peut etre geree ici sans passer par le mega menu.",
+        "support_title": "Panel accompagnement",
+        "support_subtitle": "Ce bloc correspond au panneau de droite du footer public.",
+        "add_group": "Ajouter une colonne",
+        "group_label": "Colonne {number}",
+        "link_label": "Lien {number}",
+        "add_link": "Ajouter un lien",
+        "bottom_title": "Ligne basse",
+        "bottom_subtitle": "Configurez le texte de copyright et les liens legaux affiches tout en bas.",
+        "legal_title": "Liens legaux",
+        "legal_subtitle": "Ces liens s affichent dans la ligne basse du footer.",
+        "add_legal_link": "Ajouter un lien legal",
+        "legal_label": "Lien legal {number}",
+        "group_layout_stack": "Une seule colonne",
+        "group_layout_split": "Deux colonnes"
       },
       "theme": {
         "title": "Theme",
@@ -1946,9 +2010,45 @@
         "testimonial": "Temoignage reutilisable",
         "feature_pairs": "2 images + 2 textes reutilisable",
         "industry_grid": "Industries reutilisable",
+        "story_grid": "Triptyque visuel reutilisable",
         "feature_tabs": "Onglets fonctionnels reutilisable",
         "testimonial_grid": "Temoignages reutilisables",
-        "footer": "Footer reutilisable"
+        "footer": "Footer reutilisable",
+        "welcome_hero": "Hero accueil",
+        "welcome_trust": "Bandeau confiance accueil",
+        "welcome_features": "Fonctionnalites accueil",
+        "welcome_workflow": "Workflow accueil",
+        "welcome_field": "Bloc terrain accueil",
+        "welcome_cta": "CTA accueil",
+        "welcome_custom": "Bloc personnalise accueil"
+      },
+      "welcome": {
+        "hero": {
+          "highlights": "Points forts (une ligne par item)",
+          "note": "Note d appui",
+          "stats_title": "Stats hero",
+          "stats_subtitle": "Ajoutez les metriques compactes affichees sous les CTA.",
+          "add_stat": "Ajouter une stat",
+          "stat_value": "Valeur",
+          "stat_label": "Label",
+          "preview_title": "Cartes d apercu",
+          "preview_subtitle": "Petites cartes affichees a cote du visuel hero.",
+          "add_preview": "Ajouter une carte"
+        },
+        "features": {
+          "items_title": "Cartes principales",
+          "items_subtitle": "Cartes affichees dans la premiere grille de fonctionnalites.",
+          "add_item": "Ajouter une carte",
+          "secondary_enabled": "Afficher la seconde rangee",
+          "secondary_badge": "Badge secondaire",
+          "secondary_body": "Sous-titre secondaire",
+          "add_secondary_item": "Ajouter une carte secondaire"
+        },
+        "workflow": {
+          "steps_title": "Etapes du workflow",
+          "steps_subtitle": "Cartes ordonnees affichees a cote du visuel workflow.",
+          "add_step": "Ajouter une etape"
+        }
       }
     },
     "assets": {

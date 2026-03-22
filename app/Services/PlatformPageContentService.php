@@ -148,6 +148,7 @@ class PlatformPageContentService
                     'title' => $this->cleanText($section['title'] ?? ''),
                     'body' => $this->cleanHtml($section['body'] ?? ''),
                     'industry_cards' => $this->sanitizeIndustryCards($section['industry_cards'] ?? []),
+                    'story_cards' => $this->sanitizeStoryCards($section['story_cards'] ?? []),
                     'feature_tabs' => $this->sanitizeFeatureTabs($section['feature_tabs'] ?? []),
                     'feature_tabs_font_size' => $this->cleanFeatureTabsFontSize($section['feature_tabs_font_size'] ?? null),
                     'testimonial_cards' => $this->sanitizeTestimonialCards($section['testimonial_cards'] ?? []),
@@ -255,6 +256,7 @@ class PlatformPageContentService
             'title' => '',
             'body' => '',
             'industry_cards' => [],
+            'story_cards' => [],
             'feature_tabs' => [],
             'feature_tabs_font_size' => 0,
             'testimonial_cards' => [],
@@ -337,6 +339,7 @@ class PlatformPageContentService
                 'title' => $this->cleanText($section['title'] ?? ''),
                 'body' => $this->cleanHtml($section['body'] ?? ''),
                 'industry_cards' => $this->sanitizeIndustryCards($section['industry_cards'] ?? []),
+                'story_cards' => $this->sanitizeStoryCards($section['story_cards'] ?? []),
                 'feature_tabs' => $this->sanitizeFeatureTabs($section['feature_tabs'] ?? []),
                 'feature_tabs_font_size' => $this->cleanFeatureTabsFontSize($section['feature_tabs_font_size'] ?? null),
                 'testimonial_cards' => $this->sanitizeTestimonialCards($section['testimonial_cards'] ?? []),
@@ -436,6 +439,37 @@ class PlatformPageContentService
         }
 
         return array_slice($cards, 0, 24);
+    }
+
+    private function sanitizeStoryCards($items): array
+    {
+        if (! is_array($items)) {
+            return [];
+        }
+
+        $cards = [];
+        foreach (array_values($items) as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $title = $this->cleanText($item['title'] ?? '');
+            $body = $this->cleanHtml($item['body'] ?? '');
+            if ($title === '' && $body === '') {
+                continue;
+            }
+
+            $id = $this->cleanText($item['id'] ?? '');
+            $cards[] = [
+                'id' => $id !== '' ? $id : 'story-card-'.($index + 1),
+                'title' => $title,
+                'body' => $body,
+                'image_url' => $this->cleanText($item['image_url'] ?? ''),
+                'image_alt' => $this->cleanText($item['image_alt'] ?? ''),
+            ];
+        }
+
+        return array_slice($cards, 0, 6);
     }
 
     private function sanitizeFeatureTabs($items): array
@@ -771,7 +805,7 @@ class PlatformPageContentService
     {
         $layout = $this->cleanText($value);
 
-        return in_array($layout, ['split', 'duo', 'stack', 'contact', 'testimonial', 'feature_pairs', 'industry_grid', 'feature_tabs', 'testimonial_grid'], true) ? $layout : 'split';
+        return in_array($layout, ['split', 'duo', 'stack', 'contact', 'testimonial', 'feature_pairs', 'industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid'], true) ? $layout : 'split';
     }
 
     private function cleanAlignment($value): string
@@ -1012,6 +1046,10 @@ class PlatformPageContentService
 
         if (empty($section['industry_cards'])) {
             $section['industry_cards'] = $source['industry_cards'] ?? [];
+        }
+
+        if (empty($section['story_cards'])) {
+            $section['story_cards'] = $source['story_cards'] ?? [];
         }
 
         if (empty($section['feature_tabs'])) {

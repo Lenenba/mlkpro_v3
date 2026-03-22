@@ -498,6 +498,73 @@ it('supports the testimonial grid section layout for public pages', function () 
         );
 });
 
+it('supports the story grid section layout for public pages', function () {
+    $user = User::factory()->create();
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'story-grid-layout-check',
+        'title' => 'Story grid layout check',
+        'is_active' => true,
+        'content' => [
+            'locales' => [],
+        ],
+    ]);
+
+    $service = app(PlatformPageContentService::class);
+    $payload = $service->defaultContent('fr', $page);
+    $payload['sections'][0] = array_merge($payload['sections'][0], [
+        'layout' => 'story_grid',
+        'alignment' => 'center',
+        'background_color' => '#f7f2e8',
+        'title' => 'Une IA pensee pour les entreprises de terrain.',
+        'primary_label' => 'Voir comment ca marche',
+        'primary_href' => '/pages/contact-us',
+        'story_cards' => [
+            [
+                'id' => 'story-card-1',
+                'title' => 'Concue pour le terrain',
+                'body' => '<p>Elle aide les equipes a mieux qualifier et chiffrer les jobs.</p>',
+                'image_url' => 'https://example.com/story-grid-1.jpg',
+                'image_alt' => 'Apercu terrain',
+            ],
+            [
+                'id' => 'story-card-2',
+                'title' => 'S adapte a votre workflow',
+                'body' => '<p>Elle apprend votre facon de decrire et d organiser le travail.</p>',
+                'image_url' => 'https://example.com/story-grid-2.jpg',
+                'image_alt' => 'Apercu workflow',
+            ],
+            [
+                'id' => 'story-card-3',
+                'title' => 'Intervient au bon moment',
+                'body' => '<p>Elle apparait quand une suggestion ou une relance a plus de valeur.</p>',
+                'image_url' => 'https://example.com/story-grid-3.jpg',
+                'image_alt' => 'Apercu intelligence',
+            ],
+        ],
+    ]);
+
+    $service->updateLocale($page, 'fr', $payload, $user->id);
+    $service->updateLocale($page, 'en', $payload, $user->id);
+
+    $resolved = $service->resolveForLocale($page->fresh(), 'fr');
+
+    expect($resolved['sections'][0]['layout'])->toBe('story_grid');
+    expect($resolved['sections'][0]['story_cards'])->toHaveCount(3);
+    expect($resolved['sections'][0]['story_cards'][0]['title'])->toBe('Concue pour le terrain');
+    expect($resolved['sections'][0]['story_cards'][2]['image_url'])->toBe('https://example.com/story-grid-3.jpg');
+
+    $this->get(route('public.pages.show', ['slug' => $page->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $inertia) => $inertia
+            ->component('Public/Page')
+            ->where('content.sections.0.layout', 'story_grid')
+            ->where('content.sections.0.background_color', '#f7f2e8')
+            ->where('content.sections.0.story_cards.1.title', 'S adapte a votre workflow')
+            ->where('content.sections.0.story_cards.2.image_alt', 'Apercu intelligence')
+        );
+});
+
 it('supports the feature tabs section layout for public pages', function () {
     $user = User::factory()->create();
 
@@ -750,6 +817,55 @@ it('stores reusable industry grid library sections with card items', function ()
     expect($resolved['primary_label'])->toBe('Voir toutes les industries');
 });
 
+it('stores reusable story grid library sections with visual cards', function () {
+    $user = User::factory()->create();
+    $service = app(\App\Services\PlatformSectionContentService::class);
+
+    $storyGridSection = PlatformSection::query()->create([
+        'name' => 'Reusable story grid',
+        'type' => 'story_grid',
+        'is_active' => true,
+        'content' => ['locales' => []],
+    ]);
+
+    $service->updateLocale($storyGridSection, 'fr', [
+        'title' => 'Une IA pensee pour les entreprises de terrain.',
+        'background_color' => '#f7f2e8',
+        'story_cards' => [
+            [
+                'id' => 'story-card-1',
+                'title' => 'Concue pour le terrain',
+                'body' => '<p>Elle comprend mieux les realites terrain.</p>',
+                'image_url' => 'https://example.com/reusable-story-grid-1.jpg',
+                'image_alt' => 'Visuel terrain',
+            ],
+            [
+                'id' => 'story-card-2',
+                'title' => 'S adapte a votre workflow',
+                'body' => '<p>Elle suit vos devis, vos descriptions et votre cadence.</p>',
+                'image_url' => 'https://example.com/reusable-story-grid-2.jpg',
+                'image_alt' => 'Visuel workflow',
+            ],
+            [
+                'id' => 'story-card-3',
+                'title' => 'Intervient au bon moment',
+                'body' => '<p>Elle ressort les bons signaux au moment utile.</p>',
+                'image_url' => 'https://example.com/reusable-story-grid-3.jpg',
+                'image_alt' => 'Visuel intelligence',
+            ],
+        ],
+    ], $user->id);
+
+    $resolved = $service->resolveForLocale($storyGridSection->fresh(), 'fr');
+
+    expect($resolved['layout'])->toBe('story_grid');
+    expect($resolved['background_color'])->toBe('#f7f2e8');
+    expect($resolved['story_cards'])->toHaveCount(3);
+    expect($resolved['story_cards'][0]['title'])->toBe('Concue pour le terrain');
+    expect($resolved['story_cards'][1]['image_url'])->toBe('https://example.com/reusable-story-grid-2.jpg');
+    expect($resolved['story_cards'][2]['image_alt'])->toBe('Visuel intelligence');
+});
+
 it('stores reusable feature tabs library sections with tab content', function () {
     $user = User::factory()->create();
     $service = app(\App\Services\PlatformSectionContentService::class);
@@ -907,12 +1023,38 @@ it('stores reusable footer library sections with support content', function () {
         'secondary_label' => 'Voir les tarifs',
         'secondary_href' => '/pricing',
         'copy' => 'Tous droits reserves.',
+        'brand_logo_url' => '/images/footer-logo-test.svg',
+        'brand_logo_alt' => 'Logo footer',
+        'brand_href' => '/',
         'contact_phone' => '+1 514 555 0189',
         'contact_email' => 'bonjour@example.test',
         'social_instagram_href' => 'https://instagram.com/example',
         'social_linkedin_href' => 'https://linkedin.com/company/example',
         'google_play_href' => 'https://play.google.com/store/apps/details?id=example.app',
         'app_store_href' => 'https://apps.apple.com/app/example-app/id123456789',
+        'footer_groups' => [
+            [
+                'id' => 'footer-group-products',
+                'title' => 'Produits',
+                'layout' => 'stack',
+                'links' => [
+                    ['id' => 'footer-link-sales', 'label' => 'Sales & CRM', 'href' => '/pages/sales-crm', 'note' => ''],
+                    ['id' => 'footer-link-reservations', 'label' => 'Reservations', 'href' => '/pages/reservations', 'note' => ''],
+                ],
+            ],
+            [
+                'id' => 'footer-group-resources',
+                'title' => 'Ressources',
+                'layout' => 'stack',
+                'links' => [
+                    ['id' => 'footer-link-pricing', 'label' => 'Tarification', 'href' => '/pricing', 'note' => ''],
+                ],
+            ],
+        ],
+        'legal_links' => [
+            ['id' => 'legal-link-pricing', 'label' => 'Tarification', 'href' => '/pricing', 'note' => ''],
+            ['id' => 'legal-link-privacy', 'label' => 'Confidentialite', 'href' => '/privacy', 'note' => ''],
+        ],
     ], $user->id);
 
     $resolved = $service->resolveForLocale($footerSection->fresh(), 'fr');
@@ -924,11 +1066,18 @@ it('stores reusable footer library sections with support content', function () {
     expect($resolved['primary_label'])->toBe('Nous contacter');
     expect($resolved['secondary_href'])->toBe('/pricing');
     expect($resolved['copy'])->toBe('Tous droits reserves.');
+    expect($resolved['brand_logo_url'])->toBe('/images/footer-logo-test.svg');
+    expect($resolved['brand_href'])->toBe('/');
     expect($resolved['contact_phone'])->toBe('+1 514 555 0189');
     expect($resolved['contact_email'])->toBe('bonjour@example.test');
     expect($resolved['social_instagram_href'])->toBe('https://instagram.com/example');
     expect($resolved['google_play_href'])->toContain('play.google.com');
     expect($resolved['app_store_href'])->toContain('apps.apple.com');
+    expect($resolved['footer_groups'])->toHaveCount(2);
+    expect($resolved['footer_groups'][0]['title'])->toBe('Produits');
+    expect($resolved['footer_groups'][0]['links'][0]['label'])->toBe('Sales & CRM');
+    expect($resolved['legal_links'])->toHaveCount(2);
+    expect($resolved['legal_links'][1]['href'])->toBe('/privacy');
 });
 
 it('exposes the active reusable footer section on public pages', function () {
@@ -952,11 +1101,27 @@ it('exposes the active reusable footer section on public pages', function () {
                     'secondary_label' => 'Voir les tarifs',
                     'secondary_href' => '/pricing',
                     'copy' => 'Tous droits reserves.',
+                    'brand_logo_url' => '/images/footer-logo-fr.svg',
+                    'brand_logo_alt' => 'Logo footer FR',
+                    'brand_href' => '/',
                     'contact_phone' => '+1 514 555 0189',
                     'contact_email' => 'bonjour@example.test',
                     'social_x_href' => 'https://x.com/example',
                     'google_play_href' => 'https://play.google.com/store/apps/details?id=example.app',
                     'app_store_href' => 'https://apps.apple.com/app/example-app/id123456789',
+                    'footer_groups' => [
+                        [
+                            'id' => 'footer-group-fr-products',
+                            'title' => 'Produits',
+                            'layout' => 'stack',
+                            'links' => [
+                                ['id' => 'footer-group-fr-products-sales', 'label' => 'Sales & CRM', 'href' => '/pages/sales-crm', 'note' => ''],
+                            ],
+                        ],
+                    ],
+                    'legal_links' => [
+                        ['id' => 'legal-link-fr-pricing', 'label' => 'Tarification', 'href' => '/pricing', 'note' => ''],
+                    ],
                 ],
                 'en' => [
                     'layout' => 'footer',
@@ -970,11 +1135,27 @@ it('exposes the active reusable footer section on public pages', function () {
                     'secondary_label' => 'View pricing',
                     'secondary_href' => '/pricing',
                     'copy' => 'All rights reserved.',
+                    'brand_logo_url' => '/images/footer-logo-en.svg',
+                    'brand_logo_alt' => 'Footer logo EN',
+                    'brand_href' => '/',
                     'contact_phone' => '+1 514 555 0189',
                     'contact_email' => 'hello@example.test',
                     'social_x_href' => 'https://x.com/example',
                     'google_play_href' => 'https://play.google.com/store/apps/details?id=example.app',
                     'app_store_href' => 'https://apps.apple.com/app/example-app/id123456789',
+                    'footer_groups' => [
+                        [
+                            'id' => 'footer-group-en-products',
+                            'title' => 'Products',
+                            'layout' => 'stack',
+                            'links' => [
+                                ['id' => 'footer-group-en-products-sales', 'label' => 'Sales & CRM', 'href' => '/pages/sales-crm', 'note' => ''],
+                            ],
+                        ],
+                    ],
+                    'legal_links' => [
+                        ['id' => 'legal-link-en-pricing', 'label' => 'Pricing', 'href' => '/pricing', 'note' => ''],
+                    ],
                 ],
             ],
             'updated_by' => null,
@@ -991,9 +1172,13 @@ it('exposes the active reusable footer section on public pages', function () {
             ->where('footerSection.title', 'Talk to our team')
             ->where('footerSection.items.0', 'Product enablement')
             ->where('footerSection.copy', 'All rights reserved.')
+            ->where('footerSection.brand_logo_url', '/images/footer-logo-en.svg')
             ->where('footerSection.contact_phone', '+1 514 555 0189')
             ->where('footerSection.contact_email', 'hello@example.test')
             ->where('footerSection.social_x_href', 'https://x.com/example')
             ->where('footerSection.google_play_href', 'https://play.google.com/store/apps/details?id=example.app')
+            ->where('footerSection.footer_groups.0.title', 'Products')
+            ->where('footerSection.footer_groups.0.links.0.label', 'Sales & CRM')
+            ->where('footerSection.legal_links.0.label', 'Pricing')
         );
 });

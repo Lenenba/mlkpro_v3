@@ -23,6 +23,11 @@ import {
     ensureTestimonialCards,
 } from '@/utils/testimonialGrid';
 import {
+    createStoryCard,
+    defaultStoryCards,
+    ensureStoryCards,
+} from '@/utils/storyGrid';
+import {
     createFeatureTabChild,
     createFeatureTab,
     defaultFeatureTabsShowcaseSection,
@@ -104,6 +109,11 @@ const toneOptions = computed(() => [
     { value: 'contrast', label: t('super_admin.pages.tones.contrast') },
 ]);
 
+const footerGroupLayoutOptions = computed(() => [
+    { value: 'stack', label: t('super_admin.pages.footer.group_layout_stack') },
+    { value: 'split', label: t('super_admin.pages.footer.group_layout_split') },
+]);
+
 const editorLabels = computed(() => ({
     heading2: t('super_admin.support.editor.heading_2'),
     heading3: t('super_admin.support.editor.heading_3'),
@@ -129,6 +139,206 @@ const parseLines = (value) =>
         .split('\n')
         .map((line) => line.trim())
         .filter((line) => line.length > 0);
+
+const createLocalId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const createStatItem = (overrides = {}) => ({
+    value: overrides.value || '',
+    label: overrides.label || '',
+});
+
+const ensureStatItems = (items) => (
+    Array.isArray(items) ? items.map((item) => createStatItem(item)) : []
+);
+
+const createPreviewCard = (overrides = {}) => ({
+    title: overrides.title || '',
+    desc: overrides.desc || '',
+});
+
+const ensurePreviewCards = (items) => (
+    Array.isArray(items) ? items.map((item) => createPreviewCard(item)) : []
+);
+
+const createFeatureItem = (overrides = {}) => ({
+    key: overrides.key || createLocalId('feature-item'),
+    title: overrides.title || '',
+    desc: overrides.desc || '',
+});
+
+const ensureFeatureItems = (items) => (
+    Array.isArray(items) ? items.map((item) => createFeatureItem(item)) : []
+);
+
+const createFooterLink = (label = '', href = '', note = '') => ({
+    id: createLocalId('footer-link'),
+    label,
+    href,
+    note,
+});
+
+const ensureFooterLinks = (items) => {
+    if (!Array.isArray(items)) {
+        return [];
+    }
+
+    return items.map((item) => ({
+        id: item?.id || createLocalId('footer-link'),
+        label: item?.label || '',
+        href: item?.href || '',
+        note: item?.note || '',
+    }));
+};
+
+const defaultFooterGroups = (locale) => {
+    if (locale === 'fr') {
+        return [
+            {
+                id: createLocalId('footer-group'),
+                title: 'Industries desservies',
+                layout: 'stack',
+                links: ensureFooterLinks([
+                    createFooterLink('Plomberie', '/pages/industry-plumbing'),
+                    createFooterLink('HVAC', '/pages/industry-hvac'),
+                    createFooterLink('Electricite', '/pages/industry-electrical'),
+                    createFooterLink('Entretien menager', '/pages/industry-cleaning'),
+                    createFooterLink('Salon & beaute', '/pages/industry-salon-beauty'),
+                    createFooterLink('Restaurant', '/pages/industry-restaurant'),
+                ]),
+            },
+            {
+                id: createLocalId('footer-group'),
+                title: 'Produits',
+                layout: 'stack',
+                links: ensureFooterLinks([
+                    createFooterLink('Sales & CRM', '/pages/sales-crm'),
+                    createFooterLink('Reservations', '/pages/reservations'),
+                    createFooterLink('Operations', '/pages/operations'),
+                    createFooterLink('Commerce', '/pages/commerce'),
+                    createFooterLink('Marketing & Loyalty', '/pages/marketing-loyalty'),
+                    createFooterLink('AI & Automation', '/pages/ai-automation'),
+                    createFooterLink('Command Center', '/pages/command-center'),
+                ]),
+            },
+            {
+                id: createLocalId('footer-group'),
+                title: 'Ressources',
+                layout: 'stack',
+                links: ensureFooterLinks([
+                    createFooterLink('Tarification', '/pricing'),
+                    createFooterLink('Conditions', '/terms'),
+                    createFooterLink('Confidentialite', '/privacy'),
+                    createFooterLink('Remboursement', '/refund'),
+                    createFooterLink('Contact', '/pages/contact-us'),
+                ]),
+            },
+            {
+                id: createLocalId('footer-group'),
+                title: 'Solutions',
+                layout: 'stack',
+                links: ensureFooterLinks([
+                    createFooterLink('Services terrain', '/pages/solution-field-services'),
+                    createFooterLink('Reservations & files', '/pages/solution-reservations-queues'),
+                    createFooterLink('Ventes & devis', '/pages/solution-sales-quoting'),
+                    createFooterLink('Commerce & catalogue', '/pages/solution-commerce-catalog'),
+                    createFooterLink('Marketing & fidelisation', '/pages/solution-marketing-loyalty'),
+                    createFooterLink('Supervision multi-entite', '/pages/solution-multi-entity-oversight'),
+                ]),
+            },
+        ];
+    }
+
+    return [
+        {
+            id: createLocalId('footer-group'),
+            title: 'Industries We Serve',
+            layout: 'stack',
+            links: ensureFooterLinks([
+                createFooterLink('Plumbing', '/pages/industry-plumbing'),
+                createFooterLink('HVAC', '/pages/industry-hvac'),
+                createFooterLink('Electrical', '/pages/industry-electrical'),
+                createFooterLink('Cleaning', '/pages/industry-cleaning'),
+                createFooterLink('Salon & Beauty', '/pages/industry-salon-beauty'),
+                createFooterLink('Restaurant', '/pages/industry-restaurant'),
+            ]),
+        },
+        {
+            id: createLocalId('footer-group'),
+            title: 'Products',
+            layout: 'stack',
+            links: ensureFooterLinks([
+                createFooterLink('Sales & CRM', '/pages/sales-crm'),
+                createFooterLink('Reservations', '/pages/reservations'),
+                createFooterLink('Operations', '/pages/operations'),
+                createFooterLink('Commerce', '/pages/commerce'),
+                createFooterLink('Marketing & Loyalty', '/pages/marketing-loyalty'),
+                createFooterLink('AI & Automation', '/pages/ai-automation'),
+                createFooterLink('Command Center', '/pages/command-center'),
+            ]),
+        },
+        {
+            id: createLocalId('footer-group'),
+            title: 'Resources',
+            layout: 'stack',
+            links: ensureFooterLinks([
+                createFooterLink('Pricing', '/pricing'),
+                createFooterLink('Terms', '/terms'),
+                createFooterLink('Privacy', '/privacy'),
+                createFooterLink('Refund', '/refund'),
+                createFooterLink('Contact us', '/pages/contact-us'),
+            ]),
+        },
+        {
+            id: createLocalId('footer-group'),
+            title: 'Solutions',
+            layout: 'stack',
+            links: ensureFooterLinks([
+                createFooterLink('Field services', '/pages/solution-field-services'),
+                createFooterLink('Reservations & queues', '/pages/solution-reservations-queues'),
+                createFooterLink('Sales & quoting', '/pages/solution-sales-quoting'),
+                createFooterLink('Commerce & catalog', '/pages/solution-commerce-catalog'),
+                createFooterLink('Marketing & loyalty', '/pages/solution-marketing-loyalty'),
+                createFooterLink('Multi-entity oversight', '/pages/solution-multi-entity-oversight'),
+            ]),
+        },
+    ];
+};
+
+const defaultFooterLegalLinks = (locale) => (
+    locale === 'fr'
+        ? ensureFooterLinks([
+            createFooterLink('Tarification', '/pricing'),
+            createFooterLink('Conditions', '/terms'),
+            createFooterLink('Confidentialite', '/privacy'),
+            createFooterLink('Remboursement', '/refund'),
+        ])
+        : ensureFooterLinks([
+            createFooterLink('Pricing', '/pricing'),
+            createFooterLink('Terms', '/terms'),
+            createFooterLink('Privacy', '/privacy'),
+            createFooterLink('Refund', '/refund'),
+        ])
+);
+
+const createFooterGroup = () => ({
+    id: createLocalId('footer-group'),
+    title: '',
+    layout: 'stack',
+    links: [createFooterLink()],
+});
+
+const ensureFooterGroups = (items) => {
+    if (!Array.isArray(items)) {
+        return [];
+    }
+
+    return items.map((item) => ({
+        id: item?.id || createLocalId('footer-group'),
+        title: item?.title || '',
+        layout: item?.layout === 'split' ? 'split' : 'stack',
+        links: ensureFooterLinks(item?.links),
+    }));
+};
 
 const sectionTypePreset = (type) => {
     if (type === 'duo') {
@@ -180,11 +390,115 @@ const sectionTypePreset = (type) => {
         };
     }
 
+    if (type === 'story_grid') {
+        return {
+            layout: 'story_grid',
+            background_color: '#f7f2e8',
+            image_position: 'left',
+            alignment: 'center',
+            density: 'normal',
+            tone: 'default',
+            title: currentLocale.value === 'fr'
+                ? 'Une IA pensee pour les entreprises de terrain.'
+                : 'AI built for blue-collar businesses',
+            story_cards: defaultStoryCards(currentLocale.value),
+        };
+    }
+
     if (type === 'feature_tabs') {
         const showcaseSection = defaultFeatureTabsShowcaseSection(currentLocale.value);
 
         return {
             ...showcaseSection,
+        };
+    }
+
+    if (type === 'welcome_hero') {
+        return {
+            layout: 'split',
+            background_color: '',
+            image_position: 'right',
+            alignment: 'left',
+            density: 'normal',
+            tone: 'default',
+            note: '',
+            stats: [],
+            preview_cards: [],
+        };
+    }
+
+    if (type === 'welcome_trust') {
+        return {
+            layout: 'stack',
+            background_color: '',
+            image_position: 'left',
+            alignment: 'center',
+            density: 'compact',
+            tone: 'muted',
+        };
+    }
+
+    if (type === 'welcome_features') {
+        return {
+            layout: 'stack',
+            background_color: '',
+            image_position: 'left',
+            alignment: 'center',
+            density: 'normal',
+            tone: 'contrast',
+            feature_items: [],
+            secondary_enabled: true,
+            secondary_background_color: '',
+            secondary_kicker: '',
+            secondary_title: '',
+            secondary_body: '',
+            secondary_badge: '',
+            secondary_feature_items: [],
+        };
+    }
+
+    if (type === 'welcome_workflow') {
+        return {
+            layout: 'split',
+            background_color: '',
+            image_position: 'right',
+            alignment: 'left',
+            density: 'normal',
+            tone: 'default',
+            preview_cards: [],
+        };
+    }
+
+    if (type === 'welcome_field') {
+        return {
+            layout: 'split',
+            background_color: '',
+            image_position: 'left',
+            alignment: 'left',
+            density: 'normal',
+            tone: 'default',
+        };
+    }
+
+    if (type === 'welcome_cta') {
+        return {
+            layout: 'stack',
+            background_color: '',
+            image_position: 'left',
+            alignment: 'center',
+            density: 'normal',
+            tone: 'contrast',
+        };
+    }
+
+    if (type === 'welcome_custom') {
+        return {
+            layout: 'split',
+            background_color: '',
+            image_position: 'right',
+            alignment: 'left',
+            density: 'normal',
+            tone: 'default',
         };
     }
 
@@ -196,6 +510,9 @@ const sectionTypePreset = (type) => {
             alignment: 'left',
             density: 'normal',
             tone: 'default',
+            brand_logo_url: '/1.svg',
+            brand_logo_alt: 'Malikia Pro',
+            brand_href: '/',
             kicker: currentLocale.value === 'fr' ? 'Accompagnement' : 'Support',
             title: currentLocale.value === 'fr' ? 'Parlez a notre equipe' : 'Talk to our team',
             body: currentLocale.value === 'fr'
@@ -226,6 +543,8 @@ const sectionTypePreset = (type) => {
             social_linkedin_href: '',
             google_play_href: '',
             app_store_href: '',
+            footer_groups: defaultFooterGroups(currentLocale.value),
+            legal_links: defaultFooterLegalLinks(currentLocale.value),
         };
     }
 
@@ -270,7 +589,19 @@ const ensureStructure = (content, type = form.type) => {
         kicker: content?.kicker || '',
         title: content?.title ?? preset.title ?? '',
         body: content?.body || '',
+        note: content?.note || '',
+        stats: Array.isArray(content?.stats) ? ensureStatItems(content.stats) : ensureStatItems(preset.stats),
+        preview_cards: Array.isArray(content?.preview_cards) ? ensurePreviewCards(content.preview_cards) : ensurePreviewCards(preset.preview_cards),
+        feature_items: Array.isArray(content?.feature_items) ? ensureFeatureItems(content.feature_items) : ensureFeatureItems(preset.feature_items),
+        secondary_enabled: content?.secondary_enabled ?? preset.secondary_enabled ?? false,
+        secondary_background_color: content?.secondary_background_color ?? preset.secondary_background_color ?? '',
+        secondary_kicker: content?.secondary_kicker ?? preset.secondary_kicker ?? '',
+        secondary_title: content?.secondary_title ?? preset.secondary_title ?? '',
+        secondary_body: content?.secondary_body ?? preset.secondary_body ?? '',
+        secondary_badge: content?.secondary_badge ?? preset.secondary_badge ?? '',
+        secondary_feature_items: Array.isArray(content?.secondary_feature_items) ? ensureFeatureItems(content.secondary_feature_items) : ensureFeatureItems(preset.secondary_feature_items),
         industry_cards: Array.isArray(content?.industry_cards) ? ensureIndustryCards(content.industry_cards) : ensureIndustryCards(preset.industry_cards),
+        story_cards: Array.isArray(content?.story_cards) ? ensureStoryCards(content.story_cards) : ensureStoryCards(preset.story_cards),
         feature_tabs: Array.isArray(content?.feature_tabs) ? ensureFeatureTabs(content.feature_tabs) : ensureFeatureTabs(preset.feature_tabs),
         feature_tabs_font_size: normalizeFeatureTabsTriggerFontSize(content?.feature_tabs_font_size ?? preset.feature_tabs_font_size),
         testimonial_cards: Array.isArray(content?.testimonial_cards) ? ensureTestimonialCards(content.testimonial_cards) : ensureTestimonialCards(preset.testimonial_cards),
@@ -292,6 +623,9 @@ const ensureStructure = (content, type = form.type) => {
         secondary_label: content?.secondary_label || '',
         secondary_href: content?.secondary_href || '',
         copy: content?.copy ?? preset.copy ?? '',
+        brand_logo_url: content?.brand_logo_url ?? preset.brand_logo_url ?? '',
+        brand_logo_alt: content?.brand_logo_alt ?? preset.brand_logo_alt ?? '',
+        brand_href: content?.brand_href ?? preset.brand_href ?? '',
         contact_phone: content?.contact_phone ?? preset.contact_phone ?? '',
         contact_email: content?.contact_email ?? preset.contact_email ?? '',
         social_facebook_href: content?.social_facebook_href ?? preset.social_facebook_href ?? '',
@@ -301,6 +635,8 @@ const ensureStructure = (content, type = form.type) => {
         social_linkedin_href: content?.social_linkedin_href ?? preset.social_linkedin_href ?? '',
         google_play_href: content?.google_play_href ?? preset.google_play_href ?? '',
         app_store_href: content?.app_store_href ?? preset.app_store_href ?? '',
+        footer_groups: Array.isArray(content?.footer_groups) ? ensureFooterGroups(content.footer_groups) : ensureFooterGroups(preset.footer_groups),
+        legal_links: Array.isArray(content?.legal_links) ? ensureFooterLinks(content.legal_links) : ensureFooterLinks(preset.legal_links),
     };
 };
 
@@ -343,12 +679,26 @@ watch(
             kicker: current.kicker || next.kicker || '',
             title: current.title || next.title || '',
             body: current.body || next.body || '',
+            note: current.note || next.note || '',
             items: current.items?.length ? current.items : (Array.isArray(next.items) ? [...next.items] : []),
+            stats: current.stats?.length ? current.stats : ensureStatItems(next.stats),
+            preview_cards: current.preview_cards?.length ? current.preview_cards : ensurePreviewCards(next.preview_cards),
+            feature_items: current.feature_items?.length ? current.feature_items : ensureFeatureItems(next.feature_items),
+            secondary_enabled: current.secondary_enabled ?? next.secondary_enabled ?? false,
+            secondary_background_color: current.secondary_background_color || next.secondary_background_color || '',
+            secondary_kicker: current.secondary_kicker || next.secondary_kicker || '',
+            secondary_title: current.secondary_title || next.secondary_title || '',
+            secondary_body: current.secondary_body || next.secondary_body || '',
+            secondary_badge: current.secondary_badge || next.secondary_badge || '',
+            secondary_feature_items: current.secondary_feature_items?.length ? current.secondary_feature_items : ensureFeatureItems(next.secondary_feature_items),
             primary_label: current.primary_label || next.primary_label || '',
             primary_href: current.primary_href || next.primary_href || '',
             secondary_label: current.secondary_label || next.secondary_label || '',
             secondary_href: current.secondary_href || next.secondary_href || '',
             copy: current.copy || next.copy || '',
+            brand_logo_url: current.brand_logo_url || next.brand_logo_url || '',
+            brand_logo_alt: current.brand_logo_alt || next.brand_logo_alt || '',
+            brand_href: current.brand_href || next.brand_href || '',
             contact_phone: current.contact_phone || next.contact_phone || '',
             contact_email: current.contact_email || next.contact_email || '',
             social_facebook_href: current.social_facebook_href || next.social_facebook_href || '',
@@ -358,7 +708,10 @@ watch(
             social_linkedin_href: current.social_linkedin_href || next.social_linkedin_href || '',
             google_play_href: current.google_play_href || next.google_play_href || '',
             app_store_href: current.app_store_href || next.app_store_href || '',
+            footer_groups: current.footer_groups?.length ? current.footer_groups : ensureFooterGroups(next.footer_groups),
+            legal_links: current.legal_links?.length ? current.legal_links : ensureFooterLinks(next.legal_links),
             industry_cards: current.industry_cards?.length ? current.industry_cards : ensureIndustryCards(next.industry_cards),
+            story_cards: current.story_cards?.length ? current.story_cards : ensureStoryCards(next.story_cards),
             feature_tabs: current.feature_tabs?.length ? current.feature_tabs : ensureFeatureTabs(next.feature_tabs),
             feature_tabs_font_size: current.feature_tabs_font_size === previous.feature_tabs_font_size
                 ? normalizeFeatureTabsTriggerFontSize(next.feature_tabs_font_size)
@@ -374,16 +727,89 @@ const isDuoType = computed(() => form.type === 'duo');
 const isTestimonialType = computed(() => form.type === 'testimonial');
 const isFeaturePairsType = computed(() => form.type === 'feature_pairs');
 const isIndustryGridType = computed(() => form.type === 'industry_grid');
+const isStoryGridType = computed(() => form.type === 'story_grid');
 const isFeatureTabsType = computed(() => form.type === 'feature_tabs');
 const isTestimonialGridType = computed(() => form.type === 'testimonial_grid');
 const isFooterType = computed(() => form.type === 'footer');
-const usesEnhancedLayout = computed(() => isDuoType.value || isTestimonialType.value || isFeaturePairsType.value || isIndustryGridType.value || isFeatureTabsType.value || isTestimonialGridType.value || isFooterType.value);
+const isWelcomeHeroType = computed(() => form.type === 'welcome_hero');
+const isWelcomeTrustType = computed(() => form.type === 'welcome_trust');
+const isWelcomeFeaturesType = computed(() => form.type === 'welcome_features');
+const isWelcomeWorkflowType = computed(() => form.type === 'welcome_workflow');
+const isWelcomeFieldType = computed(() => form.type === 'welcome_field');
+const isWelcomeCtaType = computed(() => form.type === 'welcome_cta');
+const isWelcomeCustomType = computed(() => form.type === 'welcome_custom');
+const usesEnhancedLayout = computed(() => (
+    isDuoType.value
+    || isTestimonialType.value
+    || isFeaturePairsType.value
+    || isIndustryGridType.value
+    || isStoryGridType.value
+    || isFeatureTabsType.value
+    || isTestimonialGridType.value
+    || isWelcomeHeroType.value
+    || isWelcomeTrustType.value
+    || isWelcomeFeaturesType.value
+    || isWelcomeWorkflowType.value
+    || isWelcomeFieldType.value
+    || isWelcomeCtaType.value
+    || isWelcomeCustomType.value
+));
 const showImagePosition = computed(() => isDuoType.value || isTestimonialType.value);
+const showItemsField = computed(() => (
+    !isFooterType.value
+    && !isTestimonialType.value
+    && !isIndustryGridType.value
+    && !isStoryGridType.value
+    && !isFeatureTabsType.value
+    && !isTestimonialGridType.value
+    && !isWelcomeFeaturesType.value
+    && !isWelcomeWorkflowType.value
+    && !isWelcomeCtaType.value
+));
 const itemsFieldLabel = computed(() => (
     isFooterType.value
         ? t('super_admin.pages.footer.items_label')
+        : isWelcomeHeroType.value
+            ? t('super_admin.sections.welcome.hero.highlights')
         : t('super_admin.pages.fields.items')
 ));
+const showImageFields = computed(() => (
+    !isIndustryGridType.value
+    && !isStoryGridType.value
+    && !isFeatureTabsType.value
+    && !isTestimonialGridType.value
+    && !isFooterType.value
+    && !isWelcomeFeaturesType.value
+    && !isWelcomeTrustType.value
+    && !isWelcomeCtaType.value
+));
+const showActionFields = computed(() => (
+    !isFooterType.value
+    && !isWelcomeTrustType.value
+    && !isWelcomeFeaturesType.value
+    && !isWelcomeWorkflowType.value
+));
+const footerSocialCount = computed(() => (
+    [
+        'social_facebook_href',
+        'social_x_href',
+        'social_instagram_href',
+        'social_youtube_href',
+        'social_linkedin_href',
+    ].filter((key) => String(form.content?.[key] || '').trim().length > 0).length
+));
+const footerStoreCount = computed(() => (
+    ['google_play_href', 'app_store_href']
+        .filter((key) => String(form.content?.[key] || '').trim().length > 0)
+        .length
+));
+const footerNavLinkCount = computed(() => (
+    (Array.isArray(form.content?.footer_groups) ? form.content.footer_groups : []).reduce(
+        (total, group) => total + (Array.isArray(group?.links) ? group.links.length : 0),
+        0
+    )
+));
+const footerSupportItemCount = computed(() => (Array.isArray(form.content?.items) ? form.content.items.length : 0));
 
 const backgroundFieldLabel = computed(() => (
     isDuoType.value
@@ -441,8 +867,88 @@ const handleAssetSelect = (asset) => {
     closeAssetPicker();
 };
 
+const addFooterGroup = () => {
+    form.content.footer_groups = [...(form.content.footer_groups || []), createFooterGroup()];
+};
+
+const moveFooterGroup = (index, direction) => {
+    const nextIndex = index + direction;
+    if (!form.content.footer_groups || nextIndex < 0 || nextIndex >= form.content.footer_groups.length) {
+        return;
+    }
+
+    const groups = [...form.content.footer_groups];
+    const [group] = groups.splice(index, 1);
+    groups.splice(nextIndex, 0, group);
+    form.content.footer_groups = groups;
+};
+
+const removeFooterGroup = (index) => {
+    if (!form.content.footer_groups) {
+        return;
+    }
+
+    form.content.footer_groups.splice(index, 1);
+};
+
+const addFooterGroupLink = (group) => {
+    if (!group) {
+        return;
+    }
+
+    group.links = [...(group.links || []), createFooterLink()];
+};
+
+const moveFooterGroupLink = (group, index, direction) => {
+    const nextIndex = index + direction;
+    if (!group?.links || nextIndex < 0 || nextIndex >= group.links.length) {
+        return;
+    }
+
+    const links = [...group.links];
+    const [link] = links.splice(index, 1);
+    links.splice(nextIndex, 0, link);
+    group.links = links;
+};
+
+const removeFooterGroupLink = (group, index) => {
+    if (!group?.links) {
+        return;
+    }
+
+    group.links.splice(index, 1);
+};
+
+const addFooterLegalLink = () => {
+    form.content.legal_links = [...(form.content.legal_links || []), createFooterLink()];
+};
+
+const moveFooterLegalLink = (index, direction) => {
+    const nextIndex = index + direction;
+    if (!form.content.legal_links || nextIndex < 0 || nextIndex >= form.content.legal_links.length) {
+        return;
+    }
+
+    const links = [...form.content.legal_links];
+    const [link] = links.splice(index, 1);
+    links.splice(nextIndex, 0, link);
+    form.content.legal_links = links;
+};
+
+const removeFooterLegalLink = (index) => {
+    if (!form.content.legal_links) {
+        return;
+    }
+
+    form.content.legal_links.splice(index, 1);
+};
+
 const addIndustryCard = () => {
     form.content.industry_cards = [...(form.content.industry_cards || []), createIndustryCard()];
+};
+
+const addStoryCard = () => {
+    form.content.story_cards = [...(form.content.story_cards || []), createStoryCard()];
 };
 
 const addTestimonialCard = () => {
@@ -459,6 +965,18 @@ const moveIndustryCard = (index, direction) => {
     const [card] = cards.splice(index, 1);
     cards.splice(nextIndex, 0, card);
     form.content.industry_cards = cards;
+};
+
+const moveStoryCard = (index, direction) => {
+    const nextIndex = index + direction;
+    if (!form.content.story_cards || nextIndex < 0 || nextIndex >= form.content.story_cards.length) {
+        return;
+    }
+
+    const cards = [...form.content.story_cards];
+    const [card] = cards.splice(index, 1);
+    cards.splice(nextIndex, 0, card);
+    form.content.story_cards = cards;
 };
 
 const moveTestimonialCard = (index, direction) => {
@@ -479,6 +997,14 @@ const removeIndustryCard = (index) => {
     }
 
     form.content.industry_cards.splice(index, 1);
+};
+
+const removeStoryCard = (index) => {
+    if (!form.content.story_cards) {
+        return;
+    }
+
+    form.content.story_cards.splice(index, 1);
 };
 
 const removeTestimonialCard = (index) => {
@@ -545,6 +1071,80 @@ const updateFeatureTabItems = (tab, value) => {
     tab.items = parseLines(value);
 };
 
+const addHeroStat = () => {
+    form.content.stats = [...(form.content.stats || []), createStatItem()];
+};
+
+const moveHeroStat = (index, direction) => {
+    const nextIndex = index + direction;
+    if (!form.content.stats || nextIndex < 0 || nextIndex >= form.content.stats.length) {
+        return;
+    }
+
+    const items = [...form.content.stats];
+    const [item] = items.splice(index, 1);
+    items.splice(nextIndex, 0, item);
+    form.content.stats = items;
+};
+
+const removeHeroStat = (index) => {
+    if (!form.content.stats) {
+        return;
+    }
+
+    form.content.stats.splice(index, 1);
+};
+
+const addPreviewCard = (targetKey = 'preview_cards') => {
+    form.content[targetKey] = [...(form.content[targetKey] || []), createPreviewCard()];
+};
+
+const movePreviewCard = (targetKey, index, direction) => {
+    const list = form.content[targetKey];
+    const nextIndex = index + direction;
+    if (!list || nextIndex < 0 || nextIndex >= list.length) {
+        return;
+    }
+
+    const items = [...list];
+    const [item] = items.splice(index, 1);
+    items.splice(nextIndex, 0, item);
+    form.content[targetKey] = items;
+};
+
+const removePreviewCard = (targetKey, index) => {
+    if (!form.content[targetKey]) {
+        return;
+    }
+
+    form.content[targetKey].splice(index, 1);
+};
+
+const addFeatureItemBlock = (targetKey = 'feature_items') => {
+    form.content[targetKey] = [...(form.content[targetKey] || []), createFeatureItem()];
+};
+
+const moveFeatureItemBlock = (targetKey, index, direction) => {
+    const list = form.content[targetKey];
+    const nextIndex = index + direction;
+    if (!list || nextIndex < 0 || nextIndex >= list.length) {
+        return;
+    }
+
+    const items = [...list];
+    const [item] = items.splice(index, 1);
+    items.splice(nextIndex, 0, item);
+    form.content[targetKey] = items;
+};
+
+const removeFeatureItemBlock = (targetKey, index) => {
+    if (!form.content[targetKey]) {
+        return;
+    }
+
+    form.content[targetKey].splice(index, 1);
+};
+
 syncFormFromProps(currentLocale.value);
 </script>
 
@@ -607,8 +1207,10 @@ syncFormFromProps(currentLocale.value);
                 <div class="grid gap-3 md:grid-cols-3">
                     <FloatingSelect v-model="currentLocale" :options="localeOptions"
                         :label="$t('super_admin.sections.locale.label')" />
-                    <FloatingInput v-model="form.content.kicker" :label="$t('super_admin.pages.common.kicker')" />
-                    <FloatingInput v-model="form.content.title" :label="$t('super_admin.pages.common.title')" />
+                    <template v-if="!isFooterType">
+                        <FloatingInput v-model="form.content.kicker" :label="$t('super_admin.pages.common.kicker')" />
+                        <FloatingInput v-model="form.content.title" :label="$t('super_admin.pages.common.title')" />
+                    </template>
                 </div>
                 <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                     {{ $t('super_admin.sections.locale.hint') }}
@@ -655,27 +1257,312 @@ syncFormFromProps(currentLocale.value);
             </section>
 
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 space-y-4">
-                <RichTextEditor
-                    v-model="form.content.body"
-                    :label="$t('super_admin.pages.common.body')"
-                    :link-prompt="editorLinkPrompt"
-                    :image-prompt="editorImagePrompt"
-                    :ai-enabled="ai_enabled"
-                    :ai-generate-url="ai_image_generate_url"
-                    :ai-prompt="editorAiPrompt"
-                    :labels="editorLabels"
-                />
+                <template v-if="!isFooterType">
+                    <RichTextEditor
+                        v-model="form.content.body"
+                        :label="$t('super_admin.pages.common.body')"
+                        :link-prompt="editorLinkPrompt"
+                        :image-prompt="editorImagePrompt"
+                        :ai-enabled="ai_enabled"
+                        :ai-generate-url="ai_image_generate_url"
+                        :ai-prompt="editorAiPrompt"
+                        :labels="editorLabels"
+                    />
 
-                <div v-if="!isTestimonialType && !isIndustryGridType && !isFeatureTabsType && !isTestimonialGridType">
-                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                        {{ itemsFieldLabel }}
-                    </label>
-                    <textarea v-model="itemsLines" rows="4"
-                        class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"></textarea>
+                    <div v-if="showItemsField">
+                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                            {{ itemsFieldLabel }}
+                        </label>
+                        <textarea v-model="itemsLines" rows="4"
+                            class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"></textarea>
+                    </div>
+                </template>
+
+                <div v-if="isWelcomeHeroType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-4">
+                    <RichTextEditor
+                        v-model="form.content.note"
+                        :label="$t('super_admin.sections.welcome.hero.note')"
+                        :link-prompt="editorLinkPrompt"
+                        :image-prompt="editorImagePrompt"
+                        :ai-enabled="ai_enabled"
+                        :ai-generate-url="ai_image_generate_url"
+                        :ai-prompt="editorAiPrompt"
+                        :labels="editorLabels"
+                    />
+
+                    <div class="space-y-3">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('super_admin.sections.welcome.hero.stats_title') }}
+                                </h2>
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.sections.welcome.hero.stats_subtitle') }}
+                                </p>
+                            </div>
+                            <button type="button"
+                                class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                @click="addHeroStat">
+                                {{ $t('super_admin.sections.welcome.hero.add_stat') }}
+                            </button>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div v-for="(item, index) in form.content.stats" :key="`hero-stat-${index}`"
+                                class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                <div class="flex flex-wrap justify-end gap-2 text-xs">
+                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                        @click="moveHeroStat(index, -1)">
+                                        {{ $t('super_admin.pages.common.move_up') }}
+                                    </button>
+                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                        @click="moveHeroStat(index, 1)">
+                                        {{ $t('super_admin.pages.common.move_down') }}
+                                    </button>
+                                    <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                        @click="removeHeroStat(index)">
+                                        {{ $t('super_admin.pages.common.remove') }}
+                                    </button>
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingInput v-model="item.value" :label="$t('super_admin.sections.welcome.hero.stat_value')" />
+                                    <FloatingInput v-model="item.label" :label="$t('super_admin.sections.welcome.hero.stat_label')" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('super_admin.sections.welcome.hero.preview_title') }}
+                                </h2>
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.sections.welcome.hero.preview_subtitle') }}
+                                </p>
+                            </div>
+                            <button type="button"
+                                class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                @click="addPreviewCard('preview_cards')">
+                                {{ $t('super_admin.sections.welcome.hero.add_preview') }}
+                            </button>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div v-for="(item, index) in form.content.preview_cards" :key="`hero-preview-${index}`"
+                                class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                <div class="flex flex-wrap justify-end gap-2 text-xs">
+                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                        @click="movePreviewCard('preview_cards', index, -1)">
+                                        {{ $t('super_admin.pages.common.move_up') }}
+                                    </button>
+                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                        @click="movePreviewCard('preview_cards', index, 1)">
+                                        {{ $t('super_admin.pages.common.move_down') }}
+                                    </button>
+                                    <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                        @click="removePreviewCard('preview_cards', index)">
+                                        {{ $t('super_admin.pages.common.remove') }}
+                                    </button>
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingInput v-model="item.title" :label="$t('super_admin.pages.common.title')" />
+                                    <RichTextEditor
+                                        v-model="item.desc"
+                                        :label="$t('super_admin.pages.common.description')"
+                                        :link-prompt="editorLinkPrompt"
+                                        :image-prompt="editorImagePrompt"
+                                        :ai-enabled="ai_enabled"
+                                        :ai-generate-url="ai_image_generate_url"
+                                        :ai-prompt="editorAiPrompt"
+                                        :labels="editorLabels"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div v-if="isFooterType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700">
-                    <div class="mb-3">
+                <div v-if="isWelcomeFeaturesType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-4">
+                    <div class="space-y-3">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('super_admin.sections.welcome.features.items_title') }}
+                                </h2>
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.sections.welcome.features.items_subtitle') }}
+                                </p>
+                            </div>
+                            <button type="button"
+                                class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                @click="addFeatureItemBlock('feature_items')">
+                                {{ $t('super_admin.sections.welcome.features.add_item') }}
+                            </button>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div v-for="(item, index) in form.content.feature_items" :key="item.key || `feature-item-${index}`"
+                                class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                <div class="flex flex-wrap justify-end gap-2 text-xs">
+                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                        @click="moveFeatureItemBlock('feature_items', index, -1)">
+                                        {{ $t('super_admin.pages.common.move_up') }}
+                                    </button>
+                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                        @click="moveFeatureItemBlock('feature_items', index, 1)">
+                                        {{ $t('super_admin.pages.common.move_down') }}
+                                    </button>
+                                    <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                        @click="removeFeatureItemBlock('feature_items', index)">
+                                        {{ $t('super_admin.pages.common.remove') }}
+                                    </button>
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingInput v-model="item.key" :label="$t('super_admin.pages.common.key')" />
+                                    <FloatingInput v-model="item.title" :label="$t('super_admin.pages.common.title')" />
+                                    <div class="md:col-span-2">
+                                        <RichTextEditor
+                                            v-model="item.desc"
+                                            :label="$t('super_admin.pages.common.description')"
+                                            :link-prompt="editorLinkPrompt"
+                                            :image-prompt="editorImagePrompt"
+                                            :ai-enabled="ai_enabled"
+                                            :ai-generate-url="ai_image_generate_url"
+                                            :ai-prompt="editorAiPrompt"
+                                            :labels="editorLabels"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                        <div class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
+                            <Checkbox v-model:checked="form.content.secondary_enabled" />
+                            <span>{{ $t('super_admin.sections.welcome.features.secondary_enabled') }}</span>
+                        </div>
+
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <FloatingInput v-model="form.content.secondary_kicker" :label="$t('super_admin.pages.common.kicker')" />
+                            <FloatingInput v-model="form.content.secondary_title" :label="$t('super_admin.pages.common.title')" />
+                            <FloatingInput v-model="form.content.secondary_badge" :label="$t('super_admin.sections.welcome.features.secondary_badge')" />
+                            <FloatingInput v-model="form.content.secondary_background_color" :label="$t('super_admin.pages.common.background_hex')" />
+                            <div class="md:col-span-2">
+                                <RichTextEditor
+                                    v-model="form.content.secondary_body"
+                                    :label="$t('super_admin.sections.welcome.features.secondary_body')"
+                                    :link-prompt="editorLinkPrompt"
+                                    :image-prompt="editorImagePrompt"
+                                    :ai-enabled="ai_enabled"
+                                    :ai-generate-url="ai_image_generate_url"
+                                    :ai-prompt="editorAiPrompt"
+                                    :labels="editorLabels"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap justify-end">
+                            <button type="button"
+                                class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                @click="addFeatureItemBlock('secondary_feature_items')">
+                                {{ $t('super_admin.sections.welcome.features.add_secondary_item') }}
+                            </button>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div v-for="(item, index) in form.content.secondary_feature_items" :key="item.key || `feature-secondary-item-${index}`"
+                                class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                <div class="flex flex-wrap justify-end gap-2 text-xs">
+                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                        @click="moveFeatureItemBlock('secondary_feature_items', index, -1)">
+                                        {{ $t('super_admin.pages.common.move_up') }}
+                                    </button>
+                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                        @click="moveFeatureItemBlock('secondary_feature_items', index, 1)">
+                                        {{ $t('super_admin.pages.common.move_down') }}
+                                    </button>
+                                    <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                        @click="removeFeatureItemBlock('secondary_feature_items', index)">
+                                        {{ $t('super_admin.pages.common.remove') }}
+                                    </button>
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <FloatingInput v-model="item.key" :label="$t('super_admin.pages.common.key')" />
+                                    <FloatingInput v-model="item.title" :label="$t('super_admin.pages.common.title')" />
+                                    <div class="md:col-span-2">
+                                        <RichTextEditor
+                                            v-model="item.desc"
+                                            :label="$t('super_admin.pages.common.description')"
+                                            :link-prompt="editorLinkPrompt"
+                                            :image-prompt="editorImagePrompt"
+                                            :ai-enabled="ai_enabled"
+                                            :ai-generate-url="ai_image_generate_url"
+                                            :ai-prompt="editorAiPrompt"
+                                            :labels="editorLabels"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="isWelcomeWorkflowType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('super_admin.sections.welcome.workflow.steps_title') }}
+                            </h2>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.sections.welcome.workflow.steps_subtitle') }}
+                            </p>
+                        </div>
+                        <button type="button"
+                            class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            @click="addPreviewCard('preview_cards')">
+                            {{ $t('super_admin.sections.welcome.workflow.add_step') }}
+                        </button>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div v-for="(item, index) in form.content.preview_cards" :key="`workflow-step-${index}`"
+                            class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                            <div class="flex flex-wrap justify-end gap-2 text-xs">
+                                <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                    @click="movePreviewCard('preview_cards', index, -1)">
+                                    {{ $t('super_admin.pages.common.move_up') }}
+                                </button>
+                                <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                    @click="movePreviewCard('preview_cards', index, 1)">
+                                    {{ $t('super_admin.pages.common.move_down') }}
+                                </button>
+                                <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                    @click="removePreviewCard('preview_cards', index)">
+                                    {{ $t('super_admin.pages.common.remove') }}
+                                </button>
+                            </div>
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <FloatingInput v-model="item.title" :label="$t('super_admin.pages.common.title')" />
+                                <RichTextEditor
+                                    v-model="item.desc"
+                                    :label="$t('super_admin.pages.common.description')"
+                                    :link-prompt="editorLinkPrompt"
+                                    :image-prompt="editorImagePrompt"
+                                    :ai-enabled="ai_enabled"
+                                    :ai-generate-url="ai_image_generate_url"
+                                    :ai-prompt="editorAiPrompt"
+                                    :labels="editorLabels"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="isFooterType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-4">
+                    <div>
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ $t('super_admin.pages.footer.title') }}
                         </h2>
@@ -684,27 +1571,358 @@ syncFormFromProps(currentLocale.value);
                         </p>
                     </div>
 
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <FloatingInput v-model="form.content.contact_phone" :label="$t('super_admin.pages.common.contact_phone')" />
-                        <FloatingInput v-model="form.content.contact_email" :label="$t('super_admin.pages.common.contact_email')" />
+                    <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                        <div>
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('super_admin.pages.footer.preview_title') }}
+                            </h3>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.pages.footer.preview_subtitle') }}
+                            </p>
+                        </div>
+
+                        <div class="grid gap-3 lg:grid-cols-5">
+                            <div class="rounded-sm bg-stone-50 p-3 dark:bg-neutral-800/70">
+                                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    1. {{ $t('super_admin.pages.footer.order_brand') }}
+                                </div>
+                                <div class="mt-1 text-sm font-semibold text-stone-900 dark:text-white">
+                                    {{ form.content.brand_logo_alt || form.name || $t('super_admin.pages.footer.order_brand') }}
+                                </div>
+                            </div>
+                            <div class="rounded-sm bg-stone-50 p-3 dark:bg-neutral-800/70">
+                                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    2. {{ $t('super_admin.pages.footer.order_contact') }}
+                                </div>
+                                <div class="mt-1 text-sm font-semibold text-stone-900 dark:text-white">
+                                    {{ footerSocialCount }} {{ $t('super_admin.pages.footer.preview_socials') }}
+                                </div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ footerStoreCount }} {{ $t('super_admin.pages.footer.preview_stores') }}
+                                </div>
+                            </div>
+                            <div class="rounded-sm bg-stone-50 p-3 dark:bg-neutral-800/70">
+                                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    3. {{ $t('super_admin.pages.footer.order_navigation') }}
+                                </div>
+                                <div class="mt-1 text-sm font-semibold text-stone-900 dark:text-white">
+                                    {{ (form.content.footer_groups || []).length }} {{ $t('super_admin.pages.footer.preview_groups') }}
+                                </div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ footerNavLinkCount }} {{ $t('super_admin.pages.footer.preview_links') }}
+                                </div>
+                            </div>
+                            <div class="rounded-sm bg-stone-50 p-3 dark:bg-neutral-800/70">
+                                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    4. {{ $t('super_admin.pages.footer.order_support') }}
+                                </div>
+                                <div class="mt-1 text-sm font-semibold text-stone-900 dark:text-white">
+                                    {{ form.content.title || $t('super_admin.pages.footer.order_support') }}
+                                </div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ footerSupportItemCount }} {{ $t('super_admin.pages.footer.preview_items') }}
+                                </div>
+                            </div>
+                            <div class="rounded-sm bg-stone-50 p-3 dark:bg-neutral-800/70">
+                                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    5. {{ $t('super_admin.pages.footer.order_bottom') }}
+                                </div>
+                                <div class="mt-1 text-sm font-semibold text-stone-900 dark:text-white">
+                                    {{ form.content.copy || $t('super_admin.pages.common.copy') }}
+                                </div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ (form.content.legal_links || []).length }} {{ $t('super_admin.pages.footer.preview_links') }}
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        <FloatingInput v-model="form.content.social_facebook_href" :label="$t('super_admin.pages.common.social_facebook_href')" />
-                        <FloatingInput v-model="form.content.social_x_href" :label="$t('super_admin.pages.common.social_x_href')" />
-                        <FloatingInput v-model="form.content.social_instagram_href" :label="$t('super_admin.pages.common.social_instagram_href')" />
-                        <FloatingInput v-model="form.content.social_youtube_href" :label="$t('super_admin.pages.common.social_youtube_href')" />
-                        <FloatingInput v-model="form.content.social_linkedin_href" :label="$t('super_admin.pages.common.social_linkedin_href')" />
-                    </div>
+                    <details open class="rounded-sm border border-stone-200 dark:border-neutral-700">
+                        <summary class="cursor-pointer px-4 py-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('super_admin.pages.footer.appearance_title') }}
+                                </h3>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.footer.appearance_subtitle') }}
+                                </p>
+                            </div>
+                        </summary>
+                        <div class="border-t border-stone-200 p-4 dark:border-neutral-700 space-y-4">
+                            <div class="grid gap-2 md:grid-cols-[160px_1fr] md:items-center">
+                                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.common.background_hex') }}
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <input v-model="form.content.background_color" type="color"
+                                        class="h-10 w-14 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
+                                    <div class="min-w-[220px] flex-1">
+                                        <FloatingInput v-model="form.content.background_color"
+                                            :label="$t('super_admin.pages.common.background_hex')" />
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div class="mt-3 grid gap-3 md:grid-cols-2">
-                        <FloatingInput v-model="form.content.google_play_href" :label="$t('super_admin.pages.common.google_play_href')" />
-                        <FloatingInput v-model="form.content.app_store_href" :label="$t('super_admin.pages.common.app_store_href')" />
-                    </div>
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <div class="space-y-2">
+                                    <FloatingInput v-model="form.content.brand_logo_url" :label="$t('super_admin.pages.common.brand_logo_url')" />
+                                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                                        <button v-if="asset_list_url" type="button"
+                                            class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                            @click="openAssetPicker(form.content, 'brand_logo_url', 'brand_logo_alt')">
+                                            {{ $t('super_admin.pages.assets.choose') }}
+                                        </button>
+                                        <span v-if="form.content.brand_logo_url" class="text-stone-500">
+                                            {{ $t('super_admin.pages.assets.preview') }}
+                                        </span>
+                                    </div>
+                                    <div v-if="form.content.brand_logo_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white p-3">
+                                        <img :src="form.content.brand_logo_url" :alt="form.content.brand_logo_alt || 'Footer logo'" class="h-16 max-w-full object-contain" loading="lazy" decoding="async" />
+                                    </div>
+                                </div>
+                                <div class="space-y-3">
+                                    <FloatingInput v-model="form.content.brand_logo_alt" :label="$t('super_admin.pages.common.brand_logo_alt')" />
+                                    <FloatingInput v-model="form.content.brand_href" :label="$t('super_admin.pages.common.brand_href')" />
+                                </div>
+                            </div>
+                        </div>
+                    </details>
 
-                    <div class="mt-3">
-                        <FloatingInput v-model="form.content.copy" :label="$t('super_admin.pages.common.copy')" />
-                    </div>
+                    <details open class="rounded-sm border border-stone-200 dark:border-neutral-700">
+                        <summary class="cursor-pointer px-4 py-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('super_admin.pages.footer.contact_title') }}
+                                </h3>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.footer.contact_subtitle') }}
+                                </p>
+                            </div>
+                        </summary>
+                        <div class="border-t border-stone-200 p-4 dark:border-neutral-700 space-y-4">
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <FloatingInput v-model="form.content.contact_phone" :label="$t('super_admin.pages.common.contact_phone')" />
+                                <FloatingInput v-model="form.content.contact_email" :label="$t('super_admin.pages.common.contact_email')" />
+                            </div>
+
+                            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                <FloatingInput v-model="form.content.social_facebook_href" :label="$t('super_admin.pages.common.social_facebook_href')" />
+                                <FloatingInput v-model="form.content.social_x_href" :label="$t('super_admin.pages.common.social_x_href')" />
+                                <FloatingInput v-model="form.content.social_instagram_href" :label="$t('super_admin.pages.common.social_instagram_href')" />
+                                <FloatingInput v-model="form.content.social_youtube_href" :label="$t('super_admin.pages.common.social_youtube_href')" />
+                                <FloatingInput v-model="form.content.social_linkedin_href" :label="$t('super_admin.pages.common.social_linkedin_href')" />
+                            </div>
+
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <FloatingInput v-model="form.content.google_play_href" :label="$t('super_admin.pages.common.google_play_href')" />
+                                <FloatingInput v-model="form.content.app_store_href" :label="$t('super_admin.pages.common.app_store_href')" />
+                            </div>
+                        </div>
+                    </details>
+
+                    <details open class="rounded-sm border border-stone-200 dark:border-neutral-700">
+                        <summary class="cursor-pointer px-4 py-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('super_admin.pages.footer.navigation_title') }}
+                                </h3>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.footer.navigation_subtitle') }}
+                                </p>
+                            </div>
+                        </summary>
+                        <div class="border-t border-stone-200 p-4 dark:border-neutral-700 space-y-3">
+                            <div class="flex flex-wrap justify-end">
+                                <button type="button"
+                                    class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    @click="addFooterGroup">
+                                    {{ $t('super_admin.pages.footer.add_group') }}
+                                </button>
+                            </div>
+
+                            <div class="space-y-3">
+                                <div v-for="(group, groupIndex) in form.content.footer_groups" :key="group.id"
+                                    class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                        <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                            {{ $t('super_admin.pages.footer.group_label', { number: groupIndex + 1 }) }}
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                @click="moveFooterGroup(groupIndex, -1)">
+                                                {{ $t('super_admin.pages.common.move_up') }}
+                                            </button>
+                                            <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                @click="moveFooterGroup(groupIndex, 1)">
+                                                {{ $t('super_admin.pages.common.move_down') }}
+                                            </button>
+                                            <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                                @click="removeFooterGroup(groupIndex)">
+                                                {{ $t('super_admin.pages.common.remove') }}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+                                        <FloatingInput v-model="group.title" :label="$t('super_admin.pages.common.footer_group_title')" />
+                                        <FloatingSelect v-model="group.layout" :options="footerGroupLayoutOptions"
+                                            :label="$t('super_admin.pages.common.footer_group_layout')" />
+                                    </div>
+
+                                    <div class="space-y-3">
+                                        <div v-for="(link, linkIndex) in group.links" :key="link.id"
+                                            class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                            <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                                <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                                    {{ $t('super_admin.pages.footer.link_label', { number: linkIndex + 1 }) }}
+                                                </div>
+                                                <div class="flex flex-wrap gap-2">
+                                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                        @click="moveFooterGroupLink(group, linkIndex, -1)">
+                                                        {{ $t('super_admin.pages.common.move_up') }}
+                                                    </button>
+                                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                        @click="moveFooterGroupLink(group, linkIndex, 1)">
+                                                        {{ $t('super_admin.pages.common.move_down') }}
+                                                    </button>
+                                                    <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                                        @click="removeFooterGroupLink(group, linkIndex)">
+                                                        {{ $t('super_admin.pages.common.remove') }}
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div class="grid gap-3 md:grid-cols-2">
+                                                <FloatingInput v-model="link.label" :label="$t('super_admin.pages.common.footer_link_label')" />
+                                                <FloatingInput v-model="link.href" :label="$t('super_admin.pages.common.footer_link_href')" />
+                                                <div class="md:col-span-2">
+                                                    <FloatingInput v-model="link.note" :label="$t('super_admin.pages.common.footer_link_note')" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button type="button"
+                                        class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                        @click="addFooterGroupLink(group)">
+                                        {{ $t('super_admin.pages.footer.add_link') }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details open class="rounded-sm border border-stone-200 dark:border-neutral-700">
+                        <summary class="cursor-pointer px-4 py-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('super_admin.pages.footer.support_title') }}
+                                </h3>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.footer.support_subtitle') }}
+                                </p>
+                            </div>
+                        </summary>
+                        <div class="border-t border-stone-200 p-4 dark:border-neutral-700 space-y-4">
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <FloatingInput v-model="form.content.kicker" :label="$t('super_admin.pages.common.kicker')" />
+                                <FloatingInput v-model="form.content.title" :label="$t('super_admin.pages.common.title')" />
+                            </div>
+
+                            <RichTextEditor
+                                v-model="form.content.body"
+                                :label="$t('super_admin.pages.common.body')"
+                                :link-prompt="editorLinkPrompt"
+                                :image-prompt="editorImagePrompt"
+                                :ai-enabled="ai_enabled"
+                                :ai-generate-url="ai_image_generate_url"
+                                :ai-prompt="editorAiPrompt"
+                                :labels="editorLabels"
+                            />
+
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ itemsFieldLabel }}
+                                </label>
+                                <textarea v-model="itemsLines" rows="4"
+                                    class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"></textarea>
+                            </div>
+
+                            <div class="grid gap-3 md:grid-cols-4">
+                                <FloatingInput v-model="form.content.primary_label" :label="$t('super_admin.pages.common.primary_label')" />
+                                <FloatingInput v-model="form.content.primary_href" :label="$t('super_admin.pages.common.primary_href')" />
+                                <FloatingInput v-model="form.content.secondary_label" :label="$t('super_admin.pages.common.secondary_label')" />
+                                <FloatingInput v-model="form.content.secondary_href" :label="$t('super_admin.pages.common.secondary_href')" />
+                            </div>
+                        </div>
+                    </details>
+
+                    <details open class="rounded-sm border border-stone-200 dark:border-neutral-700">
+                        <summary class="cursor-pointer px-4 py-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('super_admin.pages.footer.bottom_title') }}
+                                </h3>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.footer.bottom_subtitle') }}
+                                </p>
+                            </div>
+                        </summary>
+                        <div class="border-t border-stone-200 p-4 dark:border-neutral-700 space-y-4">
+                            <FloatingInput v-model="form.content.copy" :label="$t('super_admin.pages.common.copy')" />
+
+                            <div class="space-y-3">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                            {{ $t('super_admin.pages.footer.legal_title') }}
+                                        </h3>
+                                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ $t('super_admin.pages.footer.legal_subtitle') }}
+                                        </p>
+                                    </div>
+                                    <button type="button"
+                                        class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                        @click="addFooterLegalLink">
+                                        {{ $t('super_admin.pages.footer.add_legal_link') }}
+                                    </button>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <div v-for="(link, linkIndex) in form.content.legal_links" :key="link.id"
+                                        class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                        <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                            <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                                {{ $t('super_admin.pages.footer.legal_label', { number: linkIndex + 1 }) }}
+                                            </div>
+                                            <div class="flex flex-wrap gap-2">
+                                                <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                    @click="moveFooterLegalLink(linkIndex, -1)">
+                                                    {{ $t('super_admin.pages.common.move_up') }}
+                                                </button>
+                                                <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                    @click="moveFooterLegalLink(linkIndex, 1)">
+                                                    {{ $t('super_admin.pages.common.move_down') }}
+                                                </button>
+                                                <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                                    @click="removeFooterLegalLink(linkIndex)">
+                                                    {{ $t('super_admin.pages.common.remove') }}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="grid gap-3 md:grid-cols-2">
+                                            <FloatingInput v-model="link.label" :label="$t('super_admin.pages.common.footer_link_label')" />
+                                            <FloatingInput v-model="link.href" :label="$t('super_admin.pages.common.footer_link_href')" />
+                                            <div class="md:col-span-2">
+                                                <FloatingInput v-model="link.note" :label="$t('super_admin.pages.common.footer_link_note')" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
                 </div>
 
                 <div v-if="isTestimonialType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700">
@@ -724,7 +1942,7 @@ syncFormFromProps(currentLocale.value);
                     </div>
                 </div>
 
-                <div v-if="!isIndustryGridType && !isFeatureTabsType && !isTestimonialGridType && !isFooterType" class="grid gap-3 md:grid-cols-2">
+                <div v-if="showImageFields" class="grid gap-3 md:grid-cols-2">
                     <div class="space-y-2">
                         <FloatingInput v-model="form.content.image_url" :label="$t('super_admin.pages.common.image_url')" />
                         <div class="flex flex-wrap items-center gap-2 text-xs">
@@ -742,6 +1960,82 @@ syncFormFromProps(currentLocale.value);
                         </div>
                     </div>
                     <FloatingInput v-model="form.content.image_alt" :label="$t('super_admin.pages.common.image_alt')" />
+                </div>
+
+                <div v-if="isStoryGridType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('super_admin.pages.story_grid.title') }}
+                            </h2>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.pages.story_grid.subtitle') }}
+                            </p>
+                        </div>
+                        <button type="button"
+                            class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            @click="addStoryCard">
+                            {{ $t('super_admin.pages.story_grid.add_card') }}
+                        </button>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div v-for="(card, cardIndex) in form.content.story_cards" :key="card.id"
+                            class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                    {{ $t('super_admin.pages.story_grid.card_label', { number: cardIndex + 1 }) }}
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                        @click="moveStoryCard(cardIndex, -1)">
+                                        {{ $t('super_admin.pages.common.move_up') }}
+                                    </button>
+                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                        @click="moveStoryCard(cardIndex, 1)">
+                                        {{ $t('super_admin.pages.common.move_down') }}
+                                    </button>
+                                    <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                        @click="removeStoryCard(cardIndex)">
+                                        {{ $t('super_admin.pages.common.remove') }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <FloatingInput v-model="card.title" :label="$t('super_admin.pages.common.story_card_title')" />
+                                <FloatingInput v-model="card.image_alt" :label="$t('super_admin.pages.common.story_card_image_alt')" />
+                            </div>
+
+                            <RichTextEditor
+                                v-model="card.body"
+                                :label="$t('super_admin.pages.common.story_card_body')"
+                                :link-prompt="editorLinkPrompt"
+                                :image-prompt="editorImagePrompt"
+                                :ai-enabled="ai_enabled"
+                                :ai-generate-url="ai_image_generate_url"
+                                :ai-prompt="editorAiPrompt"
+                                :labels="editorLabels"
+                            />
+
+                            <div class="space-y-2">
+                                <FloatingInput v-model="card.image_url" :label="$t('super_admin.pages.common.story_card_image_url')" />
+                                <div class="flex flex-wrap items-center gap-2 text-xs">
+                                    <button v-if="asset_list_url" type="button"
+                                        class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                        @click="openAssetPicker(card, 'image_url', 'image_alt')">
+                                        {{ $t('super_admin.pages.assets.choose') }}
+                                    </button>
+                                    <span v-if="card.image_url" class="text-stone-500">
+                                        {{ $t('super_admin.pages.assets.preview') }}
+                                    </span>
+                                </div>
+                                <div v-if="card.image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white">
+                                    <img :src="card.image_url" :alt="card.image_alt || card.title" class="h-36 w-full object-cover" loading="lazy" decoding="async" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div v-if="isFeatureTabsType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
@@ -1160,7 +2454,7 @@ syncFormFromProps(currentLocale.value);
                     </div>
                 </div>
 
-                <div class="grid gap-3 md:grid-cols-4">
+                <div v-if="showActionFields" class="grid gap-3 md:grid-cols-4">
                     <FloatingInput v-model="form.content.primary_label" :label="$t('super_admin.pages.common.primary_label')" />
                     <FloatingInput v-model="form.content.primary_href" :label="$t('super_admin.pages.common.primary_href')" />
                     <FloatingInput v-model="form.content.secondary_label" :label="$t('super_admin.pages.common.secondary_label')" />

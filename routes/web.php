@@ -90,7 +90,6 @@ use App\Http\Controllers\SuperAdmin\PlatformSettingsController as SuperAdminPlat
 use App\Http\Controllers\SuperAdmin\SupportTicketController as SuperAdminSupportTicketController;
 use App\Http\Controllers\SuperAdmin\SupportTicketMessageController as SuperAdminSupportTicketMessageController;
 use App\Http\Controllers\SuperAdmin\TenantController as SuperAdminTenantController;
-use App\Http\Controllers\SuperAdmin\WelcomeBuilderController as SuperAdminWelcomeBuilderController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\SupportTicketMessageController;
 use App\Http\Controllers\TaskController;
@@ -789,9 +788,6 @@ Route::prefix('super-admin')
         Route::put('/support/{ticket}', [SuperAdminSupportTicketController::class, 'update'])->name('support.update');
         Route::post('/support/{ticket}/messages', [SuperAdminSupportTicketMessageController::class, 'store'])
             ->name('support.messages.store');
-
-        Route::get('/welcome-builder', [SuperAdminWelcomeBuilderController::class, 'edit'])->name('welcome.edit');
-        Route::put('/welcome-builder', [SuperAdminWelcomeBuilderController::class, 'update'])->name('welcome.update');
 
         Route::get('/pages', [SuperAdminPlatformPageController::class, 'index'])->name('pages.index');
         Route::get('/pages/create', [SuperAdminPlatformPageController::class, 'create'])->name('pages.create');

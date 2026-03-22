@@ -1643,12 +1643,24 @@
         "copy": "Copy from library",
         "draft": "Draft"
       },
+      "shared_footer": {
+        "title": "Shared footer",
+        "subtitle": "This footer is applied automatically across all public pages. Update it once here and the change will flow everywhere.",
+        "edit": "Edit footer",
+        "manage": "Open library",
+        "navigation": "Columns",
+        "legal_links": "Legal links",
+        "contact": "Contact",
+        "note": "The footer is not managed like a regular body section. It stays global and shared across public pages.",
+        "empty_title": "Shared footer"
+      },
       "layouts": {
         "split": "Split (text + image)",
         "duo": "2 blocks (image + color panel)",
         "testimonial": "Testimonial (quote + image)",
         "feature_pairs": "2 images + 2 text blocks",
         "industry_grid": "Industries (card grid)",
+        "story_grid": "Visual triptych (3 cards)",
         "feature_tabs": "Feature tabs (accordion + media)",
         "testimonial_grid": "Testimonials (card grid)",
         "footer": "Reusable footer",
@@ -1707,6 +1719,10 @@
         "card_label": "Card title",
         "card_href": "Card href/route",
         "card_icon": "Card icon",
+        "story_card_title": "Visual card title",
+        "story_card_body": "Visual card copy",
+        "story_card_image_url": "Visual card image URL",
+        "story_card_image_alt": "Visual card image alt text",
         "tab_label": "Tab label",
         "tab_icon": "Tab icon",
         "tab_title": "Panel title",
@@ -1762,7 +1778,15 @@
         "social_youtube_href": "YouTube link",
         "social_linkedin_href": "LinkedIn link",
         "google_play_href": "Google Play link",
-        "app_store_href": "App Store link"
+        "app_store_href": "App Store link",
+        "brand_logo_url": "Footer logo URL",
+        "brand_logo_alt": "Footer logo alt text",
+        "brand_href": "Footer logo href/route",
+        "footer_group_title": "Column title",
+        "footer_group_layout": "Link layout",
+        "footer_link_label": "Link label",
+        "footer_link_href": "Link href/route",
+        "footer_link_note": "Optional note"
       },
       "contact_aside": {
         "title": "Details column",
@@ -1782,6 +1806,12 @@
         "icon_auto": "Automatic icon",
         "add_card": "Add card",
         "card_label": "Card {number}"
+      },
+      "story_grid": {
+        "title": "Visual triptych",
+        "subtitle": "Add cards with a strong visual up top and supporting proof or explanation underneath.",
+        "add_card": "Add card",
+        "card_label": "Visual card {number}"
       },
       "testimonial_grid": {
         "title": "Testimonial grid",
@@ -1803,8 +1833,42 @@
       },
       "footer": {
         "title": "Reusable footer content",
-        "subtitle": "Configure the shared support card, contact details, social links, store badges, and footer copy.",
-        "items_label": "Support bullets"
+        "subtitle": "Configure the logo, navigation columns, legal links, shared support card, contact details, social links, store badges, and footer copy.",
+        "preview_title": "Display order",
+        "preview_subtitle": "This summary follows the same order as the public footer: brand, contact, navigation, support, then bottom row.",
+        "order_brand": "Brand",
+        "order_contact": "Contact",
+        "order_navigation": "Navigation",
+        "order_support": "Support",
+        "order_bottom": "Bottom row",
+        "preview_groups": "groups",
+        "preview_links": "links",
+        "preview_items": "items",
+        "preview_socials": "socials",
+        "preview_stores": "stores",
+        "appearance_title": "Brand and appearance",
+        "appearance_subtitle": "Set the footer background and top brand row first.",
+        "contact_title": "Contact and apps",
+        "contact_subtitle": "These items render in the left column of the public footer.",
+        "items_label": "Support bullets",
+        "brand_title": "Brand",
+        "brand_subtitle": "Logo and primary link displayed at the start of the footer.",
+        "navigation_title": "Navigation columns",
+        "navigation_subtitle": "Manage each footer column here without relying on the mega menu.",
+        "support_title": "Support panel",
+        "support_subtitle": "This block maps to the right-side support panel in the public footer.",
+        "add_group": "Add column",
+        "group_label": "Column {number}",
+        "link_label": "Link {number}",
+        "add_link": "Add link",
+        "bottom_title": "Bottom row",
+        "bottom_subtitle": "Configure the copyright text and legal links shown at the very bottom.",
+        "legal_title": "Legal links",
+        "legal_subtitle": "These links are shown in the footer bottom row.",
+        "add_legal_link": "Add legal link",
+        "legal_label": "Legal link {number}",
+        "group_layout_stack": "Single column",
+        "group_layout_split": "Two columns"
       },
       "theme": {
         "title": "Theme",
@@ -1946,9 +2010,45 @@
         "testimonial": "Reusable testimonial",
         "feature_pairs": "Reusable 2 images + 2 text blocks",
         "industry_grid": "Reusable industries",
+        "story_grid": "Reusable visual triptych",
         "feature_tabs": "Reusable feature tabs",
         "testimonial_grid": "Reusable testimonials",
-        "footer": "Reusable footer"
+        "footer": "Reusable footer",
+        "welcome_hero": "Welcome hero",
+        "welcome_trust": "Welcome trust strip",
+        "welcome_features": "Welcome features",
+        "welcome_workflow": "Welcome workflow",
+        "welcome_field": "Welcome field block",
+        "welcome_cta": "Welcome CTA",
+        "welcome_custom": "Welcome custom block"
+      },
+      "welcome": {
+        "hero": {
+          "highlights": "Highlights (one per line)",
+          "note": "Supporting note",
+          "stats_title": "Hero stats",
+          "stats_subtitle": "Add the compact metrics shown under the CTAs.",
+          "add_stat": "Add stat",
+          "stat_value": "Metric value",
+          "stat_label": "Metric label",
+          "preview_title": "Preview cards",
+          "preview_subtitle": "Short cards displayed beside the hero visual.",
+          "add_preview": "Add preview card"
+        },
+        "features": {
+          "items_title": "Primary feature cards",
+          "items_subtitle": "Cards shown in the first feature grid.",
+          "add_item": "Add feature card",
+          "secondary_enabled": "Show the secondary feature row",
+          "secondary_badge": "Secondary badge",
+          "secondary_body": "Secondary subtitle",
+          "add_secondary_item": "Add secondary card"
+        },
+        "workflow": {
+          "steps_title": "Workflow steps",
+          "steps_subtitle": "Ordered cards shown beside the workflow visual.",
+          "add_step": "Add step"
+        }
       }
     },
     "assets": {

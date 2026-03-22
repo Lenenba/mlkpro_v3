@@ -283,7 +283,7 @@ const customSections = computed(() =>
                 </div>
             </section>
 
-            <FeatureTabsShowcaseSection :section="welcomeShowcaseSection" />
+            <FeatureTabsShowcaseSection v-if="welcomeShowcaseSection?.enabled !== false" :section="welcomeShowcaseSection" />
 
             <section v-if="welcomeContent.features?.enabled !== false" class="welcome-section welcome-features"
                 :style="sectionStyle(welcomeContent.features?.background_color)">

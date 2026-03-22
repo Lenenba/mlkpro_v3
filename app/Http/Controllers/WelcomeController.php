@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Services\MegaMenus\MegaMenuRenderer;
+use App\Services\PlatformWelcomePageService;
 use App\Services\PublicFooterSectionResolver;
 use App\Services\PublicLeadFormUrlService;
 use App\Services\TrackingService;
-use App\Services\WelcomeContentService;
+use App\Services\WelcomePageContentResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -23,14 +24,17 @@ class WelcomeController extends Controller
 
         app(TrackingService::class)->record('site_visit');
 
+        $welcomePage = app(PlatformWelcomePageService::class)->ensurePageExists();
+        $locale = app()->getLocale();
+
         return Inertia::render('Welcome', [
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('onboarding.index'),
-            'welcomeContent' => app(WelcomeContentService::class)->resolveForLocale(app()->getLocale()),
+            'welcomeContent' => app(WelcomePageContentResolver::class)->resolve($welcomePage, $locale),
             'leadFormUrl' => app(PublicLeadFormUrlService::class)->resolve((int) config('app.lead_intake_user_id')),
             'megaMenu' => app(MegaMenuRenderer::class)->resolveForLocation('header', 'welcome'),
             'footerMenu' => app(MegaMenuRenderer::class)->resolveForLocation('footer', 'welcome'),
-            'footerSection' => app(PublicFooterSectionResolver::class)->resolve(app()->getLocale()),
+            'footerSection' => app(PublicFooterSectionResolver::class)->resolve($locale),
         ]);
     }
 }

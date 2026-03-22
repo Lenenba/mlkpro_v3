@@ -15,7 +15,7 @@ class PlatformAssetController extends BaseSuperAdminController
 {
     public function index(Request $request): Response
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:120'],
@@ -53,7 +53,7 @@ class PlatformAssetController extends BaseSuperAdminController
 
     public function store(Request $request): RedirectResponse|JsonResponse
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $validated = $request->validate([
             'files' => ['required', 'array', 'min:1'],
@@ -101,7 +101,7 @@ class PlatformAssetController extends BaseSuperAdminController
 
     public function destroy(Request $request, PlatformAsset $asset): RedirectResponse
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         if ($asset->path) {
             Storage::disk('public')->delete($asset->path);
@@ -114,7 +114,7 @@ class PlatformAssetController extends BaseSuperAdminController
 
     public function list(Request $request)
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:120'],

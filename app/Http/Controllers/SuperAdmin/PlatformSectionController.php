@@ -5,6 +5,7 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Models\PlatformSection;
 use App\Models\User;
 use App\Services\PlatformSectionContentService;
+use App\Services\PlatformWelcomePageService;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,13 +15,15 @@ use Inertia\Response;
 
 class PlatformSectionController extends BaseSuperAdminController
 {
-    private const TYPES = ['generic', 'hero', 'features', 'faq', 'testimonials', 'cta', 'gallery', 'duo', 'testimonial', 'feature_pairs', 'industry_grid', 'feature_tabs', 'testimonial_grid', 'footer'];
+    private const TYPES = ['generic', 'hero', 'features', 'faq', 'testimonials', 'cta', 'gallery', 'duo', 'testimonial', 'feature_pairs', 'industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid', 'footer', 'welcome_hero', 'welcome_trust', 'welcome_features', 'welcome_workflow', 'welcome_field', 'welcome_cta', 'welcome_custom'];
 
     public function index(Request $request): Response
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $service = app(PlatformSectionContentService::class);
+        app(PlatformWelcomePageService::class)->ensurePageExists($request->user()?->id);
+        $service->ensureSharedFooterSectionExists($request->user()?->id);
 
         $sections = PlatformSection::query()
             ->with(['updatedBy:id,name,email'])
@@ -53,7 +56,7 @@ class PlatformSectionController extends BaseSuperAdminController
 
     public function create(Request $request): Response
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $service = app(PlatformSectionContentService::class);
         $locales = $service->locales();
@@ -92,7 +95,7 @@ class PlatformSectionController extends BaseSuperAdminController
 
     public function store(Request $request): RedirectResponse
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $service = app(PlatformSectionContentService::class);
         $locales = $service->locales();
@@ -125,7 +128,7 @@ class PlatformSectionController extends BaseSuperAdminController
 
     public function edit(Request $request, PlatformSection $section): Response
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $service = app(PlatformSectionContentService::class);
         $locales = $service->locales();
@@ -170,7 +173,7 @@ class PlatformSectionController extends BaseSuperAdminController
 
     public function update(Request $request, PlatformSection $section): RedirectResponse
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $service = app(PlatformSectionContentService::class);
         $locales = $service->locales();
@@ -203,7 +206,7 @@ class PlatformSectionController extends BaseSuperAdminController
 
     public function duplicate(Request $request, PlatformSection $section): RedirectResponse
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $payload = is_array($section->content) ? $section->content : [];
 
@@ -228,7 +231,7 @@ class PlatformSectionController extends BaseSuperAdminController
 
     public function destroy(Request $request, PlatformSection $section): RedirectResponse
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $name = $section->name;
         $section->delete();

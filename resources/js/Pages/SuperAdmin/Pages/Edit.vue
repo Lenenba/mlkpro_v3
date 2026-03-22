@@ -23,6 +23,11 @@ import {
     ensureTestimonialCards,
 } from '@/utils/testimonialGrid';
 import {
+    createStoryCard,
+    defaultStoryCards,
+    ensureStoryCards,
+} from '@/utils/storyGrid';
+import {
     createFeatureTabChild,
     createFeatureTab,
     defaultFeatureTabsShowcaseSection,
@@ -44,6 +49,7 @@ const props = defineProps({
     index_url: { type: String, required: true },
     public_url: { type: String, default: null },
     library_sections: { type: Array, default: () => [] },
+    footer_section: { type: Object, default: () => ({}) },
     library_index_url: { type: String, default: '' },
     asset_list_url: { type: String, default: '' },
     ai_enabled: { type: Boolean, default: false },
@@ -75,6 +81,7 @@ const ensureTheme = (theme) => ({ ...themeDefaults, ...(theme || {}) });
 const clone = (value) => JSON.parse(JSON.stringify(value ?? {}));
 const currentLocale = ref(props.default_locale || props.locales[0] || 'fr');
 const isCreateMode = computed(() => props.mode === 'create');
+const isWelcomePage = computed(() => props.page.slug === 'welcome');
 
 const form = useForm({
     slug: props.page.slug || '',
@@ -216,6 +223,7 @@ const layoutOptions = computed(() => [
     { value: 'testimonial', label: t('super_admin.pages.layouts.testimonial') },
     { value: 'feature_pairs', label: t('super_admin.pages.layouts.feature_pairs') },
     { value: 'industry_grid', label: t('super_admin.pages.layouts.industry_grid') },
+    { value: 'story_grid', label: t('super_admin.pages.layouts.story_grid') },
     { value: 'feature_tabs', label: t('super_admin.pages.layouts.feature_tabs') },
     { value: 'testimonial_grid', label: t('super_admin.pages.layouts.testimonial_grid') },
     { value: 'stack', label: t('super_admin.pages.layouts.stack') },
@@ -290,6 +298,30 @@ const libraryOptions = computed(() => [
         label: `${section.name} · ${t(`super_admin.sections.types.${section.type}`)}${section.is_active ? '' : ` (${t('super_admin.pages.library.draft')})`}`,
     })),
 ]);
+
+const footerSection = computed(() => (
+    props.footer_section && typeof props.footer_section === 'object' && props.footer_section.id
+        ? props.footer_section
+        : null
+));
+
+const footerPreview = computed(() => {
+    if (!footerSection.value?.content || typeof footerSection.value.content !== 'object') {
+        return null;
+    }
+
+    return (
+        footerSection.value.content?.[currentLocale.value]
+        || footerSection.value.content?.[props.default_locale]
+        || Object.values(footerSection.value.content)[0]
+        || null
+    );
+});
+
+const footerSummary = computed(() => ({
+    groups: Array.isArray(footerPreview.value?.footer_groups) ? footerPreview.value.footer_groups.length : 0,
+    legalLinks: Array.isArray(footerPreview.value?.legal_links) ? footerPreview.value.legal_links.length : 0,
+}));
 
 const visibilityAuthOptions = computed(() => [
     { value: 'any', label: t('super_admin.pages.visibility.auth_any') },
@@ -417,6 +449,18 @@ const sectionPreset = (layout) => {
         };
     }
 
+    if (layout === 'story_grid') {
+        return {
+            layout: 'story_grid',
+            alignment: 'center',
+            background_color: '#f7f2e8',
+            title: currentLocale.value === 'fr'
+                ? 'Une IA pensee pour les entreprises de terrain.'
+                : 'AI built for blue-collar businesses',
+            story_cards: defaultStoryCards(currentLocale.value),
+        };
+    }
+
     if (layout === 'feature_tabs') {
         const showcaseSection = defaultFeatureTabsShowcaseSection(currentLocale.value);
 
@@ -482,6 +526,7 @@ const ensureSection = (section, index) => ({
     title: section?.title || '',
     body: section?.body || '',
     industry_cards: ensureIndustryCards(section?.industry_cards),
+    story_cards: ensureStoryCards(section?.story_cards),
     feature_tabs: ensureFeatureTabs(section?.feature_tabs),
     feature_tabs_font_size: normalizeFeatureTabsTriggerFontSize(section?.feature_tabs_font_size),
     testimonial_cards: ensureTestimonialCards(section?.testimonial_cards),
@@ -645,6 +690,7 @@ const sectionLayoutLabel = (layout) =>
 
 const sectionPreviewHeading = (section, index) => (
     section?.title ||
+    section?.story_cards?.[0]?.title ||
     section?.feature_tabs?.[0]?.children?.[0]?.label ||
     section?.feature_tabs?.[0]?.label ||
     section?.feature_tabs?.[0]?.title ||
@@ -658,6 +704,11 @@ const sectionPreviewHeading = (section, index) => (
 const sectionPreviewText = (section) => {
     const bulletText = Array.isArray(section?.items) ? section.items.join(' • ') : '';
     const asideBulletText = Array.isArray(section?.aside_items) ? section.aside_items.join(' • ') : '';
+    const storyGridText = Array.isArray(section?.story_cards)
+        ? section.story_cards
+            .map((card) => stripHtml(card?.body) || card?.title || '')
+            .find((value) => String(value || '').trim().length > 0) || ''
+        : '';
     const featureTabText = Array.isArray(section?.feature_tabs)
         ? section.feature_tabs
             .map((tab) => (
@@ -680,6 +731,7 @@ const sectionPreviewText = (section) => {
 
     return truncateText(
         stripHtml(section?.body) ||
+        storyGridText ||
         featureTabText ||
         testimonialGridText ||
         stripHtml(section?.aside_body) ||
@@ -693,6 +745,7 @@ const sectionPreviewImages = (section) =>
     [
         section?.image_url,
         section?.aside_image_url,
+        ...(Array.isArray(section?.story_cards) ? section.story_cards.map((card) => card?.image_url) : []),
         ...(Array.isArray(section?.feature_tabs) ? section.feature_tabs.map((tab) => tab?.image_url) : []),
         ...(Array.isArray(section?.feature_tabs)
             ? section.feature_tabs.flatMap((tab) => Array.isArray(tab?.children) ? tab.children.map((child) => child?.image_url) : [])
@@ -716,6 +769,10 @@ const sectionPreviewBadges = (section) => {
         badges.push(t('super_admin.pages.sections.cards_count', { count: section.industry_cards.length }));
     }
 
+    if (section?.layout === 'story_grid' && section?.story_cards?.length) {
+        badges.push(t('super_admin.pages.sections.cards_count', { count: section.story_cards.length }));
+    }
+
     if (section?.layout === 'testimonial_grid' && section?.testimonial_cards?.length) {
         badges.push(t('super_admin.pages.sections.cards_count', { count: section.testimonial_cards.length }));
     }
@@ -724,7 +781,7 @@ const sectionPreviewBadges = (section) => {
         badges.push(t('super_admin.pages.sections.tabs_count', { count: section.feature_tabs.length }));
     }
 
-    if (!['industry_grid', 'feature_tabs', 'testimonial_grid'].includes(section?.layout) && bulletCount) {
+    if (!['industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid'].includes(section?.layout) && bulletCount) {
         badges.push(t('super_admin.pages.sections.items_count', { count: bulletCount }));
     }
 
@@ -776,6 +833,7 @@ const applyLibraryToSection = (section) => {
     section.title = content.title ?? '';
     section.body = content.body ?? '';
     section.industry_cards = ensureIndustryCards(content.industry_cards);
+    section.story_cards = ensureStoryCards(content.story_cards);
     section.feature_tabs = ensureFeatureTabs(content.feature_tabs);
     section.feature_tabs_font_size = normalizeFeatureTabsTriggerFontSize(content.feature_tabs_font_size);
     section.testimonial_cards = ensureTestimonialCards(content.testimonial_cards);
@@ -837,6 +895,11 @@ const addIndustryCard = (section) => {
     section.industry_cards = [...(section.industry_cards || []), createIndustryCard()];
 };
 
+const addStoryCard = (section) => {
+    if (!section) return;
+    section.story_cards = [...(section.story_cards || []), createStoryCard()];
+};
+
 const addTestimonialCard = (section) => {
     if (!section) return;
     section.testimonial_cards = [...(section.testimonial_cards || []), createTestimonialCard()];
@@ -847,6 +910,11 @@ const moveIndustryCard = (section, index, direction) => {
     moveItem(section.industry_cards, index, direction);
 };
 
+const moveStoryCard = (section, index, direction) => {
+    if (!section?.story_cards?.length) return;
+    moveItem(section.story_cards, index, direction);
+};
+
 const moveTestimonialCard = (section, index, direction) => {
     if (!section?.testimonial_cards?.length) return;
     moveItem(section.testimonial_cards, index, direction);
@@ -855,6 +923,11 @@ const moveTestimonialCard = (section, index, direction) => {
 const removeIndustryCard = (section, index) => {
     if (!section?.industry_cards) return;
     section.industry_cards.splice(index, 1);
+};
+
+const removeStoryCard = (section, index) => {
+    if (!section?.story_cards) return;
+    section.story_cards.splice(index, 1);
 };
 
 const removeTestimonialCard = (section, index) => {
@@ -1026,7 +1099,7 @@ syncFormFromProps(currentLocale.value);
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="grid gap-3 md:grid-cols-4">
                     <FloatingInput v-model="form.title" :label="$t('super_admin.pages.fields.title')" />
-                    <FloatingInput v-model="form.slug" :label="$t('super_admin.pages.fields.slug')" />
+                    <FloatingInput v-model="form.slug" :label="$t('super_admin.pages.fields.slug')" :disabled="isWelcomePage" />
                     <div class="md:col-span-2 flex items-center gap-3 rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
                         <Checkbox v-model:checked="form.is_active" />
                         <div class="text-sm text-stone-700 dark:text-neutral-200">
@@ -1164,6 +1237,99 @@ syncFormFromProps(currentLocale.value);
 
                 <div class="text-xs text-stone-500 dark:text-neutral-400">
                     {{ $t('super_admin.pages.locale.hint') }}
+                </div>
+            </section>
+
+            <section
+                v-if="footerSection"
+                class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 space-y-4"
+            >
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="space-y-1">
+                        <div class="inline-flex items-center rounded-sm bg-stone-100 px-2 py-1 text-xs font-medium text-stone-600 dark:bg-neutral-800 dark:text-neutral-300">
+                            {{ $t('super_admin.sections.types.footer') }}
+                        </div>
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('super_admin.pages.shared_footer.title') }}
+                        </h2>
+                        <p class="text-sm text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.pages.shared_footer.subtitle') }}
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                        <Link
+                            :href="footerSection.edit_url"
+                            class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                        >
+                            {{ $t('super_admin.pages.shared_footer.edit') }}
+                        </Link>
+                        <Link
+                            v-if="library_index_url"
+                            :href="library_index_url"
+                            class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                        >
+                            {{ $t('super_admin.pages.shared_footer.manage') }}
+                        </Link>
+                    </div>
+                </div>
+
+                <div class="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,320px)]">
+                    <div class="space-y-3 rounded-sm border border-stone-200 p-4 dark:border-neutral-700">
+                        <div class="flex flex-wrap items-center gap-2 text-xs">
+                            <span class="font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                {{ footerSection.name }}
+                            </span>
+                            <span
+                                class="inline-flex rounded-full px-2 py-1 font-semibold"
+                                :class="footerSection.is_active
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200'
+                                    : 'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200'"
+                            >
+                                {{ footerSection.is_active ? $t('super_admin.sections.status.active') : $t('super_admin.sections.status.draft') }}
+                            </span>
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="text-lg font-semibold text-stone-900 dark:text-white">
+                                {{ footerPreview?.title || $t('super_admin.pages.shared_footer.empty_title') }}
+                            </div>
+                            <p v-if="footerPreview?.body" class="max-w-3xl text-sm leading-6 text-stone-600 dark:text-neutral-300">
+                                {{ truncateText(stripHtml(footerPreview.body), 220) }}
+                            </p>
+                        </div>
+
+                        <div class="grid gap-3 md:grid-cols-3">
+                            <div class="rounded-sm bg-stone-50 p-3 dark:bg-neutral-800/70">
+                                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.shared_footer.navigation') }}
+                                </div>
+                                <div class="mt-1 text-base font-semibold text-stone-900 dark:text-white">
+                                    {{ footerSummary.groups }}
+                                </div>
+                            </div>
+                            <div class="rounded-sm bg-stone-50 p-3 dark:bg-neutral-800/70">
+                                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.shared_footer.legal_links') }}
+                                </div>
+                                <div class="mt-1 text-base font-semibold text-stone-900 dark:text-white">
+                                    {{ footerSummary.legalLinks }}
+                                </div>
+                            </div>
+                            <div class="rounded-sm bg-stone-50 p-3 dark:bg-neutral-800/70">
+                                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.shared_footer.contact') }}
+                                </div>
+                                <div class="mt-1 text-sm font-medium text-stone-900 dark:text-white">
+                                    {{ footerPreview?.contact_email || footerPreview?.contact_phone || '-' }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-sm border border-dashed border-stone-200 p-4 text-sm text-stone-600 dark:border-neutral-700 dark:text-neutral-300">
+                        {{ $t('super_admin.pages.shared_footer.note') }}
+                    </div>
                 </div>
             </section>
 
@@ -1376,7 +1542,7 @@ syncFormFromProps(currentLocale.value);
                             </div>
                         </div>
 
-                        <div v-if="!['testimonial', 'industry_grid', 'feature_tabs', 'testimonial_grid'].includes(section.layout)">
+                        <div v-if="!['testimonial', 'industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid'].includes(section.layout)">
                             <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 {{ $t('super_admin.pages.fields.items') }}
                             </label>
@@ -1437,6 +1603,85 @@ syncFormFromProps(currentLocale.value);
                                             <div class="flex h-11 items-center justify-center rounded-sm border border-stone-200 bg-stone-50 text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
                                                 <component :is="resolveIndustryIconComponent(card)" class="h-5 w-5" />
                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="section.layout === 'story_grid'"
+                            class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3"
+                        >
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ $t('super_admin.pages.story_grid.title') }}
+                                    </h3>
+                                    <p class="text-xs text-stone-500 dark:text-neutral-500">
+                                        {{ $t('super_admin.pages.story_grid.subtitle') }}
+                                    </p>
+                                </div>
+                                <button type="button"
+                                    class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    @click="addStoryCard(section)">
+                                    {{ $t('super_admin.pages.story_grid.add_card') }}
+                                </button>
+                            </div>
+
+                            <div class="space-y-3">
+                                <div v-for="(card, cardIndex) in section.story_cards" :key="card.id"
+                                    class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                        <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                            {{ $t('super_admin.pages.story_grid.card_label', { number: cardIndex + 1 }) }}
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                @click="moveStoryCard(section, cardIndex, -1)">
+                                                {{ $t('super_admin.pages.common.move_up') }}
+                                            </button>
+                                            <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                @click="moveStoryCard(section, cardIndex, 1)">
+                                                {{ $t('super_admin.pages.common.move_down') }}
+                                            </button>
+                                            <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                                @click="removeStoryCard(section, cardIndex)">
+                                                {{ $t('super_admin.pages.common.remove') }}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid gap-3 md:grid-cols-2">
+                                        <FloatingInput v-model="card.title" :label="$t('super_admin.pages.common.story_card_title')" />
+                                        <FloatingInput v-model="card.image_alt" :label="$t('super_admin.pages.common.story_card_image_alt')" />
+                                    </div>
+
+                                    <RichTextEditor
+                                        v-model="card.body"
+                                        :label="$t('super_admin.pages.common.story_card_body')"
+                                        :link-prompt="editorLinkPrompt"
+                                        :image-prompt="editorImagePrompt"
+                                        :ai-enabled="ai_enabled"
+                                        :ai-generate-url="ai_image_generate_url"
+                                        :ai-prompt="editorAiPrompt"
+                                        :labels="editorLabels"
+                                    />
+
+                                    <div class="space-y-2">
+                                        <FloatingInput v-model="card.image_url" :label="$t('super_admin.pages.common.story_card_image_url')" />
+                                        <div class="flex flex-wrap items-center gap-2 text-xs">
+                                            <button v-if="asset_list_url" type="button"
+                                                class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                                @click="openAssetPicker(card, 'image_url', 'image_alt')">
+                                                {{ $t('super_admin.pages.assets.choose') }}
+                                            </button>
+                                            <span v-if="card.image_url" class="text-stone-500">
+                                                {{ $t('super_admin.pages.assets.preview') }}
+                                            </span>
+                                        </div>
+                                        <div v-if="card.image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white">
+                                            <img :src="card.image_url" :alt="card.image_alt || card.title" class="h-36 w-full object-cover" loading="lazy" decoding="async" />
                                         </div>
                                     </div>
                                 </div>
@@ -1835,7 +2080,7 @@ syncFormFromProps(currentLocale.value);
 
                             </div>
                             <div class="space-y-3">
-                        <div v-if="!['industry_grid', 'feature_tabs', 'testimonial_grid'].includes(section.layout)" class="grid gap-3 md:grid-cols-2">
+                        <div v-if="!['industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid'].includes(section.layout)" class="grid gap-3 md:grid-cols-2">
                             <div class="space-y-2">
                                 <FloatingInput v-model="section.image_url" :label="$t('super_admin.pages.common.image_url')" />
                                 <div class="flex flex-wrap items-center gap-2 text-xs">
@@ -1855,7 +2100,7 @@ syncFormFromProps(currentLocale.value);
                             <FloatingInput v-model="section.image_alt" :label="$t('super_admin.pages.common.image_alt')" />
                         </div>
 
-                        <div v-if="!['industry_grid', 'feature_tabs', 'testimonial_grid'].includes(section.layout)" class="grid gap-3 md:grid-cols-3">
+                        <div v-if="!['industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid'].includes(section.layout)" class="grid gap-3 md:grid-cols-3">
                             <FloatingInput v-model="section.embed_url" :label="$t('super_admin.pages.common.embed_url')" />
                             <FloatingInput v-model="section.embed_title" :label="$t('super_admin.pages.common.embed_title')" />
                             <FloatingInput v-model="section.embed_height" type="number" :label="$t('super_admin.pages.common.embed_height')" />

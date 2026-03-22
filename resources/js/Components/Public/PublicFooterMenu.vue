@@ -157,6 +157,19 @@ const blockCallout = (block) => {
     return null;
 };
 
+const footerSection = computed(() => (props.section && typeof props.section === 'object' ? props.section : {}));
+
+const footerBrand = computed(() => {
+    const section = footerSection.value || {};
+    const href = String(section.brand_href || '').trim() || safeRoute('welcome');
+
+    return {
+        href,
+        src: String(section.brand_logo_url || '').trim() || '/1.svg',
+        alt: String(section.brand_logo_alt || '').trim() || 'Malikia Pro',
+    };
+});
+
 const customGroups = computed(() =>
     (props.menu?.items || [])
         .filter((item) => item && item.is_visible !== false)
@@ -286,7 +299,35 @@ const fallbackGroups = computed(() => {
     ];
 });
 
-const displayGroups = computed(() => (menuProvidesNavigation.value ? customGroups.value : fallbackGroups.value));
+const sectionGroups = computed(() => {
+    const groups = footerSection.value?.footer_groups;
+    if (!Array.isArray(groups)) {
+        return [];
+    }
+
+    return groups
+        .map((group, index) => ({
+            id: group?.id || `footer-section-group-${index}`,
+            title: String(group?.title || '').trim(),
+            kind: 'classic',
+            layout: String(group?.layout || '').trim() === 'split' ? 'split' : 'stack',
+            links: (group?.links || [])
+                .map((link) => toLink(link?.label, link?.href, {
+                    note: link?.note,
+                }))
+                .filter((link) => link.label && link.href !== '#'),
+            columns: [],
+        }))
+        .filter((group) => group.title || group.links.length);
+});
+
+const displayGroups = computed(() => {
+    if (Array.isArray(footerSection.value?.footer_groups)) {
+        return sectionGroups.value;
+    }
+
+    return menuProvidesNavigation.value ? customGroups.value : fallbackGroups.value;
+});
 
 const defaultLegalLinks = computed(() => [
     toLink(t('legal.links.pricing'), safeRoute('pricing')),
@@ -301,8 +342,26 @@ const footerMenuLegalLinks = computed(() => {
     return preferredGroup?.links?.length ? preferredGroup.links : [];
 });
 
-const legalLinks = computed(() => (footerMenuLegalLinks.value.length ? footerMenuLegalLinks.value : defaultLegalLinks.value));
-const footerSection = computed(() => (props.section && typeof props.section === 'object' ? props.section : {}));
+const sectionLegalLinks = computed(() => {
+    const links = footerSection.value?.legal_links;
+    if (!Array.isArray(links)) {
+        return [];
+    }
+
+    return links
+        .map((link) => toLink(link?.label, link?.href, {
+            note: link?.note,
+        }))
+        .filter((link) => link.label && link.href !== '#');
+});
+
+const legalLinks = computed(() => {
+    if (Array.isArray(footerSection.value?.legal_links)) {
+        return sectionLegalLinks.value;
+    }
+
+    return footerMenuLegalLinks.value.length ? footerMenuLegalLinks.value : defaultLegalLinks.value;
+});
 
 const defaultSupportCard = computed(() => ({
     kicker: isFrench.value ? 'Accompagnement' : 'Support',
@@ -411,11 +470,11 @@ const footerCopy = computed(() => (
         <div class="public-container public-site-footer__inner">
             <div class="public-site-footer__brand-row">
                 <component
-                    :is="shouldUseAnchor(safeRoute('welcome')) ? 'a' : Link"
-                    :href="safeRoute('welcome')"
+                    :is="shouldUseAnchor(footerBrand.href) ? 'a' : Link"
+                    :href="footerBrand.href"
                     class="public-site-footer__brand"
                 >
-                    <img src="/1.svg" alt="Malikia Pro" class="public-site-footer__brand-logo">
+                    <img :src="footerBrand.src" :alt="footerBrand.alt" class="public-site-footer__brand-logo">
                 </component>
             </div>
 

@@ -386,6 +386,10 @@ const testimonialCardsForSection = (section) => (
     Array.isArray(section?.testimonial_cards) ? section.testimonial_cards : []
 );
 
+const storyCardsForSection = (section) => (
+    Array.isArray(section?.story_cards) ? section.story_cards : []
+);
+
 const testimonialCardInitials = (card) => {
     const parts = String(card?.author_name || '')
         .trim()
@@ -609,6 +613,10 @@ const sectionContainerClass = (section) => {
         return 'public-container public-container--industry-grid';
     }
 
+    if (section?.layout === 'story_grid') {
+        return 'public-container public-container--story-grid';
+    }
+
     if (section?.layout === 'testimonial_grid') {
         return 'public-container public-container--testimonial-grid';
     }
@@ -632,6 +640,9 @@ const layoutClass = (section) => {
     }
     if (layout === 'industry_grid') {
         return 'public-industry-grid-shell';
+    }
+    if (layout === 'story_grid') {
+        return 'public-story-grid-shell';
     }
     if (layout === 'testimonial_grid') {
         return 'public-testimonial-grid-shell';
@@ -761,6 +772,7 @@ const headerMenuItems = computed(() => ([
                     'public-block--testimonial': section.layout === 'testimonial',
                     'public-block--feature-pairs': section.layout === 'feature_pairs',
                     'public-block--industry-grid': section.layout === 'industry_grid',
+                    'public-block--story-grid': section.layout === 'story_grid',
                     'public-block--testimonial-grid': section.layout === 'testimonial_grid',
                     'public-block--feature-tabs': section.layout === 'feature_tabs',
                 }]"
@@ -1265,6 +1277,92 @@ const headerMenuItems = computed(() => ([
                             </div>
                         </template>
 
+                        <template v-else-if="section.layout === 'story_grid'">
+                            <div class="public-story-grid">
+                                <div
+                                    v-if="section.kicker || section.title || section.body || section.primary_label || section.secondary_label"
+                                    class="public-story-grid__header"
+                                    :class="alignmentClass(section.alignment)"
+                                >
+                                    <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
+                                    <h2 v-if="section.title" class="public-story-grid__title">{{ section.title }}</h2>
+                                    <div
+                                        v-if="section.body"
+                                        class="public-rich public-story-grid__body"
+                                        v-html="section.body"
+                                    ></div>
+
+                                    <div v-if="section.primary_label || section.secondary_label" class="public-story-grid__actions">
+                                        <template v-if="section.primary_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.primary_href))"
+                                                :href="resolveHref(section.primary_href)"
+                                                class="public-inline-link"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.primary_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.primary_href)"
+                                                class="public-inline-link"
+                                            >
+                                                {{ section.primary_label }}
+                                            </Link>
+                                        </template>
+
+                                        <template v-if="section.secondary_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                                :href="resolveHref(section.secondary_href)"
+                                                class="public-inline-link public-inline-link--muted"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.secondary_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.secondary_href)"
+                                                class="public-inline-link public-inline-link--muted"
+                                            >
+                                                {{ section.secondary_label }}
+                                            </Link>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div v-if="storyCardsForSection(section).length" class="public-story-grid__cards">
+                                    <article
+                                        v-for="card in storyCardsForSection(section)"
+                                        :key="card.id"
+                                        class="public-story-grid__card"
+                                    >
+                                        <div class="public-story-grid__visual" :class="{ 'public-story-grid__visual--empty': !card.image_url }">
+                                            <img
+                                                v-if="card.image_url"
+                                                :src="card.image_url"
+                                                :alt="card.image_alt || card.title || section.title"
+                                                class="public-story-grid__image"
+                                                loading="lazy"
+                                                decoding="async"
+                                            />
+                                        </div>
+
+                                        <div class="public-story-grid__copy" :class="alignmentClass(section.alignment)">
+                                            <h3 v-if="card.title" class="public-story-grid__card-title">{{ card.title }}</h3>
+                                            <div
+                                                v-if="card.body"
+                                                class="public-rich public-story-grid__card-body"
+                                                v-html="card.body"
+                                            ></div>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+                        </template>
+
                         <template v-else-if="section.layout === 'feature_tabs'">
                             <FeatureTabsShowcaseSection v-if="featureTabsForSection(section).length" :section="section" />
                         </template>
@@ -1442,6 +1540,10 @@ const headerMenuItems = computed(() => ([
     width: min(1360px, 92vw);
 }
 
+.public-container--story-grid {
+    width: min(1260px, 92vw);
+}
+
 .public-container--feature-tabs {
     width: min(1120px, 92vw);
 }
@@ -1488,6 +1590,10 @@ const headerMenuItems = computed(() => ([
 }
 
 .public-block--industry-grid {
+    border-top: 0;
+}
+
+.public-block--story-grid {
     border-top: 0;
 }
 
@@ -2406,6 +2512,164 @@ ul .public-feature-tabs__subitem::before {
     color: var(--page-primary, #16a34a);
 }
 
+.public-story-grid-shell {
+    display: block;
+}
+
+.public-story-grid {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2rem, 4vw, 3rem);
+}
+
+.public-story-grid__header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    max-width: 56rem;
+    margin-inline: auto;
+}
+
+.public-story-grid__header.text-left {
+    align-items: flex-start;
+    margin-inline: 0;
+}
+
+.public-story-grid__header.text-right {
+    align-items: flex-end;
+    margin-inline: auto 0;
+}
+
+.public-story-grid__header.text-center {
+    align-items: center;
+}
+
+.public-story-grid__title {
+    margin: 0;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(2rem, 1.55rem + 1.2vw, 3.25rem);
+    line-height: 1.03;
+    letter-spacing: -0.045em;
+}
+
+.public-story-grid__body {
+    max-width: 46rem;
+    font-size: 1.02rem;
+    line-height: 1.75;
+}
+
+.public-story-grid__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.public-story-grid__header.text-center .public-story-grid__actions {
+    justify-content: center;
+}
+
+.public-story-grid__header.text-right .public-story-grid__actions {
+    justify-content: flex-end;
+}
+
+.public-story-grid__cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+}
+
+.public-story-grid__card {
+    display: grid;
+    gap: 1.25rem;
+    min-width: 0;
+}
+
+.public-story-grid__visual {
+    position: relative;
+    overflow: hidden;
+    min-height: clamp(15rem, 30vw, 18.75rem);
+    padding: clamp(0.9rem, 1.6vw, 1.15rem);
+    border-radius: calc(var(--page-radius, 4px) + 10px);
+    border: 1px solid rgba(8, 58, 92, 0.08);
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0) 44%),
+        linear-gradient(180deg, rgba(255, 251, 245, 0.96) 0%, rgba(243, 236, 225, 0.92) 100%);
+    box-shadow: 0 28px 68px -50px rgba(15, 23, 42, 0.38);
+}
+
+.public-story-grid__visual::before {
+    content: '';
+    position: absolute;
+    inset: auto 14% -1rem 14%;
+    height: 1.9rem;
+    border-radius: 999px;
+    background: rgba(8, 58, 92, 0.16);
+    filter: blur(18px);
+    opacity: 0.28;
+}
+
+.public-story-grid__card:nth-child(2) .public-story-grid__visual {
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0) 44%),
+        linear-gradient(180deg, rgba(249, 250, 251, 0.96) 0%, rgba(231, 240, 243, 0.9) 100%);
+}
+
+.public-story-grid__card:nth-child(3) .public-story-grid__visual {
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0) 44%),
+        linear-gradient(180deg, rgba(255, 248, 242, 0.96) 0%, rgba(244, 231, 219, 0.92) 100%);
+}
+
+.public-story-grid__visual--empty {
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 42%),
+        linear-gradient(135deg, rgba(220, 252, 231, 0.7), rgba(226, 232, 240, 0.85));
+}
+
+.public-story-grid__image {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: calc(var(--page-radius, 4px) + 6px);
+}
+
+.public-story-grid__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.public-story-grid__copy.text-center {
+    align-items: center;
+}
+
+.public-story-grid__copy.text-right {
+    align-items: flex-end;
+}
+
+.public-story-grid__card-title {
+    margin: 0;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(1.45rem, 1.2rem + 0.45vw, 1.85rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+}
+
+.public-story-grid__card-body {
+    max-width: 22rem;
+    font-size: 1rem;
+    line-height: 1.72;
+}
+
+.public-story-grid__card-body :deep(p),
+.public-story-grid__card-body :deep(div) {
+    margin: 0;
+}
+
 .public-duo-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -2638,6 +2902,11 @@ ul .public-feature-tabs__subitem::before {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
+    .public-story-grid__cards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 2rem;
+    }
+
     .public-contact-grid {
         grid-template-columns: minmax(0, 0.9fr) minmax(300px, 1fr) minmax(0, 0.95fr);
         gap: 2.5rem;
@@ -2680,6 +2949,10 @@ ul .public-feature-tabs__subitem::before {
 
 @media (min-width: 640px) and (max-width: 1023px) {
     .public-industry-grid__cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .public-story-grid__cards {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
