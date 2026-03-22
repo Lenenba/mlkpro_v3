@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "MLK Pro API",
+    "title": "Malikia pro API",
     "version": "v1",
     "description": "Auto-generated from routes/api.php (internal API v1)."
   },

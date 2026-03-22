@@ -15,12 +15,12 @@ const passthroughAttrs = computed(() => {
     <span v-bind="passthroughAttrs" :class="logoClass">
         <img
             src="/2.svg"
-            alt="MLK Pro logo"
+            alt="Malikia pro logo"
             class="block h-full w-full object-contain dark:hidden"
         />
         <img
             src="/1.svg"
-            alt="MLK Pro logo"
+            alt="Malikia pro logo"
             class="hidden h-full w-full object-contain dark:block"
         />
     </span>

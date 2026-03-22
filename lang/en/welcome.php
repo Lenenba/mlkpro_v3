@@ -8,7 +8,7 @@ return [
     'hero' => [
         'eyebrow' => 'Built for field teams',
         'title' => 'Run the entire job cycle in one clean workspace.',
-        'subtitle' => 'MLK Pro connects quotes, plan scans, catalog, jobs, tasks, and invoices with live insight.',
+        'subtitle' => 'Malikia pro connects quotes, plan scans, catalog, jobs, tasks, and invoices with live insight.',
         'primary_cta' => 'Start onboarding',
         'secondary_cta' => 'Sign in',
         'note' => 'Switch between service and product workflows without losing data.',

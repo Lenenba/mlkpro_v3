@@ -91,6 +91,7 @@ class WelcomePageContentResolver
     {
         $content['hero']['enabled'] = false;
         $content['hero']['stats'] = [];
+        $content['hero']['hero_images'] = [];
         $content['hero']['highlights'] = [];
         $content['hero']['preview_cards'] = [];
 
@@ -131,6 +132,7 @@ class WelcomePageContentResolver
             'secondary_href' => (string) ($section['secondary_href'] ?? ''),
             'note' => (string) ($source['note'] ?? ''),
             'stats' => is_array($source['stats'] ?? null) ? $source['stats'] : [],
+            'hero_images' => is_array($source['hero_images'] ?? null) ? $source['hero_images'] : [],
             'highlights' => is_array($section['items'] ?? null) ? $section['items'] : [],
             'preview_cards' => is_array($source['preview_cards'] ?? null) ? $source['preview_cards'] : [],
             'image_url' => (string) ($section['image_url'] ?? ''),

@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import FeatureTabsShowcaseSection from '@/Components/Public/FeatureTabsShowcaseSection.vue';
 import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
 import PublicSiteHeader from '@/Components/Public/PublicSiteHeader.vue';
@@ -153,6 +153,108 @@ const headerMenuItems = computed(() =>
 const customSections = computed(() =>
     (welcomeContent.value.custom_sections || []).filter((section) => section && section.enabled !== false)
 );
+
+const heroLayoutRef = ref(null);
+const heroVisibleHeight = ref(null);
+let heroLayoutObserver = null;
+
+const syncHeroVisibleHeight = () => {
+    if (typeof window !== 'undefined' && !window.matchMedia('(min-width: 1024px)').matches) {
+        heroVisibleHeight.value = null;
+        return;
+    }
+
+    if (!heroLayoutRef.value) {
+        return;
+    }
+
+    const nextHeight = Math.max(Math.round(heroLayoutRef.value.getBoundingClientRect().height), 0);
+    heroVisibleHeight.value = nextHeight ? `${nextHeight}px` : null;
+};
+
+const normalizeHeroSlides = (value) => {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value
+        .map((item) => {
+            const src = String(item?.image_url || '').trim();
+            if (!src) {
+                return null;
+            }
+
+            return {
+                src,
+                alt: String(item?.image_alt || '').trim(),
+            };
+        })
+        .filter(Boolean);
+};
+
+const defaultHeroSlides = computed(() => {
+    const baseImage = welcomeContent.value.hero?.image_url || '/images/landing/hero-dashboard.svg';
+    const baseAlt = welcomeContent.value.hero?.image_alt || t('welcome.images.hero_alt');
+
+    if (normalizedLocale.value === 'fr') {
+        return [
+            { src: baseImage, alt: baseAlt },
+            { src: '/images/mega-menu/operations-suite.svg', alt: 'Suite operations terrain' },
+            { src: '/images/mega-menu/sales-crm-suite.svg', alt: 'Suite ventes et CRM' },
+            { src: '/images/mega-menu/reservations-suite.svg', alt: 'Suite reservations' },
+            { src: '/images/mega-menu/ai-automation-suite.svg', alt: 'Suite IA et automatisation' },
+            { src: '/images/mega-menu/commerce-suite.svg', alt: 'Suite commerce' },
+            { src: '/images/mega-menu/marketing-loyalty-suite.svg', alt: 'Suite marketing et fidelisation' },
+            { src: '/images/mega-menu/platform-command-center.svg', alt: 'Centre de commandement plateforme' },
+        ];
+    }
+
+    return [
+        { src: baseImage, alt: baseAlt },
+        { src: '/images/mega-menu/operations-suite.svg', alt: 'Field operations suite' },
+        { src: '/images/mega-menu/sales-crm-suite.svg', alt: 'Sales and CRM suite' },
+        { src: '/images/mega-menu/reservations-suite.svg', alt: 'Reservations suite' },
+        { src: '/images/mega-menu/ai-automation-suite.svg', alt: 'AI and automation suite' },
+        { src: '/images/mega-menu/commerce-suite.svg', alt: 'Commerce suite' },
+        { src: '/images/mega-menu/marketing-loyalty-suite.svg', alt: 'Marketing and loyalty suite' },
+        { src: '/images/mega-menu/platform-command-center.svg', alt: 'Platform command center' },
+    ];
+});
+
+const heroSlides = computed(() => {
+    const configuredSlides = normalizeHeroSlides(welcomeContent.value.hero?.hero_images);
+
+    return configuredSlides.length ? configuredSlides : defaultHeroSlides.value;
+});
+
+const heroSlidesLoop = computed(() => [...heroSlides.value, ...heroSlides.value]);
+
+const heroSliderStyle = computed(() => ({
+    '--welcome-slide-count': String(heroSlides.value.length),
+    '--welcome-slider-height': heroVisibleHeight.value || 'clamp(24rem, 38vw, 34rem)',
+}));
+
+onMounted(() => {
+    syncHeroVisibleHeight();
+
+    if (typeof ResizeObserver !== 'undefined' && heroLayoutRef.value) {
+        heroLayoutObserver = new ResizeObserver(() => {
+            syncHeroVisibleHeight();
+        });
+        heroLayoutObserver.observe(heroLayoutRef.value);
+    }
+
+    window.addEventListener('resize', syncHeroVisibleHeight);
+});
+
+onBeforeUnmount(() => {
+    if (heroLayoutObserver) {
+        heroLayoutObserver.disconnect();
+        heroLayoutObserver = null;
+    }
+
+    window.removeEventListener('resize', syncHeroVisibleHeight);
+});
 </script>
 
 <template>
@@ -170,8 +272,8 @@ const customSections = computed(() =>
             <section v-if="welcomeContent.hero?.enabled !== false" class="welcome-section welcome-hero"
                 :style="sectionStyle(welcomeContent.hero?.background_color)">
                 <div class="welcome-container">
-                    <div class="grid grid-cols-1 items-center lg:grid-cols-2 welcome-split">
-                        <div class="space-y-6">
+                    <div class="grid grid-cols-1 items-center lg:grid-cols-2 lg:items-stretch welcome-split welcome-hero-layout">
+                        <div ref="heroLayoutRef" class="space-y-6 welcome-hero-copy">
                             <div class="welcome-kicker welcome-fade-up">
                                 {{ welcomeContent.hero?.eyebrow || $t('welcome.hero.eyebrow') }}
                             </div>
@@ -242,24 +344,24 @@ const customSections = computed(() =>
                                 v-html="welcomeContent.hero?.note || $t('welcome.hero.note')"></div>
                         </div>
 
-                        <div class="relative welcome-fade-in">
-                            <div class="rounded-sm border border-stone-200 bg-white p-3 shadow-xl">
-                                <img
-                                    :src="welcomeContent.hero?.image_url || '/images/landing/hero-dashboard.svg'"
-                                    :alt="welcomeContent.hero?.image_alt || $t('welcome.images.hero_alt')"
-                                    class="h-auto w-full rounded-sm"
-                                    loading="lazy"
-                                    decoding="async"
-                                />
-                            </div>
-                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                                <div
-                                    v-for="(card, cardIndex) in (welcomeContent.hero?.preview_cards || [])"
-                                    :key="card.id || cardIndex"
-                                    class="rounded-sm border border-stone-200 bg-white/90 p-3 text-xs text-stone-600 shadow-sm"
-                                >
-                                    <div class="text-sm font-semibold text-stone-900">{{ card.title }}</div>
-                                    <div>{{ card.desc }}</div>
+                        <div class="relative welcome-fade-in welcome-hero-visual">
+                            <div class="welcome-hero-slider" :style="heroSliderStyle">
+                                <div class="welcome-hero-track">
+                                    <article
+                                        v-for="(slide, slideIndex) in heroSlidesLoop"
+                                        :key="`${slide.src}-${slideIndex}`"
+                                        class="welcome-hero-slide"
+                                    >
+                                        <div class="welcome-hero-slide-frame">
+                                            <img
+                                                :src="slide.src"
+                                                :alt="slide.alt"
+                                                class="welcome-hero-slide-image"
+                                                loading="lazy"
+                                                decoding="async"
+                                            />
+                                        </div>
+                                    </article>
                                 </div>
                             </div>
                         </div>
@@ -537,6 +639,8 @@ const customSections = computed(() =>
 @import url('https://fonts.bunny.net/css?family=Space+Grotesk:400,500,600,700&family=Work+Sans:400,500,600&display=swap');
 
 .welcome-page {
+    --public-shell-width: 88rem;
+    --public-shell-gutter: 1.25rem;
     --welcome-ink: #0f172a;
     --welcome-muted: #475569;
     --welcome-accent: #16a34a;
@@ -550,11 +654,10 @@ const customSections = computed(() =>
 }
 
 .welcome-container {
-    width: 100%;
-    max-width: 72rem;
+    width: min(var(--public-shell-width), 100%);
     margin: 0 auto;
-    padding-left: 1.25rem;
-    padding-right: 1.25rem;
+    padding-left: var(--public-shell-gutter);
+    padding-right: var(--public-shell-gutter);
 }
 
 .welcome-section {
@@ -567,8 +670,19 @@ const customSections = computed(() =>
     row-gap: clamp(2.5rem, 6vw, 4rem);
 }
 
+.welcome-hero-layout {
+    column-gap: clamp(1.75rem, 4vw, 3.25rem);
+}
+
 .welcome-hero {
     background: linear-gradient(180deg, #f8fafc 0%, #ffffff 55%, #ecfdf5 100%);
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.welcome-hero-copy {
+    padding-top: clamp(1.5rem, 2.5vw, 2.35rem);
+    padding-bottom: clamp(2.75rem, 5vw, 4.5rem);
 }
 
 .welcome-trust {
@@ -608,7 +722,7 @@ const customSections = computed(() =>
     display: inline-flex;
     align-items: center;
     padding: 0.35rem 0.75rem;
-    border-radius: 999px;
+    border-radius: 0.125rem;
     background: rgba(16, 185, 129, 0.12);
     color: #065f46;
     font-size: 0.75rem;
@@ -617,7 +731,7 @@ const customSections = computed(() =>
 
 .welcome-pill {
     border: 1px solid #e2e8f0;
-    border-radius: 999px;
+    border-radius: 0.125rem;
     padding: 0.4rem 0.8rem;
     background: #f8fafc;
 }
@@ -640,7 +754,7 @@ const customSections = computed(() =>
     align-items: center;
     align-self: flex-start;
     padding: 0.2rem 0.6rem;
-    border-radius: 999px;
+    border-radius: 0.125rem;
     background: rgba(16, 185, 129, 0.2);
     color: #a7f3d0;
     font-size: 0.65rem;
@@ -685,6 +799,70 @@ const customSections = computed(() =>
 .welcome-custom-media {
     display: flex;
     justify-content: center;
+}
+
+.welcome-hero-visual {
+    position: relative;
+    display: flex;
+    align-self: stretch;
+    width: 100%;
+    height: 100%;
+    max-width: 24.5rem;
+    margin-inline: auto;
+}
+
+.welcome-hero-slider {
+    --welcome-slider-height: clamp(24rem, 38vw, 34rem);
+    --welcome-slide-height: clamp(11.5rem, 17vw, 14rem);
+    --welcome-slide-gap: 1.15rem;
+    width: 100%;
+    flex: 1 1 auto;
+    height: var(--welcome-slider-height);
+    overflow: hidden;
+}
+
+.welcome-hero-track {
+    display: flex;
+    flex-direction: column;
+    gap: var(--welcome-slide-gap);
+    transform: translateY(calc(-1 * (var(--welcome-slide-height) + var(--welcome-slide-gap)) * var(--welcome-slide-count)));
+    animation: welcomeHeroVerticalSlider 34s linear infinite;
+    will-change: transform;
+}
+
+.welcome-hero-slider:hover .welcome-hero-track {
+    animation-play-state: paused;
+}
+
+.welcome-hero-slide {
+    height: var(--welcome-slide-height);
+}
+
+.welcome-hero-slide-frame {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0;
+    background: transparent;
+    box-shadow: 0 18px 40px -34px rgba(15, 23, 42, 0.18);
+}
+
+.welcome-hero-slide-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+@media (max-width: 1023px) {
+    .welcome-hero-visual {
+        max-width: none;
+    }
+
+    .welcome-hero-slider {
+        --welcome-slide-height: clamp(12rem, 60vw, 15.5rem);
+    }
 }
 
 .welcome-rich :deep(p),
@@ -763,9 +941,19 @@ const customSections = computed(() =>
     }
 }
 
+@keyframes welcomeHeroVerticalSlider {
+    from {
+        transform: translateY(calc(-1 * (var(--welcome-slide-height) + var(--welcome-slide-gap)) * var(--welcome-slide-count)));
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .welcome-fade-up,
-    .welcome-fade-in {
+    .welcome-fade-in,
+    .welcome-hero-track {
         animation: none;
     }
 }

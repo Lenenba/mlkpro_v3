@@ -243,8 +243,9 @@ const isExcludedCell = (value) => value?.type === 'excluded';
 }
 
 .public-pricing-container {
-    width: min(1100px, 92vw);
+    width: min(88rem, 100%);
     margin-inline: auto;
+    padding-inline: 1.25rem;
 }
 
 .public-pricing-hero {

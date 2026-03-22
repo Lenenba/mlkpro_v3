@@ -1,7 +1,7 @@
 # Speech detaille - Module Jobs / Works (34 minutes)
 
 ## Objectif de cette version
-Ce document sert a presenter le module Jobs de MLK Pro de maniere complete:
+Ce document sert a presenter le module Jobs de Malikia pro de maniere complete:
 - creation et planification d intervention
 - execution terrain et suivi des statuts
 - preuves, validation client, litiges
@@ -38,7 +38,7 @@ Ce document sert a presenter le module Jobs de MLK Pro de maniere complete:
 ### Speech a lire
 "Dans cette video, on se concentre sur le module Jobs, c est-a-dire le coeur de l execution operationnelle.
 
-Dans MLK Pro, un job n est pas juste une tache calendrier:
+Dans Malikia pro, un job n est pas juste une tache calendrier:
 c est une unite complete avec client, planning, equipe, lignes de travail, statuts qualite, preuves, et impact facturation.
 
 Le job est cree en general depuis un devis accepte. Ensuite il suit un cycle controle jusqu a validation client et facturation.
@@ -104,7 +104,7 @@ Le job contient:
 
 Si le job vient d un devis verrouille, certaines donnees restent alignees avec ce devis pour garantir la coherence commerciale.
 
-A la sauvegarde, MLK Pro calcule subtotal/total a partir des lignes, et peut synchroniser l equipe selectionnee.
+A la sauvegarde, Malikia pro calcule subtotal/total a partir des lignes, et peut synchroniser l equipe selectionnee.
 
 Objectif: preparer une intervention executable sans ambiguite." 
 
@@ -227,7 +227,7 @@ Les preuves transforment l execution en historique verifiable.
 ## 22:00 - 26:00 | Validation client, dispute, schedule confirmation
 
 ### Speech a lire
-"Cote client, MLK Pro propose des actions portail/public:
+"Cote client, Malikia pro propose des actions portail/public:
 - valider le job
 - mettre en litige
 - confirmer ou refuser la proposition de planning
@@ -290,7 +290,7 @@ Un job bien gere raccourcit le delai execution -> encaissement.
 ### Speech a lire
 "Scenario avance frequent: pendant le chantier, le client demande un extra.
 
-MLK Pro permet de creer un devis additionnel lie au job (change order).
+Malikia pro permet de creer un devis additionnel lie au job (change order).
 Ce devis enfant conserve le contexte du job et alimente la checklist avec les nouveaux elements.
 
 Resultat:
@@ -312,7 +312,7 @@ Le module jobs gere aussi les changements de scope en cours d execution.
 ## 33:00 - 34:00 | Conclusion
 
 ### Speech a lire
-"Le module Jobs de MLK Pro apporte:
+"Le module Jobs de Malikia pro apporte:
 1. planification robuste
 2. execution controlee par preuves
 3. validation client cadre

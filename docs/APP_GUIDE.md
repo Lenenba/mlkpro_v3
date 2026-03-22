@@ -1,11 +1,11 @@
-# MLK Pro - Guide d utilisation (MVP)
+# Malikia pro - Guide d utilisation (MVP)
 
 Derniere mise a jour: 2026-03-04
 
 Ce document est vivant. Mettez le a jour a chaque changement fonctionnel.
 
 ## 1. Objectif
-MLK Pro permet a plusieurs entreprises de gerer leurs clients, devis, jobs, taches, ventes, campagnes et factures avec une base scalable et simple.
+Malikia pro permet a plusieurs entreprises de gerer leurs clients, devis, jobs, taches, ventes, campagnes et factures avec une base scalable et simple.
 
 ## 2. Demarrage rapide (utilisateur final)
 1. Creez un compte utilisateur.

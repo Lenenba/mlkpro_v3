@@ -57,7 +57,7 @@ const headerMenuItems = computed(() => ([
             :can-register="props.canRegister"
         />
 
-        <main class="mx-auto w-full max-w-6xl px-4 pb-16 pt-8">
+        <main class="mx-auto w-full max-w-[88rem] px-5 pb-16 pt-8">
             <section
                 class="rounded-sm border border-stone-200 bg-white p-6 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                 <TermsContent />

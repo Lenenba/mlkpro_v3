@@ -726,9 +726,9 @@ const footerCopy = computed(() => (
 }
 
 .public-site-footer__inner {
-    width: min(88rem, 100%);
+    width: min(var(--public-shell-width, 88rem), 100%);
     margin-inline: auto;
-    padding-inline: 1.25rem;
+    padding-inline: var(--public-shell-gutter, 1.25rem);
     padding-top: clamp(3rem, 7vw, 5rem);
     padding-bottom: 2rem;
 }
@@ -1163,12 +1163,6 @@ const footerCopy = computed(() => (
         align-items: center;
         justify-content: space-between;
         flex-direction: row;
-    }
-}
-
-@media (min-width: 1280px) {
-    .public-site-footer__inner {
-        padding-inline: 2rem;
     }
 }
 

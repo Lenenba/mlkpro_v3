@@ -192,6 +192,7 @@ class PlatformSectionContentService
             'body' => '',
             'note' => '',
             'stats' => [],
+            'hero_images' => [],
             'preview_cards' => [],
             'feature_items' => [],
             'secondary_enabled' => false,
@@ -275,6 +276,7 @@ class PlatformSectionContentService
             'body' => $this->cleanHtml($section['body'] ?? ''),
             'note' => $this->cleanHtml($section['note'] ?? ''),
             'stats' => $this->sanitizeStatItems($section['stats'] ?? []),
+            'hero_images' => $this->sanitizeHeroImages($section['hero_images'] ?? []),
             'preview_cards' => $this->sanitizePreviewCards($section['preview_cards'] ?? []),
             'feature_items' => $this->sanitizeFeatureItems($section['feature_items'] ?? []),
             'secondary_enabled' => array_key_exists('secondary_enabled', $section) ? (bool) $section['secondary_enabled'] : false,
@@ -427,6 +429,32 @@ class PlatformSectionContentService
         }
 
         return array_values($sanitized);
+    }
+
+    private function sanitizeHeroImages($items): array
+    {
+        if (!is_array($items)) {
+            return [];
+        }
+
+        $sanitized = [];
+        foreach (array_values($items) as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $imageUrl = $this->cleanImageValue($item['image_url'] ?? '');
+            if ($imageUrl === '') {
+                continue;
+            }
+
+            $sanitized[] = [
+                'image_url' => $imageUrl,
+                'image_alt' => $this->cleanText($item['image_alt'] ?? ''),
+            ];
+        }
+
+        return array_slice($sanitized, 0, 12);
     }
 
     private function sanitizeFooterGroups($items): array

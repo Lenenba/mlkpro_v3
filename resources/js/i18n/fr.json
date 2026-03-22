@@ -233,11 +233,11 @@
     },
     "announcements": {
       "title": "Annonces",
-      "subtitle": "Dernieres nouvelles de MLK Pro.",
+      "subtitle": "Dernieres nouvelles de Malikia pro.",
       "quick_title": "Infos rapides",
       "quick_subtitle": "Derniers points pour votre equipe.",
       "updates_title": "Mises a jour",
-      "updates_subtitle": "Quoi de neuf sur MLK Pro.",
+      "updates_subtitle": "Quoi de neuf sur Malikia pro.",
       "valid_until": "Valide jusqu'au {date}",
       "from": "Depuis le {date}",
       "learn_more": "En savoir plus"
@@ -2033,7 +2033,14 @@
           "stat_label": "Label",
           "preview_title": "Cartes d apercu",
           "preview_subtitle": "Petites cartes affichees a cote du visuel hero.",
-          "add_preview": "Ajouter une carte"
+          "add_preview": "Ajouter une carte",
+          "slides_title": "Slides du slider",
+          "slides_subtitle": "Definissez les photos qui defilent dans le visuel hero.",
+          "add_slide": "Ajouter un slide",
+          "slide_label": "Slide {number}",
+          "slide_image_url": "Image du slide",
+          "slide_image_alt": "Texte alternatif du slide",
+          "choose_asset": "Choisir depuis la mediatheque"
         },
         "features": {
           "items_title": "Cartes principales",
@@ -6619,7 +6626,7 @@
     "hero": {
       "eyebrow": "Conçu pour les équipes terrain",
       "title": "Gérez tout le cycle d’un chantier dans un espace clair.",
-      "subtitle": "MLK Pro relie devis, scan de plans, catalogue, chantiers, tâches et factures, avec une vision simple et structurée.",
+      "subtitle": "Malikia pro relie devis, scan de plans, catalogue, chantiers, tâches et factures, avec une vision simple et structurée.",
       "primary_cta": "Démarrer l’onboarding",
       "secondary_cta": "Se connecter",
       "note": "Passez du mode Services au mode Produits sans perte de données.",
@@ -6769,14 +6776,14 @@
     },
     "intro": {
       "eyebrow": "Conditions d utilisation",
-      "title": "Conditions d utilisation pour MLK Pro",
+      "title": "Conditions d utilisation pour Malikia pro",
       "updated": "Derniere mise a jour: {date}. Cette page est un modele et doit etre relue avant publication.",
       "legal": "Nom legal: Malikia Pro."
     },
     "sections": {
       "scope": {
         "title": "1. Portee",
-        "body": "Ces conditions regissent l acces a MLK Pro, une plateforme qui aide les entreprises a gerer clients, devis, jobs, taches, factures, produits et scans de plan."
+        "body": "Ces conditions regissent l acces a Malikia pro, une plateforme qui aide les entreprises a gerer clients, devis, jobs, taches, factures, produits et scans de plan."
       },
       "accounts": {
         "title": "2. Comptes",
@@ -6788,7 +6795,7 @@
       },
       "data": {
         "title": "3. Propriete des donnees",
-        "body": "Votre entreprise garde la propriete de ses donnees. En utilisant MLK Pro, vous autorisez la plateforme a stocker, traiter et afficher vos donnees pour fournir le service."
+        "body": "Votre entreprise garde la propriete de ses donnees. En utilisant Malikia pro, vous autorisez la plateforme a stocker, traiter et afficher vos donnees pour fournir le service."
       },
       "pricing": {
         "title": "4. Devis et donnees de prix",
@@ -6816,7 +6823,7 @@
       },
       "liability": {
         "title": "8. Limitation de responsabilite",
-        "body": "MLK Pro n est pas responsable des dommages indirects, pertes de profits ou pertes de donnees au dela des limites legales. Utilisez le service a vos risques."
+        "body": "Malikia pro n est pas responsable des dommages indirects, pertes de profits ou pertes de donnees au dela des limites legales. Utilisez le service a vos risques."
       },
       "termination": {
         "title": "9. Resiliation",
@@ -6936,14 +6943,14 @@
     },
     "intro": {
       "eyebrow": "Politique de confidentialite",
-      "title": "Politique de confidentialite pour MLK Pro",
+      "title": "Politique de confidentialite pour Malikia pro",
       "updated": "Derniere mise a jour: {date}.",
-      "summary": "Cette politique explique comment Malikia Pro collecte, utilise et protege les donnees sur MLK Pro."
+      "summary": "Cette politique explique comment Malikia Pro collecte, utilise et protege les donnees sur Malikia pro."
     },
     "sections": {
       "scope": {
         "title": "1. Portee",
-        "body": "Cette politique s applique a la plateforme MLK Pro et services associes."
+        "body": "Cette politique s applique a la plateforme Malikia pro et services associes."
       },
       "data": {
         "title": "2. Donnees collectees",
@@ -6982,14 +6989,14 @@
     },
     "intro": {
       "eyebrow": "Politique de remboursement",
-      "title": "Politique de remboursement pour MLK Pro",
+      "title": "Politique de remboursement pour Malikia pro",
       "updated": "Derniere mise a jour: {date}.",
-      "summary": "Cette politique explique comment les remboursements et credits sont geres pour les abonnements MLK Pro."
+      "summary": "Cette politique explique comment les remboursements et credits sont geres pour les abonnements Malikia pro."
     },
     "sections": {
       "scope": {
         "title": "1. Portee",
-        "body": "Les abonnements sont factures a l avance et donnent acces aux fonctionnalites MLK Pro."
+        "body": "Les abonnements sont factures a l avance et donnent acces aux fonctionnalites Malikia pro."
       },
       "eligibility": {
         "title": "2. Eligibilite",

@@ -457,7 +457,7 @@ it('supports the testimonial grid section layout for public pages', function () 
         'alignment' => 'center',
         'background_color' => '#f7f2e8',
         'title' => 'Approuve par les meilleures equipes d entretien.',
-        'body' => '<p>Les pros de l entretien utilisent MLK Pro pour mieux coordonner leur equipe.</p>',
+        'body' => '<p>Les pros de l entretien utilisent Malikia pro pour mieux coordonner leur equipe.</p>',
         'testimonial_cards' => [
             [
                 'id' => 'testimonial-grid-card-1',
@@ -968,7 +968,7 @@ it('stores reusable testimonial grid library sections with card content', functi
 
     $service->updateLocale($testimonialGridSection, 'fr', [
         'title' => 'Approuve par les meilleures equipes d entretien.',
-        'body' => '<p>Les pros de l entretien utilisent MLK Pro pour mieux coordonner leur equipe.</p>',
+        'body' => '<p>Les pros de l entretien utilisent Malikia pro pour mieux coordonner leur equipe.</p>',
         'background_color' => '#f7f2e8',
         'testimonial_cards' => [
             [

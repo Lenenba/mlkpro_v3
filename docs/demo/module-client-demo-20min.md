@@ -3,7 +3,7 @@
 ## Objectif de cette version
 Ce document est une version elaboree pour presenter:
 - le module Client en profondeur
-- la logique complete de la plateforme MLK Pro
+- la logique complete de la plateforme Malikia pro
 - les liens reels entre Client et tous les autres modules
 
 Cette version est faite pour une video longue, pedagogique, et orientee metier.
@@ -31,12 +31,12 @@ pour montrer les liens depuis la fiche client.
 
 ---
 
-## 00:00 - 03:00 | Introduction: ce que MLK Pro fait vraiment
+## 00:00 - 03:00 | Introduction: ce que Malikia pro fait vraiment
 
 ### Speech a lire
 "Dans cette video, on va commencer par le module Client, mais je vais aussi vous montrer comment toute la plateforme fonctionne autour de lui.
 
-MLK Pro est une plateforme multi-entreprise qui permet de gerer un cycle complet: acquisition du prospect, creation de devis, execution terrain, facturation, paiement, puis fidelisation et campagnes.
+Malikia pro est une plateforme multi-entreprise qui permet de gerer un cycle complet: acquisition du prospect, creation de devis, execution terrain, facturation, paiement, puis fidelisation et campagnes.
 
 Le module Client est le socle de ce systeme. Si ce socle est propre, tout est fluide: les equipes vont plus vite, les erreurs de saisie diminuent, et les workflows deviennent automatisables.
 
@@ -80,7 +80,7 @@ Le module Client est transverse: il doit fonctionner avec des permissions, des f
 ## 06:00 - 09:00 | Modele de donnees client: ce qui est stocke et pourquoi
 
 ### Speech a lire
-"Dans MLK Pro, un client stocke beaucoup plus que nom, email, telephone.
+"Dans Malikia pro, un client stocke beaucoup plus que nom, email, telephone.
 
 On a les informations d identite, la societe, des tags, des notes operationnelles, des preferences de facturation, des remises, des options d auto-validation, et l acces portail.
 
@@ -307,7 +307,7 @@ Le client est la cle de voute du workflow end-to-end.
 ### Speech a lire
 "Pour conclure:
 
-Le module Client dans MLK Pro sert a trois choses:
+Le module Client dans Malikia pro sert a trois choses:
 1. Structurer la donnee de base.
 2. Accelerer les operations quotidiennes.
 3. Activer les automatisations sans perdre le controle.

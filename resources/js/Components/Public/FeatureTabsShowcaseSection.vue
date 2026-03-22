@@ -371,10 +371,9 @@ const setActiveChild = (child) => {
 .feature-tabs-showcase__container {
     position: relative;
     z-index: 1;
-    width: 100%;
-    max-width: 72rem;
+    width: min(var(--public-shell-width, 88rem), 100%);
     margin: 0 auto;
-    padding-inline: 1.25rem;
+    padding-inline: var(--public-shell-gutter, 1.25rem);
 }
 
 .feature-tabs-showcase__header {
@@ -388,7 +387,7 @@ const setActiveChild = (child) => {
     align-items: center;
     justify-content: center;
     padding: 0.45rem 0.9rem;
-    border-radius: 999px;
+    border-radius: 0.125rem;
     background: rgba(8, 58, 92, 0.08);
     color: #083a5c;
     font-size: 0.78rem;
@@ -459,7 +458,7 @@ const setActiveChild = (child) => {
 
 .feature-tabs-showcase__tab {
     border: 1px solid rgba(8, 58, 92, 0.12);
-    border-radius: 999px;
+    border-radius: 0.125rem;
     padding: 0.8rem 1.2rem;
     background: rgba(255, 255, 255, 0.72);
     color: #083a5c;
@@ -632,7 +631,7 @@ const setActiveChild = (child) => {
     align-items: center;
     padding: 0.6rem 0.85rem;
     border: 1px solid rgba(8, 58, 92, 0.12);
-    border-radius: 999px;
+    border-radius: 0.125rem;
     background: rgba(255, 255, 255, 0.74);
     color: #0f3550;
     font-size: 0.88rem;

@@ -8,7 +8,7 @@ return [
     'hero' => [
         'eyebrow' => 'Concu pour les equipes terrain',
         'title' => "Gerez tout le cycle d'un chantier dans un espace clair.",
-        'subtitle' => 'MLK Pro relie devis, scan de plans, catalogue, chantiers, taches et factures, avec une vision simple et structuree.',
+        'subtitle' => 'Malikia pro relie devis, scan de plans, catalogue, chantiers, taches et factures, avec une vision simple et structuree.',
         'primary_cta' => "Demarrer l'onboarding",
         'secondary_cta' => 'Se connecter',
         'note' => 'Passez du mode Services au mode Produits sans perte de donnees.',

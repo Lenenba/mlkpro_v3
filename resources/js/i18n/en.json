@@ -233,11 +233,11 @@
     },
     "announcements": {
       "title": "Announcements",
-      "subtitle": "Latest updates from MLK Pro.",
+      "subtitle": "Latest updates from Malikia pro.",
       "quick_title": "Quick updates",
       "quick_subtitle": "Latest highlights for your team.",
       "updates_title": "Updates",
-      "updates_subtitle": "What's new in MLK Pro.",
+      "updates_subtitle": "What's new in Malikia pro.",
       "valid_until": "Valid until {date}",
       "from": "From {date}",
       "learn_more": "Learn more"
@@ -2033,7 +2033,14 @@
           "stat_label": "Metric label",
           "preview_title": "Preview cards",
           "preview_subtitle": "Short cards displayed beside the hero visual.",
-          "add_preview": "Add preview card"
+          "add_preview": "Add preview card",
+          "slides_title": "Slider slides",
+          "slides_subtitle": "Define the photos that rotate inside the hero visual.",
+          "add_slide": "Add slide",
+          "slide_label": "Slide {number}",
+          "slide_image_url": "Slide image",
+          "slide_image_alt": "Slide alt text",
+          "choose_asset": "Choose from assets"
         },
         "features": {
           "items_title": "Primary feature cards",
@@ -6619,7 +6626,7 @@
     "hero": {
       "eyebrow": "Built for field teams",
       "title": "Run the entire job cycle in one clean workspace.",
-      "subtitle": "MLK Pro connects quotes, plan scans, catalog, jobs, tasks, and invoices with live insight.",
+      "subtitle": "Malikia pro connects quotes, plan scans, catalog, jobs, tasks, and invoices with live insight.",
       "primary_cta": "Start onboarding",
       "secondary_cta": "Sign in",
       "note": "Switch between service and product workflows without losing data.",
@@ -6753,7 +6760,7 @@
     },
     "footer": {
       "terms": "Terms and conditions",
-      "copy": "MalikiaPro. All rights reserved."
+      "copy": "Malikia Pro. All rights reserved."
     }
   },
   "terms": {
@@ -6769,14 +6776,14 @@
     },
     "intro": {
       "eyebrow": "Terms and conditions",
-      "title": "Terms of Use for MLK Pro",
+      "title": "Terms of Use for Malikia pro",
       "updated": "Last update: {date}. This page is a template and should be reviewed before publication.",
       "legal": "Legal name: Malikia Pro."
     },
     "sections": {
       "scope": {
         "title": "1. Scope",
-        "body": "These terms govern access to MLK Pro, a platform that helps businesses manage customers, quotes, jobs, tasks, invoices, products, and plan scans."
+        "body": "These terms govern access to Malikia pro, a platform that helps businesses manage customers, quotes, jobs, tasks, invoices, products, and plan scans."
       },
       "accounts": {
         "title": "2. Accounts",
@@ -6788,7 +6795,7 @@
       },
       "data": {
         "title": "3. Data ownership",
-        "body": "Your company retains ownership of its data. By using MLK Pro, you grant the platform permission to store, process, and display your data as needed to provide the service."
+        "body": "Your company retains ownership of its data. By using Malikia pro, you grant the platform permission to store, process, and display your data as needed to provide the service."
       },
       "pricing": {
         "title": "4. Quotes and pricing data",
@@ -6816,7 +6823,7 @@
       },
       "liability": {
         "title": "8. Limitation of liability",
-        "body": "MLK Pro is not liable for indirect damages, lost profits, or data loss beyond the limits required by law. Use the service at your own risk."
+        "body": "Malikia pro is not liable for indirect damages, lost profits, or data loss beyond the limits required by law. Use the service at your own risk."
       },
       "termination": {
         "title": "9. Termination",
@@ -6936,14 +6943,14 @@
     },
     "intro": {
       "eyebrow": "Privacy policy",
-      "title": "Privacy policy for MLK Pro",
+      "title": "Privacy policy for Malikia pro",
       "updated": "Last update: {date}.",
-      "summary": "This policy explains how Malikia Pro collects, uses, and protects data on MLK Pro."
+      "summary": "This policy explains how Malikia Pro collects, uses, and protects data on Malikia pro."
     },
     "sections": {
       "scope": {
         "title": "1. Scope",
-        "body": "This policy applies to the MLK Pro platform and related services."
+        "body": "This policy applies to the Malikia pro platform and related services."
       },
       "data": {
         "title": "2. Data we collect",
@@ -6982,14 +6989,14 @@
     },
     "intro": {
       "eyebrow": "Refund policy",
-      "title": "Refund policy for MLK Pro",
+      "title": "Refund policy for Malikia pro",
       "updated": "Last update: {date}.",
-      "summary": "This policy explains how refunds and credits are handled for MLK Pro subscriptions."
+      "summary": "This policy explains how refunds and credits are handled for Malikia pro subscriptions."
     },
     "sections": {
       "scope": {
         "title": "1. Scope",
-        "body": "Subscriptions are billed in advance and include access to MLK Pro features."
+        "body": "Subscriptions are billed in advance and include access to Malikia pro features."
       },
       "eligibility": {
         "title": "2. Eligibility",

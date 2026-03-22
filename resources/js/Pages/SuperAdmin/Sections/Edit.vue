@@ -151,6 +151,55 @@ const ensureStatItems = (items) => (
     Array.isArray(items) ? items.map((item) => createStatItem(item)) : []
 );
 
+const createHeroImage = (overrides = {}) => ({
+    id: overrides.id || createLocalId('hero-image'),
+    image_url: overrides.image_url || '',
+    image_alt: overrides.image_alt || '',
+});
+
+const ensureHeroImages = (items) => (
+    Array.isArray(items) ? items.map((item) => createHeroImage(item)) : []
+);
+
+const defaultWelcomeHeroSlides = (locale) => {
+    const isFrench = locale === 'fr';
+
+    return ensureHeroImages([
+        {
+            image_url: '/images/landing/hero-dashboard.svg',
+            image_alt: isFrench ? 'Apercu tableau de bord' : 'Dashboard preview',
+        },
+        {
+            image_url: '/images/mega-menu/operations-suite.svg',
+            image_alt: isFrench ? 'Suite operations terrain' : 'Field operations suite',
+        },
+        {
+            image_url: '/images/mega-menu/sales-crm-suite.svg',
+            image_alt: isFrench ? 'Suite ventes et CRM' : 'Sales and CRM suite',
+        },
+        {
+            image_url: '/images/mega-menu/reservations-suite.svg',
+            image_alt: isFrench ? 'Suite reservations' : 'Reservations suite',
+        },
+        {
+            image_url: '/images/mega-menu/ai-automation-suite.svg',
+            image_alt: isFrench ? 'Suite IA et automatisation' : 'AI and automation suite',
+        },
+        {
+            image_url: '/images/mega-menu/commerce-suite.svg',
+            image_alt: isFrench ? 'Suite commerce' : 'Commerce suite',
+        },
+        {
+            image_url: '/images/mega-menu/marketing-loyalty-suite.svg',
+            image_alt: isFrench ? 'Suite marketing et fidelisation' : 'Marketing and loyalty suite',
+        },
+        {
+            image_url: '/images/mega-menu/platform-command-center.svg',
+            image_alt: isFrench ? 'Centre de commandement plateforme' : 'Platform command center',
+        },
+    ]);
+};
+
 const createPreviewCard = (overrides = {}) => ({
     title: overrides.title || '',
     desc: overrides.desc || '',
@@ -423,6 +472,7 @@ const sectionTypePreset = (type) => {
             tone: 'default',
             note: '',
             stats: [],
+            hero_images: defaultWelcomeHeroSlides(currentLocale.value),
             preview_cards: [],
         };
     }
@@ -591,6 +641,7 @@ const ensureStructure = (content, type = form.type) => {
         body: content?.body || '',
         note: content?.note || '',
         stats: Array.isArray(content?.stats) ? ensureStatItems(content.stats) : ensureStatItems(preset.stats),
+        hero_images: Array.isArray(content?.hero_images) ? ensureHeroImages(content.hero_images) : ensureHeroImages(preset.hero_images),
         preview_cards: Array.isArray(content?.preview_cards) ? ensurePreviewCards(content.preview_cards) : ensurePreviewCards(preset.preview_cards),
         feature_items: Array.isArray(content?.feature_items) ? ensureFeatureItems(content.feature_items) : ensureFeatureItems(preset.feature_items),
         secondary_enabled: content?.secondary_enabled ?? preset.secondary_enabled ?? false,
@@ -682,6 +733,7 @@ watch(
             note: current.note || next.note || '',
             items: current.items?.length ? current.items : (Array.isArray(next.items) ? [...next.items] : []),
             stats: current.stats?.length ? current.stats : ensureStatItems(next.stats),
+            hero_images: current.hero_images?.length ? current.hero_images : ensureHeroImages(next.hero_images),
             preview_cards: current.preview_cards?.length ? current.preview_cards : ensurePreviewCards(next.preview_cards),
             feature_items: current.feature_items?.length ? current.feature_items : ensureFeatureItems(next.feature_items),
             secondary_enabled: current.secondary_enabled ?? next.secondary_enabled ?? false,
@@ -1095,6 +1147,30 @@ const removeHeroStat = (index) => {
     form.content.stats.splice(index, 1);
 };
 
+const addHeroImage = () => {
+    form.content.hero_images = [...(form.content.hero_images || []), createHeroImage()];
+};
+
+const moveHeroImage = (index, direction) => {
+    const nextIndex = index + direction;
+    if (!form.content.hero_images || nextIndex < 0 || nextIndex >= form.content.hero_images.length) {
+        return;
+    }
+
+    const items = [...form.content.hero_images];
+    const [item] = items.splice(index, 1);
+    items.splice(nextIndex, 0, item);
+    form.content.hero_images = items;
+};
+
+const removeHeroImage = (index) => {
+    if (!form.content.hero_images) {
+        return;
+    }
+
+    form.content.hero_images.splice(index, 1);
+};
+
 const addPreviewCard = (targetKey = 'preview_cards') => {
     form.content[targetKey] = [...(form.content[targetKey] || []), createPreviewCard()];
 };
@@ -1256,8 +1332,15 @@ syncFormFromProps(currentLocale.value);
                 </div>
             </section>
 
-            <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 space-y-4">
-                <template v-if="!isFooterType">
+            <section
+                :class="[
+                    'rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900',
+                    isFooterType
+                        ? 'space-y-4'
+                        : 'space-y-4 xl:grid xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.9fr)] xl:items-start xl:gap-4 xl:space-y-0',
+                ]"
+            >
+                <div v-if="!isFooterType" class="space-y-4 xl:col-start-1">
                     <RichTextEditor
                         v-model="form.content.body"
                         :label="$t('super_admin.pages.common.body')"
@@ -1276,9 +1359,36 @@ syncFormFromProps(currentLocale.value);
                         <textarea v-model="itemsLines" rows="4"
                             class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"></textarea>
                     </div>
-                </template>
+                </div>
 
-                <div v-if="isWelcomeHeroType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-4">
+                <div v-if="showImageFields" class="grid gap-3 md:grid-cols-2 xl:col-start-2 xl:row-start-1">
+                    <div class="space-y-2">
+                        <FloatingInput v-model="form.content.image_url" :label="$t('super_admin.pages.common.image_url')" />
+                        <div class="flex flex-wrap items-center gap-2 text-xs">
+                            <button v-if="asset_list_url" type="button"
+                                class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                @click="openAssetPicker(form.content)">
+                                {{ $t('super_admin.pages.assets.choose') }}
+                            </button>
+                            <span v-if="form.content.image_url" class="text-stone-500">
+                                {{ $t('super_admin.pages.assets.preview') }}
+                            </span>
+                        </div>
+                        <div v-if="form.content.image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white">
+                            <img :src="form.content.image_url" :alt="form.content.image_alt || form.content.title" class="h-36 w-full object-cover" loading="lazy" decoding="async" />
+                        </div>
+                    </div>
+                    <FloatingInput v-model="form.content.image_alt" :label="$t('super_admin.pages.common.image_alt')" />
+                </div>
+
+                <div v-if="showActionFields" class="grid gap-3 md:grid-cols-2 xl:col-start-2">
+                    <FloatingInput v-model="form.content.primary_label" :label="$t('super_admin.pages.common.primary_label')" />
+                    <FloatingInput v-model="form.content.primary_href" :label="$t('super_admin.pages.common.primary_href')" />
+                    <FloatingInput v-model="form.content.secondary_label" :label="$t('super_admin.pages.common.secondary_label')" />
+                    <FloatingInput v-model="form.content.secondary_href" :label="$t('super_admin.pages.common.secondary_href')" />
+                </div>
+
+                <div v-if="isWelcomeHeroType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-4 xl:col-span-2">
                     <RichTextEditor
                         v-model="form.content.note"
                         :label="$t('super_admin.sections.welcome.hero.note')"
@@ -1307,7 +1417,7 @@ syncFormFromProps(currentLocale.value);
                             </button>
                         </div>
 
-                        <div class="space-y-3">
+                        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                             <div v-for="(item, index) in form.content.stats" :key="`hero-stat-${index}`"
                                 class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
                                 <div class="flex flex-wrap justify-end gap-2 text-xs">
@@ -1349,7 +1459,7 @@ syncFormFromProps(currentLocale.value);
                             </button>
                         </div>
 
-                        <div class="space-y-3">
+                        <div class="grid gap-3 xl:grid-cols-2">
                             <div v-for="(item, index) in form.content.preview_cards" :key="`hero-preview-${index}`"
                                 class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
                                 <div class="flex flex-wrap justify-end gap-2 text-xs">
@@ -1382,9 +1492,80 @@ syncFormFromProps(currentLocale.value);
                             </div>
                         </div>
                     </div>
+
+                    <div class="space-y-3">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('super_admin.sections.welcome.hero.slides_title') }}
+                                </h2>
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.sections.welcome.hero.slides_subtitle') }}
+                                </p>
+                            </div>
+                            <button type="button"
+                                class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                @click="addHeroImage">
+                                {{ $t('super_admin.sections.welcome.hero.add_slide') }}
+                            </button>
+                        </div>
+
+                        <div class="grid gap-3 xl:grid-cols-2">
+                            <div v-for="(item, index) in form.content.hero_images" :key="item.id || `hero-slide-${index}`"
+                                class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                <div class="flex flex-wrap justify-between gap-2 text-xs">
+                                    <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                        {{ $t('super_admin.sections.welcome.hero.slide_label', { number: index + 1 }) }}
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                            @click="moveHeroImage(index, -1)">
+                                            {{ $t('super_admin.pages.common.move_up') }}
+                                        </button>
+                                        <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                            @click="moveHeroImage(index, 1)">
+                                            {{ $t('super_admin.pages.common.move_down') }}
+                                        </button>
+                                        <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                            @click="removeHeroImage(index)">
+                                            {{ $t('super_admin.pages.common.remove') }}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_240px]">
+                                    <div class="space-y-3">
+                                        <FloatingInput
+                                            v-model="item.image_url"
+                                            :label="$t('super_admin.sections.welcome.hero.slide_image_url')"
+                                        />
+                                        <FloatingInput
+                                            v-model="item.image_alt"
+                                            :label="$t('super_admin.sections.welcome.hero.slide_image_alt')"
+                                        />
+                                        <button type="button"
+                                            class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                            @click="openAssetPicker(item, 'image_url', 'image_alt')">
+                                            {{ $t('super_admin.sections.welcome.hero.choose_asset') }}
+                                        </button>
+                                    </div>
+
+                                    <div v-if="item.image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-950">
+                                        <img
+                                            :src="item.image_url"
+                                            :alt="item.image_alt || `${$t('super_admin.sections.welcome.hero.slide_image_alt')} ${index + 1}`"
+                                            class="h-36 w-full object-cover"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div v-if="isWelcomeFeaturesType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-4">
+                <div v-if="isWelcomeFeaturesType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-4 xl:col-span-2">
                     <div class="space-y-3">
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
@@ -1402,7 +1583,7 @@ syncFormFromProps(currentLocale.value);
                             </button>
                         </div>
 
-                        <div class="space-y-3">
+                        <div class="grid gap-3 xl:grid-cols-2">
                             <div v-for="(item, index) in form.content.feature_items" :key="item.key || `feature-item-${index}`"
                                 class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
                                 <div class="flex flex-wrap justify-end gap-2 text-xs">
@@ -1472,7 +1653,7 @@ syncFormFromProps(currentLocale.value);
                             </button>
                         </div>
 
-                        <div class="space-y-3">
+                        <div class="grid gap-3 xl:grid-cols-2">
                             <div v-for="(item, index) in form.content.secondary_feature_items" :key="item.key || `feature-secondary-item-${index}`"
                                 class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
                                 <div class="flex flex-wrap justify-end gap-2 text-xs">
@@ -1510,7 +1691,7 @@ syncFormFromProps(currentLocale.value);
                     </div>
                 </div>
 
-                <div v-if="isWelcomeWorkflowType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                <div v-if="isWelcomeWorkflowType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3 xl:col-span-2">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -1527,7 +1708,7 @@ syncFormFromProps(currentLocale.value);
                         </button>
                     </div>
 
-                    <div class="space-y-3">
+                    <div class="grid gap-3 xl:grid-cols-2">
                         <div v-for="(item, index) in form.content.preview_cards" :key="`workflow-step-${index}`"
                             class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
                             <div class="flex flex-wrap justify-end gap-2 text-xs">
@@ -1925,7 +2106,7 @@ syncFormFromProps(currentLocale.value);
                     </details>
                 </div>
 
-                <div v-if="isTestimonialType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700">
+                <div v-if="isTestimonialType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 xl:col-span-2">
                     <div class="mb-3">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ $t('super_admin.pages.testimonial.title') }}
@@ -1942,27 +2123,7 @@ syncFormFromProps(currentLocale.value);
                     </div>
                 </div>
 
-                <div v-if="showImageFields" class="grid gap-3 md:grid-cols-2">
-                    <div class="space-y-2">
-                        <FloatingInput v-model="form.content.image_url" :label="$t('super_admin.pages.common.image_url')" />
-                        <div class="flex flex-wrap items-center gap-2 text-xs">
-                            <button v-if="asset_list_url" type="button"
-                                class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
-                                @click="openAssetPicker(form.content)">
-                                {{ $t('super_admin.pages.assets.choose') }}
-                            </button>
-                            <span v-if="form.content.image_url" class="text-stone-500">
-                                {{ $t('super_admin.pages.assets.preview') }}
-                            </span>
-                        </div>
-                        <div v-if="form.content.image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white">
-                            <img :src="form.content.image_url" :alt="form.content.image_alt || form.content.title" class="h-36 w-full object-cover" loading="lazy" decoding="async" />
-                        </div>
-                    </div>
-                    <FloatingInput v-model="form.content.image_alt" :label="$t('super_admin.pages.common.image_alt')" />
-                </div>
-
-                <div v-if="isStoryGridType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                <div v-if="isStoryGridType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3 xl:col-span-2">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -1979,7 +2140,7 @@ syncFormFromProps(currentLocale.value);
                         </button>
                     </div>
 
-                    <div class="space-y-3">
+                    <div class="grid gap-3 xl:grid-cols-2">
                         <div v-for="(card, cardIndex) in form.content.story_cards" :key="card.id"
                             class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
                             <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -2038,7 +2199,7 @@ syncFormFromProps(currentLocale.value);
                     </div>
                 </div>
 
-                <div v-if="isFeatureTabsType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                <div v-if="isFeatureTabsType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3 xl:col-span-2">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -2266,7 +2427,7 @@ syncFormFromProps(currentLocale.value);
                     </div>
                 </div>
 
-                <div v-if="isTestimonialGridType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                <div v-if="isTestimonialGridType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3 xl:col-span-2">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -2283,7 +2444,7 @@ syncFormFromProps(currentLocale.value);
                         </button>
                     </div>
 
-                    <div class="space-y-3">
+                    <div class="grid gap-3 xl:grid-cols-2">
                         <div v-for="(card, cardIndex) in form.content.testimonial_cards" :key="card.id"
                             class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
                             <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -2346,7 +2507,7 @@ syncFormFromProps(currentLocale.value);
                     </div>
                 </div>
 
-                <div v-if="isIndustryGridType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                <div v-if="isIndustryGridType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3 xl:col-span-2">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -2363,7 +2524,7 @@ syncFormFromProps(currentLocale.value);
                         </button>
                     </div>
 
-                    <div class="space-y-3">
+                    <div class="grid gap-3 xl:grid-cols-2">
                         <div v-for="(card, cardIndex) in form.content.industry_cards" :key="card.id"
                             class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
                             <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -2401,7 +2562,7 @@ syncFormFromProps(currentLocale.value);
                     </div>
                 </div>
 
-                <div v-if="isFeaturePairsType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                <div v-if="isFeaturePairsType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3 xl:col-span-2">
                     <div>
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ $t('super_admin.pages.feature_pairs.secondary_title') }}
@@ -2454,12 +2615,6 @@ syncFormFromProps(currentLocale.value);
                     </div>
                 </div>
 
-                <div v-if="showActionFields" class="grid gap-3 md:grid-cols-4">
-                    <FloatingInput v-model="form.content.primary_label" :label="$t('super_admin.pages.common.primary_label')" />
-                    <FloatingInput v-model="form.content.primary_href" :label="$t('super_admin.pages.common.primary_href')" />
-                    <FloatingInput v-model="form.content.secondary_label" :label="$t('super_admin.pages.common.secondary_label')" />
-                    <FloatingInput v-model="form.content.secondary_href" :label="$t('super_admin.pages.common.secondary_href')" />
-                </div>
             </section>
         </div>
 

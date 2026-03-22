@@ -62,6 +62,10 @@ test('welcome page resolves reusable welcome sections from the page library', fu
                     'stats' => [
                         ['value' => '24/7', 'label' => 'Availability'],
                     ],
+                    'hero_images' => [
+                        ['image_url' => '/images/landing/hero-dashboard.svg', 'image_alt' => 'Hero dashboard'],
+                        ['image_url' => '/images/mega-menu/operations-suite.svg', 'image_alt' => 'Operations suite'],
+                    ],
                     'items' => ['Capture leads faster'],
                     'preview_cards' => [
                         ['title' => 'Quote faster', 'desc' => '<p>Use reusable pricing blocks.</p>'],
@@ -81,6 +85,10 @@ test('welcome page resolves reusable welcome sections from the page library', fu
                     'note' => '<p>Adopte par les equipes locales.</p>',
                     'stats' => [
                         ['value' => '24/7', 'label' => 'Disponibilite'],
+                    ],
+                    'hero_images' => [
+                        ['image_url' => '/images/landing/hero-dashboard.svg', 'image_alt' => 'Dashboard hero'],
+                        ['image_url' => '/images/mega-menu/operations-suite.svg', 'image_alt' => 'Suite operations'],
                     ],
                     'items' => ['Capturez vos leads plus vite'],
                     'preview_cards' => [
@@ -156,5 +164,6 @@ test('welcome page resolves reusable welcome sections from the page library', fu
                 'Pilotez l activite dans un seul flux',
             ], true))
             ->where('welcomeContent.hero.stats.0.value', '24/7')
+            ->where('welcomeContent.hero.hero_images.1.image_url', '/images/mega-menu/operations-suite.svg')
         );
 });

@@ -1507,6 +1507,8 @@ const headerMenuItems = computed(() => ([
 @import url('https://fonts.bunny.net/css?family=Cal+Sans:400&family=DM+Sans:400,500,600,700&family=Space+Grotesk:400,500,600,700&family=Sora:400,500,600,700&family=Work+Sans:400,500,600,700&display=swap');
 
 .public-page {
+    --public-shell-width: 88rem;
+    --public-shell-gutter: 1.25rem;
     min-height: 100vh;
     background: var(--page-bg, linear-gradient(180deg, #f8fafc 0%, #ffffff 40%, #ecfdf5 100%));
     color: var(--page-text, #0f172a);
@@ -1514,38 +1516,40 @@ const headerMenuItems = computed(() => ([
 }
 
 .public-container {
-    width: min(1100px, 92vw);
+    width: min(var(--public-shell-width), 100%);
     margin-inline: auto;
+    padding-inline: var(--public-shell-gutter);
 }
 
 .public-hero-container {
-    width: min(88rem, 100%);
+    width: min(var(--public-shell-width), 100%);
     margin-inline: auto;
-    padding-inline: 1.25rem;
+    padding-inline: var(--public-shell-gutter);
 }
 
 .public-container--embed {
-    width: min(1100px, 92vw);
+    width: min(var(--public-shell-width), 100%);
 }
 
 .public-container--duo {
     width: 100%;
+    padding-inline: 0;
 }
 
 .public-container--feature-pairs {
-    width: min(1100px, 92vw);
+    width: min(var(--public-shell-width), 100%);
 }
 
 .public-container--industry-grid {
-    width: min(1360px, 92vw);
+    width: min(var(--public-shell-width), 100%);
 }
 
 .public-container--story-grid {
-    width: min(1260px, 92vw);
+    width: min(var(--public-shell-width), 100%);
 }
 
 .public-container--feature-tabs {
-    width: min(1120px, 92vw);
+    width: min(var(--public-shell-width), 100%);
 }
 
 .public-section {
@@ -2695,7 +2699,7 @@ ul .public-feature-tabs__subitem::before {
     min-height: 100%;
     padding:
         clamp(2rem, 5vw, 4rem)
-        max(1.25rem, calc((100vw - min(1100px, 92vw)) / 2))
+        max(var(--public-shell-gutter), calc((100vw - min(var(--public-shell-width), 100vw)) / 2 + var(--public-shell-gutter)))
         clamp(2rem, 5vw, 4rem)
         clamp(1.5rem, 4vw, 3rem);
     background: var(--page-surface, #ffffff);
@@ -2706,7 +2710,7 @@ ul .public-feature-tabs__subitem::before {
         clamp(2rem, 5vw, 4rem)
         clamp(1.5rem, 4vw, 3rem)
         clamp(2rem, 5vw, 4rem)
-        max(1.25rem, calc((100vw - min(1100px, 92vw)) / 2));
+        max(var(--public-shell-gutter), calc((100vw - min(var(--public-shell-width), 100vw)) / 2 + var(--public-shell-gutter)));
 }
 
 .public-duo-panel-inner {
@@ -2889,12 +2893,6 @@ ul .public-feature-tabs__subitem::before {
 
 .public-inline-link--muted {
     color: var(--page-muted, #64748b);
-}
-
-@media (min-width: 1280px) {
-    .public-hero-container {
-        padding-inline: 2rem;
-    }
 }
 
 @media (min-width: 1024px) {

@@ -1,7 +1,7 @@
 # Speech detaille - Module Produits (32 minutes)
 
 ## Objectif de cette version
-Ce document sert a presenter en video le module produits de MLK Pro, avec:
+Ce document sert a presenter en video le module produits de Malikia pro, avec:
 - un script oral complet
 - une demo ecran minute par minute
 - l explication metier du flux retail de bout en bout
@@ -29,7 +29,7 @@ Ce document sert a presenter en video le module produits de MLK Pro, avec:
 ## 00:00 - 03:00 | Introduction: comment fonctionne le mode produits
 
 ### Speech a lire
-"Dans cette video, on se concentre sur le module produits de MLK Pro.
+"Dans cette video, on se concentre sur le module produits de Malikia pro.
 
 Ici, la plateforme gere un flux retail complet: catalogue, stock, boutique publique, commande, paiement, fulfillment, et mise a jour automatique du stock.
 
@@ -135,7 +135,7 @@ Un catalogue propre reduit les erreurs de preparation et de vente.
 ## 12:00 - 15:00 | Stock tracking: standard, lot, serial
 
 ### Speech a lire
-"MLK Pro gere plusieurs niveaux de tracking stock:
+"Malikia pro gere plusieurs niveaux de tracking stock:
 - standard: le plus simple
 - lot: utile pour tracer des lots et dates d expiration
 - serial: un numero de serie unique par unite
@@ -166,7 +166,7 @@ Le tracking est un choix strategique qui impacte toute l execution.
 ### Speech a lire
 "Maintenant, le coeur du pilotage stock.
 
-MLK Pro distingue:
+Malikia pro distingue:
 - On hand: stock physique present
 - Reserved: stock bloque par commandes pending
 - Available: on_hand - reserved
@@ -236,7 +236,7 @@ En pratique:
 - paid signifie paiement complet
 - canceled stoppe le flux et libere la reserve
 
-La force de MLK Pro est d imposer des transitions claires pour garder un etat de commande fiable entre equipe vente, preparation et comptabilite." 
+La force de Malikia pro est d imposer des transitions claires pour garder un etat de commande fiable entre equipe vente, preparation et comptabilite." 
 
 ### Actions ecran
 - Ouvrir `Sales` puis un detail de commande.
@@ -293,7 +293,7 @@ La commande est consideree reellement finalisee quand on a coherence entre paiem
 Autre logique utile en portal: un depot peut etre applique automatiquement dans certaines transitions pour securiser la commande.
 
 Le point le plus important:
-paiement, fulfillment et stock ne doivent jamais etre traites comme des blocs separes. Dans MLK Pro, ces 3 dimensions sont synchronisees." 
+paiement, fulfillment et stock ne doivent jamais etre traites comme des blocs separes. Dans Malikia pro, ces 3 dimensions sont synchronisees." 
 
 ### Actions ecran
 - Montrer ajout de paiement sur une commande.
