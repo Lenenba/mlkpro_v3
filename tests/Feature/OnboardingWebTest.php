@@ -4,6 +4,7 @@ use App\Models\ProductCategory;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\Notification;
+use Inertia\Testing\AssertableInertia as Assert;
 
 test('account owner can complete onboarding from the web', function () {
     Notification::fake();
@@ -98,4 +99,22 @@ test('owner cannot select a solo plan when invites or extra team size are provid
         ->assertSessionHasErrors(['plan_key']);
 
     expect($user->refresh()->onboarding_completed_at)->toBeNull();
+});
+
+test('onboarding preselects the requested pricing plan from the pricing page', function () {
+    $this->get(route('onboarding.index', ['plan' => 'starter']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Onboarding/Index')
+            ->where('selectedPlanKey', 'starter')
+            ->where('preset.company_team_size', 2)
+        );
+
+    $this->get(route('onboarding.index', ['plan' => 'solo_pro']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Onboarding/Index')
+            ->where('selectedPlanKey', 'solo_pro')
+            ->where('preset.company_team_size', 1)
+        );
 });

@@ -380,7 +380,7 @@ return [
             'highlighted_plan_key' => 'solo_pro',
         ],
         'team' => [
-            'order' => ['free', 'starter', 'growth', 'scale', 'enterprise'],
+            'order' => ['starter', 'growth', 'scale', 'enterprise'],
             'highlighted_plan_key' => 'growth',
         ],
     ],

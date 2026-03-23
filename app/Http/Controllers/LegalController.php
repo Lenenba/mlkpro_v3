@@ -165,6 +165,9 @@ class LegalController extends Controller
                     'description' => data_get($catalogDefaults, $key.'.description'),
                     'features' => $display['features'],
                     'badge' => $display['badge'],
+                    'audience' => (string) ($plan['audience'] ?? 'team'),
+                    'contact_only' => (bool) ($plan['contact_only'] ?? data_get($catalogDefaults, $key.'.contact_only', false)),
+                    'onboarding_enabled' => (bool) ($plan['onboarding_enabled'] ?? false),
                 ];
             })
             ->values()

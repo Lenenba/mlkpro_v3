@@ -69,13 +69,17 @@ class OnboardingController extends Controller
 
     public function index(Request $request)
     {
+        $selectedPlanKey = $this->requestedOnboardingPlanKey($request);
         $user = $request->user();
         if (! $user) {
             return $this->inertiaOrJson('Onboarding/Index', [
-                'preset' => (object) [],
+                'preset' => [
+                    'company_team_size' => $this->resolveInitialTeamSize(null, $selectedPlanKey),
+                ],
                 'plans' => $this->planOptions(),
                 'planLimits' => $this->planLimits(),
                 'supportedCurrencies' => CurrencyCode::values(),
+                'selectedPlanKey' => $selectedPlanKey,
             ]);
         }
 
@@ -102,13 +106,14 @@ class OnboardingController extends Controller
                 'currency_code' => $user->businessCurrencyCode(),
                 'company_type' => $user->company_type,
                 'company_sector' => $user->company_sector,
-                'company_team_size' => $user->company_team_size,
+                'company_team_size' => $this->resolveInitialTeamSize($user->company_team_size, $selectedPlanKey),
                 'two_factor_method' => $user->two_factor_method,
                 'onboarding_completed_at' => $user->onboarding_completed_at,
             ],
             'plans' => $this->planOptions($user),
             'planLimits' => $this->planLimits(),
             'supportedCurrencies' => CurrencyCode::values(),
+            'selectedPlanKey' => $selectedPlanKey,
         ]);
     }
 
@@ -677,6 +682,32 @@ class OnboardingController extends Controller
     private function planLimits(): array
     {
         return PlatformSetting::getValue('plan_limits', []);
+    }
+
+    private function requestedOnboardingPlanKey(Request $request): ?string
+    {
+        $planKey = trim((string) $request->query('plan', ''));
+
+        if ($planKey === '') {
+            return null;
+        }
+
+        return in_array($planKey, $this->planKeysForOnboarding(), true) ? $planKey : null;
+    }
+
+    private function resolveInitialTeamSize(mixed $currentTeamSize, ?string $selectedPlanKey): ?int
+    {
+        $currentSize = is_numeric($currentTeamSize) ? (int) $currentTeamSize : null;
+        if ($selectedPlanKey === null) {
+            return $currentSize;
+        }
+
+        $audience = (string) config('billing.plans.'.$selectedPlanKey.'.audience', 'team');
+        if ($audience === 'solo') {
+            return $currentSize !== null && $currentSize > 1 ? $currentSize : 1;
+        }
+
+        return $currentSize !== null && $currentSize > 1 ? $currentSize : 2;
     }
 
     private function validateSelectedPlanForOnboarding(
