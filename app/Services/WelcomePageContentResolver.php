@@ -31,13 +31,13 @@ class WelcomePageContentResolver
         $sectionContentService = app(PlatformSectionContentService::class);
 
         foreach ($pageSections as $pageSection) {
-            if (!is_array($pageSection) || array_key_exists('enabled', $pageSection) && !$pageSection['enabled']) {
+            if (! is_array($pageSection) || array_key_exists('enabled', $pageSection) && ! $pageSection['enabled']) {
                 continue;
             }
 
             $source = null;
             $sourceContent = [];
-            if (!empty($pageSection['use_source']) && !empty($pageSection['source_id'])) {
+            if (! empty($pageSection['use_source']) && ! empty($pageSection['source_id'])) {
                 $source = $sourceSections->get((int) $pageSection['source_id']);
                 if ($source) {
                     $sourceContent = $sectionContentService->resolveForLocale($source, $locale);

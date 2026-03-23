@@ -338,17 +338,19 @@ class PlatformSectionContentService
     {
         $merged = $default;
         foreach ($stored as $key => $value) {
-            if (!array_key_exists($key, $default)) {
+            if (! array_key_exists($key, $default)) {
                 continue;
             }
 
             if (is_array($value) && is_array($default[$key])) {
                 if (array_is_list($value) || array_is_list($default[$key])) {
                     $merged[$key] = $value;
+
                     continue;
                 }
 
                 $merged[$key] = $this->mergeContent($default[$key], $value);
+
                 continue;
             }
 
@@ -360,7 +362,7 @@ class PlatformSectionContentService
 
     private function sanitizeStringList($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
@@ -369,13 +371,13 @@ class PlatformSectionContentService
 
     private function sanitizeFeatureItems($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $sanitized = [];
         foreach (array_values($items) as $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
@@ -391,13 +393,13 @@ class PlatformSectionContentService
 
     private function sanitizePreviewCards($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $sanitized = [];
         foreach (array_values($items) as $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
@@ -412,13 +414,13 @@ class PlatformSectionContentService
 
     private function sanitizeStatItems($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $sanitized = [];
         foreach (array_values($items) as $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
@@ -433,13 +435,13 @@ class PlatformSectionContentService
 
     private function sanitizeHeroImages($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $sanitized = [];
         foreach (array_values($items) as $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
@@ -459,13 +461,13 @@ class PlatformSectionContentService
 
     private function sanitizeFooterGroups($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $groups = [];
         foreach (array_values($items) as $index => $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
@@ -493,13 +495,13 @@ class PlatformSectionContentService
 
     private function sanitizeFooterLinks($items, string $prefix = 'footer-link'): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $links = [];
         foreach (array_values($items) as $index => $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
@@ -522,13 +524,13 @@ class PlatformSectionContentService
 
     private function sanitizeIndustryCards($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $cards = [];
         foreach (array_values($items) as $index => $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
@@ -551,13 +553,13 @@ class PlatformSectionContentService
 
     private function sanitizeStoryCards($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $cards = [];
         foreach (array_values($items) as $index => $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
@@ -582,13 +584,13 @@ class PlatformSectionContentService
 
     private function sanitizeFeatureTabs($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $tabs = [];
         foreach (array_values($items) as $index => $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
@@ -624,13 +626,13 @@ class PlatformSectionContentService
 
     private function sanitizeTestimonialCards($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $cards = [];
         foreach (array_values($items) as $index => $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
@@ -657,13 +659,13 @@ class PlatformSectionContentService
 
     private function sanitizeFeatureTabChildren($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $children = [];
         foreach (array_values($items) as $index => $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
 
@@ -718,7 +720,7 @@ class PlatformSectionContentService
 
     private function stringify($value): string
     {
-        if (!is_string($value) && !is_numeric($value)) {
+        if (! is_string($value) && ! is_numeric($value)) {
             return '';
         }
 
@@ -760,17 +762,17 @@ class PlatformSectionContentService
             return '';
         }
 
-        $allowed = '<' . implode('><', self::ALLOWED_HTML_TAGS) . '>';
+        $allowed = '<'.implode('><', self::ALLOWED_HTML_TAGS).'>';
         $html = strip_tags($html, $allowed);
 
         $previous = libxml_use_internal_errors(true);
         $doc = new \DOMDocument('1.0', 'UTF-8');
-        $doc->loadHTML('<div>' . $html . '</div>', \LIBXML_HTML_NOIMPLIED | \LIBXML_HTML_NODEFDTD);
+        $doc->loadHTML('<div>'.$html.'</div>', \LIBXML_HTML_NOIMPLIED | \LIBXML_HTML_NODEFDTD);
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
 
         $root = $doc->getElementsByTagName('div')->item(0);
-        if (!$root) {
+        if (! $root) {
             return '';
         }
 
@@ -786,7 +788,7 @@ class PlatformSectionContentService
 
     private function sanitizeHtmlNode(\DOMNode $node): void
     {
-        if (!$node->hasChildNodes()) {
+        if (! $node->hasChildNodes()) {
             return;
         }
 
@@ -794,9 +796,10 @@ class PlatformSectionContentService
         foreach (iterator_to_array($node->childNodes) as $child) {
             if ($child instanceof \DOMElement) {
                 $tag = strtolower($child->tagName);
-                if (!in_array($tag, $allowedTags, true)) {
+                if (! in_array($tag, $allowedTags, true)) {
                     $text = $child->textContent ?? '';
                     $node->replaceChild($node->ownerDocument->createTextNode($text), $child);
+
                     continue;
                 }
 
@@ -804,11 +807,11 @@ class PlatformSectionContentService
                 if ($child->hasAttributes()) {
                     for ($i = $child->attributes->length - 1; $i >= 0; $i--) {
                         $attribute = $child->attributes->item($i);
-                        if (!$attribute) {
+                        if (! $attribute) {
                             continue;
                         }
                         $name = strtolower($attribute->name);
-                        if (!in_array($name, $allowedAttributes, true)) {
+                        if (! in_array($name, $allowedAttributes, true)) {
                             $child->removeAttribute($attribute->name);
                         }
                     }
@@ -831,6 +834,7 @@ class PlatformSectionContentService
                     $src = $this->sanitizeUrl($child->getAttribute('src'), 'image');
                     if ($src === null) {
                         $node->removeChild($child);
+
                         continue;
                     }
                     $child->setAttribute('src', $src);
