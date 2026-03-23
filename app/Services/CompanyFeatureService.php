@@ -43,6 +43,11 @@ class CompanyFeatureService
         'team_members',
     ];
 
+    private const OWNER_ONLY_ALLOWED_OVERRIDE_MODULES = [
+        'assistant',
+        'sales',
+    ];
+
     private array $featureCache = [];
 
     public function resolveEffectiveFeatures(User $user): array
@@ -77,6 +82,16 @@ class CompanyFeatureService
         }
 
         if ($planKey && app(BillingPlanService::class)->isOwnerOnlyPlan($planKey)) {
+            $allowedOverrides = array_flip(self::OWNER_ONLY_ALLOWED_OVERRIDE_MODULES);
+
+            foreach (($planModules[$planKey] ?? []) as $moduleKey => $enabledByPlan) {
+                if ($enabledByPlan || array_key_exists($moduleKey, $allowedOverrides)) {
+                    continue;
+                }
+
+                $features[$moduleKey] = false;
+            }
+
             foreach (self::OWNER_ONLY_FORCED_DISABLED_MODULES as $moduleKey) {
                 $features[$moduleKey] = false;
             }
@@ -165,15 +180,57 @@ class CompanyFeatureService
     /**
      * @return array<string, array<string, bool>>
      */
-    private function resolvePlanModules(): array
+    public function resolvePlanModules(): array
     {
+        $defaults = self::defaultPlanModules();
         $configuredModules = PlatformSetting::getValue('plan_modules', []);
-
-        if (is_array($configuredModules) && $configuredModules !== []) {
-            return $configuredModules;
+        if (! is_array($configuredModules) || $configuredModules === []) {
+            return $defaults;
         }
 
-        return self::defaultPlanModules();
+        $billingPlanService = app(BillingPlanService::class);
+        $resolved = $defaults;
+
+        foreach ($configuredModules as $planKey => $modules) {
+            if (! is_array($modules)) {
+                continue;
+            }
+
+            $isOwnerOnlyPlan = $billingPlanService->isOwnerOnlyPlan((string) $planKey);
+            $defaultPlanModules = $defaults[$planKey] ?? [];
+
+            if (! $isOwnerOnlyPlan) {
+                $resolved[$planKey] = collect($modules)
+                    ->map(fn ($enabled): bool => (bool) $enabled)
+                    ->all();
+
+                continue;
+            }
+
+            $resolved[$planKey] = $defaultPlanModules;
+
+            foreach ($modules as $moduleKey => $enabled) {
+                if (array_key_exists($moduleKey, $defaultPlanModules)) {
+                    $resolved[$planKey][$moduleKey] = (bool) ($defaultPlanModules[$moduleKey] && $enabled);
+
+                    continue;
+                }
+
+                $resolved[$planKey][$moduleKey] = (bool) $enabled;
+            }
+        }
+
+        foreach ($resolved as $planKey => $modules) {
+            if (! $billingPlanService->isOwnerOnlyPlan((string) $planKey)) {
+                continue;
+            }
+
+            foreach (self::OWNER_ONLY_FORCED_DISABLED_MODULES as $moduleKey) {
+                $resolved[$planKey][$moduleKey] = false;
+            }
+        }
+
+        return $resolved;
     }
 
     /**

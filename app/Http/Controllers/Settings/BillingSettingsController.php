@@ -185,7 +185,7 @@ class BillingSettingsController extends Controller
                 ->all();
 
         $subscriptionSummary = $billingService->subscriptionSummary($user);
-        $planModules = PlatformSetting::getValue('plan_modules', []);
+        $planModules = app(CompanyFeatureService::class)->resolvePlanModules();
         $planKey = $billingService->resolvePlanKey($user, $planModules);
         $seatQuantity = $billingService->resolveBillableQuantity($user, $planKey);
         $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
@@ -321,7 +321,7 @@ class BillingSettingsController extends Controller
             ], 422);
         }
 
-        $planModules = PlatformSetting::getValue('plan_modules', []);
+        $planModules = app(CompanyFeatureService::class)->resolvePlanModules();
         $planKey = $billingService->resolvePlanKey($user, $planModules);
         $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
         if ($assistantIncluded) {
@@ -404,7 +404,7 @@ class BillingSettingsController extends Controller
             ], 422);
         }
 
-        $planModules = PlatformSetting::getValue('plan_modules', []);
+        $planModules = app(CompanyFeatureService::class)->resolvePlanModules();
         $planKey = $billingService->resolvePlanKey($user, $planModules);
         $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
         if ($assistantIncluded) {

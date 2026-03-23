@@ -31,6 +31,19 @@ class UsageLimitService
         'assistant_requests' => 'AI assistant requests',
     ];
 
+    private const LIMIT_FEATURE_MAP = [
+        'quotes' => 'quotes',
+        'requests' => 'requests',
+        'plan_scan_quotes' => 'plan_scans',
+        'invoices' => 'invoices',
+        'jobs' => 'jobs',
+        'products' => 'products',
+        'services' => 'services',
+        'tasks' => 'tasks',
+        'team_members' => 'team_members',
+        'assistant_requests' => 'assistant',
+    ];
+
     public function buildForUser(User $user): array
     {
         $accountOwner = $this->resolveAccountOwner($user);
@@ -40,10 +53,16 @@ class UsageLimitService
         $isOwnerOnlyPlan = $planKey ? app(BillingPlanService::class)->isOwnerOnlyPlan($planKey) : false;
         $planDefaults = $planKey ? ($planLimits[$planKey] ?? []) : [];
         $overrides = $accountOwner->company_limits ?? [];
+        $features = app(CompanyFeatureService::class)->resolveEffectiveFeatures($accountOwner);
 
         $items = [];
         foreach (self::LIMIT_KEYS as $key => $label) {
             if ($isOwnerOnlyPlan && $key === 'team_members') {
+                continue;
+            }
+
+            $featureKey = self::LIMIT_FEATURE_MAP[$key] ?? null;
+            if ($featureKey && ! (bool) ($features[$featureKey] ?? false)) {
                 continue;
             }
 

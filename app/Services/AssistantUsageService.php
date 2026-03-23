@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\AssistantUsage;
-use App\Models\PlatformSetting;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -62,7 +61,7 @@ class AssistantUsageService
     private function shouldSendUsage(User $owner): bool
     {
         $billingService = app(BillingSubscriptionService::class);
-        if (!$billingService->isStripe()) {
+        if (! $billingService->isStripe()) {
             return false;
         }
 
@@ -71,11 +70,11 @@ class AssistantUsageService
             return false;
         }
 
-        if (!config('services.stripe.ai_usage_price')) {
+        if (! config('services.stripe.ai_usage_price')) {
             return false;
         }
 
-        $planModules = PlatformSetting::getValue('plan_modules', []);
+        $planModules = app(CompanyFeatureService::class)->resolvePlanModules();
         $planKey = $billingService->resolvePlanKey($owner, $planModules);
         $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
         if ($assistantIncluded) {
@@ -88,7 +87,7 @@ class AssistantUsageService
     private function syncStripeUsage(User $owner, AssistantUsage $record): void
     {
         $stripeService = app(StripeBillingService::class);
-        if (!$stripeService->isConfigured()) {
+        if (! $stripeService->isConfigured()) {
             return;
         }
 

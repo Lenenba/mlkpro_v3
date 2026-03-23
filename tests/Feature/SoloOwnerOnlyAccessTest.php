@@ -5,6 +5,7 @@ use App\Models\Billing\StripeSubscription;
 use App\Models\Customer;
 use App\Models\Plan;
 use App\Models\PlanPrice;
+use App\Models\PlatformSetting;
 use App\Models\ReservationResource;
 use App\Models\ReservationSetting;
 use App\Models\Role;
@@ -14,6 +15,7 @@ use App\Models\TeamMemberShift;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
 use App\Models\Work;
+use App\Services\CompanyFeatureService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -80,6 +82,14 @@ function assignSoloSubscription(User $owner, string $planCode = 'solo_pro'): voi
     ]);
 }
 
+function setStaleSoloPlanModules(string $planCode = 'solo_pro'): void
+{
+    $planModules = CompanyFeatureService::defaultPlanModules();
+    $planModules[$planCode] = array_fill_keys(array_keys($planModules[$planCode] ?? []), true);
+
+    PlatformSetting::setValue('plan_modules', $planModules);
+}
+
 beforeEach(function () {
     config()->set('billing.provider_effective', 'stripe');
     config()->set('billing.provider', 'stripe');
@@ -109,6 +119,94 @@ test('owner-only solo plans keep team and presence modules unavailable even with
         ->getJson(route('presence.index'))
         ->assertForbidden()
         ->assertJsonPath('message', 'Module unavailable for your plan.');
+});
+
+test('solo pro ignores stale platform plan module flags and hides unavailable dashboard modules', function () {
+    setStaleSoloPlanModules('solo_pro');
+
+    $owner = createOwnerOnlySoloTenant([
+        'company_type' => 'products',
+        'company_features' => [
+            'sales' => true,
+            'campaigns' => true,
+            'plan_scans' => true,
+        ],
+    ]);
+    assignSoloSubscription($owner, 'solo_pro');
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('DashboardProductsOwner')
+            ->where('auth.account.features', fn ($features) => collect($features)->has('sales')
+                && ! collect($features)->has('campaigns')
+                && ! collect($features)->has('assistant')
+                && ! collect($features)->has('plan_scans')
+                && ! collect($features)->has('loyalty')
+                && ! collect($features)->has('planning')
+                && ! collect($features)->has('reservations')
+                && ! collect($features)->has('team_members')
+                && ! collect($features)->has('presence'))
+            ->where('marketingKpis', null)
+        );
+});
+
+test('solo pro billing settings do not mark assistant or loyalty as included when stored plan modules are stale', function () {
+    setStaleSoloPlanModules('solo_pro');
+
+    $owner = createOwnerOnlySoloTenant([
+        'company_type' => 'products',
+        'company_features' => [
+            'sales' => true,
+            'campaigns' => true,
+        ],
+    ]);
+    assignSoloSubscription($owner, 'solo_pro');
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('settings.billing.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('assistantAddon.included', false)
+            ->where('assistantAddon.enabled', false)
+            ->where('loyaltyProgram.feature_enabled', false)
+        );
+});
+
+test('solo pro usage alerts ignore unavailable modules when stale plan settings still enable them', function () {
+    setStaleSoloPlanModules('solo_pro');
+
+    $owner = createOwnerOnlySoloTenant([
+        'company_type' => 'services',
+        'company_features' => [
+            'campaigns' => true,
+            'plan_scans' => true,
+        ],
+    ]);
+    assignSoloSubscription($owner, 'solo_pro');
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->where('auth.account.features', fn ($features) => ! collect($features)->has('campaigns')
+                && ! collect($features)->has('assistant')
+                && ! collect($features)->has('plan_scans')
+                && ! collect($features)->has('loyalty')
+                && ! collect($features)->has('planning')
+                && ! collect($features)->has('reservations')
+                && ! collect($features)->has('team_members')
+                && ! collect($features)->has('presence'))
+            ->where('marketingKpis', null)
+            ->where('usage_limits.items', fn ($items) => ! collect($items)->pluck('key')->contains('assistant_requests')
+                && ! collect($items)->pluck('key')->contains('plan_scan_quotes')
+                && ! collect($items)->pluck('key')->contains('team_members'))
+        );
 });
 
 test('owner-only solo plans hide collaborative settings and usage limits', function () {

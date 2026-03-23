@@ -134,6 +134,17 @@ it('marks solo plans as owner-only and bills a single seat for them', function (
         ->and(app(BillingSubscriptionService::class)->resolveBillableQuantity($owner, 'growth'))->toBe(4);
 });
 
+it('configures unlimited fundamentals for every plan', function () {
+    $fundamentalKeys = ['quotes', 'requests', 'invoices', 'products', 'services'];
+
+    foreach (array_keys(config('billing.plans', [])) as $planCode) {
+        foreach ($fundamentalKeys as $key) {
+            expect(data_get(config('billing.plans'), $planCode.'.default_limits.'.$key))
+                ->toBeNull();
+        }
+    }
+});
+
 it('builds a tenant-aware stripe checkout payload from a resolved plan price', function () {
     $tenant = User::factory()->create([
         'currency_code' => 'EUR',
