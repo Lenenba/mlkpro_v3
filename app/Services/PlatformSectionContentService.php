@@ -8,7 +8,7 @@ class PlatformSectionContentService
 {
     private const LOCALES = ['fr', 'en'];
 
-    private const LAYOUTS = ['split', 'duo', 'stack', 'contact', 'testimonial', 'feature_pairs', 'industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid', 'footer'];
+    private const LAYOUTS = ['split', 'duo', 'stack', 'contact', 'testimonial', 'feature_pairs', 'showcase_cta', 'industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid', 'footer'];
 
     private const IMAGE_POSITIONS = ['left', 'right'];
 
@@ -183,10 +183,10 @@ class PlatformSectionContentService
         return [
             'layout' => $defaultLayout,
             'background_color' => $this->defaultBackgroundColorForLayout($defaultLayout),
-            'image_position' => $defaultLayout === 'testimonial' ? 'right' : 'left',
+            'image_position' => in_array($defaultLayout, ['testimonial', 'showcase_cta'], true) ? 'right' : 'left',
             'alignment' => 'left',
             'density' => 'normal',
-            'tone' => $defaultLayout === 'duo' ? 'contrast' : 'default',
+            'tone' => in_array($defaultLayout, ['duo', 'showcase_cta'], true) ? 'contrast' : 'default',
             'kicker' => '',
             'title' => '',
             'body' => '',
@@ -224,6 +224,9 @@ class PlatformSectionContentService
             'primary_href' => '',
             'secondary_label' => '',
             'secondary_href' => '',
+            'showcase_badge_label' => '',
+            'showcase_badge_value' => '',
+            'showcase_badge_note' => '',
             'copy' => '',
             'brand_logo_url' => '',
             'brand_logo_alt' => '',
@@ -308,6 +311,9 @@ class PlatformSectionContentService
             'primary_href' => $this->cleanText($section['primary_href'] ?? ''),
             'secondary_label' => $this->cleanText($section['secondary_label'] ?? ''),
             'secondary_href' => $this->cleanText($section['secondary_href'] ?? ''),
+            'showcase_badge_label' => $this->cleanText($section['showcase_badge_label'] ?? ''),
+            'showcase_badge_value' => $this->cleanText($section['showcase_badge_value'] ?? ''),
+            'showcase_badge_note' => $this->cleanText($section['showcase_badge_note'] ?? ''),
             'copy' => $this->cleanText($section['copy'] ?? ''),
             'brand_logo_url' => $this->cleanImageValue($section['brand_logo_url'] ?? ''),
             'brand_logo_alt' => $this->cleanText($section['brand_logo_alt'] ?? ''),
@@ -894,6 +900,7 @@ class PlatformSectionContentService
             'welcome_features' => 'stack',
             'welcome_workflow' => 'split',
             'feature_pairs' => 'feature_pairs',
+            'showcase_cta' => 'showcase_cta',
             'industry_grid' => 'industry_grid',
             'story_grid' => 'story_grid',
             'feature_tabs' => 'feature_tabs',
@@ -908,6 +915,7 @@ class PlatformSectionContentService
         return match ($layout) {
             'duo' => '#0f172a',
             'testimonial' => '#e5ecef',
+            'showcase_cta' => '#202322',
             'industry_grid' => '#f7f2e8',
             'story_grid' => '#f7f2e8',
             'feature_tabs' => '#f7f2e8',

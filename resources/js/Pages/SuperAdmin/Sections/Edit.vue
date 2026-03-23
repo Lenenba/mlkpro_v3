@@ -423,6 +423,28 @@ const sectionTypePreset = (type) => {
         };
     }
 
+    if (type === 'showcase_cta') {
+        return {
+            layout: 'showcase_cta',
+            background_color: '#202322',
+            image_position: 'right',
+            alignment: 'left',
+            density: 'normal',
+            tone: 'contrast',
+            title: currentLocale.value === 'fr'
+                ? 'Essayez-le gratuitement. Voyez si ca colle a votre operation.'
+                : 'Try it free. See how it fits your operation.',
+            body: currentLocale.value === 'fr'
+                ? '<p>Presentez votre plateforme, votre visite produit ou votre experience mobile avec un bloc plus editorial et plus vendeur.</p>'
+                : '<p>Showcase your platform, product tour, or mobile experience with a more editorial conversion block.</p>',
+            primary_label: currentLocale.value === 'fr' ? 'Commencer gratuitement' : 'Get started free',
+            aside_link_label: currentLocale.value === 'fr' ? 'Voir la visite produit' : 'Watch product tour',
+            showcase_badge_label: currentLocale.value === 'fr' ? 'Adopte par' : 'Trusted by',
+            showcase_badge_value: '+120,000',
+            showcase_badge_note: currentLocale.value === 'fr' ? 'pros du service' : 'service pros',
+        };
+    }
+
     if (type === 'industry_grid') {
         return {
             layout: 'industry_grid',
@@ -673,6 +695,9 @@ const ensureStructure = (content, type = form.type) => {
         primary_href: content?.primary_href || '',
         secondary_label: content?.secondary_label || '',
         secondary_href: content?.secondary_href || '',
+        showcase_badge_label: content?.showcase_badge_label ?? preset.showcase_badge_label ?? '',
+        showcase_badge_value: content?.showcase_badge_value ?? preset.showcase_badge_value ?? '',
+        showcase_badge_note: content?.showcase_badge_note ?? preset.showcase_badge_note ?? '',
         copy: content?.copy ?? preset.copy ?? '',
         brand_logo_url: content?.brand_logo_url ?? preset.brand_logo_url ?? '',
         brand_logo_alt: content?.brand_logo_alt ?? preset.brand_logo_alt ?? '',
@@ -747,6 +772,9 @@ watch(
             primary_href: current.primary_href || next.primary_href || '',
             secondary_label: current.secondary_label || next.secondary_label || '',
             secondary_href: current.secondary_href || next.secondary_href || '',
+            showcase_badge_label: current.showcase_badge_label || next.showcase_badge_label || '',
+            showcase_badge_value: current.showcase_badge_value || next.showcase_badge_value || '',
+            showcase_badge_note: current.showcase_badge_note || next.showcase_badge_note || '',
             copy: current.copy || next.copy || '',
             brand_logo_url: current.brand_logo_url || next.brand_logo_url || '',
             brand_logo_alt: current.brand_logo_alt || next.brand_logo_alt || '',
@@ -778,6 +806,7 @@ watch(
 const isDuoType = computed(() => form.type === 'duo');
 const isTestimonialType = computed(() => form.type === 'testimonial');
 const isFeaturePairsType = computed(() => form.type === 'feature_pairs');
+const isShowcaseCtaType = computed(() => form.type === 'showcase_cta');
 const isIndustryGridType = computed(() => form.type === 'industry_grid');
 const isStoryGridType = computed(() => form.type === 'story_grid');
 const isFeatureTabsType = computed(() => form.type === 'feature_tabs');
@@ -794,6 +823,7 @@ const usesEnhancedLayout = computed(() => (
     isDuoType.value
     || isTestimonialType.value
     || isFeaturePairsType.value
+    || isShowcaseCtaType.value
     || isIndustryGridType.value
     || isStoryGridType.value
     || isFeatureTabsType.value
@@ -806,10 +836,11 @@ const usesEnhancedLayout = computed(() => (
     || isWelcomeCtaType.value
     || isWelcomeCustomType.value
 ));
-const showImagePosition = computed(() => isDuoType.value || isTestimonialType.value);
+const showImagePosition = computed(() => isDuoType.value || isTestimonialType.value || isShowcaseCtaType.value);
 const showItemsField = computed(() => (
     !isFooterType.value
     && !isTestimonialType.value
+    && !isShowcaseCtaType.value
     && !isIndustryGridType.value
     && !isStoryGridType.value
     && !isFeatureTabsType.value
@@ -826,7 +857,8 @@ const itemsFieldLabel = computed(() => (
         : t('super_admin.pages.fields.items')
 ));
 const showImageFields = computed(() => (
-    !isIndustryGridType.value
+    !isShowcaseCtaType.value
+    && !isIndustryGridType.value
     && !isStoryGridType.value
     && !isFeatureTabsType.value
     && !isTestimonialGridType.value
@@ -2559,6 +2591,68 @@ syncFormFromProps(currentLocale.value);
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <div v-if="isShowcaseCtaType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-4 xl:col-span-2">
+                    <div>
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('super_admin.pages.showcase_cta.title') }}
+                        </h2>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.pages.showcase_cta.subtitle') }}
+                        </p>
+                    </div>
+
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <div class="space-y-2">
+                            <FloatingInput v-model="form.content.image_url" :label="$t('super_admin.pages.common.image_url')" />
+                            <div class="flex flex-wrap items-center gap-2 text-xs">
+                                <button v-if="asset_list_url" type="button"
+                                    class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                    @click="openAssetPicker(form.content)">
+                                    {{ $t('super_admin.pages.assets.choose') }}
+                                </button>
+                                <span v-if="form.content.image_url" class="text-stone-500">
+                                    {{ $t('super_admin.pages.assets.preview') }}
+                                </span>
+                            </div>
+                            <div v-if="form.content.image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white">
+                                <img :src="form.content.image_url" :alt="form.content.image_alt || form.content.title" class="h-36 w-full object-cover" loading="lazy" decoding="async" />
+                            </div>
+                        </div>
+                        <FloatingInput v-model="form.content.image_alt" :label="$t('super_admin.pages.common.image_alt')" />
+                    </div>
+
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <FloatingInput v-model="form.content.aside_link_label" :label="$t('super_admin.pages.common.showcase_overlay_label')" />
+                        <FloatingInput v-model="form.content.aside_link_href" :label="$t('super_admin.pages.common.showcase_overlay_href')" />
+                    </div>
+
+                    <div class="grid gap-3 md:grid-cols-3">
+                        <FloatingInput v-model="form.content.showcase_badge_label" :label="$t('super_admin.pages.common.showcase_badge_label')" />
+                        <FloatingInput v-model="form.content.showcase_badge_value" :label="$t('super_admin.pages.common.showcase_badge_value')" />
+                        <FloatingInput v-model="form.content.showcase_badge_note" :label="$t('super_admin.pages.common.showcase_badge_note')" />
+                    </div>
+
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <div class="space-y-2">
+                            <FloatingInput v-model="form.content.aside_image_url" :label="$t('super_admin.pages.common.showcase_floating_image_url')" />
+                            <div class="flex flex-wrap items-center gap-2 text-xs">
+                                <button v-if="asset_list_url" type="button"
+                                    class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                    @click="openAssetPicker(form.content, 'aside_image_url', 'aside_image_alt')">
+                                    {{ $t('super_admin.pages.assets.choose') }}
+                                </button>
+                                <span v-if="form.content.aside_image_url" class="text-stone-500">
+                                    {{ $t('super_admin.pages.assets.preview') }}
+                                </span>
+                            </div>
+                            <div v-if="form.content.aside_image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white">
+                                <img :src="form.content.aside_image_url" :alt="form.content.aside_image_alt || form.content.title" class="h-36 w-full object-cover" loading="lazy" decoding="async" />
+                            </div>
+                        </div>
+                        <FloatingInput v-model="form.content.aside_image_alt" :label="$t('super_admin.pages.common.showcase_floating_image_alt')" />
                     </div>
                 </div>
 

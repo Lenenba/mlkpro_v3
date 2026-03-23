@@ -1680,6 +1680,7 @@
         "duo": "2 blocks (image + color panel)",
         "testimonial": "Testimonial (quote + image)",
         "feature_pairs": "2 images + 2 text blocks",
+        "showcase_cta": "Showcase CTA (hero + layered media)",
         "industry_grid": "Industries (card grid)",
         "story_grid": "Visual triptych (3 cards)",
         "feature_tabs": "Feature tabs (accordion + media)",
@@ -1785,6 +1786,13 @@
         "aside_link_href": "Right column href/route",
         "aside_image_url": "Block 2 image URL",
         "aside_image_alt": "Block 2 image alt text",
+        "showcase_overlay_label": "Media overlay label",
+        "showcase_overlay_href": "Media overlay href/route",
+        "showcase_badge_label": "Badge label",
+        "showcase_badge_value": "Badge highlight",
+        "showcase_badge_note": "Badge note",
+        "showcase_floating_image_url": "Floating image URL",
+        "showcase_floating_image_alt": "Floating image alt text",
         "image_url": "Image URL",
         "image_alt": "Image alt text",
         "embed_url": "Embedded form URL",
@@ -1823,6 +1831,10 @@
       "feature_pairs": {
         "secondary_title": "Text + image block 2",
         "secondary_subtitle": "Configure the alternate secondary content and image."
+      },
+      "showcase_cta": {
+        "title": "Layered media showcase",
+        "subtitle": "Configure the main visual, floating device mockup, media overlay, and trust badge."
       },
       "industry_grid": {
         "cards_title": "Industry cards",
@@ -2033,6 +2045,7 @@
         "duo": "Reusable 2-block",
         "testimonial": "Reusable testimonial",
         "feature_pairs": "Reusable 2 images + 2 text blocks",
+        "showcase_cta": "Reusable showcase CTA",
         "industry_grid": "Reusable industries",
         "story_grid": "Reusable visual triptych",
         "feature_tabs": "Reusable feature tabs",

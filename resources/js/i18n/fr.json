@@ -1680,6 +1680,7 @@
         "duo": "2 blocs (image + bloc couleur)",
         "testimonial": "Temoignage (citation + image)",
         "feature_pairs": "2 images + 2 textes",
+        "showcase_cta": "Showcase CTA (hero + media superposes)",
         "industry_grid": "Industries (grille de cartes)",
         "story_grid": "Triptyque visuel (3 cartes)",
         "feature_tabs": "Onglets fonctionnels (accordeon + media)",
@@ -1785,6 +1786,13 @@
         "aside_link_href": "Lien/route colonne droite",
         "aside_image_url": "URL image bloc 2",
         "aside_image_alt": "Texte alternatif image bloc 2",
+        "showcase_overlay_label": "Label overlay media",
+        "showcase_overlay_href": "Lien/route overlay media",
+        "showcase_badge_label": "Label badge",
+        "showcase_badge_value": "Valeur badge",
+        "showcase_badge_note": "Note badge",
+        "showcase_floating_image_url": "URL image flottante",
+        "showcase_floating_image_alt": "Texte alternatif image flottante",
         "image_url": "URL image",
         "image_alt": "Texte alternatif",
         "embed_url": "URL du formulaire embarque",
@@ -1823,6 +1831,10 @@
       "feature_pairs": {
         "secondary_title": "Bloc texte + image 2",
         "secondary_subtitle": "Configurez le second contenu et son visuel alterne."
+      },
+      "showcase_cta": {
+        "title": "Showcase media superposes",
+        "subtitle": "Configurez le visuel principal, le mockup flottant, l overlay media et le badge de confiance."
       },
       "industry_grid": {
         "cards_title": "Cartes industries",
@@ -2033,6 +2045,7 @@
         "duo": "2 blocs reutilisables",
         "testimonial": "Temoignage reutilisable",
         "feature_pairs": "2 images + 2 textes reutilisable",
+        "showcase_cta": "Showcase CTA reutilisable",
         "industry_grid": "Industries reutilisable",
         "story_grid": "Triptyque visuel reutilisable",
         "feature_tabs": "Onglets fonctionnels reutilisable",

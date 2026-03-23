@@ -172,6 +172,9 @@ class PlatformPageContentService
                     'primary_href' => $this->cleanText($section['primary_href'] ?? ''),
                     'secondary_label' => $this->cleanText($section['secondary_label'] ?? ''),
                     'secondary_href' => $this->cleanText($section['secondary_href'] ?? ''),
+                    'showcase_badge_label' => $this->cleanText($section['showcase_badge_label'] ?? ''),
+                    'showcase_badge_value' => $this->cleanText($section['showcase_badge_value'] ?? ''),
+                    'showcase_badge_note' => $this->cleanText($section['showcase_badge_note'] ?? ''),
                 ];
             })
             ->filter()
@@ -280,6 +283,9 @@ class PlatformPageContentService
             'primary_href' => '',
             'secondary_label' => '',
             'secondary_href' => '',
+            'showcase_badge_label' => '',
+            'showcase_badge_value' => '',
+            'showcase_badge_note' => '',
         ];
     }
 
@@ -363,6 +369,9 @@ class PlatformPageContentService
                 'primary_href' => $this->cleanText($section['primary_href'] ?? ''),
                 'secondary_label' => $this->cleanText($section['secondary_label'] ?? ''),
                 'secondary_href' => $this->cleanText($section['secondary_href'] ?? ''),
+                'showcase_badge_label' => $this->cleanText($section['showcase_badge_label'] ?? ''),
+                'showcase_badge_value' => $this->cleanText($section['showcase_badge_value'] ?? ''),
+                'showcase_badge_note' => $this->cleanText($section['showcase_badge_note'] ?? ''),
             ];
         }
 
@@ -805,7 +814,7 @@ class PlatformPageContentService
     {
         $layout = $this->cleanText($value);
 
-        return in_array($layout, ['split', 'duo', 'stack', 'contact', 'testimonial', 'feature_pairs', 'industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid'], true) ? $layout : 'split';
+        return in_array($layout, ['split', 'duo', 'stack', 'contact', 'testimonial', 'feature_pairs', 'showcase_cta', 'industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid'], true) ? $layout : 'split';
     }
 
     private function cleanAlignment($value): string
@@ -1089,6 +1098,9 @@ class PlatformPageContentService
         $section['primary_href'] = $section['primary_href'] !== '' ? $section['primary_href'] : ($source['primary_href'] ?? '');
         $section['secondary_label'] = $section['secondary_label'] !== '' ? $section['secondary_label'] : ($source['secondary_label'] ?? '');
         $section['secondary_href'] = $section['secondary_href'] !== '' ? $section['secondary_href'] : ($source['secondary_href'] ?? '');
+        $section['showcase_badge_label'] = $section['showcase_badge_label'] !== '' ? $section['showcase_badge_label'] : ($source['showcase_badge_label'] ?? '');
+        $section['showcase_badge_value'] = $section['showcase_badge_value'] !== '' ? $section['showcase_badge_value'] : ($source['showcase_badge_value'] ?? '');
+        $section['showcase_badge_note'] = $section['showcase_badge_note'] !== '' ? $section['showcase_badge_note'] : ($source['showcase_badge_note'] ?? '');
 
         return $section;
     }

@@ -222,6 +222,7 @@ const layoutOptions = computed(() => [
     { value: 'duo', label: t('super_admin.pages.layouts.duo') },
     { value: 'testimonial', label: t('super_admin.pages.layouts.testimonial') },
     { value: 'feature_pairs', label: t('super_admin.pages.layouts.feature_pairs') },
+    { value: 'showcase_cta', label: t('super_admin.pages.layouts.showcase_cta') },
     { value: 'industry_grid', label: t('super_admin.pages.layouts.industry_grid') },
     { value: 'story_grid', label: t('super_admin.pages.layouts.story_grid') },
     { value: 'feature_tabs', label: t('super_admin.pages.layouts.feature_tabs') },
@@ -436,6 +437,27 @@ const sectionPreset = (layout) => {
         };
     }
 
+    if (layout === 'showcase_cta') {
+        return {
+            layout: 'showcase_cta',
+            image_position: 'right',
+            alignment: 'left',
+            tone: 'contrast',
+            background_color: '#202322',
+            title: currentLocale.value === 'fr'
+                ? 'Essayez-le gratuitement. Voyez si ca colle a votre operation.'
+                : 'Try it free. See how it fits your operation.',
+            body: currentLocale.value === 'fr'
+                ? '<p>Presentez votre plateforme, votre visite produit ou votre experience mobile avec un bloc plus editorial et plus vendeur.</p>'
+                : '<p>Showcase your platform, product tour, or mobile experience with a more editorial conversion block.</p>',
+            primary_label: currentLocale.value === 'fr' ? 'Commencer gratuitement' : 'Get started free',
+            aside_link_label: currentLocale.value === 'fr' ? 'Voir la visite produit' : 'Watch product tour',
+            showcase_badge_label: currentLocale.value === 'fr' ? 'Adopte par' : 'Trusted by',
+            showcase_badge_value: '+120,000',
+            showcase_badge_note: currentLocale.value === 'fr' ? 'pros du service' : 'service pros',
+        };
+    }
+
     if (layout === 'industry_grid') {
         return {
             layout: 'industry_grid',
@@ -550,6 +572,9 @@ const ensureSection = (section, index) => ({
     primary_href: section?.primary_href || '',
     secondary_label: section?.secondary_label || '',
     secondary_href: section?.secondary_href || '',
+    showcase_badge_label: section?.showcase_badge_label || '',
+    showcase_badge_value: section?.showcase_badge_value || '',
+    showcase_badge_note: section?.showcase_badge_note || '',
 });
 
 const ensureStructure = (content) => {
@@ -857,6 +882,9 @@ const applyLibraryToSection = (section) => {
     section.primary_href = content.primary_href ?? '';
     section.secondary_label = content.secondary_label ?? '';
     section.secondary_href = content.secondary_href ?? '';
+    section.showcase_badge_label = content.showcase_badge_label ?? '';
+    section.showcase_badge_value = content.showcase_badge_value ?? '';
+    section.showcase_badge_note = content.showcase_badge_note ?? '';
     rebuildItemsLines();
 };
 
@@ -1463,7 +1491,7 @@ syncFormFromProps(currentLocale.value);
                         <div class="grid gap-3 md:grid-cols-2">
                             <FloatingSelect v-model="section.layout" :options="layoutOptions"
                                 :label="$t('super_admin.pages.fields.layout')" />
-                            <FloatingSelect v-if="['duo', 'testimonial'].includes(section.layout)" v-model="section.image_position" :options="imagePositionOptions"
+                            <FloatingSelect v-if="['duo', 'testimonial', 'showcase_cta'].includes(section.layout)" v-model="section.image_position" :options="imagePositionOptions"
                                 :label="$t('super_admin.pages.fields.image_position')" />
                             <FloatingSelect v-model="section.alignment" :options="alignmentOptions"
                                 :label="$t('super_admin.pages.common.alignment')" />
@@ -1542,7 +1570,7 @@ syncFormFromProps(currentLocale.value);
                             </div>
                         </div>
 
-                        <div v-if="!['testimonial', 'industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid'].includes(section.layout)">
+                        <div v-if="!['testimonial', 'industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid', 'showcase_cta'].includes(section.layout)">
                             <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 {{ $t('super_admin.pages.fields.items') }}
                             </label>
@@ -2003,6 +2031,71 @@ syncFormFromProps(currentLocale.value);
                         </div>
 
                         <div
+                            v-if="section.layout === 'showcase_cta'"
+                            class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3"
+                        >
+                            <div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.showcase_cta.title') }}
+                                </h3>
+                                <p class="text-xs text-stone-500 dark:text-neutral-500">
+                                    {{ $t('super_admin.pages.showcase_cta.subtitle') }}
+                                </p>
+                            </div>
+
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <div class="space-y-2">
+                                    <FloatingInput v-model="section.image_url" :label="$t('super_admin.pages.common.image_url')" />
+                                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                                        <button v-if="asset_list_url" type="button"
+                                            class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                            @click="openAssetPicker(section, 'image_url', 'image_alt')">
+                                            {{ $t('super_admin.pages.assets.choose') }}
+                                        </button>
+                                        <span v-if="section.image_url" class="text-stone-500">
+                                            {{ $t('super_admin.pages.assets.preview') }}
+                                        </span>
+                                    </div>
+                                    <div v-if="section.image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white">
+                                        <img :src="section.image_url" :alt="section.image_alt || section.title" class="h-36 w-full object-cover" loading="lazy" decoding="async" />
+                                    </div>
+                                </div>
+                                <FloatingInput v-model="section.image_alt" :label="$t('super_admin.pages.common.image_alt')" />
+                            </div>
+
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <FloatingInput v-model="section.aside_link_label" :label="$t('super_admin.pages.common.showcase_overlay_label')" />
+                                <FloatingInput v-model="section.aside_link_href" :label="$t('super_admin.pages.common.showcase_overlay_href')" />
+                            </div>
+
+                            <div class="grid gap-3 md:grid-cols-3">
+                                <FloatingInput v-model="section.showcase_badge_label" :label="$t('super_admin.pages.common.showcase_badge_label')" />
+                                <FloatingInput v-model="section.showcase_badge_value" :label="$t('super_admin.pages.common.showcase_badge_value')" />
+                                <FloatingInput v-model="section.showcase_badge_note" :label="$t('super_admin.pages.common.showcase_badge_note')" />
+                            </div>
+
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <div class="space-y-2">
+                                    <FloatingInput v-model="section.aside_image_url" :label="$t('super_admin.pages.common.showcase_floating_image_url')" />
+                                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                                        <button v-if="asset_list_url" type="button"
+                                            class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50"
+                                            @click="openAssetPicker(section, 'aside_image_url', 'aside_image_alt')">
+                                            {{ $t('super_admin.pages.assets.choose') }}
+                                        </button>
+                                        <span v-if="section.aside_image_url" class="text-stone-500">
+                                            {{ $t('super_admin.pages.assets.preview') }}
+                                        </span>
+                                    </div>
+                                    <div v-if="section.aside_image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white">
+                                        <img :src="section.aside_image_url" :alt="section.aside_image_alt || section.title" class="h-36 w-full object-cover" loading="lazy" decoding="async" />
+                                    </div>
+                                </div>
+                                <FloatingInput v-model="section.aside_image_alt" :label="$t('super_admin.pages.common.showcase_floating_image_alt')" />
+                            </div>
+                        </div>
+
+                        <div
                             v-if="['contact', 'feature_pairs'].includes(section.layout)"
                             class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3"
                         >
@@ -2080,7 +2173,7 @@ syncFormFromProps(currentLocale.value);
 
                             </div>
                             <div class="space-y-3">
-                        <div v-if="!['industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid'].includes(section.layout)" class="grid gap-3 md:grid-cols-2">
+                        <div v-if="!['industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid', 'showcase_cta'].includes(section.layout)" class="grid gap-3 md:grid-cols-2">
                             <div class="space-y-2">
                                 <FloatingInput v-model="section.image_url" :label="$t('super_admin.pages.common.image_url')" />
                                 <div class="flex flex-wrap items-center gap-2 text-xs">
@@ -2100,7 +2193,7 @@ syncFormFromProps(currentLocale.value);
                             <FloatingInput v-model="section.image_alt" :label="$t('super_admin.pages.common.image_alt')" />
                         </div>
 
-                        <div v-if="!['industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid'].includes(section.layout)" class="grid gap-3 md:grid-cols-3">
+                        <div v-if="!['industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid', 'showcase_cta'].includes(section.layout)" class="grid gap-3 md:grid-cols-3">
                             <FloatingInput v-model="section.embed_url" :label="$t('super_admin.pages.common.embed_url')" />
                             <FloatingInput v-model="section.embed_title" :label="$t('super_admin.pages.common.embed_title')" />
                             <FloatingInput v-model="section.embed_height" type="number" :label="$t('super_admin.pages.common.embed_height')" />

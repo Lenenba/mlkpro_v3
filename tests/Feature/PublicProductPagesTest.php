@@ -388,6 +388,64 @@ it('supports the feature pairs section layout for public pages', function () {
         );
 });
 
+it('supports the showcase CTA section layout for public pages', function () {
+    $user = User::factory()->create();
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'showcase-cta-layout-check',
+        'title' => 'Showcase CTA layout check',
+        'is_active' => true,
+        'content' => [
+            'locales' => [],
+        ],
+    ]);
+
+    $service = app(PlatformPageContentService::class);
+    $payload = $service->defaultContent('fr', $page);
+    $payload['sections'][0] = array_merge($payload['sections'][0], [
+        'layout' => 'showcase_cta',
+        'image_position' => 'right',
+        'alignment' => 'left',
+        'tone' => 'contrast',
+        'background_color' => '#202322',
+        'title' => 'Essayez-le gratuitement.',
+        'body' => '<p>Un bloc hero avec media principal, overlay et badge de confiance.</p>',
+        'image_url' => 'https://example.com/showcase-cta-desktop.jpg',
+        'image_alt' => 'Showcase desktop',
+        'aside_image_url' => 'https://example.com/showcase-cta-mobile.jpg',
+        'aside_image_alt' => 'Showcase mobile',
+        'aside_link_label' => 'Voir la visite produit',
+        'aside_link_href' => 'https://example.com/product-tour',
+        'showcase_badge_label' => 'Adopte par',
+        'showcase_badge_value' => '+120,000',
+        'showcase_badge_note' => 'pros du service',
+        'primary_label' => 'Commencer gratuitement',
+        'primary_href' => '/pages/contact-us',
+    ]);
+
+    $service->updateLocale($page, 'fr', $payload, $user->id);
+    $service->updateLocale($page, 'en', $payload, $user->id);
+
+    $resolved = $service->resolveForLocale($page->fresh(), 'fr');
+
+    expect($resolved['sections'][0]['layout'])->toBe('showcase_cta');
+    expect($resolved['sections'][0]['aside_link_label'])->toBe('Voir la visite produit');
+    expect($resolved['sections'][0]['showcase_badge_value'])->toBe('+120,000');
+    expect($resolved['sections'][0]['aside_image_url'])->toBe('https://example.com/showcase-cta-mobile.jpg');
+
+    $this->get(route('public.pages.show', ['slug' => $page->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $inertia) => $inertia
+            ->component('Public/Page')
+            ->where('content.sections.0.layout', 'showcase_cta')
+            ->where('content.sections.0.background_color', '#202322')
+            ->where('content.sections.0.image_url', 'https://example.com/showcase-cta-desktop.jpg')
+            ->where('content.sections.0.aside_image_url', 'https://example.com/showcase-cta-mobile.jpg')
+            ->where('content.sections.0.showcase_badge_value', '+120,000')
+            ->where('content.sections.0.aside_link_label', 'Voir la visite produit')
+        );
+});
+
 it('supports the industry grid section layout for public pages', function () {
     $user = User::factory()->create();
 
@@ -780,6 +838,45 @@ it('stores reusable feature pairs library sections with alternating media fields
     expect($resolved['aside_title'])->toBe('Accept all forms of payments');
     expect($resolved['aside_image_url'])->toBe('https://example.com/reusable-feature-pairs-secondary.jpg');
     expect($resolved['aside_link_label'])->toBe('Voir les details');
+});
+
+it('stores reusable showcase CTA library sections with layered media fields', function () {
+    $user = User::factory()->create();
+    $service = app(\App\Services\PlatformSectionContentService::class);
+
+    $showcaseSection = PlatformSection::query()->create([
+        'name' => 'Reusable showcase CTA',
+        'type' => 'showcase_cta',
+        'is_active' => true,
+        'content' => ['locales' => []],
+    ]);
+
+    $service->updateLocale($showcaseSection, 'fr', [
+        'title' => 'Essayez-le gratuitement.',
+        'body' => '<p>Une section hero media en librairie reutilisable.</p>',
+        'background_color' => '#202322',
+        'image_position' => 'right',
+        'image_url' => 'https://example.com/reusable-showcase-main.jpg',
+        'image_alt' => 'Reusable showcase main',
+        'aside_image_url' => 'https://example.com/reusable-showcase-mobile.jpg',
+        'aside_image_alt' => 'Reusable showcase mobile',
+        'aside_link_label' => 'Voir la visite produit',
+        'aside_link_href' => 'https://example.com/product-tour',
+        'showcase_badge_label' => 'Adopte par',
+        'showcase_badge_value' => '+120,000',
+        'showcase_badge_note' => 'pros du service',
+        'primary_label' => 'Commencer gratuitement',
+        'primary_href' => '/pages/contact-us',
+    ], $user->id);
+
+    $resolved = $service->resolveForLocale($showcaseSection->fresh(), 'fr');
+
+    expect($resolved['layout'])->toBe('showcase_cta');
+    expect($resolved['background_color'])->toBe('#202322');
+    expect($resolved['image_position'])->toBe('right');
+    expect($resolved['aside_image_url'])->toBe('https://example.com/reusable-showcase-mobile.jpg');
+    expect($resolved['aside_link_label'])->toBe('Voir la visite produit');
+    expect($resolved['showcase_badge_value'])->toBe('+120,000');
 });
 
 it('stores reusable industry grid library sections with card items', function () {
