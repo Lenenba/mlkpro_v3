@@ -51,10 +51,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if ($this->app->environment('testing')) {
-            config()->set('observability.enabled', false);
-        }
-
         Payment::observe(PaymentObserver::class);
 
         RateLimiter::for('api', function (Request $request) {
@@ -117,7 +113,7 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(max(1, $limit))->by($key);
         });
 
-        if (config('observability.enabled', true)) {
+        if (config('observability.enabled', true) && ! $this->app->runningUnitTests()) {
             DB::listen(function (QueryExecuted $query): void {
                 app(SlowQueryService::class)->recordExecutedQuery($query);
             });
