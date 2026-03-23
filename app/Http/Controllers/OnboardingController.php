@@ -233,6 +233,15 @@ class OnboardingController extends Controller
             $invites = [];
         }
 
+        if (! empty($validated['plan_key'])) {
+            $this->validateSelectedPlanForOnboarding(
+                $accountOwner,
+                (string) $validated['plan_key'],
+                $invites,
+                isset($validated['company_team_size']) ? (int) $validated['company_team_size'] : null
+            );
+        }
+
         if ($wasOnboarded) {
             $request->session()->forget('onboarding_invites');
             $messageParts = ['Onboarding completed.'];
@@ -429,7 +438,7 @@ class OnboardingController extends Controller
         }
 
         $trialEndsAt = now()->addMonthNoOverflow();
-        $seatQuantity = $billingService->resolveSeatQuantity($accountOwner);
+        $seatQuantity = $billingService->resolveBillableQuantity($accountOwner, $planKey);
         $successUrl = route('onboarding.billing', ['status' => 'success']);
         $successUrl .= (str_contains($successUrl, '?') ? '&' : '?').'session_id={CHECKOUT_SESSION_ID}';
         $cancelUrl = route('onboarding.billing', ['status' => 'cancel']);
@@ -589,10 +598,14 @@ class OnboardingController extends Controller
 
     private function planKeysForOnboarding(): array
     {
-        $plans = config('billing.plans', []);
-        $preferred = ['starter', 'growth', 'scale'];
-
-        return array_values(array_filter($preferred, fn (string $key) => array_key_exists($key, $plans)));
+        return app(BillingPlanService::class)->onboardingPlanKeys([
+            'solo_essential',
+            'solo_pro',
+            'solo_growth',
+            'starter',
+            'growth',
+            'scale',
+        ]);
     }
 
     private function defaultPermissionsForRole(string $role, ?array $allowedPermissions = null): array
@@ -664,6 +677,28 @@ class OnboardingController extends Controller
     private function planLimits(): array
     {
         return PlatformSetting::getValue('plan_limits', []);
+    }
+
+    private function validateSelectedPlanForOnboarding(
+        User $accountOwner,
+        string $planKey,
+        array $invites,
+        ?int $declaredTeamSize
+    ): void {
+        $errors = app(BillingSubscriptionService::class)->ownerOnlyPlanSelectionErrors(
+            $accountOwner,
+            $planKey,
+            $declaredTeamSize,
+            count($invites)
+        );
+
+        if ($errors === []) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'plan_key' => $errors,
+        ]);
     }
 
     private function syncLatestSubscription(User $user): void

@@ -11,6 +11,8 @@ use App\Models\ReservationSetting;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
+use App\Services\BillingPlanService;
+use App\Services\BillingSubscriptionService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationPreferenceService;
 use App\Support\ReservationPresetResolver;
@@ -23,54 +25,58 @@ class ReservationSettingsController extends Controller
     public function __construct(
         private readonly ReservationAvailabilityService $availabilityService,
         private readonly ReservationNotificationPreferenceService $notificationPreferences
-    ) {
-    }
+    ) {}
 
     public function edit(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         $this->authorize('manageSettings', Reservation::class);
         $account = $this->resolveAccount($user);
+        $ownerOnlyMode = $this->ownerOnlyMode($account);
 
-        $teamMembers = TeamMember::query()
-            ->forAccount($account->id)
-            ->active()
-            ->with('user:id,name')
-            ->orderBy('id')
-            ->get()
-            ->map(fn (TeamMember $member) => [
-                'id' => $member->id,
-                'name' => $member->user?->name ?? 'Member',
-                'title' => $member->title,
-            ])
-            ->values();
+        $teamMembers = $ownerOnlyMode
+            ? collect()
+            : TeamMember::query()
+                ->forAccount($account->id)
+                ->active()
+                ->with('user:id,name')
+                ->orderBy('id')
+                ->get()
+                ->map(fn (TeamMember $member) => [
+                    'id' => $member->id,
+                    'name' => $member->user?->name ?? 'Member',
+                    'title' => $member->title,
+                ])
+                ->values();
 
-        $weeklyAvailabilities = WeeklyAvailability::query()
-            ->forAccount($account->id)
-            ->orderBy('team_member_id')
-            ->orderBy('day_of_week')
-            ->orderBy('start_time')
-            ->get([
-                'id',
-                'team_member_id',
-                'day_of_week',
-                'start_time',
-                'end_time',
-                'is_active',
-            ])
-            ->map(fn (WeeklyAvailability $item) => [
-                'id' => $item->id,
-                'team_member_id' => $item->team_member_id,
-                'day_of_week' => $item->day_of_week,
-                'start_time' => substr((string) $item->start_time, 0, 5),
-                'end_time' => substr((string) $item->end_time, 0, 5),
-                'is_active' => (bool) $item->is_active,
-            ])
-            ->values();
+        $weeklyAvailabilities = $ownerOnlyMode
+            ? collect()
+            : WeeklyAvailability::query()
+                ->forAccount($account->id)
+                ->orderBy('team_member_id')
+                ->orderBy('day_of_week')
+                ->orderBy('start_time')
+                ->get([
+                    'id',
+                    'team_member_id',
+                    'day_of_week',
+                    'start_time',
+                    'end_time',
+                    'is_active',
+                ])
+                ->map(fn (WeeklyAvailability $item) => [
+                    'id' => $item->id,
+                    'team_member_id' => $item->team_member_id,
+                    'day_of_week' => $item->day_of_week,
+                    'start_time' => substr((string) $item->start_time, 0, 5),
+                    'end_time' => substr((string) $item->end_time, 0, 5),
+                    'is_active' => (bool) $item->is_active,
+                ])
+                ->values();
 
         $exceptions = AvailabilityException::query()
             ->forAccount($account->id)
@@ -87,7 +93,7 @@ class ReservationSettingsController extends Controller
             ])
             ->map(fn (AvailabilityException $item) => [
                 'id' => $item->id,
-                'team_member_id' => $item->team_member_id,
+                'team_member_id' => $ownerOnlyMode ? null : $item->team_member_id,
                 'date' => $item->date?->toDateString(),
                 'start_time' => $item->start_time ? substr((string) $item->start_time, 0, 5) : null,
                 'end_time' => $item->end_time ? substr((string) $item->end_time, 0, 5) : null,
@@ -100,11 +106,16 @@ class ReservationSettingsController extends Controller
             ->forAccount($account->id)
             ->whereNull('team_member_id')
             ->first();
-        $resolvedAccountSettings = $this->availabilityService->resolveSettings($account->id, null);
-        $teamSettings = ReservationSetting::query()
-            ->forAccount($account->id)
-            ->whereNotNull('team_member_id')
-            ->get();
+        $resolvedAccountSettings = $this->effectiveSettings(
+            $account,
+            $this->availabilityService->resolveSettings($account->id, null)
+        );
+        $teamSettings = $ownerOnlyMode
+            ? collect()
+            : ReservationSetting::query()
+                ->forAccount($account->id)
+                ->whereNotNull('team_member_id')
+                ->get();
         $resources = ReservationResource::query()
             ->forAccount($account->id)
             ->orderBy('type')
@@ -120,7 +131,7 @@ class ReservationSettingsController extends Controller
             ])
             ->map(fn (ReservationResource $resource) => [
                 'id' => $resource->id,
-                'team_member_id' => $resource->team_member_id,
+                'team_member_id' => $ownerOnlyMode ? null : $resource->team_member_id,
                 'name' => $resource->name,
                 'type' => $resource->type,
                 'capacity' => (int) $resource->capacity,
@@ -149,13 +160,41 @@ class ReservationSettingsController extends Controller
     public function update(ReservationSettingsRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         $this->authorize('manageSettings', Reservation::class);
         $account = $this->resolveAccount($user);
         $validated = $request->validated();
+        $ownerOnlyMode = $this->ownerOnlyMode($account);
+
+        if ($ownerOnlyMode) {
+            if (array_key_exists('account_settings', $validated) && is_array($validated['account_settings'])) {
+                $validated['account_settings']['queue_mode_enabled'] = false;
+                $validated['account_settings']['queue_no_show_on_grace_expiry'] = false;
+                $validated['account_settings']['allow_client_reschedule'] = false;
+            }
+
+            $validated['team_settings'] = [];
+            $validated['weekly_availabilities'] = [];
+            $validated['exceptions'] = collect($validated['exceptions'] ?? [])
+                ->map(fn (array $item) => [...$item, 'team_member_id' => null])
+                ->values()
+                ->all();
+            $validated['resources'] = collect($validated['resources'] ?? [])
+                ->map(fn (array $item) => [...$item, 'team_member_id' => null])
+                ->values()
+                ->all();
+            if (array_key_exists('notification_settings', $validated) && is_array($validated['notification_settings'])) {
+                $validated['notification_settings']['notify_on_queue_pre_call'] = false;
+                $validated['notification_settings']['notify_on_queue_called'] = false;
+                $validated['notification_settings']['notify_on_queue_grace_expired'] = false;
+                $validated['notification_settings']['notify_on_queue_ticket_created'] = false;
+                $validated['notification_settings']['notify_on_queue_eta_10m'] = false;
+                $validated['notification_settings']['notify_on_queue_status_changed'] = false;
+            }
+        }
 
         DB::transaction(function () use ($validated, $account) {
             if (array_key_exists('account_settings', $validated)) {
@@ -167,7 +206,7 @@ class ReservationSettingsController extends Controller
                 $keepTeamIds = [];
                 foreach ($teamItems as $item) {
                     $teamMemberId = (int) ($item['team_member_id'] ?? 0);
-                    if (!$teamMemberId) {
+                    if (! $teamMemberId) {
                         continue;
                     }
                     $keepTeamIds[] = $teamMemberId;
@@ -206,9 +245,9 @@ class ReservationSettingsController extends Controller
             if (array_key_exists('exceptions', $validated)) {
                 $keepIds = [];
                 foreach ($validated['exceptions'] ?? [] as $item) {
-                    $start = !empty($item['start_time']) ? $this->normalizeTime($item['start_time']) : null;
-                    $end = !empty($item['end_time']) ? $this->normalizeTime($item['end_time']) : null;
-                    if (($start && !$end) || (!$start && $end)) {
+                    $start = ! empty($item['start_time']) ? $this->normalizeTime($item['start_time']) : null;
+                    $end = ! empty($item['end_time']) ? $this->normalizeTime($item['end_time']) : null;
+                    if (($start && ! $end) || (! $start && $end)) {
                         throw ValidationException::withMessages([
                             'exceptions' => ['Exception requires both start and end time when one is provided.'],
                         ]);
@@ -229,7 +268,7 @@ class ReservationSettingsController extends Controller
                         'reason' => $item['reason'] ?? null,
                     ];
 
-                    if (!empty($item['id'])) {
+                    if (! empty($item['id'])) {
                         $exception = AvailabilityException::query()
                             ->forAccount($account->id)
                             ->whereKey($item['id'])
@@ -237,6 +276,7 @@ class ReservationSettingsController extends Controller
                         if ($exception) {
                             $exception->update($payload);
                             $keepIds[] = $exception->id;
+
                             continue;
                         }
                     }
@@ -264,7 +304,7 @@ class ReservationSettingsController extends Controller
                         'metadata' => is_array($item['metadata'] ?? null) ? $item['metadata'] : null,
                     ];
 
-                    if (!empty($item['id'])) {
+                    if (! empty($item['id'])) {
                         $resource = ReservationResource::query()
                             ->forAccount($account->id)
                             ->whereKey($item['id'])
@@ -272,6 +312,7 @@ class ReservationSettingsController extends Controller
                         if ($resource) {
                             $resource->update($payload);
                             $keepIds[] = $resource->id;
+
                             continue;
                         }
                     }
@@ -293,7 +334,7 @@ class ReservationSettingsController extends Controller
                     ->whereNull('team_member_id')
                     ->value('business_preset');
                 $effectivePreset = ReservationPresetResolver::resolveForAccount($account, $storedPreset);
-                if (!ReservationPresetResolver::queueFeaturesEnabled($effectivePreset)) {
+                if (! ReservationPresetResolver::queueFeaturesEnabled($effectivePreset)) {
                     $notificationPayload['notify_on_queue_pre_call'] = false;
                     $notificationPayload['notify_on_queue_called'] = false;
                     $notificationPayload['notify_on_queue_grace_expired'] = false;
@@ -327,7 +368,7 @@ class ReservationSettingsController extends Controller
             ? $user
             : User::query()->find($accountId);
 
-        if (!$account) {
+        if (! $account) {
             abort(404);
         }
 
@@ -405,12 +446,35 @@ class ReservationSettingsController extends Controller
         ReservationSetting::query()->updateOrCreate($attributes, $payload);
     }
 
+    private function effectiveSettings(User $account, array $settings): array
+    {
+        if (! $this->ownerOnlyMode($account)) {
+            return $settings;
+        }
+
+        $settings['queue_mode_enabled'] = false;
+        $settings['queue_no_show_on_grace_expiry'] = false;
+        $settings['allow_client_reschedule'] = false;
+        $settings['owner_only_mode'] = true;
+        $settings['slot_booking_enabled'] = false;
+
+        return $settings;
+    }
+
+    private function ownerOnlyMode(User $account): bool
+    {
+        $planKey = app(BillingSubscriptionService::class)->resolvePlanKey($account, config('billing.plans', []));
+
+        return $planKey ? app(BillingPlanService::class)->isOwnerOnlyPlan($planKey) : false;
+    }
+
     private function normalizeTime(string $value): string
     {
         $time = trim($value);
         if (strlen($time) === 5) {
-            return $time . ':00';
+            return $time.':00';
         }
+
         return $time;
     }
 
@@ -451,6 +515,8 @@ class ReservationSettingsController extends Controller
             'deposit_amount' => (float) ($setting?->deposit_amount ?? $resolvedDefaults['deposit_amount'] ?? 0),
             'no_show_fee_enabled' => (bool) ($setting?->no_show_fee_enabled ?? $resolvedDefaults['no_show_fee_enabled'] ?? false),
             'no_show_fee_amount' => (float) ($setting?->no_show_fee_amount ?? $resolvedDefaults['no_show_fee_amount'] ?? 0),
+            'owner_only_mode' => (bool) ($resolvedDefaults['owner_only_mode'] ?? false),
+            'slot_booking_enabled' => (bool) ($resolvedDefaults['slot_booking_enabled'] ?? true),
         ];
     }
 }

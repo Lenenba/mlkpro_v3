@@ -384,6 +384,9 @@ const planActionLabel = computed(() =>
 );
 
 const resolveTeamLimitLabel = (plan) => {
+    if (plan?.owner_only) {
+        return null;
+    }
     const limit = Number(plan?.team_members_limit);
     if (Number.isFinite(limit) && limit > 0) {
         return t('settings.billing.plan.team_limit', { count: limit });
@@ -394,6 +397,8 @@ const resolveTeamLimitLabel = (plan) => {
     }
     return null;
 };
+
+const resolveCheckoutQuantity = (plan) => (plan?.owner_only ? 1 : seatQuantity.value);
 
 const checkoutPlanName = computed(() => {
     if (!props.checkoutPlanKey) {
@@ -759,7 +764,7 @@ const openPaddleCheckout = async (plan) => {
         items: [
             {
                 priceId: plan.price_id,
-                quantity: seatQuantity.value,
+                quantity: resolveCheckoutQuantity(plan),
             },
         ],
         customData: {
@@ -1003,7 +1008,7 @@ watch(
                                     <span v-else-if="plan.badge" class="plan-card__badge">
                                         {{ plan.badge }}
                                     </span>
-                                    <span v-else-if="plan.key === 'growth'" class="plan-card__badge">
+                                    <span v-else-if="plan.recommended" class="plan-card__badge">
                                         {{ $t('settings.billing.plan.badge_popular') }}
                                     </span>
                                 </div>
@@ -1982,6 +1987,5 @@ watch(
     color: rgba(226, 232, 240, 0.6);
 }
 </style>
-
 
 

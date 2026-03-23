@@ -1,5 +1,18 @@
 # Solo Pricing - User Story
 
+## Statut
+Phase 1 figee.
+
+Perimetre d implementation demarre:
+- ajout des codes de plans `solo_essential`, `solo_pro`, `solo_growth` dans le billing applicatif
+- ajout de la logique `owner-only` pour les quantites et la selection de plan
+- adaptation onboarding / billing settings pour reconnaitre la gamme solo
+
+Hors perimetre immediate:
+- masquage complet des ecrans `team`, `presence` et des autres surfaces collaboratives
+- simplification complete des ecrans metier qui reposent encore sur `team_members`
+- rollout marketing public complet sur la page pricing
+
 ## Objectif
 Concevoir une offre `solo` pour les travailleurs autonomes qui utilisent la plateforme sans equipe, avec une proposition claire, evolutive et plus pertinente que les forfaits centres sur les employes.
 
@@ -157,7 +170,7 @@ Acceptance criteria:
   - `solo_pro`
   - `solo_growth`
 - les prix de reference par devise sont definis
-- la future integration Stripe pourra creer ou reutiliser les price IDs de ces 3 forfaits
+- l integration Stripe peut creer ou reutiliser les price IDs de ces 3 forfaits
 
 ## Regles produit
 
@@ -174,11 +187,16 @@ Acceptance criteria:
 - quand le solo commence a deleguer ou embaucher, le passage vers `starter` ou `growth` doit etre naturel
 - les forfaits solo ne doivent pas fermer la porte a la suite du parcours
 
-### 4. Pas de rollout technique complet en phase 1
-Pour cette phase:
+### 4. Decision initiale de phase 1
+Au depart, pour cette phase:
 - on cadre l offre et la logique produit
 - on ne pousse pas encore forcement ces plans dans toute l UI publique
 - on ne modifie pas encore la commande Stripe
+
+Note:
+- ce point a depuis ete depasse
+- la page pricing publique solo/team est active
+- la commande Stripe supporte maintenant `--solo` et `--plans=solo`
 
 ## Conception fonctionnelle proposee
 
@@ -195,6 +213,9 @@ Pour cette phase:
 - exposer les plans dans l experience publique ou onboarding
 - adapter les comparatifs et le wording
 - brancher le provisionnement Stripe
+
+Etat:
+- les 4 points ci-dessus sont maintenant couverts
 
 ## Decisions figees pour la phase 1
 
@@ -294,25 +315,19 @@ Ces chiffres sont des seuils de travail pour preparer la phase 2. Ils servent a 
 ## Decision UX recommandee - phase 1
 
 ### Option retenue
-Ne pas exposer encore une nouvelle page pricing complete en phase 1.
-
-On fige d abord:
-- le naming
-- le packaging
-- les modules
-- les limites
-- la logique Stripe future
-
-Puis en phase 2, on choisit entre:
-- un switch `Solo` / `Equipe` sur la page pricing
-- une page `Solo` dediee
-- un onboarding qui route vers la bonne gamme selon le profil
+Exposer la gamme solo sur la page pricing publique sans creer une nouvelle page dediee.
 
 ### Recommandation
 Le meilleur compromis semble etre:
 - page pricing unique
 - toggle `Solo` / `Equipe`
 - `solo_pro` mis en avant
+
+Implementation retenue:
+- le toggle `Solo` / `Equipe` est maintenant en place sur la page pricing publique
+- la vue solo affiche `solo_essential`, `solo_pro` et `solo_growth`
+- la vue equipe conserve `free`, `starter`, `growth`, `scale` et `enterprise`
+- les tableaux comparatifs sont distincts pour eviter une promesse marketing confuse
 
 Cela evite:
 - de dupliquer trop tot l acquisition publique
@@ -415,19 +430,27 @@ Le module reservations utilise actuellement `team_members` dans plusieurs parcou
 
 Conclusion phase 1:
 - `reservations` reste reserve a `solo_growth`
-- mais son implementation solo demandera une decision technique explicite avant phase 2
+- le fallback retenu est un `mode limite owner-only`
 
-Decision a prendre plus tard:
-- soit creer une logique `owner resource` compatible reservations
-- soit accepter un fonctionnement `unassigned` quand il n y a pas d equipe
-- soit limiter certaines variantes de reservation en solo tant que ce fallback n existe pas
+Decision retenue:
+- back-office: consultation, waitlist et reglages globaux restent disponibles
+- booking manuel staff et edition planning par membre restent bloques
+- client booking par creneau et client reschedule restent bloques
+- queue hybride et kiosk public restent desactives
+- les reglages `team_settings` et `weekly_availabilities` restent masques tant que `team_members` est off
+
+Later:
+- une vraie logique `owner resource` pourra etre etudiee plus tard si on veut un vrai booking solo natif
 
 ### E. Hotspot technique secondaire - planning
 Le planning manipule lui aussi `teamMembers` et `team_member_id`.
 
 Conclusion phase 1:
 - le planning reste reserve a `solo_growth`
-- mais la mise en oeuvre doit prevoir une vue planning sans selecteur de membre
+- le MVP retenu est une vue owner-only sans selecteur de membre
+- les jobs et taches restent visibles
+- les absences, conges et shifts equipe historiques ne sont plus exposes
+- la creation, modification, suppression et approbation de shifts restent bloquees tant qu un vrai fallback owner n existe pas
 
 ## Inventaire concret a traiter en phase 2
 
@@ -501,8 +524,8 @@ Conclusion phase 1:
 
 ### Bloc billing readiness
 - reserver les codes `solo_essential`, `solo_pro`, `solo_growth`
-- documenter les variables env Stripe futures
-- documenter la future prise en charge dans la commande de provisionnement Stripe, sans l implementer maintenant
+- documenter les variables env Stripe
+- documenter et implementer la prise en charge dans la commande de provisionnement Stripe
 
 ### Bloc UX
 - trancher entre `toggle` pricing, page dediee ou routage onboarding
@@ -511,29 +534,29 @@ Conclusion phase 1:
 - lister les entrees de navigation et ecrans a masquer pour un workspace `owner only`
 - valider le fallback owner-only pour reservations et planning avant implementation
 
-## Impact technique attendu plus tard
-Quand on passera a l implementation, il faudra verifier au minimum:
+## Impact technique couvert
+L implementation a effectivement touche au minimum:
 - `config/billing.php`
 - la logique de comparaison publique
 - le pricing public et le billing settings
 - les limites et modules par plan
 - le seed du catalogue de plans
 - les tests qui supposent aujourd hui une liste fixe de forfaits publics
+- la commande de provisionnement Stripe
 
-## Stripe - note a garder pour plus tard
-Ne pas implementer maintenant.
-
-Lors de la phase billing, la commande Stripe devra permettre de provisionner les 3 forfaits solo.
+## Stripe - implementation retenue
+La commande de billing permet maintenant de provisionner les 3 forfaits solo.
 
 Attendu fonctionnel minimal:
-- soit un raccourci de type `--solo`
-- soit la prise en charge explicite de `--plans=solo_essential,solo_pro,solo_growth`
+- raccourci `--solo`
+- alias `--plans=solo`
+- prise en charge explicite de `--plans=solo_essential,solo_pro,solo_growth`
 
 Attendu de configuration:
 - un prix CAD, EUR et USD pour chaque forfait solo
 - un base price Stripe CAD par forfait pour permettre la creation ou la reutilisation des prix mensuels multi-devise
 
-Variables env a prevoir plus tard:
+Variables env attendues:
 - `STRIPE_PRICE_SOLO_ESSENTIAL_CAD`
 - `STRIPE_PRICE_SOLO_ESSENTIAL_EUR`
 - `STRIPE_PRICE_SOLO_ESSENTIAL_USD`
@@ -544,7 +567,7 @@ Variables env a prevoir plus tard:
 - `STRIPE_PRICE_SOLO_GROWTH_EUR`
 - `STRIPE_PRICE_SOLO_GROWTH_USD`
 
-Variables de montant a prevoir plus tard:
+Variables de montant attendues:
 - `STRIPE_PRICE_SOLO_ESSENTIAL_CAD_AMOUNT`
 - `STRIPE_PRICE_SOLO_ESSENTIAL_EUR_AMOUNT`
 - `STRIPE_PRICE_SOLO_ESSENTIAL_USD_AMOUNT`
@@ -555,6 +578,11 @@ Variables de montant a prevoir plus tard:
 - `STRIPE_PRICE_SOLO_GROWTH_EUR_AMOUNT`
 - `STRIPE_PRICE_SOLO_GROWTH_USD_AMOUNT`
 
+Exemples d usage:
+- `php artisan billing:stripe-plan-prices --solo --dry-run`
+- `php artisan billing:stripe-plan-prices --plans=solo --currencies=CAD,USD --dry-run`
+- `php artisan billing:stripe-plan-prices --plans=solo_essential,solo_pro,solo_growth`
+
 ## Definition of Done
 - un document de cadrage solo existe
 - les 3 forfaits sont nommes et positionnes
@@ -563,5 +591,5 @@ Variables de montant a prevoir plus tard:
 - la decision UX de phase 1 est explicite
 - les surfaces owner-only a masquer / simplifier sont inventoriees
 - les user stories principales sont posees
-- la note Stripe future est documentee
+- le support Stripe des plans solo est documente
 - la suite de conception peut partir de ce document sans re-decider les bases

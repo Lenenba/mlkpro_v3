@@ -26,6 +26,7 @@ class CompanyFeatureService
         'team_members',
         'assistant',
         'campaigns',
+        'loyalty',
     ];
 
     private const SALON_ONLY_DISABLED_MODULES = [
@@ -35,6 +36,11 @@ class CompanyFeatureService
         'plan_scans',
         'jobs',
         'tasks',
+    ];
+
+    private const OWNER_ONLY_FORCED_DISABLED_MODULES = [
+        'presence',
+        'team_members',
     ];
 
     private array $featureCache = [];
@@ -67,6 +73,12 @@ class CompanyFeatureService
             }
             if (array_key_exists($key, $defaults)) {
                 $features[$key] = (bool) $defaults[$key];
+            }
+        }
+
+        if ($planKey && app(BillingPlanService::class)->isOwnerOnlyPlan($planKey)) {
+            foreach (self::OWNER_ONLY_FORCED_DISABLED_MODULES as $moduleKey) {
+                $features[$moduleKey] = false;
             }
         }
 
@@ -177,7 +189,14 @@ class CompanyFeatureService
         $planModules = [];
 
         foreach ($planKeys as $planKey) {
+            $configuredDefaults = config('billing.plans.'.$planKey.'.default_modules', []);
             foreach (self::DEFAULT_PLAN_MODULE_KEYS as $moduleKey) {
+                if (array_key_exists($moduleKey, $configuredDefaults)) {
+                    $planModules[$planKey][$moduleKey] = (bool) $configuredDefaults[$moduleKey];
+
+                    continue;
+                }
+
                 if ($moduleKey === 'assistant') {
                     $planModules[$planKey][$moduleKey] = $planKey === $defaultAssistantPlan;
 

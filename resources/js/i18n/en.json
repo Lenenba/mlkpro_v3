@@ -75,6 +75,7 @@
   "global_search": {
     "open": "Global search",
     "placeholder": "Search customers, tasks, quotes, employees...",
+    "placeholder_solo": "Search customers, tasks, quotes...",
     "quick_actions": "Quick actions",
     "results": "Results",
     "loading": "Searching...",
@@ -593,20 +594,25 @@
     "title": "Planning",
     "subtitle": "Schedule recurring shifts for the sales team.",
     "subtitle_services": "Schedule jobs and tasks across the team.",
+    "subtitle_owner_only": "Review your calendar in a solo planning view.",
+    "subtitle_owner_only_services": "Track jobs and tasks in a solo planning view.",
     "calendar": {
       "title": "Team schedule",
       "today": "Today",
       "month": "Month",
       "week": "Week",
-      "day": "Day"
+      "day": "Day",
+      "year": "Year"
     },
     "preview": {
       "empty": "No shifts",
       "empty_services": "No events",
       "count": "{count} shifts",
-      "count_services": "{count} events"
+      "count_services": "{count} events",
+      "more": "{count} more"
     },
     "filters": {
+      "title": "Calendars",
       "member": "Team member",
       "all_members": "All team members",
       "range": "Range",
@@ -645,6 +651,8 @@
       "month_day": "Day of month",
       "create": "Create shift",
       "creating": "Creating...",
+      "scroll_to_form": "Open planning form",
+      "use_selected_day": "Use selected day",
       "save_time_off": "Save",
       "saving_time_off": "Saving..."
     },
@@ -708,6 +716,19 @@
     "empty_services": {
       "title": "Planning overview",
       "description": "Schedules are derived from jobs and tasks."
+    },
+    "empty_owner_only": {
+      "title": "Planning is view-only",
+      "description": "Shift creation stays disabled in solo mode until owner scheduling is available."
+    },
+    "empty_owner_only_services": {
+      "title": "Solo operations view",
+      "description": "Jobs and tasks stay visible here, but team scheduling stays disabled in solo mode."
+    },
+    "owner_only": {
+      "badge": "Owner-only view",
+      "panel_title": "Solo planning",
+      "panel_description": "This solo plan keeps planning read-only while team members stay disabled."
     },
     "delete": {
       "title": "Delete shift",
@@ -2250,6 +2271,7 @@
       "total_tips": "Total tips",
       "average_tip_per_reservation": "Average tip per reservation",
       "top_members": "Top 3 team members",
+      "top_collectors": "Top collectors",
       "current_month_tips": "Current month tips",
       "period_total": "Period total",
       "average_tip_per_service": "Average tip per service"
@@ -2260,6 +2282,8 @@
       "invoice": "Invoice",
       "customer": "Customer",
       "team_member": "Team member",
+      "collected_by": "Collected by",
+      "owner": "Owner",
       "mode": "Tip mode",
       "tip_amount": "Tip amount",
       "total_charged": "Total charged",
@@ -2279,7 +2303,8 @@
       },
     "empty": {
       "rows": "No tips found for this filter.",
-      "top_members": "No team member ranking yet."
+      "top_members": "No team member ranking yet.",
+      "top_collectors": "No tip breakdown yet."
     }
   },
   "client_orders": {
@@ -2371,6 +2396,10 @@
         "title": "Team",
         "description": "Invite your team."
       },
+      "team_solo": {
+        "title": "Setup",
+        "description": "Confirm your solo workspace."
+      },
       "plan": {
         "title": "Plan",
         "description": "Choose your plan."
@@ -2460,10 +2489,17 @@
       "size_title": "Team size",
       "size_hint": "Tell us how many people will use the platform.",
       "size_label": "Number of team members",
+      "size_title_solo": "Workspace profile",
+      "size_hint_solo": "Stay at 1 for a solo workspace. Increase this only if you plan to move to a team setup.",
+      "size_label_solo": "Planned workspace size",
       "recommendation_title": "Recommended plan",
       "recommendation_subtitle": "Based on {count} team members",
+      "recommendation_solo_subtitle": "Recommended for an owner-only workspace",
       "recommendation_limit": "Up to {count} members",
       "recommendation_unlimited": "Unlimited members",
+      "recommendation_owner_only": "Owner only",
+      "solo_title": "Solo workspace",
+      "solo_subtitle": "You are starting alone. Team invitations stay off until you move to a team plan.",
       "add": "+ Add",
       "empty": "No invitations added.",
       "name": "Name",
@@ -4531,6 +4567,11 @@
     "title": "Reservations",
     "subtitle": "Review, confirm, or decline reservations assigned to your team.",
     "empty": "No reservations yet.",
+    "owner_only": {
+      "staff_notice": "Solo growth keeps reservations in limited mode: view existing reservations, manage the waitlist, and configure global settings, but staff-based booking stays disabled.",
+      "client_notice": "This solo workspace does not offer live appointment slots yet. Join the waitlist instead and the business can follow up manually.",
+      "client_waitlist_hint": "Booking slots and rescheduling stay off in owner-only solo mode."
+    },
     "stats": {
       "total": "Total",
       "pending": "Pending",
@@ -5143,6 +5184,7 @@
       "plan_later": "Schedule later",
       "team": {
         "title": "TEAM",
+        "solo_panel_title": "ASSIGNMENT",
         "empty": "No team members yet.",
         "member_fallback": "Team member",
         "filter_hint": "Select a member to filter the calendar.",
@@ -5150,6 +5192,8 @@
         "selected_title": "Selected members",
         "selected_badge": "Selected",
         "search_empty": "No matching team members.",
+        "solo_title": "Owner-only job",
+        "solo_subtitle": "This solo workspace does not assign jobs to team members. Tasks created from this job stay unassigned until you move to a team plan.",
         "availability": {
           "available": "Available",
           "busy": "Unavailable",
@@ -5517,6 +5561,7 @@
     },
     "filters": {
       "search_placeholder": "Search tasks, details, or assignee",
+      "search_placeholder_solo": "Search tasks or details",
       "status": {
         "all": "All status"
       }
@@ -5652,6 +5697,7 @@
       "due_date": "Due date",
       "assignee": "Assignee",
       "unassigned": "Unassigned",
+      "solo_hint": "This solo workspace does not assign tasks to team members.",
       "availability": {
         "available": "Available",
         "busy": "Unavailable",
@@ -5770,6 +5816,9 @@
       "meta_title": "Reservations",
       "title": "Reservation settings",
       "subtitle": "Manage booking rules, team availability, and exceptions.",
+      "owner_only": {
+        "notice": "Owner-only solo mode keeps only global reservation settings and waitlist-ready resources. Staff schedules, staff overrides, and hybrid queue stay disabled until team members are enabled."
+      },
       "summary": {
         "timezone": "Timezone",
         "team_members": "Team members",
@@ -6861,11 +6910,29 @@
     "meta": {
       "title": "Pricing"
     },
+    "badges": {
+      "recommended": "Most popular"
+    },
+    "switch": {
+      "label": "Choose your setup"
+    },
+    "audiences": {
+      "solo": "Solo",
+      "team": "Team"
+    },
     "hero": {
-      "eyebrow": "Pricing",
-      "title": "Plans built for field teams",
-      "subtitle": "Choose a plan that fits your workflow. Pricing is available on request.",
-      "note": "Need enterprise or custom limits? Request the pricing sheet."
+      "solo": {
+        "eyebrow": "Solo pricing",
+        "title": "Plans built for independent operators",
+        "subtitle": "Start with a simple setup that keeps quotes, invoicing, and customer follow-up in one place.",
+        "note": "Upgrade to a team plan later without rebuilding your workspace."
+      },
+      "team": {
+        "eyebrow": "Team pricing",
+        "title": "Plans built for field teams",
+        "subtitle": "Choose a plan that fits your workflow, crew size, and operational complexity.",
+        "note": "Need enterprise or custom limits? Request the pricing sheet."
+      }
     },
     "plans": {
       "starter": {
@@ -6886,18 +6953,36 @@
       }
     },
     "features": {
-      "title": "Included with every plan",
-      "items": {
-        "one": "Quotes, jobs, tasks, and invoices",
-        "two": "Unified catalog for services and products",
-        "three": "Plan scan pricing signals and sources",
-        "four": "Client portal with approvals",
-        "five": "Team roles and permissions"
+      "solo": {
+        "title": "Built for solo workdays",
+        "items": {
+          "one": "Quotes, invoices, and customer requests from one workspace",
+          "two": "Catalog and public page to present services clearly",
+          "three": "Solo Pro adds jobs and tasks without team overhead",
+          "four": "Solo Growth unlocks planning, limited reservations, and AI tools",
+          "five": "Upgrade path to team plans when you start hiring"
+        }
+      },
+      "team": {
+        "title": "Included with every team plan",
+        "items": {
+          "one": "Quotes, jobs, tasks, and invoices",
+          "two": "Unified catalog for services and products",
+          "three": "Plan scan pricing signals and sources",
+          "four": "Client portal with approvals",
+          "five": "Team roles and permissions"
+        }
       }
     },
     "enterprise": {
-      "title": "Enterprise pricing sheet",
-      "body": "Request the enterprise sheet for custom limits, security review, and onboarding support."
+      "solo": {
+        "title": "Starting alone, scaling later",
+        "body": "Begin with a solo plan now, then move to team pricing when you hire or need collaborative workflows."
+      },
+      "team": {
+        "title": "Enterprise pricing sheet",
+        "body": "Request the enterprise sheet for custom limits, security review, and onboarding support."
+      }
     },
     "actions": {
       "primary": "Start onboarding",
@@ -6916,12 +7001,17 @@
       },
       "rows": {
         "team_members": "Included employees",
+        "account_access": "Account access",
         "clients": "Clients",
         "requests": "Requests / leads",
         "estimates": "Estimates",
         "invoices": "Invoices",
         "catalog": "Products and services catalog",
+        "catalog_items": "Catalog items",
         "client_portal": "Client portal",
+        "jobs": "Jobs",
+        "tasks": "Tasks",
+        "planning": "Planning",
         "team_planning": "Team planning",
         "time_tracking": "Time tracking",
         "reservations": "Reservations and check-in",
@@ -6931,12 +7021,16 @@
         "automations": "Advanced automations",
         "plan_scan": "Plan scan and AI quotes",
         "ai_assistant": "AI assistant",
+        "campaigns": "Campaigns",
+        "loyalty": "Loyalty",
         "onboarding": "Dedicated onboarding",
         "custom_integrations": "Custom integrations and SLA"
       },
       "values": {
         "unlimited": "Unlimited",
         "optional": "Optional add-on",
+        "owner_only": "1 owner",
+        "limited": "Limited mode",
         "contact": "Contact us"
       }
     }

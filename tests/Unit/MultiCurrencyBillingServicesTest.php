@@ -9,6 +9,8 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\BillingPlanService;
+use App\Services\BillingSubscriptionService;
 use App\Services\PreventUnsafeTenantCurrencyChange;
 use App\Services\ResolvePlanPriceForTenant;
 use App\Services\ResolveTenantCurrency;
@@ -110,6 +112,26 @@ it('resolves the active plan price for the tenant currency', function () {
         ->and($planPrice->currencyCode)->toBe(CurrencyCode::USD)
         ->and($planPrice->billingPeriod)->toBe(BillingPeriod::MONTHLY)
         ->and($planPrice->amount)->toBe(number_format((float) env('STRIPE_PRICE_STARTER_USD_AMOUNT', 24), 2, '.', ''));
+});
+
+it('marks solo plans as owner-only and bills a single seat for them', function () {
+    $owner = User::factory()->create([
+        'company_team_size' => 4,
+    ]);
+
+    TeamMember::factory()->count(2)->create([
+        'account_id' => $owner->id,
+        'is_active' => true,
+    ]);
+
+    $plans = collect(app(BillingPlanService::class)->plansForCurrency('CAD'))->keyBy('key');
+
+    expect($plans->get('solo_pro'))->not->toBeNull()
+        ->and($plans->get('solo_pro')['audience'])->toBe('solo')
+        ->and($plans->get('solo_pro')['owner_only'])->toBeTrue()
+        ->and($plans->get('solo_pro')['recommended'])->toBeTrue()
+        ->and(app(BillingSubscriptionService::class)->resolveBillableQuantity($owner, 'solo_pro'))->toBe(1)
+        ->and(app(BillingSubscriptionService::class)->resolveBillableQuantity($owner, 'growth'))->toBe(4);
 });
 
 it('builds a tenant-aware stripe checkout payload from a resolved plan price', function () {

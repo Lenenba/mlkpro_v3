@@ -1,9 +1,10 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
+import { isFeatureEnabled } from '@/utils/features';
 
 const props = defineProps({
     task: {
@@ -17,6 +18,9 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const page = usePage();
+const featureFlags = computed(() => page.props.auth?.account?.features || {});
+const hasTeamMembersFeature = computed(() => isFeatureEnabled(featureFlags.value, 'team_members'));
 
 const statusClass = (status) => {
     switch (status) {
@@ -168,7 +172,7 @@ const mapLink = computed(() =>
                                 {{ timingStatusLabel(timingStatus) }}
                             </span>
                             <span>{{ $t('tasks.details.due') }}: {{ dueLabel }}</span>
-                            <span class="inline-flex items-center gap-1">
+                            <span v-if="hasTeamMembersFeature" class="inline-flex items-center gap-1">
                                 {{ $t('tasks.details.assignee') }}:
                                 <span v-if="task?.assignee?.user?.name">
                                     {{ task.assignee.user.name }}

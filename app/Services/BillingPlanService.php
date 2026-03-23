@@ -64,6 +64,7 @@ class BillingPlanService
                 $plan = $plans->get($planCode);
                 $planPrice = $plan?->prices
                     ?->first(fn (PlanPrice $price) => $price->currency_code === $currency && $price->billing_period === BillingPeriod::MONTHLY);
+                $metadata = $this->metadataForConfiguredPlan($configuredPlan);
 
                 $amount = $planPrice?->amount !== null
                     ? number_format((float) $planPrice->amount, 2, '.', '')
@@ -88,6 +89,10 @@ class BillingPlanService
                     'team_members_min' => is_numeric($configuredPlan['team_members_min'] ?? null)
                         ? (int) $configuredPlan['team_members_min']
                         : null,
+                    'audience' => $metadata['audience'],
+                    'owner_only' => $metadata['owner_only'],
+                    'recommended' => $metadata['recommended'],
+                    'onboarding_enabled' => $metadata['onboarding_enabled'],
                     'prices_by_currency' => $this->currencyOptionsForPlan($planCode),
                 ];
             })
@@ -253,9 +258,45 @@ class BillingPlanService
         return config('billing.plans', []);
     }
 
+    public function configuredPlan(string $planCode): array
+    {
+        return $this->configuredPlans()[$planCode] ?? [];
+    }
+
+    public function isOwnerOnlyPlan(string $planCode): bool
+    {
+        return (bool) ($this->configuredPlan($planCode)['owner_only'] ?? false);
+    }
+
+    public function onboardingPlanKeys(array $preferred = []): array
+    {
+        $plans = $this->configuredPlans();
+        $order = $preferred !== [] ? $preferred : array_keys($plans);
+
+        return array_values(array_filter($order, function (string $planCode) use ($plans): bool {
+            if (! array_key_exists($planCode, $plans)) {
+                return false;
+            }
+
+            return (bool) ($plans[$planCode]['onboarding_enabled'] ?? false);
+        }));
+    }
+
     private function configuredPlanCodes(): array
     {
         return array_keys($this->configuredPlans());
+    }
+
+    private function metadataForConfiguredPlan(array $configuredPlan): array
+    {
+        $audience = (string) ($configuredPlan['audience'] ?? 'team');
+
+        return [
+            'audience' => in_array($audience, ['solo', 'team'], true) ? $audience : 'team',
+            'owner_only' => (bool) ($configuredPlan['owner_only'] ?? false),
+            'recommended' => (bool) ($configuredPlan['recommended'] ?? false),
+            'onboarding_enabled' => (bool) ($configuredPlan['onboarding_enabled'] ?? false),
+        ];
     }
 
     private function resolveLegacyDisplayPrice(mixed $raw): ?string

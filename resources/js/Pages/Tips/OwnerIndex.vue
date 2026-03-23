@@ -1,9 +1,10 @@
 <script setup>
 import { computed, reactive } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
+import { isFeatureEnabled } from '@/utils/features';
 
 const props = defineProps({
     filters: {
@@ -37,6 +38,22 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const page = usePage();
+const featureFlags = computed(() => page.props.auth?.account?.features || {});
+const hasTeamMembersFeature = computed(() => isFeatureEnabled(featureFlags.value, 'team_members'));
+const showTeamMemberFilter = computed(() => hasTeamMembersFeature.value && (props.teamMembers || []).length > 0);
+const topCollectorsLabel = computed(() => (
+    hasTeamMembersFeature.value ? t('tips_reports.kpi.top_members') : t('tips_reports.kpi.top_collectors')
+));
+const topCollectorsEmptyLabel = computed(() => (
+    hasTeamMembersFeature.value ? t('tips_reports.empty.top_members') : t('tips_reports.empty.top_collectors')
+));
+const collectorColumnLabel = computed(() => (
+    hasTeamMembersFeature.value ? t('tips_reports.table.team_member') : t('tips_reports.table.collected_by')
+));
+const collectorFallbackLabel = computed(() => (
+    hasTeamMembersFeature.value ? '-' : t('tips_reports.table.owner')
+));
 
 const filters = reactive({
     period: props.filters?.period || '30d',
@@ -50,6 +67,9 @@ const filters = reactive({
 const sanitizedFilters = computed(() => {
     const query = {};
     Object.entries(filters).forEach(([key, value]) => {
+        if (key === 'team_member_id' && !hasTeamMembersFeature.value) {
+            return;
+        }
         if (value !== '' && value !== null && value !== undefined) {
             query[key] = value;
         }
@@ -174,6 +194,7 @@ const statusClass = (status) => {
                     />
 
                     <select
+                        v-if="showTeamMemberFilter"
                         v-model="filters.team_member_id"
                         class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
                     >
@@ -230,7 +251,7 @@ const statusClass = (status) => {
                     </div>
                 </div>
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('tips_reports.kpi.top_members') }}</div>
+                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ topCollectorsLabel }}</div>
                     <div class="mt-2 space-y-1">
                         <div
                             v-for="member in stats.top_members || []"
@@ -240,7 +261,7 @@ const statusClass = (status) => {
                             {{ member.name }} - {{ formatCurrency(member.total_tips) }}
                         </div>
                         <div v-if="!(stats.top_members || []).length" class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('tips_reports.empty.top_members') }}
+                            {{ topCollectorsEmptyLabel }}
                         </div>
                     </div>
                 </div>
@@ -269,7 +290,7 @@ const statusClass = (status) => {
                                     </th>
                                     <th scope="col" class="min-w-40">
                                         <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('tips_reports.table.team_member') }}
+                                            {{ collectorColumnLabel }}
                                         </div>
                                     </th>
                                     <th scope="col" class="min-w-32">
@@ -308,7 +329,7 @@ const statusClass = (status) => {
                                         <span v-else>{{ payment.invoice_number }}</span>
                                     </td>
                                     <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ payment.customer_name }}</td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ payment.team_member_name || '-' }}</td>
+                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ payment.team_member_name || collectorFallbackLabel }}</td>
                                     <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ modeLabel(payment.tip_mode) }}</td>
                                     <td class="size-px whitespace-nowrap px-4 py-2 text-sm font-medium text-stone-800 dark:text-neutral-100">{{ formatCurrency(payment.tip_amount) }}</td>
                                     <td class="size-px whitespace-nowrap px-4 py-2 text-sm font-medium text-stone-800 dark:text-neutral-100">{{ formatCurrency(payment.charged_total) }}</td>

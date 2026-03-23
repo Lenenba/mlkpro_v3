@@ -13,9 +13,8 @@ use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
-use Illuminate\Validation\ValidationException;
-use App\Services\BillingSubscriptionService;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class UsageLimitService
 {
@@ -38,11 +37,16 @@ class UsageLimitService
         $stats = $this->resolveUsageStats($accountOwner);
         $planLimits = PlatformSetting::getValue('plan_limits', []);
         $planKey = $this->resolvePlanKey($accountOwner, $planLimits);
+        $isOwnerOnlyPlan = $planKey ? app(BillingPlanService::class)->isOwnerOnlyPlan($planKey) : false;
         $planDefaults = $planKey ? ($planLimits[$planKey] ?? []) : [];
         $overrides = $accountOwner->company_limits ?? [];
 
         $items = [];
         foreach (self::LIMIT_KEYS as $key => $label) {
+            if ($isOwnerOnlyPlan && $key === 'team_members') {
+                continue;
+            }
+
             $used = (int) ($stats[$key] ?? 0);
             $override = $overrides[$key] ?? null;
             $defaultLimit = $planDefaults[$key] ?? null;
@@ -81,7 +85,7 @@ class UsageLimitService
 
         return [
             'plan_key' => $planKey,
-            'plan_name' => $planKey ? (config('billing.plans.' . $planKey . '.name') ?? $planKey) : null,
+            'plan_name' => $planKey ? (config('billing.plans.'.$planKey.'.name') ?? $planKey) : null,
             'items' => $items,
             'overrides' => $overrides,
             'plan_limits' => $planDefaults,

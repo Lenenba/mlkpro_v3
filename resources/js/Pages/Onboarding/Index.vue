@@ -30,51 +30,8 @@ const page = usePage();
 const isGuest = computed(() => !page.props.auth?.user);
 const { t, locale } = useI18n();
 
-const baseStepItems = computed(() => ([
-    { key: 'company', title: t('onboarding.steps.company.title'), description: t('onboarding.steps.company.description') },
-    { key: 'type', title: t('onboarding.steps.type.title'), description: t('onboarding.steps.type.description') },
-    { key: 'sector', title: t('onboarding.steps.sector.title'), description: t('onboarding.steps.sector.description') },
-    { key: 'team', title: t('onboarding.steps.team.title'), description: t('onboarding.steps.team.description') },
-    { key: 'plan', title: t('onboarding.steps.plan.title'), description: t('onboarding.steps.plan.description') },
-    { key: 'security', title: t('onboarding.steps.security.title'), description: t('onboarding.steps.security.description') },
-]));
-
 const step = ref(1);
 const showTerms = ref(false);
-const stepOffset = computed(() => (isGuest.value ? 1 : 0));
-const stepItems = computed(() => {
-    const items = baseStepItems.value.map((item, index) => ({
-        ...item,
-        id: index + 1 + stepOffset.value,
-    }));
-
-    if (!isGuest.value) {
-        return items;
-    }
-
-    return [
-        { id: 1, key: 'account', title: t('onboarding.steps.account.title'), description: t('onboarding.steps.account.description') },
-        ...items,
-    ];
-});
-const totalSteps = computed(() => stepItems.value.length);
-const currentStep = computed(() => stepItems.value.find((item) => item.id === step.value) || stepItems.value[0]);
-const stepIds = computed(() => ({
-    account: 1,
-    company: 1 + stepOffset.value,
-    type: 2 + stepOffset.value,
-    sector: 3 + stepOffset.value,
-    team: 4 + stepOffset.value,
-    plan: 5 + stepOffset.value,
-    security: 6 + stepOffset.value,
-}));
-const isStepDisabled = (item) => isGuest.value && item.key !== 'account';
-const selectStep = (item) => {
-    if (isStepDisabled(item)) {
-        return;
-    }
-    step.value = item.id;
-};
 
 const preset = computed(() => props.preset || {});
 const planOptions = computed(() => props.plans || []);
@@ -359,11 +316,82 @@ const teamSizeValue = computed(() => {
     const inviteCount = Array.isArray(form.invites) ? form.invites.length : 0;
     return Math.max(1, inviteCount + 1);
 });
+const isSoloProfile = computed(() => teamSizeValue.value <= 1);
+const showInviteSection = computed(() => !isSoloProfile.value || form.invites.length > 0);
+const teamStepTitle = computed(() => (
+    isSoloProfile.value ? t('onboarding.steps.team_solo.title') : t('onboarding.steps.team.title')
+));
+const teamStepDescription = computed(() => (
+    isSoloProfile.value ? t('onboarding.steps.team_solo.description') : t('onboarding.steps.team.description')
+));
+const teamSizeTitle = computed(() => (
+    isSoloProfile.value ? t('onboarding.team.size_title_solo') : t('onboarding.team.size_title')
+));
+const teamSizeHint = computed(() => (
+    isSoloProfile.value ? t('onboarding.team.size_hint_solo') : t('onboarding.team.size_hint')
+));
+const teamSizeLabel = computed(() => (
+    isSoloProfile.value ? t('onboarding.team.size_label_solo') : t('onboarding.team.size_label')
+));
+const teamWorkspaceTitle = computed(() => (
+    isSoloProfile.value ? t('onboarding.team.solo_title') : t('onboarding.team.title')
+));
+const teamWorkspaceSubtitle = computed(() => (
+    isSoloProfile.value ? t('onboarding.team.solo_subtitle') : t('onboarding.team.subtitle')
+));
+const stepOffset = computed(() => (isGuest.value ? 1 : 0));
+const baseStepItems = computed(() => ([
+    { key: 'company', title: t('onboarding.steps.company.title'), description: t('onboarding.steps.company.description') },
+    { key: 'type', title: t('onboarding.steps.type.title'), description: t('onboarding.steps.type.description') },
+    { key: 'sector', title: t('onboarding.steps.sector.title'), description: t('onboarding.steps.sector.description') },
+    { key: 'team', title: teamStepTitle.value, description: teamStepDescription.value },
+    { key: 'plan', title: t('onboarding.steps.plan.title'), description: t('onboarding.steps.plan.description') },
+    { key: 'security', title: t('onboarding.steps.security.title'), description: t('onboarding.steps.security.description') },
+]));
+const stepItems = computed(() => {
+    const items = baseStepItems.value.map((item, index) => ({
+        ...item,
+        id: index + 1 + stepOffset.value,
+    }));
+
+    if (!isGuest.value) {
+        return items;
+    }
+
+    return [
+        { id: 1, key: 'account', title: t('onboarding.steps.account.title'), description: t('onboarding.steps.account.description') },
+        ...items,
+    ];
+});
+const totalSteps = computed(() => stepItems.value.length);
+const currentStep = computed(() => stepItems.value.find((item) => item.id === step.value) || stepItems.value[0]);
+const stepIds = computed(() => ({
+    account: 1,
+    company: 1 + stepOffset.value,
+    type: 2 + stepOffset.value,
+    sector: 3 + stepOffset.value,
+    team: 4 + stepOffset.value,
+    plan: 5 + stepOffset.value,
+    security: 6 + stepOffset.value,
+}));
+const isStepDisabled = (item) => isGuest.value && item.key !== 'account';
+const selectStep = (item) => {
+    if (isStepDisabled(item)) {
+        return;
+    }
+    step.value = item.id;
+};
 
 const selectedCurrencyCode = computed(() => String(form.currency_code || 'CAD').toUpperCase());
 const priceForCurrency = (plan) => plan?.prices_by_currency?.[selectedCurrencyCode.value] || null;
 const hasPlanPrice = (plan) => Boolean(plan?.contact_only || priceForCurrency(plan)?.stripe_price_id);
-const planCandidates = computed(() => planOptions.value
+const visiblePlanOptions = computed(() => {
+    const targetAudience = isSoloProfile.value ? 'solo' : 'team';
+    const matchingAudience = planOptions.value.filter((plan) => (plan?.audience || 'team') === targetAudience);
+
+    return matchingAudience.length ? matchingAudience : planOptions.value;
+});
+const planCandidates = computed(() => visiblePlanOptions.value
     .filter((plan) => hasPlanPrice(plan))
     .map((plan) => {
         const limit = planLimits.value?.[plan.key]?.team_members;
@@ -377,14 +405,22 @@ const recommendedPlan = computed(() => {
     if (!planCandidates.value.length) {
         return null;
     }
+    if (isSoloProfile.value) {
+        return planCandidates.value.find((plan) => Boolean(plan?.recommended))
+            || planCandidates.value.find((plan) => Boolean(plan?.owner_only))
+            || planCandidates.value[0];
+    }
     const size = teamSizeValue.value;
     const candidate = planCandidates.value.find((plan) => plan.team_limit === null || plan.team_limit >= size);
     return candidate || planCandidates.value[planCandidates.value.length - 1];
 });
 
-const recommendedPlanLimitLabel = computed(() => {
+const recommendedPlanBadgeLabel = computed(() => {
     if (!recommendedPlan.value) {
         return '';
+    }
+    if (isSoloProfile.value) {
+        return t('onboarding.team.recommendation_owner_only');
     }
     const limit = recommendedPlan.value.team_limit;
     if (limit === null || typeof limit === 'undefined') {
@@ -392,6 +428,12 @@ const recommendedPlanLimitLabel = computed(() => {
     }
     return t('onboarding.team.recommendation_limit', { count: limit });
 });
+
+const recommendedPlanSubtitle = computed(() => (
+    isSoloProfile.value
+        ? t('onboarding.team.recommendation_solo_subtitle')
+        : t('onboarding.team.recommendation_subtitle', { count: teamSizeValue.value })
+));
 
 const addMonthNoOverflow = (date) => {
     const base = new Date(date);
@@ -418,10 +460,15 @@ const selectPlan = (plan) => {
 };
 
 watch(
-    () => recommendedPlan.value,
-    (plan) => {
-        if (!form.plan_key && plan?.key && hasPlanPrice(plan)) {
-            form.plan_key = plan.key;
+    () => [recommendedPlan.value?.key, visiblePlanOptions.value.map((plan) => plan.key).join('|')],
+    () => {
+        const currentPlan = visiblePlanOptions.value.find((plan) => plan.key === form.plan_key);
+        if (form.plan_key && (!currentPlan || !hasPlanPrice(currentPlan))) {
+            form.plan_key = '';
+        }
+
+        if (!form.plan_key && recommendedPlan.value?.key && hasPlanPrice(recommendedPlan.value)) {
+            form.plan_key = recommendedPlan.value.key;
         }
     },
     { immediate: true }
@@ -434,7 +481,7 @@ watch(
             return;
         }
 
-        const currentPlan = planOptions.value.find((plan) => plan.key === form.plan_key);
+        const currentPlan = visiblePlanOptions.value.find((plan) => plan.key === form.plan_key);
         if (!currentPlan || !hasPlanPrice(currentPlan)) {
             form.plan_key = '';
         }
@@ -789,14 +836,14 @@ const closeTerms = () => {
 
                     <div v-else-if="step === stepIds.team" class="space-y-3">
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('onboarding.team.size_title') }}</h3>
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.team.size_hint') }}</p>
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ teamSizeTitle }}</h3>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ teamSizeHint }}</p>
                             <div class="mt-3">
                                 <FloatingInput
                                     v-model="form.company_team_size"
                                     type="number"
                                     min="1"
-                                    :label="$t('onboarding.team.size_label')"
+                                    :label="teamSizeLabel"
                                 />
                                 <InputError class="mt-1" :message="form.errors.company_team_size" />
                             </div>
@@ -810,19 +857,19 @@ const closeTerms = () => {
                                 <div>
                                     <p class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ recommendedPlan.name }}</p>
                                     <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ $t('onboarding.team.recommendation_subtitle', { count: teamSizeValue }) }}
+                                        {{ recommendedPlanSubtitle }}
                                     </p>
                                 </div>
                                 <span class="rounded-full bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-600 dark:bg-neutral-800 dark:text-neutral-200">
-                                    {{ recommendedPlanLimitLabel }}
+                                    {{ recommendedPlanBadgeLabel }}
                                 </span>
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-between">
+                        <div v-if="showInviteSection" class="flex items-center justify-between">
                             <div>
-                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('onboarding.team.title') }}</h3>
-                                <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.team.subtitle') }}</p>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ teamWorkspaceTitle }}</h3>
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">{{ teamWorkspaceSubtitle }}</p>
                             </div>
                             <button type="button" @click="addInvite"
                                 class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
@@ -830,11 +877,19 @@ const closeTerms = () => {
                             </button>
                         </div>
 
-                        <div v-if="!form.invites.length" class="text-sm text-stone-600 dark:text-neutral-400">
+                        <div
+                            v-else
+                            class="rounded-sm border border-stone-200 bg-white p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                        >
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ teamWorkspaceTitle }}</h3>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ teamWorkspaceSubtitle }}</p>
+                        </div>
+
+                        <div v-if="showInviteSection && !form.invites.length" class="text-sm text-stone-600 dark:text-neutral-400">
                             {{ $t('onboarding.team.empty') }}
                         </div>
 
-                        <div v-else class="space-y-3">
+                        <div v-else-if="showInviteSection" class="space-y-3">
                             <div v-for="(invite, index) in form.invites" :key="index"
                                 class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
                                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -900,7 +955,7 @@ const closeTerms = () => {
 
                         <div class="grid gap-3 md:grid-cols-3">
                             <button
-                                v-for="plan in planOptions"
+                                v-for="plan in visiblePlanOptions"
                                 :key="plan.key"
                                 type="button"
                                 :disabled="!hasPlanPrice(plan)"

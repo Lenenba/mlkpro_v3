@@ -75,6 +75,7 @@
   "global_search": {
     "open": "Recherche globale",
     "placeholder": "Rechercher clients, taches, devis, employes...",
+    "placeholder_solo": "Rechercher clients, taches, devis...",
     "quick_actions": "Actions rapides",
     "results": "Resultats",
     "loading": "Recherche...",
@@ -593,20 +594,25 @@
     "title": "Planning",
     "subtitle": "Planifier les shifts et recurrences pour l equipe de vente.",
     "subtitle_services": "Planifier les interventions et taches de l equipe.",
+    "subtitle_owner_only": "Consulter votre calendrier dans une vue solo.",
+    "subtitle_owner_only_services": "Suivre vos jobs et taches dans une vue planning solo.",
     "calendar": {
       "title": "Planning equipe",
       "today": "Aujourd hui",
       "month": "Mois",
       "week": "Semaine",
-      "day": "Jour"
+      "day": "Jour",
+      "year": "Annee"
     },
     "preview": {
       "empty": "Aucun shift",
       "empty_services": "Aucun evenement",
       "count": "{count} shifts",
-      "count_services": "{count} evenements"
+      "count_services": "{count} evenements",
+      "more": "{count} de plus"
     },
     "filters": {
+      "title": "Calendriers",
       "member": "Employe",
       "all_members": "Toute l equipe",
       "range": "Periode",
@@ -645,6 +651,8 @@
       "month_day": "Jour du mois",
       "create": "Creer le shift",
       "creating": "Creation...",
+      "scroll_to_form": "Ouvrir le formulaire planning",
+      "use_selected_day": "Utiliser le jour selectionne",
       "save_time_off": "Enregistrer",
       "saving_time_off": "Enregistrement..."
     },
@@ -708,6 +716,19 @@
     "empty_services": {
       "title": "Vue planning",
       "description": "Les evenements viennent des interventions et taches."
+    },
+    "empty_owner_only": {
+      "title": "Planning en lecture seule",
+      "description": "La creation de shifts reste desactivee en mode solo tant qu un planning owner-only complet n existe pas."
+    },
+    "empty_owner_only_services": {
+      "title": "Vue operations solo",
+      "description": "Les jobs et taches restent visibles ici, mais la planification equipe reste desactivee en mode solo."
+    },
+    "owner_only": {
+      "badge": "Vue owner-only",
+      "panel_title": "Planning solo",
+      "panel_description": "Ce forfait solo garde le planning en lecture seule tant que les membres d equipe restent desactives."
     },
     "delete": {
       "title": "Supprimer le shift",
@@ -2250,6 +2271,7 @@
       "total_tips": "Total pourboires",
       "average_tip_per_reservation": "Moyenne pourboire / reservation",
       "top_members": "Top 3 membres",
+      "top_collectors": "Principaux collecteurs",
       "current_month_tips": "Pourboires du mois",
       "period_total": "Total periode",
       "average_tip_per_service": "Moyenne pourboire / service"
@@ -2260,6 +2282,8 @@
       "invoice": "Facture",
       "customer": "Client",
       "team_member": "Membre equipe",
+      "collected_by": "Collecte par",
+      "owner": "Proprietaire",
       "mode": "Mode pourboire",
       "tip_amount": "Montant pourboire",
       "total_charged": "Total encaisse",
@@ -2279,7 +2303,8 @@
       },
     "empty": {
       "rows": "Aucun pourboire pour ce filtre.",
-      "top_members": "Aucun classement membre pour le moment."
+      "top_members": "Aucun classement membre pour le moment.",
+      "top_collectors": "Aucune repartition disponible pour le moment."
     }
   },
   "client_orders": {
@@ -2371,6 +2396,10 @@
         "title": "Equipe",
         "description": "Invitez votre equipe."
       },
+      "team_solo": {
+        "title": "Configuration",
+        "description": "Confirmez votre espace solo."
+      },
       "plan": {
         "title": "Forfait",
         "description": "Choisissez votre plan."
@@ -2460,10 +2489,17 @@
       "size_title": "Taille de l'equipe",
       "size_hint": "Indiquez combien de personnes utiliseront la plateforme.",
       "size_label": "Nombre de membres",
+      "size_title_solo": "Profil de l'espace",
+      "size_hint_solo": "Laissez 1 pour un espace solo. Augmentez seulement si vous prevoyez passer a un mode equipe.",
+      "size_label_solo": "Taille prevue de l'espace",
       "recommendation_title": "Forfait recommande",
       "recommendation_subtitle": "Base sur {count} membres",
+      "recommendation_solo_subtitle": "Recommande pour un acces proprietaire uniquement",
       "recommendation_limit": "Jusqu'a {count} membres",
       "recommendation_unlimited": "Membres illimites",
+      "recommendation_owner_only": "Proprietaire uniquement",
+      "solo_title": "Espace solo",
+      "solo_subtitle": "Vous demarrez seul. Les invitations d equipe restent desactivees tant que vous restez sur un forfait solo.",
       "add": "+ Ajouter",
       "empty": "Aucune invitation ajoutee.",
       "name": "Nom",
@@ -4531,6 +4567,11 @@
     "title": "Reservations",
     "subtitle": "Suivez, confirmez ou refusez les reservations assignees a votre equipe.",
     "empty": "Aucune reservation.",
+    "owner_only": {
+      "staff_notice": "Solo growth garde les reservations en mode limite: consultation de l historique, gestion de la liste d attente et reglages globaux, mais la reservation par membre reste desactivee.",
+      "client_notice": "Cet espace solo ne propose pas encore de creneaux en direct. Rejoignez plutot la liste d attente pour un suivi manuel.",
+      "client_waitlist_hint": "Les creneaux de reservation et les replanifications restent desactives en mode solo owner-only."
+    },
     "stats": {
       "total": "Total",
       "pending": "En attente",
@@ -5143,6 +5184,7 @@
       "plan_later": "Planifier plus tard",
       "team": {
         "title": "EQUIPE",
+        "solo_panel_title": "AFFECTATION",
         "empty": "Aucun membre pour l'instant.",
         "member_fallback": "Membre equipe",
         "filter_hint": "Selectionner un membre pour filtrer le calendrier.",
@@ -5150,6 +5192,8 @@
         "selected_title": "Membres selectionnes",
         "selected_badge": "Selectionne",
         "search_empty": "Aucun membre correspondant.",
+        "solo_title": "Job proprietaire uniquement",
+        "solo_subtitle": "Cet espace solo n assigne pas les jobs a des membres d equipe. Les taches creees a partir de ce job restent non assignees tant que vous ne passez pas a un forfait equipe.",
         "availability": {
           "available": "Disponible",
           "busy": "Indisponible",
@@ -5517,6 +5561,7 @@
     },
     "filters": {
       "search_placeholder": "Rechercher taches, details ou assignes",
+      "search_placeholder_solo": "Rechercher taches ou details",
       "status": {
         "all": "Tous les statuts"
       }
@@ -5652,6 +5697,7 @@
       "due_date": "Date d'echeance",
       "assignee": "Assigne",
       "unassigned": "Non assigne",
+      "solo_hint": "Cet espace solo n assigne pas les taches a des membres d equipe.",
       "availability": {
         "available": "Disponible",
         "busy": "Indisponible",
@@ -5770,6 +5816,9 @@
       "meta_title": "Reservations",
       "title": "Parametres reservations",
       "subtitle": "Gerez les regles de reservation, les disponibilites d equipe et les exceptions.",
+      "owner_only": {
+        "notice": "Le mode solo owner-only conserve seulement les reglages globaux et les ressources utiles a la liste d attente. Les horaires par membre, surcharges par membre et la file hybride restent desactives tant que les membres d equipe ne sont pas disponibles."
+      },
       "summary": {
         "timezone": "Fuseau horaire",
         "team_members": "Membres d equipe",
@@ -6861,11 +6910,29 @@
     "meta": {
       "title": "Tarification"
     },
+    "badges": {
+      "recommended": "Le plus populaire"
+    },
+    "switch": {
+      "label": "Choisissez votre contexte"
+    },
+    "audiences": {
+      "solo": "Solo",
+      "team": "Equipe"
+    },
     "hero": {
-      "eyebrow": "Tarification",
-      "title": "Plans pour equipes terrain",
-      "subtitle": "Choisissez un plan adapte a votre workflow. Prix sur demande.",
-      "note": "Besoin d un plan entreprise ou sur mesure? Demandez la fiche."
+      "solo": {
+        "eyebrow": "Tarification solo",
+        "title": "Des forfaits concus pour les travailleurs autonomes",
+        "subtitle": "Commencez avec une configuration simple pour gerer devis, factures et suivi client au meme endroit.",
+        "note": "Passez plus tard vers une offre equipe sans reconstruire votre espace."
+      },
+      "team": {
+        "eyebrow": "Tarification equipe",
+        "title": "Plans pour equipes terrain",
+        "subtitle": "Choisissez un plan adapte a votre workflow, a la taille de votre equipe et a votre niveau d operations.",
+        "note": "Besoin d un plan entreprise ou sur mesure? Demandez la fiche."
+      }
     },
     "plans": {
       "starter": {
@@ -6886,18 +6953,36 @@
       }
     },
     "features": {
-      "title": "Inclus dans chaque plan",
-      "items": {
-        "one": "Devis, jobs, taches et factures",
-        "two": "Catalogue unique services et produits",
-        "three": "Signaux de prix et sources plan scan",
-        "four": "Portail client et validations",
-        "five": "Roles et permissions equipe"
+      "solo": {
+        "title": "Pense pour les journees en solo",
+        "items": {
+          "one": "Devis, factures et demandes clients dans un seul espace",
+          "two": "Catalogue et page publique pour presenter vos services clairement",
+          "three": "Solo Pro ajoute jobs et taches sans complexite equipe",
+          "four": "Solo Growth debloque planning, reservations limitees et outils IA",
+          "five": "Passerelle vers les forfaits equipe quand vous commencez a embaucher"
+        }
+      },
+      "team": {
+        "title": "Inclus dans chaque plan equipe",
+        "items": {
+          "one": "Devis, jobs, taches et factures",
+          "two": "Catalogue unique services et produits",
+          "three": "Signaux de prix et sources plan scan",
+          "four": "Portail client et validations",
+          "five": "Roles et permissions equipe"
+        }
       }
     },
     "enterprise": {
-      "title": "Fiche tarif entreprise",
-      "body": "Demandez la fiche entreprise pour limites sur mesure, revue securite et onboarding."
+      "solo": {
+        "title": "Commencer seul, evoluer ensuite",
+        "body": "Demarrez avec un forfait solo, puis passez vers une offre equipe quand vous embauchez ou avez besoin de workflows collaboratifs."
+      },
+      "team": {
+        "title": "Fiche tarif entreprise",
+        "body": "Demandez la fiche entreprise pour limites sur mesure, revue securite et onboarding."
+      }
     },
     "actions": {
       "primary": "Demarrer l onboarding",
@@ -6916,12 +7001,17 @@
       },
       "rows": {
         "team_members": "Employes inclus",
+        "account_access": "Acces compte",
         "clients": "Clients",
         "requests": "Demandes / leads",
         "estimates": "Devis",
         "invoices": "Factures",
         "catalog": "Catalogue produits et services",
+        "catalog_items": "Articles au catalogue",
         "client_portal": "Portail client",
+        "jobs": "Jobs",
+        "tasks": "Taches",
+        "planning": "Planning",
         "team_planning": "Planning d equipe",
         "time_tracking": "Presence et pointage",
         "reservations": "Reservations et check-in",
@@ -6931,13 +7021,17 @@
         "automations": "Automatisations avancees",
         "plan_scan": "Scan de plan et devis IA",
         "ai_assistant": "Assistant IA",
+        "campaigns": "Campagnes",
+        "loyalty": "Fidelite",
         "onboarding": "Onboarding dedie",
         "custom_integrations": "Integrations et SLA sur mesure"
       },
       "values": {
         "unlimited": "Illimite",
         "optional": "Option",
-        "contact": "Contact us"
+        "owner_only": "1 owner",
+        "limited": "Mode limite",
+        "contact": "Contactez-nous"
       }
     }
   },

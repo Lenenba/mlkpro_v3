@@ -135,9 +135,10 @@ class BillingSettingsController extends Controller
         $plans = $billingService->isStripe()
             ? collect(app(BillingPlanService::class)->plansForTenant($user))
                 ->map(function (array $plan) use ($planLimits) {
-                    $teamLimitRaw = $planLimits[$plan['key']]['team_members'] ?? null;
+                    $isOwnerOnly = (bool) ($plan['owner_only'] ?? false);
+                    $teamLimitRaw = $isOwnerOnly ? null : ($planLimits[$plan['key']]['team_members'] ?? null);
                     $teamLimit = is_numeric($teamLimitRaw) ? (int) $teamLimitRaw : null;
-                    $teamMinRaw = $plan['team_members_min'] ?? null;
+                    $teamMinRaw = $isOwnerOnly ? null : ($plan['team_members_min'] ?? null);
                     $teamMin = is_numeric($teamMinRaw) ? (int) $teamMinRaw : null;
                     $contactOnly = (bool) ($plan['contact_only'] ?? false);
 
@@ -156,10 +157,11 @@ class BillingSettingsController extends Controller
                     $displayPrice = $this->resolvePlanDisplayPrice([
                         'price' => $display['price'],
                     ]);
-                    $teamLimitRaw = $planLimits[$key]['team_members'] ?? null;
+                    $isOwnerOnly = (bool) ($plan['owner_only'] ?? false);
+                    $teamLimitRaw = $isOwnerOnly ? null : ($planLimits[$key]['team_members'] ?? null);
                     $teamLimit = is_numeric($teamLimitRaw) ? (int) $teamLimitRaw : null;
                     $contactOnly = ! empty($plan['contact_only']);
-                    $teamMinRaw = $plan['team_members_min'] ?? null;
+                    $teamMinRaw = $isOwnerOnly ? null : ($plan['team_members_min'] ?? null);
                     $teamMin = is_numeric($teamMinRaw) ? (int) $teamMinRaw : null;
 
                     return [
@@ -173,6 +175,9 @@ class BillingSettingsController extends Controller
                         'team_members_limit' => $teamLimit,
                         'team_members_min' => $teamMin,
                         'contact_only' => $contactOnly,
+                        'audience' => $plan['audience'] ?? 'team',
+                        'owner_only' => $isOwnerOnly,
+                        'recommended' => (bool) ($plan['recommended'] ?? false),
                         'cta_url' => $contactOnly ? route('settings.support.index') : null,
                     ];
                 })
@@ -180,9 +185,9 @@ class BillingSettingsController extends Controller
                 ->all();
 
         $subscriptionSummary = $billingService->subscriptionSummary($user);
-        $seatQuantity = $billingService->resolveSeatQuantity($user);
         $planModules = PlatformSetting::getValue('plan_modules', []);
         $planKey = $billingService->resolvePlanKey($user, $planModules);
+        $seatQuantity = $billingService->resolveBillableQuantity($user, $planKey);
         $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
         $assistantEnabled = $user->hasCompanyFeature('assistant');
         $assistantAddonEnabled = $assistantEnabled && ! $assistantIncluded;

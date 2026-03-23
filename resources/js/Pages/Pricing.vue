@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watchEffect } from 'vue';
 import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
 import PublicSiteHeader from '@/Components/Public/PublicSiteHeader.vue';
 import { Head, Link } from '@inertiajs/vue3';
@@ -13,6 +13,14 @@ const props = defineProps({
     canRegister: {
         type: Boolean,
         default: true,
+    },
+    pricingCatalogs: {
+        type: Object,
+        default: () => ({}),
+    },
+    defaultAudience: {
+        type: String,
+        default: null,
     },
     pricingPlans: {
         type: Array,
@@ -41,9 +49,65 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
-const plans = computed(() => (Array.isArray(props.pricingPlans) ? props.pricingPlans : []));
-const highlightedKey = computed(() => props.highlightedPlanKey || plans.value[2]?.key || plans.value[1]?.key || plans.value[0]?.key || null);
-const comparisonSections = computed(() => (Array.isArray(props.comparisonSections) ? props.comparisonSections : []));
+const fallbackCatalog = computed(() => ({
+    team: {
+        plans: Array.isArray(props.pricingPlans) ? props.pricingPlans : [],
+        highlightedPlanKey: props.highlightedPlanKey,
+        comparisonSections: Array.isArray(props.comparisonSections) ? props.comparisonSections : [],
+    },
+}));
+const pricingCatalogs = computed(() => {
+    if (props.pricingCatalogs && Object.keys(props.pricingCatalogs).length > 0) {
+        return props.pricingCatalogs;
+    }
+
+    return fallbackCatalog.value;
+});
+const audienceOrder = ['solo', 'team'];
+const audienceKeys = computed(() => {
+    const keys = Object.keys(pricingCatalogs.value);
+
+    return audienceOrder.filter((key) => keys.includes(key)).concat(
+        keys.filter((key) => !audienceOrder.includes(key))
+    );
+});
+const activeAudience = ref(props.defaultAudience || audienceKeys.value[0] || 'team');
+
+watchEffect(() => {
+    if (! audienceKeys.value.includes(activeAudience.value)) {
+        activeAudience.value = props.defaultAudience && audienceKeys.value.includes(props.defaultAudience)
+            ? props.defaultAudience
+            : (audienceKeys.value[0] || 'team');
+    }
+});
+
+const activeCatalog = computed(() => pricingCatalogs.value[activeAudience.value]
+    || pricingCatalogs.value[audienceKeys.value[0]]
+    || {
+        plans: [],
+        highlightedPlanKey: null,
+        comparisonSections: [],
+    });
+const plans = computed(() => (Array.isArray(activeCatalog.value?.plans) ? activeCatalog.value.plans : []));
+const highlightedKey = computed(() => activeCatalog.value?.highlightedPlanKey || props.highlightedPlanKey || plans.value[2]?.key || plans.value[1]?.key || plans.value[0]?.key || null);
+const comparisonSections = computed(() => (Array.isArray(activeCatalog.value?.comparisonSections) ? activeCatalog.value.comparisonSections : []));
+const heroBaseKey = computed(() => `pricing.hero.${activeAudience.value}`);
+const featuresBaseKey = computed(() => `pricing.features.${activeAudience.value}`);
+const supportBaseKey = computed(() => `pricing.enterprise.${activeAudience.value}`);
+const featureItems = computed(() => ['one', 'two', 'three', 'four', 'five']
+    .map((key) => t(`${featuresBaseKey.value}.items.${key}`))
+    .filter((value) => !!value && !value.startsWith('pricing.')));
+const planGridClass = computed(() => {
+    if (plans.value.length <= 3) {
+        return 'md:grid-cols-3';
+    }
+
+    if (plans.value.length === 4) {
+        return 'md:grid-cols-2 xl:grid-cols-4';
+    }
+
+    return 'md:grid-cols-2 xl:grid-cols-5';
+});
 
 const headerMenuItems = computed(() => ([
     {
@@ -83,20 +147,40 @@ const isExcludedCell = (value) => value?.type === 'excluded';
                 <div class="public-pricing-container">
                     <div class="mx-auto max-w-3xl space-y-4 text-center">
                         <div class="public-pricing-kicker">
-                            {{ $t('pricing.hero.eyebrow') }}
+                            {{ $t(`${heroBaseKey}.eyebrow`) }}
                         </div>
                         <h1 class="public-pricing-title text-4xl font-semibold tracking-tight sm:text-5xl">
-                            {{ $t('pricing.hero.title') }}
+                            {{ $t(`${heroBaseKey}.title`) }}
                         </h1>
                         <p class="text-base text-stone-600 sm:text-lg">
-                            {{ $t('pricing.hero.subtitle') }}
+                            {{ $t(`${heroBaseKey}.subtitle`) }}
                         </p>
                         <p class="text-sm text-stone-500">
-                            {{ $t('pricing.hero.note') }}
+                            {{ $t(`${heroBaseKey}.note`) }}
                         </p>
+
+                        <div v-if="audienceKeys.length > 1" class="public-pricing-audience-switch">
+                            <span class="public-pricing-audience-switch__label">
+                                {{ $t('pricing.switch.label') }}
+                            </span>
+                            <div class="public-pricing-audience-switch__buttons">
+                                <button
+                                    v-for="audienceKey in audienceKeys"
+                                    :key="audienceKey"
+                                    type="button"
+                                    :class="[
+                                        'public-pricing-audience-switch__button',
+                                        activeAudience === audienceKey ? 'public-pricing-audience-switch__button--active' : ''
+                                    ]"
+                                    @click="activeAudience = audienceKey"
+                                >
+                                    {{ $t(`pricing.audiences.${audienceKey}`) }}
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <div :class="['mt-10 grid grid-cols-1 gap-4', planGridClass]">
                         <article v-for="plan in plans" :key="plan.key"
                             :class="[
                                 'public-pricing-card',
@@ -115,7 +199,7 @@ const isExcludedCell = (value) => value?.type === 'excluded';
                                         'rounded-sm px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]',
                                         isHighlighted(plan) ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-600'
                                     ]">
-                                    {{ plan.badge || $t('pricing.plans.pro.badge') }}
+                                    {{ plan.badge || $t('pricing.badges.recommended') }}
                                 </span>
                             </div>
                             <div class="mt-4 text-2xl font-semibold text-stone-900">
@@ -127,7 +211,7 @@ const isExcludedCell = (value) => value?.type === 'excluded';
                                 </li>
                             </ul>
                             <p v-else class="mt-4 text-sm text-stone-500">
-                                {{ $t('pricing.hero.note') }}
+                                {{ $t(`${heroBaseKey}.note`) }}
                             </p>
                         </article>
                     </div>
@@ -196,22 +280,20 @@ const isExcludedCell = (value) => value?.type === 'excluded';
                     <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_0.9fr]">
                         <article class="public-pricing-surface">
                             <div class="text-sm font-semibold text-stone-900">
-                                {{ $t('pricing.features.title') }}
+                                {{ $t(`${featuresBaseKey}.title`) }}
                             </div>
                             <ul class="mt-4 grid gap-3 text-sm text-stone-600 sm:grid-cols-2">
-                                <li class="public-pricing-bullet">{{ $t('pricing.features.items.one') }}</li>
-                                <li class="public-pricing-bullet">{{ $t('pricing.features.items.two') }}</li>
-                                <li class="public-pricing-bullet">{{ $t('pricing.features.items.three') }}</li>
-                                <li class="public-pricing-bullet">{{ $t('pricing.features.items.four') }}</li>
-                                <li class="public-pricing-bullet">{{ $t('pricing.features.items.five') }}</li>
+                                <li v-for="item in featureItems" :key="item" class="public-pricing-bullet">
+                                    {{ item }}
+                                </li>
                             </ul>
                         </article>
 
                         <article class="public-pricing-surface public-pricing-surface--tinted">
                             <div class="text-sm font-semibold text-stone-900">
-                                {{ $t('pricing.enterprise.title') }}
+                                {{ $t(`${supportBaseKey}.title`) }}
                             </div>
-                            <p class="mt-3 text-sm text-stone-600">{{ $t('pricing.enterprise.body') }}</p>
+                            <p class="mt-3 text-sm text-stone-600">{{ $t(`${supportBaseKey}.body`) }}</p>
                             <div class="mt-5 flex flex-wrap gap-2">
                                 <Link v-if="canRegister" :href="route('onboarding.index')"
                                     class="rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700">
@@ -279,6 +361,47 @@ const isExcludedCell = (value) => value?.type === 'excluded';
     color: #065f46;
     font-size: 0.75rem;
     font-weight: 600;
+}
+
+.public-pricing-audience-switch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.public-pricing-audience-switch__label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: #64748b;
+}
+
+.public-pricing-audience-switch__buttons {
+    display: inline-flex;
+    gap: 0.35rem;
+    padding: 0.3rem;
+    border: 1px solid #dfe7ef;
+    border-radius: 0.125rem;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.public-pricing-audience-switch__button {
+    border: none;
+    border-radius: 0.125rem;
+    background: transparent;
+    color: #475569;
+    padding: 0.55rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.public-pricing-audience-switch__button--active {
+    background: #16a34a;
+    color: #ffffff;
+    box-shadow: 0 12px 30px -20px rgba(22, 163, 74, 0.8);
 }
 
 .public-pricing-card,

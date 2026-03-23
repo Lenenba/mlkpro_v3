@@ -14,6 +14,8 @@ use App\Models\Reservation;
 use App\Models\ReservationQueueItem;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\BillingPlanService;
+use App\Services\BillingSubscriptionService;
 use App\Services\CompanyFeatureService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationIntentGuardService;
@@ -32,7 +34,9 @@ use Inertia\Inertia;
 class PublicKioskReservationController extends Controller
 {
     private const VERIFICATION_CODE_LENGTH = 6;
+
     private const VERIFICATION_CODE_TTL_MINUTES = 10;
+
     private const VERIFIED_PHONE_TTL_MINUTES = 15;
 
     public function __construct(
@@ -41,8 +45,7 @@ class PublicKioskReservationController extends Controller
         private readonly ReservationIntentGuardService $intentGuard,
         private readonly CompanyFeatureService $featureService,
         private readonly SmsNotificationService $smsService
-    ) {
-    }
+    ) {}
 
     public function show(Request $request)
     {
@@ -103,7 +106,7 @@ class PublicKioskReservationController extends Controller
 
         $phone = (string) $validated['phone'];
         $phoneNormalized = $this->normalizePhone($phone);
-        if (!$phoneNormalized) {
+        if (! $phoneNormalized) {
             throw ValidationException::withMessages([
                 'phone' => ['Invalid phone number format.'],
             ]);
@@ -181,18 +184,19 @@ class PublicKioskReservationController extends Controller
 
         $phone = (string) $validated['phone'];
         $phoneNormalized = $this->normalizePhone($phone);
-        if (!$phoneNormalized) {
+        if (! $phoneNormalized) {
             throw ValidationException::withMessages([
                 'phone' => ['Invalid phone number format.'],
             ]);
         }
 
         $customer = $this->findCustomerByPhone($account->id, $phone, $phoneNormalized);
-        if (!$customer) {
+        if (! $customer) {
             $this->logKioskEvent('kiosk_lookup_not_found', [
                 'account_id' => (int) $account->id,
                 'phone_hash' => $this->phoneHash($phoneNormalized),
             ]);
+
             return response()->json([
                 'found' => false,
                 'verification_required' => false,
@@ -205,12 +209,13 @@ class PublicKioskReservationController extends Controller
         }
 
         $verificationRequired = $this->requiresSmsVerification($account, $settings);
-        if (!$verificationRequired || $this->hasVerifiedPhone($account->id, $phoneNormalized)) {
+        if (! $verificationRequired || $this->hasVerifiedPhone($account->id, $phoneNormalized)) {
             $this->logKioskEvent('kiosk_lookup_found_verified', [
                 'account_id' => (int) $account->id,
                 'client_id' => (int) $customer->id,
                 'phone_hash' => $this->phoneHash($phoneNormalized),
             ]);
+
             return response()->json([
                 'found' => true,
                 'verification_required' => $verificationRequired,
@@ -249,14 +254,14 @@ class PublicKioskReservationController extends Controller
         $settings = $this->resolveKioskSettings($account);
 
         $phoneNormalized = $this->normalizePhone((string) $validated['phone']);
-        if (!$phoneNormalized) {
+        if (! $phoneNormalized) {
             throw ValidationException::withMessages([
                 'phone' => ['Invalid phone number format.'],
             ]);
         }
 
         $customer = $this->findCustomerByPhone($account->id, (string) $validated['phone'], $phoneNormalized);
-        if (!$customer) {
+        if (! $customer) {
             throw ValidationException::withMessages([
                 'phone' => ['No existing client found for this phone number.'],
             ]);
@@ -294,14 +299,14 @@ class PublicKioskReservationController extends Controller
 
         $phone = (string) $validated['phone'];
         $phoneNormalized = $this->normalizePhone($phone);
-        if (!$phoneNormalized) {
+        if (! $phoneNormalized) {
             throw ValidationException::withMessages([
                 'phone' => ['Invalid phone number format.'],
             ]);
         }
 
         $customer = $this->findCustomerByPhone($account->id, $phone, $phoneNormalized);
-        if (!$customer) {
+        if (! $customer) {
             throw ValidationException::withMessages([
                 'phone' => ['No existing client found for this phone number.'],
             ]);
@@ -334,7 +339,7 @@ class PublicKioskReservationController extends Controller
             ->where('reservation_id', $reservation->id)
             ->first();
 
-        if (!$item) {
+        if (! $item) {
             throw ValidationException::withMessages([
                 'reservation' => ['Unable to create queue item for this reservation.'],
             ]);
@@ -366,7 +371,7 @@ class PublicKioskReservationController extends Controller
         $settings = $this->resolveKioskSettings($account);
 
         $phoneNormalized = $this->normalizePhone((string) $validated['phone']);
-        if (!$phoneNormalized) {
+        if (! $phoneNormalized) {
             throw ValidationException::withMessages([
                 'phone' => ['Invalid phone number format.'],
             ]);
@@ -392,10 +397,10 @@ class PublicKioskReservationController extends Controller
             ])
             ->orderByDesc('created_at');
 
-        if (!empty($validated['queue_number'])) {
+        if (! empty($validated['queue_number'])) {
             $query->where('queue_number', trim((string) $validated['queue_number']));
         }
-        if (!empty($validated['ticket_id'])) {
+        if (! empty($validated['ticket_id'])) {
             $query->whereKey((int) $validated['ticket_id']);
         }
 
@@ -406,12 +411,13 @@ class PublicKioskReservationController extends Controller
             $customer
         ));
 
-        if (!$ticket) {
+        if (! $ticket) {
             $this->logKioskEvent('kiosk_ticket_track_not_found', [
                 'account_id' => (int) $account->id,
                 'phone_hash' => $this->phoneHash($phoneNormalized),
-                'queue_number' => !empty($validated['queue_number']) ? trim((string) $validated['queue_number']) : null,
+                'queue_number' => ! empty($validated['queue_number']) ? trim((string) $validated['queue_number']) : null,
             ]);
+
             return response()->json([
                 'found' => false,
             ], 404);
@@ -446,7 +452,7 @@ class PublicKioskReservationController extends Controller
         }
 
         $account = User::query()->find($accountId);
-        if (!$account) {
+        if (! $account) {
             abort(404);
         }
 
@@ -471,25 +477,31 @@ class PublicKioskReservationController extends Controller
         if ($account->isSuspended()) {
             abort(404);
         }
-        if (!$this->featureService->hasFeature($account, 'reservations')) {
+        if (! $this->featureService->hasFeature($account, 'reservations')) {
             abort(404);
+        }
+        $planKey = app(BillingSubscriptionService::class)->resolvePlanKey($account, config('billing.plans', []));
+        if ($planKey && app(BillingPlanService::class)->isOwnerOnlyPlan($planKey)) {
+            throw ValidationException::withMessages([
+                'kiosk' => ['Public kiosk queue is unavailable in owner-only solo mode.'],
+            ]);
         }
 
         $settings = $this->availabilityService->resolveSettings($account->id, null);
-        if (!ReservationPresetResolver::queueFeaturesEnabled((string) ($settings['business_preset'] ?? null))) {
+        if (! ReservationPresetResolver::queueFeaturesEnabled((string) ($settings['business_preset'] ?? null))) {
             throw ValidationException::withMessages([
                 'kiosk' => ['Public kiosk queue is only available for salon businesses.'],
             ]);
         }
 
-        if (!($settings['queue_mode_enabled'] ?? false)) {
+        if (! ($settings['queue_mode_enabled'] ?? false)) {
             throw ValidationException::withMessages([
                 'queue' => ['Queue mode is disabled for this account.'],
             ]);
         }
 
         $kioskEnabled = (bool) data_get($account->company_notification_settings, 'reservations.kiosk_enabled', true);
-        if (!$kioskEnabled) {
+        if (! $kioskEnabled) {
             throw ValidationException::withMessages([
                 'kiosk' => ['Kiosk is disabled for this account.'],
             ]);
@@ -522,7 +534,7 @@ class PublicKioskReservationController extends Controller
         string $phoneNormalized,
         ?string $verificationCode
     ): void {
-        if (!$this->requiresSmsVerification($account, $settings)) {
+        if (! $this->requiresSmsVerification($account, $settings)) {
             return;
         }
 
@@ -532,6 +544,7 @@ class PublicKioskReservationController extends Controller
 
         if ($verificationCode) {
             $this->consumeVerificationCode($account->id, $phoneNormalized, $verificationCode);
+
             return;
         }
 
@@ -556,9 +569,9 @@ class PublicKioskReservationController extends Controller
             ->where(function (Builder $query) use ($raw, $digits, $phoneNormalized) {
                 $query->where('phone', $raw)
                     ->orWhere('phone', $phoneNormalized)
-                    ->orWhere('phone', '+' . $phoneNormalized);
+                    ->orWhere('phone', '+'.$phoneNormalized);
                 if ($digits !== '') {
-                    $query->orWhere('phone', 'like', '%' . $digits);
+                    $query->orWhere('phone', 'like', '%'.$digits);
                 }
             })
             ->orderByDesc('updated_at')
@@ -590,7 +603,7 @@ class PublicKioskReservationController extends Controller
         }
 
         if (strlen($digits) === 10) {
-            return '1' . $digits;
+            return '1'.$digits;
         }
 
         if (strlen($digits) > 11) {
@@ -624,10 +637,10 @@ class PublicKioskReservationController extends Controller
         if ($sendSms) {
             $sent = $this->smsService->send(
                 $phoneRaw,
-                "Votre code de verification est {$code}. Il expire dans " . self::VERIFICATION_CODE_TTL_MINUTES . ' minutes.'
+                "Votre code de verification est {$code}. Il expire dans ".self::VERIFICATION_CODE_TTL_MINUTES.' minutes.'
             );
 
-            if (!$sent && !app()->environment(['local', 'testing'])) {
+            if (! $sent && ! app()->environment(['local', 'testing'])) {
                 throw ValidationException::withMessages([
                     'phone' => ['Unable to send verification code right now.'],
                 ]);
@@ -645,7 +658,7 @@ class PublicKioskReservationController extends Controller
     {
         $cached = Cache::get($this->verificationCodeCacheKey($accountId, $phoneNormalized));
         $hash = is_array($cached) ? ($cached['hash'] ?? null) : null;
-        if (!is_string($hash) || $hash === '' || !Hash::check($code, $hash)) {
+        if (! is_string($hash) || $hash === '' || ! Hash::check($code, $hash)) {
             throw ValidationException::withMessages([
                 'code' => ['Invalid or expired verification code.'],
             ]);
@@ -661,12 +674,12 @@ class PublicKioskReservationController extends Controller
 
     private function verificationCodeCacheKey(int $accountId, string $phoneNormalized): string
     {
-        return 'reservation:kiosk:verification:' . $accountId . ':' . sha1($phoneNormalized);
+        return 'reservation:kiosk:verification:'.$accountId.':'.sha1($phoneNormalized);
     }
 
     private function verifiedPhoneCacheKey(int $accountId, string $phoneNormalized): string
     {
-        return 'reservation:kiosk:verified:' . $accountId . ':' . sha1($phoneNormalized);
+        return 'reservation:kiosk:verified:'.$accountId.':'.sha1($phoneNormalized);
     }
 
     private function buildClientIntentPayload(User $account, Customer $customer, array $settings): array
@@ -726,7 +739,7 @@ class PublicKioskReservationController extends Controller
                 ->first();
         }
 
-        if (!$reservation) {
+        if (! $reservation) {
             $reservation = $this->intentGuard->findNearbyActiveReservation(
                 $accountId,
                 (int) $customer->id,
@@ -735,7 +748,7 @@ class PublicKioskReservationController extends Controller
             );
         }
 
-        if (!$reservation) {
+        if (! $reservation) {
             throw ValidationException::withMessages([
                 'reservation' => ['No nearby active reservation found for this client.'],
             ]);
@@ -778,7 +791,7 @@ class PublicKioskReservationController extends Controller
         ]) ?: $ticket;
         $mapped = $this->mapQueueItem($freshTicket);
 
-        $queueNumber = (string) ($mapped['queue_number'] ?? ('#' . $freshTicket->id));
+        $queueNumber = (string) ($mapped['queue_number'] ?? ('#'.$freshTicket->id));
         $position = $mapped['position'] ?? null;
         $positionLabel = $position !== null ? (string) $position : 'pending assignment';
 
@@ -802,17 +815,17 @@ class PublicKioskReservationController extends Controller
         ]);
 
         $clientName = $item->client?->company_name
-            ?: trim(($item->client?->first_name ?? '') . ' ' . ($item->client?->last_name ?? ''));
-        if (!$clientName) {
+            ?: trim(($item->client?->first_name ?? '').' '.($item->client?->last_name ?? ''));
+        if (! $clientName) {
             $clientName = trim((string) data_get($item->metadata, 'guest_name'));
         }
-        if (!$clientName) {
+        if (! $clientName) {
             $clientName = trim((string) data_get($item->metadata, 'guest_phone'));
         }
 
         return [
             'id' => (int) $item->id,
-            'queue_number' => $item->queue_number ?: ('#' . $item->id),
+            'queue_number' => $item->queue_number ?: ('#'.$item->id),
             'status' => (string) $item->status,
             'item_type' => (string) $item->item_type,
             'client_name' => $clientName !== '' ? $clientName : null,
@@ -828,7 +841,7 @@ class PublicKioskReservationController extends Controller
     private function displayClientName(Customer $customer): string
     {
         $name = $customer->company_name
-            ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+            ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
 
         return $name !== '' ? $name : ((string) ($customer->email ?? 'Client'));
     }
@@ -837,11 +850,11 @@ class PublicKioskReservationController extends Controller
     {
         $parts = array_values(array_filter(preg_split('/\s+/', trim($value)) ?: []));
         if (count($parts) >= 2) {
-            return strtoupper(substr($parts[0], 0, 1)) . ' ' . strtoupper(substr($parts[1], 0, 1)) . '.';
+            return strtoupper(substr($parts[0], 0, 1)).' '.strtoupper(substr($parts[1], 0, 1)).'.';
         }
 
         if ($value !== '') {
-            return strtoupper(substr($value, 0, 1)) . '***';
+            return strtoupper(substr($value, 0, 1)).'***';
         }
 
         return '***';
@@ -849,7 +862,7 @@ class PublicKioskReservationController extends Controller
 
     private function phoneHash(?string $phoneNormalized): ?string
     {
-        if (!$phoneNormalized) {
+        if (! $phoneNormalized) {
             return null;
         }
 

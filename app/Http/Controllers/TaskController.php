@@ -13,6 +13,7 @@ use App\Models\TaskMaterial;
 use App\Models\TeamMember;
 use App\Models\Work;
 use App\Queries\Tasks\BuildTaskIndexData;
+use App\Services\CompanyFeatureService;
 use App\Services\InventoryService;
 use App\Services\TaskStatusHistoryService;
 use App\Services\TaskTimingService;
@@ -44,6 +45,9 @@ class TaskController extends Controller
 
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $hasTeamMembersFeature = $user
+            ? app(CompanyFeatureService::class)->hasFeature($user, 'team_members')
+            : false;
 
         if ($task->account_id !== $accountId) {
             abort(404);
@@ -129,8 +133,12 @@ class TaskController extends Controller
 
         $task->setAttribute('location', $location);
 
+        if (! $hasTeamMembersFeature) {
+            $this->sanitizeTaskAssignments($task);
+        }
+
         $teamMembers = collect();
-        if ($canManage) {
+        if ($canManage && $hasTeamMembersFeature) {
             $teamMembers = TeamMember::query()
                 ->forAccount($accountId)
                 ->active()
@@ -170,12 +178,18 @@ class TaskController extends Controller
 
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $hasTeamMembersFeature = $user
+            ? app(CompanyFeatureService::class)->hasFeature($user, 'team_members')
+            : false;
 
         if ($user) {
             app(UsageLimitService::class)->enforceLimit($user, 'tasks');
         }
 
         $validated = $request->validated();
+        if (! $hasTeamMembersFeature) {
+            $validated['assigned_team_member_id'] = null;
+        }
 
         $work = null;
         $workId = $validated['work_id'] ?? null;
@@ -303,6 +317,9 @@ class TaskController extends Controller
 
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $hasTeamMembersFeature = $user
+            ? app(CompanyFeatureService::class)->hasFeature($user, 'team_members')
+            : false;
 
         if ($task->status === 'done') {
             if ($this->shouldReturnJson($request)) {
@@ -321,6 +338,9 @@ class TaskController extends Controller
 
         $isManager = $request->isManager();
         $validated = $request->validated();
+        if ($isManager && ! $hasTeamMembersFeature) {
+            $validated['assigned_team_member_id'] = null;
+        }
 
         $updates = [
             'status' => $validated['status'],
@@ -486,15 +506,19 @@ class TaskController extends Controller
 
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $hasTeamMembersFeature = $user
+            ? app(CompanyFeatureService::class)->hasFeature($user, 'team_members')
+            : false;
 
         if ($task->account_id !== $accountId) {
             abort(404);
         }
 
         $validated = $request->validated();
-        $nextAssigneeId = isset($validated['assigned_team_member_id']) && $validated['assigned_team_member_id']
-            ? (int) $validated['assigned_team_member_id']
-            : null;
+        $nextAssigneeId = $hasTeamMembersFeature
+            && isset($validated['assigned_team_member_id']) && $validated['assigned_team_member_id']
+                ? (int) $validated['assigned_team_member_id']
+                : null;
 
         $task = $assignTask->execute($task, $nextAssigneeId, $user);
 
@@ -849,5 +873,11 @@ class TaskController extends Controller
         $minutes = (int) $parts[1];
 
         return ($hours * 60) + $minutes;
+    }
+
+    private function sanitizeTaskAssignments(Task $task): void
+    {
+        $task->setAttribute('assigned_team_member_id', null);
+        $task->setRelation('assignee', null);
     }
 }

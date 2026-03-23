@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Reservation;
 
+use App\Services\BillingPlanService;
+use App\Services\BillingSubscriptionService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,7 +13,13 @@ class ClientBookingRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        if (! $this->user()) {
+            return false;
+        }
+
+        $planKey = app(BillingSubscriptionService::class)->resolvePlanKey($this->user(), config('billing.plans', []));
+
+        return ! ($planKey && app(BillingPlanService::class)->isOwnerOnlyPlan($planKey));
     }
 
     public function rules(): array

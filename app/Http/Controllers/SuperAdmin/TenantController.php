@@ -383,8 +383,17 @@ class TenantController extends BaseSuperAdminController
             ]);
         }
 
+        $eligibilityErrors = $planKey
+            ? $billingService->ownerOnlyPlanSelectionErrors($tenant, $planKey, (int) ($tenant->company_team_size ?? 0))
+            : [];
+        if ($eligibilityErrors !== []) {
+            return redirect()->back()->withErrors([
+                'plan_key' => $eligibilityErrors[0],
+            ]);
+        }
+
         try {
-            $seatQuantity = app(BillingSubscriptionService::class)->resolveSeatQuantity($tenant);
+            $seatQuantity = $billingService->resolveBillableQuantity($tenant, $planKey);
             $updated = app(CreateStripeSubscriptionForTenant::class)
                 ->assign($tenant, (string) $planKey, $comped, $seatQuantity);
             if (! $updated) {

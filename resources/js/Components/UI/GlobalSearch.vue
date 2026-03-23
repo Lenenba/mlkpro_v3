@@ -26,6 +26,11 @@ const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
 const isSeller = computed(() => teamRole.value === 'seller');
 const featureFlags = computed(() => page.props.auth?.account?.features || {});
 const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
+const searchPlaceholder = computed(() => (
+    hasFeature('team_members')
+        ? t('global_search.placeholder')
+        : t('global_search.placeholder_solo')
+));
 const canSales = computed(() =>
     isOwner.value || teamPermissions.value.includes('sales.manage') || teamPermissions.value.includes('sales.pos')
 );
@@ -193,7 +198,7 @@ onBeforeUnmount(() => {
                             v-model="query"
                             type="text"
                             class="w-full bg-transparent text-sm text-stone-700 outline-none placeholder:text-stone-400 dark:text-neutral-200"
-                            :placeholder="t('global_search.placeholder')"
+                            :placeholder="searchPlaceholder"
                         />
                         <button
                             type="button"

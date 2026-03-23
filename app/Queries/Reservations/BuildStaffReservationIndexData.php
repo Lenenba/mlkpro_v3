@@ -12,6 +12,8 @@ use App\Models\ReservationWaitlist;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
+use App\Services\BillingPlanService;
+use App\Services\BillingSubscriptionService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationQueueService;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,6 +30,12 @@ class BuildStaffReservationIndexData
     public function index(User $account, array $access, Request $request): array
     {
         $filters = $this->normalizeFilters($request, $access);
+        $ownerOnlyMode = $this->ownerOnlyMode($account);
+
+        if ($ownerOnlyMode) {
+            $filters['team_member_id'] = '';
+            $filters['scope'] = 'all';
+        }
 
         $query = $this->reservationQuery($account->id)
             ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access));
@@ -72,24 +80,28 @@ class BuildStaffReservationIndexData
             'today' => (clone $statsQuery)->whereDate('starts_at', now()->toDateString())->count(),
         ];
 
-        $teamMembersQuery = TeamMember::query()
-            ->forAccount($account->id)
-            ->active()
-            ->with('user:id,name');
-        if (! $access['can_view_all'] && $access['own_team_member_id']) {
-            $teamMembersQuery->whereKey($access['own_team_member_id']);
-        }
-
-        $teamMembers = $teamMembersQuery
-            ->orderBy('id')
-            ->get(['id', 'user_id', 'title'])
-            ->map(fn (TeamMember $member) => [
-                'id' => $member->id,
-                'user_id' => $member->user_id,
-                'name' => $member->user?->name ?? 'Member',
-                'title' => $member->title,
-            ])
-            ->values();
+        $teamMembers = ! $ownerOnlyMode
+            ? tap(
+                TeamMember::query()
+                    ->forAccount($account->id)
+                    ->active()
+                    ->with('user:id,name'),
+                function (Builder $teamMembersQuery) use ($access): void {
+                    if (! $access['can_view_all'] && $access['own_team_member_id']) {
+                        $teamMembersQuery->whereKey($access['own_team_member_id']);
+                    }
+                }
+            )
+                ->orderBy('id')
+                ->get(['id', 'user_id', 'title'])
+                ->map(fn (TeamMember $member) => [
+                    'id' => $member->id,
+                    'user_id' => $member->user_id,
+                    'name' => $member->user?->name ?? 'Member',
+                    'title' => $member->title,
+                ])
+                ->values()
+            : collect();
 
         $services = Product::query()
             ->services()
@@ -170,6 +182,13 @@ class BuildStaffReservationIndexData
             'queueItems' => $queuePayload['items'] ?? [],
             'queueStats' => $queuePayload['stats'] ?? ['waiting' => 0, 'called' => 0, 'in_service' => 0],
         ];
+    }
+
+    private function ownerOnlyMode(User $account): bool
+    {
+        $planKey = app(BillingSubscriptionService::class)->resolvePlanKey($account, config('billing.plans', []));
+
+        return $planKey ? app(BillingPlanService::class)->isOwnerOnlyPlan($planKey) : false;
     }
 
     public function events(int $accountId, array $access, Request $request, array $validated): array

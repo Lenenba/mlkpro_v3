@@ -85,12 +85,16 @@ class PlatformBaselineSeeder extends Seeder
             'team_members',
             'assistant',
             'campaigns',
+            'loyalty',
         ];
 
         $planLimits = [];
         foreach (config('billing.plans', []) as $planKey => $plan) {
+            $configuredLimits = is_array($plan['default_limits'] ?? null) ? $plan['default_limits'] : [];
             foreach ($limitKeys as $limitKey) {
-                $planLimits[$planKey][$limitKey] = null;
+                $planLimits[$planKey][$limitKey] = is_numeric($configuredLimits[$limitKey] ?? null)
+                    ? (int) $configuredLimits[$limitKey]
+                    : null;
             }
         }
 
@@ -108,7 +112,14 @@ class PlatformBaselineSeeder extends Seeder
             ? 'scale'
             : array_key_last(config('billing.plans', []));
         foreach (config('billing.plans', []) as $planKey => $plan) {
+            $configuredModules = is_array($plan['default_modules'] ?? null) ? $plan['default_modules'] : [];
             foreach ($moduleKeys as $moduleKey) {
+                if (array_key_exists($moduleKey, $configuredModules)) {
+                    $planModules[$planKey][$moduleKey] = (bool) $configuredModules[$moduleKey];
+
+                    continue;
+                }
+
                 if ($moduleKey === 'assistant') {
                     $planModules[$planKey][$moduleKey] = $planKey === $defaultAssistantPlan;
 

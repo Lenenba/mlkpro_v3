@@ -44,6 +44,7 @@ const props = defineProps({
         default: () => ({}),
     },
 });
+const ownerOnlyMode = computed(() => Boolean(props.accountSettings?.owner_only_mode));
 
 const dayOptions = computed(() => ([
     { value: 0, label: t('planning.weekdays.su') },
@@ -193,6 +194,8 @@ const form = useForm({
 });
 
 const isSalonPreset = computed(() => String(form.account_settings?.business_preset || '') === 'salon');
+const queueConfigurationAvailable = computed(() => isSalonPreset.value && !ownerOnlyMode.value);
+const showTeamSections = computed(() => !ownerOnlyMode.value);
 
 watch(
     () => form.account_settings.business_preset,
@@ -509,6 +512,13 @@ const submit = () => {
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.company_rules.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.company_rules.description') }}</p>
 
+                    <div
+                        v-if="ownerOnlyMode"
+                        class="mt-3 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+                    >
+                        {{ $t('settings.reservations.owner_only.notice') }}
+                    </div>
+
                     <div class="mt-3 grid gap-3 md:grid-cols-3">
                         <FloatingSelect v-model="form.account_settings.business_preset" :options="businessPresetOptions" :label="$t('settings.reservations.fields.business_preset')" />
                         <FloatingInput v-model="form.account_settings.buffer_minutes" type="number" min="0" :label="$t('settings.reservations.fields.buffer_minutes')" />
@@ -518,26 +528,26 @@ const submit = () => {
                         <FloatingInput v-model="form.account_settings.cancellation_cutoff_hours" type="number" min="0" :label="$t('settings.reservations.fields.cancellation_cutoff_hours')" />
                         <FloatingInput v-model="form.account_settings.late_release_minutes" type="number" min="0" :label="$t('settings.reservations.fields.late_release_minutes')" />
                         <FloatingSelect
-                            v-if="isSalonPreset"
+                            v-if="queueConfigurationAvailable"
                             v-model="form.account_settings.queue_assignment_mode"
                             :options="queueAssignmentOptions"
                             :label="$t('settings.reservations.fields.queue_assignment_mode')"
                         />
                         <FloatingSelect
-                            v-if="isSalonPreset"
+                            v-if="queueConfigurationAvailable"
                             v-model="form.account_settings.queue_dispatch_mode"
                             :options="queueDispatchOptions"
                             :label="$t('settings.reservations.fields.queue_dispatch_mode')"
                         />
                         <FloatingInput
-                            v-if="isSalonPreset"
+                            v-if="queueConfigurationAvailable"
                             v-model="form.account_settings.queue_grace_minutes"
                             type="number"
                             min="1"
                             :label="$t('settings.reservations.fields.queue_grace_minutes')"
                         />
                         <FloatingInput
-                            v-if="isSalonPreset"
+                            v-if="queueConfigurationAvailable"
                             v-model="form.account_settings.queue_pre_call_threshold"
                             type="number"
                             min="1"
@@ -551,7 +561,7 @@ const submit = () => {
                             <input v-model="form.account_settings.allow_client_cancel" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.fields.allow_client_cancel') }}
                         </label>
-                        <label class="inline-flex items-center gap-2">
+                        <label v-if="!ownerOnlyMode" class="inline-flex items-center gap-2">
                             <input v-model="form.account_settings.allow_client_reschedule" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.fields.allow_client_reschedule') }}
                         </label>
@@ -559,11 +569,11 @@ const submit = () => {
                             <input v-model="form.account_settings.waitlist_enabled" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.fields.waitlist_enabled') }}
                         </label>
-                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
+                        <label v-if="queueConfigurationAvailable" class="inline-flex items-center gap-2">
                             <input v-model="form.account_settings.queue_mode_enabled" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.fields.queue_mode_enabled') }}
                         </label>
-                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
+                        <label v-if="queueConfigurationAvailable" class="inline-flex items-center gap-2">
                             <input v-model="form.account_settings.queue_no_show_on_grace_expiry" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.fields.queue_no_show_on_grace_expiry') }}
                         </label>
@@ -578,7 +588,7 @@ const submit = () => {
                     </div>
                 </section>
 
-                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <section v-if="showTeamSections" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <div>
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.team_settings.title') }}</h2>
@@ -642,7 +652,7 @@ const submit = () => {
                     </div>
                 </section>
 
-                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <section v-if="showTeamSections" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.weekly.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.weekly.description') }}</p>
                     <div class="mt-3 grid gap-3 md:grid-cols-5">
@@ -674,7 +684,12 @@ const submit = () => {
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.exceptions.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.exceptions.description') }}</p>
                     <div class="mt-3 grid gap-3 md:grid-cols-7">
-                        <FloatingSelect v-model="exceptionDraft.team_member_id" :options="exceptionMemberOptions" :label="$t('settings.reservations.fields.team_member')" />
+                        <FloatingSelect
+                            v-if="showTeamSections"
+                            v-model="exceptionDraft.team_member_id"
+                            :options="exceptionMemberOptions"
+                            :label="$t('settings.reservations.fields.team_member')"
+                        />
                         <FloatingInput v-model="exceptionDraft.date" type="date" :label="$t('settings.reservations.fields.date')" />
                         <FloatingInput v-model="exceptionDraft.start_time" type="time" :label="$t('settings.reservations.fields.start_time_optional')" />
                         <FloatingInput v-model="exceptionDraft.end_time" type="time" :label="$t('settings.reservations.fields.end_time_optional')" />
@@ -711,7 +726,12 @@ const submit = () => {
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.resources.description') }}</p>
 
                     <div class="mt-3 grid gap-3 md:grid-cols-6">
-                        <FloatingSelect v-model="resourceDraft.team_member_id" :options="resourceMemberOptions" :label="$t('settings.reservations.fields.team_member')" />
+                        <FloatingSelect
+                            v-if="showTeamSections"
+                            v-model="resourceDraft.team_member_id"
+                            :options="resourceMemberOptions"
+                            :label="$t('settings.reservations.fields.team_member')"
+                        />
                         <FloatingInput v-model="resourceDraft.name" :label="$t('settings.reservations.resources.fields.name')" />
                         <FloatingSelect v-model="resourceDraft.type" :options="resourceTypeOptions" :label="$t('settings.reservations.resources.fields.type')" />
                         <FloatingInput v-model="resourceDraft.capacity" type="number" min="1" :label="$t('settings.reservations.resources.fields.capacity')" />
@@ -799,27 +819,27 @@ const submit = () => {
                             <input v-model="form.notification_settings.review_request_on_completed" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.review_request_on_completed') }}
                         </label>
-                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
+                        <label v-if="queueConfigurationAvailable" class="inline-flex items-center gap-2">
                             <input v-model="form.notification_settings.notify_on_queue_pre_call" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.notify_on_queue_pre_call') }}
                         </label>
-                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
+                        <label v-if="queueConfigurationAvailable" class="inline-flex items-center gap-2">
                             <input v-model="form.notification_settings.notify_on_queue_called" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.notify_on_queue_called') }}
                         </label>
-                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
+                        <label v-if="queueConfigurationAvailable" class="inline-flex items-center gap-2">
                             <input v-model="form.notification_settings.notify_on_queue_grace_expired" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.notify_on_queue_grace_expired') }}
                         </label>
-                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
+                        <label v-if="queueConfigurationAvailable" class="inline-flex items-center gap-2">
                             <input v-model="form.notification_settings.notify_on_queue_ticket_created" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.notify_on_queue_ticket_created') }}
                         </label>
-                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
+                        <label v-if="queueConfigurationAvailable" class="inline-flex items-center gap-2">
                             <input v-model="form.notification_settings.notify_on_queue_eta_10m" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.notify_on_queue_eta_10m') }}
                         </label>
-                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
+                        <label v-if="queueConfigurationAvailable" class="inline-flex items-center gap-2">
                             <input v-model="form.notification_settings.notify_on_queue_status_changed" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.notify_on_queue_status_changed') }}
                         </label>

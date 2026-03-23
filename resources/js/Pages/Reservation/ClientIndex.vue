@@ -145,6 +145,8 @@ const selectedRescheduleEventId = computed(() => {
 const statusBadgeClass = (status) => reservationStatusBadgeClass(status);
 const formatDateTime = (value) => (value ? dayjs(value).format('MMM D, YYYY HH:mm') : '-');
 const queueModeEnabled = computed(() => Boolean(props.settings?.queue_mode_enabled));
+const ownerOnlyMode = computed(() => Boolean(props.settings?.owner_only_mode));
+const slotBookingAvailable = computed(() => Boolean(props.settings?.slot_booking_enabled ?? true));
 
 const isModifyWindowOpen = (reservation) => {
     if (!reservation?.starts_at) {
@@ -164,7 +166,9 @@ const isModifyWindowOpen = (reservation) => {
 };
 
 const canCancel = (reservation) => Boolean(props.settings?.allow_client_cancel) && isModifyWindowOpen(reservation);
-const canReschedule = (reservation) => Boolean(props.settings?.allow_client_reschedule) && isModifyWindowOpen(reservation);
+const canReschedule = (reservation) => slotBookingAvailable.value
+    && Boolean(props.settings?.allow_client_reschedule)
+    && isModifyWindowOpen(reservation);
 const canReview = (reservation) => {
     if (!reservation) {
         return false;
@@ -545,6 +549,13 @@ onBeforeUnmount(() => {
                     >
                         {{ $t('reservations.client.index.book_button') }}
                     </Link>
+                </div>
+
+                <div
+                    v-if="ownerOnlyMode"
+                    class="mt-4 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+                >
+                    {{ $t('reservations.owner_only.client_notice') }}
                 </div>
             </section>
 
