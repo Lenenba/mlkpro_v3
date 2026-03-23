@@ -76,6 +76,13 @@ function diffPhpFiles(string $baseBranch): array
 
 function runPintOnFiles(string $pintBinary, array $files): int
 {
+    $projectRoot = dirname(__DIR__);
+    $files = array_values(array_filter($files, static function (string $file) use ($projectRoot): bool {
+        $absolutePath = $projectRoot.DIRECTORY_SEPARATOR.str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $file);
+
+        return is_file($absolutePath) && is_readable($absolutePath);
+    }));
+
     if ($files === []) {
         fwrite(STDOUT, "No PHP files require Pint inspection.\n");
 

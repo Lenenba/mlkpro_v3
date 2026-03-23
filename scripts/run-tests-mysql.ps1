@@ -96,11 +96,12 @@ $testDbName = if ($env:TEST_DB_DATABASE) { $env:TEST_DB_DATABASE } else { "${dbN
 
 $mysqlExe = Resolve-ExecutablePath -Name 'mysql'
 $phpExe = Resolve-ExecutablePath -Name 'php'
+$pestBinary = Join-Path $projectRoot 'vendor\bin\pest'
 
 if (-not $Command -or $Command.Count -eq 0) {
-    $Command = @($phpExe, 'artisan', 'test')
+    $Command = @($phpExe, '-d', 'memory_limit=512M', $pestBinary)
 } elseif ($Command[0].StartsWith('-') -or $Command[0].StartsWith('tests') -or $Command[0].EndsWith('.php')) {
-    $Command = @($phpExe, 'artisan', 'test') + $Command
+    $Command = @($phpExe, '-d', 'memory_limit=512M', $pestBinary) + $Command
 } elseif ($Command[0] -eq 'php') {
     $Command[0] = $phpExe
 }

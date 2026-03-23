@@ -807,8 +807,8 @@ onBeforeUnmount(() => {
     align-self: stretch;
     width: 100%;
     height: 100%;
-    max-width: 24.5rem;
-    margin-inline: auto;
+    min-width: 0;
+    max-width: none;
 }
 
 .welcome-hero-slider {
@@ -840,11 +840,13 @@ onBeforeUnmount(() => {
 
 .welcome-hero-slide-frame {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: stretch;
+    justify-content: stretch;
     height: 100%;
     padding: 0;
-    background: transparent;
+    overflow: hidden;
+    border-radius: 0.125rem;
+    background: #f8fafc;
     box-shadow: 0 18px 40px -34px rgba(15, 23, 42, 0.18);
 }
 
@@ -852,7 +854,14 @@ onBeforeUnmount(() => {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
+    object-position: center;
+}
+
+@media (min-width: 1024px) {
+    .welcome-hero-slider {
+        --welcome-slide-height: calc((var(--welcome-slider-height) - var(--welcome-slide-gap)) / 2);
+    }
 }
 
 @media (max-width: 1023px) {
