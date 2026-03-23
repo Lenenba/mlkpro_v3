@@ -234,6 +234,42 @@ const heroSliderStyle = computed(() => ({
     '--welcome-slider-height': heroVisibleHeight.value || 'clamp(24rem, 38vw, 34rem)',
 }));
 
+const normalizedHeroTitleSize = computed(() => {
+    const raw = Number(welcomeContent.value.hero?.title_font_size || 0);
+    if (!Number.isFinite(raw) || raw <= 0) {
+        return 0;
+    }
+
+    return Math.max(40, Math.min(Math.round(raw), 96));
+});
+
+const heroTitleStyle = computed(() => {
+    const style = {};
+    const color = String(welcomeContent.value.hero?.title_color || '').trim();
+    if (color) {
+        style.color = color;
+    }
+
+    if (normalizedHeroTitleSize.value > 0) {
+        const maxSize = normalizedHeroTitleSize.value;
+        const minSize = Math.max(32, maxSize - 18);
+        style.fontSize = `clamp(${minSize}px, 5vw, ${maxSize}px)`;
+        style.lineHeight = maxSize >= 72 ? '0.95' : '1';
+    }
+
+    return style;
+});
+
+const heroBodyStyle = computed(() => {
+    const style = {};
+    const color = String(welcomeContent.value.hero?.body_color || '').trim();
+    if (color) {
+        style.color = color;
+    }
+
+    return style;
+});
+
 onMounted(() => {
     syncHeroVisibleHeight();
 
@@ -277,10 +313,15 @@ onBeforeUnmount(() => {
                             <div class="welcome-kicker welcome-fade-up">
                                 {{ welcomeContent.hero?.eyebrow || $t('welcome.hero.eyebrow') }}
                             </div>
-                            <h1 class="welcome-title text-4xl font-semibold tracking-tight sm:text-5xl welcome-fade-up" style="animation-delay: 0.1s;">
+                            <h1
+                                class="welcome-title text-4xl font-semibold tracking-tight sm:text-5xl welcome-fade-up"
+                                :style="[{ animationDelay: '0.1s' }, heroTitleStyle]"
+                            >
                                 {{ welcomeContent.hero?.title || $t('welcome.hero.title') }}
                             </h1>
-                            <div class="welcome-rich text-base text-stone-600 sm:text-lg welcome-fade-up" style="animation-delay: 0.2s;"
+                            <div
+                                class="welcome-rich text-base text-stone-600 sm:text-lg welcome-fade-up"
+                                :style="[{ animationDelay: '0.2s' }, heroBodyStyle]"
                                 v-html="welcomeContent.hero?.subtitle || $t('welcome.hero.subtitle')"></div>
 
                             <div class="flex flex-wrap gap-3 welcome-fade-up" style="animation-delay: 0.3s;">
@@ -333,14 +374,19 @@ onBeforeUnmount(() => {
                                 </div>
                             </div>
 
-                            <div class="grid gap-2 text-sm text-stone-600 welcome-fade-up" style="animation-delay: 0.5s;">
+                            <div
+                                class="grid gap-2 text-sm text-stone-600 welcome-fade-up"
+                                :style="[{ animationDelay: '0.5s' }, heroBodyStyle]"
+                            >
                                 <div v-for="(item, highlightIndex) in (welcomeContent.hero?.highlights || [])" :key="highlightIndex" class="flex items-start gap-2">
                                     <span class="mt-1 size-1.5 rounded-full bg-green-600"></span>
                                     <span>{{ item }}</span>
                                 </div>
                             </div>
 
-                            <div class="welcome-rich text-xs text-stone-500 welcome-fade-up" style="animation-delay: 0.6s;"
+                            <div
+                                class="welcome-rich text-xs text-stone-500 welcome-fade-up"
+                                :style="[{ animationDelay: '0.6s' }, heroBodyStyle]"
                                 v-html="welcomeContent.hero?.note || $t('welcome.hero.note')"></div>
                         </div>
 
@@ -636,7 +682,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-@import url('https://fonts.bunny.net/css?family=Space+Grotesk:400,500,600,700&family=Work+Sans:400,500,600&display=swap');
+@import url('https://fonts.bunny.net/css?family=Montserrat:400,500,600,700,800&display=swap');
 
 .welcome-page {
     --public-shell-width: 88rem;
@@ -644,13 +690,15 @@ onBeforeUnmount(() => {
     --welcome-ink: #0f172a;
     --welcome-muted: #475569;
     --welcome-accent: #16a34a;
-    font-family: 'Work Sans', 'Figtree', sans-serif;
+    --page-font-body: 'Montserrat', 'Figtree', sans-serif;
+    --page-font-heading: 'Montserrat', 'Figtree', sans-serif;
+    font-family: var(--page-font-body);
     background: #ffffff;
 }
 
 .welcome-title {
-    font-family: 'Space Grotesk', 'Figtree', sans-serif;
-    letter-spacing: -0.02em;
+    font-family: var(--page-font-heading);
+    letter-spacing: -0.03em;
 }
 
 .welcome-container {

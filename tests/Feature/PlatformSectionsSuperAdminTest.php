@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\PlatformAdmin;
+use App\Models\PlatformPage;
 use App\Models\PlatformSection;
 use App\Models\Role;
 use App\Models\User;
@@ -206,4 +207,125 @@ it('allows welcome-only admins to use the unified pages, sections, and assets mo
         ->assertJson([
             'assets' => [],
         ]);
+});
+
+it('keeps an empty sections payload empty when saving a page from the admin', function () {
+    $admin = platformSectionAdmin([PlatformPermissions::PAGES_MANAGE]);
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'admin-empty-sections',
+        'title' => 'Admin empty sections',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'fr' => [
+                    'page_title' => 'Admin empty sections',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'section-1',
+                            'enabled' => true,
+                            'layout' => 'split',
+                            'title' => 'Original section',
+                            'body' => '<p>Original body</p>',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $this->actingAs($admin)
+        ->put(route('superadmin.pages.update', $page), [
+            'slug' => 'admin-empty-sections',
+            'title' => 'Admin empty sections',
+            'is_active' => true,
+            'locale' => 'fr',
+            'content' => [
+                'page_title' => 'Admin empty sections',
+                'page_subtitle' => '',
+                'header' => [
+                    'background_type' => 'none',
+                    'background_color' => '',
+                    'background_image_url' => '',
+                    'background_image_alt' => '',
+                    'alignment' => 'center',
+                ],
+                'sections_present' => true,
+            ],
+            'theme' => [],
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Page updated.');
+
+    expect(data_get($page->fresh()->content, 'locales.fr.sections'))->toBe([]);
+});
+
+it('does not inflate admin page sections from shared media stored in another locale', function () {
+    $admin = platformSectionAdmin([PlatformPermissions::PAGES_MANAGE]);
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'shared-media-section-count',
+        'title' => 'Shared media section count',
+        'is_active' => true,
+        'content' => [
+            'locales' => [],
+        ],
+    ]);
+
+    $service = app(\App\Services\PlatformPageContentService::class);
+
+    $frPayload = $service->defaultContent('fr', $page);
+    $frPayload['sections'] = [
+        [
+            'id' => 'fr-section-1',
+            'enabled' => true,
+            'layout' => 'split',
+            'title' => 'Hero FR',
+            'body' => '<p>FR body</p>',
+            'image_url' => 'https://example.com/fr-hero.jpg',
+            'image_alt' => 'FR hero image',
+        ],
+    ];
+
+    $enPayload = $service->defaultContent('en', $page);
+    $enPayload['sections'] = [
+        [
+            'id' => 'en-section-1',
+            'enabled' => true,
+            'layout' => 'split',
+            'title' => 'Hero EN',
+            'body' => '<p>EN body</p>',
+            'image_url' => 'https://example.com/en-hero.jpg',
+            'image_alt' => 'EN hero image',
+        ],
+        [
+            'id' => 'en-section-2',
+            'enabled' => true,
+            'layout' => 'split',
+            'title' => 'Extra EN',
+            'body' => '<p>Extra EN body</p>',
+            'image_url' => 'https://example.com/en-extra.jpg',
+            'image_alt' => 'EN extra image',
+        ],
+    ];
+
+    $service->updateLocale($page, 'fr', $frPayload, $admin->id);
+    $service->updateLocale($page->fresh(), 'en', $enPayload, $admin->id);
+
+    $this->actingAs($admin)
+        ->get(route('superadmin.pages.edit', $page))
+        ->assertOk()
+        ->assertInertia(fn (Assert $inertia) => $inertia
+            ->component('SuperAdmin/Pages/Edit')
+            ->where('content.fr.sections.0.id', 'fr-section-1')
+            ->missing('content.fr.sections.1')
+        );
 });

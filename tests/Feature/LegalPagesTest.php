@@ -167,3 +167,121 @@ test('welcome page resolves reusable welcome sections from the page library', fu
             ->where('welcomeContent.hero.hero_images.1.image_url', '/images/mega-menu/operations-suite.svg')
         );
 });
+
+test('welcome page can override hero highlights note and stats from a sourced section', function () {
+    $heroSection = PlatformSection::query()->create([
+        'name' => 'Welcome Hero',
+        'type' => 'welcome_hero',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'en' => [
+                    'layout' => 'split',
+                    'kicker' => 'Operations suite',
+                    'title' => 'Run the whole business from one flow',
+                    'body' => '<p>Public pages, quoting, scheduling, and payments stay connected.</p>',
+                    'note' => '<p>Trusted by local operators.</p>',
+                    'stats' => [
+                        ['value' => '24/7', 'label' => 'Availability'],
+                    ],
+                    'items' => ['Capture leads faster'],
+                    'image_url' => '/images/landing/hero-dashboard.svg',
+                    'image_alt' => 'Hero dashboard',
+                ],
+                'fr' => [
+                    'layout' => 'split',
+                    'kicker' => 'Suite operations',
+                    'title' => 'Pilotez l activite dans un seul flux',
+                    'body' => '<p>Pages publiques, devis, planning et paiements restent relies.</p>',
+                    'note' => '<p>Adopte par les equipes locales.</p>',
+                    'stats' => [
+                        ['value' => '24/7', 'label' => 'Disponibilite'],
+                    ],
+                    'items' => ['Capturez vos leads plus vite'],
+                    'image_url' => '/images/landing/hero-dashboard.svg',
+                    'image_alt' => 'Dashboard hero',
+                ],
+            ],
+        ],
+    ]);
+
+    PlatformPage::query()->create([
+        'slug' => 'welcome',
+        'title' => 'Welcome',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'en' => [
+                    'page_title' => '',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'section-1',
+                            'enabled' => true,
+                            'source_id' => $heroSection->id,
+                            'use_source' => true,
+                            'layout' => 'split',
+                            'title_color' => '#f8fafc',
+                            'body_color' => '#d6f5e3',
+                            'title_font_size' => 78,
+                            'override_items' => true,
+                            'override_note' => true,
+                            'override_stats' => true,
+                            'items' => [],
+                            'note' => '',
+                            'stats' => [],
+                        ],
+                    ],
+                ],
+                'fr' => [
+                    'page_title' => '',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'section-1',
+                            'enabled' => true,
+                            'source_id' => $heroSection->id,
+                            'use_source' => true,
+                            'layout' => 'split',
+                            'title_color' => '#f8fafc',
+                            'body_color' => '#d6f5e3',
+                            'title_font_size' => 78,
+                            'override_items' => true,
+                            'override_note' => true,
+                            'override_stats' => true,
+                            'items' => [],
+                            'note' => '',
+                            'stats' => [],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $this->get(route('welcome'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Welcome')
+            ->where('welcomeContent.hero.highlights', [])
+            ->where('welcomeContent.hero.note', '')
+            ->where('welcomeContent.hero.stats', [])
+            ->where('welcomeContent.hero.title_color', '#f8fafc')
+            ->where('welcomeContent.hero.body_color', '#d6f5e3')
+            ->where('welcomeContent.hero.title_font_size', 78)
+        );
+});

@@ -370,6 +370,18 @@ const linesToArray = (value) =>
         .map((line) => line.trim())
         .filter((line) => line.length > 0);
 
+const createLocalId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const createStatItem = (overrides = {}) => ({
+    id: overrides.id || createLocalId('page-stat'),
+    value: overrides.value || '',
+    label: overrides.label || '',
+});
+
+const ensureStatItems = (items) => (
+    Array.isArray(items) ? items.map((item) => createStatItem(item)) : []
+);
+
 const stripHtml = (value) =>
     String(value || '')
         .replace(/<[^>]*>/g, ' ')
@@ -537,7 +549,12 @@ const ensureSection = (section, index) => ({
     enabled: section?.enabled ?? true,
     source_id: section?.source_id ? String(section.source_id) : '',
     use_source: section?.use_source ?? false,
+    override_items: section?.override_items ?? false,
+    override_note: section?.override_note ?? false,
+    override_stats: section?.override_stats ?? false,
     background_color: section?.background_color ?? '',
+    title_color: section?.title_color ?? '',
+    body_color: section?.body_color ?? '',
     layout: section?.layout || 'split',
     image_position: section?.image_position || 'left',
     alignment: section?.alignment || 'left',
@@ -547,11 +564,14 @@ const ensureSection = (section, index) => ({
     kicker: section?.kicker || '',
     title: section?.title || '',
     body: section?.body || '',
+    note: section?.note || '',
+    title_font_size: Number(section?.title_font_size) > 0 ? Number(section.title_font_size) : 0,
     industry_cards: ensureIndustryCards(section?.industry_cards),
     story_cards: ensureStoryCards(section?.story_cards),
     feature_tabs: ensureFeatureTabs(section?.feature_tabs),
     feature_tabs_font_size: normalizeFeatureTabsTriggerFontSize(section?.feature_tabs_font_size),
     testimonial_cards: ensureTestimonialCards(section?.testimonial_cards),
+    stats: ensureStatItems(section?.stats),
     items: Array.isArray(section?.items) ? section.items : [],
     testimonial_author: section?.testimonial_author || '',
     testimonial_role: section?.testimonial_role || '',
@@ -584,10 +604,6 @@ const ensureStructure = (content) => {
     next.header = ensureHeader(next.header);
     next.sections = Array.isArray(next.sections) ? next.sections : [];
     next.sections = next.sections.map((section, index) => ensureSection(section, index));
-
-    if (!next.sections.length) {
-        next.sections.push(ensureSection({}, 0));
-    }
 
     return next;
 };
@@ -651,12 +667,43 @@ watch(currentLocale, (locale) => syncFormFromProps(locale));
 
 const updateSectionItems = (section, value) => {
     sectionItemsLines.value = { ...sectionItemsLines.value, [section.id]: value };
+    section.override_items = true;
     section.items = linesToArray(value);
 };
 
 const updateSectionAsideItems = (section, value) => {
     sectionAsideItemsLines.value = { ...sectionAsideItemsLines.value, [section.id]: value };
     section.aside_items = linesToArray(value);
+};
+
+const updateSectionNote = (section, value) => {
+    if (!section) return;
+    section.override_note = true;
+    section.note = value;
+};
+
+const addSectionStat = (section) => {
+    if (!section) return;
+    section.override_stats = true;
+    section.stats = [...(section.stats || []), createStatItem()];
+};
+
+const moveSectionStat = (section, index, direction) => {
+    if (!section?.stats?.length) return;
+    section.override_stats = true;
+    moveItem(section.stats, index, direction);
+};
+
+const removeSectionStat = (section, index) => {
+    if (!section?.stats) return;
+    section.override_stats = true;
+    section.stats.splice(index, 1);
+};
+
+const updateSectionStatField = (section, item, key, value) => {
+    if (!section || !item) return;
+    section.override_stats = true;
+    item[key] = value;
 };
 
 const updateVisibilityList = (section, key, value) => {
@@ -709,6 +756,9 @@ const handleAssetSelect = (asset) => {
 
 const findLibrarySection = (id) =>
     (props.library_sections || []).find((section) => String(section.id) === String(id));
+
+const sectionSourceType = (section) => findLibrarySection(section?.source_id)?.type || '';
+const isWelcomeHeroSection = (section) => sectionSourceType(section) === 'welcome_hero';
 
 const sectionLayoutLabel = (layout) =>
     layoutOptions.value.find((option) => option.value === layout)?.label || layout;
@@ -849,6 +899,8 @@ const applyLibraryToSection = (section) => {
     }
     section.use_source = true;
     section.background_color = content.background_color ?? section.background_color ?? '';
+    section.title_color = content.title_color ?? section.title_color ?? '';
+    section.body_color = content.body_color ?? section.body_color ?? '';
     section.layout = content.layout ?? section.layout ?? 'split';
     section.image_position = content.image_position ?? section.image_position ?? 'left';
     section.alignment = content.alignment ?? section.alignment ?? 'left';
@@ -857,12 +909,18 @@ const applyLibraryToSection = (section) => {
     section.kicker = content.kicker ?? '';
     section.title = content.title ?? '';
     section.body = content.body ?? '';
+    section.note = content.note ?? '';
+    section.title_font_size = Number(content.title_font_size) > 0 ? Number(content.title_font_size) : 0;
     section.industry_cards = ensureIndustryCards(content.industry_cards);
     section.story_cards = ensureStoryCards(content.story_cards);
     section.feature_tabs = ensureFeatureTabs(content.feature_tabs);
     section.feature_tabs_font_size = normalizeFeatureTabsTriggerFontSize(content.feature_tabs_font_size);
     section.testimonial_cards = ensureTestimonialCards(content.testimonial_cards);
+    section.stats = ensureStatItems(content.stats);
     section.items = Array.isArray(content.items) ? content.items : [];
+    section.override_items = false;
+    section.override_note = false;
+    section.override_stats = false;
     section.testimonial_author = content.testimonial_author ?? '';
     section.testimonial_role = content.testimonial_role ?? '';
     section.aside_kicker = content.aside_kicker ?? '';
@@ -1019,9 +1077,18 @@ const removeSection = (index) => {
         delete next[section.id];
         sectionItemsLines.value = next;
     }
-    if (!form.content.sections.length) {
-        addSection();
-        return;
+    if (section?.id) {
+        const nextAside = { ...sectionAsideItemsLines.value };
+        delete nextAside[section.id];
+        sectionAsideItemsLines.value = nextAside;
+
+        const nextRoles = { ...visibilityRoleLines.value };
+        delete nextRoles[section.id];
+        visibilityRoleLines.value = nextRoles;
+
+        const nextPlans = { ...visibilityPlanLines.value };
+        delete nextPlans[section.id];
+        visibilityPlanLines.value = nextPlans;
     }
     syncSectionEditorState();
 };
@@ -1042,14 +1109,28 @@ const titleLabel = computed(() =>
     props.mode === 'create' ? t('super_admin.pages.edit.title_create') : t('super_admin.pages.edit.title_edit')
 );
 
+const buildSubmitPayload = () => ({
+    slug: form.slug,
+    title: form.title,
+    is_active: form.is_active,
+    locale: form.locale,
+    content: {
+        ...clone(form.content),
+        sections_present: true,
+    },
+    theme: clone(form.theme),
+});
+
 const submit = () => {
+    const payload = buildSubmitPayload();
+
     if (props.mode === 'create') {
-        form.post(route('superadmin.pages.store'), { preserveScroll: true });
+        form.transform(() => payload).post(route('superadmin.pages.store'), { preserveScroll: true });
         return;
     }
 
     if (!props.page?.id) return;
-    form.put(route('superadmin.pages.update', props.page.id), { preserveScroll: true });
+    form.transform(() => payload).put(route('superadmin.pages.update', props.page.id), { preserveScroll: true });
 };
 
 const applyTemplate = () => {
@@ -1400,6 +1481,36 @@ syncFormFromProps(currentLocale.value);
                 </div>
 
                 <div class="space-y-4">
+                    <div
+                        v-if="!form.content.sections.length"
+                        class="rounded-sm border border-dashed border-stone-200 bg-stone-50/70 p-6 text-center dark:border-neutral-700 dark:bg-neutral-900/60"
+                    >
+                        <div class="space-y-2">
+                            <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('super_admin.pages.sections.empty_title') }}
+                            </div>
+                            <p class="text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.pages.sections.empty_subtitle') }}
+                            </p>
+                        </div>
+                        <div class="mt-4 flex flex-wrap justify-center gap-3">
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                @click="addSection"
+                            >
+                                {{ $t('super_admin.pages.sections.add') }}
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                @click="addFromLibrary"
+                            >
+                                {{ $t('super_admin.pages.library.add') }}
+                            </button>
+                        </div>
+                    </div>
+
                     <div v-for="(section, index) in form.content.sections" :key="section.id || index"
                         class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700 space-y-4">
                         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -1548,6 +1659,153 @@ syncFormFromProps(currentLocale.value);
                                     :ai-prompt="editorAiPrompt"
                                     :labels="editorLabels"
                                 />
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="isWelcomeHeroSection(section)"
+                            class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-3"
+                        >
+                            <div class="space-y-3">
+                                <div>
+                                    <h3 class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ $t('super_admin.sections.welcome.hero.typography_title') }}
+                                    </h3>
+                                    <p class="text-xs text-stone-500 dark:text-neutral-500">
+                                        {{ $t('super_admin.sections.welcome.hero.typography_subtitle') }}
+                                    </p>
+                                </div>
+
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-3 dark:border-neutral-700 dark:bg-neutral-900/60 space-y-3">
+                                        <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                            {{ $t('super_admin.pages.common.title') }}
+                                        </div>
+
+                                        <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_150px]">
+                                            <div class="space-y-2">
+                                                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                                    {{ $t('super_admin.sections.welcome.hero.title_color') }}
+                                                </label>
+                                                <div class="flex items-center gap-3">
+                                                    <input
+                                                        v-model="section.title_color"
+                                                        type="color"
+                                                        class="h-11 w-14 shrink-0 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900"
+                                                    />
+                                                    <input
+                                                        v-model="section.title_color"
+                                                        type="text"
+                                                        class="block w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
+                                                        placeholder="#111827"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div class="space-y-2">
+                                                <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                                    {{ $t('super_admin.sections.welcome.hero.title_font_size') }}
+                                                </label>
+                                                <input
+                                                    v-model="section.title_font_size"
+                                                    type="number"
+                                                    min="0"
+                                                    step="1"
+                                                    class="block w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-3 dark:border-neutral-700 dark:bg-neutral-900/60 space-y-3">
+                                        <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                            {{ $t('super_admin.pages.common.body') }}
+                                        </div>
+
+                                        <div class="space-y-2">
+                                            <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                                {{ $t('super_admin.sections.welcome.hero.body_color') }}
+                                            </label>
+                                            <div class="flex items-center gap-3">
+                                                <input
+                                                    v-model="section.body_color"
+                                                    type="color"
+                                                    class="h-11 w-14 shrink-0 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900"
+                                                />
+                                                <input
+                                                    v-model="section.body_color"
+                                                    type="text"
+                                                    class="block w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
+                                                    placeholder="#475569"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <RichTextEditor
+                                :model-value="section.note"
+                                :label="$t('super_admin.sections.welcome.hero.note')"
+                                :link-prompt="editorLinkPrompt"
+                                :image-prompt="editorImagePrompt"
+                                :ai-enabled="ai_enabled"
+                                :ai-generate-url="ai_image_generate_url"
+                                :ai-prompt="editorAiPrompt"
+                                :labels="editorLabels"
+                                @update:modelValue="updateSectionNote(section, $event)"
+                            />
+
+                            <div class="space-y-3">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                            {{ $t('super_admin.sections.welcome.hero.stats_title') }}
+                                        </h3>
+                                        <p class="text-xs text-stone-500 dark:text-neutral-500">
+                                            {{ $t('super_admin.sections.welcome.hero.stats_subtitle') }}
+                                        </p>
+                                    </div>
+                                    <button type="button"
+                                        class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                        @click="addSectionStat(section)">
+                                        {{ $t('super_admin.sections.welcome.hero.add_stat') }}
+                                    </button>
+                                </div>
+
+                                <div v-if="section.stats?.length" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                    <div v-for="(item, statIndex) in section.stats" :key="item.id || `page-hero-stat-${statIndex}`"
+                                        class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                        <div class="flex flex-wrap justify-end gap-2 text-xs">
+                                            <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                @click="moveSectionStat(section, statIndex, -1)">
+                                                {{ $t('super_admin.pages.common.move_up') }}
+                                            </button>
+                                            <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                @click="moveSectionStat(section, statIndex, 1)">
+                                                {{ $t('super_admin.pages.common.move_down') }}
+                                            </button>
+                                            <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                                @click="removeSectionStat(section, statIndex)">
+                                                {{ $t('super_admin.pages.common.remove') }}
+                                            </button>
+                                        </div>
+
+                                        <div class="grid gap-3 md:grid-cols-2">
+                                            <FloatingInput
+                                                :model-value="item.value"
+                                                :label="$t('super_admin.sections.welcome.hero.stat_value')"
+                                                @update:modelValue="updateSectionStatField(section, item, 'value', $event)"
+                                            />
+                                            <FloatingInput
+                                                :model-value="item.label"
+                                                :label="$t('super_admin.sections.welcome.hero.stat_label')"
+                                                @update:modelValue="updateSectionStatField(section, item, 'label', $event)"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

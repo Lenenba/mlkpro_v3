@@ -336,6 +336,37 @@ it('supports the testimonial section layout for public pages', function () {
         );
 });
 
+it('preserves an empty sections array for public pages', function () {
+    $user = User::factory()->create();
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'empty-sections-check',
+        'title' => 'Empty sections check',
+        'is_active' => true,
+        'content' => [
+            'locales' => [],
+        ],
+    ]);
+
+    $service = app(PlatformPageContentService::class);
+    $payload = $service->defaultContent('fr', $page);
+    $payload['sections'] = [];
+
+    $service->updateLocale($page, 'fr', $payload, $user->id);
+    $service->updateLocale($page, 'en', $payload, $user->id);
+
+    $resolved = $service->resolveForLocale($page->fresh(), 'fr');
+
+    expect($resolved['sections'])->toBe([]);
+
+    $this->get(route('public.pages.show', ['slug' => $page->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $inertia) => $inertia
+            ->component('Public/Page')
+            ->where('content.sections', [])
+        );
+});
+
 it('supports the feature pairs section layout for public pages', function () {
     $user = User::factory()->create();
 
@@ -744,6 +775,78 @@ it('supports the feature tabs section layout for public pages', function () {
         );
 });
 
+it('shares public page media across locales while keeping text localized', function () {
+    $user = User::factory()->create();
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'shared-page-media-check',
+        'title' => 'Shared page media check',
+        'is_active' => true,
+        'content' => [
+            'locales' => [],
+        ],
+    ]);
+
+    $service = app(PlatformPageContentService::class);
+    $frPayload = $service->defaultContent('fr', $page);
+    $frPayload['page_title'] = 'Titre FR';
+    $frPayload['header']['background_type'] = 'image';
+    $frPayload['header']['background_image_url'] = 'https://example.com/shared-header.jpg';
+    $frPayload['header']['background_image_alt'] = 'Banniere FR';
+    $frPayload['sections'][0] = array_merge($frPayload['sections'][0], [
+        'layout' => 'story_grid',
+        'title' => 'Bloc FR',
+        'body' => '<p>Texte FR</p>',
+        'image_url' => 'https://example.com/shared-primary.jpg',
+        'image_alt' => 'Image FR',
+        'story_cards' => [
+            [
+                'id' => 'story-card-1',
+                'title' => 'Carte FR',
+                'body' => '<p>Corps FR</p>',
+                'image_url' => 'https://example.com/shared-story.jpg',
+                'image_alt' => 'Carte image FR',
+            ],
+        ],
+    ]);
+
+    $service->updateLocale($page, 'fr', $frPayload, $user->id);
+
+    $enPayload = $service->resolveForLocale($page->fresh(), 'en');
+    $enPayload['page_title'] = 'EN title';
+    $enPayload['page_subtitle'] = '<p>EN subtitle</p>';
+    $enPayload['header']['background_image_alt'] = 'EN banner';
+    $enPayload['sections'][0]['title'] = 'EN block';
+    $enPayload['sections'][0]['body'] = '<p>EN body</p>';
+    $enPayload['sections'][0]['image_alt'] = 'EN image';
+    $enPayload['sections'][0]['story_cards'][0]['title'] = 'EN card';
+    $enPayload['sections'][0]['story_cards'][0]['image_alt'] = 'EN card image';
+
+    $service->updateLocale($page->fresh(), 'en', $enPayload, $user->id);
+
+    $freshPage = $page->fresh();
+    $resolvedFr = $service->resolveForLocale($freshPage, 'fr');
+    $resolvedEn = $service->resolveForLocale($freshPage, 'en');
+
+    expect($freshPage->content['shared_media']['header']['background_image_url'] ?? null)->toBe('https://example.com/shared-header.jpg');
+    expect($freshPage->content['shared_media']['sections'][0]['image_url'] ?? null)->toBe('https://example.com/shared-primary.jpg');
+    expect($freshPage->content['shared_media']['sections'][0]['story_cards'][0]['image_url'] ?? null)->toBe('https://example.com/shared-story.jpg');
+    expect($resolvedFr['page_title'])->toBe('Titre FR');
+    expect($resolvedEn['page_title'])->toBe('EN title');
+    expect($resolvedFr['header']['background_image_url'])->toBe('https://example.com/shared-header.jpg');
+    expect($resolvedEn['header']['background_image_url'])->toBe('https://example.com/shared-header.jpg');
+    expect($resolvedFr['header']['background_image_alt'])->toBe('Banniere FR');
+    expect($resolvedEn['header']['background_image_alt'])->toBe('EN banner');
+    expect($resolvedFr['sections'][0]['image_url'])->toBe('https://example.com/shared-primary.jpg');
+    expect($resolvedEn['sections'][0]['image_url'])->toBe('https://example.com/shared-primary.jpg');
+    expect($resolvedFr['sections'][0]['image_alt'])->toBe('Image FR');
+    expect($resolvedEn['sections'][0]['image_alt'])->toBe('EN image');
+    expect($resolvedFr['sections'][0]['story_cards'][0]['image_url'])->toBe('https://example.com/shared-story.jpg');
+    expect($resolvedEn['sections'][0]['story_cards'][0]['image_url'])->toBe('https://example.com/shared-story.jpg');
+    expect($resolvedFr['sections'][0]['story_cards'][0]['image_alt'])->toBe('Carte image FR');
+    expect($resolvedEn['sections'][0]['story_cards'][0]['image_alt'])->toBe('EN card image');
+});
+
 it('stores reusable duo and testimonial library sections with their enhanced fields', function () {
     $user = User::factory()->create();
     $service = app(\App\Services\PlatformSectionContentService::class);
@@ -877,6 +980,55 @@ it('stores reusable showcase CTA library sections with layered media fields', fu
     expect($resolved['aside_image_url'])->toBe('https://example.com/reusable-showcase-mobile.jpg');
     expect($resolved['aside_link_label'])->toBe('Voir la visite produit');
     expect($resolved['showcase_badge_value'])->toBe('+120,000');
+});
+
+it('shares reusable section media across locales while keeping text localized', function () {
+    $user = User::factory()->create();
+    $service = app(\App\Services\PlatformSectionContentService::class);
+
+    $section = PlatformSection::query()->create([
+        'name' => 'Shared media section',
+        'type' => 'showcase_cta',
+        'is_active' => true,
+        'content' => ['locales' => []],
+    ]);
+
+    $service->updateLocale($section, 'fr', [
+        'layout' => 'showcase_cta',
+        'title' => 'Titre FR',
+        'body' => '<p>Corps FR</p>',
+        'image_url' => 'https://example.com/shared-section-main.jpg',
+        'image_alt' => 'Image principale FR',
+        'aside_image_url' => 'https://example.com/shared-section-aside.jpg',
+        'aside_image_alt' => 'Image aside FR',
+        'showcase_badge_label' => 'Badge FR',
+    ], $user->id);
+
+    $enPayload = $service->resolveForLocale($section->fresh(), 'en');
+    $enPayload['title'] = 'Title EN';
+    $enPayload['body'] = '<p>Body EN</p>';
+    $enPayload['image_alt'] = 'Main image EN';
+    $enPayload['aside_image_alt'] = 'Aside image EN';
+    $enPayload['showcase_badge_label'] = 'Badge EN';
+
+    $service->updateLocale($section->fresh(), 'en', $enPayload, $user->id);
+
+    $freshSection = $section->fresh();
+    $resolvedFr = $service->resolveForLocale($freshSection, 'fr');
+    $resolvedEn = $service->resolveForLocale($freshSection, 'en');
+
+    expect($freshSection->content['shared_media']['image_url'] ?? null)->toBe('https://example.com/shared-section-main.jpg');
+    expect($freshSection->content['shared_media']['aside_image_url'] ?? null)->toBe('https://example.com/shared-section-aside.jpg');
+    expect($resolvedFr['title'])->toBe('Titre FR');
+    expect($resolvedEn['title'])->toBe('Title EN');
+    expect($resolvedFr['image_url'])->toBe('https://example.com/shared-section-main.jpg');
+    expect($resolvedEn['image_url'])->toBe('https://example.com/shared-section-main.jpg');
+    expect($resolvedFr['image_alt'])->toBe('Image principale FR');
+    expect($resolvedEn['image_alt'])->toBe('Main image EN');
+    expect($resolvedFr['aside_image_url'])->toBe('https://example.com/shared-section-aside.jpg');
+    expect($resolvedEn['aside_image_url'])->toBe('https://example.com/shared-section-aside.jpg');
+    expect($resolvedFr['aside_image_alt'])->toBe('Image aside FR');
+    expect($resolvedEn['aside_image_alt'])->toBe('Aside image EN');
 });
 
 it('stores reusable industry grid library sections with card items', function () {

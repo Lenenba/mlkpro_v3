@@ -8,6 +8,13 @@ class PlatformSectionContentService
 {
     private const LOCALES = ['fr', 'en'];
 
+    private const SHARED_MEDIA_KEYS = [
+        'image_url',
+        'aside_image_url',
+        'brand_logo_url',
+        'avatar_url',
+    ];
+
     private const LAYOUTS = ['split', 'duo', 'stack', 'contact', 'testimonial', 'feature_pairs', 'showcase_cta', 'industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid', 'footer'];
 
     private const IMAGE_POSITIONS = ['left', 'right'];
@@ -140,6 +147,7 @@ class PlatformSectionContentService
         $stored = $this->storedLocales($section)[$locale] ?? [];
 
         $merged = $this->mergeContent($default, is_array($stored) ? $stored : []);
+        $merged = $this->applySharedMedia($merged, $this->sharedMedia($section));
 
         return $this->sanitizeSection($merged);
     }
@@ -154,8 +162,14 @@ class PlatformSectionContentService
         $locales = is_array($payload['locales'] ?? null) ? $payload['locales'] : [];
         $locales[$locale] = $sanitized;
 
+        $sharedMedia = $this->mergeSharedMedia(
+            is_array($payload['shared_media'] ?? null) ? $payload['shared_media'] : [],
+            $this->extractSharedMedia($incoming)
+        );
+
         $section->content = [
             'locales' => $locales,
+            'shared_media' => $sharedMedia,
             'updated_by' => $userId,
             'updated_at' => now()->toIso8601String(),
         ];
@@ -183,6 +197,8 @@ class PlatformSectionContentService
         return [
             'layout' => $defaultLayout,
             'background_color' => $this->defaultBackgroundColorForLayout($defaultLayout),
+            'title_color' => '',
+            'body_color' => '',
             'image_position' => in_array($defaultLayout, ['testimonial', 'showcase_cta'], true) ? 'right' : 'left',
             'alignment' => 'left',
             'density' => 'normal',
@@ -191,6 +207,7 @@ class PlatformSectionContentService
             'title' => '',
             'body' => '',
             'note' => '',
+            'title_font_size' => 0,
             'stats' => [],
             'hero_images' => [],
             'preview_cards' => [],
@@ -254,6 +271,8 @@ class PlatformSectionContentService
                 $this->defaultLayoutForType(null)
             ),
             'background_color' => $this->cleanColor($section['background_color'] ?? null) ?? '',
+            'title_color' => $this->cleanColor($section['title_color'] ?? null) ?? '',
+            'body_color' => $this->cleanColor($section['body_color'] ?? null) ?? '',
             'image_position' => $this->cleanThemeChoice(
                 $section['image_position'] ?? null,
                 self::IMAGE_POSITIONS,
@@ -278,6 +297,7 @@ class PlatformSectionContentService
             'title' => $this->cleanText($section['title'] ?? ''),
             'body' => $this->cleanHtml($section['body'] ?? ''),
             'note' => $this->cleanHtml($section['note'] ?? ''),
+            'title_font_size' => $this->cleanHeroTitleFontSize($section['title_font_size'] ?? null),
             'stats' => $this->sanitizeStatItems($section['stats'] ?? []),
             'hero_images' => $this->sanitizeHeroImages($section['hero_images'] ?? []),
             'preview_cards' => $this->sanitizePreviewCards($section['preview_cards'] ?? []),
@@ -340,6 +360,14 @@ class PlatformSectionContentService
         return is_array($locales) ? $locales : [];
     }
 
+    private function sharedMedia(PlatformSection $section): array
+    {
+        $payload = is_array($section->content) ? $section->content : [];
+        $shared = $payload['shared_media'] ?? [];
+
+        return is_array($shared) ? $shared : [];
+    }
+
     private function mergeContent(array $default, array $stored): array
     {
         $merged = $default;
@@ -356,6 +384,118 @@ class PlatformSectionContentService
                 }
 
                 $merged[$key] = $this->mergeContent($default[$key], $value);
+
+                continue;
+            }
+
+            $merged[$key] = $value;
+        }
+
+        return $merged;
+    }
+
+    private function extractSharedMedia(array $content): array
+    {
+        $shared = $this->extractSharedMediaFromValue($content);
+
+        return is_array($shared) ? $shared : [];
+    }
+
+    private function extractSharedMediaFromValue(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return null;
+        }
+
+        $shared = [];
+        foreach ($value as $key => $item) {
+            if (is_string($key) && in_array($key, self::SHARED_MEDIA_KEYS, true)) {
+                $shared[$key] = $this->cleanImageValue($item);
+
+                continue;
+            }
+
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $nested = $this->extractSharedMediaFromValue($item);
+            if ($nested === null || $nested === []) {
+                continue;
+            }
+
+            $shared[$key] = $nested;
+        }
+
+        return $shared;
+    }
+
+    private function applySharedMedia(array $content, array $shared): array
+    {
+        foreach ($shared as $key => $value) {
+            if (is_array($value)) {
+                if (array_is_list($value)) {
+                    $baseItems = is_array($content[$key] ?? null) ? $content[$key] : [];
+
+                    foreach ($value as $index => $nestedValue) {
+                        if (! array_key_exists($index, $baseItems)) {
+                            continue;
+                        }
+
+                        if (is_array($nestedValue)) {
+                            $baseItem = is_array($baseItems[$index] ?? null) ? $baseItems[$index] : [];
+                            $baseItems[$index] = $this->applySharedMedia($baseItem, $nestedValue);
+
+                            continue;
+                        }
+
+                        $baseItems[$index] = $nestedValue;
+                    }
+
+                    $content[$key] = $baseItems;
+
+                    continue;
+                }
+
+                $baseValue = is_array($content[$key] ?? null) ? $content[$key] : [];
+                $content[$key] = $this->applySharedMedia($baseValue, $value);
+
+                continue;
+            }
+
+            $content[$key] = $value;
+        }
+
+        return $content;
+    }
+
+    private function mergeSharedMedia(array $existing, array $incoming): array
+    {
+        $merged = $existing;
+
+        foreach ($incoming as $key => $value) {
+            if (is_array($value)) {
+                if (array_is_list($value)) {
+                    $baseItems = is_array($merged[$key] ?? null) ? $merged[$key] : [];
+
+                    foreach ($value as $index => $nestedValue) {
+                        if (is_array($nestedValue)) {
+                            $baseItem = is_array($baseItems[$index] ?? null) ? $baseItems[$index] : [];
+                            $baseItems[$index] = $this->mergeSharedMedia($baseItem, $nestedValue);
+
+                            continue;
+                        }
+
+                        $baseItems[$index] = $nestedValue;
+                    }
+
+                    $merged[$key] = $baseItems;
+
+                    continue;
+                }
+
+                $baseValue = is_array($merged[$key] ?? null) ? $merged[$key] : [];
+                $merged[$key] = $this->mergeSharedMedia($baseValue, $value);
 
                 continue;
             }
@@ -722,6 +862,20 @@ class PlatformSectionContentService
         }
 
         return max(18, min($size, 40));
+    }
+
+    private function cleanHeroTitleFontSize($value): int
+    {
+        if ($value === null || $value === '') {
+            return 0;
+        }
+
+        $size = (int) $value;
+        if ($size <= 0) {
+            return 0;
+        }
+
+        return max(40, min($size, 96));
     }
 
     private function stringify($value): string

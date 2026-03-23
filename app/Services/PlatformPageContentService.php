@@ -11,6 +11,13 @@ class PlatformPageContentService
 {
     private const LOCALES = ['fr', 'en'];
 
+    private const SHARED_MEDIA_KEYS = [
+        'background_image_url',
+        'image_url',
+        'aside_image_url',
+        'avatar_url',
+    ];
+
     private const THEME_FONTS = ['work-sans', 'space-grotesk', 'sora', 'dm-sans'];
 
     private const THEME_RADII = ['sm', 'md', 'lg', 'xl'];
@@ -117,6 +124,7 @@ class PlatformPageContentService
         $stored = $this->storedLocales($page)[$locale] ?? [];
 
         $merged = $this->mergeContent($default, is_array($stored) ? $stored : []);
+        $merged = $this->applySharedMedia($merged, $this->sharedMedia($page));
         $merged['page_title'] = $this->cleanText($merged['page_title'] ?? $page->title);
         $merged['page_subtitle'] = $this->cleanHtml($merged['page_subtitle'] ?? '');
         $merged['header'] = $this->sanitizeHeader($merged['header'] ?? null);
@@ -137,7 +145,12 @@ class PlatformPageContentService
                     'enabled' => array_key_exists('enabled', $section) ? (bool) $section['enabled'] : true,
                     'source_id' => $this->cleanSourceId($section['source_id'] ?? null),
                     'use_source' => array_key_exists('use_source', $section) ? (bool) $section['use_source'] : false,
+                    'override_items' => array_key_exists('override_items', $section) ? (bool) $section['override_items'] : false,
+                    'override_note' => array_key_exists('override_note', $section) ? (bool) $section['override_note'] : false,
+                    'override_stats' => array_key_exists('override_stats', $section) ? (bool) $section['override_stats'] : false,
                     'background_color' => $this->cleanColor($section['background_color'] ?? null) ?? '',
+                    'title_color' => $this->cleanColor($section['title_color'] ?? null) ?? '',
+                    'body_color' => $this->cleanColor($section['body_color'] ?? null) ?? '',
                     'layout' => $this->cleanLayout($section['layout'] ?? 'split'),
                     'image_position' => $this->cleanImagePosition($section['image_position'] ?? 'left'),
                     'alignment' => $this->cleanAlignment($section['alignment'] ?? 'left'),
@@ -147,11 +160,14 @@ class PlatformPageContentService
                     'kicker' => $this->cleanText($section['kicker'] ?? ''),
                     'title' => $this->cleanText($section['title'] ?? ''),
                     'body' => $this->cleanHtml($section['body'] ?? ''),
+                    'note' => $this->cleanHtml($section['note'] ?? ''),
+                    'title_font_size' => $this->cleanHeroTitleFontSize($section['title_font_size'] ?? null),
                     'industry_cards' => $this->sanitizeIndustryCards($section['industry_cards'] ?? []),
                     'story_cards' => $this->sanitizeStoryCards($section['story_cards'] ?? []),
                     'feature_tabs' => $this->sanitizeFeatureTabs($section['feature_tabs'] ?? []),
                     'feature_tabs_font_size' => $this->cleanFeatureTabsFontSize($section['feature_tabs_font_size'] ?? null),
                     'testimonial_cards' => $this->sanitizeTestimonialCards($section['testimonial_cards'] ?? []),
+                    'stats' => $this->sanitizeStatItems($section['stats'] ?? []),
                     'items' => $this->sanitizeStringList($section['items'] ?? []),
                     'testimonial_author' => $this->cleanText($section['testimonial_author'] ?? ''),
                     'testimonial_role' => $this->cleanText($section['testimonial_role'] ?? ''),
@@ -204,8 +220,14 @@ class PlatformPageContentService
             $themePayload = is_array($payload['theme']) ? $payload['theme'] : null;
         }
 
+        $sharedMedia = $this->mergeSharedMedia(
+            is_array($payload['shared_media'] ?? null) ? $payload['shared_media'] : [],
+            $this->extractSharedMedia($incoming)
+        );
+
         $page->content = [
             'locales' => $locales,
+            'shared_media' => $sharedMedia,
             'theme' => $this->sanitizeTheme($themePayload),
             'updated_by' => $userId,
             'updated_at' => now()->toIso8601String(),
@@ -248,7 +270,12 @@ class PlatformPageContentService
             'enabled' => true,
             'source_id' => null,
             'use_source' => false,
+            'override_items' => false,
+            'override_note' => false,
+            'override_stats' => false,
             'background_color' => '',
+            'title_color' => '',
+            'body_color' => '',
             'layout' => 'split',
             'image_position' => 'left',
             'alignment' => 'left',
@@ -258,11 +285,14 @@ class PlatformPageContentService
             'kicker' => '',
             'title' => '',
             'body' => '',
+            'note' => '',
+            'title_font_size' => 0,
             'industry_cards' => [],
             'story_cards' => [],
             'feature_tabs' => [],
             'feature_tabs_font_size' => 0,
             'testimonial_cards' => [],
+            'stats' => [],
             'items' => [],
             'testimonial_author' => '',
             'testimonial_role' => '',
@@ -291,11 +321,18 @@ class PlatformPageContentService
 
     private function sanitizeLocaleContent(array $incoming, array $default, PlatformPage $page): array
     {
+        $sectionsSubmitted = array_key_exists('sections', $incoming)
+            || array_key_exists('sections_present', $incoming);
+
         return [
             'page_title' => $this->cleanText($incoming['page_title'] ?? $default['page_title'] ?? $page->title),
             'page_subtitle' => $this->cleanHtml($incoming['page_subtitle'] ?? $default['page_subtitle'] ?? ''),
             'header' => $this->sanitizeHeader($incoming['header'] ?? $default['header'] ?? null),
-            'sections' => $this->sanitizeSections($incoming['sections'] ?? $default['sections'] ?? []),
+            'sections' => $this->sanitizeSections(
+                $sectionsSubmitted
+                    ? ($incoming['sections'] ?? [])
+                    : ($default['sections'] ?? [])
+            ),
         ];
     }
 
@@ -334,7 +371,12 @@ class PlatformPageContentService
                 'enabled' => array_key_exists('enabled', $section) ? (bool) $section['enabled'] : true,
                 'source_id' => $this->cleanSourceId($section['source_id'] ?? null),
                 'use_source' => array_key_exists('use_source', $section) ? (bool) $section['use_source'] : false,
+                'override_items' => array_key_exists('override_items', $section) ? (bool) $section['override_items'] : false,
+                'override_note' => array_key_exists('override_note', $section) ? (bool) $section['override_note'] : false,
+                'override_stats' => array_key_exists('override_stats', $section) ? (bool) $section['override_stats'] : false,
                 'background_color' => $this->cleanColor($section['background_color'] ?? null) ?? '',
+                'title_color' => $this->cleanColor($section['title_color'] ?? null) ?? '',
+                'body_color' => $this->cleanColor($section['body_color'] ?? null) ?? '',
                 'layout' => $this->cleanLayout($section['layout'] ?? 'split'),
                 'image_position' => $this->cleanImagePosition($section['image_position'] ?? 'left'),
                 'alignment' => $this->cleanAlignment($section['alignment'] ?? 'left'),
@@ -344,11 +386,14 @@ class PlatformPageContentService
                 'kicker' => $this->cleanText($section['kicker'] ?? ''),
                 'title' => $this->cleanText($section['title'] ?? ''),
                 'body' => $this->cleanHtml($section['body'] ?? ''),
+                'note' => $this->cleanHtml($section['note'] ?? ''),
+                'title_font_size' => $this->cleanHeroTitleFontSize($section['title_font_size'] ?? null),
                 'industry_cards' => $this->sanitizeIndustryCards($section['industry_cards'] ?? []),
                 'story_cards' => $this->sanitizeStoryCards($section['story_cards'] ?? []),
                 'feature_tabs' => $this->sanitizeFeatureTabs($section['feature_tabs'] ?? []),
                 'feature_tabs_font_size' => $this->cleanFeatureTabsFontSize($section['feature_tabs_font_size'] ?? null),
                 'testimonial_cards' => $this->sanitizeTestimonialCards($section['testimonial_cards'] ?? []),
+                'stats' => $this->sanitizeStatItems($section['stats'] ?? []),
                 'items' => $this->sanitizeStringList($section['items'] ?? []),
                 'testimonial_author' => $this->cleanText($section['testimonial_author'] ?? ''),
                 'testimonial_role' => $this->cleanText($section['testimonial_role'] ?? ''),
@@ -386,6 +431,14 @@ class PlatformPageContentService
         return is_array($locales) ? $locales : [];
     }
 
+    private function sharedMedia(PlatformPage $page): array
+    {
+        $payload = is_array($page->content) ? $page->content : [];
+        $shared = $payload['shared_media'] ?? [];
+
+        return is_array($shared) ? $shared : [];
+    }
+
     private function mergeContent(array $default, array $stored): array
     {
         $merged = $default;
@@ -412,6 +465,118 @@ class PlatformPageContentService
         return $merged;
     }
 
+    private function extractSharedMedia(array $content): array
+    {
+        $shared = $this->extractSharedMediaFromValue($content);
+
+        return is_array($shared) ? $shared : [];
+    }
+
+    private function extractSharedMediaFromValue(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return null;
+        }
+
+        $shared = [];
+        foreach ($value as $key => $item) {
+            if (is_string($key) && in_array($key, self::SHARED_MEDIA_KEYS, true)) {
+                $shared[$key] = $this->cleanImageValue($item);
+
+                continue;
+            }
+
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $nested = $this->extractSharedMediaFromValue($item);
+            if ($nested === null || $nested === []) {
+                continue;
+            }
+
+            $shared[$key] = $nested;
+        }
+
+        return $shared;
+    }
+
+    private function applySharedMedia(array $content, array $shared): array
+    {
+        foreach ($shared as $key => $value) {
+            if (is_array($value)) {
+                if (array_is_list($value)) {
+                    $baseItems = is_array($content[$key] ?? null) ? $content[$key] : [];
+
+                    foreach ($value as $index => $nestedValue) {
+                        if (! array_key_exists($index, $baseItems)) {
+                            continue;
+                        }
+
+                        if (is_array($nestedValue)) {
+                            $baseItem = is_array($baseItems[$index] ?? null) ? $baseItems[$index] : [];
+                            $baseItems[$index] = $this->applySharedMedia($baseItem, $nestedValue);
+
+                            continue;
+                        }
+
+                        $baseItems[$index] = $nestedValue;
+                    }
+
+                    $content[$key] = $baseItems;
+
+                    continue;
+                }
+
+                $baseValue = is_array($content[$key] ?? null) ? $content[$key] : [];
+                $content[$key] = $this->applySharedMedia($baseValue, $value);
+
+                continue;
+            }
+
+            $content[$key] = $value;
+        }
+
+        return $content;
+    }
+
+    private function mergeSharedMedia(array $existing, array $incoming): array
+    {
+        $merged = $existing;
+
+        foreach ($incoming as $key => $value) {
+            if (is_array($value)) {
+                if (array_is_list($value)) {
+                    $baseItems = is_array($merged[$key] ?? null) ? $merged[$key] : [];
+
+                    foreach ($value as $index => $nestedValue) {
+                        if (is_array($nestedValue)) {
+                            $baseItem = is_array($baseItems[$index] ?? null) ? $baseItems[$index] : [];
+                            $baseItems[$index] = $this->mergeSharedMedia($baseItem, $nestedValue);
+
+                            continue;
+                        }
+
+                        $baseItems[$index] = $nestedValue;
+                    }
+
+                    $merged[$key] = $baseItems;
+
+                    continue;
+                }
+
+                $baseValue = is_array($merged[$key] ?? null) ? $merged[$key] : [];
+                $merged[$key] = $this->mergeSharedMedia($baseValue, $value);
+
+                continue;
+            }
+
+            $merged[$key] = $value;
+        }
+
+        return $merged;
+    }
+
     private function sanitizeStringList($items): array
     {
         if (! is_array($items)) {
@@ -419,6 +584,27 @@ class PlatformPageContentService
         }
 
         return array_values(array_map(fn ($item) => $this->cleanText($item), $items));
+    }
+
+    private function sanitizeStatItems($items): array
+    {
+        if (! is_array($items)) {
+            return [];
+        }
+
+        $sanitized = [];
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $sanitized[] = [
+                'value' => $this->cleanText($item['value'] ?? ''),
+                'label' => $this->cleanText($item['label'] ?? ''),
+            ];
+        }
+
+        return array_values($sanitized);
     }
 
     private function sanitizeIndustryCards($items): array
@@ -745,6 +931,11 @@ class PlatformPageContentService
         return null;
     }
 
+    private function cleanImageValue($value): string
+    {
+        return $this->sanitizeUrl($this->cleanText($value), 'image') ?? '';
+    }
+
     private function cleanColor($value): ?string
     {
         $color = $this->cleanText($value);
@@ -797,6 +988,20 @@ class PlatformPageContentService
         }
 
         return max(18, min($size, 40));
+    }
+
+    private function cleanHeroTitleFontSize($value): int
+    {
+        if ($value === null || $value === '') {
+            return 0;
+        }
+
+        $size = (int) $value;
+        if ($size <= 0) {
+            return 0;
+        }
+
+        return max(40, min($size, 96));
     }
 
     private function cleanSourceId($value): ?int
@@ -1051,7 +1256,11 @@ class PlatformPageContentService
         $section['kicker'] = $section['kicker'] !== '' ? $section['kicker'] : ($source['kicker'] ?? '');
         $section['title'] = $section['title'] !== '' ? $section['title'] : ($source['title'] ?? '');
         $section['body'] = $section['body'] !== '' ? $section['body'] : ($source['body'] ?? '');
+        $section['title_color'] = $section['title_color'] !== '' ? $section['title_color'] : ($source['title_color'] ?? '');
+        $section['body_color'] = $section['body_color'] !== '' ? $section['body_color'] : ($source['body_color'] ?? '');
+        $section['title_font_size'] = ! empty($section['title_font_size']) ? $section['title_font_size'] : ($source['title_font_size'] ?? 0);
         $section['image_position'] = $section['image_position'] !== '' ? $section['image_position'] : ($source['image_position'] ?? 'left');
+        $section['note'] = ! empty($section['override_note']) ? ($section['note'] ?? '') : ($source['note'] ?? '');
 
         if (empty($section['industry_cards'])) {
             $section['industry_cards'] = $source['industry_cards'] ?? [];
@@ -1073,7 +1282,11 @@ class PlatformPageContentService
             $section['testimonial_cards'] = $source['testimonial_cards'] ?? [];
         }
 
-        if (empty($section['items'])) {
+        if (empty($section['override_stats'])) {
+            $section['stats'] = $source['stats'] ?? [];
+        }
+
+        if (empty($section['override_items'])) {
             $section['items'] = $source['items'] ?? [];
         }
 

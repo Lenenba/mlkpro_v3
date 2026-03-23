@@ -654,6 +654,8 @@ const ensureStructure = (content, type = form.type) => {
     return {
         layout: content?.layout || preset.layout,
         background_color: content?.background_color ?? preset.background_color,
+        title_color: content?.title_color ?? preset.title_color ?? '',
+        body_color: content?.body_color ?? preset.body_color ?? '',
         image_position: content?.image_position || preset.image_position,
         alignment: content?.alignment || preset.alignment,
         density: content?.density || preset.density,
@@ -662,6 +664,7 @@ const ensureStructure = (content, type = form.type) => {
         title: content?.title ?? preset.title ?? '',
         body: content?.body || '',
         note: content?.note || '',
+        title_font_size: Number(content?.title_font_size) > 0 ? Number(content.title_font_size) : Number(preset.title_font_size || 0),
         stats: Array.isArray(content?.stats) ? ensureStatItems(content.stats) : ensureStatItems(preset.stats),
         hero_images: Array.isArray(content?.hero_images) ? ensureHeroImages(content.hero_images) : ensureHeroImages(preset.hero_images),
         preview_cards: Array.isArray(content?.preview_cards) ? ensurePreviewCards(content.preview_cards) : ensurePreviewCards(preset.preview_cards),
@@ -750,12 +753,15 @@ watch(
             layout: next.layout,
             image_position: current.image_position === previous.image_position ? next.image_position : current.image_position,
             background_color: current.background_color === previous.background_color ? next.background_color : current.background_color,
+            title_color: current.title_color || next.title_color || '',
+            body_color: current.body_color || next.body_color || '',
             tone: current.tone === previous.tone ? next.tone : current.tone,
             alignment: current.alignment === previous.alignment ? next.alignment : current.alignment,
             kicker: current.kicker || next.kicker || '',
             title: current.title || next.title || '',
             body: current.body || next.body || '',
             note: current.note || next.note || '',
+            title_font_size: current.title_font_size || next.title_font_size || 0,
             items: current.items?.length ? current.items : (Array.isArray(next.items) ? [...next.items] : []),
             stats: current.stats?.length ? current.stats : ensureStatItems(next.stats),
             hero_images: current.hero_images?.length ? current.hero_images : ensureHeroImages(next.hero_images),
@@ -1421,6 +1427,79 @@ syncFormFromProps(currentLocale.value);
                 </div>
 
                 <div v-if="isWelcomeHeroType" class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700 space-y-4 xl:col-span-2">
+                    <div class="space-y-3">
+                        <div>
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('super_admin.sections.welcome.hero.typography_title') }}
+                            </h2>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.sections.welcome.hero.typography_subtitle') }}
+                            </p>
+                        </div>
+
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-3 dark:border-neutral-700 dark:bg-neutral-900/60 space-y-3">
+                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.common.title') }}
+                                </div>
+
+                                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_150px]">
+                                    <div class="space-y-2">
+                                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                            {{ $t('super_admin.sections.welcome.hero.title_color') }}
+                                        </label>
+                                        <div class="flex items-center gap-3">
+                                            <input v-model="form.content.title_color" type="color"
+                                                class="h-11 w-14 shrink-0 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
+                                            <input
+                                                v-model="form.content.title_color"
+                                                type="text"
+                                                class="block w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
+                                                placeholder="#111827"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div class="space-y-2">
+                                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                            {{ $t('super_admin.sections.welcome.hero.title_font_size') }}
+                                        </label>
+                                        <input
+                                            v-model="form.content.title_font_size"
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            class="block w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-3 dark:border-neutral-700 dark:bg-neutral-900/60 space-y-3">
+                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.pages.common.body') }}
+                                </div>
+
+                                <div class="space-y-2">
+                                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ $t('super_admin.sections.welcome.hero.body_color') }}
+                                    </label>
+                                    <div class="flex items-center gap-3">
+                                        <input v-model="form.content.body_color" type="color"
+                                            class="h-11 w-14 shrink-0 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
+                                        <input
+                                            v-model="form.content.body_color"
+                                            type="text"
+                                            class="block w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200"
+                                            placeholder="#475569"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <RichTextEditor
                         v-model="form.content.note"
                         :label="$t('super_admin.sections.welcome.hero.note')"
