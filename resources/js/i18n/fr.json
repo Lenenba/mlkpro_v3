@@ -6998,6 +6998,8 @@
       }
     },
     "actions": {
+      "plan_trial": "Demarrer l essai gratuit",
+      "plan_trial_note": "Inclut 1 mois gratuit pendant l onboarding.",
       "primary": "Demarrer l onboarding",
       "secondary": "Se connecter"
     },

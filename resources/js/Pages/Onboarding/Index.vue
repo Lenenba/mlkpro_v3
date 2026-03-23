@@ -24,6 +24,10 @@ const props = defineProps({
         type: Array,
         default: () => ['CAD', 'EUR', 'USD'],
     },
+    selectedPlanKey: {
+        type: String,
+        default: null,
+    },
 });
 
 const page = usePage();
@@ -108,7 +112,7 @@ const form = useForm({
     company_sector_other: '',
     company_team_size: preset.value.company_team_size || '',
     invites: [],
-    plan_key: '',
+    plan_key: props.selectedPlanKey || '',
     two_factor_method: preset.value.two_factor_method || 'email',
     accept_terms: false,
 });

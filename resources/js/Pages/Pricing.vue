@@ -129,6 +129,19 @@ const resolvePrice = (plan) => plan?.display_price || plan?.price || '--';
 const resolveFeatures = (plan) => (Array.isArray(plan?.features) ? plan.features.filter((feature) => !!feature) : []);
 const isIncludedCell = (value) => value?.type === 'included';
 const isExcludedCell = (value) => value?.type === 'excluded';
+const showTrialCta = (plan) => Boolean(props.canRegister && plan?.onboarding_enabled && !plan?.contact_only);
+const resolveTrialHref = (plan) => {
+    if (!plan?.key) {
+        return route('onboarding.index');
+    }
+
+    const query = { plan: plan.key };
+    if ((plan?.audience || activeAudience.value) === 'team') {
+        query.team_size = 2;
+    }
+
+    return route('onboarding.index', query);
+};
 </script>
 
 <template>
@@ -213,6 +226,15 @@ const isExcludedCell = (value) => value?.type === 'excluded';
                             <p v-else class="mt-4 text-sm text-stone-500">
                                 {{ $t(`${heroBaseKey}.note`) }}
                             </p>
+                            <div v-if="showTrialCta(plan)" class="mt-auto pt-5 space-y-2">
+                                <Link :href="resolveTrialHref(plan)"
+                                    class="inline-flex w-full items-center justify-center rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700">
+                                    {{ $t('pricing.actions.plan_trial') }}
+                                </Link>
+                                <p class="text-xs text-stone-500">
+                                    {{ $t('pricing.actions.plan_trial_note') }}
+                                </p>
+                            </div>
                         </article>
                     </div>
                 </div>
@@ -414,6 +436,9 @@ const isExcludedCell = (value) => value?.type === 'excluded';
 
 .public-pricing-card {
     padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .public-pricing-card--highlighted {
