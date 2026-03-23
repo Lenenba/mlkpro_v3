@@ -136,7 +136,7 @@ class PlatformSectionController extends BaseSuperAdminController
         $meta = $service->meta($section);
 
         $updatedBy = null;
-        if (!empty($meta['updated_by'])) {
+        if (! empty($meta['updated_by'])) {
             $user = User::query()->select(['id', 'name', 'email'])->find($meta['updated_by']);
             if ($user) {
                 $updatedBy = [

@@ -12,7 +12,7 @@ class BaseSuperAdminController extends Controller
     protected function authorizeSuperadmin(Request $request): void
     {
         $user = $request->user();
-        if (!$user || !$user->isSuperadmin()) {
+        if (! $user || ! $user->isSuperadmin()) {
             abort(403);
         }
     }
@@ -20,7 +20,7 @@ class BaseSuperAdminController extends Controller
     protected function authorizePermission(Request $request, string $permission): void
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
@@ -28,7 +28,7 @@ class BaseSuperAdminController extends Controller
             return;
         }
 
-        if (!$user->hasPlatformPermission($permission)) {
+        if (! $user->hasPlatformPermission($permission)) {
             abort(403);
         }
     }
@@ -36,7 +36,7 @@ class BaseSuperAdminController extends Controller
     protected function authorizeAnyPermission(Request $request, array $permissions): void
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
@@ -56,7 +56,7 @@ class BaseSuperAdminController extends Controller
     protected function logAudit(Request $request, string $action, ?Model $subject = null, array $metadata = []): void
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return;
         }
 

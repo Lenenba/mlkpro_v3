@@ -1697,13 +1697,16 @@
         "page_title": "Titre public",
         "page_subtitle": "Sous-titre public",
         "layout": "Layout",
-        "items": "Puces (une ligne par item)"
+        "items": "Puces (une ligne par item)",
+        "image_position": "Position de l'image"
       },
       "common": {
         "enabled": "Actif",
         "move_up": "Monter",
         "move_down": "Descendre",
         "remove": "Supprimer",
+        "key": "Cle",
+        "description": "Description",
         "background": "Background",
         "background_hex": "Couleur de fond (#hex)",
         "panel_background": "Fond du bloc contenu",
@@ -6145,7 +6148,8 @@
       },
       "actions": {
         "save": "Enregistrer",
-        "remove": "Retirer"
+        "remove": "Retirer",
+        "cancel": "Annuler"
       },
       "categories": {
         "title": "Categories de services / produits",

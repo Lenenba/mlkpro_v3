@@ -1697,13 +1697,16 @@
         "page_title": "Public title",
         "page_subtitle": "Public subtitle",
         "layout": "Layout",
-        "items": "Bullets (one per line)"
+        "items": "Bullets (one per line)",
+        "image_position": "Image position"
       },
       "common": {
         "enabled": "Enabled",
         "move_up": "Up",
         "move_down": "Down",
         "remove": "Remove",
+        "key": "Key",
+        "description": "Description",
         "background": "Background",
         "background_hex": "Background color (#hex)",
         "panel_background": "Content panel background",
@@ -6145,7 +6148,8 @@
       },
       "actions": {
         "save": "Save",
-        "remove": "Remove"
+        "remove": "Remove",
+        "cancel": "Cancel"
       },
       "categories": {
         "title": "Service / product categories",
