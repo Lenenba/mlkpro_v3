@@ -236,7 +236,7 @@ En pratique:
 - paid signifie paiement complet
 - canceled stoppe le flux et libere la reserve
 
-La force de Malikia pro est d imposer des transitions claires pour garder un etat de commande fiable entre equipe vente, preparation et comptabilite." 
+La force de Malikia pro est d imposer des transitions claires pour garder un etat de commande fiable entre equipe vente, preparation et comptabilite.
 
 ### Actions ecran
 - Ouvrir `Sales` puis un detail de commande.
@@ -293,7 +293,7 @@ La commande est consideree reellement finalisee quand on a coherence entre paiem
 Autre logique utile en portal: un depot peut etre applique automatiquement dans certaines transitions pour securiser la commande.
 
 Le point le plus important:
-paiement, fulfillment et stock ne doivent jamais etre traites comme des blocs separes. Dans Malikia pro, ces 3 dimensions sont synchronisees." 
+paiement, fulfillment et stock ne doivent jamais etre traites comme des blocs separes. Dans Malikia pro, ces 3 dimensions sont synchronisees.
 
 ### Actions ecran
 - Montrer ajout de paiement sur une commande.

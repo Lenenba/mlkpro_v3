@@ -308,7 +308,7 @@ Lors de la conversion:
 - synchronisation lignes et checklist
 - statut devis peut basculer accepted selon cas
 
-Malikia pro evite aussi les doublons: si un job existe deja pour ce devis, la plateforme le reutilise." 
+Malikia pro evite aussi les doublons: si un job existe deja pour ce devis, la plateforme le reutilise.
 
 ### Actions ecran
 - Cliquer `Convert to job` sur devis eligible.
