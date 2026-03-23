@@ -131,6 +131,49 @@ class BillingSubscriptionService
         return max(1, $declared, $teamCount);
     }
 
+    public function resolveBillableQuantity(User $accountOwner, ?string $planKey = null): int
+    {
+        if ($planKey && app(BillingPlanService::class)->isOwnerOnlyPlan($planKey)) {
+            return 1;
+        }
+
+        return $this->resolveSeatQuantity($accountOwner);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function ownerOnlyPlanSelectionErrors(
+        User $accountOwner,
+        string $planKey,
+        ?int $declaredTeamSize = null,
+        ?int $inviteCount = null
+    ): array {
+        if (! app(BillingPlanService::class)->isOwnerOnlyPlan($planKey)) {
+            return [];
+        }
+
+        $errors = [];
+        $activeTeamMembers = TeamMember::query()
+            ->forAccount($accountOwner->id)
+            ->active()
+            ->count();
+
+        if ($activeTeamMembers > 0) {
+            $errors[] = 'Solo plans require removing active team members first.';
+        }
+
+        if ($inviteCount !== null && $inviteCount > 0) {
+            $errors[] = 'Solo plans do not allow invited team members.';
+        }
+
+        if ($declaredTeamSize !== null && $declaredTeamSize > 1) {
+            $errors[] = 'Solo plans are limited to the owner only.';
+        }
+
+        return $errors;
+    }
+
     private function isStripeActiveStatus(string $status): bool
     {
         return in_array($status, ['active', 'trialing', 'past_due'], true);

@@ -90,7 +90,6 @@ use App\Http\Controllers\SuperAdmin\PlatformSettingsController as SuperAdminPlat
 use App\Http\Controllers\SuperAdmin\SupportTicketController as SuperAdminSupportTicketController;
 use App\Http\Controllers\SuperAdmin\SupportTicketMessageController as SuperAdminSupportTicketMessageController;
 use App\Http\Controllers\SuperAdmin\TenantController as SuperAdminTenantController;
-use App\Http\Controllers\SuperAdmin\WelcomeBuilderController as SuperAdminWelcomeBuilderController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\SupportTicketMessageController;
 use App\Http\Controllers\TaskController;
@@ -790,9 +789,6 @@ Route::prefix('super-admin')
         Route::post('/support/{ticket}/messages', [SuperAdminSupportTicketMessageController::class, 'store'])
             ->name('support.messages.store');
 
-        Route::get('/welcome-builder', [SuperAdminWelcomeBuilderController::class, 'edit'])->name('welcome.edit');
-        Route::put('/welcome-builder', [SuperAdminWelcomeBuilderController::class, 'update'])->name('welcome.update');
-
         Route::get('/pages', [SuperAdminPlatformPageController::class, 'index'])->name('pages.index');
         Route::get('/pages/create', [SuperAdminPlatformPageController::class, 'create'])->name('pages.create');
         Route::post('/pages', [SuperAdminPlatformPageController::class, 'store'])->name('pages.store');
@@ -815,6 +811,7 @@ Route::prefix('super-admin')
         Route::get('/sections', [SuperAdminPlatformSectionController::class, 'index'])->name('sections.index');
         Route::get('/sections/create', [SuperAdminPlatformSectionController::class, 'create'])->name('sections.create');
         Route::post('/sections', [SuperAdminPlatformSectionController::class, 'store'])->name('sections.store');
+        Route::post('/sections/{section}/duplicate', [SuperAdminPlatformSectionController::class, 'duplicate'])->name('sections.duplicate');
         Route::get('/sections/{section}/edit', [SuperAdminPlatformSectionController::class, 'edit'])->name('sections.edit');
         Route::put('/sections/{section}', [SuperAdminPlatformSectionController::class, 'update'])->name('sections.update');
         Route::delete('/sections/{section}', [SuperAdminPlatformSectionController::class, 'destroy'])->name('sections.destroy');

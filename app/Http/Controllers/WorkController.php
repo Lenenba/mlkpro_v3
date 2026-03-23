@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Queries\Works\BuildWorkIndexData;
+use App\Services\CompanyFeatureService;
 use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
 use App\Services\WorkScheduleService;
@@ -54,6 +55,9 @@ class WorkController extends Controller
     {
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $hasTeamMembersFeature = $user
+            ? app(CompanyFeatureService::class)->hasFeature($user, 'team_members')
+            : false;
         if (! $user || $user->id !== $accountId) {
             abort(403);
         }
@@ -62,12 +66,14 @@ class WorkController extends Controller
             abort(403);
         }
 
-        $teamMembers = TeamMember::query()
-            ->forAccount($accountId)
-            ->active()
-            ->with('user')
-            ->orderBy('created_at')
-            ->get();
+        $teamMembers = $hasTeamMembersFeature
+            ? TeamMember::query()
+                ->forAccount($accountId)
+                ->active()
+                ->with('user')
+                ->orderBy('created_at')
+                ->get()
+            : collect();
 
         $calendarStart = Carbon::now()->subMonths(3)->toDateString();
         $calendarEnd = Carbon::now()->addMonths(6)->toDateString();
@@ -78,7 +84,7 @@ class WorkController extends Controller
             ->with(['assignee.user:id,name'])
             ->orderBy('due_date')
             ->get(['id', 'work_id', 'title', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
-            ->map(function ($task) {
+            ->map(function ($task) use ($hasTeamMembersFeature) {
                 return [
                     'id' => $task->id,
                     'work_id' => $task->work_id,
@@ -86,8 +92,8 @@ class WorkController extends Controller
                     'due_date' => $task->due_date,
                     'start_time' => $task->start_time,
                     'end_time' => $task->end_time,
-                    'assigned_team_member_id' => $task->assigned_team_member_id,
-                    'assignee' => $task->assignee?->user ? [
+                    'assigned_team_member_id' => $hasTeamMembersFeature ? $task->assigned_team_member_id : null,
+                    'assignee' => $hasTeamMembersFeature && $task->assignee?->user ? [
                         'name' => $task->assignee->user->name,
                     ] : null,
                 ];
@@ -168,6 +174,9 @@ class WorkController extends Controller
     {
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $hasTeamMembersFeature = $user
+            ? app(CompanyFeatureService::class)->hasFeature($user, 'team_members')
+            : false;
         if (! $user || $user->id !== $accountId) {
             abort(403);
         }
@@ -179,6 +188,9 @@ class WorkController extends Controller
             : Product::ITEM_TYPE_SERVICE;
 
         $validated = $request->validated();
+        if (! $hasTeamMembersFeature) {
+            $validated['team_member_ids'] = [];
+        }
         $customer = Customer::byUser($accountId)->with(['works'])->findOrFail($validated['customer_id']);
         $validated['instructions'] = $validated['instructions'] ?? '';
 
@@ -299,9 +311,13 @@ class WorkController extends Controller
      */
     public function edit(int $work_id, ?Request $request)
     {
-        $accountId = Auth::user()?->accountOwnerId() ?? Auth::id();
-        $accountCompanyType = Auth::user()?->id === $accountId
-            ? Auth::user()?->company_type
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $hasTeamMembersFeature = $user
+            ? app(CompanyFeatureService::class)->hasFeature($user, 'team_members')
+            : false;
+        $accountCompanyType = $user?->id === $accountId
+            ? $user?->company_type
             : User::query()->whereKey($accountId)->value('company_type');
         $itemType = $accountCompanyType === 'products'
             ? Product::ITEM_TYPE_PRODUCT
@@ -329,12 +345,14 @@ class WorkController extends Controller
             ->byUser($accountId)
             ->findOrFail($work->customer_id);
 
-        $teamMembers = TeamMember::query()
-            ->forAccount($accountId)
-            ->active()
-            ->with('user')
-            ->orderBy('created_at')
-            ->get();
+        $teamMembers = $hasTeamMembersFeature
+            ? TeamMember::query()
+                ->forAccount($accountId)
+                ->active()
+                ->with('user')
+                ->orderBy('created_at')
+                ->get()
+            : collect();
 
         $calendarStart = $work->start_date
             ? Carbon::parse($work->start_date)->subMonths(1)->toDateString()
@@ -350,7 +368,7 @@ class WorkController extends Controller
             ->with(['assignee.user:id,name'])
             ->orderBy('due_date')
             ->get(['id', 'work_id', 'title', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
-            ->map(function ($task) {
+            ->map(function ($task) use ($hasTeamMembersFeature) {
                 return [
                     'id' => $task->id,
                     'work_id' => $task->work_id,
@@ -358,12 +376,16 @@ class WorkController extends Controller
                     'due_date' => $task->due_date,
                     'start_time' => $task->start_time,
                     'end_time' => $task->end_time,
-                    'assigned_team_member_id' => $task->assigned_team_member_id,
-                    'assignee' => $task->assignee?->user ? [
+                    'assigned_team_member_id' => $hasTeamMembersFeature ? $task->assigned_team_member_id : null,
+                    'assignee' => $hasTeamMembersFeature && $task->assignee?->user ? [
                         'name' => $task->assignee->user->name,
                     ] : null,
                 ];
             });
+
+        if (! $hasTeamMembersFeature) {
+            $work->setRelation('teamMembers', collect());
+        }
 
         return $this->inertiaOrJson('Work/Create', [
             'work' => $work,
@@ -385,6 +407,9 @@ class WorkController extends Controller
     {
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $hasTeamMembersFeature = $user
+            ? app(CompanyFeatureService::class)->hasFeature($user, 'team_members')
+            : false;
         $work = Work::byUser($accountId)->findOrFail($id);
         $this->authorize('update', $work);
 
@@ -396,6 +421,9 @@ class WorkController extends Controller
             : Product::ITEM_TYPE_SERVICE;
 
         $validated = $request->validated();
+        if (! $hasTeamMembersFeature) {
+            $validated['team_member_ids'] = [];
+        }
         $previousStatus = $work->status;
         $validated['instructions'] = $validated['instructions'] ?? $work->instructions ?? '';
 

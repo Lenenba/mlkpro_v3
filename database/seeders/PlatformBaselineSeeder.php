@@ -85,12 +85,16 @@ class PlatformBaselineSeeder extends Seeder
             'team_members',
             'assistant',
             'campaigns',
+            'loyalty',
         ];
 
         $planLimits = [];
         foreach (config('billing.plans', []) as $planKey => $plan) {
+            $configuredLimits = is_array($plan['default_limits'] ?? null) ? $plan['default_limits'] : [];
             foreach ($limitKeys as $limitKey) {
-                $planLimits[$planKey][$limitKey] = null;
+                $planLimits[$planKey][$limitKey] = is_numeric($configuredLimits[$limitKey] ?? null)
+                    ? (int) $configuredLimits[$limitKey]
+                    : null;
             }
         }
 
@@ -98,17 +102,28 @@ class PlatformBaselineSeeder extends Seeder
             $planLimits['free'] = array_fill_keys($limitKeys, null);
         }
 
-        PlatformSetting::query()->firstOrCreate(
-            ['key' => 'plan_limits'],
-            ['value' => $planLimits]
-        );
+        $existingPlanLimitsSetting = PlatformSetting::query()->firstOrNew(['key' => 'plan_limits']);
+        $existingPlanLimits = is_array($existingPlanLimitsSetting->value) ? $existingPlanLimitsSetting->value : [];
+        foreach ($planLimits as $planKey => $defaults) {
+            $existing = is_array($existingPlanLimits[$planKey] ?? null) ? $existingPlanLimits[$planKey] : [];
+            $existingPlanLimits[$planKey] = array_merge($defaults, $existing);
+        }
+        $existingPlanLimitsSetting->value = $existingPlanLimits;
+        $existingPlanLimitsSetting->save();
 
         $planModules = [];
         $defaultAssistantPlan = array_key_exists('scale', config('billing.plans', []))
             ? 'scale'
             : array_key_last(config('billing.plans', []));
         foreach (config('billing.plans', []) as $planKey => $plan) {
+            $configuredModules = is_array($plan['default_modules'] ?? null) ? $plan['default_modules'] : [];
             foreach ($moduleKeys as $moduleKey) {
+                if (array_key_exists($moduleKey, $configuredModules)) {
+                    $planModules[$planKey][$moduleKey] = (bool) $configuredModules[$moduleKey];
+
+                    continue;
+                }
+
                 if ($moduleKey === 'assistant') {
                     $planModules[$planKey][$moduleKey] = $planKey === $defaultAssistantPlan;
 
@@ -122,10 +137,14 @@ class PlatformBaselineSeeder extends Seeder
             $planModules['free'] = array_fill_keys($moduleKeys, true);
         }
 
-        PlatformSetting::query()->firstOrCreate(
-            ['key' => 'plan_modules'],
-            ['value' => $planModules]
-        );
+        $existingPlanModulesSetting = PlatformSetting::query()->firstOrNew(['key' => 'plan_modules']);
+        $existingPlanModules = is_array($existingPlanModulesSetting->value) ? $existingPlanModulesSetting->value : [];
+        foreach ($planModules as $planKey => $defaults) {
+            $existing = is_array($existingPlanModules[$planKey] ?? null) ? $existingPlanModules[$planKey] : [];
+            $existingPlanModules[$planKey] = array_merge($defaults, $existing);
+        }
+        $existingPlanModulesSetting->value = $existingPlanModules;
+        $existingPlanModulesSetting->save();
 
         $superadminRoleId = Role::query()->where('name', 'superadmin')->value('id');
         if ($superadminRoleId) {

@@ -13,7 +13,7 @@
                                 Bienvenue
                             </div>
                             <div style="margin-top:14px; font-size:22px; font-weight:700; line-height:1.35;">
-                                Votre espace MLK Pro est pret, {{ $userName ?? 'partner' }}.
+                                Votre espace Malikia pro est pret, {{ $userName ?? 'partner' }}.
                             </div>
                             <div style="margin-top:8px; font-size:14px; line-height:1.5; color:#e2e8f0;">
                                 Merci pour votre confiance. Nous avons configure votre compte pour une entreprise de {{ $companyTypeLabel ?? 'services' }}.
@@ -123,7 +123,7 @@
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0; border-radius:6px; background-color:#f8fafc;">
                         <tr>
                             <td style="padding:16px 16px 8px; font-size:16px; font-weight:600; color:#0f172a;">
-                                Pourquoi MLK Pro
+                                Pourquoi Malikia pro
                             </td>
                         </tr>
                         @foreach ($highlights as $highlight)

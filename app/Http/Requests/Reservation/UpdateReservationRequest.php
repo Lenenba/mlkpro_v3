@@ -3,8 +3,10 @@
 namespace App\Http\Requests\Reservation;
 
 use App\Models\Reservation;
-use Illuminate\Support\Carbon;
+use App\Services\BillingPlanService;
+use App\Services\BillingSubscriptionService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -12,7 +14,13 @@ class UpdateReservationRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        if (! $this->user()) {
+            return false;
+        }
+
+        $planKey = app(BillingSubscriptionService::class)->resolvePlanKey($this->user(), config('billing.plans', []));
+
+        return ! ($planKey && app(BillingPlanService::class)->isOwnerOnlyPlan($planKey));
     }
 
     public function rules(): array
@@ -70,7 +78,7 @@ class UpdateReservationRequest extends FormRequest
     {
         $validator->after(function (Validator $validator) {
             $status = (string) ($this->input('status') ?? '');
-            if (!in_array($status, [Reservation::STATUS_COMPLETED, Reservation::STATUS_NO_SHOW], true)) {
+            if (! in_array($status, [Reservation::STATUS_COMPLETED, Reservation::STATUS_NO_SHOW], true)) {
                 return;
             }
 

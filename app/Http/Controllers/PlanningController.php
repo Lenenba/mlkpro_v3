@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ShiftTemplate;
+use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\TeamMemberShift;
-use App\Models\Task;
 use App\Models\User;
 use App\Models\Work;
-use App\Models\ShiftTemplate;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\TimeOffRequestNotification;
-use App\Services\ShiftScheduleService;
+use App\Services\CompanyFeatureService;
 use App\Services\NotificationPreferenceService;
+use App\Services\ShiftScheduleService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -24,82 +25,41 @@ class PlanningController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         [$owner, $membership, $canManage, $isServiceCompany, $canApproveTimeOff] = $this->resolvePlanningContext($user);
 
-        $teamMembers = TeamMember::query()
-            ->where('account_id', $owner->id)
-            ->where('is_active', true)
-            ->with('user')
-            ->orderBy('created_at')
-            ->get();
-
-        $memberPayload = $teamMembers->map(fn (TeamMember $member) => [
-            'id' => $member->id,
-            'user_id' => $member->user_id,
-            'name' => $member->user?->name ?? 'Member',
-            'role' => $member->role,
-            'title' => $member->title,
-        ]);
-
-        if (!$canManage && !$canApproveTimeOff) {
-            $memberPayload = $memberPayload
-                ->filter(fn (array $member) => $member['user_id'] === $user->id)
-                ->values();
-        }
-
         $start = $request->query('start') ? Carbon::parse($request->query('start')) : now()->startOfWeek();
         $end = $request->query('end') ? Carbon::parse($request->query('end')) : now()->addWeeks(4)->endOfWeek();
 
-        if ($isServiceCompany) {
-            $serviceEvents = $this->loadServiceEventsForRange($owner->id, $membership, $start, $end, $request);
-            $timeOffEvents = $this->formatShiftEvents(
-                $this->loadTimeOffForRange($owner->id, $membership, $canApproveTimeOff, $start, $end, $request),
-                $membership,
-                $canManage,
-                $canApproveTimeOff
-            );
-            $events = collect([...$serviceEvents, ...$timeOffEvents])
-                ->sortBy('start')
-                ->values()
-                ->all();
-        } else {
-            $events = $this->formatShiftEvents(
-                $this->loadShiftsForRange($owner->id, $membership, $canManage, $canApproveTimeOff, $start, $end, $request),
-                $membership,
-                $canManage,
-                $canApproveTimeOff
-            );
-        }
-        $pendingRequests = $canApproveTimeOff
-            ? $this->formatShiftEvents(
-                $this->loadPendingTimeOffRequests($owner->id, $membership, $request),
-                $membership,
-                $canManage,
-                $canApproveTimeOff
-            )
-            : [];
-        $timeOffSummary = $canApproveTimeOff
-            ? $this->buildTimeOffSummary($owner->id, $membership, $canManage, $canApproveTimeOff, $request)
-            : ['today' => [], 'week' => []];
-        $shiftTemplates = $this->loadShiftTemplates($owner->id);
+        $planningData = $this->buildPlanningViewData(
+            $request,
+            $user,
+            $owner,
+            $membership,
+            $canManage,
+            $isServiceCompany,
+            $canApproveTimeOff,
+            $start,
+            $end
+        );
+        $shiftTemplates = $planningData['owner_only_mode'] ? [] : $this->loadShiftTemplates($owner->id);
         $defaultShiftTemplate = $this->defaultShiftTemplate();
 
         return $this->inertiaOrJson('Planning/Index', [
-            'teamMembers' => $memberPayload->values(),
-            'events' => $events,
+            'teamMembers' => $planningData['teamMembers'],
+            'events' => $planningData['events'],
             'range' => [
                 'start' => $start->toDateString(),
                 'end' => $end->toDateString(),
             ],
-            'canManage' => $isServiceCompany ? false : $canManage,
-            'canApproveTimeOff' => $canApproveTimeOff,
-            'selfTeamMemberId' => $membership?->id,
-            'pendingRequests' => $pendingRequests,
-            'timeOffSummary' => $timeOffSummary,
+            'canManage' => $planningData['canManage'],
+            'canApproveTimeOff' => $planningData['canApproveTimeOff'],
+            'selfTeamMemberId' => $planningData['selfTeamMemberId'],
+            'pendingRequests' => $planningData['pendingRequests'],
+            'timeOffSummary' => $planningData['timeOffSummary'],
             'shiftTemplates' => $shiftTemplates,
             'defaultShiftTemplate' => $defaultShiftTemplate,
         ]);
@@ -108,7 +68,7 @@ class PlanningController extends Controller
     public function calendar(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -120,7 +80,7 @@ class PlanningController extends Controller
     public function events(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -128,54 +88,37 @@ class PlanningController extends Controller
 
         $start = $request->query('start') ? Carbon::parse($request->query('start')) : now()->startOfWeek();
         $end = $request->query('end') ? Carbon::parse($request->query('end')) : now()->addWeeks(4)->endOfWeek();
-
-        if ($isServiceCompany) {
-            $serviceEvents = $this->loadServiceEventsForRange($owner->id, $membership, $start, $end, $request);
-            $timeOffEvents = $this->formatShiftEvents(
-                $this->loadTimeOffForRange($owner->id, $membership, $canApproveTimeOff, $start, $end, $request),
-                $membership,
-                $canManage,
-                $canApproveTimeOff
-            );
-            $events = collect([...$serviceEvents, ...$timeOffEvents])
-                ->sortBy('start')
-                ->values()
-                ->all();
-        } else {
-            $events = $this->formatShiftEvents(
-                $this->loadShiftsForRange($owner->id, $membership, $canManage, $canApproveTimeOff, $start, $end, $request),
-                $membership,
-                $canManage,
-                $canApproveTimeOff
-            );
-        }
-        $pendingRequests = $canApproveTimeOff
-            ? $this->formatShiftEvents(
-                $this->loadPendingTimeOffRequests($owner->id, $membership, $request),
-                $membership,
-                $canManage,
-                $canApproveTimeOff
-            )
-            : [];
-        $timeOffSummary = $canApproveTimeOff
-            ? $this->buildTimeOffSummary($owner->id, $membership, $canManage, $canApproveTimeOff, $request)
-            : ['today' => [], 'week' => []];
+        $planningData = $this->buildPlanningViewData(
+            $request,
+            $user,
+            $owner,
+            $membership,
+            $canManage,
+            $isServiceCompany,
+            $canApproveTimeOff,
+            $start,
+            $end
+        );
 
         return response()->json([
-            'events' => $events,
-            'pending_requests' => $pendingRequests,
-            'time_off_summary' => $timeOffSummary,
+            'events' => $planningData['events'],
+            'pending_requests' => $planningData['pendingRequests'],
+            'time_off_summary' => $planningData['timeOffSummary'],
         ]);
     }
 
     public function store(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         [$owner, $membership, $canManage, $isServiceCompany, $canApproveTimeOff] = $this->resolvePlanningContext($user);
+        if (! $this->planningUsesTeamMembers($owner)) {
+            abort(403, $this->ownerOnlyPlanningMessage());
+        }
+
         $validated = $request->validate([
             'kind' => 'nullable|string|in:shift,absence,leave',
             'status' => 'nullable|string|in:pending,approved',
@@ -201,11 +144,11 @@ class PlanningController extends Controller
 
         $kind = $validated['kind'] ?? 'shift';
         $isTimeOff = in_array($kind, ['absence', 'leave'], true);
-        $status = $validated['status'] ?? ($isTimeOff && !$canApproveTimeOff ? 'pending' : 'approved');
-        if (!$isTimeOff) {
+        $status = $validated['status'] ?? ($isTimeOff && ! $canApproveTimeOff ? 'pending' : 'approved');
+        if (! $isTimeOff) {
             $status = 'approved';
         }
-        if (!$canApproveTimeOff && $status !== 'pending') {
+        if (! $canApproveTimeOff && $status !== 'pending') {
             $status = 'pending';
         }
         $breakMinutesOverride = array_key_exists('break_minutes', $validated)
@@ -216,11 +159,11 @@ class PlanningController extends Controller
             abort(403);
         }
 
-        if (!$canManage) {
-            if (!$isTimeOff) {
+        if (! $canManage) {
+            if (! $isTimeOff) {
                 abort(403);
             }
-            if (!$membership || (int) $validated['team_member_id'] !== $membership->id) {
+            if (! $membership || (int) $validated['team_member_id'] !== $membership->id) {
                 abort(403);
             }
         }
@@ -236,7 +179,7 @@ class PlanningController extends Controller
                 ]);
             }
 
-            $hasTimeRange = !empty($validated['start_time']) || !empty($validated['end_time']);
+            $hasTimeRange = ! empty($validated['start_time']) || ! empty($validated['end_time']);
             if ($hasTimeRange) {
                 if ($endDate->ne($startDate)) {
                     throw ValidationException::withMessages([
@@ -251,7 +194,7 @@ class PlanningController extends Controller
 
                 $startTime = $this->parseTime($validated['start_time']);
                 $endTime = $this->parseTime($validated['end_time']);
-                if (!$startTime || !$endTime) {
+                if (! $startTime || ! $endTime) {
                     throw ValidationException::withMessages([
                         'start_time' => ['Heure invalide.'],
                     ]);
@@ -281,7 +224,7 @@ class PlanningController extends Controller
 
             $startTime = $this->parseTime($validated['start_time']);
             $endTime = $this->parseTime($validated['end_time']);
-            if (!$startTime || !$endTime) {
+            if (! $startTime || ! $endTime) {
                 throw ValidationException::withMessages([
                     'start_time' => ['Heure invalide.'],
                 ]);
@@ -317,7 +260,7 @@ class PlanningController extends Controller
                 : [Carbon::parse($validated['shift_date'])->startOfDay()];
         }
 
-        if (!$dates) {
+        if (! $dates) {
             throw ValidationException::withMessages([
                 'shift_date' => ['Aucune occurrence a creer.'],
             ]);
@@ -327,7 +270,7 @@ class PlanningController extends Controller
             ->where('account_id', $owner->id)
             ->with('user')
             ->find($validated['team_member_id']);
-        if (!$teamMember) {
+        if (! $teamMember) {
             abort(404);
         }
 
@@ -415,11 +358,14 @@ class PlanningController extends Controller
     public function update(Request $request, TeamMemberShift $shift)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         [$owner, $membership, $canManage, $isServiceCompany, $canApproveTimeOff] = $this->resolvePlanningContext($user);
+        if (! $this->planningUsesTeamMembers($owner)) {
+            abort(403, $this->ownerOnlyPlanningMessage());
+        }
 
         if ($shift->account_id !== $owner->id) {
             abort(404);
@@ -431,10 +377,10 @@ class PlanningController extends Controller
             && $shift->created_by_user_id === $user->id
             && in_array($shiftKind, ['absence', 'leave'], true);
 
-        if ($shiftKind === 'shift' && !$canManage) {
+        if ($shiftKind === 'shift' && ! $canManage) {
             abort(403);
         }
-        if ($shiftKind !== 'shift' && !$canApproveTimeOff && !$canSelfManage) {
+        if ($shiftKind !== 'shift' && ! $canApproveTimeOff && ! $canSelfManage) {
             abort(403);
         }
 
@@ -448,7 +394,7 @@ class PlanningController extends Controller
         $shiftDate = Carbon::parse($validated['shift_date'])->startOfDay();
         $startTime = $this->parseTime($validated['start_time']);
         $endTime = $this->parseTime($validated['end_time']);
-        if (!$startTime || !$endTime) {
+        if (! $startTime || ! $endTime) {
             throw ValidationException::withMessages([
                 'start_time' => ['Heure invalide.'],
             ]);
@@ -466,7 +412,7 @@ class PlanningController extends Controller
             ->where('account_id', $owner->id)
             ->with('user')
             ->find($shift->team_member_id);
-        if (!$teamMember) {
+        if (! $teamMember) {
             abort(404);
         }
 
@@ -519,23 +465,26 @@ class PlanningController extends Controller
     public function destroy(Request $request, TeamMemberShift $shift)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         [$owner, $membership, $canManage, $isServiceCompany, $canApproveTimeOff] = $this->resolvePlanningContext($user);
+        if (! $this->planningUsesTeamMembers($owner)) {
+            abort(403, $this->ownerOnlyPlanningMessage());
+        }
 
         if ($shift->account_id !== $owner->id) {
             abort(404);
         }
 
         $shiftKind = $shift->kind ?? 'shift';
-        if (!$canManage) {
+        if (! $canManage) {
             $canSelfManage = $membership
                 && $shift->team_member_id === $membership->id
                 && $shift->created_by_user_id === $user->id
                 && in_array($shiftKind, ['absence', 'leave'], true);
-            if (!$canSelfManage) {
+            if (! $canSelfManage) {
                 abort(403);
             }
         }
@@ -550,22 +499,25 @@ class PlanningController extends Controller
     public function updateStatus(Request $request, TeamMemberShift $shift)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         [$owner, $membership, $canManage, $isServiceCompany, $canApproveTimeOff] = $this->resolvePlanningContext($user);
+        if (! $this->planningUsesTeamMembers($owner)) {
+            abort(403, $this->ownerOnlyPlanningMessage());
+        }
 
         if ($shift->account_id !== $owner->id) {
             abort(404);
         }
 
-        if (!$canApproveTimeOff) {
+        if (! $canApproveTimeOff) {
             abort(403);
         }
 
         $shiftKind = $shift->kind ?? 'shift';
-        if (!in_array($shiftKind, ['absence', 'leave'], true)) {
+        if (! in_array($shiftKind, ['absence', 'leave'], true)) {
             abort(403);
         }
 
@@ -592,16 +544,16 @@ class PlanningController extends Controller
             ? $user
             : User::query()->find($ownerId);
 
-        if (!$owner) {
+        if (! $owner) {
             abort(403);
         }
 
         $isServiceCompany = $owner->company_type !== 'products';
         if ($isServiceCompany) {
-            if (!$owner->hasCompanyFeature('jobs') && !$owner->hasCompanyFeature('tasks')) {
+            if (! $owner->hasCompanyFeature('jobs') && ! $owner->hasCompanyFeature('tasks')) {
                 abort(403);
             }
-        } elseif (!$owner->hasCompanyFeature('sales')) {
+        } elseif (! $owner->hasCompanyFeature('sales')) {
             abort(403);
         }
 
@@ -613,7 +565,7 @@ class PlanningController extends Controller
                 ->where('is_active', true)
                 ->first();
 
-            if (!$membership) {
+            if (! $membership) {
                 abort(403);
             }
         }
@@ -638,17 +590,122 @@ class PlanningController extends Controller
                 : $membership->hasPermission('sales.manage');
             $canApproveTimeOff = $canApproveTimeOff || $isRoleApprover || $hasManagePermission;
         }
-        if (!$canView && $canApproveTimeOff) {
+        if (! $canView && $canApproveTimeOff) {
             $canView = true;
         }
-        if (!$canView && $membership) {
+        if (! $canView && $membership) {
             $canView = true;
         }
-        if (!$canView) {
+        if (! $canView) {
             abort(403);
         }
 
         return [$owner, $membership, $canManage, $isServiceCompany, $canApproveTimeOff];
+    }
+
+    private function buildPlanningViewData(
+        Request $request,
+        User $viewer,
+        User $owner,
+        ?TeamMember $membership,
+        bool $canManage,
+        bool $isServiceCompany,
+        bool $canApproveTimeOff,
+        Carbon $start,
+        Carbon $end
+    ): array {
+        $ownerOnlyMode = ! $this->planningUsesTeamMembers($owner);
+        $effectiveMembership = $ownerOnlyMode ? null : $membership;
+        $uiCanManage = ! $ownerOnlyMode && ! $isServiceCompany ? $canManage : false;
+        $uiCanApproveTimeOff = ! $ownerOnlyMode && $canApproveTimeOff;
+
+        $memberPayload = collect();
+        if (! $ownerOnlyMode) {
+            $memberPayload = TeamMember::query()
+                ->where('account_id', $owner->id)
+                ->where('is_active', true)
+                ->with('user')
+                ->orderBy('created_at')
+                ->get()
+                ->map(fn (TeamMember $member) => [
+                    'id' => $member->id,
+                    'user_id' => $member->user_id,
+                    'name' => $member->user?->name ?? 'Member',
+                    'role' => $member->role,
+                    'title' => $member->title,
+                ]);
+
+            if (! $canManage && ! $canApproveTimeOff) {
+                $memberPayload = $memberPayload
+                    ->filter(fn (array $member) => $member['user_id'] === $viewer->id)
+                    ->values();
+            }
+        }
+
+        if ($isServiceCompany) {
+            $serviceEvents = $this->loadServiceEventsForRange(
+                $owner->id,
+                $effectiveMembership,
+                $start,
+                $end,
+                $request,
+                $ownerOnlyMode
+            );
+            $timeOffEvents = $uiCanApproveTimeOff
+                ? $this->formatShiftEvents(
+                    $this->loadTimeOffForRange($owner->id, $effectiveMembership, $uiCanApproveTimeOff, $start, $end, $request),
+                    $effectiveMembership,
+                    $canManage,
+                    $uiCanApproveTimeOff
+                )
+                : [];
+            $events = collect([...$serviceEvents, ...$timeOffEvents])
+                ->sortBy('start')
+                ->values()
+                ->all();
+        } else {
+            $events = $ownerOnlyMode
+                ? []
+                : $this->formatShiftEvents(
+                    $this->loadShiftsForRange($owner->id, $effectiveMembership, $canManage, $uiCanApproveTimeOff, $start, $end, $request),
+                    $effectiveMembership,
+                    $canManage,
+                    $uiCanApproveTimeOff
+                );
+        }
+
+        $pendingRequests = $uiCanApproveTimeOff
+            ? $this->formatShiftEvents(
+                $this->loadPendingTimeOffRequests($owner->id, $effectiveMembership, $request),
+                $effectiveMembership,
+                $canManage,
+                $uiCanApproveTimeOff
+            )
+            : [];
+        $timeOffSummary = $uiCanApproveTimeOff
+            ? $this->buildTimeOffSummary($owner->id, $effectiveMembership, $canManage, $uiCanApproveTimeOff, $request)
+            : ['today' => [], 'week' => []];
+
+        return [
+            'teamMembers' => $memberPayload->values()->all(),
+            'events' => $events,
+            'canManage' => $uiCanManage,
+            'canApproveTimeOff' => $uiCanApproveTimeOff,
+            'selfTeamMemberId' => $ownerOnlyMode ? null : $effectiveMembership?->id,
+            'pendingRequests' => $pendingRequests,
+            'timeOffSummary' => $timeOffSummary,
+            'owner_only_mode' => $ownerOnlyMode,
+        ];
+    }
+
+    private function planningUsesTeamMembers(User $owner): bool
+    {
+        return app(CompanyFeatureService::class)->hasFeature($owner, 'team_members');
+    }
+
+    private function ownerOnlyPlanningMessage(): string
+    {
+        return 'Planning actions are unavailable in owner-only solo mode.';
     }
 
     private function loadShiftsForRange(
@@ -709,16 +766,15 @@ class PlanningController extends Controller
         ?TeamMember $viewerMembership = null,
         bool $canManage = false,
         bool $canApproveTimeOff = false
-    ): array
-    {
+    ): array {
         return collect($shifts)->map(function (TeamMemberShift $shift) use ($viewerMembership, $canManage, $canApproveTimeOff) {
             $memberName = $shift->teamMember?->user?->name ?? 'Member';
             $kind = $shift->kind ?: 'shift';
             $status = $shift->status ?: 'approved';
             $title = $shift->title ?: ucfirst($kind);
             $date = $shift->shift_date ? $shift->shift_date->toDateString() : now()->toDateString();
-            $start = $date . 'T' . substr((string) $shift->start_time, 0, 8);
-            $end = $date . 'T' . substr((string) $shift->end_time, 0, 8);
+            $start = $date.'T'.substr((string) $shift->start_time, 0, 8);
+            $end = $date.'T'.substr((string) $shift->end_time, 0, 8);
             $canSelfManage = $viewerMembership
                 && $shift->team_member_id === $viewerMembership->id
                 && $shift->created_by_user_id === $viewerMembership->user_id
@@ -729,7 +785,7 @@ class PlanningController extends Controller
 
             return [
                 'id' => $shift->id,
-                'title' => $memberName . ' · ' . $title,
+                'title' => $memberName.' · '.$title,
                 'start' => $start,
                 'end' => $end,
                 'allDay' => $kind !== 'shift' && $this->isAllDayTimeOff($shift->start_time, $shift->end_time),
@@ -764,7 +820,7 @@ class PlanningController extends Controller
             if ($key === '') {
                 continue;
             }
-            if ($template->account_id === $accountId || !array_key_exists($key, $byPosition)) {
+            if ($template->account_id === $accountId || ! array_key_exists($key, $byPosition)) {
                 $byPosition[$key] = $template;
             }
         }
@@ -892,7 +948,7 @@ class PlanningController extends Controller
             }
         }
 
-        if ($membership && !$request->query('team_member_id') && !$request->query('team_member_ids')) {
+        if ($membership && ! $request->query('team_member_id') && ! $request->query('team_member_ids')) {
             $query->whereNotNull('team_member_id');
         }
 
@@ -932,26 +988,29 @@ class PlanningController extends Controller
         ?TeamMember $membership,
         Carbon $start,
         Carbon $end,
-        Request $request
+        Request $request,
+        bool $ownerOnlyMode = false
     ): array {
         $startDate = $start->toDateString();
         $endDate = $end->toDateString();
 
-        $teamMemberIds = TeamMember::query()
-            ->where('account_id', $accountId)
-            ->pluck('id')
-            ->all();
+        $teamMemberIds = $ownerOnlyMode
+            ? []
+            : TeamMember::query()
+                ->where('account_id', $accountId)
+                ->pluck('id')
+                ->all();
 
         $filterMembers = $request->query('team_member_ids');
         if (is_string($filterMembers)) {
             $filterMembers = array_filter(explode(',', $filterMembers));
         }
         $filterMemberIds = null;
-        if (is_array($filterMembers) && $filterMembers) {
+        if (! $ownerOnlyMode && is_array($filterMembers) && $filterMembers) {
             $filterMemberIds = collect($filterMembers)->map(fn ($id) => (int) $id)->filter()->values()->all();
-        } elseif ($request->query('team_member_id')) {
+        } elseif (! $ownerOnlyMode && $request->query('team_member_id')) {
             $filterMemberIds = [(int) $request->query('team_member_id')];
-        } elseif ($membership) {
+        } elseif (! $ownerOnlyMode && $membership) {
             $filterMemberIds = [$membership->id];
         }
 
@@ -993,33 +1052,35 @@ class PlanningController extends Controller
         $events = collect();
 
         foreach ($works as $work) {
-            $members = $work->teamMembers->isNotEmpty()
+            $members = $ownerOnlyMode
+                ? collect([null])
+                : ($work->teamMembers->isNotEmpty()
                 ? $work->teamMembers
-                : collect([null]);
+                : collect([null]));
 
             foreach ($members as $member) {
                 $memberId = $member?->id;
-                if ($filterMemberIds && !$memberId) {
+                if ($filterMemberIds && ! $memberId) {
                     continue;
                 }
-                if ($teamMemberIds && $memberId && !in_array($memberId, $teamMemberIds, true)) {
+                if ($teamMemberIds && $memberId && ! in_array($memberId, $teamMemberIds, true)) {
                     continue;
                 }
 
-                $memberName = $member?->user?->name ?? 'Team';
+                $memberName = $ownerOnlyMode ? null : ($member?->user?->name ?? 'Team');
                 $titleLabel = $work->job_title ?: 'Job';
                 $date = $work->start_date ? $work->start_date->toDateString() : $startDate;
                 $startTime = $work->start_time ?: ($work->is_all_day ? '00:00:00' : '09:00:00');
                 $endTime = $work->end_time ?: ($work->is_all_day ? '23:59:00' : '10:00:00');
 
                 $events->push([
-                    'id' => 'work-' . $work->id . '-' . ($memberId ?: 'na'),
-                    'title' => trim($memberName . ' · ' . $titleLabel),
-                    'start' => $date . 'T' . substr((string) $startTime, 0, 8),
-                    'end' => $date . 'T' . substr((string) $endTime, 0, 8),
+                    'id' => 'work-'.$work->id.'-'.($memberId ?: 'na'),
+                    'title' => $ownerOnlyMode ? $titleLabel : trim(($memberName ?? 'Team').' · '.$titleLabel),
+                    'start' => $date.'T'.substr((string) $startTime, 0, 8),
+                    'end' => $date.'T'.substr((string) $endTime, 0, 8),
                     'allDay' => (bool) $work->is_all_day,
                     'extendedProps' => [
-                        'team_member_id' => $memberId,
+                        'team_member_id' => $ownerOnlyMode ? null : $memberId,
                         'member_name' => $memberName,
                         'kind' => 'work',
                         'reference_id' => $work->id,
@@ -1030,27 +1091,27 @@ class PlanningController extends Controller
 
         foreach ($tasks as $task) {
             $memberId = $task->assigned_team_member_id;
-            if ($filterMemberIds && !$memberId) {
+            if ($filterMemberIds && ! $memberId) {
                 continue;
             }
-            if ($teamMemberIds && $memberId && !in_array($memberId, $teamMemberIds, true)) {
+            if ($teamMemberIds && $memberId && ! in_array($memberId, $teamMemberIds, true)) {
                 continue;
             }
 
-            $memberName = $task->assignee?->user?->name ?? 'Team';
+            $memberName = $ownerOnlyMode ? null : ($task->assignee?->user?->name ?? 'Team');
             $titleLabel = $task->title ?: 'Task';
             $date = $task->due_date ? $task->due_date->toDateString() : $startDate;
             $startTime = $task->start_time ?: '09:00:00';
             $endTime = $task->end_time ?: '10:00:00';
 
             $events->push([
-                'id' => 'task-' . $task->id,
-                'title' => trim($memberName . ' · ' . $titleLabel),
-                'start' => $date . 'T' . substr((string) $startTime, 0, 8),
-                'end' => $date . 'T' . substr((string) $endTime, 0, 8),
+                'id' => 'task-'.$task->id,
+                'title' => $ownerOnlyMode ? $titleLabel : trim(($memberName ?? 'Team').' · '.$titleLabel),
+                'start' => $date.'T'.substr((string) $startTime, 0, 8),
+                'end' => $date.'T'.substr((string) $endTime, 0, 8),
                 'allDay' => false,
                 'extendedProps' => [
-                    'team_member_id' => $memberId,
+                    'team_member_id' => $ownerOnlyMode ? null : $memberId,
                     'member_name' => $memberName,
                     'kind' => 'task',
                     'reference_id' => $task->id,
@@ -1132,7 +1193,7 @@ class PlanningController extends Controller
         ?int $breakMinutesOverride = null
     ): void {
         $rules = $this->resolvePlanningRules($member);
-        if (!$rules) {
+        if (! $rules) {
             return;
         }
 
@@ -1186,7 +1247,7 @@ class PlanningController extends Controller
     private function resolvePlanningRules(?TeamMember $member): array
     {
         $rules = $member?->planning_rules ?? [];
-        if (!is_array($rules)) {
+        if (! is_array($rules)) {
             return [];
         }
 
@@ -1234,13 +1295,14 @@ class PlanningController extends Controller
         return $shifts->sum(function (TeamMemberShift $shift) use ($fallbackBreakMinutes) {
             $start = $this->parseTime($shift->start_time);
             $end = $this->parseTime($shift->end_time);
-            if (!$start || !$end) {
+            if (! $start || ! $end) {
                 return 0;
             }
             $breakMinutes = $shift->break_minutes;
             if ($breakMinutes === null) {
                 $breakMinutes = $fallbackBreakMinutes;
             }
+
             return $this->calculateShiftMinutes($start, $end, (int) $breakMinutes);
         });
     }
@@ -1270,13 +1332,14 @@ class PlanningController extends Controller
         return $shifts->sum(function (TeamMemberShift $shift) use ($fallbackBreakMinutes) {
             $start = $this->parseTime($shift->start_time);
             $end = $this->parseTime($shift->end_time);
-            if (!$start || !$end) {
+            if (! $start || ! $end) {
                 return 0;
             }
             $breakMinutes = $shift->break_minutes;
             if ($breakMinutes === null) {
                 $breakMinutes = $fallbackBreakMinutes;
             }
+
             return $this->calculateShiftMinutes($start, $end, (int) $breakMinutes);
         });
     }
@@ -1290,7 +1353,7 @@ class PlanningController extends Controller
         string $kind
     ): void {
         $first = $created->first();
-        if (!$first) {
+        if (! $first) {
             return;
         }
 
@@ -1299,12 +1362,12 @@ class PlanningController extends Controller
         $startDate = $dates[0] ?? null;
         $endDate = $dates[count($dates) - 1] ?? null;
         $dateLabel = $startDate && $endDate && $startDate->ne($endDate)
-            ? 'du ' . $startDate->toDateString() . ' au ' . $endDate->toDateString()
+            ? 'du '.$startDate->toDateString().' au '.$endDate->toDateString()
             : ($startDate?->toDateString() ?? '');
 
         $timeLabel = $this->isAllDayTimeOff($startTime->format('H:i:s'), $endTime->format('H:i:s'))
             ? null
-            : $startTime->format('H:i') . ' - ' . $endTime->format('H:i');
+            : $startTime->format('H:i').' - '.$endTime->format('H:i');
 
         $title = $kind === 'leave'
             ? 'Nouvelle demande de congé'
@@ -1321,14 +1384,14 @@ class PlanningController extends Controller
         if ($timeLabel) {
             $details[] = ['label' => 'Heures', 'value' => $timeLabel];
         }
-        if (!empty($first->notes)) {
+        if (! empty($first->notes)) {
             $details[] = ['label' => 'Notes', 'value' => $first->notes];
         }
 
         $approvers = $this->resolveTimeOffApprovers($owner);
         $preferences = app(NotificationPreferenceService::class);
         foreach ($approvers as $approver) {
-            if (!$preferences->shouldNotify($approver, NotificationPreferenceService::CATEGORY_PLANNING)) {
+            if (! $preferences->shouldNotify($approver, NotificationPreferenceService::CATEGORY_PLANNING)) {
                 continue;
             }
             NotificationDispatcher::send($approver, new TimeOffRequestNotification(
@@ -1370,7 +1433,7 @@ class PlanningController extends Controller
             ->get();
 
         foreach ($members as $member) {
-            if (!$member->user) {
+            if (! $member->user) {
                 continue;
             }
             if ($member->user_id === $owner->id) {
@@ -1392,7 +1455,7 @@ class PlanningController extends Controller
 
     private function parseTime(?string $value): ?Carbon
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 

@@ -33,7 +33,7 @@ Ce document permet de presenter le module Requests avec:
 ### Speech a lire
 "Dans cette video, on presente le module Requests, c est-a-dire la gestion des leads entrants.
 
-Dans MLK Pro, c est le point de depart du flux commercial. Un lead bien capture, bien qualifie et bien suivi se convertit plus vite en devis, puis en job et en facture.
+Dans Malikia pro, c est le point de depart du flux commercial. Un lead bien capture, bien qualifie et bien suivi se convertit plus vite en devis, puis en job et en facture.
 
 Le module Requests sert a trois choses:
 1. Centraliser les demandes (web, appel, import, autres canaux).
@@ -136,7 +136,7 @@ Le board rend visible le pipeline et force la progression des opportunites.
 ## 12:00 - 15:00 | Analytics requests: conversion, reponse, risque
 
 ### Speech a lire
-"MLK Pro inclut une couche analytics directement dans le module Requests.
+"Malikia pro inclut une couche analytics directement dans le module Requests.
 
 On suit notamment:
 - delai moyen de premiere reponse
@@ -292,7 +292,7 @@ La valeur du module Requests se concretise au moment de la conversion.
 ## 27:00 - 29:00 | Import leads et intake public
 
 ### Speech a lire
-"Pour alimenter le pipeline, MLK Pro supporte plusieurs entrees:
+"Pour alimenter le pipeline, Malikia pro supporte plusieurs entrees:
 - formulaire public signe
 - import CSV
 - API d integration

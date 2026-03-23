@@ -75,6 +75,7 @@
   "global_search": {
     "open": "Recherche globale",
     "placeholder": "Rechercher clients, taches, devis, employes...",
+    "placeholder_solo": "Rechercher clients, taches, devis...",
     "quick_actions": "Actions rapides",
     "results": "Resultats",
     "loading": "Recherche...",
@@ -233,11 +234,11 @@
     },
     "announcements": {
       "title": "Annonces",
-      "subtitle": "Dernieres nouvelles de MLK Pro.",
+      "subtitle": "Dernieres nouvelles de Malikia pro.",
       "quick_title": "Infos rapides",
       "quick_subtitle": "Derniers points pour votre equipe.",
       "updates_title": "Mises a jour",
-      "updates_subtitle": "Quoi de neuf sur MLK Pro.",
+      "updates_subtitle": "Quoi de neuf sur Malikia pro.",
       "valid_until": "Valide jusqu'au {date}",
       "from": "Depuis le {date}",
       "learn_more": "En savoir plus"
@@ -593,20 +594,25 @@
     "title": "Planning",
     "subtitle": "Planifier les shifts et recurrences pour l equipe de vente.",
     "subtitle_services": "Planifier les interventions et taches de l equipe.",
+    "subtitle_owner_only": "Consulter votre calendrier dans une vue solo.",
+    "subtitle_owner_only_services": "Suivre vos jobs et taches dans une vue planning solo.",
     "calendar": {
       "title": "Planning equipe",
       "today": "Aujourd hui",
       "month": "Mois",
       "week": "Semaine",
-      "day": "Jour"
+      "day": "Jour",
+      "year": "Annee"
     },
     "preview": {
       "empty": "Aucun shift",
       "empty_services": "Aucun evenement",
       "count": "{count} shifts",
-      "count_services": "{count} evenements"
+      "count_services": "{count} evenements",
+      "more": "{count} de plus"
     },
     "filters": {
+      "title": "Calendriers",
       "member": "Employe",
       "all_members": "Toute l equipe",
       "range": "Periode",
@@ -645,6 +651,8 @@
       "month_day": "Jour du mois",
       "create": "Creer le shift",
       "creating": "Creation...",
+      "scroll_to_form": "Ouvrir le formulaire planning",
+      "use_selected_day": "Utiliser le jour selectionne",
       "save_time_off": "Enregistrer",
       "saving_time_off": "Enregistrement..."
     },
@@ -708,6 +716,19 @@
     "empty_services": {
       "title": "Vue planning",
       "description": "Les evenements viennent des interventions et taches."
+    },
+    "empty_owner_only": {
+      "title": "Planning en lecture seule",
+      "description": "La creation de shifts reste desactivee en mode solo tant qu un planning owner-only complet n existe pas."
+    },
+    "empty_owner_only_services": {
+      "title": "Vue operations solo",
+      "description": "Les jobs et taches restent visibles ici, mais la planification equipe reste desactivee en mode solo."
+    },
+    "owner_only": {
+      "badge": "Vue owner-only",
+      "panel_title": "Planning solo",
+      "panel_description": "Ce forfait solo garde le planning en lecture seule tant que les membres d equipe restent desactives."
     },
     "delete": {
       "title": "Supprimer le shift",
@@ -1625,7 +1646,14 @@
       "sections": {
         "title": "Sections",
         "add": "Ajouter une section",
-        "section_label": "Section"
+        "add_type": "Type de section a ajouter",
+        "section_label": "Section",
+        "edit": "Editer",
+        "close_editor": "Fermer",
+        "cards_count": "{count} cartes",
+        "tabs_count": "{count} onglets",
+        "items_count": "{count} puces",
+        "images_count": "{count} images"
       },
       "library": {
         "select": "Bloc de la librairie",
@@ -1636,14 +1664,39 @@
         "copy": "Copier depuis la librairie",
         "draft": "Brouillon"
       },
+      "shared_footer": {
+        "title": "Footer partage",
+        "subtitle": "Ce footer s applique automatiquement a toutes les pages publiques. Modifiez-le une fois ici et le rendu se met a jour partout.",
+        "edit": "Editer le footer",
+        "manage": "Voir la librairie",
+        "navigation": "Colonnes",
+        "legal_links": "Liens legaux",
+        "contact": "Contact",
+        "note": "Le footer ne se gere pas comme une section normale du corps de page. Il reste global et partage entre toutes les pages publiques.",
+        "empty_title": "Footer partage"
+      },
       "layouts": {
         "split": "Split (texte + image)",
-        "stack": "Stack (centre)"
+        "duo": "2 blocs (image + bloc couleur)",
+        "testimonial": "Temoignage (citation + image)",
+        "feature_pairs": "2 images + 2 textes",
+        "showcase_cta": "Showcase CTA (hero + media superposes)",
+        "industry_grid": "Industries (grille de cartes)",
+        "story_grid": "Triptyque visuel (3 cartes)",
+        "feature_tabs": "Onglets fonctionnels (accordeon + media)",
+        "testimonial_grid": "Temoignages (grille de cartes)",
+        "footer": "Footer reutilisable",
+        "stack": "Stack (centre)",
+        "contact": "Contact (3 colonnes)"
       },
       "alignments": {
         "left": "Gauche",
         "center": "Centre",
         "right": "Droite"
+      },
+      "image_positions": {
+        "left": "Image a gauche",
+        "right": "Image a droite"
       },
       "densities": {
         "compact": "Compact",
@@ -1666,21 +1719,80 @@
         "page_title": "Titre public",
         "page_subtitle": "Sous-titre public",
         "layout": "Layout",
-        "items": "Puces (une ligne par item)"
+        "items": "Puces (une ligne par item)",
+        "image_position": "Position de l'image"
       },
       "common": {
         "enabled": "Actif",
         "move_up": "Monter",
         "move_down": "Descendre",
         "remove": "Supprimer",
+        "key": "Cle",
+        "description": "Description",
         "background": "Background",
         "background_hex": "Couleur de fond (#hex)",
+        "panel_background": "Fond du bloc contenu",
+        "panel_background_hex": "Couleur du bloc contenu (#hex)",
+        "image_position": "Position de l'image",
         "alignment": "Alignement",
         "density": "Densite",
         "tone": "Ton",
         "kicker": "Kicker",
         "title": "Titre",
         "body": "Corps",
+        "copy": "Texte de bas de page",
+        "card_label": "Titre de la carte",
+        "card_href": "Lien/route de la carte",
+        "card_icon": "Icone de la carte",
+        "story_card_title": "Titre de la carte visuelle",
+        "story_card_body": "Texte de la carte visuelle",
+        "story_card_image_url": "URL image de la carte visuelle",
+        "story_card_image_alt": "Texte alternatif image de la carte visuelle",
+        "tab_label": "Titre de l'onglet",
+        "tab_icon": "Icone de l'onglet",
+        "tab_title": "Titre du panneau",
+        "tab_body": "Corps du panneau",
+        "tab_metric": "Metrique mise en avant",
+        "tab_story": "Citation / preuve sociale",
+        "tab_person": "Nom de la personne",
+        "tab_role": "Role de la personne",
+        "tab_avatar_url": "URL avatar de la personne",
+        "tab_avatar_alt": "Texte alternatif avatar",
+        "tab_items": "Sous-points de l'onglet (une ligne par item)",
+        "tab_image_url": "URL image du panneau",
+        "tab_image_alt": "Texte alternatif image du panneau",
+        "tab_cta_label": "Label CTA du panneau",
+        "tab_cta_href": "Lien/route CTA du panneau",
+        "feature_item_label": "Label de l'item cliquable",
+        "feature_item_title": "Titre du panneau de l'item",
+        "feature_item_body": "Corps du panneau de l'item",
+        "feature_item_image_url": "URL image de l'item",
+        "feature_item_image_alt": "Texte alternatif image de l'item",
+        "feature_item_cta_label": "Label CTA de l'item",
+        "feature_item_cta_href": "Lien/route CTA de l'item",
+        "testimonial_card_quote": "Citation",
+        "testimonial_card_author_name": "Nom",
+        "testimonial_card_author_role": "Fonction",
+        "testimonial_card_author_company": "Entreprise",
+        "testimonial_card_image_url": "URL photo",
+        "testimonial_card_image_alt": "Texte alternatif photo",
+        "testimonial_author": "Nom du temoin",
+        "testimonial_role": "Fonction du temoin",
+        "aside_kicker": "Kicker colonne droite",
+        "aside_title": "Titre colonne droite",
+        "aside_body": "Corps colonne droite",
+        "aside_items": "Puces colonne droite (une ligne par item)",
+        "aside_link_label": "Label lien colonne droite",
+        "aside_link_href": "Lien/route colonne droite",
+        "aside_image_url": "URL image bloc 2",
+        "aside_image_alt": "Texte alternatif image bloc 2",
+        "showcase_overlay_label": "Label overlay media",
+        "showcase_overlay_href": "Lien/route overlay media",
+        "showcase_badge_label": "Label badge",
+        "showcase_badge_value": "Valeur badge",
+        "showcase_badge_note": "Note badge",
+        "showcase_floating_image_url": "URL image flottante",
+        "showcase_floating_image_alt": "Texte alternatif image flottante",
         "image_url": "URL image",
         "image_alt": "Texte alternatif",
         "embed_url": "URL du formulaire embarque",
@@ -1689,7 +1801,110 @@
         "primary_label": "Label principal",
         "primary_href": "Lien/route principal",
         "secondary_label": "Label secondaire",
-        "secondary_href": "Lien/route secondaire"
+        "secondary_href": "Lien/route secondaire",
+        "contact_phone": "Telephone de contact",
+        "contact_email": "Email de contact",
+        "social_facebook_href": "Lien Facebook",
+        "social_x_href": "Lien X",
+        "social_instagram_href": "Lien Instagram",
+        "social_youtube_href": "Lien YouTube",
+        "social_linkedin_href": "Lien LinkedIn",
+        "google_play_href": "Lien Google Play",
+        "app_store_href": "Lien App Store",
+        "brand_logo_url": "URL du logo footer",
+        "brand_logo_alt": "Texte alternatif logo footer",
+        "brand_href": "Lien du logo footer",
+        "footer_group_title": "Titre de la colonne",
+        "footer_group_layout": "Disposition des liens",
+        "footer_link_label": "Label du lien",
+        "footer_link_href": "Lien/route",
+        "footer_link_note": "Note optionnelle"
+      },
+      "contact_aside": {
+        "title": "Colonne details",
+        "subtitle": "Ajoutez les informations du bureau, du support ou d'un point de contact."
+      },
+      "testimonial": {
+        "title": "Attribution du temoignage",
+        "subtitle": "Ajoutez le nom et la fonction affiches sous la citation."
+      },
+      "feature_pairs": {
+        "secondary_title": "Bloc texte + image 2",
+        "secondary_subtitle": "Configurez le second contenu et son visuel alterne."
+      },
+      "showcase_cta": {
+        "title": "Showcase media superposes",
+        "subtitle": "Configurez le visuel principal, le mockup flottant, l overlay media et le badge de confiance."
+      },
+      "industry_grid": {
+        "cards_title": "Cartes industries",
+        "cards_subtitle": "Ajoutez les industries affichees dans la grille et le lien de chaque carte si besoin.",
+        "icon_auto": "Icone automatique",
+        "add_card": "Ajouter une carte",
+        "card_label": "Carte {number}"
+      },
+      "story_grid": {
+        "title": "Triptyque visuel",
+        "subtitle": "Ajoutez des cartes avec un visuel fort au-dessus et un texte de preuve ou d'explication en dessous.",
+        "add_card": "Ajouter une carte",
+        "card_label": "Carte visuelle {number}"
+      },
+      "testimonial_grid": {
+        "title": "Temoignages en grille",
+        "subtitle": "Ajoutez les citations, les noms et les photos affiches dans la grille.",
+        "add_card": "Ajouter un temoignage",
+        "card_label": "Temoignage {number}"
+      },
+      "feature_tabs": {
+        "title": "Onglets fonctionnels",
+        "subtitle": "Ajoutez les groupes de l'accordeon a gauche et le contenu detaille affiche a droite.",
+        "add_tab": "Ajouter un onglet",
+        "tab_label": "Onglet {number}",
+        "font_size_label": "Taille des titres d'accordeon (px)",
+        "icon_auto": "Selectionner une icone",
+        "children_title": "Items cliquables",
+        "children_subtitle": "Chaque item peut piloter son propre texte, image et CTA dans le panneau de droite.",
+        "add_child": "Ajouter un item cliquable",
+        "child_label": "Item {number}"
+      },
+      "footer": {
+        "title": "Contenu du footer reutilisable",
+        "subtitle": "Configurez le logo, les colonnes de navigation, les liens legaux, le bloc de support partage, les coordonnees, les reseaux, les badges stores et le texte de bas de page.",
+        "preview_title": "Ordre d affichage",
+        "preview_subtitle": "Ce resume suit le meme ordre que le footer public: marque, contact, navigation, accompagnement, puis ligne basse.",
+        "order_brand": "Marque",
+        "order_contact": "Contact",
+        "order_navigation": "Navigation",
+        "order_support": "Accompagnement",
+        "order_bottom": "Bas de page",
+        "preview_groups": "groupes",
+        "preview_links": "liens",
+        "preview_items": "points",
+        "preview_socials": "reseaux",
+        "preview_stores": "stores",
+        "appearance_title": "Marque et apparence",
+        "appearance_subtitle": "Reglez d abord le fond du footer et la ligne de marque affichee en haut.",
+        "contact_title": "Contact et applications",
+        "contact_subtitle": "Ces elements sortent dans la colonne gauche du footer public.",
+        "items_label": "Points de support",
+        "brand_title": "Marque",
+        "brand_subtitle": "Logo et lien principal affiches au debut du footer.",
+        "navigation_title": "Colonnes de navigation",
+        "navigation_subtitle": "Chaque colonne du footer peut etre geree ici sans passer par le mega menu.",
+        "support_title": "Panel accompagnement",
+        "support_subtitle": "Ce bloc correspond au panneau de droite du footer public.",
+        "add_group": "Ajouter une colonne",
+        "group_label": "Colonne {number}",
+        "link_label": "Lien {number}",
+        "add_link": "Ajouter un lien",
+        "bottom_title": "Ligne basse",
+        "bottom_subtitle": "Configurez le texte de copyright et les liens legaux affiches tout en bas.",
+        "legal_title": "Liens legaux",
+        "legal_subtitle": "Ces liens s affichent dans la ligne basse du footer.",
+        "add_legal_link": "Ajouter un lien legal",
+        "legal_label": "Lien legal {number}",
+        "group_layout_stack": "Une seule colonne",
+        "group_layout_split": "Deux colonnes"
       },
       "theme": {
         "title": "Theme",
@@ -1787,6 +2002,7 @@
         "back_list": "Retour aux sections",
         "create": "Nouvelle section",
         "edit": "Editer",
+        "duplicate": "Dupliquer",
         "delete": "Supprimer",
         "save": "Enregistrer la section",
         "confirm_delete": "Supprimer {name} ?"
@@ -1815,6 +2031,9 @@
         "type": "Type",
         "is_active": "Active"
       },
+      "layout": {
+        "subtitle": "Configurez les options visuelles du bloc reutilisable avant de l'inserer dans une page."
+      },
       "types": {
         "generic": "Generique",
         "hero": "Hero",
@@ -1822,7 +2041,58 @@
         "faq": "FAQ",
         "testimonials": "Temoignages",
         "cta": "Appel a l'action",
-        "gallery": "Galerie"
+        "gallery": "Galerie",
+        "duo": "2 blocs reutilisables",
+        "testimonial": "Temoignage reutilisable",
+        "feature_pairs": "2 images + 2 textes reutilisable",
+        "showcase_cta": "Showcase CTA reutilisable",
+        "industry_grid": "Industries reutilisable",
+        "story_grid": "Triptyque visuel reutilisable",
+        "feature_tabs": "Onglets fonctionnels reutilisable",
+        "testimonial_grid": "Temoignages reutilisables",
+        "footer": "Footer reutilisable",
+        "welcome_hero": "Hero accueil",
+        "welcome_trust": "Bandeau confiance accueil",
+        "welcome_features": "Fonctionnalites accueil",
+        "welcome_workflow": "Workflow accueil",
+        "welcome_field": "Bloc terrain accueil",
+        "welcome_cta": "CTA accueil",
+        "welcome_custom": "Bloc personnalise accueil"
+      },
+      "welcome": {
+        "hero": {
+          "highlights": "Points forts (une ligne par item)",
+          "note": "Note d appui",
+          "stats_title": "Stats hero",
+          "stats_subtitle": "Ajoutez les metriques compactes affichees sous les CTA.",
+          "add_stat": "Ajouter une stat",
+          "stat_value": "Valeur",
+          "stat_label": "Label",
+          "preview_title": "Cartes d apercu",
+          "preview_subtitle": "Petites cartes affichees a cote du visuel hero.",
+          "add_preview": "Ajouter une carte",
+          "slides_title": "Slides du slider",
+          "slides_subtitle": "Definissez les photos qui defilent dans le visuel hero.",
+          "add_slide": "Ajouter un slide",
+          "slide_label": "Slide {number}",
+          "slide_image_url": "Image du slide",
+          "slide_image_alt": "Texte alternatif du slide",
+          "choose_asset": "Choisir depuis la mediatheque"
+        },
+        "features": {
+          "items_title": "Cartes principales",
+          "items_subtitle": "Cartes affichees dans la premiere grille de fonctionnalites.",
+          "add_item": "Ajouter une carte",
+          "secondary_enabled": "Afficher la seconde rangee",
+          "secondary_badge": "Badge secondaire",
+          "secondary_body": "Sous-titre secondaire",
+          "add_secondary_item": "Ajouter une carte secondaire"
+        },
+        "workflow": {
+          "steps_title": "Etapes du workflow",
+          "steps_subtitle": "Cartes ordonnees affichees a cote du visuel workflow.",
+          "add_step": "Ajouter une etape"
+        }
       }
     },
     "assets": {
@@ -2014,6 +2284,7 @@
       "total_tips": "Total pourboires",
       "average_tip_per_reservation": "Moyenne pourboire / reservation",
       "top_members": "Top 3 membres",
+      "top_collectors": "Principaux collecteurs",
       "current_month_tips": "Pourboires du mois",
       "period_total": "Total periode",
       "average_tip_per_service": "Moyenne pourboire / service"
@@ -2024,6 +2295,8 @@
       "invoice": "Facture",
       "customer": "Client",
       "team_member": "Membre equipe",
+      "collected_by": "Collecte par",
+      "owner": "Proprietaire",
       "mode": "Mode pourboire",
       "tip_amount": "Montant pourboire",
       "total_charged": "Total encaisse",
@@ -2043,7 +2316,8 @@
       },
     "empty": {
       "rows": "Aucun pourboire pour ce filtre.",
-      "top_members": "Aucun classement membre pour le moment."
+      "top_members": "Aucun classement membre pour le moment.",
+      "top_collectors": "Aucune repartition disponible pour le moment."
     }
   },
   "client_orders": {
@@ -2135,6 +2409,10 @@
         "title": "Equipe",
         "description": "Invitez votre equipe."
       },
+      "team_solo": {
+        "title": "Configuration",
+        "description": "Confirmez votre espace solo."
+      },
       "plan": {
         "title": "Forfait",
         "description": "Choisissez votre plan."
@@ -2224,10 +2502,17 @@
       "size_title": "Taille de l'equipe",
       "size_hint": "Indiquez combien de personnes utiliseront la plateforme.",
       "size_label": "Nombre de membres",
+      "size_title_solo": "Profil de l'espace",
+      "size_hint_solo": "Laissez 1 pour un espace solo. Augmentez seulement si vous prevoyez passer a un mode equipe.",
+      "size_label_solo": "Taille prevue de l'espace",
       "recommendation_title": "Forfait recommande",
       "recommendation_subtitle": "Base sur {count} membres",
+      "recommendation_solo_subtitle": "Recommande pour un acces proprietaire uniquement",
       "recommendation_limit": "Jusqu'a {count} membres",
       "recommendation_unlimited": "Membres illimites",
+      "recommendation_owner_only": "Proprietaire uniquement",
+      "solo_title": "Espace solo",
+      "solo_subtitle": "Vous demarrez seul. Les invitations d equipe restent desactivees tant que vous restez sur un forfait solo.",
       "add": "+ Ajouter",
       "empty": "Aucune invitation ajoutee.",
       "name": "Nom",
@@ -4295,6 +4580,11 @@
     "title": "Reservations",
     "subtitle": "Suivez, confirmez ou refusez les reservations assignees a votre equipe.",
     "empty": "Aucune reservation.",
+    "owner_only": {
+      "staff_notice": "Solo growth garde les reservations en mode limite: consultation de l historique, gestion de la liste d attente et reglages globaux, mais la reservation par membre reste desactivee.",
+      "client_notice": "Cet espace solo ne propose pas encore de creneaux en direct. Rejoignez plutot la liste d attente pour un suivi manuel.",
+      "client_waitlist_hint": "Les creneaux de reservation et les replanifications restent desactives en mode solo owner-only."
+    },
     "stats": {
       "total": "Total",
       "pending": "En attente",
@@ -4907,6 +5197,7 @@
       "plan_later": "Planifier plus tard",
       "team": {
         "title": "EQUIPE",
+        "solo_panel_title": "AFFECTATION",
         "empty": "Aucun membre pour l'instant.",
         "member_fallback": "Membre equipe",
         "filter_hint": "Selectionner un membre pour filtrer le calendrier.",
@@ -4914,6 +5205,8 @@
         "selected_title": "Membres selectionnes",
         "selected_badge": "Selectionne",
         "search_empty": "Aucun membre correspondant.",
+        "solo_title": "Job proprietaire uniquement",
+        "solo_subtitle": "Cet espace solo n assigne pas les jobs a des membres d equipe. Les taches creees a partir de ce job restent non assignees tant que vous ne passez pas a un forfait equipe.",
         "availability": {
           "available": "Disponible",
           "busy": "Indisponible",
@@ -5281,6 +5574,7 @@
     },
     "filters": {
       "search_placeholder": "Rechercher taches, details ou assignes",
+      "search_placeholder_solo": "Rechercher taches ou details",
       "status": {
         "all": "Tous les statuts"
       }
@@ -5416,6 +5710,7 @@
       "due_date": "Date d'echeance",
       "assignee": "Assigne",
       "unassigned": "Non assigne",
+      "solo_hint": "Cet espace solo n assigne pas les taches a des membres d equipe.",
       "availability": {
         "available": "Disponible",
         "busy": "Indisponible",
@@ -5534,6 +5829,9 @@
       "meta_title": "Reservations",
       "title": "Parametres reservations",
       "subtitle": "Gerez les regles de reservation, les disponibilites d equipe et les exceptions.",
+      "owner_only": {
+        "notice": "Le mode solo owner-only conserve seulement les reglages globaux et les ressources utiles a la liste d attente. Les horaires par membre, surcharges par membre et la file hybride restent desactives tant que les membres d equipe ne sont pas disponibles."
+      },
       "summary": {
         "timezone": "Fuseau horaire",
         "team_members": "Membres d equipe",
@@ -5912,7 +6210,8 @@
       },
       "actions": {
         "save": "Enregistrer",
-        "remove": "Retirer"
+        "remove": "Retirer",
+        "cancel": "Annuler"
       },
       "categories": {
         "title": "Categories de services / produits",
@@ -6393,7 +6692,7 @@
     "hero": {
       "eyebrow": "Conçu pour les équipes terrain",
       "title": "Gérez tout le cycle d’un chantier dans un espace clair.",
-      "subtitle": "MLK Pro relie devis, scan de plans, catalogue, chantiers, tâches et factures, avec une vision simple et structurée.",
+      "subtitle": "Malikia pro relie devis, scan de plans, catalogue, chantiers, tâches et factures, avec une vision simple et structurée.",
       "primary_cta": "Démarrer l’onboarding",
       "secondary_cta": "Se connecter",
       "note": "Passez du mode Services au mode Produits sans perte de données.",
@@ -6543,14 +6842,14 @@
     },
     "intro": {
       "eyebrow": "Conditions d utilisation",
-      "title": "Conditions d utilisation pour MLK Pro",
+      "title": "Conditions d utilisation pour Malikia pro",
       "updated": "Derniere mise a jour: {date}. Cette page est un modele et doit etre relue avant publication.",
       "legal": "Nom legal: Malikia Pro."
     },
     "sections": {
       "scope": {
         "title": "1. Portee",
-        "body": "Ces conditions regissent l acces a MLK Pro, une plateforme qui aide les entreprises a gerer clients, devis, jobs, taches, factures, produits et scans de plan."
+        "body": "Ces conditions regissent l acces a Malikia pro, une plateforme qui aide les entreprises a gerer clients, devis, jobs, taches, factures, produits et scans de plan."
       },
       "accounts": {
         "title": "2. Comptes",
@@ -6562,7 +6861,7 @@
       },
       "data": {
         "title": "3. Propriete des donnees",
-        "body": "Votre entreprise garde la propriete de ses donnees. En utilisant MLK Pro, vous autorisez la plateforme a stocker, traiter et afficher vos donnees pour fournir le service."
+        "body": "Votre entreprise garde la propriete de ses donnees. En utilisant Malikia pro, vous autorisez la plateforme a stocker, traiter et afficher vos donnees pour fournir le service."
       },
       "pricing": {
         "title": "4. Devis et donnees de prix",
@@ -6590,7 +6889,7 @@
       },
       "liability": {
         "title": "8. Limitation de responsabilite",
-        "body": "MLK Pro n est pas responsable des dommages indirects, pertes de profits ou pertes de donnees au dela des limites legales. Utilisez le service a vos risques."
+        "body": "Malikia pro n est pas responsable des dommages indirects, pertes de profits ou pertes de donnees au dela des limites legales. Utilisez le service a vos risques."
       },
       "termination": {
         "title": "9. Resiliation",
@@ -6624,11 +6923,29 @@
     "meta": {
       "title": "Tarification"
     },
+    "badges": {
+      "recommended": "Le plus populaire"
+    },
+    "switch": {
+      "label": "Choisissez votre contexte"
+    },
+    "audiences": {
+      "solo": "Solo",
+      "team": "Equipe"
+    },
     "hero": {
-      "eyebrow": "Tarification",
-      "title": "Plans pour equipes terrain",
-      "subtitle": "Choisissez un plan adapte a votre workflow. Prix sur demande.",
-      "note": "Besoin d un plan entreprise ou sur mesure? Demandez la fiche."
+      "solo": {
+        "eyebrow": "Tarification solo",
+        "title": "Des forfaits concus pour les travailleurs autonomes",
+        "subtitle": "Commencez avec une configuration simple pour gerer devis, factures et suivi client au meme endroit.",
+        "note": "Passez plus tard vers une offre equipe sans reconstruire votre espace."
+      },
+      "team": {
+        "eyebrow": "Tarification equipe",
+        "title": "Plans pour equipes terrain",
+        "subtitle": "Choisissez un plan adapte a votre workflow, a la taille de votre equipe et a votre niveau d operations.",
+        "note": "Besoin d un plan entreprise ou sur mesure? Demandez la fiche."
+      }
     },
     "plans": {
       "starter": {
@@ -6649,18 +6966,36 @@
       }
     },
     "features": {
-      "title": "Inclus dans chaque plan",
-      "items": {
-        "one": "Devis, jobs, taches et factures",
-        "two": "Catalogue unique services et produits",
-        "three": "Signaux de prix et sources plan scan",
-        "four": "Portail client et validations",
-        "five": "Roles et permissions equipe"
+      "solo": {
+        "title": "Pense pour les journees en solo",
+        "items": {
+          "one": "Devis, factures et demandes clients dans un seul espace",
+          "two": "Catalogue et page publique pour presenter vos services clairement",
+          "three": "Solo Pro ajoute jobs et taches sans complexite equipe",
+          "four": "Solo Growth debloque planning, reservations limitees et outils IA",
+          "five": "Passerelle vers les forfaits equipe quand vous commencez a embaucher"
+        }
+      },
+      "team": {
+        "title": "Inclus dans chaque plan equipe",
+        "items": {
+          "one": "Devis, jobs, taches et factures",
+          "two": "Catalogue unique services et produits",
+          "three": "Signaux de prix et sources plan scan",
+          "four": "Portail client et validations",
+          "five": "Roles et permissions equipe"
+        }
       }
     },
     "enterprise": {
-      "title": "Fiche tarif entreprise",
-      "body": "Demandez la fiche entreprise pour limites sur mesure, revue securite et onboarding."
+      "solo": {
+        "title": "Commencer seul, evoluer ensuite",
+        "body": "Demarrez avec un forfait solo, puis passez vers une offre equipe quand vous embauchez ou avez besoin de workflows collaboratifs."
+      },
+      "team": {
+        "title": "Fiche tarif entreprise",
+        "body": "Demandez la fiche entreprise pour limites sur mesure, revue securite et onboarding."
+      }
     },
     "actions": {
       "primary": "Demarrer l onboarding",
@@ -6679,12 +7014,17 @@
       },
       "rows": {
         "team_members": "Employes inclus",
+        "account_access": "Acces compte",
         "clients": "Clients",
         "requests": "Demandes / leads",
         "estimates": "Devis",
         "invoices": "Factures",
         "catalog": "Catalogue produits et services",
+        "catalog_items": "Articles au catalogue",
         "client_portal": "Portail client",
+        "jobs": "Jobs",
+        "tasks": "Taches",
+        "planning": "Planning",
         "team_planning": "Planning d equipe",
         "time_tracking": "Presence et pointage",
         "reservations": "Reservations et check-in",
@@ -6694,13 +7034,17 @@
         "automations": "Automatisations avancees",
         "plan_scan": "Scan de plan et devis IA",
         "ai_assistant": "Assistant IA",
+        "campaigns": "Campagnes",
+        "loyalty": "Fidelite",
         "onboarding": "Onboarding dedie",
         "custom_integrations": "Integrations et SLA sur mesure"
       },
       "values": {
         "unlimited": "Illimite",
         "optional": "Option",
-        "contact": "Contact us"
+        "owner_only": "1 owner",
+        "limited": "Mode limite",
+        "contact": "Contactez-nous"
       }
     }
   },
@@ -6710,14 +7054,14 @@
     },
     "intro": {
       "eyebrow": "Politique de confidentialite",
-      "title": "Politique de confidentialite pour MLK Pro",
+      "title": "Politique de confidentialite pour Malikia pro",
       "updated": "Derniere mise a jour: {date}.",
-      "summary": "Cette politique explique comment Malikia Pro collecte, utilise et protege les donnees sur MLK Pro."
+      "summary": "Cette politique explique comment Malikia Pro collecte, utilise et protege les donnees sur Malikia pro."
     },
     "sections": {
       "scope": {
         "title": "1. Portee",
-        "body": "Cette politique s applique a la plateforme MLK Pro et services associes."
+        "body": "Cette politique s applique a la plateforme Malikia pro et services associes."
       },
       "data": {
         "title": "2. Donnees collectees",
@@ -6756,14 +7100,14 @@
     },
     "intro": {
       "eyebrow": "Politique de remboursement",
-      "title": "Politique de remboursement pour MLK Pro",
+      "title": "Politique de remboursement pour Malikia pro",
       "updated": "Derniere mise a jour: {date}.",
-      "summary": "Cette politique explique comment les remboursements et credits sont geres pour les abonnements MLK Pro."
+      "summary": "Cette politique explique comment les remboursements et credits sont geres pour les abonnements Malikia pro."
     },
     "sections": {
       "scope": {
         "title": "1. Portee",
-        "body": "Les abonnements sont factures a l avance et donnent acces aux fonctionnalites MLK Pro."
+        "body": "Les abonnements sont factures a l avance et donnent acces aux fonctionnalites Malikia pro."
       },
       "eligibility": {
         "title": "2. Eligibilite",

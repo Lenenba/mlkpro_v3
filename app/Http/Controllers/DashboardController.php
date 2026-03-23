@@ -1312,7 +1312,7 @@ class DashboardController extends Controller
         $lines = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
-            'PRODID:-//MLK Pro//Dashboard Tasks//EN',
+            'PRODID:-//Malikia pro//Dashboard Tasks//EN',
             'CALSCALE:GREGORIAN',
             'METHOD:PUBLISH',
         ];

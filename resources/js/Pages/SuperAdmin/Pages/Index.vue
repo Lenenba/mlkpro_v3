@@ -181,10 +181,16 @@ const deletePage = (page) => {
                         <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
                             <tr v-for="page in pageRows" :key="page.id" class="align-top">
                                 <td class="px-4 py-3 font-mono text-xs text-stone-700 dark:text-neutral-200">
-                                    /pages/{{ page.slug }}
+                                    {{ page.path_label || `/pages/${page.slug}` }}
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="font-medium text-stone-800 dark:text-neutral-100">{{ page.title }}</div>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <div class="font-medium text-stone-800 dark:text-neutral-100">{{ page.title }}</div>
+                                        <span v-if="page.is_welcome"
+                                            class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-stone-700 dark:bg-neutral-800 dark:text-neutral-200">
+                                            Home
+                                        </span>
+                                    </div>
                                     <div v-if="page.updated_by" class="text-xs text-stone-500 dark:text-neutral-400">
                                         {{ page.updated_by.name || page.updated_by.email }}
                                     </div>
@@ -214,7 +220,7 @@ const deletePage = (page) => {
                                             </svg>
                                         </button>
                                         <div
-                                            class="hs-dropdown-menu hs-dropdown-open:opacity-100 hidden w-36 rounded-sm bg-white opacity-0 shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] transition-[opacity,margin] duration dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
+                                            class="hs-dropdown-menu hs-dropdown-open:opacity-100 hidden z-10 w-36 rounded-sm bg-white opacity-0 shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] transition-[opacity,margin] duration dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
                                             role="menu" aria-orientation="vertical">
                                             <div class="p-1">
                                                 <a v-if="page.public_url" :href="page.public_url" target="_blank" rel="noopener"
@@ -225,7 +231,7 @@ const deletePage = (page) => {
                                                     class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                     {{ $t('super_admin.pages.actions.edit') }}
                                                 </Link>
-                                                <button type="button" @click="deletePage(page)"
+                                                <button v-if="!page.is_welcome" type="button" @click="deletePage(page)"
                                                     class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10">
                                                     {{ $t('super_admin.pages.actions.delete') }}
                                                 </button>

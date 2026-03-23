@@ -32,6 +32,14 @@ const deleteSection = (section) => {
         preserveScroll: true,
     });
 };
+
+const duplicateSection = (section) => {
+    if (!section?.id) return;
+
+    router.post(route('superadmin.sections.duplicate', section.id), {}, {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -108,6 +116,10 @@ const deleteSection = (section) => {
                                             class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800">
                                             {{ $t('super_admin.sections.actions.edit') }}
                                         </Link>
+                                        <button type="button" @click="duplicateSection(section)"
+                                            class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800">
+                                            {{ $t('super_admin.sections.actions.duplicate') }}
+                                        </button>
                                         <button type="button" @click="deleteSection(section)"
                                             class="rounded-sm border border-red-200 px-2 py-1 font-semibold text-red-700 hover:bg-red-50">
                                             {{ $t('super_admin.sections.actions.delete') }}
@@ -122,4 +134,3 @@ const deleteSection = (section) => {
         </div>
     </AuthenticatedLayout>
 </template>
-

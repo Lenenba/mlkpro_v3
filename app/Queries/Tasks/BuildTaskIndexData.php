@@ -7,6 +7,7 @@ use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
+use App\Services\CompanyFeatureService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -14,12 +15,18 @@ class BuildTaskIndexData
 {
     public function execute(?User $user, int $accountId, bool $isOwner, Request $request): array
     {
+        $hasTeamMembersFeature = $user
+            ? app(CompanyFeatureService::class)->hasFeature($user, 'team_members')
+            : false;
+
         $filters = $request->only([
             'search',
             'status',
             'view',
         ]);
-        $allowedViews = $isOwner ? ['board', 'schedule', 'team'] : ['board', 'schedule'];
+        $allowedViews = $isOwner && $hasTeamMembersFeature
+            ? ['board', 'schedule', 'team']
+            : ['board', 'schedule'];
         $filters['view'] = in_array($filters['view'] ?? null, $allowedViews, true)
             ? $filters['view']
             : 'board';
@@ -67,7 +74,9 @@ class BuildTaskIndexData
         $useFullList = in_array($view, ['board', 'schedule', 'team'], true);
 
         if ($useFullList) {
-            $items = $tasksQuery->get();
+            $items = $tasksQuery
+                ->get()
+                ->map(fn (Task $task) => $this->sanitizeTaskAssignments($task, $hasTeamMembersFeature));
             $perPage = max($items->count(), 1);
             $tasks = new LengthAwarePaginator(
                 $items,
@@ -82,6 +91,7 @@ class BuildTaskIndexData
         } else {
             $tasks = $tasksQuery
                 ->simplePaginate(15)
+                ->through(fn (Task $task) => $this->sanitizeTaskAssignments($task, $hasTeamMembersFeature))
                 ->withQueryString();
         }
 
@@ -98,7 +108,11 @@ class BuildTaskIndexData
             : false;
 
         $teamMembers = collect();
-        if ($user && ($user->id === $accountId || ($isAdminMember && ($membership->hasPermission('tasks.create') || $membership->hasPermission('tasks.edit'))))) {
+        if (
+            $hasTeamMembersFeature
+            && $user
+            && ($user->id === $accountId || ($isAdminMember && ($membership->hasPermission('tasks.create') || $membership->hasPermission('tasks.edit'))))
+        ) {
             $teamMembers = TeamMember::query()
                 ->forAccount($accountId)
                 ->active()
@@ -131,7 +145,19 @@ class BuildTaskIndexData
             'canManage' => $canManage,
             'canDelete' => $canDelete,
             'canEditStatus' => $canEditStatus,
-            'canViewTeam' => $isOwner,
+            'canViewTeam' => $isOwner && $hasTeamMembersFeature,
         ];
+    }
+
+    private function sanitizeTaskAssignments(Task $task, bool $hasTeamMembersFeature): Task
+    {
+        if ($hasTeamMembersFeature) {
+            return $task;
+        }
+
+        $task->setAttribute('assigned_team_member_id', null);
+        $task->setRelation('assignee', null);
+
+        return $task;
     }
 }

@@ -189,9 +189,17 @@ const syncDesktopPanelMetrics = () => {
 
     desktopPanelMetrics.value = {
         left: -rootRect.left,
-        top: Math.max(headerRect.bottom - rootRect.top, rootRect.height),
+        top: Math.max(headerRect.bottom - rootRect.top - 1, rootRect.height - 1),
         viewportWidth: window.innerWidth,
     };
+};
+
+const handleWindowScroll = () => {
+    if (!desktopOpenKey.value) {
+        return;
+    }
+
+    syncDesktopPanelMetrics();
 };
 
 watch(
@@ -212,14 +220,28 @@ watch(
     { immediate: true }
 );
 
+watch(
+    desktopOpenKey,
+    async (nextKey) => {
+        if (!nextKey) {
+            return;
+        }
+
+        await nextTick();
+        syncDesktopPanelMetrics();
+    }
+);
+
 onMounted(() => {
     syncDesktopPanelMetrics();
     window.addEventListener('resize', syncDesktopPanelMetrics);
+    window.addEventListener('scroll', handleWindowScroll, { passive: true });
 });
 
 onBeforeUnmount(() => {
     clearDesktopCloseTimer();
     window.removeEventListener('resize', syncDesktopPanelMetrics);
+    window.removeEventListener('scroll', handleWindowScroll);
 });
 </script>
 

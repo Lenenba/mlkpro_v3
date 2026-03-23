@@ -1,7 +1,7 @@
-MLK Pro
+Malikia pro
 =======
 
-MLK Pro is a multi-company business management platform for services and products.
+Malikia pro is a multi-company business management platform for services and products.
 It helps teams manage customers, quotes, jobs, tasks, invoices, and client payments.
 
 Highlights

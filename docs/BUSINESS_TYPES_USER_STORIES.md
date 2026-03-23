@@ -1,8 +1,8 @@
-# Business Types - User Stories (MLK Pro Context)
+# Business Types - User Stories (Malikia pro Context)
 
 ## Goal
 Adapter le module reservations aux types d entreprise (salon, restaurant, etc.)
-en partant de ce qui existe deja dans MLK Pro:
+en partant de ce qui existe deja dans Malikia pro:
 - planning equipe
 - slots et disponibilites
 - pages client/membre/owner

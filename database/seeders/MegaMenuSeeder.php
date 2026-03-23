@@ -373,9 +373,10 @@ class MegaMenuSeeder extends Seeder
         string $backgroundColor = '',
         string $embedUrl = '',
         string $embedTitle = '',
-        int $embedHeight = 760
+        int $embedHeight = 760,
+        array $extra = []
     ): array {
-        return [
+        return array_merge([
             'id' => $id,
             'enabled' => true,
             'source_id' => null,
@@ -398,6 +399,12 @@ class MegaMenuSeeder extends Seeder
             'title' => $title,
             'body' => $body,
             'items' => $items,
+            'aside_kicker' => '',
+            'aside_title' => '',
+            'aside_body' => '',
+            'aside_items' => [],
+            'aside_link_label' => '',
+            'aside_link_href' => '',
             'image_url' => $imageUrl,
             'image_alt' => $imageAlt,
             'embed_url' => $embedUrl,
@@ -407,7 +414,7 @@ class MegaMenuSeeder extends Seeder
             'primary_href' => $primaryHref,
             'secondary_label' => $secondaryLabel,
             'secondary_href' => $secondaryHref,
-        ];
+        ], $extra);
     }
 
     private function contactFormUrl(array $parameters = []): string
@@ -592,6 +599,36 @@ class MegaMenuSeeder extends Seeder
                             embedTitle: $hasEmbeddedForm ? 'Formulaire de demande commerciale' : '',
                             embedHeight: 820
                         ),
+                        $this->pageSection(
+                            id: 'contact-details',
+                            kicker: 'Support',
+                            title: 'Discutez avec nous',
+                            body: '<p>Ajoutez ici un point de contact rapide pour les prospects qui veulent parler a une personne avant de remplir un formulaire complet.</p>',
+                            items: [
+                                'Accompagnement avant vente',
+                                'Reponse sous un jour ouvrable',
+                                'Bloc complet editable depuis l\'admin Pages',
+                            ],
+                            imageUrl: '/images/mega-menu/contact-map.svg',
+                            imageAlt: 'Carte de localisation du point de contact',
+                            primaryLabel: $hasEmbeddedForm ? 'Ouvrir le formulaire' : '',
+                            primaryHref: $formUrl,
+                            secondaryLabel: '',
+                            secondaryHref: '',
+                            backgroundColor: '#ffffff',
+                            extra: [
+                                'layout' => 'contact',
+                                'aside_kicker' => 'Bureau',
+                                'aside_title' => 'Equipe commerciale',
+                                'aside_body' => '<p>Support commercial et accompagnement au deploiement.<br>Remplacez cette colonne par vos vraies coordonnees depuis l\'admin Pages.</p><p><strong>Disponibilite</strong><br>Lun - ven · 8h00 - 18h00 EST</p>',
+                                'aside_items' => [
+                                    'Canada et Etats-Unis',
+                                    'Reponse prioritaire pour les demandes qualifiees',
+                                ],
+                                'aside_link_label' => 'Nous contacter',
+                                'aside_link_href' => $formUrl,
+                            ]
+                        ),
                     ],
                 ],
                 'en' => [
@@ -618,6 +655,36 @@ class MegaMenuSeeder extends Seeder
                             embedUrl: $hasEmbeddedForm ? $embeddedFormUrl : '',
                             embedTitle: $hasEmbeddedForm ? 'Commercial inquiry form' : '',
                             embedHeight: 820
+                        ),
+                        $this->pageSection(
+                            id: 'contact-details',
+                            kicker: 'Support',
+                            title: 'Chat with us',
+                            body: '<p>Add a fast contact point here for prospects who want to speak with someone before submitting the full form.</p>',
+                            items: [
+                                'Pre-sales guidance',
+                                'Reply within one business day',
+                                'Fully editable block from the Pages admin',
+                            ],
+                            imageUrl: '/images/mega-menu/contact-map.svg',
+                            imageAlt: 'Map view for the contact point',
+                            primaryLabel: $hasEmbeddedForm ? 'Open the form' : '',
+                            primaryHref: $formUrl,
+                            secondaryLabel: '',
+                            secondaryHref: '',
+                            backgroundColor: '#ffffff',
+                            extra: [
+                                'layout' => 'contact',
+                                'aside_kicker' => 'Office',
+                                'aside_title' => 'Sales desk',
+                                'aside_body' => '<p>Sales support and rollout guidance.<br>Replace this column with your real office details from the Pages admin.</p><p><strong>Availability</strong><br>Mon - Fri · 8:00 AM - 6:00 PM EST</p>',
+                                'aside_items' => [
+                                    'Canada and United States',
+                                    'Priority follow-up for qualified requests',
+                                ],
+                                'aside_link_label' => 'Contact our team',
+                                'aside_link_href' => $formUrl,
+                            ]
                         ),
                     ],
                 ],

@@ -1,9 +1,11 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import ApplicationLogo from '@/Components/ApplicationLogo.vue';
-import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import FeatureTabsShowcaseSection from '@/Components/Public/FeatureTabsShowcaseSection.vue';
+import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
+import PublicSiteHeader from '@/Components/Public/PublicSiteHeader.vue';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import { resolveIndustryIconComponent } from '@/utils/industryGrid';
 
 const props = defineProps({
     page: { type: Object, required: true },
@@ -24,13 +26,13 @@ const props = defineProps({
     },
     plan_key: { type: String, default: null },
     megaMenu: { type: Object, default: () => ({}) },
+    footerMenu: { type: Object, default: () => ({}) },
+    footerSection: { type: Object, default: () => ({}) },
 });
 
 const page = usePage();
 const { t } = useI18n();
 const currentLocale = computed(() => page.props.locale || 'fr');
-const currentLocaleCode = computed(() => String(currentLocale.value || 'fr').toUpperCase());
-const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
 const planKey = computed(() => {
     const raw = props.plan_key || page.props.plan_key || null;
     return raw ? String(raw).toLowerCase() : null;
@@ -47,29 +49,6 @@ const userRoles = computed(() => {
     return roles;
 });
 const isMobile = ref(false);
-const langMenuOpen = ref(false);
-const langMenuRef = ref(null);
-
-const setLocale = (locale) => {
-    if (locale === currentLocale.value) return;
-    langMenuOpen.value = false;
-    router.post(route('locale.update'), { locale }, { preserveScroll: true });
-};
-
-const toggleLangMenu = () => {
-    langMenuOpen.value = !langMenuOpen.value;
-};
-
-const closeLangMenu = () => {
-    langMenuOpen.value = false;
-};
-
-const handleLangOutsideClick = (event) => {
-    if (!langMenuRef.value) return;
-    if (!langMenuRef.value.contains(event.target)) {
-        langMenuOpen.value = false;
-    }
-};
 
 const updateDevice = () => {
     if (typeof window === 'undefined') return;
@@ -119,6 +98,8 @@ const themeStyle = computed(() => {
 const primaryButtonClass = computed(() => `public-button--${theme.value?.button_style || 'solid'}`);
 const embeddedFrameRefs = ref({});
 const embeddedFrameHeights = ref({});
+const openFeatureTabIds = ref({});
+const activeFeaturePanelIds = ref({});
 
 const pageHeader = computed(() => ({
     background_type: props.content?.header?.background_type || 'none',
@@ -194,6 +175,18 @@ const heroContentClass = computed(() => {
     return 'mx-auto max-w-4xl text-center';
 });
 
+const heroSubtitleClass = computed(() => {
+    if (pageHeader.value.alignment === 'left') {
+        return 'max-w-2xl';
+    }
+
+    if (pageHeader.value.alignment === 'right') {
+        return 'ml-auto max-w-2xl';
+    }
+
+    return 'mx-auto max-w-3xl';
+});
+
 const resolveSectionKey = (section, index) => section?.id || `section-${index}`;
 
 const setEmbeddedFrameRef = (sectionKey, element) => {
@@ -267,20 +260,27 @@ const handleEmbeddedFrameMessage = (event) => {
 };
 
 onMounted(() => {
-    document.addEventListener('click', handleLangOutsideClick);
     window.addEventListener('message', handleEmbeddedFrameMessage);
     updateDevice();
     window.addEventListener('resize', updateDevice);
 });
 
 onBeforeUnmount(() => {
-    document.removeEventListener('click', handleLangOutsideClick);
     window.removeEventListener('message', handleEmbeddedFrameMessage);
     window.removeEventListener('resize', updateDevice);
 });
 
-const sectionStyle = (color) => {
-    const value = String(color || '').trim();
+const sectionStyle = (section) => {
+    const value = String(section?.background_color || '').trim();
+    if (!value || section?.layout === 'duo') {
+        return {};
+    }
+
+    return { background: value };
+};
+
+const duoPanelStyle = (section) => {
+    const value = String(section?.background_color || '').trim();
     return value ? { background: value } : {};
 };
 
@@ -382,23 +382,324 @@ const sections = computed(() =>
     (props.content.sections || []).filter((section) => section && section.enabled !== false && matchesVisibility(section))
 );
 
-const sectionContainerClass = (section) => (
-    section?.embed_url
-        ? 'public-container public-container--embed'
-        : 'public-container'
+const testimonialCardsForSection = (section) => (
+    Array.isArray(section?.testimonial_cards) ? section.testimonial_cards : []
 );
 
-const layoutClass = (section) => {
-    if (section?.embed_url) {
-        return 'grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,0.62fr)_minmax(0,1.48fr)] xl:grid-cols-[minmax(0,0.56fr)_minmax(0,1.64fr)]';
+const storyCardsForSection = (section) => (
+    Array.isArray(section?.story_cards) ? section.story_cards : []
+);
+
+const testimonialCardInitials = (card) => {
+    const parts = String(card?.author_name || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2);
+
+    const initials = parts.map((part) => part.charAt(0).toUpperCase()).join('');
+    return initials || '?';
+};
+
+const testimonialCardMetaLine = (card) => (
+    [card?.author_role, card?.author_company]
+        .map((value) => String(value || '').trim())
+        .filter((value) => value.length > 0)
+        .join(' - ')
+);
+
+const featureTabsForSection = (section) => (
+    Array.isArray(section?.feature_tabs) ? section.feature_tabs : []
+);
+
+const featureTabsStyle = (section) => {
+    const size = Number(section?.feature_tabs_font_size);
+
+    if (!Number.isFinite(size) || size <= 0) {
+        return {};
     }
 
+    return {
+        '--feature-tabs-trigger-label-size': `${Math.min(Math.max(size, 18), 40)}px`,
+    };
+};
+
+const featureTabChildren = (tab) => (
+    Array.isArray(tab?.children) ? tab.children : []
+);
+
+const featurePanelKeyForTab = (tab) => (
+    tab?.id ? `tab:${tab.id}` : ''
+);
+
+const featurePanelKeyForChild = (tab, child) => (
+    tab?.id && child?.id ? `child:${tab.id}:${child.id}` : ''
+);
+
+const buildFeaturePanelFromTab = (tab) => (
+    tab
+        ? {
+            key: featurePanelKeyForTab(tab),
+            tabId: tab.id,
+            childId: null,
+            label: tab.label || '',
+            title: tab.title || tab.label || '',
+            body: tab.body || '',
+            image_url: tab.image_url || '',
+            image_alt: tab.image_alt || '',
+            cta_label: tab.cta_label || '',
+            cta_href: tab.cta_href || '',
+            source: 'tab',
+        }
+        : null
+);
+
+const buildFeaturePanelFromChild = (tab, child) => (
+    tab && child
+        ? {
+            key: featurePanelKeyForChild(tab, child),
+            tabId: tab.id,
+            childId: child.id,
+            label: child.label || '',
+            title: child.title || tab.title || child.label || tab.label || '',
+            body: child.body || '',
+            image_url: child.image_url || tab.image_url || '',
+            image_alt: child.image_alt || tab.image_alt || '',
+            cta_label: child.cta_label || tab.cta_label || '',
+            cta_href: child.cta_href || tab.cta_href || '',
+            source: 'child',
+        }
+        : null
+);
+
+const resolveFeaturePanel = (section, key) => {
+    const tabs = featureTabsForSection(section);
+    if (!tabs.length) {
+        return null;
+    }
+
+    if (!key) {
+        return null;
+    }
+
+    for (const tab of tabs) {
+        if (featurePanelKeyForTab(tab) === key) {
+            return buildFeaturePanelFromTab(tab);
+        }
+
+        for (const child of featureTabChildren(tab)) {
+            if (featurePanelKeyForChild(tab, child) === key) {
+                return buildFeaturePanelFromChild(tab, child);
+            }
+        }
+    }
+
+    return null;
+};
+
+const defaultFeaturePanel = (section) => {
+    const tabs = featureTabsForSection(section);
+    for (const tab of tabs) {
+        const firstChild = featureTabChildren(tab)[0];
+        if (firstChild) {
+            return buildFeaturePanelFromChild(tab, firstChild);
+        }
+    }
+
+    return tabs[0] ? buildFeaturePanelFromTab(tabs[0]) : null;
+};
+
+const openFeatureTabId = (section, index) => {
+    const tabs = featureTabsForSection(section);
+    if (!tabs.length) {
+        return null;
+    }
+
+    const sectionKey = resolveSectionKey(section, index);
+    if (Object.prototype.hasOwnProperty.call(openFeatureTabIds.value, sectionKey)) {
+        return openFeatureTabIds.value[sectionKey];
+    }
+
+    return tabs[0]?.id || null;
+};
+
+const activeFeaturePanel = (section, index) => {
+    const sectionKey = resolveSectionKey(section, index);
+    const storedKey = activeFeaturePanelIds.value[sectionKey];
+
+    return resolveFeaturePanel(section, storedKey) || defaultFeaturePanel(section);
+};
+
+const isFeatureTabOpen = (section, index, tab) => (
+    openFeatureTabId(section, index) === tab?.id
+);
+
+const isCurrentFeatureTab = (section, index, tab) => (
+    Boolean(openFeatureTabId(section, index)) && activeFeaturePanel(section, index)?.tabId === tab?.id
+);
+
+const isActiveFeatureTabChild = (section, index, tab, child) => {
+    const panel = activeFeaturePanel(section, index);
+    return panel?.tabId === tab?.id && panel?.childId === child?.id;
+};
+
+const toggleFeatureTab = (section, index, tab) => {
+    if (!tab?.id) {
+        return;
+    }
+
+    const sectionKey = resolveSectionKey(section, index);
+    const isOpen = openFeatureTabId(section, index) === tab.id;
+
+    openFeatureTabIds.value = {
+        ...openFeatureTabIds.value,
+        [sectionKey]: isOpen ? null : tab.id,
+    };
+
+    if (isOpen) {
+        return;
+    }
+
+    const currentPanel = activeFeaturePanel(section, index);
+    if (currentPanel?.tabId === tab.id) {
+        return;
+    }
+
+    const nextPanel = featureTabChildren(tab)[0]
+        ? buildFeaturePanelFromChild(tab, featureTabChildren(tab)[0])
+        : buildFeaturePanelFromTab(tab);
+
+    if (!nextPanel) {
+        return;
+    }
+
+    activeFeaturePanelIds.value = {
+        ...activeFeaturePanelIds.value,
+        [sectionKey]: nextPanel.key,
+    };
+};
+
+const setActiveFeatureTabChild = (section, index, tab, child) => {
+    const panel = buildFeaturePanelFromChild(tab, child);
+    if (!panel) {
+        return;
+    }
+
+    const sectionKey = resolveSectionKey(section, index);
+    openFeatureTabIds.value = {
+        ...openFeatureTabIds.value,
+        [sectionKey]: tab.id,
+    };
+    activeFeaturePanelIds.value = {
+        ...activeFeaturePanelIds.value,
+        [sectionKey]: panel.key,
+    };
+};
+
+const showFeatureTabChildren = (section, index, tab) => (
+    isFeatureTabOpen(section, index, tab) && featureTabChildren(tab).length > 0
+);
+
+const sectionContainerClass = (section) => {
+    if (section?.layout === 'duo') {
+        return 'public-container public-container--duo';
+    }
+
+    if (section?.layout === 'feature_pairs') {
+        return 'public-container public-container--feature-pairs';
+    }
+
+    if (section?.layout === 'industry_grid') {
+        return 'public-container public-container--industry-grid';
+    }
+
+    if (section?.layout === 'story_grid') {
+        return 'public-container public-container--story-grid';
+    }
+
+    if (section?.layout === 'testimonial_grid') {
+        return 'public-container public-container--testimonial-grid';
+    }
+
+    if (section?.layout === 'feature_tabs') {
+        return 'public-container public-container--feature-tabs';
+    }
+
+    return section?.embed_url
+        ? 'public-container public-container--embed'
+        : 'public-container';
+};
+
+const layoutClass = (section) => {
     const layout = section?.layout;
+    if (layout === 'testimonial') {
+        return 'public-testimonial-shell';
+    }
+    if (layout === 'feature_pairs') {
+        return 'public-feature-pairs-shell';
+    }
+    if (layout === 'showcase_cta') {
+        return 'public-showcase-grid';
+    }
+    if (layout === 'industry_grid') {
+        return 'public-industry-grid-shell';
+    }
+    if (layout === 'story_grid') {
+        return 'public-story-grid-shell';
+    }
+    if (layout === 'testimonial_grid') {
+        return 'public-testimonial-grid-shell';
+    }
+    if (layout === 'feature_tabs') {
+        return 'public-feature-tabs-shell';
+    }
+    if (layout === 'duo') {
+        return 'public-duo-grid';
+    }
+    if (layout === 'contact') {
+        return 'public-contact-grid';
+    }
     if (layout === 'stack') {
         return 'mx-auto flex max-w-3xl flex-col gap-5';
     }
+    if (section?.embed_url) {
+        return 'grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,0.62fr)_minmax(0,1.48fr)] xl:grid-cols-[minmax(0,0.56fr)_minmax(0,1.64fr)]';
+    }
     return 'grid grid-cols-1 items-center gap-8 lg:grid-cols-2';
 };
+
+const sectionHasContactAside = (section) =>
+    Boolean(
+        section?.aside_kicker ||
+        section?.aside_title ||
+        section?.aside_body ||
+        section?.aside_items?.length ||
+        section?.aside_link_label
+    );
+
+const sectionHasTestimonialMeta = (section) =>
+    Boolean(
+        section?.testimonial_author ||
+        section?.testimonial_role ||
+        section?.secondary_label
+    );
+
+const sectionHasFeaturePairsAside = (section) =>
+    Boolean(
+        section?.aside_kicker ||
+        section?.aside_title ||
+        section?.aside_body ||
+        section?.aside_items?.length ||
+        section?.aside_link_label ||
+        section?.aside_image_url
+    );
+
+const sectionHasShowcaseBadge = (section) =>
+    Boolean(
+        section?.showcase_badge_label ||
+        section?.showcase_badge_value ||
+        section?.showcase_badge_note
+    );
 
 const alignmentClass = (alignment) => {
     if (alignment === 'center') {
@@ -450,54 +751,13 @@ const headerMenuItems = computed(() => ([
     <Head :title="content.page_title || page.title" />
 
     <div class="public-page" :style="themeStyle">
-        <header class="public-header">
-            <div class="mx-auto flex w-full max-w-[88rem] items-center gap-5 px-5 py-5 xl:px-8">
-                <Link :href="route('welcome')" class="flex shrink-0 items-center">
-                    <ApplicationLogo class="h-10 w-36 sm:h-11 sm:w-40" />
-                </Link>
-
-                <div class="min-w-0 flex-1">
-                    <MegaMenuDisplay :menu="megaMenu" :fallback-items="headerMenuItems" />
-                </div>
-
-                <div class="flex shrink-0 items-center gap-3">
-                    <Link
-                        v-if="!isAuthenticated"
-                        :href="route('login')"
-                        class="hidden rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50 md:inline-flex"
-                    >
-                        {{ $t('legal.actions.sign_in') }}
-                    </Link>
-                    <Link
-                        v-if="!isAuthenticated"
-                        :href="route('onboarding.index')"
-                        class="hidden rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 xl:inline-flex"
-                    >
-                        {{ $t('legal.actions.create_account') }}
-                    </Link>
-                    <div ref="langMenuRef" class="public-lang">
-                        <button type="button" class="public-lang__toggle" aria-haspopup="listbox"
-                            :aria-label="$t('account.language')" :aria-expanded="langMenuOpen" @click="toggleLangMenu" @keydown.escape="closeLangMenu">
-                            <span>{{ currentLocaleCode }}</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                class="public-lang__chevron">
-                                <path d="m6 9 6 6 6-6" />
-                            </svg>
-                        </button>
-                        <div v-if="langMenuOpen" class="public-lang__menu" role="listbox"
-                            :aria-activedescendant="`lang-${currentLocale}`" @keydown.escape="closeLangMenu">
-                            <button v-for="locale in availableLocales" :id="`lang-${locale}`" :key="locale"
-                                type="button" role="option" class="public-lang__item"
-                                :class="currentLocale === locale ? 'is-active' : ''"
-                                :aria-selected="currentLocale === locale" @click="setLocale(locale)">
-                                {{ $t(`language.${locale}`) }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </header>
+        <PublicSiteHeader
+            :mega-menu="megaMenu"
+            :fallback-items="headerMenuItems"
+            :can-login="!isAuthenticated"
+            :can-register="!isAuthenticated"
+            :is-authenticated="isAuthenticated"
+        />
 
         <main>
             <section
@@ -505,111 +765,881 @@ const headerMenuItems = computed(() => ([
                 :class="{ 'public-hero--contrast': heroUsesContrast }"
                 :style="heroStyle"
             >
-                <div class="public-container">
+                <div class="public-hero-container">
                     <div :class="['flex flex-col gap-4', heroContentClass]">
                         <h1 class="public-title text-4xl font-semibold tracking-tight sm:text-5xl">
                             {{ content.page_title || page.title }}
                         </h1>
-                        <div v-if="content.page_subtitle" class="public-rich text-base sm:text-lg"
+                        <div v-if="content.page_subtitle" :class="['public-rich text-base sm:text-lg', heroSubtitleClass]"
                             v-html="content.page_subtitle"></div>
                     </div>
                 </div>
             </section>
 
             <section v-for="(section, index) in sections" :key="section.id || index"
-                :class="['public-section public-block', densityClass(section.density), toneClass(section.tone)]"
-                :style="sectionStyle(section.background_color)">
+                :class="['public-section public-block', densityClass(section.density), toneClass(section.tone), {
+                    'public-block--duo': section.layout === 'duo',
+                    'public-block--testimonial': section.layout === 'testimonial',
+                    'public-block--feature-pairs': section.layout === 'feature_pairs',
+                    'public-block--showcase-cta': section.layout === 'showcase_cta',
+                    'public-block--industry-grid': section.layout === 'industry_grid',
+                    'public-block--story-grid': section.layout === 'story_grid',
+                    'public-block--testimonial-grid': section.layout === 'testimonial_grid',
+                    'public-block--feature-tabs': section.layout === 'feature_tabs',
+                }]"
+                :style="sectionStyle(section)">
                 <div :class="sectionContainerClass(section)">
                     <div :class="layoutClass(section)">
-                        <div class="space-y-4" :class="alignmentClass(section.alignment)">
-                            <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
-                            <h2 class="public-title text-3xl font-semibold">{{ section.title }}</h2>
-                            <div v-if="section.body" class="public-rich text-sm sm:text-base"
-                                v-html="section.body"></div>
+                        <template v-if="section.layout === 'contact'">
+                            <div class="space-y-4" :class="alignmentClass(section.alignment)">
+                                <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
+                                <h2 class="public-title text-3xl font-semibold">{{ section.title }}</h2>
+                                <div v-if="section.body" class="public-rich text-sm sm:text-base" v-html="section.body"></div>
 
-                            <ul v-if="section.items?.length" class="space-y-2 text-sm">
-                                <li v-for="(item, itemIndex) in section.items" :key="itemIndex" class="public-bullet">
-                                    {{ item }}
-                                </li>
-                            </ul>
+                                <ul v-if="section.items?.length" class="space-y-2 text-sm">
+                                    <li v-for="(item, itemIndex) in section.items" :key="itemIndex" class="public-bullet">
+                                        {{ item }}
+                                    </li>
+                                </ul>
 
-                            <div class="flex flex-wrap gap-2">
-                                <template v-if="section.primary_label">
-                                    <a v-if="isExternalHref(resolveHref(section.primary_href))"
-                                        :href="resolveHref(section.primary_href)"
-                                        :class="['public-button', 'public-button--primary', primaryButtonClass]"
-                                        rel="noopener noreferrer" target="_blank">
-                                        {{ section.primary_label }}
+                                <div class="flex flex-wrap gap-3">
+                                    <template v-if="section.primary_label">
+                                        <a
+                                            v-if="isExternalHref(resolveHref(section.primary_href))"
+                                            :href="resolveHref(section.primary_href)"
+                                            class="public-inline-link"
+                                            rel="noopener noreferrer"
+                                            target="_blank"
+                                        >
+                                            {{ section.primary_label }}
+                                        </a>
+                                        <Link
+                                            v-else
+                                            :href="resolveHref(section.primary_href)"
+                                            class="public-inline-link"
+                                        >
+                                            {{ section.primary_label }}
+                                        </Link>
+                                    </template>
+                                    <template v-if="section.secondary_label">
+                                        <a
+                                            v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                            :href="resolveHref(section.secondary_href)"
+                                            class="public-inline-link public-inline-link--muted"
+                                            rel="noopener noreferrer"
+                                            target="_blank"
+                                        >
+                                            {{ section.secondary_label }}
+                                        </a>
+                                        <Link
+                                            v-else
+                                            :href="resolveHref(section.secondary_href)"
+                                            class="public-inline-link public-inline-link--muted"
+                                        >
+                                            {{ section.secondary_label }}
+                                        </Link>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div v-if="section.image_url" class="public-media public-contact-media">
+                                <div class="public-media-card public-contact-map-card">
+                                    <img
+                                        :src="section.image_url"
+                                        :alt="section.image_alt || section.title"
+                                        class="h-full w-full rounded-sm object-cover"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
+                            </div>
+
+                            <div v-if="sectionHasContactAside(section)" class="public-contact-aside space-y-4 text-left">
+                                <div v-if="section.aside_kicker" class="public-kicker">{{ section.aside_kicker }}</div>
+                                <h3 v-if="section.aside_title" class="public-title text-2xl font-semibold">
+                                    {{ section.aside_title }}
+                                </h3>
+                                <div
+                                    v-if="section.aside_body"
+                                    class="public-rich text-sm sm:text-base"
+                                    v-html="section.aside_body"
+                                ></div>
+
+                                <ul v-if="section.aside_items?.length" class="space-y-2 text-sm">
+                                    <li
+                                        v-for="(item, itemIndex) in section.aside_items"
+                                        :key="`aside-${itemIndex}`"
+                                        class="public-bullet"
+                                    >
+                                        {{ item }}
+                                    </li>
+                                </ul>
+
+                                <template v-if="section.aside_link_label">
+                                    <a
+                                        v-if="isExternalHref(resolveHref(section.aside_link_href))"
+                                        :href="resolveHref(section.aside_link_href)"
+                                        class="public-inline-link"
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    >
+                                        {{ section.aside_link_label }}
                                     </a>
-                                    <Link v-else :href="resolveHref(section.primary_href)"
-                                        :class="['public-button', 'public-button--primary', primaryButtonClass]">
-                                        {{ section.primary_label }}
-                                    </Link>
-                                </template>
-                                <template v-if="section.secondary_label">
-                                    <a v-if="isExternalHref(resolveHref(section.secondary_href))"
-                                        :href="resolveHref(section.secondary_href)"
-                                        class="public-button public-button--secondary"
-                                        rel="noopener noreferrer" target="_blank">
-                                        {{ section.secondary_label }}
-                                    </a>
-                                    <Link v-else :href="resolveHref(section.secondary_href)"
-                                        class="public-button public-button--secondary">
-                                        {{ section.secondary_label }}
+                                    <Link
+                                        v-else
+                                        :href="resolveHref(section.aside_link_href)"
+                                        class="public-inline-link"
+                                    >
+                                        {{ section.aside_link_label }}
                                     </Link>
                                 </template>
                             </div>
-                        </div>
+                        </template>
 
-                        <div
-                            v-if="section.embed_url || section.image_url"
-                            :class="section.embed_url ? 'public-media public-media--embed' : 'public-media'"
-                        >
-                            <div v-if="section.embed_url" class="public-media-card public-media-card--embed overflow-hidden">
-                                <iframe
-                                    :src="sectionEmbedUrl(section)"
-                                    :title="sectionEmbedTitle(section)"
-                                    :ref="(element) => setEmbeddedFrameRef(resolveSectionKey(section, index), element)"
-                                    class="w-full border-0 bg-white"
-                                    :style="{ height: `${resolvedEmbedHeight(section, index)}px` }"
+                        <template v-else-if="section.layout === 'testimonial'">
+                            <div
+                                class="public-testimonial-card"
+                                :class="{ 'public-testimonial-card--image-left': section.image_position === 'left' }"
+                            >
+                                <div class="public-testimonial-panel">
+                                    <div class="public-testimonial-copy">
+                                        <div class="public-testimonial-mark" aria-hidden="true">
+                                            <svg viewBox="0 0 40 32" fill="none" class="h-8 w-10">
+                                                <path
+                                                    d="M17.6 0H6.4L0 12.8V32h17.6V14.4H8.8L17.6 0Z"
+                                                    fill="currentColor"
+                                                />
+                                                <path
+                                                    d="M40 0H28.8L22.4 12.8V32H40V14.4H31.2L40 0Z"
+                                                    fill="currentColor"
+                                                />
+                                            </svg>
+                                        </div>
+                                        <div v-if="section.kicker" class="public-kicker public-testimonial-kicker">{{ section.kicker }}</div>
+                                        <p v-if="section.title" class="public-testimonial-title">{{ section.title }}</p>
+                                        <div
+                                            v-else-if="section.body"
+                                            class="public-rich public-testimonial-title public-testimonial-title--rich"
+                                            v-html="section.body"
+                                        ></div>
+                                        <div
+                                            v-if="section.title && section.body"
+                                            class="public-rich public-testimonial-body"
+                                            v-html="section.body"
+                                        ></div>
+
+                                        <div v-if="sectionHasTestimonialMeta(section)" class="public-testimonial-meta">
+                                            <div v-if="section.testimonial_author" class="public-testimonial-author">
+                                                {{ section.testimonial_author }}
+                                            </div>
+                                            <div v-if="section.testimonial_role" class="public-testimonial-role">
+                                                {{ section.testimonial_role }}
+                                            </div>
+
+                                            <template v-if="section.secondary_label">
+                                                <a
+                                                    v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                                    :href="resolveHref(section.secondary_href)"
+                                                    class="public-testimonial-link"
+                                                    rel="noopener noreferrer"
+                                                    target="_blank"
+                                                >
+                                                    {{ section.secondary_label }}
+                                                </a>
+                                                <Link
+                                                    v-else
+                                                    :href="resolveHref(section.secondary_href)"
+                                                    class="public-testimonial-link"
+                                                >
+                                                    {{ section.secondary_label }}
+                                                </Link>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="public-testimonial-media"
+                                    :class="{ 'public-testimonial-media--empty': !section.image_url }"
+                                >
+                                    <img
+                                        v-if="section.image_url"
+                                        :src="section.image_url"
+                                        :alt="section.image_alt || section.title"
+                                        class="h-full w-full object-cover"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+
+                                    <template v-if="section.primary_label">
+                                        <a
+                                            v-if="isExternalHref(resolveHref(section.primary_href))"
+                                            :href="resolveHref(section.primary_href)"
+                                            class="public-testimonial-play"
+                                            rel="noopener noreferrer"
+                                            target="_blank"
+                                        >
+                                            <span class="public-testimonial-play__icon" aria-hidden="true">
+                                                <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4">
+                                                    <path d="M9 7.5v9l7-4.5-7-4.5Z" fill="currentColor" />
+                                                </svg>
+                                            </span>
+                                            <span>{{ section.primary_label }}</span>
+                                        </a>
+                                        <Link
+                                            v-else
+                                            :href="resolveHref(section.primary_href)"
+                                            class="public-testimonial-play"
+                                        >
+                                            <span class="public-testimonial-play__icon" aria-hidden="true">
+                                                <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4">
+                                                    <path d="M9 7.5v9l7-4.5-7-4.5Z" fill="currentColor" />
+                                                </svg>
+                                            </span>
+                                            <span>{{ section.primary_label }}</span>
+                                        </Link>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-else-if="section.layout === 'testimonial_grid'">
+                            <div class="public-testimonial-grid">
+                                <div
+                                    v-if="section.kicker || section.title || section.body || section.primary_label || section.secondary_label"
+                                    class="public-testimonial-grid__header"
+                                    :class="alignmentClass(section.alignment)"
+                                >
+                                    <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
+                                    <h2 v-if="section.title" class="public-testimonial-grid__title">{{ section.title }}</h2>
+                                    <div
+                                        v-if="section.body"
+                                        class="public-rich public-testimonial-grid__body"
+                                        v-html="section.body"
+                                    ></div>
+
+                                    <div v-if="section.primary_label || section.secondary_label" class="public-testimonial-grid__actions">
+                                        <template v-if="section.primary_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.primary_href))"
+                                                :href="resolveHref(section.primary_href)"
+                                                class="public-inline-link"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.primary_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.primary_href)"
+                                                class="public-inline-link"
+                                            >
+                                                {{ section.primary_label }}
+                                            </Link>
+                                        </template>
+
+                                        <template v-if="section.secondary_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                                :href="resolveHref(section.secondary_href)"
+                                                class="public-inline-link public-inline-link--muted"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.secondary_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.secondary_href)"
+                                                class="public-inline-link public-inline-link--muted"
+                                            >
+                                                {{ section.secondary_label }}
+                                            </Link>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div v-if="testimonialCardsForSection(section).length" class="public-testimonial-grid__cards">
+                                    <article
+                                        v-for="card in testimonialCardsForSection(section)"
+                                        :key="card.id"
+                                        class="public-testimonial-grid__card"
+                                    >
+                                        <div
+                                            v-if="card.quote"
+                                            class="public-rich public-testimonial-grid__quote"
+                                            v-html="card.quote"
+                                        ></div>
+
+                                        <div class="public-testimonial-grid__meta">
+                                            <div class="public-testimonial-grid__avatar" :class="{ 'is-empty': !card.image_url }">
+                                                <img
+                                                    v-if="card.image_url"
+                                                    :src="card.image_url"
+                                                    :alt="card.image_alt || card.author_name"
+                                                    class="h-full w-full object-cover"
+                                                    loading="lazy"
+                                                    decoding="async"
+                                                />
+                                                <span v-else>{{ testimonialCardInitials(card) }}</span>
+                                            </div>
+
+                                            <div class="public-testimonial-grid__person">
+                                                <div v-if="card.author_name" class="public-testimonial-grid__name">{{ card.author_name }}</div>
+                                                <div v-if="testimonialCardMetaLine(card)" class="public-testimonial-grid__role">
+                                                    {{ testimonialCardMetaLine(card) }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-else-if="section.layout === 'feature_pairs'">
+                            <div class="public-feature-pairs">
+                                <article class="public-feature-pairs__row">
+                                    <div
+                                        class="public-feature-pairs__media"
+                                        :class="{ 'public-feature-pairs__media--empty': !section.image_url }"
+                                    >
+                                        <img
+                                            v-if="section.image_url"
+                                            :src="section.image_url"
+                                            :alt="section.image_alt || section.title"
+                                            class="h-full w-full object-cover"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    </div>
+
+                                    <div class="public-feature-pairs__copy" :class="alignmentClass(section.alignment)">
+                                        <div v-if="section.kicker" class="public-feature-pairs__kicker">{{ section.kicker }}</div>
+                                        <h2 v-if="section.title" class="public-feature-pairs__title">{{ section.title }}</h2>
+                                        <div
+                                            v-if="section.body"
+                                            class="public-rich public-feature-pairs__body"
+                                            v-html="section.body"
+                                        ></div>
+
+                                        <ul v-if="section.items?.length" class="public-feature-pairs__list">
+                                            <li v-for="(item, itemIndex) in section.items" :key="itemIndex" class="public-bullet">
+                                                {{ item }}
+                                            </li>
+                                        </ul>
+
+                                        <div v-if="section.primary_label || section.secondary_label" class="flex flex-wrap gap-3">
+                                            <template v-if="section.primary_label">
+                                                <a
+                                                    v-if="isExternalHref(resolveHref(section.primary_href))"
+                                                    :href="resolveHref(section.primary_href)"
+                                                    class="public-feature-pairs__link"
+                                                    rel="noopener noreferrer"
+                                                    target="_blank"
+                                                >
+                                                    {{ section.primary_label }}
+                                                </a>
+                                                <Link
+                                                    v-else
+                                                    :href="resolveHref(section.primary_href)"
+                                                    class="public-feature-pairs__link"
+                                                >
+                                                    {{ section.primary_label }}
+                                                </Link>
+                                            </template>
+
+                                            <template v-if="section.secondary_label">
+                                                <a
+                                                    v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                                    :href="resolveHref(section.secondary_href)"
+                                                    class="public-feature-pairs__link public-feature-pairs__link--muted"
+                                                    rel="noopener noreferrer"
+                                                    target="_blank"
+                                                >
+                                                    {{ section.secondary_label }}
+                                                </a>
+                                                <Link
+                                                    v-else
+                                                    :href="resolveHref(section.secondary_href)"
+                                                    class="public-feature-pairs__link public-feature-pairs__link--muted"
+                                                >
+                                                    {{ section.secondary_label }}
+                                                </Link>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </article>
+
+                                <article v-if="sectionHasFeaturePairsAside(section)" class="public-feature-pairs__row public-feature-pairs__row--reverse">
+                                    <div class="public-feature-pairs__copy" :class="alignmentClass(section.alignment)">
+                                        <div v-if="section.aside_kicker" class="public-feature-pairs__kicker">{{ section.aside_kicker }}</div>
+                                        <h2 v-if="section.aside_title" class="public-feature-pairs__title">{{ section.aside_title }}</h2>
+                                        <div
+                                            v-if="section.aside_body"
+                                            class="public-rich public-feature-pairs__body"
+                                            v-html="section.aside_body"
+                                        ></div>
+
+                                        <ul v-if="section.aside_items?.length" class="public-feature-pairs__list">
+                                            <li v-for="(item, itemIndex) in section.aside_items" :key="`feature-aside-${itemIndex}`" class="public-bullet">
+                                                {{ item }}
+                                            </li>
+                                        </ul>
+
+                                        <template v-if="section.aside_link_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.aside_link_href))"
+                                                :href="resolveHref(section.aside_link_href)"
+                                                class="public-feature-pairs__link"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.aside_link_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.aside_link_href)"
+                                                class="public-feature-pairs__link"
+                                            >
+                                                {{ section.aside_link_label }}
+                                            </Link>
+                                        </template>
+                                    </div>
+
+                                    <div
+                                        class="public-feature-pairs__media"
+                                        :class="{ 'public-feature-pairs__media--empty': !section.aside_image_url }"
+                                    >
+                                        <img
+                                            v-if="section.aside_image_url"
+                                            :src="section.aside_image_url"
+                                            :alt="section.aside_image_alt || section.aside_title || section.title"
+                                            class="h-full w-full object-cover"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    </div>
+                                </article>
+                            </div>
+                        </template>
+
+                        <template v-else-if="section.layout === 'industry_grid'">
+                            <div class="public-industry-grid">
+                                <div v-if="section.kicker || section.title || section.body" class="public-industry-grid__header">
+                                    <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
+                                    <h2 v-if="section.title" class="public-industry-grid__title">{{ section.title }}</h2>
+                                    <div v-if="section.body" class="public-rich public-industry-grid__body" v-html="section.body"></div>
+                                </div>
+
+                                <div v-if="section.industry_cards?.length" class="public-industry-grid__cards">
+                                    <template v-for="card in section.industry_cards" :key="card.id || card.label">
+                                        <a
+                                            v-if="card.href && isExternalHref(resolveHref(card.href))"
+                                            :href="resolveHref(card.href)"
+                                            class="public-industry-grid__card"
+                                            rel="noopener noreferrer"
+                                            target="_blank"
+                                        >
+                                            <span class="public-industry-grid__icon" aria-hidden="true">
+                                                <component :is="resolveIndustryIconComponent(card)" class="h-full w-full" />
+                                            </span>
+                                            <span class="public-industry-grid__label">{{ card.label }}</span>
+                                        </a>
+                                        <Link
+                                            v-else-if="card.href"
+                                            :href="resolveHref(card.href)"
+                                            class="public-industry-grid__card"
+                                        >
+                                            <span class="public-industry-grid__icon" aria-hidden="true">
+                                                <component :is="resolveIndustryIconComponent(card)" class="h-full w-full" />
+                                            </span>
+                                            <span class="public-industry-grid__label">{{ card.label }}</span>
+                                        </Link>
+                                        <div v-else class="public-industry-grid__card">
+                                            <span class="public-industry-grid__icon" aria-hidden="true">
+                                                <component :is="resolveIndustryIconComponent(card)" class="h-full w-full" />
+                                            </span>
+                                            <span class="public-industry-grid__label">{{ card.label }}</span>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div v-if="section.primary_label" class="public-industry-grid__footer">
+                                    <a
+                                        v-if="section.primary_href && isExternalHref(resolveHref(section.primary_href))"
+                                        :href="resolveHref(section.primary_href)"
+                                        class="public-industry-grid__cta"
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    >
+                                        {{ section.primary_label }}
+                                    </a>
+                                    <Link
+                                        v-else-if="section.primary_href"
+                                        :href="resolveHref(section.primary_href)"
+                                        class="public-industry-grid__cta"
+                                    >
+                                        {{ section.primary_label }}
+                                    </Link>
+                                    <span v-else class="public-industry-grid__cta">
+                                        {{ section.primary_label }}
+                                    </span>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-else-if="section.layout === 'story_grid'">
+                            <div class="public-story-grid">
+                                <div
+                                    v-if="section.kicker || section.title || section.body || section.primary_label || section.secondary_label"
+                                    class="public-story-grid__header"
+                                    :class="alignmentClass(section.alignment)"
+                                >
+                                    <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
+                                    <h2 v-if="section.title" class="public-story-grid__title">{{ section.title }}</h2>
+                                    <div
+                                        v-if="section.body"
+                                        class="public-rich public-story-grid__body"
+                                        v-html="section.body"
+                                    ></div>
+
+                                    <div v-if="section.primary_label || section.secondary_label" class="public-story-grid__actions">
+                                        <template v-if="section.primary_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.primary_href))"
+                                                :href="resolveHref(section.primary_href)"
+                                                class="public-inline-link"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.primary_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.primary_href)"
+                                                class="public-inline-link"
+                                            >
+                                                {{ section.primary_label }}
+                                            </Link>
+                                        </template>
+
+                                        <template v-if="section.secondary_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                                :href="resolveHref(section.secondary_href)"
+                                                class="public-inline-link public-inline-link--muted"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.secondary_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.secondary_href)"
+                                                class="public-inline-link public-inline-link--muted"
+                                            >
+                                                {{ section.secondary_label }}
+                                            </Link>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div v-if="storyCardsForSection(section).length" class="public-story-grid__cards">
+                                    <article
+                                        v-for="card in storyCardsForSection(section)"
+                                        :key="card.id"
+                                        class="public-story-grid__card"
+                                    >
+                                        <div class="public-story-grid__visual" :class="{ 'public-story-grid__visual--empty': !card.image_url }">
+                                            <img
+                                                v-if="card.image_url"
+                                                :src="card.image_url"
+                                                :alt="card.image_alt || card.title || section.title"
+                                                class="public-story-grid__image"
+                                                loading="lazy"
+                                                decoding="async"
+                                            />
+                                        </div>
+
+                                        <div class="public-story-grid__copy" :class="alignmentClass(section.alignment)">
+                                            <h3 v-if="card.title" class="public-story-grid__card-title">{{ card.title }}</h3>
+                                            <div
+                                                v-if="card.body"
+                                                class="public-rich public-story-grid__card-body"
+                                                v-html="card.body"
+                                            ></div>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-else-if="section.layout === 'feature_tabs'">
+                            <FeatureTabsShowcaseSection v-if="featureTabsForSection(section).length" :section="section" />
+                        </template>
+
+                        <template v-else-if="section.layout === 'showcase_cta'">
+                            <div class="public-showcase-copy">
+                                <div class="public-showcase-copy-inner" :class="alignmentClass(section.alignment)">
+                                    <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
+                                    <h2 class="public-title public-showcase-title">{{ section.title }}</h2>
+                                    <div v-if="section.body" class="public-rich public-showcase-body" v-html="section.body"></div>
+
+                                    <div class="public-showcase-actions">
+                                        <template v-if="section.primary_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.primary_href))"
+                                                :href="resolveHref(section.primary_href)"
+                                                :class="['public-button', 'public-button--primary', primaryButtonClass]"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.primary_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.primary_href)"
+                                                :class="['public-button', 'public-button--primary', primaryButtonClass]"
+                                            >
+                                                {{ section.primary_label }}
+                                            </Link>
+                                        </template>
+
+                                        <template v-if="section.secondary_label">
+                                            <a
+                                                v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                                :href="resolveHref(section.secondary_href)"
+                                                class="public-button public-button--secondary"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.secondary_label }}
+                                            </a>
+                                            <Link
+                                                v-else
+                                                :href="resolveHref(section.secondary_href)"
+                                                class="public-button public-button--secondary"
+                                            >
+                                                {{ section.secondary_label }}
+                                            </Link>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                class="public-showcase-media"
+                                :class="{ 'public-showcase-media--media-left': section.image_position === 'left' }"
+                            >
+                                <div class="public-showcase-stage">
+                                    <div class="public-showcase-frame" :class="{ 'public-showcase-frame--empty': !section.image_url }">
+                                        <div class="public-showcase-browser">
+                                            <span class="public-showcase-browser-dot"></span>
+                                            <span class="public-showcase-browser-dot"></span>
+                                            <span class="public-showcase-browser-dot"></span>
+                                            <span class="public-showcase-browser-pill">
+                                                {{ section.image_alt || section.title || 'Platform preview' }}
+                                            </span>
+                                        </div>
+                                        <div class="public-showcase-screen">
+                                            <img
+                                                v-if="section.image_url"
+                                                :src="section.image_url"
+                                                :alt="section.image_alt || section.title"
+                                                loading="lazy"
+                                                decoding="async"
+                                            />
+                                        </div>
+
+                                        <template v-if="section.aside_link_label">
+                                            <a
+                                                v-if="section.aside_link_href && isExternalHref(resolveHref(section.aside_link_href))"
+                                                :href="resolveHref(section.aside_link_href)"
+                                                class="public-showcase-overlay"
+                                                rel="noopener noreferrer"
+                                                target="_blank"
+                                            >
+                                                {{ section.aside_link_label }}
+                                            </a>
+                                            <Link
+                                                v-else-if="section.aside_link_href"
+                                                :href="resolveHref(section.aside_link_href)"
+                                                class="public-showcase-overlay"
+                                            >
+                                                {{ section.aside_link_label }}
+                                            </Link>
+                                            <span v-else class="public-showcase-overlay">
+                                                {{ section.aside_link_label }}
+                                            </span>
+                                        </template>
+                                    </div>
+
+                                    <div v-if="sectionHasShowcaseBadge(section)" class="public-showcase-badge">
+                                        <span v-if="section.showcase_badge_label" class="public-showcase-badge__label">
+                                            {{ section.showcase_badge_label }}
+                                        </span>
+                                        <span v-if="section.showcase_badge_value" class="public-showcase-badge__value">
+                                            {{ section.showcase_badge_value }}
+                                        </span>
+                                        <span v-if="section.showcase_badge_note" class="public-showcase-badge__note">
+                                            {{ section.showcase_badge_note }}
+                                        </span>
+                                    </div>
+
+                                    <div v-if="section.aside_image_url" class="public-showcase-floating">
+                                        <img
+                                            :src="section.aside_image_url"
+                                            :alt="section.aside_image_alt || section.title"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-else-if="section.layout === 'duo'">
+                            <div
+                                class="public-duo-media"
+                                :class="{
+                                    'public-duo-media--empty': !section.image_url,
+                                    'public-duo-media--image-right': section.image_position === 'right',
+                                }"
+                            >
+                                <img
+                                    v-if="section.image_url"
+                                    :src="section.image_url"
+                                    :alt="section.image_alt || section.title"
+                                    class="h-full w-full object-cover"
                                     loading="lazy"
-                                    scrolling="no"
-                                    @load="handleEmbeddedFrameLoad(section, index, $event)"
+                                    decoding="async"
                                 />
                             </div>
-                            <div v-else class="public-media-card">
-                                <img :src="section.image_url" :alt="section.image_alt || section.title"
-                                    class="h-auto w-full rounded-sm object-cover" loading="lazy" decoding="async" />
+
+                            <div
+                                class="public-duo-panel"
+                                :class="{ 'public-duo-panel--image-right': section.image_position === 'right' }"
+                                :style="duoPanelStyle(section)"
+                            >
+                                <div class="public-duo-content public-duo-panel-inner" :class="alignmentClass(section.alignment)">
+                                    <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
+                                    <h2 class="public-title public-duo-title">{{ section.title }}</h2>
+                                    <div v-if="section.body" class="public-rich public-duo-body" v-html="section.body"></div>
+
+                                    <ul v-if="section.items?.length" class="space-y-2 text-sm">
+                                        <li v-for="(item, itemIndex) in section.items" :key="itemIndex" class="public-bullet">
+                                            {{ item }}
+                                        </li>
+                                    </ul>
+
+                                    <div class="flex flex-wrap gap-2">
+                                        <template v-if="section.primary_label">
+                                            <a v-if="isExternalHref(resolveHref(section.primary_href))"
+                                                :href="resolveHref(section.primary_href)"
+                                                :class="['public-button', 'public-button--primary', primaryButtonClass]"
+                                                rel="noopener noreferrer" target="_blank">
+                                                {{ section.primary_label }}
+                                            </a>
+                                            <Link v-else :href="resolveHref(section.primary_href)"
+                                                :class="['public-button', 'public-button--primary', primaryButtonClass]">
+                                                {{ section.primary_label }}
+                                            </Link>
+                                        </template>
+                                        <template v-if="section.secondary_label">
+                                            <a v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                                :href="resolveHref(section.secondary_href)"
+                                                class="public-button public-button--secondary"
+                                                rel="noopener noreferrer" target="_blank">
+                                                {{ section.secondary_label }}
+                                            </a>
+                                            <Link v-else :href="resolveHref(section.secondary_href)"
+                                                class="public-button public-button--secondary">
+                                                {{ section.secondary_label }}
+                                            </Link>
+                                        </template>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        </template>
+
+                        <template v-else>
+                            <div class="space-y-4" :class="alignmentClass(section.alignment)">
+                                <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
+                                <h2 class="public-title text-3xl font-semibold">{{ section.title }}</h2>
+                                <div v-if="section.body" class="public-rich text-sm sm:text-base"
+                                    v-html="section.body"></div>
+
+                                <ul v-if="section.items?.length" class="space-y-2 text-sm">
+                                    <li v-for="(item, itemIndex) in section.items" :key="itemIndex" class="public-bullet">
+                                        {{ item }}
+                                    </li>
+                                </ul>
+
+                                <div class="flex flex-wrap gap-2">
+                                    <template v-if="section.primary_label">
+                                        <a v-if="isExternalHref(resolveHref(section.primary_href))"
+                                            :href="resolveHref(section.primary_href)"
+                                            :class="['public-button', 'public-button--primary', primaryButtonClass]"
+                                            rel="noopener noreferrer" target="_blank">
+                                            {{ section.primary_label }}
+                                        </a>
+                                        <Link v-else :href="resolveHref(section.primary_href)"
+                                            :class="['public-button', 'public-button--primary', primaryButtonClass]">
+                                            {{ section.primary_label }}
+                                        </Link>
+                                    </template>
+                                    <template v-if="section.secondary_label">
+                                        <a v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                            :href="resolveHref(section.secondary_href)"
+                                            class="public-button public-button--secondary"
+                                            rel="noopener noreferrer" target="_blank">
+                                            {{ section.secondary_label }}
+                                        </a>
+                                        <Link v-else :href="resolveHref(section.secondary_href)"
+                                            class="public-button public-button--secondary">
+                                            {{ section.secondary_label }}
+                                        </Link>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div
+                                v-if="section.embed_url || section.image_url"
+                                :class="section.embed_url ? 'public-media public-media--embed' : 'public-media'"
+                            >
+                                <div v-if="section.embed_url" class="public-media-card public-media-card--embed overflow-hidden">
+                                    <iframe
+                                        :src="sectionEmbedUrl(section)"
+                                        :title="sectionEmbedTitle(section)"
+                                        :ref="(element) => setEmbeddedFrameRef(resolveSectionKey(section, index), element)"
+                                        class="w-full border-0 bg-white"
+                                        :style="{ height: `${resolvedEmbedHeight(section, index)}px` }"
+                                        loading="lazy"
+                                        scrolling="no"
+                                        @load="handleEmbeddedFrameLoad(section, index, $event)"
+                                    />
+                                </div>
+                                <div v-else class="public-media-card">
+                                    <img :src="section.image_url" :alt="section.image_alt || section.title"
+                                        class="h-auto w-full rounded-sm object-cover" loading="lazy" decoding="async" />
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
             </section>
         </main>
 
-        <footer class="public-footer">
-            <div class="public-container py-8 text-center text-xs">
-                <div class="flex flex-wrap items-center justify-center gap-4">
-                    <Link :href="route('welcome')" class="public-footer-link">
-                        {{ $t('public_pages.actions.home') }}
-                    </Link>
-                    <Link :href="route('pricing')" class="public-footer-link">
-                        {{ $t('legal.links.pricing') }}
-                    </Link>
-                    <Link :href="route('terms')" class="public-footer-link">
-                        {{ $t('legal.links.terms') }}
-                    </Link>
-                </div>
-                <div class="mt-2">{{ $t('welcome.footer.copy') }} {{ new Date().getFullYear() }}</div>
-            </div>
-        </footer>
+        <PublicFooterMenu :menu="footerMenu" :section="footerSection" />
     </div>
 </template>
 
 <style scoped>
-@import url('https://fonts.bunny.net/css?family=DM+Sans:400,500,600,700&family=Space+Grotesk:400,500,600,700&family=Sora:400,500,600,700&family=Work+Sans:400,500,600,700&display=swap');
+@import url('https://fonts.bunny.net/css?family=Cal+Sans:400&family=DM+Sans:400,500,600,700&family=Space+Grotesk:400,500,600,700&family=Sora:400,500,600,700&family=Work+Sans:400,500,600,700&display=swap');
 
 .public-page {
+    --public-shell-width: 88rem;
+    --public-shell-gutter: 1.25rem;
     min-height: 100vh;
     background: var(--page-bg, linear-gradient(180deg, #f8fafc 0%, #ffffff 40%, #ecfdf5 100%));
     color: var(--page-text, #0f172a);
@@ -617,21 +1647,40 @@ const headerMenuItems = computed(() => ([
 }
 
 .public-container {
-    width: min(1100px, 92vw);
+    width: min(var(--public-shell-width), 100%);
     margin-inline: auto;
+    padding-inline: var(--public-shell-gutter);
+}
+
+.public-hero-container {
+    width: min(var(--public-shell-width), 100%);
+    margin-inline: auto;
+    padding-inline: var(--public-shell-gutter);
 }
 
 .public-container--embed {
-    width: min(1100px, 92vw);
+    width: min(var(--public-shell-width), 100%);
 }
 
-.public-header {
-    background: var(--page-surface, #ffffff);
-    border-bottom: 1px solid var(--page-border, #e2e8f0);
-    backdrop-filter: blur(12px);
-    position: sticky;
-    top: 0;
-    z-index: 30;
+.public-container--duo {
+    width: 100%;
+    padding-inline: 0;
+}
+
+.public-container--feature-pairs {
+    width: min(var(--public-shell-width), 100%);
+}
+
+.public-container--industry-grid {
+    width: min(var(--public-shell-width), 100%);
+}
+
+.public-container--story-grid {
+    width: min(var(--public-shell-width), 100%);
+}
+
+.public-container--feature-tabs {
+    width: min(var(--public-shell-width), 100%);
 }
 
 .public-section {
@@ -660,6 +1709,35 @@ const headerMenuItems = computed(() => ([
 
 .public-block {
     border-top: 1px solid var(--page-border, rgba(226, 232, 240, 0.65));
+}
+
+.public-block--duo {
+    padding-block: 0;
+    border-top: 0;
+}
+
+.public-block--testimonial {
+    border-top: 0;
+}
+
+.public-block--feature-pairs {
+    border-top: 0;
+}
+
+.public-block--showcase-cta {
+    border-top: 0;
+}
+
+.public-block--industry-grid {
+    border-top: 0;
+}
+
+.public-block--story-grid {
+    border-top: 0;
+}
+
+.public-block--feature-tabs {
+    border-top: 0;
 }
 
 .public-title {
@@ -727,7 +1805,7 @@ const headerMenuItems = computed(() => ([
     display: inline-flex;
     align-items: center;
     padding: 0.35rem 0.75rem;
-    border-radius: 999px;
+    border-radius: 0.125rem;
     background: var(--page-primary-soft, rgba(16, 185, 129, 0.12));
     color: var(--page-primary, #065f46);
     font-size: 0.75rem;
@@ -750,9 +1828,1297 @@ const headerMenuItems = computed(() => ([
     background: var(--page-primary, #16a34a);
 }
 
+.public-contact-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+.public-testimonial-card {
+    display: grid;
+    grid-template-columns: 1fr;
+    overflow: hidden;
+    border-radius: var(--page-radius, 4px);
+    background: var(--page-surface, #ffffff);
+    box-shadow: 0 30px 70px -55px rgba(15, 23, 42, 0.45);
+}
+
+.public-testimonial-panel {
+    background: #ffffff;
+}
+
+.public-testimonial-copy {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    padding: clamp(2rem, 4vw, 3rem);
+}
+
+.public-testimonial-mark {
+    color: #ffcb05;
+}
+
+.public-testimonial-kicker {
+    margin-bottom: 1rem;
+}
+
+.public-testimonial-title {
+    margin: 1.5rem 0 1rem;
+    color: #23282b;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: 28px;
+    font-weight: 400;
+    line-height: 1.12;
+    letter-spacing: -0.03em;
+    width: 100%;
+    max-width: 100%;
+}
+
+.public-testimonial-title--rich {
+    margin: 1.5rem 0 1rem;
+}
+
+.public-testimonial-title--rich :deep(p),
+.public-testimonial-title--rich :deep(div) {
+    margin: 0;
+    color: #23282b;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: 28px;
+    font-weight: 400;
+    line-height: 1.12;
+    letter-spacing: -0.03em;
+    width: 100%;
+    max-width: 100%;
+}
+
+.public-testimonial-card .public-rich.public-testimonial-body {
+    margin-top: 1.25rem;
+    color: #4b5563;
+    font-size: 1rem;
+    line-height: 1.65;
+    max-width: 34rem;
+}
+
+.public-testimonial-body :deep(p),
+.public-testimonial-body :deep(div) {
+    margin: 0 0 1rem;
+}
+
+.public-testimonial-body :deep(p:last-child),
+.public-testimonial-body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-testimonial-meta {
+    margin-top: auto;
+    padding-top: clamp(2rem, 4vw, 4rem);
+}
+
+.public-testimonial-author {
+    color: #23282b;
+    font-size: 1.125rem;
+    font-weight: 700;
+}
+
+.public-testimonial-role {
+    margin-top: 0.2rem;
+    color: #4b5563;
+    font-size: 1rem;
+}
+
+.public-testimonial-link {
+    display: inline-flex;
+    margin-top: 0.95rem;
+    color: #23282b;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.public-testimonial-link::after {
+    content: '->';
+    margin-left: 0.35rem;
+    font-size: 0.85em;
+}
+
+.public-testimonial-link:hover {
+    color: var(--page-primary, #16a34a);
+}
+
+.public-testimonial-media {
+    position: relative;
+    min-height: clamp(20rem, 44vw, 28rem);
+    background: linear-gradient(135deg, rgba(148, 163, 184, 0.18), rgba(226, 232, 240, 0.75));
+}
+
+.public-testimonial-media--empty {
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 35%),
+        linear-gradient(135deg, rgba(254, 240, 138, 0.55), rgba(148, 163, 184, 0.18));
+}
+
+.public-testimonial-play {
+    position: absolute;
+    left: 1.25rem;
+    bottom: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-radius: var(--page-radius, 4px);
+    background: rgba(24, 24, 27, 0.66);
+    color: #ffffff;
+    padding: 0.55rem 1rem 0.55rem 0.55rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-decoration: none;
+    backdrop-filter: blur(8px);
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.public-testimonial-play:hover {
+    background: rgba(24, 24, 27, 0.78);
+    transform: translateY(-1px);
+}
+
+.public-testimonial-play__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--page-radius, 4px);
+    border: 1.5px solid rgba(255, 255, 255, 0.62);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.public-testimonial-grid-shell {
+    display: block;
+}
+
+.public-testimonial-grid {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2rem, 5vw, 3.1rem);
+}
+
+.public-testimonial-grid__header {
+    max-width: 58rem;
+    margin-inline: auto;
+}
+
+.public-testimonial-grid__header.text-left {
+    margin-inline: 0 auto;
+}
+
+.public-testimonial-grid__header.text-right {
+    margin-inline: auto 0;
+}
+
+.public-testimonial-grid__title {
+    margin: 0;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(2.15rem, 1.72rem + 1vw, 3.55rem);
+    line-height: 1.03;
+    letter-spacing: -0.05em;
+}
+
+.public-testimonial-grid__body {
+    margin-top: 1rem;
+    color: #334155;
+    font-size: 1rem;
+    line-height: 1.7;
+}
+
+.public-testimonial-grid__body :deep(p),
+.public-testimonial-grid__body :deep(div) {
+    margin: 0 0 1rem;
+}
+
+.public-testimonial-grid__body :deep(p:last-child),
+.public-testimonial-grid__body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-testimonial-grid__actions {
+    margin-top: 1.15rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.9rem 1.2rem;
+}
+
+.public-testimonial-grid__header.text-left .public-testimonial-grid__actions {
+    justify-content: flex-start;
+}
+
+.public-testimonial-grid__header.text-right .public-testimonial-grid__actions {
+    justify-content: flex-end;
+}
+
+.public-testimonial-grid__cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.1rem;
+}
+
+.public-testimonial-grid__card {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    padding: clamp(1.5rem, 3vw, 2rem);
+    border-radius: var(--page-radius, 4px);
+    background: #e9e2d6;
+    box-shadow: 0 24px 52px -42px rgba(15, 23, 42, 0.28);
+}
+
+.public-testimonial-grid__quote {
+    color: #082c45;
+    font-size: 1.04rem;
+    line-height: 1.72;
+}
+
+.public-testimonial-grid__quote :deep(p),
+.public-testimonial-grid__quote :deep(div) {
+    margin: 0 0 0.95rem;
+}
+
+.public-testimonial-grid__quote :deep(p:last-child),
+.public-testimonial-grid__quote :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-testimonial-grid__quote :deep(strong) {
+    font-weight: 800;
+}
+
+.public-testimonial-grid__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.95rem;
+    margin-top: auto;
+    padding-top: 1.6rem;
+}
+
+.public-testimonial-grid__avatar {
+    width: 3.7rem;
+    height: 3.7rem;
+    border-radius: 999px;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #d7d0c3;
+    color: #083a5c;
+    font-size: 1rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.public-testimonial-grid__avatar.is-empty {
+    border: 1px solid rgba(8, 58, 92, 0.08);
+}
+
+.public-testimonial-grid__person {
+    min-width: 0;
+}
+
+.public-testimonial-grid__name {
+    color: #082c45;
+    font-size: 1.08rem;
+    font-weight: 800;
+}
+
+.public-testimonial-grid__role {
+    margin-top: 0.15rem;
+    color: #0f3550;
+    font-size: 0.96rem;
+}
+
+.public-feature-pairs {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3rem, 8vw, 5.5rem);
+}
+
+.public-feature-pairs__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(1.5rem, 4vw, 4.5rem);
+    align-items: center;
+}
+
+.public-feature-pairs__media {
+    overflow: hidden;
+    min-height: clamp(14rem, 28vw, 19rem);
+    border-radius: var(--page-radius, 4px);
+    background: linear-gradient(135deg, rgba(191, 219, 254, 0.85), rgba(219, 234, 254, 0.55));
+    box-shadow: 0 22px 52px -40px rgba(15, 23, 42, 0.4);
+}
+
+.public-feature-pairs__media--empty {
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 38%),
+        linear-gradient(135deg, rgba(191, 219, 254, 0.85), rgba(226, 232, 240, 0.85));
+}
+
+.public-feature-pairs__copy {
+    min-width: 0;
+    max-width: 24rem;
+}
+
+.public-feature-pairs__copy.text-center {
+    margin-inline: auto;
+}
+
+.public-feature-pairs__copy.text-right {
+    margin-left: auto;
+}
+
+.public-feature-pairs__kicker {
+    margin-bottom: 0.7rem;
+    color: #2563eb;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.public-feature-pairs__title {
+    margin: 0 0 0.95rem;
+    color: #23282b;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(1.75rem, 1.45rem + 0.55vw, 2.1rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+}
+
+.public-feature-pairs__body {
+    color: #4b5563;
+    font-size: 0.96rem;
+    line-height: 1.6;
+}
+
+.public-feature-pairs__body :deep(p),
+.public-feature-pairs__body :deep(div) {
+    margin: 0 0 1rem;
+}
+
+.public-feature-pairs__body :deep(p:last-child),
+.public-feature-pairs__body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-feature-pairs__list {
+    margin-top: 1.1rem;
+    display: grid;
+    gap: 0.55rem;
+    color: #4b5563;
+    font-size: 0.94rem;
+}
+
+.public-feature-pairs__link {
+    display: inline-flex;
+    align-items: center;
+    color: #23282b;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.public-feature-pairs__link::after {
+    content: '\2197';
+    margin-left: 0.35rem;
+    font-size: 0.9em;
+}
+
+.public-feature-pairs__link:hover {
+    color: var(--page-primary, #2563eb);
+}
+
+.public-feature-pairs__link--muted {
+    color: var(--page-muted, #64748b);
+}
+
+.public-feature-tabs-shell {
+    display: block;
+}
+
+.public-feature-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2rem, 5vw, 3.25rem);
+}
+
+.public-feature-tabs__header {
+    max-width: 48rem;
+    margin-inline: auto;
+    text-align: center;
+}
+
+.public-feature-tabs__header .public-kicker {
+    margin-bottom: 1rem;
+}
+
+.public-feature-tabs__title {
+    margin: 0;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(2.1rem, 1.75rem + 0.9vw, 3.2rem);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+}
+
+.public-feature-tabs__body {
+    margin-top: 1rem;
+    color: #334155;
+    font-size: 1rem;
+    line-height: 1.65;
+}
+
+.public-feature-tabs__body :deep(p),
+.public-feature-tabs__body :deep(div) {
+    margin: 0 0 1rem;
+}
+
+.public-feature-tabs__body :deep(p:last-child),
+.public-feature-tabs__body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-feature-tabs__header-actions {
+    margin-top: 1.1rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.9rem 1.2rem;
+}
+
+.public-feature-tabs__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.public-feature-tabs__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.public-feature-tabs__nav-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+
+.public-feature-tabs__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    padding: 1rem 1.15rem;
+    border: 1px solid transparent;
+    border-radius: var(--page-radius, 4px);
+    background: #0b3446;
+    color: #ffffff;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: 1.15rem;
+    line-height: 1;
+    text-align: left;
+    box-shadow: 0 20px 42px -34px rgba(15, 23, 42, 0.45);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.public-feature-tabs__trigger:hover,
+.public-feature-tabs__trigger:focus-visible {
+    background: #0a2d3d;
+    transform: translateY(-1px);
+    box-shadow: 0 24px 48px -34px rgba(15, 23, 42, 0.52);
+}
+
+.public-feature-tabs__trigger.is-open {
+    background: #0a2d3d;
+    box-shadow: 0 24px 48px -34px rgba(15, 23, 42, 0.52);
+}
+
+.public-feature-tabs__trigger.is-current {
+    border-color: var(--page-primary-soft, #dcfce7);
+}
+
+.public-feature-tabs__trigger-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    min-width: 0;
+}
+
+.public-feature-tabs__trigger-label {
+    font-size: var(--feature-tabs-trigger-label-size, 1.15rem);
+    line-height: 1.05;
+    text-decoration-line: underline;
+    text-decoration-thickness: 0.22rem;
+    text-decoration-color: transparent;
+    text-underline-offset: 0.34rem;
+    transition: text-decoration-color 0.2s ease;
+}
+
+.public-feature-tabs__trigger.is-open .public-feature-tabs__trigger-label,
+.public-feature-tabs__trigger.is-current .public-feature-tabs__trigger-label {
+    text-decoration-color: var(--page-primary, #84cc16);
+}
+
+.public-feature-tabs__trigger-icon {
+    display: inline-flex;
+    width: 1.2rem;
+    height: 1.2rem;
+    color: var(--page-primary, #84cc16);
+    flex-shrink: 0;
+}
+
+.public-feature-tabs__trigger-icon :deep(svg) {
+    width: 100%;
+    height: 100%;
+}
+
+.public-feature-tabs__sublist {
+    display: grid;
+    gap: 0.8rem;
+    padding: 0 0 0.1rem 1.15rem;
+}
+
+.public-feature-tabs__sublist--static {
+    padding-right: 1.1rem;
+}
+
+.public-feature-tabs__subitem {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    border-radius: calc(var(--page-radius, 4px) - 1px);
+    text-align: left;
+    color: #0f172a;
+    font-size: 0.98rem;
+    line-height: 1.45;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.public-feature-tabs__subitem-label {
+    min-width: 0;
+}
+
+button.public-feature-tabs__subitem {
+    background: transparent;
+}
+
+button.public-feature-tabs__subitem:hover,
+button.public-feature-tabs__subitem:focus-visible {
+    color: #083a5c;
+    background: rgba(132, 204, 22, 0.12);
+    transform: translateX(2px);
+}
+
+button.public-feature-tabs__subitem.is-active {
+    color: #072b41;
+    background: var(--page-primary, #84cc16);
+    box-shadow: 0 16px 34px -28px rgba(132, 204, 22, 0.55);
+}
+
+ul .public-feature-tabs__subitem {
+    display: block;
+    padding: 0 0 0 1.45rem;
+}
+
+ul .public-feature-tabs__subitem::before {
+    content: '->';
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #0b3446;
+    font-weight: 700;
+}
+
+.public-feature-tabs__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.public-feature-tabs__panel-media {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+    min-height: clamp(16rem, 36vw, 26rem);
+    border-radius: var(--page-radius, 4px);
+    background: #d8e2ea;
+    box-shadow: 0 24px 56px -42px rgba(15, 23, 42, 0.38);
+}
+
+.public-feature-tabs__panel-image {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.public-feature-tabs__panel-media--empty {
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 35%),
+        linear-gradient(135deg, rgba(216, 226, 234, 0.95), rgba(191, 219, 254, 0.82));
+}
+
+.public-feature-tabs__panel-copy {
+    max-width: 32rem;
+}
+
+.public-feature-tabs__panel-title {
+    margin: 0;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(1.7rem, 1.48rem + 0.55vw, 2.2rem);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+}
+
+.public-feature-tabs__panel-body {
+    margin-top: 0.9rem;
+    color: #334155;
+    font-size: 0.98rem;
+    line-height: 1.65;
+}
+
+.public-feature-tabs__panel-body :deep(p),
+.public-feature-tabs__panel-body :deep(div) {
+    margin: 0 0 1rem;
+}
+
+.public-feature-tabs__panel-body :deep(p:last-child),
+.public-feature-tabs__panel-body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-feature-tabs__panel-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-top: 1.2rem;
+    padding: 0.7rem 1rem;
+    border: 1px solid #0b3446;
+    color: #0b3446;
+    font-size: 0.92rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.public-feature-tabs__panel-link:hover {
+    background: #0b3446;
+    color: #ffffff;
+}
+
+.public-industry-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    text-align: center;
+}
+
+.public-industry-grid__header {
+    max-width: 60rem;
+    margin-inline: auto;
+}
+
+.public-industry-grid__header .public-kicker {
+    margin-bottom: 1rem;
+}
+
+.public-industry-grid__title {
+    margin: 0;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(2.25rem, 1.95rem + 1vw, 3.55rem);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+}
+
+.public-industry-grid__body {
+    margin-top: 1rem;
+    color: #4b5563;
+    font-size: 1rem;
+    line-height: 1.65;
+}
+
+.public-industry-grid__body :deep(p),
+.public-industry-grid__body :deep(div) {
+    margin: 0 0 1rem;
+}
+
+.public-industry-grid__body :deep(p:last-child),
+.public-industry-grid__body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-industry-grid__cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+}
+
+.public-industry-grid__card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.4rem;
+    min-height: 6rem;
+    padding: 1.2rem 1rem 1rem;
+    border-radius: var(--page-radius, 4px);
+    border: 1px solid rgba(15, 23, 42, 0.05);
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 35%),
+        rgba(255, 255, 255, 0.68);
+    color: #083a5c;
+    text-decoration: none;
+    text-align: left;
+    box-shadow: 0 20px 50px -42px rgba(15, 23, 42, 0.28);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.public-industry-grid__card:hover,
+.public-industry-grid__card:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 24px 60px -42px rgba(15, 23, 42, 0.35);
+    border-color: rgba(8, 58, 92, 0.16);
+}
+
+.public-industry-grid__icon {
+    display: inline-flex;
+    width: 1.75rem;
+    height: 1.75rem;
+    color: #083a5c;
+    transition: color 0.2s ease;
+}
+
+.public-industry-grid__icon :deep(svg) {
+    width: 100%;
+    height: 100%;
+}
+
+.public-industry-grid__label {
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: 1.1rem;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+}
+
+.public-industry-grid__card:hover .public-industry-grid__icon,
+.public-industry-grid__card:focus-visible .public-industry-grid__icon {
+    color: var(--page-primary, #16a34a);
+}
+
+.public-industry-grid__footer {
+    display: flex;
+    justify-content: center;
+}
+
+.public-industry-grid__cta {
+    display: inline-flex;
+    align-items: center;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: 1.25rem;
+    text-decoration: none;
+}
+
+.public-industry-grid__cta::after {
+    content: '->';
+    margin-left: 0.45rem;
+    font-size: 0.9em;
+}
+
+.public-industry-grid__cta:hover {
+    color: var(--page-primary, #16a34a);
+}
+
+.public-story-grid-shell {
+    display: block;
+}
+
+.public-story-grid {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2rem, 4vw, 3rem);
+}
+
+.public-story-grid__header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    max-width: 56rem;
+    margin-inline: auto;
+}
+
+.public-story-grid__header.text-left {
+    align-items: flex-start;
+    margin-inline: 0;
+}
+
+.public-story-grid__header.text-right {
+    align-items: flex-end;
+    margin-inline: auto 0;
+}
+
+.public-story-grid__header.text-center {
+    align-items: center;
+}
+
+.public-story-grid__title {
+    margin: 0;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(2rem, 1.55rem + 1.2vw, 3.25rem);
+    line-height: 1.03;
+    letter-spacing: -0.045em;
+}
+
+.public-story-grid__body {
+    max-width: 46rem;
+    font-size: 1.02rem;
+    line-height: 1.75;
+}
+
+.public-story-grid__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.public-story-grid__header.text-center .public-story-grid__actions {
+    justify-content: center;
+}
+
+.public-story-grid__header.text-right .public-story-grid__actions {
+    justify-content: flex-end;
+}
+
+.public-story-grid__cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+}
+
+.public-story-grid__card {
+    display: grid;
+    gap: 1.25rem;
+    min-width: 0;
+}
+
+.public-story-grid__visual {
+    position: relative;
+    overflow: hidden;
+    min-height: clamp(15rem, 30vw, 18.75rem);
+    padding: clamp(0.9rem, 1.6vw, 1.15rem);
+    border-radius: calc(var(--page-radius, 4px) + 10px);
+    border: 1px solid rgba(8, 58, 92, 0.08);
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0) 44%),
+        linear-gradient(180deg, rgba(255, 251, 245, 0.96) 0%, rgba(243, 236, 225, 0.92) 100%);
+    box-shadow: 0 28px 68px -50px rgba(15, 23, 42, 0.38);
+}
+
+.public-story-grid__visual::before {
+    content: '';
+    position: absolute;
+    inset: auto 14% -1rem 14%;
+    height: 1.9rem;
+    border-radius: 999px;
+    background: rgba(8, 58, 92, 0.16);
+    filter: blur(18px);
+    opacity: 0.28;
+}
+
+.public-story-grid__card:nth-child(2) .public-story-grid__visual {
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0) 44%),
+        linear-gradient(180deg, rgba(249, 250, 251, 0.96) 0%, rgba(231, 240, 243, 0.9) 100%);
+}
+
+.public-story-grid__card:nth-child(3) .public-story-grid__visual {
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0) 44%),
+        linear-gradient(180deg, rgba(255, 248, 242, 0.96) 0%, rgba(244, 231, 219, 0.92) 100%);
+}
+
+.public-story-grid__visual--empty {
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 42%),
+        linear-gradient(135deg, rgba(220, 252, 231, 0.7), rgba(226, 232, 240, 0.85));
+}
+
+.public-story-grid__image {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: calc(var(--page-radius, 4px) + 6px);
+}
+
+.public-story-grid__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.public-story-grid__copy.text-center {
+    align-items: center;
+}
+
+.public-story-grid__copy.text-right {
+    align-items: flex-end;
+}
+
+.public-story-grid__card-title {
+    margin: 0;
+    color: #083a5c;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(1.45rem, 1.2rem + 0.45vw, 1.85rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+}
+
+.public-story-grid__card-body {
+    max-width: 22rem;
+    font-size: 1rem;
+    line-height: 1.72;
+}
+
+.public-story-grid__card-body :deep(p),
+.public-story-grid__card-body :deep(div) {
+    margin: 0;
+}
+
+.public-duo-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    overflow: hidden;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.public-duo-media {
+    min-height: clamp(18rem, 45vw, 34rem);
+    background: linear-gradient(135deg, rgba(148, 163, 184, 0.18), rgba(226, 232, 240, 0.75));
+}
+
+.public-duo-media--empty {
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 35%),
+        linear-gradient(135deg, var(--page-primary-soft, #dcfce7), rgba(148, 163, 184, 0.26));
+}
+
+.public-duo-panel {
+    display: flex;
+    align-items: center;
+    min-height: 100%;
+    padding:
+        clamp(2rem, 5vw, 4rem)
+        max(var(--public-shell-gutter), calc((100vw - min(var(--public-shell-width), 100vw)) / 2 + var(--public-shell-gutter)))
+        clamp(2rem, 5vw, 4rem)
+        clamp(1.5rem, 4vw, 3rem);
+    background: var(--page-surface, #ffffff);
+}
+
+.public-duo-panel--image-right {
+    padding:
+        clamp(2rem, 5vw, 4rem)
+        clamp(1.5rem, 4vw, 3rem)
+        clamp(2rem, 5vw, 4rem)
+        max(var(--public-shell-gutter), calc((100vw - min(var(--public-shell-width), 100vw)) / 2 + var(--public-shell-gutter)));
+}
+
+.public-duo-panel-inner {
+    width: min(100%, 32rem);
+}
+
+.public-duo-content > * {
+    margin: 0;
+}
+
+.public-duo-content > .public-kicker {
+    margin-bottom: 1rem;
+}
+
+.public-duo-title {
+    margin-bottom: 1.5rem;
+    color: #23282b;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(2.125rem, 1.75rem + 1vw, 2.625rem);
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+}
+
+.public-duo-body {
+    margin-bottom: 1rem;
+    color: #23282b;
+    font-family: 'Google Sans Flex', 'DM Sans', var(--page-font-body, 'Work Sans', sans-serif);
+    font-size: clamp(1.05rem, 0.95rem + 0.35vw, 1.25rem);
+    line-height: 1.55;
+}
+
+.public-duo-body :deep(p),
+.public-duo-body :deep(div) {
+    margin: 0 0 1rem;
+}
+
+.public-duo-body :deep(p:last-child),
+.public-duo-body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-duo-content > ul {
+    margin-bottom: 1.5rem;
+}
+
+.public-tone--contrast .public-duo-title {
+    color: var(--page-primary-contrast, #ffffff);
+}
+
+.public-tone--contrast .public-duo-body {
+    color: var(--page-primary-contrast, #e2e8f0);
+}
+
+.public-showcase-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: center;
+}
+
+.public-showcase-copy-inner {
+    width: min(100%, 33rem);
+}
+
+.public-showcase-title {
+    margin: 0;
+    color: #f8fafc;
+    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: clamp(2.45rem, 2rem + 1.6vw, 4.6rem);
+    line-height: 0.98;
+    letter-spacing: -0.055em;
+}
+
+.public-showcase-copy .public-kicker {
+    margin-bottom: 1rem;
+}
+
+.public-showcase-body {
+    margin-top: 1.75rem;
+    max-width: 34rem;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: clamp(1rem, 0.95rem + 0.3vw, 1.28rem);
+    line-height: 1.62;
+}
+
+.public-showcase-body :deep(p),
+.public-showcase-body :deep(div) {
+    margin: 0 0 1rem;
+}
+
+.public-showcase-body :deep(p:last-child),
+.public-showcase-body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.public-showcase-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 2rem;
+}
+
+.public-showcase-media {
+    position: relative;
+}
+
+.public-showcase-stage {
+    position: relative;
+    width: min(100%, 42rem);
+    margin-inline: auto;
+    padding: clamp(1rem, 2vw, 1.5rem) 0 clamp(2rem, 4vw, 3.75rem);
+}
+
+.public-showcase-frame {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 2px solid rgba(255, 255, 255, 0.18);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
+        rgba(15, 23, 42, 0.46);
+    box-shadow:
+        0 36px 70px -36px rgba(0, 0, 0, 0.7),
+        0 24px 36px -24px rgba(15, 23, 42, 0.65);
+}
+
+.public-showcase-frame--empty .public-showcase-screen {
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 26%),
+        linear-gradient(135deg, rgba(250, 204, 21, 0.28), rgba(59, 130, 246, 0.22));
+}
+
+.public-showcase-browser {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.9rem 1rem;
+    background: rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.public-showcase-browser-dot {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.public-showcase-browser-pill {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    margin-left: 0.35rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    color: rgba(248, 250, 252, 0.9);
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.public-showcase-screen {
+    aspect-ratio: 1.28 / 1;
+    background: rgba(15, 23, 42, 0.18);
+}
+
+.public-showcase-screen img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.public-showcase-overlay {
+    position: absolute;
+    left: 50%;
+    top: 52%;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.15rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.68);
+    color: #f8fafc;
+    font-size: 0.98rem;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+    transform: translate(-50%, -50%);
+    box-shadow: 0 16px 36px -22px rgba(15, 23, 42, 0.75);
+}
+
+.public-showcase-overlay::before {
+    content: '>';
+    display: inline-grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08)),
+        rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+    font-size: 0.78rem;
+    line-height: 1;
+}
+
+.public-showcase-floating {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: clamp(9rem, 26vw, 12.5rem);
+    overflow: hidden;
+    border-radius: 1.55rem;
+    border: 4px solid rgba(255, 255, 255, 0.92);
+    background: #ffffff;
+    box-shadow: 0 26px 42px -26px rgba(0, 0, 0, 0.75);
+}
+
+.public-showcase-floating img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 9 / 18;
+    object-fit: cover;
+}
+
+.public-showcase-badge {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    display: grid;
+    gap: 0.18rem;
+    place-items: center;
+    width: clamp(7.75rem, 20vw, 9.75rem);
+    aspect-ratio: 1 / 1;
+    padding: 1rem;
+    border-radius: 999px;
+    background:
+        radial-gradient(circle at center, #163a6e 0, #163a6e 58%, #d8c15c 59%, #d8c15c 100%);
+    color: #f8fafc;
+    text-align: center;
+    box-shadow: 0 24px 38px -28px rgba(0, 0, 0, 0.72);
+}
+
+.public-showcase-badge__label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.public-showcase-badge__value {
+    font-size: clamp(1.4rem, 1.05rem + 0.8vw, 2rem);
+    font-weight: 700;
+    line-height: 1;
+}
+
+.public-showcase-badge__note {
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+
 .public-media {
     display: flex;
     justify-content: center;
+}
+
+.public-contact-media {
+    justify-content: stretch;
 }
 
 .public-media--embed {
@@ -777,72 +3143,17 @@ const headerMenuItems = computed(() => ([
     display: block;
 }
 
-.public-footer {
-    background: var(--page-surface, #ffffff);
-    border-top: 1px solid var(--page-border, #e2e8f0);
-    color: var(--page-muted, #64748b);
-}
-
-.public-footer-link {
-    transition: color 0.2s ease;
-}
-
-.public-footer-link:hover {
-    color: var(--page-text, #0f172a);
-}
-
-.public-lang {
-    position: relative;
-}
-
-.public-lang__toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: var(--page-radius, 0.125rem);
-    border: 1px solid var(--page-border, #e2e8f0);
-    background: var(--page-surface, #ffffff);
-    color: var(--page-text, #0f172a);
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.public-lang__chevron {
-    transition: transform 0.2s ease;
-}
-
-.public-lang__menu {
-    position: absolute;
-    right: 0;
-    margin-top: 0.35rem;
-    min-width: 10.5rem;
-    padding: 0.4rem;
-    border-radius: var(--page-radius, 0.125rem);
-    border: 1px solid var(--page-border, #e2e8f0);
-    background: var(--page-surface, #ffffff);
-    box-shadow: 0 16px 36px -24px rgba(15, 23, 42, 0.6);
-    z-index: 40;
-}
-
-.public-lang__item {
+.public-contact-map-card {
     width: 100%;
-    padding: 0.45rem 0.75rem;
-    border-radius: var(--page-radius, 0.125rem);
-    text-align: left;
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--page-text, #0f172a);
-    transition: background 0.2s ease, color 0.2s ease;
+    padding: 0.75rem;
 }
 
-.public-lang__item:hover {
-    background: rgba(148, 163, 184, 0.15);
+.public-contact-map-card img {
+    aspect-ratio: 1 / 1;
 }
 
-.public-lang__item.is-active {
-    background: var(--page-primary, #16a34a);
-    color: var(--page-primary-contrast, #ffffff);
+.public-contact-aside {
+    min-width: 0;
 }
 
 .public-button {
@@ -908,5 +3219,121 @@ const headerMenuItems = computed(() => ([
 
 .public-button--secondary:hover {
     background: rgba(148, 163, 184, 0.12);
+}
+
+.public-inline-link {
+    color: var(--page-text, #0f172a);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.public-inline-link::after {
+    content: '->';
+    margin-left: 0.35rem;
+    font-size: 0.85em;
+}
+
+.public-inline-link:hover {
+    color: var(--page-primary, #16a34a);
+}
+
+.public-inline-link--muted {
+    color: var(--page-muted, #64748b);
+}
+
+@media (min-width: 1024px) {
+    .public-industry-grid__cards {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .public-story-grid__cards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 2rem;
+    }
+
+    .public-contact-grid {
+        grid-template-columns: minmax(0, 0.9fr) minmax(300px, 1fr) minmax(0, 0.95fr);
+        gap: 2.5rem;
+    }
+
+    .public-testimonial-card {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        min-height: 24.5rem;
+    }
+
+    .public-testimonial-card--image-left .public-testimonial-media {
+        order: -1;
+    }
+
+    .public-feature-pairs__row {
+        grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.88fr);
+    }
+
+    .public-feature-pairs__row--reverse {
+        grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.02fr);
+    }
+
+    .public-testimonial-grid__cards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .public-showcase-grid {
+        grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+    }
+
+    .public-showcase-media--media-left {
+        order: -1;
+    }
+
+    .public-feature-tabs__grid {
+        grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
+        gap: 2rem;
+    }
+
+    .public-duo-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .public-duo-media--image-right {
+        order: 2;
+    }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+    .public-industry-grid__cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .public-story-grid__cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .public-testimonial-grid__cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 639px) {
+    .public-showcase-stage {
+        padding-bottom: 1.5rem;
+    }
+
+    .public-showcase-overlay {
+        width: max-content;
+        max-width: calc(100% - 2rem);
+        padding-inline: 0.95rem;
+        font-size: 0.88rem;
+    }
+
+    .public-showcase-floating {
+        width: 7.6rem;
+    }
+
+    .public-showcase-badge {
+        width: 6.8rem;
+        padding: 0.75rem;
+    }
 }
 </style>

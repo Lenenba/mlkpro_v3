@@ -1,7 +1,7 @@
 # Speech detaille - Module Invoices / Paiements (35 minutes)
 
 ## Objectif de cette version
-Ce document sert a presenter le module factures/paiements de MLK Pro de maniere complete:
+Ce document sert a presenter le module factures/paiements de Malikia pro de maniere complete:
 - pilotage des factures ouvertes et du cash encaisse
 - lecture detaillee d une facture et de ses lignes
 - paiement interne, paiement client, paiement Stripe
@@ -354,7 +354,7 @@ La policy paiement est centralisee et appliquee partout.
 3. paiement encaisse
 4. job cloture
 
-Ce qui fait la difference dans MLK Pro:
+Ce qui fait la difference dans Malikia pro:
 - suivi temps reel du solde
 - paiements partiels fiables
 - flux cash pending robuste

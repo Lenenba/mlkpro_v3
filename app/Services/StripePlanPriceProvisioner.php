@@ -14,12 +14,19 @@ use Stripe\StripeClient;
 
 class StripePlanPriceProvisioner
 {
+    public const SOLO_PLAN_CODES = [
+        'solo_essential',
+        'solo_pro',
+        'solo_growth',
+    ];
+
     public function execute(array $options = []): array
     {
         $options = array_merge([
             'dry_run' => false,
             'live' => false,
             'plans' => [],
+            'solo_only' => false,
             'currencies' => [],
             'write_env' => null,
             'sync_db' => false,
@@ -36,7 +43,7 @@ class StripePlanPriceProvisioner
         }
 
         $client = new StripeClient($secret);
-        $catalog = $this->resolveCatalog($options['plans'], $options['currencies']);
+        $catalog = $this->resolveCatalog($options['plans'], (bool) $options['solo_only'], $options['currencies']);
 
         $resolved = [];
         $resolvedPlanPrices = [];
@@ -177,9 +184,40 @@ class StripePlanPriceProvisioner
         ];
     }
 
-    private function resolveCatalog(array $selectedPlans, array $selectedCurrencies): array
+    public function resolveSelectedPlanCodes(array $selectedPlans, bool $soloOnly = false): array
+    {
+        $expanded = [];
+
+        if ($soloOnly) {
+            $expanded = [...self::SOLO_PLAN_CODES];
+        }
+
+        foreach ($selectedPlans as $selectedPlan) {
+            if (! is_string($selectedPlan)) {
+                continue;
+            }
+
+            $normalized = trim(strtolower($selectedPlan));
+            if ($normalized === '') {
+                continue;
+            }
+
+            if ($normalized === 'solo') {
+                $expanded = [...$expanded, ...self::SOLO_PLAN_CODES];
+
+                continue;
+            }
+
+            $expanded[] = $normalized;
+        }
+
+        return array_values(array_unique($expanded));
+    }
+
+    private function resolveCatalog(array $selectedPlans, bool $soloOnly, array $selectedCurrencies): array
     {
         $defaults = (array) config('billing.catalog_defaults', []);
+        $resolvedPlanCodes = $this->resolveSelectedPlanCodes($selectedPlans, $soloOnly);
 
         $catalog = [];
 
@@ -188,7 +226,7 @@ class StripePlanPriceProvisioner
                 continue;
             }
 
-            if ($selectedPlans !== [] && ! in_array($planCode, $selectedPlans, true)) {
+            if ($resolvedPlanCodes !== [] && ! in_array($planCode, $resolvedPlanCodes, true)) {
                 continue;
             }
 

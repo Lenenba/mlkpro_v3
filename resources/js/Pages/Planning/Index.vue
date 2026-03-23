@@ -65,9 +65,13 @@ const props = defineProps({
 const { t } = useI18n();
 const page = usePage();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
+const hasTeamMembersFeature = computed(() => Boolean(page.props.auth?.account?.features?.team_members));
+const ownerOnlyPlanningMode = computed(() => !hasTeamMembersFeature.value);
 const isServiceCompany = computed(() => companyType.value !== 'products');
 const subtitleLabel = computed(() =>
-    isServiceCompany.value ? t('planning.subtitle_services') : t('planning.subtitle')
+    ownerOnlyPlanningMode.value
+        ? (isServiceCompany.value ? t('planning.subtitle_owner_only_services') : t('planning.subtitle_owner_only'))
+        : (isServiceCompany.value ? t('planning.subtitle_services') : t('planning.subtitle'))
 );
 const loadingLabel = computed(() =>
     isServiceCompany.value ? t('planning.filters.loading_services') : t('planning.filters.loading')
@@ -79,10 +83,17 @@ const previewEmptyLabel = computed(() =>
     isServiceCompany.value ? t('planning.preview.empty_services') : t('planning.preview.empty')
 );
 const lockedTitle = computed(() =>
-    isServiceCompany.value ? t('planning.empty_services.title') : t('planning.empty.title')
+    ownerOnlyPlanningMode.value
+        ? (isServiceCompany.value ? t('planning.empty_owner_only_services.title') : t('planning.empty_owner_only.title'))
+        : (isServiceCompany.value ? t('planning.empty_services.title') : t('planning.empty.title'))
 );
 const lockedDescription = computed(() =>
-    isServiceCompany.value ? t('planning.empty_services.description') : t('planning.empty.description')
+    ownerOnlyPlanningMode.value
+        ? (isServiceCompany.value ? t('planning.empty_owner_only_services.description') : t('planning.empty_owner_only.description'))
+        : (isServiceCompany.value ? t('planning.empty_services.description') : t('planning.empty.description'))
+);
+const panelTitle = computed(() =>
+    ownerOnlyPlanningMode.value ? t('planning.owner_only.panel_title') : formTitle.value
 );
 const yearCountLabel = (count) =>
     isServiceCompany.value
@@ -151,11 +162,17 @@ const selectedShift = ref(null);
 const dragState = ref(null);
 
 const canCreate = computed(() => {
+    if (ownerOnlyPlanningMode.value) {
+        return false;
+    }
     if (props.canManage) {
         return (props.teamMembers || []).length > 0;
     }
     return Boolean(props.selfTeamMemberId);
 });
+const showMemberFilters = computed(() => hasTeamMembersFeature.value && (props.teamMembers || []).length > 0);
+const showPendingRequestsPanel = computed(() => props.canApproveTimeOff && !ownerOnlyPlanningMode.value);
+const showTimeOffOverview = computed(() => props.canApproveTimeOff && !ownerOnlyPlanningMode.value);
 
 const isTimeOffKind = computed(() => ['absence', 'leave'].includes(form.kind));
 const isTimeOffHours = computed(() => isTimeOffKind.value && timeOffMode.value === 'hours');
@@ -1549,7 +1566,7 @@ onBeforeUnmount(() => {
             <div class="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_320px]">
                 <aside class="space-y-4">
                     <div
-                        v-if="props.canApproveTimeOff"
+                        v-if="showTimeOffOverview"
                         class="rounded-xl border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
                     >
                         <div class="flex items-center justify-between gap-2">
@@ -1658,7 +1675,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div
-                        v-if="props.canApproveTimeOff"
+                        v-if="showPendingRequestsPanel"
                         class="rounded-xl border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
                     >
                         <div class="flex items-center justify-between gap-2">
@@ -1710,9 +1727,9 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <div class="rounded-xl border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                    <div v-if="showMemberFilters" class="rounded-xl border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                         <div class="text-xs font-semibold text-stone-600 dark:text-neutral-300">
-                            Calendars
+                            {{ t('planning.filters.title') }}
                         </div>
                         <div class="mt-2 space-y-2">
                             <label class="flex items-center gap-2 text-xs text-stone-700 dark:text-neutral-200">
@@ -1745,13 +1762,15 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
 
-                        <button
-                            v-if="props.canManage"
-                            type="button"
-                            class="mt-4 w-full rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
-                        >
-                            Invite people
-                        </button>
+                    </div>
+
+                    <div v-else-if="ownerOnlyPlanningMode" class="rounded-xl border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                        <div class="text-xs font-semibold text-stone-600 dark:text-neutral-300">
+                            {{ t('planning.owner_only.badge') }}
+                        </div>
+                        <p class="mt-2 text-xs leading-5 text-stone-500 dark:text-neutral-400">
+                            {{ t('planning.owner_only.panel_description') }}
+                        </p>
                     </div>
                 </aside>
 
@@ -1795,14 +1814,15 @@ onBeforeUnmount(() => {
                                     :class="viewMode === 'year' ? 'bg-white text-stone-900 shadow-sm dark:bg-neutral-800 dark:text-white' : ''"
                                     @click="setViewMode('year')"
                                 >
-                                    Year
+                                    {{ t('planning.calendar.year') }}
                                 </button>
                             </div>
                             <button
+                                v-if="canCreate"
                                 type="button"
                                 class="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600 text-white shadow-sm transition hover:bg-emerald-700"
                                 @click="scrollToForm"
-                                aria-label="Add shift"
+                                :aria-label="t('planning.form.scroll_to_form')"
                             >
                                 <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
                             </button>
@@ -1886,7 +1906,7 @@ onBeforeUnmount(() => {
                                             class="text-[11px] text-stone-500 hover:text-stone-700 dark:text-neutral-400"
                                             @click="openDayView(day.date)"
                                         >
-                                            {{ getDayEvents(day.key).length - 2 }} more
+                                            {{ t('planning.preview.more', { count: getDayEvents(day.key).length - 2 }) }}
                                         </button>
                                     </div>
                                 </div>
@@ -1954,11 +1974,12 @@ onBeforeUnmount(() => {
                                     {{ selectedDate.format('dddd, MMMM D, YYYY') }}
                                 </div>
                                 <button
+                                    v-if="canCreate"
                                     type="button"
                                     class="rounded-md border border-stone-200 px-2 py-1 text-xs text-stone-500 hover:bg-stone-50 dark:border-neutral-800 dark:text-neutral-300"
                                     @click="setShiftDate(selectedDate.format('YYYY-MM-DD'))"
                                 >
-                                    Set shift date
+                                    {{ t('planning.form.use_selected_day') }}
                                 </button>
                             </div>
                             <div
@@ -2060,7 +2081,7 @@ onBeforeUnmount(() => {
                 </section>
 
                 <Card id="planning-shift-form" class="xl:sticky xl:top-24">
-                    <template #title>{{ formTitle }}</template>
+                    <template #title>{{ panelTitle }}</template>
                     <div v-if="!canCreate" class="space-y-2 text-sm text-stone-500 dark:text-neutral-400">
                         <p class="font-semibold text-stone-700 dark:text-neutral-200">
                             {{ lockedTitle }}

@@ -15,7 +15,7 @@ class GlobalSearchController extends Controller
     public function __invoke(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -29,7 +29,7 @@ class GlobalSearchController extends Controller
 
         $accountId = $user->accountOwnerId();
         $ownerAccount = $user->id === $accountId ? $user : User::query()->find($accountId);
-        $like = '%' . str_replace('%', '\\%', $query) . '%';
+        $like = '%'.str_replace('%', '\\%', $query).'%';
         $groups = [];
         $limit = 6;
 
@@ -51,7 +51,7 @@ class GlobalSearchController extends Controller
                 'type' => 'customers',
                 'items' => $customers->map(function (Customer $customer) {
                     $name = $customer->company_name
-                        ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''))
+                        ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))
                         ?: $customer->email
                         ?: 'Customer';
                     $subtitle = $customer->email ?: $customer->phone;
@@ -93,7 +93,7 @@ class GlobalSearchController extends Controller
                     'items' => $tasks->map(function (Task $task) {
                         $subtitle = $task->status ? Str::headline($task->status) : null;
                         if ($task->due_date) {
-                            $subtitle = trim(($subtitle ? $subtitle . ' · ' : '') . $task->due_date->toDateString());
+                            $subtitle = trim(($subtitle ? $subtitle.' · ' : '').$task->due_date->toDateString());
                         }
 
                         return [
@@ -171,35 +171,37 @@ class GlobalSearchController extends Controller
                 ]);
             }
 
-            $memberRows = TeamMember::query()
-                ->forAccount($accountId)
-                ->with('user:id,name,email')
-                ->where(function ($memberQuery) use ($like) {
-                    $memberQuery->where('title', 'like', $like)
-                        ->orWhere('phone', 'like', $like)
-                        ->orWhereHas('user', function ($userQuery) use ($like) {
-                            $userQuery->where('name', 'like', $like)
-                                ->orWhere('email', 'like', $like);
-                        });
-                })
-                ->orderByDesc('created_at')
-                ->limit($limit)
-                ->get();
+            if ($canTeamDirectory) {
+                $memberRows = TeamMember::query()
+                    ->forAccount($accountId)
+                    ->with('user:id,name,email')
+                    ->where(function ($memberQuery) use ($like) {
+                        $memberQuery->where('title', 'like', $like)
+                            ->orWhere('phone', 'like', $like)
+                            ->orWhereHas('user', function ($userQuery) use ($like) {
+                                $userQuery->where('name', 'like', $like)
+                                    ->orWhere('email', 'like', $like);
+                            });
+                    })
+                    ->orderByDesc('created_at')
+                    ->limit($limit)
+                    ->get();
 
-            foreach ($memberRows as $member) {
-                $memberUser = $member->user;
-                if (!$memberUser) {
-                    continue;
+                foreach ($memberRows as $member) {
+                    $memberUser = $member->user;
+                    if (! $memberUser) {
+                        continue;
+                    }
+
+                    $employees->push([
+                        'id' => $memberUser->id,
+                        'title' => $memberUser->name ?: $memberUser->email ?: 'Employee',
+                        'subtitle' => $member->title ?: $memberUser->email,
+                        'url' => $canEmployeeProfile
+                            ? route('performance.employee.show', $memberUser->id)
+                            : route('team.index'),
+                    ]);
                 }
-
-                $employees->push([
-                    'id' => $memberUser->id,
-                    'title' => $memberUser->name ?: $memberUser->email ?: 'Employee',
-                    'subtitle' => $member->title ?: $memberUser->email,
-                    'url' => $canEmployeeProfile
-                        ? route('performance.employee.show', $memberUser->id)
-                        : route('team.index'),
-                ]);
             }
 
             if ($employees->isNotEmpty()) {

@@ -16,6 +16,8 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
 use App\Queries\Reservations\BuildStaffReservationIndexData;
+use App\Services\BillingPlanService;
+use App\Services\BillingSubscriptionService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
 use App\Services\ReservationQueueService;
@@ -48,6 +50,7 @@ class StaffReservationController extends Controller
         $account = $this->resolveAccount($user);
         $access = $this->resolveTeamAccess($user, $account->id);
         $props = app(BuildStaffReservationIndexData::class)->index($account, $access, $request);
+        $props['settings'] = $this->effectiveSettings($account, $props['settings'] ?? []);
 
         return $this->inertiaOrJson('Reservation/Index', $props);
     }
@@ -62,8 +65,8 @@ class StaffReservationController extends Controller
         $this->authorize('viewAny', Reservation::class);
         $account = $this->resolveAccount($user);
         $access = $this->resolveTeamAccess($user, $account->id);
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
-        if (! $this->queueFeaturesAvailable($settings)) {
+        $settings = $this->effectiveSettings($account);
+        if (! $this->queueModeEnabled($settings)) {
             abort(404);
         }
 
@@ -104,8 +107,8 @@ class StaffReservationController extends Controller
         $this->authorize('viewAny', Reservation::class);
         $account = $this->resolveAccount($user);
         $access = $this->resolveTeamAccess($user, $account->id);
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
-        if (! $this->queueFeaturesAvailable($settings)) {
+        $settings = $this->effectiveSettings($account);
+        if (! $this->queueModeEnabled($settings)) {
             abort(404);
         }
 
@@ -161,6 +164,14 @@ class StaffReservationController extends Controller
             isset($validated['duration_minutes']) ? (int) $validated['duration_minutes'] : null
         );
 
+        if ($this->ownerOnlyMode($account)) {
+            return response()->json([
+                'timezone' => $this->availabilityService->timezoneForAccount($account),
+                'duration_minutes' => $durationMinutes,
+                'slots' => [],
+            ]);
+        }
+
         $result = $this->availabilityService->generateSlots(
             $account->id,
             Carbon::parse($validated['range_start'])->utc(),
@@ -186,6 +197,7 @@ class StaffReservationController extends Controller
         }
         $this->authorize('create', Reservation::class);
         $account = $this->resolveAccount($user);
+        $this->ensureManualReservationActionsAvailable($account);
 
         $validated = $request->validated();
         $reservation = $this->availabilityService->book([
@@ -223,6 +235,7 @@ class StaffReservationController extends Controller
         if ((int) $reservation->account_id !== (int) $account->id) {
             abort(404);
         }
+        $this->ensureManualReservationActionsAvailable($account);
 
         $validated = $request->validated();
         $reservation = $this->availabilityService->reschedule($reservation, $validated, $user);
@@ -310,6 +323,11 @@ class StaffReservationController extends Controller
             abort(401);
         }
         $this->authorize('delete', $reservation);
+        $account = $this->resolveAccount($user);
+        if ((int) $reservation->account_id !== (int) $account->id) {
+            abort(404);
+        }
+        $this->ensureManualReservationActionsAvailable($account);
 
         $reservation->delete();
 
@@ -417,7 +435,7 @@ class StaffReservationController extends Controller
         $this->authorize('viewAny', Reservation::class);
         $account = $this->resolveAccount($user);
         $access = $this->resolveTeamAccess($user, $account->id);
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $settings = $this->effectiveSettings($account);
         $this->ensureQueueModeEnabled($settings);
 
         $validated = $request->validate([
@@ -522,7 +540,7 @@ class StaffReservationController extends Controller
         }
 
         $access = $this->resolveTeamAccess($user, $account->id);
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $settings = $this->effectiveSettings($account);
         $this->ensureQueueModeEnabled($settings);
         if (! $this->canManageQueueItem($access, $item, $settings)) {
             abort(403);
@@ -1086,6 +1104,41 @@ class StaffReservationController extends Controller
     {
         return $this->queueFeaturesAvailable($settings)
             && (bool) ($settings['queue_mode_enabled'] ?? false);
+    }
+
+    private function effectiveSettings(User $account, ?array $settings = null): array
+    {
+        $settings = $settings ?? $this->availabilityService->resolveSettings($account->id, null);
+        $ownerOnlyMode = $this->ownerOnlyMode($account);
+
+        if ($ownerOnlyMode) {
+            $settings['queue_mode_enabled'] = false;
+            $settings['queue_no_show_on_grace_expiry'] = false;
+            $settings['allow_client_reschedule'] = false;
+        }
+
+        $settings['owner_only_mode'] = $ownerOnlyMode;
+        $settings['slot_booking_enabled'] = ! $ownerOnlyMode;
+
+        return $settings;
+    }
+
+    private function ownerOnlyMode(User $account): bool
+    {
+        $planKey = app(BillingSubscriptionService::class)->resolvePlanKey($account, config('billing.plans', []));
+
+        return $planKey ? app(BillingPlanService::class)->isOwnerOnlyPlan($planKey) : false;
+    }
+
+    private function ensureManualReservationActionsAvailable(User $account): void
+    {
+        if (! $this->ownerOnlyMode($account)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'reservation' => ['Manual reservation booking is unavailable in owner-only solo mode.'],
+        ]);
     }
 
     private function ensureQueueModeEnabled(array $settings): void

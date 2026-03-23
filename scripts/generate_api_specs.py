@@ -90,7 +90,7 @@ def build_openapi(routes: list[dict]) -> dict:
     return {
         "openapi": "3.0.3",
         "info": {
-            "title": "MLK Pro API",
+            "title": "Malikia pro API",
             "version": "v1",
             "description": "Auto-generated from routes/api.php (internal API v1).",
         },
@@ -156,7 +156,7 @@ def build_postman(routes: list[dict]) -> dict:
 
     return {
         "info": {
-            "name": "MLK Pro API v1",
+            "name": "Malikia pro API v1",
             "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
             "description": "Auto-generated from routes/api.php (internal API v1).",
         },

@@ -27,6 +27,43 @@ class PlatformPageContentService
 
     private const VISIBILITY_DEVICES = ['all', 'mobile', 'desktop'];
 
+    private const INDUSTRY_CARD_ICONS = [
+        'tree-pine',
+        'brush-cleaning',
+        'construction',
+        'plug-zap',
+        'fan',
+        'wrench',
+        'shovel',
+        'leaf',
+        'paint-roller',
+        'shower-head',
+        'sparkles',
+        'house',
+        'hammer',
+        'bug',
+        'circle-dollar-sign',
+        'droplets',
+        'fence',
+        'flame',
+        'key-round',
+        'shield-check',
+        'sofa',
+        'sprout',
+        'truck',
+        'warehouse',
+        'waves',
+    ];
+
+    private const FEATURE_TAB_ICONS = [
+        'calendar-days',
+        'file-text',
+        'clipboard-check',
+        'clipboard-list',
+        'circle-dollar-sign',
+        'wrench',
+    ];
+
     private const ALLOWED_HTML_TAGS = [
         'div',
         'p',
@@ -102,6 +139,7 @@ class PlatformPageContentService
                     'use_source' => array_key_exists('use_source', $section) ? (bool) $section['use_source'] : false,
                     'background_color' => $this->cleanColor($section['background_color'] ?? null) ?? '',
                     'layout' => $this->cleanLayout($section['layout'] ?? 'split'),
+                    'image_position' => $this->cleanImagePosition($section['image_position'] ?? 'left'),
                     'alignment' => $this->cleanAlignment($section['alignment'] ?? 'left'),
                     'density' => $this->cleanDensity($section['density'] ?? 'normal'),
                     'tone' => $this->cleanTone($section['tone'] ?? 'default'),
@@ -109,7 +147,22 @@ class PlatformPageContentService
                     'kicker' => $this->cleanText($section['kicker'] ?? ''),
                     'title' => $this->cleanText($section['title'] ?? ''),
                     'body' => $this->cleanHtml($section['body'] ?? ''),
+                    'industry_cards' => $this->sanitizeIndustryCards($section['industry_cards'] ?? []),
+                    'story_cards' => $this->sanitizeStoryCards($section['story_cards'] ?? []),
+                    'feature_tabs' => $this->sanitizeFeatureTabs($section['feature_tabs'] ?? []),
+                    'feature_tabs_font_size' => $this->cleanFeatureTabsFontSize($section['feature_tabs_font_size'] ?? null),
+                    'testimonial_cards' => $this->sanitizeTestimonialCards($section['testimonial_cards'] ?? []),
                     'items' => $this->sanitizeStringList($section['items'] ?? []),
+                    'testimonial_author' => $this->cleanText($section['testimonial_author'] ?? ''),
+                    'testimonial_role' => $this->cleanText($section['testimonial_role'] ?? ''),
+                    'aside_kicker' => $this->cleanText($section['aside_kicker'] ?? ''),
+                    'aside_title' => $this->cleanText($section['aside_title'] ?? ''),
+                    'aside_body' => $this->cleanHtml($section['aside_body'] ?? ''),
+                    'aside_items' => $this->sanitizeStringList($section['aside_items'] ?? []),
+                    'aside_link_label' => $this->cleanText($section['aside_link_label'] ?? ''),
+                    'aside_link_href' => $this->cleanText($section['aside_link_href'] ?? ''),
+                    'aside_image_url' => $this->cleanText($section['aside_image_url'] ?? ''),
+                    'aside_image_alt' => $this->cleanText($section['aside_image_alt'] ?? ''),
                     'image_url' => $this->cleanText($section['image_url'] ?? ''),
                     'image_alt' => $this->cleanText($section['image_alt'] ?? ''),
                     'embed_url' => $this->sanitizeEmbedUrl($section['embed_url'] ?? ''),
@@ -119,6 +172,9 @@ class PlatformPageContentService
                     'primary_href' => $this->cleanText($section['primary_href'] ?? ''),
                     'secondary_label' => $this->cleanText($section['secondary_label'] ?? ''),
                     'secondary_href' => $this->cleanText($section['secondary_href'] ?? ''),
+                    'showcase_badge_label' => $this->cleanText($section['showcase_badge_label'] ?? ''),
+                    'showcase_badge_value' => $this->cleanText($section['showcase_badge_value'] ?? ''),
+                    'showcase_badge_note' => $this->cleanText($section['showcase_badge_note'] ?? ''),
                 ];
             })
             ->filter()
@@ -194,6 +250,7 @@ class PlatformPageContentService
             'use_source' => false,
             'background_color' => '',
             'layout' => 'split',
+            'image_position' => 'left',
             'alignment' => 'left',
             'density' => 'normal',
             'tone' => 'default',
@@ -201,7 +258,22 @@ class PlatformPageContentService
             'kicker' => '',
             'title' => '',
             'body' => '',
+            'industry_cards' => [],
+            'story_cards' => [],
+            'feature_tabs' => [],
+            'feature_tabs_font_size' => 0,
+            'testimonial_cards' => [],
             'items' => [],
+            'testimonial_author' => '',
+            'testimonial_role' => '',
+            'aside_kicker' => '',
+            'aside_title' => '',
+            'aside_body' => '',
+            'aside_items' => [],
+            'aside_link_label' => '',
+            'aside_link_href' => '',
+            'aside_image_url' => '',
+            'aside_image_alt' => '',
             'image_url' => '',
             'image_alt' => '',
             'embed_url' => '',
@@ -211,6 +283,9 @@ class PlatformPageContentService
             'primary_href' => '',
             'secondary_label' => '',
             'secondary_href' => '',
+            'showcase_badge_label' => '',
+            'showcase_badge_value' => '',
+            'showcase_badge_note' => '',
         ];
     }
 
@@ -261,6 +336,7 @@ class PlatformPageContentService
                 'use_source' => array_key_exists('use_source', $section) ? (bool) $section['use_source'] : false,
                 'background_color' => $this->cleanColor($section['background_color'] ?? null) ?? '',
                 'layout' => $this->cleanLayout($section['layout'] ?? 'split'),
+                'image_position' => $this->cleanImagePosition($section['image_position'] ?? 'left'),
                 'alignment' => $this->cleanAlignment($section['alignment'] ?? 'left'),
                 'density' => $this->cleanDensity($section['density'] ?? 'normal'),
                 'tone' => $this->cleanTone($section['tone'] ?? 'default'),
@@ -268,7 +344,22 @@ class PlatformPageContentService
                 'kicker' => $this->cleanText($section['kicker'] ?? ''),
                 'title' => $this->cleanText($section['title'] ?? ''),
                 'body' => $this->cleanHtml($section['body'] ?? ''),
+                'industry_cards' => $this->sanitizeIndustryCards($section['industry_cards'] ?? []),
+                'story_cards' => $this->sanitizeStoryCards($section['story_cards'] ?? []),
+                'feature_tabs' => $this->sanitizeFeatureTabs($section['feature_tabs'] ?? []),
+                'feature_tabs_font_size' => $this->cleanFeatureTabsFontSize($section['feature_tabs_font_size'] ?? null),
+                'testimonial_cards' => $this->sanitizeTestimonialCards($section['testimonial_cards'] ?? []),
                 'items' => $this->sanitizeStringList($section['items'] ?? []),
+                'testimonial_author' => $this->cleanText($section['testimonial_author'] ?? ''),
+                'testimonial_role' => $this->cleanText($section['testimonial_role'] ?? ''),
+                'aside_kicker' => $this->cleanText($section['aside_kicker'] ?? ''),
+                'aside_title' => $this->cleanText($section['aside_title'] ?? ''),
+                'aside_body' => $this->cleanHtml($section['aside_body'] ?? ''),
+                'aside_items' => $this->sanitizeStringList($section['aside_items'] ?? []),
+                'aside_link_label' => $this->cleanText($section['aside_link_label'] ?? ''),
+                'aside_link_href' => $this->cleanText($section['aside_link_href'] ?? ''),
+                'aside_image_url' => $this->cleanText($section['aside_image_url'] ?? ''),
+                'aside_image_alt' => $this->cleanText($section['aside_image_alt'] ?? ''),
                 'image_url' => $this->cleanText($section['image_url'] ?? ''),
                 'image_alt' => $this->cleanText($section['image_alt'] ?? ''),
                 'embed_url' => $this->sanitizeEmbedUrl($section['embed_url'] ?? ''),
@@ -278,6 +369,9 @@ class PlatformPageContentService
                 'primary_href' => $this->cleanText($section['primary_href'] ?? ''),
                 'secondary_label' => $this->cleanText($section['secondary_label'] ?? ''),
                 'secondary_href' => $this->cleanText($section['secondary_href'] ?? ''),
+                'showcase_badge_label' => $this->cleanText($section['showcase_badge_label'] ?? ''),
+                'showcase_badge_value' => $this->cleanText($section['showcase_badge_value'] ?? ''),
+                'showcase_badge_note' => $this->cleanText($section['showcase_badge_note'] ?? ''),
             ];
         }
 
@@ -327,6 +421,188 @@ class PlatformPageContentService
         return array_values(array_map(fn ($item) => $this->cleanText($item), $items));
     }
 
+    private function sanitizeIndustryCards($items): array
+    {
+        if (! is_array($items)) {
+            return [];
+        }
+
+        $cards = [];
+        foreach (array_values($items) as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $label = $this->cleanText($item['label'] ?? '');
+            if ($label === '') {
+                continue;
+            }
+
+            $id = $this->cleanText($item['id'] ?? '');
+            $cards[] = [
+                'id' => $id !== '' ? $id : 'industry-card-'.($index + 1),
+                'label' => $label,
+                'href' => $this->cleanText($item['href'] ?? ''),
+                'icon' => $this->cleanIndustryCardIcon($item['icon'] ?? ''),
+            ];
+        }
+
+        return array_slice($cards, 0, 24);
+    }
+
+    private function sanitizeStoryCards($items): array
+    {
+        if (! is_array($items)) {
+            return [];
+        }
+
+        $cards = [];
+        foreach (array_values($items) as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $title = $this->cleanText($item['title'] ?? '');
+            $body = $this->cleanHtml($item['body'] ?? '');
+            if ($title === '' && $body === '') {
+                continue;
+            }
+
+            $id = $this->cleanText($item['id'] ?? '');
+            $cards[] = [
+                'id' => $id !== '' ? $id : 'story-card-'.($index + 1),
+                'title' => $title,
+                'body' => $body,
+                'image_url' => $this->cleanText($item['image_url'] ?? ''),
+                'image_alt' => $this->cleanText($item['image_alt'] ?? ''),
+            ];
+        }
+
+        return array_slice($cards, 0, 6);
+    }
+
+    private function sanitizeFeatureTabs($items): array
+    {
+        if (! is_array($items)) {
+            return [];
+        }
+
+        $tabs = [];
+        foreach (array_values($items) as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $label = $this->cleanText($item['label'] ?? '');
+            if ($label === '') {
+                continue;
+            }
+
+            $id = $this->cleanText($item['id'] ?? '');
+            $tabs[] = [
+                'id' => $id !== '' ? $id : 'feature-tab-'.($index + 1),
+                'label' => $label,
+                'icon' => $this->cleanFeatureTabIcon($item['icon'] ?? ''),
+                'items' => $this->sanitizeStringList($item['items'] ?? []),
+                'children' => $this->sanitizeFeatureTabChildren($item['children'] ?? []),
+                'title' => $this->cleanText($item['title'] ?? ''),
+                'body' => $this->cleanHtml($item['body'] ?? ''),
+                'image_url' => $this->cleanText($item['image_url'] ?? ''),
+                'image_alt' => $this->cleanText($item['image_alt'] ?? ''),
+                'cta_label' => $this->cleanText($item['cta_label'] ?? ''),
+                'cta_href' => $this->cleanText($item['cta_href'] ?? ''),
+                'metric' => $this->cleanText($item['metric'] ?? ''),
+                'story' => $this->cleanHtml($item['story'] ?? ''),
+                'person' => $this->cleanText($item['person'] ?? ''),
+                'role' => $this->cleanText($item['role'] ?? ''),
+                'avatar_url' => $this->cleanText($item['avatar_url'] ?? ''),
+                'avatar_alt' => $this->cleanText($item['avatar_alt'] ?? ''),
+            ];
+        }
+
+        return array_slice($tabs, 0, 8);
+    }
+
+    private function sanitizeTestimonialCards($items): array
+    {
+        if (! is_array($items)) {
+            return [];
+        }
+
+        $cards = [];
+        foreach (array_values($items) as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $quote = $this->cleanHtml($item['quote'] ?? '');
+            $authorName = $this->cleanText($item['author_name'] ?? '');
+            if ($quote === '' && $authorName === '') {
+                continue;
+            }
+
+            $id = $this->cleanText($item['id'] ?? '');
+            $cards[] = [
+                'id' => $id !== '' ? $id : 'testimonial-card-'.($index + 1),
+                'quote' => $quote,
+                'author_name' => $authorName,
+                'author_role' => $this->cleanText($item['author_role'] ?? ''),
+                'author_company' => $this->cleanText($item['author_company'] ?? ''),
+                'image_url' => $this->cleanText($item['image_url'] ?? ''),
+                'image_alt' => $this->cleanText($item['image_alt'] ?? ''),
+            ];
+        }
+
+        return array_slice($cards, 0, 12);
+    }
+
+    private function sanitizeFeatureTabChildren($items): array
+    {
+        if (! is_array($items)) {
+            return [];
+        }
+
+        $children = [];
+        foreach (array_values($items) as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $label = $this->cleanText($item['label'] ?? '');
+            if ($label === '') {
+                continue;
+            }
+
+            $id = $this->cleanText($item['id'] ?? '');
+            $children[] = [
+                'id' => $id !== '' ? $id : 'feature-tab-child-'.($index + 1),
+                'label' => $label,
+                'title' => $this->cleanText($item['title'] ?? ''),
+                'body' => $this->cleanHtml($item['body'] ?? ''),
+                'image_url' => $this->cleanText($item['image_url'] ?? ''),
+                'image_alt' => $this->cleanText($item['image_alt'] ?? ''),
+                'cta_label' => $this->cleanText($item['cta_label'] ?? ''),
+                'cta_href' => $this->cleanText($item['cta_href'] ?? ''),
+            ];
+        }
+
+        return array_slice($children, 0, 12);
+    }
+
+    private function cleanIndustryCardIcon($value): string
+    {
+        $icon = $this->cleanText($value);
+
+        return in_array($icon, self::INDUSTRY_CARD_ICONS, true) ? $icon : '';
+    }
+
+    private function cleanFeatureTabIcon($value): string
+    {
+        $icon = $this->cleanText($value);
+
+        return in_array($icon, self::FEATURE_TAB_ICONS, true) ? $icon : '';
+    }
+
     private function stringify($value): string
     {
         if (! is_string($value) && ! is_numeric($value)) {
@@ -355,7 +631,7 @@ class PlatformPageContentService
 
         $previous = libxml_use_internal_errors(true);
         $doc = new \DOMDocument('1.0', 'UTF-8');
-        $doc->loadHTML('<div>'.$html.'</div>', \LIBXML_HTML_NOIMPLIED | \LIBXML_HTML_NODEFDTD);
+        $doc->loadHTML('<?xml encoding="UTF-8"><div>'.$html.'</div>', \LIBXML_HTML_NOIMPLIED | \LIBXML_HTML_NODEFDTD);
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
 
@@ -509,6 +785,20 @@ class PlatformPageContentService
         return min($height, 1600);
     }
 
+    private function cleanFeatureTabsFontSize($value): int
+    {
+        if ($value === null || $value === '') {
+            return 0;
+        }
+
+        $size = (int) $value;
+        if ($size <= 0) {
+            return 0;
+        }
+
+        return max(18, min($size, 40));
+    }
+
     private function cleanSourceId($value): ?int
     {
         if ($value === null || $value === '') {
@@ -524,7 +814,7 @@ class PlatformPageContentService
     {
         $layout = $this->cleanText($value);
 
-        return in_array($layout, ['split', 'stack'], true) ? $layout : 'split';
+        return in_array($layout, ['split', 'duo', 'stack', 'contact', 'testimonial', 'feature_pairs', 'showcase_cta', 'industry_grid', 'story_grid', 'feature_tabs', 'testimonial_grid'], true) ? $layout : 'split';
     }
 
     private function cleanAlignment($value): string
@@ -532,6 +822,13 @@ class PlatformPageContentService
         $alignment = $this->cleanText($value);
 
         return in_array($alignment, ['left', 'center', 'right'], true) ? $alignment : 'left';
+    }
+
+    private function cleanImagePosition($value): string
+    {
+        $position = $this->cleanText($value);
+
+        return in_array($position, ['left', 'right'], true) ? $position : 'left';
     }
 
     private function cleanDensity($value): string
@@ -754,11 +1051,44 @@ class PlatformPageContentService
         $section['kicker'] = $section['kicker'] !== '' ? $section['kicker'] : ($source['kicker'] ?? '');
         $section['title'] = $section['title'] !== '' ? $section['title'] : ($source['title'] ?? '');
         $section['body'] = $section['body'] !== '' ? $section['body'] : ($source['body'] ?? '');
+        $section['image_position'] = $section['image_position'] !== '' ? $section['image_position'] : ($source['image_position'] ?? 'left');
+
+        if (empty($section['industry_cards'])) {
+            $section['industry_cards'] = $source['industry_cards'] ?? [];
+        }
+
+        if (empty($section['story_cards'])) {
+            $section['story_cards'] = $source['story_cards'] ?? [];
+        }
+
+        if (empty($section['feature_tabs'])) {
+            $section['feature_tabs'] = $source['feature_tabs'] ?? [];
+        }
+
+        $section['feature_tabs_font_size'] = ! empty($section['feature_tabs_font_size'])
+            ? $section['feature_tabs_font_size']
+            : ($source['feature_tabs_font_size'] ?? 0);
+
+        if (empty($section['testimonial_cards'])) {
+            $section['testimonial_cards'] = $source['testimonial_cards'] ?? [];
+        }
 
         if (empty($section['items'])) {
             $section['items'] = $source['items'] ?? [];
         }
 
+        $section['testimonial_author'] = $section['testimonial_author'] !== '' ? $section['testimonial_author'] : ($source['testimonial_author'] ?? '');
+        $section['testimonial_role'] = $section['testimonial_role'] !== '' ? $section['testimonial_role'] : ($source['testimonial_role'] ?? '');
+        $section['aside_kicker'] = $section['aside_kicker'] !== '' ? $section['aside_kicker'] : ($source['aside_kicker'] ?? '');
+        $section['aside_title'] = $section['aside_title'] !== '' ? $section['aside_title'] : ($source['aside_title'] ?? '');
+        $section['aside_body'] = $section['aside_body'] !== '' ? $section['aside_body'] : ($source['aside_body'] ?? '');
+        if (empty($section['aside_items'])) {
+            $section['aside_items'] = $source['aside_items'] ?? [];
+        }
+        $section['aside_link_label'] = $section['aside_link_label'] !== '' ? $section['aside_link_label'] : ($source['aside_link_label'] ?? '');
+        $section['aside_link_href'] = $section['aside_link_href'] !== '' ? $section['aside_link_href'] : ($source['aside_link_href'] ?? '');
+        $section['aside_image_url'] = $section['aside_image_url'] !== '' ? $section['aside_image_url'] : ($source['aside_image_url'] ?? '');
+        $section['aside_image_alt'] = $section['aside_image_alt'] !== '' ? $section['aside_image_alt'] : ($source['aside_image_alt'] ?? '');
         $section['image_url'] = $section['image_url'] !== '' ? $section['image_url'] : ($source['image_url'] ?? '');
         $section['image_alt'] = $section['image_alt'] !== '' ? $section['image_alt'] : ($source['image_alt'] ?? '');
         $section['embed_url'] = $section['embed_url'] !== '' ? $section['embed_url'] : ($source['embed_url'] ?? '');
@@ -768,6 +1098,9 @@ class PlatformPageContentService
         $section['primary_href'] = $section['primary_href'] !== '' ? $section['primary_href'] : ($source['primary_href'] ?? '');
         $section['secondary_label'] = $section['secondary_label'] !== '' ? $section['secondary_label'] : ($source['secondary_label'] ?? '');
         $section['secondary_href'] = $section['secondary_href'] !== '' ? $section['secondary_href'] : ($source['secondary_href'] ?? '');
+        $section['showcase_badge_label'] = $section['showcase_badge_label'] !== '' ? $section['showcase_badge_label'] : ($source['showcase_badge_label'] ?? '');
+        $section['showcase_badge_value'] = $section['showcase_badge_value'] !== '' ? $section['showcase_badge_value'] : ($source['showcase_badge_value'] ?? '');
+        $section['showcase_badge_note'] = $section['showcase_badge_note'] !== '' ? $section['showcase_badge_note'] : ($source['showcase_badge_note'] ?? '');
 
         return $section;
     }

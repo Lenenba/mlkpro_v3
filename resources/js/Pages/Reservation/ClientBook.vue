@@ -149,9 +149,11 @@ const selectedSlotLabel = computed(() => {
     return `${dayjs(selectedSlot.value.starts_at).format('ddd, MMM D HH:mm')} - ${dayjs(selectedSlot.value.ends_at).format('HH:mm')} (${selectedSlot.value.team_member_name}${resourceLabel})`;
 });
 
-const canSubmit = computed(() => Boolean(selectedSlot.value) && !submitting.value);
 const waitlistEnabled = computed(() => Boolean(props.settings?.waitlist_enabled));
 const queueModeEnabled = computed(() => Boolean(props.settings?.queue_mode_enabled));
+const ownerOnlyMode = computed(() => Boolean(props.settings?.owner_only_mode));
+const slotBookingAvailable = computed(() => Boolean(props.settings?.slot_booking_enabled ?? true));
+const canSubmit = computed(() => slotBookingAvailable.value && Boolean(selectedSlot.value) && !submitting.value);
 const slotDurationMinutes = computed(() => {
     const value = Number(props.settings?.slot_duration_minutes || props.settings?.slot_interval_minutes || 60);
     return Math.max(5, Math.min(240, Number.isFinite(value) ? value : 60));
@@ -170,6 +172,13 @@ const formatMoney = (value) => Number(value || 0).toLocaleString(undefined, {
 
 const loadSlots = async () => {
     if (!calendarRange.value.start || !calendarRange.value.end) {
+        return;
+    }
+    if (!slotBookingAvailable.value) {
+        slots.value = [];
+        selectedSlot.value = null;
+        slotsError.value = '';
+        slotsLoading.value = false;
         return;
     }
 
@@ -457,8 +466,19 @@ onBeforeUnmount(() => {
             <section class="grid gap-4 xl:grid-cols-3">
                 <div class="space-y-4 xl:col-span-2">
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <div
+                            v-if="ownerOnlyMode"
+                            class="mb-3 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+                        >
+                            {{ $t('reservations.owner_only.client_notice') }}
+                        </div>
                         <div class="grid gap-3 lg:grid-cols-3">
-                            <FloatingSelect v-model="selectedTeamMemberId" :options="teamOptions" :label="$t('reservations.client.book.fields.team_member')" />
+                            <FloatingSelect
+                                v-if="teamOptions.length > 1"
+                                v-model="selectedTeamMemberId"
+                                :options="teamOptions"
+                                :label="$t('reservations.client.book.fields.team_member')"
+                            />
                             <FloatingSelect v-model="selectedServiceId" :options="serviceOptions" :label="$t('reservations.client.book.fields.service')" />
                             <div>
                                 <FloatingInput v-model="bookingForm.party_size" type="number" min="1" :label="$t('reservations.client.book.fields.party_size')" />
@@ -472,6 +492,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <ReservationCalendarBoard
+                        v-if="slotBookingAvailable"
                         :events="slotEvents"
                         :loading="slotsLoading"
                         :error="slotsError"
@@ -484,7 +505,7 @@ onBeforeUnmount(() => {
                     />
 
                     <section
-                        v-if="waitlistEnabled && hasNoSlots"
+                        v-if="waitlistEnabled && (hasNoSlots || ownerOnlyMode)"
                         class="rounded-sm border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
                     >
                         <h3 class="text-sm font-semibold">{{ $t('reservations.client.book.waitlist.title') }}</h3>
@@ -591,6 +612,12 @@ onBeforeUnmount(() => {
                             >
                                 {{ submitting ? $t('reservations.client.book.actions.submitting') : $t('reservations.client.book.actions.submit') }}
                             </button>
+                            <div
+                                v-if="ownerOnlyMode"
+                                class="mt-2 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                            >
+                                {{ $t('reservations.owner_only.client_waitlist_hint') }}
+                            </div>
                         </div>
                     </section>
 

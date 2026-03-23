@@ -7,6 +7,7 @@ use App\Models\PlatformSection;
 use App\Models\User;
 use App\Services\PlatformPageContentService;
 use App\Services\PlatformSectionContentService;
+use App\Services\PlatformWelcomePageService;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,9 @@ class PlatformPageController extends BaseSuperAdminController
 {
     public function index(Request $request): Response
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
+        $welcomePageService = app(PlatformWelcomePageService::class);
+        $welcomePageService->ensurePageExists($request->user()?->id);
 
         $filters = [
             'search' => trim((string) $request->query('search', '')),
@@ -45,7 +48,7 @@ class PlatformPageController extends BaseSuperAdminController
         $pages = $query
             ->paginate(10)
             ->withQueryString()
-            ->through(function (PlatformPage $page) {
+            ->through(function (PlatformPage $page) use ($welcomePageService) {
                 $meta = app(PlatformPageContentService::class)->meta($page);
 
                 return [
@@ -54,12 +57,14 @@ class PlatformPageController extends BaseSuperAdminController
                     'title' => $page->title,
                     'is_active' => $page->is_active,
                     'updated_at' => $meta['updated_at'] ?? optional($page->updated_at)->toIso8601String(),
+                    'is_welcome' => $welcomePageService->isWelcomePage($page),
+                    'path_label' => $welcomePageService->displayPath($page),
                     'updated_by' => $page->updatedBy ? [
                         'id' => $page->updatedBy->id,
                         'name' => $page->updatedBy->name,
                         'email' => $page->updatedBy->email,
                     ] : null,
-                    'public_url' => route('public.pages.show', ['slug' => $page->slug]),
+                    'public_url' => $welcomePageService->publicUrl($page),
                 ];
             });
 
@@ -79,10 +84,11 @@ class PlatformPageController extends BaseSuperAdminController
 
     public function create(Request $request): Response
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $service = app(PlatformPageContentService::class);
         $sectionService = app(PlatformSectionContentService::class);
+        $footerSection = $sectionService->ensureSharedFooterSectionExists($request->user()?->id);
         $locales = $service->locales();
         $defaultLocale = in_array(app()->getLocale(), $locales, true) ? app()->getLocale() : $locales[0];
 
@@ -113,6 +119,7 @@ class PlatformPageController extends BaseSuperAdminController
             'index_url' => route('superadmin.pages.index'),
             'public_url' => null,
             'library_sections' => $this->mapLibrarySections($sectionService),
+            'footer_section' => $this->mapFooterSection($footerSection, $sectionService),
             'library_index_url' => route('superadmin.sections.index'),
             'asset_list_url' => route('superadmin.assets.list'),
             'ai_enabled' => (bool) config('services.openai.key'),
@@ -122,7 +129,7 @@ class PlatformPageController extends BaseSuperAdminController
 
     public function store(Request $request): RedirectResponse
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $service = app(PlatformPageContentService::class);
         $locales = $service->locales();
@@ -171,10 +178,11 @@ class PlatformPageController extends BaseSuperAdminController
 
     public function edit(Request $request, PlatformPage $page): Response
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $service = app(PlatformPageContentService::class);
         $sectionService = app(PlatformSectionContentService::class);
+        $footerSection = $sectionService->ensureSharedFooterSectionExists($request->user()?->id);
         $locales = $service->locales();
         $defaultLocale = in_array(app()->getLocale(), $locales, true) ? app()->getLocale() : $locales[0];
         $meta = $service->meta($page);
@@ -209,8 +217,9 @@ class PlatformPageController extends BaseSuperAdminController
             ],
             'dashboard_url' => route('superadmin.dashboard'),
             'index_url' => route('superadmin.pages.index'),
-            'public_url' => route('public.pages.show', ['slug' => $page->slug]),
+            'public_url' => app(PlatformWelcomePageService::class)->publicUrl($page),
             'library_sections' => $this->mapLibrarySections($sectionService),
+            'footer_section' => $this->mapFooterSection($footerSection, $sectionService),
             'library_index_url' => route('superadmin.sections.index'),
             'asset_list_url' => route('superadmin.assets.list'),
             'ai_enabled' => (bool) config('services.openai.key'),
@@ -220,7 +229,7 @@ class PlatformPageController extends BaseSuperAdminController
 
     public function update(Request $request, PlatformPage $page): RedirectResponse
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
         $service = app(PlatformPageContentService::class);
         $locales = $service->locales();
@@ -234,7 +243,11 @@ class PlatformPageController extends BaseSuperAdminController
             'theme' => ['nullable', 'array'],
         ]);
 
-        $slug = $this->normalizeSlug($validated['slug']);
+        $welcomePageService = app(PlatformWelcomePageService::class);
+
+        $slug = $welcomePageService->isWelcomePage($page)
+            ? PlatformWelcomePageService::WELCOME_SLUG
+            : $this->normalizeSlug($validated['slug']);
         if ($slug === '') {
             return back()->withErrors(['slug' => 'Invalid slug.'])->withInput();
         }
@@ -269,7 +282,13 @@ class PlatformPageController extends BaseSuperAdminController
 
     public function destroy(Request $request, PlatformPage $page): RedirectResponse
     {
-        $this->authorizePermission($request, PlatformPermissions::PAGES_MANAGE);
+        $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
+
+        if (app(PlatformWelcomePageService::class)->isWelcomePage($page)) {
+            return redirect()
+                ->route('superadmin.pages.index')
+                ->withErrors(['page' => 'The welcome page cannot be deleted.']);
+        }
 
         $slug = $page->slug;
         $page->delete();
@@ -297,6 +316,7 @@ class PlatformPageController extends BaseSuperAdminController
     private function mapLibrarySections(PlatformSectionContentService $sectionService): array
     {
         return PlatformSection::query()
+            ->where('type', '!=', 'footer')
             ->orderBy('name')
             ->get()
             ->map(function (PlatformSection $section) use ($sectionService) {
@@ -310,5 +330,17 @@ class PlatformPageController extends BaseSuperAdminController
             })
             ->values()
             ->all();
+    }
+
+    private function mapFooterSection(PlatformSection $section, PlatformSectionContentService $sectionService): array
+    {
+        return [
+            'id' => $section->id,
+            'name' => $section->name,
+            'type' => $section->type,
+            'is_active' => $section->is_active,
+            'edit_url' => route('superadmin.sections.edit', $section),
+            'content' => $sectionService->resolveAll($section),
+        ];
     }
 }

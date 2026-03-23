@@ -167,6 +167,20 @@ class SubscriptionController extends Controller
             : $plans->firstWhere('price_id', $validated['price_id'] ?? null);
         $selectedPriceId = $plan['price_id'] ?? null;
         $planKey = $plan['key'] ?? null;
+        if (! $selectedPriceId || ! $planKey) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Please choose a valid subscription plan.',
+                    'errors' => [
+                        'plan_key' => ['Please choose a valid subscription plan.'],
+                    ],
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors([
+                'plan_key' => 'Please choose a valid subscription plan.',
+            ]);
+        }
         $currentPriceId = $billingService->resolvePriceId($user);
 
         if ($selectedPriceId && $currentPriceId === $selectedPriceId) {
@@ -197,7 +211,25 @@ class SubscriptionController extends Controller
             }
 
             try {
-                $seatQuantity = $billingService->resolveSeatQuantity($user);
+                $eligibilityErrors = $planKey
+                    ? $billingService->ownerOnlyPlanSelectionErrors($user, $planKey, (int) ($user->company_team_size ?? 0))
+                    : [];
+                if ($eligibilityErrors !== []) {
+                    if ($this->shouldReturnJson($request)) {
+                        return response()->json([
+                            'message' => $eligibilityErrors[0],
+                            'errors' => [
+                                'plan_key' => $eligibilityErrors,
+                            ],
+                        ], 422);
+                    }
+
+                    return redirect()->back()->withErrors([
+                        'plan_key' => $eligibilityErrors[0],
+                    ]);
+                }
+
+                $seatQuantity = $billingService->resolveBillableQuantity($user, $planKey);
                 $updated = app(CreateStripeSubscriptionForTenant::class)->swap($user, (string) $planKey, $seatQuantity);
                 if (! $updated) {
                     throw new \RuntimeException('Stripe subscription update failed.');
@@ -307,6 +339,26 @@ class SubscriptionController extends Controller
             ? $plans->firstWhere('key', $validated['plan_key'])
             : $plans->firstWhere('price_id', $validated['price_id'] ?? null);
         $planKey = $plan['key'] ?? null;
+        if (! $planKey) {
+            return response()->json([
+                'message' => 'Please choose a valid subscription plan.',
+                'errors' => [
+                    'plan_key' => ['Please choose a valid subscription plan.'],
+                ],
+            ], 422);
+        }
+        $eligibilityErrors = $planKey
+            ? $billingService->ownerOnlyPlanSelectionErrors($user, $planKey, (int) ($user->company_team_size ?? 0))
+            : [];
+
+        if ($eligibilityErrors !== []) {
+            return response()->json([
+                'message' => $eligibilityErrors[0],
+                'errors' => [
+                    'plan_key' => $eligibilityErrors,
+                ],
+            ], 422);
+        }
 
         $successUrl = route('settings.billing.edit', array_filter([
             'checkout' => 'success',
@@ -317,7 +369,7 @@ class SubscriptionController extends Controller
         $cancelUrl = route('settings.billing.edit', ['checkout' => 'cancel']);
 
         try {
-            $seatQuantity = $billingService->resolveSeatQuantity($user);
+            $seatQuantity = $billingService->resolveBillableQuantity($user, $planKey);
             $session = app(CreateStripeSubscriptionForTenant::class)->checkoutSession(
                 $user,
                 (string) $planKey,

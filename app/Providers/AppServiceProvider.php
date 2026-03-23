@@ -113,7 +113,7 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(max(1, $limit))->by($key);
         });
 
-        if (config('observability.enabled', true)) {
+        if (config('observability.enabled', true) && ! $this->app->runningUnitTests()) {
             DB::listen(function (QueryExecuted $query): void {
                 app(SlowQueryService::class)->recordExecutedQuery($query);
             });

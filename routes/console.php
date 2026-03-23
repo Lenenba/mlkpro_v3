@@ -296,6 +296,7 @@ Artisan::command('billing:stripe-plan-prices
     {--live : Required when STRIPE_SECRET is a live key}
     {--no-env : Do not update the local .env file}
     {--no-db : Do not sync plan_prices in the database}
+    {--solo : Provision the 3 owner-only solo plans}
     {--plans= : Optional comma-separated list of plan codes}
     {--currencies= : Optional comma-separated list of currency codes}', function (
     StripePlanPriceProvisioner $provisioner
@@ -323,6 +324,7 @@ Artisan::command('billing:stripe-plan-prices
             'dry_run' => (bool) $this->option('dry-run'),
             'live' => (bool) $this->option('live'),
             'plans' => $parseCsv((string) $this->option('plans')),
+            'solo_only' => (bool) $this->option('solo'),
             'currencies' => array_map('strtoupper', $parseCsv((string) $this->option('currencies'))),
             'write_env' => $writeEnvPath,
             'sync_db' => ! (bool) $this->option('no-db'),

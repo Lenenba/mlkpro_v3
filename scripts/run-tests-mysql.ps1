@@ -96,11 +96,12 @@ $testDbName = if ($env:TEST_DB_DATABASE) { $env:TEST_DB_DATABASE } else { "${dbN
 
 $mysqlExe = Resolve-ExecutablePath -Name 'mysql'
 $phpExe = Resolve-ExecutablePath -Name 'php'
+$pestBinary = Join-Path $projectRoot 'vendor\bin\pest'
 
 if (-not $Command -or $Command.Count -eq 0) {
-    $Command = @($phpExe, 'artisan', 'test')
+    $Command = @($phpExe, '-d', 'memory_limit=512M', $pestBinary)
 } elseif ($Command[0].StartsWith('-') -or $Command[0].StartsWith('tests') -or $Command[0].EndsWith('.php')) {
-    $Command = @($phpExe, 'artisan', 'test') + $Command
+    $Command = @($phpExe, '-d', 'memory_limit=512M', $pestBinary) + $Command
 } elseif ($Command[0] -eq 'php') {
     $Command[0] = $phpExe
 }
@@ -114,10 +115,20 @@ $mysqlArgs = @(
 
 $sqlCreate = "DROP DATABASE IF EXISTS ``$testDbName``; CREATE DATABASE ``$testDbName`` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 $sqlDrop = "DROP DATABASE IF EXISTS ``$testDbName``;"
+$testConfigCache = 'bootstrap/cache/testing-config.php'
+$testRoutesCache = 'bootstrap/cache/testing-routes.php'
+$testEventsCache = 'bootstrap/cache/testing-events.php'
+$testPackagesCache = 'bootstrap/cache/testing-packages.php'
+$testServicesCache = 'bootstrap/cache/testing-services.php'
 
 $envOverrides = @{
     'APP_ENV' = 'testing'
     'APP_MAINTENANCE_DRIVER' = 'file'
+    'APP_CONFIG_CACHE' = $testConfigCache
+    'APP_ROUTES_CACHE' = $testRoutesCache
+    'APP_EVENTS_CACHE' = $testEventsCache
+    'APP_PACKAGES_CACHE' = $testPackagesCache
+    'APP_SERVICES_CACHE' = $testServicesCache
     'BCRYPT_ROUNDS' = '4'
     'CACHE_STORE' = 'array'
     'DB_CONNECTION' = 'mysql'
@@ -159,6 +170,10 @@ if ([string]::IsNullOrEmpty($dbPassword)) {
 $exitCode = 0
 
 try {
+    foreach ($cacheFile in @($testConfigCache, $testRoutesCache, $testEventsCache, $testPackagesCache, $testServicesCache)) {
+        Remove-Item -Path (Join-Path $projectRoot $cacheFile) -ErrorAction SilentlyContinue
+    }
+
     Write-Host "[mysql-test] Reset isolated database '$testDbName'"
     & $mysqlExe @mysqlArgs '--execute' $sqlCreate
     if ($LASTEXITCODE -ne 0) {
@@ -174,6 +189,10 @@ finally {
         Write-Host "[mysql-test] Drop isolated database '$testDbName'"
         & $mysqlExe @mysqlArgs '--execute' $sqlDrop | Out-Null
     } finally {
+        foreach ($cacheFile in @($testConfigCache, $testRoutesCache, $testEventsCache, $testPackagesCache, $testServicesCache)) {
+            Remove-Item -Path (Join-Path $projectRoot $cacheFile) -ErrorAction SilentlyContinue
+        }
+
         foreach ($key in $previousEnv.Keys) {
             $snapshot = $previousEnv[$key]
             if ($snapshot.Present) {

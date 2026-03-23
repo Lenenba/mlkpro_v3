@@ -105,7 +105,7 @@ class HandleInertiaRequests extends Middleware
         }
 
         $planningPendingCount = 0;
-        if ($user && $accountOwner && ($accountFeatures['planning'] ?? false)) {
+        if ($user && $accountOwner && ($accountFeatures['planning'] ?? false) && ($accountFeatures['team_members'] ?? false)) {
             $isServiceCompany = $accountOwner->company_type !== 'products';
             $canApproveTimeOff = $user->id === $accountOwner->id;
             if ($teamMembership) {

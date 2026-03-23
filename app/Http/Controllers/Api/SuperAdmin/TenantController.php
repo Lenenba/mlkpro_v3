@@ -315,8 +315,20 @@ class TenantController extends BaseController
             ], 422);
         }
 
+        $eligibilityErrors = $planKey
+            ? $billingService->ownerOnlyPlanSelectionErrors($tenant, $planKey, (int) ($tenant->company_team_size ?? 0))
+            : [];
+        if ($eligibilityErrors !== []) {
+            return $this->jsonResponse([
+                'message' => $eligibilityErrors[0],
+                'errors' => [
+                    'plan_key' => $eligibilityErrors,
+                ],
+            ], 422);
+        }
+
         try {
-            $seatQuantity = app(BillingSubscriptionService::class)->resolveSeatQuantity($tenant);
+            $seatQuantity = $billingService->resolveBillableQuantity($tenant, $planKey);
             $updated = app(CreateStripeSubscriptionForTenant::class)
                 ->assign($tenant, (string) $planKey, $comped, $seatQuantity);
             if (! $updated) {

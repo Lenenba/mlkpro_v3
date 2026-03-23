@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Services\BillingSubscriptionService;
 use App\Services\MegaMenus\MegaMenuRenderer;
 use App\Services\PlatformPageContentService;
+use App\Services\PlatformWelcomePageService;
+use App\Services\PublicFooterSectionResolver;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,6 +18,10 @@ class PublicPageController extends Controller
 {
     public function show(Request $request, string $slug): Response
     {
+        if ($slug === PlatformWelcomePageService::WELCOME_SLUG) {
+            abort(404);
+        }
+
         $page = PlatformPage::query()
             ->where('slug', $slug)
             ->where('is_active', true)
@@ -57,6 +63,8 @@ class PublicPageController extends Controller
             'content' => $service->resolveForLocale($page, $locale),
             'plan_key' => $planKey,
             'megaMenu' => app(MegaMenuRenderer::class)->resolveForLocation('header', 'public-pages'),
+            'footerMenu' => app(MegaMenuRenderer::class)->resolveForLocation('footer', 'public-pages'),
+            'footerSection' => app(PublicFooterSectionResolver::class)->resolve($locale),
         ]);
     }
 }

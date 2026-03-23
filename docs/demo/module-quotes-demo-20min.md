@@ -1,7 +1,7 @@
 # Speech detaille - Module Quotes / Devis (33 minutes)
 
 ## Objectif de cette version
-Ce document est un script video complet pour presenter le module devis de MLK Pro:
+Ce document est un script video complet pour presenter le module devis de Malikia pro:
 - creation et structuration du devis
 - envoi client et prise de decision
 - acceptance/decline et conversion en job
@@ -41,7 +41,7 @@ Ce document est un script video complet pour presenter le module devis de MLK Pr
 
 Le devis est la charniere entre le besoin client et l execution operationnelle.
 
-Dans MLK Pro, un devis bien construit sert a:
+Dans Malikia pro, un devis bien construit sert a:
 1. figer l offre commerciale dans le temps
 2. engager le client avec une decision claire
 3. declencher automatiquement la suite du workflow, notamment la creation du job
@@ -132,7 +132,7 @@ Chaque ligne definit:
 - le prix unitaire
 - le total de ligne
 
-Dans MLK Pro, les lignes du devis sont snapshottees: on fige ce qui a ete vendu au moment du devis.
+Dans Malikia pro, les lignes du devis sont snapshottees: on fige ce qui a ete vendu au moment du devis.
 Cela evite qu un changement futur de prix catalogue modifie retroactivement un accord commercial deja emis.
 
 On peut travailler avec services ou produits selon le type d entreprise.
@@ -245,7 +245,7 @@ Le module devis connecte vente interne et decision client dans le meme flux.
 ## 22:00 - 26:00 | Acceptation devis: creation job + checklist + acompte
 
 ### Speech a lire
-"Quand un devis est accepte, MLK Pro peut creer le job automatiquement.
+"Quand un devis est accepte, Malikia pro peut creer le job automatiquement.
 
 Ce qui se passe:
 1. statut devis -> accepted
@@ -308,7 +308,7 @@ Lors de la conversion:
 - synchronisation lignes et checklist
 - statut devis peut basculer accepted selon cas
 
-MLK Pro evite aussi les doublons: si un job existe deja pour ce devis, la plateforme le reutilise." 
+Malikia pro evite aussi les doublons: si un job existe deja pour ce devis, la plateforme le reutilise.
 
 ### Actions ecran
 - Cliquer `Convert to job` sur devis eligible.

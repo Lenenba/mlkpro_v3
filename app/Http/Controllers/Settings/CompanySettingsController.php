@@ -10,6 +10,7 @@ use App\Models\ProductCategory;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\AiImageUsageService;
+use App\Services\CompanyFeatureService;
 use App\Services\CompanyNotificationPreferenceService;
 use App\Services\PreventUnsafeTenantCurrencyChange;
 use App\Services\SupplierDirectory;
@@ -52,6 +53,7 @@ class CompanySettingsController extends Controller
             ->get(['id', 'name', 'code', 'address', 'city', 'state', 'postal_code', 'country', 'is_default', 'is_active']);
         $notificationSettings = app(CompanyNotificationPreferenceService::class)->resolveFor($user);
         $currencyGuard = app(PreventUnsafeTenantCurrencyChange::class);
+        $hasPresenceFeature = app(CompanyFeatureService::class)->hasFeature($user, 'presence');
         $aiImageUsage = app(AiImageUsageService::class);
         $aiImagePayload = [
             'enabled' => (bool) config('services.openai.key'),
@@ -90,7 +92,7 @@ class CompanySettingsController extends Controller
                 'company_type' => $user->company_type,
                 'fulfillment' => $user->company_fulfillment ?? null,
                 'store_settings' => $user->company_store_settings ?? null,
-                'time_settings' => $user->company_time_settings ?? null,
+                'time_settings' => $hasPresenceFeature ? ($user->company_time_settings ?? null) : null,
                 'company_notification_settings' => $notificationSettings,
                 'can_change_currency' => ! $currencyGuard->hasBusinessActivity($user),
             ],
@@ -121,6 +123,7 @@ class CompanySettingsController extends Controller
             abort(403);
         }
 
+        $hasPresenceFeature = app(CompanyFeatureService::class)->hasFeature($user, 'presence');
         $supplierDirectory = app(SupplierDirectory::class);
         $supplierCountry = $user->company_country ?: config('suppliers.default_country');
         $suppliers = $supplierDirectory->all($supplierCountry);
@@ -329,7 +332,7 @@ class CompanySettingsController extends Controller
         }
 
         $timeSettings = $user->company_time_settings;
-        if (array_key_exists('company_time_settings', $validated)) {
+        if ($hasPresenceFeature && array_key_exists('company_time_settings', $validated)) {
             $timeInput = is_array($validated['company_time_settings']) ? $validated['company_time_settings'] : [];
             $timeSettings = [
                 'auto_clock_in' => filter_var($timeInput['auto_clock_in'] ?? false, FILTER_VALIDATE_BOOLEAN),

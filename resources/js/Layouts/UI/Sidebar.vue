@@ -252,21 +252,7 @@ const isCustomerActive = computed(() => {
                                         </template>
                                     </LinkAncor>
 
-                                    <LinkAncor v-if="canPlatform('welcome.manage')" :label="$t('nav.welcome_builder')" :href="'superadmin.welcome.edit'" tone="welcome_builder"
-                                        :active="route().current('superadmin.welcome.*')">
-                                        <template #icon>
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round" stroke-linejoin="round"
-                                                class="lucide lucide-layout-template">
-                                                <rect x="3" y="3" width="18" height="18" rx="2" />
-                                                <path d="M3 9h18" />
-                                                <path d="M9 21V9" />
-                                            </svg>
-                                        </template>
-                                    </LinkAncor>
-
-                                    <LinkAncor v-if="canPlatform('pages.manage')" :label="$t('nav.pages')" :href="'superadmin.pages.index'" tone="pages"
+                                    <LinkAncor v-if="canPlatform('pages.manage') || canPlatform('welcome.manage')" :label="$t('nav.pages')" :href="'superadmin.pages.index'" tone="pages"
                                         :active="route().current('superadmin.pages.*')">
                                         <template #icon>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -282,7 +268,7 @@ const isCustomerActive = computed(() => {
                                         </template>
                                     </LinkAncor>
 
-                                    <LinkAncor v-if="canPlatform('pages.manage')" :label="$t('nav.sections')" :href="'superadmin.sections.index'" tone="sections"
+                                    <LinkAncor v-if="canPlatform('pages.manage') || canPlatform('welcome.manage')" :label="$t('nav.sections')" :href="'superadmin.sections.index'" tone="sections"
                                         :active="route().current('superadmin.sections.*')">
                                         <template #icon>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -310,7 +296,7 @@ const isCustomerActive = computed(() => {
                                         </template>
                                     </LinkAncor>
 
-                                    <LinkAncor v-if="canPlatform('pages.manage')" :label="$t('nav.assets')" :href="'superadmin.assets.index'" tone="assets"
+                                    <LinkAncor v-if="canPlatform('pages.manage') || canPlatform('welcome.manage')" :label="$t('nav.assets')" :href="'superadmin.assets.index'" tone="assets"
                                         :active="route().current('superadmin.assets.*')">
                                         <template #icon>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"

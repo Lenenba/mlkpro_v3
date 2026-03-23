@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Services\Assistant\AssistantCampaignService;
 use App\Services\Assistant\AssistantInterpreter;
@@ -13,6 +12,7 @@ use App\Services\Assistant\OpenAiRequestException;
 use App\Services\AssistantCreditService;
 use App\Services\AssistantUsageService;
 use App\Services\BillingSubscriptionService;
+use App\Services\CompanyFeatureService;
 use App\Services\UsageLimitService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -102,7 +102,7 @@ class AssistantController extends Controller
 
         try {
             $accountOwner = $this->resolveAccountOwner($user);
-            $planModules = PlatformSetting::getValue('plan_modules', []);
+            $planModules = app(CompanyFeatureService::class)->resolvePlanModules();
             $billingService = app(BillingSubscriptionService::class);
             $planKey = $billingService->resolvePlanKey($accountOwner, $planModules);
             $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;

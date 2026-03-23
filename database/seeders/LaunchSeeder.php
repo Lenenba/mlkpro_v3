@@ -165,52 +165,93 @@ class LaunchSeeder extends Seeder
             'invoice_default' => 'Votre facture est disponible.',
         ]);
 
-        PlatformSetting::setValue('plan_limits', [
-            'free' => [
-                'quotes' => 10,
-                'requests' => 10,
-                'plan_scan_quotes' => 10,
-                'invoices' => 10,
-                'jobs' => 10,
-                'products' => 25,
-                'services' => 25,
-                'tasks' => 25,
-                'team_members' => 1,
-            ],
-            'starter' => [
-                'quotes' => 100,
-                'requests' => 100,
-                'plan_scan_quotes' => 100,
-                'invoices' => 100,
-                'jobs' => 100,
-                'products' => 200,
-                'services' => 200,
-                'tasks' => 200,
-                'team_members' => 5,
-            ],
-            'growth' => [
-                'quotes' => 300,
-                'requests' => 300,
-                'plan_scan_quotes' => 300,
-                'invoices' => 300,
-                'jobs' => 300,
-                'products' => 500,
-                'services' => 500,
-                'tasks' => 600,
-                'team_members' => 15,
-            ],
-            'scale' => [
-                'quotes' => 1000,
-                'requests' => 1000,
-                'plan_scan_quotes' => 1000,
-                'invoices' => 1000,
-                'jobs' => 1000,
-                'products' => 2000,
-                'services' => 2000,
-                'tasks' => 2500,
-                'team_members' => 50,
-            ],
-        ]);
+        $planLimits = PlatformSetting::getValue('plan_limits', []);
+        $planLimits['free'] = [
+            'quotes' => null,
+            'requests' => null,
+            'plan_scan_quotes' => 10,
+            'invoices' => null,
+            'jobs' => 10,
+            'products' => null,
+            'services' => null,
+            'tasks' => 25,
+            'team_members' => 1,
+            'assistant_requests' => 0,
+        ];
+        $planLimits['solo_essential'] = [
+            'quotes' => null,
+            'requests' => null,
+            'plan_scan_quotes' => 0,
+            'invoices' => null,
+            'jobs' => 0,
+            'products' => null,
+            'services' => null,
+            'tasks' => 0,
+            'team_members' => null,
+            'assistant_requests' => 0,
+        ];
+        $planLimits['solo_pro'] = [
+            'quotes' => null,
+            'requests' => null,
+            'plan_scan_quotes' => 0,
+            'invoices' => null,
+            'jobs' => 100,
+            'products' => null,
+            'services' => null,
+            'tasks' => 200,
+            'team_members' => null,
+            'assistant_requests' => 0,
+        ];
+        $planLimits['solo_growth'] = [
+            'quotes' => null,
+            'requests' => null,
+            'plan_scan_quotes' => 150,
+            'invoices' => null,
+            'jobs' => 500,
+            'products' => null,
+            'services' => null,
+            'tasks' => 1200,
+            'team_members' => null,
+            'assistant_requests' => 1000,
+        ];
+        $planLimits['starter'] = [
+            'quotes' => null,
+            'requests' => null,
+            'plan_scan_quotes' => 100,
+            'invoices' => null,
+            'jobs' => 100,
+            'products' => null,
+            'services' => null,
+            'tasks' => 200,
+            'team_members' => 5,
+            'assistant_requests' => 0,
+        ];
+        $planLimits['growth'] = [
+            'quotes' => null,
+            'requests' => null,
+            'plan_scan_quotes' => 300,
+            'invoices' => null,
+            'jobs' => 300,
+            'products' => null,
+            'services' => null,
+            'tasks' => 600,
+            'team_members' => 15,
+            'assistant_requests' => 0,
+        ];
+        $planLimits['scale'] = [
+            'quotes' => null,
+            'requests' => null,
+            'plan_scan_quotes' => 1000,
+            'invoices' => null,
+            'jobs' => 1000,
+            'products' => null,
+            'services' => null,
+            'tasks' => 2500,
+            'team_members' => 50,
+            'assistant_requests' => 0,
+        ];
+
+        PlatformSetting::setValue('plan_limits', $planLimits);
 
         $serviceOwner = User::updateOrCreate(
             ['email' => 'owner.services@example.com'],

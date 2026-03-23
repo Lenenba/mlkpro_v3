@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import draggable from 'vuedraggable';
 import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
-import { Link, router, useForm } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -13,6 +13,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
+import { isFeatureEnabled } from '@/utils/features';
 
 const props = defineProps({
     tasks: {
@@ -66,6 +67,9 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const page = usePage();
+const featureFlags = computed(() => page.props.auth?.account?.features || {});
+const hasTeamMembersFeature = computed(() => isFeatureEnabled(featureFlags.value, 'team_members'));
 
 const filterForm = useForm({
     search: props.filters?.search ?? '',
@@ -73,11 +77,16 @@ const filterForm = useForm({
 });
 const isLoading = ref(false);
 const taskList = computed(() => Array.isArray(props.tasks?.data) ? props.tasks.data : []);
-const canViewTeam = computed(() => Boolean(props.canViewTeam));
+const canViewTeam = computed(() => Boolean(props.canViewTeam) && hasTeamMembersFeature.value);
 const allowedViews = computed(() => (canViewTeam.value ? ['board', 'schedule', 'team'] : ['board', 'schedule']));
 const resolveView = (value) => (allowedViews.value.includes(value) ? value : 'board');
 const initialView = resolveView(props.filters?.view);
 const viewMode = ref(initialView);
+const searchPlaceholder = computed(() => (
+    hasTeamMembersFeature.value ? t('tasks.filters.search_placeholder') : t('tasks.filters.search_placeholder_solo')
+));
+const showAssigneeColumn = computed(() => hasTeamMembersFeature.value);
+const showAssigneeControls = computed(() => hasTeamMembersFeature.value && Array.isArray(props.teamMembers) && props.teamMembers.length > 0);
 const scheduleRangeOptions = computed(() => ([
     { id: 'week', label: t('tasks.schedule.range.week') },
     { id: '2weeks', label: t('tasks.schedule.range.two_weeks') },
@@ -916,7 +925,7 @@ const workOptions = computed(() =>
 );
 
 const assigneeOptions = computed(() =>
-    (props.teamMembers || []).map((member) => ({
+    (showAssigneeControls.value ? props.teamMembers : []).map((member) => ({
         id: member.id,
         name: `${member.user?.name || `Member #${member.id}`} (${member.role})`,
     }))
@@ -1063,6 +1072,10 @@ const resolveAssigneeAvailability = ({
 };
 
 const createAssigneeAvailability = computed(() => {
+    if (!showAssigneeControls.value) {
+        return null;
+    }
+
     const assigneeId = Number(createForm.assigned_team_member_id);
     if (!Number.isFinite(assigneeId)) {
         return null;
@@ -1138,6 +1151,9 @@ const submitCreate = () => {
 
     createForm.materials = normalizeMaterials(createForm.materials);
     normalizeWorkSelection(createForm);
+    if (!hasTeamMembersFeature.value) {
+        createForm.assigned_team_member_id = null;
+    }
     const assignedId = createForm.assigned_team_member_id;
 
     createForm.post(route('task.store'), {
@@ -1156,7 +1172,7 @@ const submitCreate = () => {
             createForm.status = 'todo';
             createForm.materials = [];
             closeOverlay('#hs-task-create');
-            if (assignedId) {
+            if (assignedId && hasTeamMembersFeature.value) {
                 dispatchDemoEvent('demo:task_assigned', { assigned_team_member_id: assignedId });
             }
         },
@@ -1180,7 +1196,20 @@ const editForm = useForm({
     materials: [],
 });
 
+watch(hasTeamMembersFeature, (enabled) => {
+    if (enabled) {
+        return;
+    }
+
+    createForm.assigned_team_member_id = '';
+    editForm.assigned_team_member_id = '';
+}, { immediate: true });
+
 const editAssigneeAvailability = computed(() => {
+    if (!showAssigneeControls.value) {
+        return null;
+    }
+
     const assigneeId = Number(editForm.assigned_team_member_id);
     if (!Number.isFinite(assigneeId)) {
         return null;
@@ -1231,7 +1260,7 @@ const openEditTask = (task) => {
     editForm.due_date = task.due_date || '';
     editForm.completed_at = task.completed_at ? normalizeDateKey(task.completed_at) : '';
     editForm.completion_reason = task.completion_reason || '';
-    editForm.assigned_team_member_id = task.assigned_team_member_id || '';
+    editForm.assigned_team_member_id = hasTeamMembersFeature.value ? (task.assigned_team_member_id || '') : '';
     editForm.work_id = task.work_id ?? '';
     editForm.standalone = !task.work_id;
     editForm.customer_id = task.customer_id ?? null;
@@ -1264,6 +1293,9 @@ const submitEdit = () => {
 
     editForm.materials = normalizeMaterials(editForm.materials);
     normalizeWorkSelection(editForm);
+    if (!hasTeamMembersFeature.value) {
+        editForm.assigned_team_member_id = null;
+    }
 
     editForm.put(route('task.update', editingTaskId.value), {
         preserveScroll: true,
@@ -1303,7 +1335,7 @@ const buildStatusPayload = (task, status, extra = {}) => {
         title: task.title || '',
         description: task.description || '',
         due_date: task.due_date || null,
-        assigned_team_member_id: task.assigned_team_member_id ?? null,
+        assigned_team_member_id: hasTeamMembersFeature.value ? (task.assigned_team_member_id ?? null) : null,
         work_id: task.work_id ?? null,
         standalone: !task.work_id,
         customer_id: task.customer_id ?? null,
@@ -1518,7 +1550,7 @@ const submitProof = () => {
                         </div>
                         <input type="text" v-model="filterForm.search" data-testid="demo-task-search"
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
-                            :placeholder="$t('tasks.filters.search_placeholder')">
+                            :placeholder="searchPlaceholder">
                     </div>
                 </div>
 
@@ -1792,7 +1824,7 @@ const submitProof = () => {
                                 >
                                     {{ timingStatusLabel(task.timing_status) }}
                                 </span>
-                                <span class="inline-flex items-center gap-1">
+                                <span v-if="showAssigneeColumn" class="inline-flex items-center gap-1">
                                     <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
                                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                         stroke-linejoin="round">
@@ -1969,7 +2001,7 @@ const submitProof = () => {
                                         >
                                             {{ timingStatusLabel(task.timing_status) }}
                                         </span>
-                                        <span class="inline-flex items-center gap-1">
+                                        <span v-if="showAssigneeColumn" class="inline-flex items-center gap-1">
                                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
                                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                                 stroke-linejoin="round">
@@ -2446,7 +2478,7 @@ const submitProof = () => {
                                     {{ $t('tasks.table.due') }}
                                 </div>
                             </th>
-                            <th scope="col" class="min-w-44">
+                            <th v-if="showAssigneeColumn" scope="col" class="min-w-44">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
                                     {{ $t('tasks.table.assignee') }}
                                 </div>
@@ -2507,7 +2539,7 @@ const submitProof = () => {
                                     {{ formatDate(task.due_date) || $t('tasks.labels.no_due_date') }}
                                 </span>
                             </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
+                            <td v-if="showAssigneeColumn" class="size-px whitespace-nowrap px-4 py-2">
                                 <div class="flex items-center gap-2">
                                     <span
                                         v-if="task?.assignee?.user?.name"
@@ -2681,7 +2713,7 @@ const submitProof = () => {
                 </div>
             </div>
 
-            <div>
+            <div v-if="showAssigneeColumn">
                 <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
                     {{ $t('tasks.details.assignee') }}
                 </div>
@@ -2791,7 +2823,7 @@ const submitProof = () => {
                     <DatePicker v-model="createForm.due_date" :label="$t('tasks.form.due_date')" />
                     <InputError class="mt-1" :message="createForm.errors.due_date" />
                 </div>
-                <div v-if="teamMembers.length" class="md:col-span-2">
+                <div v-if="showAssigneeControls" class="md:col-span-2">
                     <FloatingSelect
                         v-model="createForm.assigned_team_member_id"
                         :label="$t('tasks.form.assignee')"
@@ -2806,6 +2838,9 @@ const submitProof = () => {
                     >
                         {{ createAssigneeAvailability.label }}
                     </p>
+                </div>
+                <div v-else-if="!hasTeamMembersFeature" class="md:col-span-2 rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                    {{ $t('tasks.form.solo_hint') }}
                 </div>
             </div>
 
@@ -2921,7 +2956,7 @@ const submitProof = () => {
                     <DatePicker v-model="editForm.due_date" :label="$t('tasks.form.due_date')" />
                     <InputError class="mt-1" :message="editForm.errors.due_date" />
                 </div>
-                <div v-if="teamMembers.length" class="md:col-span-2">
+                <div v-if="showAssigneeControls" class="md:col-span-2">
                     <FloatingSelect
                         v-model="editForm.assigned_team_member_id"
                         :label="$t('tasks.form.assignee')"
@@ -2936,6 +2971,9 @@ const submitProof = () => {
                     >
                         {{ editAssigneeAvailability.label }}
                     </p>
+                </div>
+                <div v-else-if="!hasTeamMembersFeature" class="md:col-span-2 rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                    {{ $t('tasks.form.solo_hint') }}
                 </div>
             </div>
 

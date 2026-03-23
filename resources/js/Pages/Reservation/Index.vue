@@ -105,6 +105,8 @@ const queueUpdatingId = ref(null);
 const queueCallingNext = ref(false);
 const canViewAll = computed(() => Boolean(props.access?.can_view_all));
 const canManage = computed(() => Boolean(props.access?.can_manage));
+const ownerOnlyMode = computed(() => Boolean(props.settings?.owner_only_mode));
+const canManageReservationActions = computed(() => canManage.value && !ownerOnlyMode.value);
 const canUpdateStatus = computed(() => Boolean(props.access?.can_update_status));
 const waitlistEnabled = computed(() => Boolean(props.settings?.waitlist_enabled));
 const queueModeEnabled = computed(() => Boolean(props.settings?.queue_mode_enabled));
@@ -205,6 +207,7 @@ const teamOptions = computed(() => [
         label: member.title ? `${member.name} - ${member.title}` : member.name,
     })),
 ]);
+const showTeamFilters = computed(() => teamOptions.value.length > 1);
 
 const serviceOptions = computed(() => [
     { value: '', label: t('reservations.form.none') },
@@ -247,6 +250,11 @@ const reservationClientName = (reservation) => (
     reservation?.client?.company_name
     || `${reservation?.client?.first_name || ''} ${reservation?.client?.last_name || ''}`.trim()
     || '-'
+);
+const reservationMemberName = (reservation) => (
+    ownerOnlyMode.value
+        ? '-'
+        : (reservation?.team_member?.user?.name || reservation?.teamMember?.user?.name || '-')
 );
 const formatMoney = (value) => Number(value || 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
@@ -416,7 +424,7 @@ const onCalendarRangeChange = (payload) => {
 };
 
 const openCreate = () => {
-    if (!canManage.value) {
+    if (!canManageReservationActions.value) {
         return;
     }
     activeReservation.value = null;
@@ -429,7 +437,7 @@ const openCreate = () => {
 };
 
 const openEdit = (reservation) => {
-    if (!canManage.value) {
+    if (!canManageReservationActions.value) {
         return;
     }
     activeReservation.value = reservation;
@@ -448,7 +456,7 @@ const openEdit = (reservation) => {
 };
 
 const submitReservation = () => {
-    if (!canManage.value) {
+    if (!canManageReservationActions.value) {
         return;
     }
     const onSuccess = () => {
@@ -635,7 +643,7 @@ const callNextQueueItem = async () => {
 };
 
 const removeReservation = (reservation) => {
-    if (!canManage.value) {
+    if (!canManageReservationActions.value) {
         return;
     }
     if (!reservation?.id || !window.confirm(t('reservations.actions.delete_confirm'))) {
@@ -693,7 +701,7 @@ const goToPage = (url) => {
                             {{ $t('settings._label') }}
                         </Link>
                         <button
-                            v-if="canManage"
+                            v-if="canManageReservationActions"
                             type="button"
                             class="inline-flex items-center rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
                             @click="openCreate"
@@ -705,6 +713,13 @@ const goToPage = (url) => {
                             {{ $t('reservations.actions.new') }}
                         </button>
                     </div>
+                </div>
+
+                <div
+                    v-if="ownerOnlyMode"
+                    class="mt-4 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+                >
+                    {{ $t('reservations.owner_only.staff_notice') }}
                 </div>
             </section>
 
@@ -1256,6 +1271,7 @@ const goToPage = (url) => {
                         <FloatingSelect v-model="filterForm.status" :options="statusOptions" :label="$t('reservations.filters.status')" dense />
                         <FloatingSelect v-model="filterForm.service_id" :options="serviceOptions" :label="$t('reservations.form.item')" dense />
                         <FloatingSelect
+                            v-if="showTeamFilters"
                             v-model="filterForm.team_member_id"
                             :options="teamOptions"
                             :label="$t('planning.form.member')"
@@ -1367,7 +1383,7 @@ const goToPage = (url) => {
                                         </td>
                                         <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ reservation.service?.name || '-' }}</td>
                                         <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ reservationClientName(reservation) }}</td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ reservation.team_member?.user?.name || '-' }}</td>
+                                        <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ reservationMemberName(reservation) }}</td>
                                         <td class="size-px whitespace-nowrap px-4 py-2">
                                             <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(reservation.status)">
                                                 {{ $t(`reservations.status.${reservation.status}`) || reservation.status?.replace(/_/g, ' ') }}
@@ -1403,16 +1419,16 @@ const goToPage = (url) => {
                                                             {{ $t('reservations.actions.view') }}
                                                         </button>
                                                         <button
-                                                            v-if="canManage"
+                                                            v-if="canManageReservationActions"
                                                             type="button"
                                                             class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
                                                             @click="openEdit(reservation)"
                                                         >
                                                             {{ $t('reservations.actions.edit') }}
                                                         </button>
-                                                        <div v-if="canManage" class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                                        <div v-if="canManageReservationActions" class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                                         <button
-                                                            v-if="canManage"
+                                                            v-if="canManageReservationActions"
                                                             type="button"
                                                             class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"
                                                             @click="removeReservation(reservation)"
@@ -1530,7 +1546,7 @@ const goToPage = (url) => {
                 <div class="mt-3 space-y-2 text-sm">
                     <div>{{ $t('reservations.table.when') }}: {{ formatDateTime(activeReservation.starts_at) }} - {{ formatDateTime(activeReservation.ends_at) }}</div>
                     <div>{{ $t('reservations.table.item') }}: {{ activeReservation.service?.name || '-' }}</div>
-                    <div>{{ $t('planning.form.member') }}: {{ activeReservation.team_member?.user?.name || activeReservation.teamMember?.user?.name || '-' }}</div>
+                    <div>{{ $t('planning.form.member') }}: {{ reservationMemberName(activeReservation) }}</div>
                     <div>
                         {{ $t('reservations.table.status') }}:
                         <span class="ml-1 rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(activeReservation.status)">
@@ -1613,7 +1629,7 @@ const goToPage = (url) => {
                         {{ cancelActionLabel }}
                     </button>
                     <button
-                        v-if="canManage"
+                        v-if="canManageReservationActions"
                         type="button"
                         class="rounded-sm border border-stone-200 px-3 py-2 text-xs dark:border-neutral-700"
                         @click="openEdit(activeReservation); showDetails = false"

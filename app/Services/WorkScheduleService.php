@@ -2,35 +2,26 @@
 
 namespace App\Services;
 
+use App\Models\Product;
 use App\Models\Task;
 use App\Models\TeamMember;
-use App\Models\Work;
-use App\Models\Product;
 use App\Models\User;
-use Illuminate\Support\Carbon;
+use App\Models\Work;
 use App\Notifications\TaskAssignmentConflictNotification;
-use App\Services\NotificationPreferenceService;
-use App\Services\UsageLimitService;
 use App\Support\NotificationDispatcher;
+use Illuminate\Support\Carbon;
 
 class WorkScheduleService
 {
     public function generateTasks(Work $work, ?int $createdByUserId = null): int
     {
         $pendingDates = $this->resolvePendingDates($work);
-        if (!$pendingDates) {
+        if (! $pendingDates) {
             return 0;
         }
 
         $accountId = $work->user_id;
-        $assigneeIds = $work->teamMembers()->pluck('team_members.id')->all();
-        if (!$assigneeIds) {
-            $assigneeIds = TeamMember::query()
-                ->forAccount($accountId)
-                ->active()
-                ->pluck('id')
-                ->all();
-        }
+        $assigneeIds = $this->resolveAssigneeIds($work);
         $assigneeCount = count($assigneeIds);
 
         $startTime = $work->start_time ? Carbon::parse($work->start_time)->format('H:i:s') : null;
@@ -58,7 +49,7 @@ class WorkScheduleService
         ?array $materialTemplate = null,
         ?array &$conflicts = null
     ): int {
-        if (!$dateInputs) {
+        if (! $dateInputs) {
             return 0;
         }
 
@@ -67,6 +58,7 @@ class WorkScheduleService
                 if ($date instanceof Carbon) {
                     return $date->toDateString();
                 }
+
                 return Carbon::parse($date)->toDateString();
             })
             ->filter()
@@ -74,7 +66,7 @@ class WorkScheduleService
             ->values()
             ->all();
 
-        if (!$dateStrings) {
+        if (! $dateStrings) {
             return 0;
         }
 
@@ -83,19 +75,12 @@ class WorkScheduleService
             ->whereNotNull('due_date')
             ->whereIn('due_date', $dateStrings)
             ->pluck('due_date')
-            ->map(fn($date) => $date->toDateString())
+            ->map(fn ($date) => $date->toDateString())
             ->all();
         $existingDates = array_flip($existingDates);
 
         $accountId = $work->user_id;
-        $assigneeIds = $assigneeIds ?? $work->teamMembers()->pluck('team_members.id')->all();
-        if (!$assigneeIds) {
-            $assigneeIds = TeamMember::query()
-                ->forAccount($accountId)
-                ->active()
-                ->pluck('id')
-                ->all();
-        }
+        $assigneeIds = $this->resolveAssigneeIds($work, $assigneeIds);
         $assigneeCount = count($assigneeIds);
 
         $startTime = $work->start_time ? Carbon::parse($work->start_time)->format('H:i:s') : null;
@@ -114,7 +99,7 @@ class WorkScheduleService
 
             $assigneeId = $assigneeCount ? $assigneeIds[$index % $assigneeCount] : null;
             $hasConflict = false;
-            if ($assigneeId && $rangeForNewTask && !empty($busyMap[$assigneeId][$dateString])) {
+            if ($assigneeId && $rangeForNewTask && ! empty($busyMap[$assigneeId][$dateString])) {
                 foreach ($busyMap[$assigneeId][$dateString] as $range) {
                     if ($this->rangesOverlap($rangeForNewTask, $range)) {
                         $hasConflict = true;
@@ -163,6 +148,41 @@ class WorkScheduleService
         return $createdCount;
     }
 
+    private function resolveAssigneeIds(Work $work, ?array $assigneeIds = null): array
+    {
+        if (! $this->teamAssignmentsEnabled($work)) {
+            return [];
+        }
+
+        $selectedAssigneeIds = collect($assigneeIds ?? $work->teamMembers()->pluck('team_members.id')->all())
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($selectedAssigneeIds) {
+            return $selectedAssigneeIds;
+        }
+
+        return TeamMember::query()
+            ->forAccount($work->user_id)
+            ->active()
+            ->pluck('id')
+            ->all();
+    }
+
+    private function teamAssignmentsEnabled(Work $work): bool
+    {
+        $owner = User::query()->find($work->user_id);
+
+        if (! $owner) {
+            return false;
+        }
+
+        return app(CompanyFeatureService::class)->hasFeature($owner, 'team_members');
+    }
+
     public function countPendingTasks(Work $work): int
     {
         return count($this->resolvePendingDates($work));
@@ -171,14 +191,14 @@ class WorkScheduleService
     public function pendingDateStrings(Work $work): array
     {
         return collect($this->resolvePendingDates($work))
-            ->map(fn($date) => $date->toDateString())
+            ->map(fn ($date) => $date->toDateString())
             ->values()
             ->all();
     }
 
     private function buildOccurrenceDates(Work $work): array
     {
-        if (!$work->start_date) {
+        if (! $work->start_date) {
             return [];
         }
 
@@ -188,7 +208,7 @@ class WorkScheduleService
         $frequency = strtolower((string) ($work->frequency ?? ''));
         $repeatsOn = is_array($work->repeatsOn) ? $work->repeatsOn : [];
 
-        if (!$end && $maxVisits <= 0) {
+        if (! $end && $maxVisits <= 0) {
             return [$start];
         }
 
@@ -209,6 +229,7 @@ class WorkScheduleService
             $key = strtolower((string) $value);
             if (array_key_exists($key, $weekdayMap)) {
                 $repeatWeekdays[] = $weekdayMap[$key];
+
                 continue;
             }
 
@@ -218,11 +239,11 @@ class WorkScheduleService
             }
         }
 
-        if (!$repeatWeekdays) {
+        if (! $repeatWeekdays) {
             $repeatWeekdays = [$start->dayOfWeek];
         }
 
-        if (!$repeatMonthDays) {
+        if (! $repeatMonthDays) {
             $repeatMonthDays = [$start->day];
         }
 
@@ -279,12 +300,12 @@ class WorkScheduleService
 
     private function resolvePendingDates(Work $work): array
     {
-        if (!$work->start_date) {
+        if (! $work->start_date) {
             return [];
         }
 
         $dates = $this->buildOccurrenceDates($work);
-        if (!$dates) {
+        if (! $dates) {
             return [];
         }
 
@@ -292,14 +313,14 @@ class WorkScheduleService
             ->where('work_id', $work->id)
             ->whereNotNull('due_date')
             ->pluck('due_date')
-            ->map(fn($date) => $date->toDateString())
+            ->map(fn ($date) => $date->toDateString())
             ->all();
         $existingDates = array_flip($existingDates);
 
         $pendingDates = [];
         foreach ($dates as $date) {
             $dateString = $date->toDateString();
-            if (!isset($existingDates[$dateString])) {
+            if (! isset($existingDates[$dateString])) {
                 $pendingDates[] = $date;
             }
         }
@@ -346,13 +367,13 @@ class WorkScheduleService
 
     private function buildBusyMap(int $accountId, array $assigneeIds, array $dateStrings): array
     {
-        if (!$assigneeIds || !$dateStrings) {
+        if (! $assigneeIds || ! $dateStrings) {
             return [];
         }
 
         $minDate = min($dateStrings);
         $maxDate = max($dateStrings);
-        if (!$minDate || !$maxDate) {
+        if (! $minDate || ! $maxDate) {
             return [];
         }
 
@@ -365,7 +386,7 @@ class WorkScheduleService
         $map = [];
         foreach ($tasks as $task) {
             $memberId = (int) $task->assigned_team_member_id;
-            if (!$memberId) {
+            if (! $memberId) {
                 continue;
             }
 
@@ -377,7 +398,7 @@ class WorkScheduleService
             }
 
             $range = $this->buildTimeRange($task->start_time, $task->end_time);
-            if (!$range) {
+            if (! $range) {
                 continue;
             }
 
@@ -389,7 +410,7 @@ class WorkScheduleService
 
     private function buildTimeRange(?string $startTime, ?string $endTime): ?array
     {
-        if (!$startTime) {
+        if (! $startTime) {
             return [
                 'start' => 0,
                 'end' => 24 * 60,
@@ -421,7 +442,7 @@ class WorkScheduleService
 
     private function timeToMinutes(?string $value): ?int
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 
@@ -433,6 +454,7 @@ class WorkScheduleService
         foreach (['H:i:s', 'H:i'] as $format) {
             try {
                 $time = Carbon::createFromFormat($format, $value);
+
                 return ($time->hour * 60) + $time->minute;
             } catch (\Throwable $exception) {
                 continue;
@@ -449,12 +471,12 @@ class WorkScheduleService
         }
 
         $owner = User::query()->find($work->user_id);
-        if (!$owner) {
+        if (! $owner) {
             return;
         }
 
         $preferences = app(NotificationPreferenceService::class);
-        if (!$preferences->shouldNotify($owner, NotificationPreferenceService::CATEGORY_PLANNING)) {
+        if (! $preferences->shouldNotify($owner, NotificationPreferenceService::CATEGORY_PLANNING)) {
             return;
         }
 

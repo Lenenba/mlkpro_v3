@@ -122,6 +122,8 @@ function Enforce-BackupRetention {
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $envPath = Join-Path $projectRoot '.env'
+$phpExe = Resolve-ExecutablePath -Name 'php'
+$pestBinary = Join-Path $projectRoot 'vendor\bin\pest'
 
 $dbConnection = (Get-DotEnvValue -Path $envPath -Key 'DB_CONNECTION').ToLowerInvariant()
 if ($dbConnection -ne 'mysql') {
@@ -168,9 +170,11 @@ $mysqlArgs = @(
 )
 
 if (-not $Command -or $Command.Count -eq 0) {
-    $Command = @('php', 'artisan', 'test')
-} elseif ($Command[0].StartsWith('-')) {
-    $Command = @('php', 'artisan', 'test') + $Command
+    $Command = @($phpExe, '-d', 'memory_limit=512M', $pestBinary)
+} elseif ($Command[0].StartsWith('-') -or $Command[0].StartsWith('tests') -or $Command[0].EndsWith('.php')) {
+    $Command = @($phpExe, '-d', 'memory_limit=512M', $pestBinary) + $Command
+} elseif ($Command[0] -eq 'php') {
+    $Command[0] = $phpExe
 }
 
 $backupCompleted = $false

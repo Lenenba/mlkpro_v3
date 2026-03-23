@@ -1,8 +1,8 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import ApplicationLogo from '@/Components/ApplicationLogo.vue';
-import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { computed, ref, watchEffect } from 'vue';
+import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
+import PublicSiteHeader from '@/Components/Public/PublicSiteHeader.vue';
+import { Head, Link } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -13,6 +13,14 @@ const props = defineProps({
     canRegister: {
         type: Boolean,
         default: true,
+    },
+    pricingCatalogs: {
+        type: Object,
+        default: () => ({}),
+    },
+    defaultAudience: {
+        type: String,
+        default: null,
     },
     pricingPlans: {
         type: Array,
@@ -30,18 +38,76 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    footerMenu: {
+        type: Object,
+        default: () => ({}),
+    },
+    footerSection: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
-const page = usePage();
 const { t } = useI18n();
-const currentLocale = computed(() => page.props.locale || 'fr');
-const currentLocaleCode = computed(() => String(currentLocale.value || 'fr').toUpperCase());
-const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
-const plans = computed(() => (Array.isArray(props.pricingPlans) ? props.pricingPlans : []));
-const highlightedKey = computed(() => props.highlightedPlanKey || plans.value[2]?.key || plans.value[1]?.key || plans.value[0]?.key || null);
-const comparisonSections = computed(() => (Array.isArray(props.comparisonSections) ? props.comparisonSections : []));
-const langMenuOpen = ref(false);
-const langMenuRef = ref(null);
+const fallbackCatalog = computed(() => ({
+    team: {
+        plans: Array.isArray(props.pricingPlans) ? props.pricingPlans : [],
+        highlightedPlanKey: props.highlightedPlanKey,
+        comparisonSections: Array.isArray(props.comparisonSections) ? props.comparisonSections : [],
+    },
+}));
+const pricingCatalogs = computed(() => {
+    if (props.pricingCatalogs && Object.keys(props.pricingCatalogs).length > 0) {
+        return props.pricingCatalogs;
+    }
+
+    return fallbackCatalog.value;
+});
+const audienceOrder = ['solo', 'team'];
+const audienceKeys = computed(() => {
+    const keys = Object.keys(pricingCatalogs.value);
+
+    return audienceOrder.filter((key) => keys.includes(key)).concat(
+        keys.filter((key) => !audienceOrder.includes(key))
+    );
+});
+const activeAudience = ref(props.defaultAudience || audienceKeys.value[0] || 'team');
+
+watchEffect(() => {
+    if (! audienceKeys.value.includes(activeAudience.value)) {
+        activeAudience.value = props.defaultAudience && audienceKeys.value.includes(props.defaultAudience)
+            ? props.defaultAudience
+            : (audienceKeys.value[0] || 'team');
+    }
+});
+
+const activeCatalog = computed(() => pricingCatalogs.value[activeAudience.value]
+    || pricingCatalogs.value[audienceKeys.value[0]]
+    || {
+        plans: [],
+        highlightedPlanKey: null,
+        comparisonSections: [],
+    });
+const plans = computed(() => (Array.isArray(activeCatalog.value?.plans) ? activeCatalog.value.plans : []));
+const highlightedKey = computed(() => activeCatalog.value?.highlightedPlanKey || props.highlightedPlanKey || plans.value[2]?.key || plans.value[1]?.key || plans.value[0]?.key || null);
+const comparisonSections = computed(() => (Array.isArray(activeCatalog.value?.comparisonSections) ? activeCatalog.value.comparisonSections : []));
+const heroBaseKey = computed(() => `pricing.hero.${activeAudience.value}`);
+const featuresBaseKey = computed(() => `pricing.features.${activeAudience.value}`);
+const supportBaseKey = computed(() => `pricing.enterprise.${activeAudience.value}`);
+const featureItems = computed(() => ['one', 'two', 'three', 'four', 'five']
+    .map((key) => t(`${featuresBaseKey.value}.items.${key}`))
+    .filter((value) => !!value && !value.startsWith('pricing.')));
+const planGridClass = computed(() => {
+    if (plans.value.length <= 3) {
+        return 'md:grid-cols-3';
+    }
+
+    if (plans.value.length === 4) {
+        return 'md:grid-cols-2 xl:grid-cols-4';
+    }
+
+    return 'md:grid-cols-2 xl:grid-cols-5';
+});
 
 const headerMenuItems = computed(() => ([
     {
@@ -63,145 +129,58 @@ const resolvePrice = (plan) => plan?.display_price || plan?.price || '--';
 const resolveFeatures = (plan) => (Array.isArray(plan?.features) ? plan.features.filter((feature) => !!feature) : []);
 const isIncludedCell = (value) => value?.type === 'included';
 const isExcludedCell = (value) => value?.type === 'excluded';
-
-const setLocale = (locale) => {
-    if (locale === currentLocale.value) {
-        return;
-    }
-
-    langMenuOpen.value = false;
-    router.post(route('locale.update'), { locale }, { preserveScroll: true });
-};
-
-const toggleLangMenu = () => {
-    langMenuOpen.value = !langMenuOpen.value;
-};
-
-const closeLangMenu = () => {
-    langMenuOpen.value = false;
-};
-
-const handleLangOutsideClick = (event) => {
-    if (!langMenuRef.value) {
-        return;
-    }
-
-    if (!langMenuRef.value.contains(event.target)) {
-        langMenuOpen.value = false;
-    }
-};
-
-onMounted(() => {
-    document.addEventListener('click', handleLangOutsideClick);
-});
-
-onBeforeUnmount(() => {
-    document.removeEventListener('click', handleLangOutsideClick);
-});
 </script>
 
 <template>
     <Head :title="$t('pricing.meta.title')" />
 
     <div class="public-pricing-page">
-        <header class="public-pricing-header">
-            <div class="mx-auto flex w-full max-w-[88rem] items-center gap-5 px-5 py-5 xl:px-8">
-                <Link :href="route('welcome')" class="flex shrink-0 items-center">
-                    <ApplicationLogo class="h-10 w-36 sm:h-11 sm:w-40" />
-                </Link>
-
-                <div class="min-w-0 flex-1">
-                    <MegaMenuDisplay :menu="megaMenu" :fallback-items="headerMenuItems" />
-                </div>
-
-                <div class="flex shrink-0 items-center gap-3">
-                    <Link
-                        v-if="canLogin"
-                        :href="route('login')"
-                        class="hidden rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50 lg:inline-flex"
-                    >
-                        {{ $t('legal.actions.sign_in') }}
-                    </Link>
-                    <Link
-                        v-if="canRegister"
-                        :href="route('onboarding.index')"
-                        class="hidden rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 xl:inline-flex"
-                    >
-                        {{ $t('legal.actions.create_account') }}
-                    </Link>
-
-                    <div ref="langMenuRef" class="public-pricing-lang">
-                        <button
-                            type="button"
-                            class="public-pricing-lang__toggle"
-                            aria-haspopup="listbox"
-                            :aria-label="$t('account.language')"
-                            :aria-expanded="langMenuOpen"
-                            @click="toggleLangMenu"
-                            @keydown.escape="closeLangMenu"
-                        >
-                            <span>{{ currentLocaleCode }}</span>
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                class="public-pricing-lang__chevron"
-                            >
-                                <path d="m6 9 6 6 6-6" />
-                            </svg>
-                        </button>
-
-                        <div
-                            v-if="langMenuOpen"
-                            class="public-pricing-lang__menu"
-                            role="listbox"
-                            :aria-activedescendant="`lang-${currentLocale}`"
-                            @keydown.escape="closeLangMenu"
-                        >
-                            <button
-                                v-for="locale in availableLocales"
-                                :id="`lang-${locale}`"
-                                :key="locale"
-                                type="button"
-                                role="option"
-                                class="public-pricing-lang__item"
-                                :class="currentLocale === locale ? 'is-active' : ''"
-                                :aria-selected="currentLocale === locale"
-                                @click="setLocale(locale)"
-                            >
-                                {{ $t(`language.${locale}`) }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </header>
+        <PublicSiteHeader
+            :mega-menu="megaMenu"
+            :fallback-items="headerMenuItems"
+            :can-login="canLogin"
+            :can-register="canRegister"
+        />
 
         <main>
             <section class="public-pricing-hero">
                 <div class="public-pricing-container">
                     <div class="mx-auto max-w-3xl space-y-4 text-center">
                         <div class="public-pricing-kicker">
-                            {{ $t('pricing.hero.eyebrow') }}
+                            {{ $t(`${heroBaseKey}.eyebrow`) }}
                         </div>
                         <h1 class="public-pricing-title text-4xl font-semibold tracking-tight sm:text-5xl">
-                            {{ $t('pricing.hero.title') }}
+                            {{ $t(`${heroBaseKey}.title`) }}
                         </h1>
                         <p class="text-base text-stone-600 sm:text-lg">
-                            {{ $t('pricing.hero.subtitle') }}
+                            {{ $t(`${heroBaseKey}.subtitle`) }}
                         </p>
                         <p class="text-sm text-stone-500">
-                            {{ $t('pricing.hero.note') }}
+                            {{ $t(`${heroBaseKey}.note`) }}
                         </p>
+
+                        <div v-if="audienceKeys.length > 1" class="public-pricing-audience-switch">
+                            <span class="public-pricing-audience-switch__label">
+                                {{ $t('pricing.switch.label') }}
+                            </span>
+                            <div class="public-pricing-audience-switch__buttons">
+                                <button
+                                    v-for="audienceKey in audienceKeys"
+                                    :key="audienceKey"
+                                    type="button"
+                                    :class="[
+                                        'public-pricing-audience-switch__button',
+                                        activeAudience === audienceKey ? 'public-pricing-audience-switch__button--active' : ''
+                                    ]"
+                                    @click="activeAudience = audienceKey"
+                                >
+                                    {{ $t(`pricing.audiences.${audienceKey}`) }}
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <div :class="['mt-10 grid grid-cols-1 gap-4', planGridClass]">
                         <article v-for="plan in plans" :key="plan.key"
                             :class="[
                                 'public-pricing-card',
@@ -220,7 +199,7 @@ onBeforeUnmount(() => {
                                         'rounded-sm px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]',
                                         isHighlighted(plan) ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-600'
                                     ]">
-                                    {{ plan.badge || $t('pricing.plans.pro.badge') }}
+                                    {{ plan.badge || $t('pricing.badges.recommended') }}
                                 </span>
                             </div>
                             <div class="mt-4 text-2xl font-semibold text-stone-900">
@@ -232,7 +211,7 @@ onBeforeUnmount(() => {
                                 </li>
                             </ul>
                             <p v-else class="mt-4 text-sm text-stone-500">
-                                {{ $t('pricing.hero.note') }}
+                                {{ $t(`${heroBaseKey}.note`) }}
                             </p>
                         </article>
                     </div>
@@ -301,22 +280,20 @@ onBeforeUnmount(() => {
                     <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_0.9fr]">
                         <article class="public-pricing-surface">
                             <div class="text-sm font-semibold text-stone-900">
-                                {{ $t('pricing.features.title') }}
+                                {{ $t(`${featuresBaseKey}.title`) }}
                             </div>
                             <ul class="mt-4 grid gap-3 text-sm text-stone-600 sm:grid-cols-2">
-                                <li class="public-pricing-bullet">{{ $t('pricing.features.items.one') }}</li>
-                                <li class="public-pricing-bullet">{{ $t('pricing.features.items.two') }}</li>
-                                <li class="public-pricing-bullet">{{ $t('pricing.features.items.three') }}</li>
-                                <li class="public-pricing-bullet">{{ $t('pricing.features.items.four') }}</li>
-                                <li class="public-pricing-bullet">{{ $t('pricing.features.items.five') }}</li>
+                                <li v-for="item in featureItems" :key="item" class="public-pricing-bullet">
+                                    {{ item }}
+                                </li>
                             </ul>
                         </article>
 
                         <article class="public-pricing-surface public-pricing-surface--tinted">
                             <div class="text-sm font-semibold text-stone-900">
-                                {{ $t('pricing.enterprise.title') }}
+                                {{ $t(`${supportBaseKey}.title`) }}
                             </div>
-                            <p class="mt-3 text-sm text-stone-600">{{ $t('pricing.enterprise.body') }}</p>
+                            <p class="mt-3 text-sm text-stone-600">{{ $t(`${supportBaseKey}.body`) }}</p>
                             <div class="mt-5 flex flex-wrap gap-2">
                                 <Link v-if="canRegister" :href="route('onboarding.index')"
                                     class="rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700">
@@ -333,30 +310,7 @@ onBeforeUnmount(() => {
             </section>
         </main>
 
-        <footer class="public-pricing-footer">
-            <div class="public-pricing-container py-8 text-center text-xs text-stone-500">
-                <div class="flex flex-wrap items-center justify-center gap-4 text-stone-600">
-                    <Link :href="route('welcome')" class="hover:text-stone-900">
-                        {{ $t('public_pages.actions.home') }}
-                    </Link>
-                    <Link :href="route('pricing')" class="hover:text-stone-900">
-                        {{ $t('legal.links.pricing') }}
-                    </Link>
-                    <Link :href="route('terms')" class="hover:text-stone-900">
-                        {{ $t('legal.links.terms') }}
-                    </Link>
-                    <Link :href="route('privacy')" class="hover:text-stone-900">
-                        {{ $t('legal.links.privacy') }}
-                    </Link>
-                    <Link :href="route('refund')" class="hover:text-stone-900">
-                        {{ $t('legal.links.refund') }}
-                    </Link>
-                </div>
-                <div class="mt-2">
-                    {{ $t('welcome.footer.copy') }} {{ new Date().getFullYear() }}
-                </div>
-            </div>
-        </footer>
+        <PublicFooterMenu :menu="footerMenu" :section="footerSection" />
     </div>
 </template>
 
@@ -371,17 +325,9 @@ onBeforeUnmount(() => {
 }
 
 .public-pricing-container {
-    width: min(1100px, 92vw);
+    width: min(88rem, 100%);
     margin-inline: auto;
-}
-
-.public-pricing-header {
-    position: sticky;
-    top: 0;
-    z-index: 40;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid #e2e8f0;
+    padding-inline: 1.25rem;
 }
 
 .public-pricing-hero {
@@ -415,6 +361,47 @@ onBeforeUnmount(() => {
     color: #065f46;
     font-size: 0.75rem;
     font-weight: 600;
+}
+
+.public-pricing-audience-switch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.public-pricing-audience-switch__label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: #64748b;
+}
+
+.public-pricing-audience-switch__buttons {
+    display: inline-flex;
+    gap: 0.35rem;
+    padding: 0.3rem;
+    border: 1px solid #dfe7ef;
+    border-radius: 0.125rem;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.public-pricing-audience-switch__button {
+    border: none;
+    border-radius: 0.125rem;
+    background: transparent;
+    color: #475569;
+    padding: 0.55rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.public-pricing-audience-switch__button--active {
+    background: #16a34a;
+    color: #ffffff;
+    box-shadow: 0 12px 30px -20px rgba(22, 163, 74, 0.8);
 }
 
 .public-pricing-card,
@@ -513,65 +500,4 @@ onBeforeUnmount(() => {
     background: #16a34a;
 }
 
-.public-pricing-footer {
-    background: #ffffff;
-    border-top: 1px solid #e2e8f0;
-}
-
-.public-pricing-lang {
-    position: relative;
-}
-
-.public-pricing-lang__toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.125rem;
-    border: 1px solid #e2e8f0;
-    background: #ffffff;
-    color: #0f172a;
-    font-size: 0.85rem;
-    font-weight: 600;
-    box-shadow: 0 12px 24px -20px rgba(15, 23, 42, 0.5);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.public-pricing-lang__toggle:hover {
-    border-color: #16a34a;
-    box-shadow: 0 16px 30px -22px rgba(15, 23, 42, 0.6);
-}
-
-.public-pricing-lang__menu {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 0.5rem);
-    min-width: 10.5rem;
-    padding: 0.4rem;
-    border-radius: 0.125rem;
-    border: 1px solid #e2e8f0;
-    background: #ffffff;
-    box-shadow: 0 16px 36px -24px rgba(15, 23, 42, 0.6);
-    z-index: 50;
-}
-
-.public-pricing-lang__item {
-    width: 100%;
-    padding: 0.45rem 0.75rem;
-    border-radius: 0.125rem;
-    text-align: left;
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: #0f172a;
-    transition: background 0.2s ease, color 0.2s ease;
-}
-
-.public-pricing-lang__item:hover {
-    background: #f1f5f9;
-}
-
-.public-pricing-lang__item.is-active {
-    background: #16a34a;
-    color: #ffffff;
-}
 </style>

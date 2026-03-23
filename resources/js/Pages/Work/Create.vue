@@ -19,6 +19,7 @@ import Checkbox from '@/Components/Checkbox.vue';
 import ProductTableList from '@/Components/ProductTableList.vue';
 import InputError from '@/Components/InputError.vue';
 import { useI18n } from 'vue-i18n';
+import { isFeatureEnabled } from '@/utils/features';
 
 const props = defineProps({
     works: Object,
@@ -40,6 +41,11 @@ const page = usePage();
 const { t } = useI18n();
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('jobs.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
+const featureFlags = computed(() => page.props.auth?.account?.features || {});
+const hasTeamMembersFeature = computed(() => isFeatureEnabled(featureFlags.value, 'team_members'));
+const teamPanelTitle = computed(() => (
+    hasTeamMembersFeature.value ? t('jobs.form.team.title') : t('jobs.form.team.solo_panel_title')
+));
 const customerLabel = computed(() => {
     const label = props.customer?.company_name
         || `${props.customer?.first_name || ''} ${props.customer?.last_name || ''}`.trim();
@@ -144,9 +150,19 @@ const form = useForm({
 const calendarTeamFilter = ref('');
 const teamSearchQuery = ref('');
 
-const useTeamSearch = computed(() => (props.teamMembers?.length || 0) > 3);
+watch(hasTeamMembersFeature, (enabled) => {
+    if (enabled) {
+        return;
+    }
+
+    form.team_member_ids = [];
+    calendarTeamFilter.value = '';
+    teamSearchQuery.value = '';
+}, { immediate: true });
+
+const useTeamSearch = computed(() => hasTeamMembersFeature.value && (props.teamMembers?.length || 0) > 3);
 const normalizedTeamMembers = computed(() =>
-    (props.teamMembers || []).map((member) => ({
+    (!hasTeamMembersFeature.value ? [] : (props.teamMembers || [])).map((member) => ({
         id: Number(member.id),
         name: member.user?.name ?? t('jobs.form.team.member_fallback'),
         email: member.user?.email ?? '',
@@ -362,7 +378,7 @@ function formatTasksForFullCalendar(tasks) {
             const endTime = task.end_time ? String(task.end_time).slice(0, 8) : '';
             const start = startTime ? `${task.due_date}T${startTime}` : task.due_date;
             const end = endTime ? `${task.due_date}T${endTime}` : null;
-            const assigneeLabel = task.assignee?.name ? ` - ${task.assignee.name}` : '';
+            const assigneeLabel = hasTeamMembersFeature.value && task.assignee?.name ? ` - ${task.assignee.name}` : '';
 
             return {
                 id: task.id,
@@ -390,6 +406,10 @@ const hasTasksForWork = computed(() => {
 });
 
 const previewAssignees = computed(() => {
+    if (!hasTeamMembersFeature.value) {
+        return [];
+    }
+
     const selectedIds = (form.team_member_ids ?? [])
         .map((id) => Number(id))
         .filter((id) => Number.isFinite(id));
@@ -673,6 +693,7 @@ const submit = () => {
     form.transform((data) => ({
         ...data,
         products: productsPayload.length ? productsPayload : null,
+        team_member_ids: hasTeamMembersFeature.value ? (data.team_member_ids || []) : [],
     }));
 
     form[props.work?.id ? 'put' : 'post'](route(routeName, routeParams), {
@@ -1026,12 +1047,19 @@ onBeforeUnmount(() => {
                                                         class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                         <h3
                                                             class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                                                            {{ $t('jobs.form.team.title') }}
+                                                            {{ teamPanelTitle }}
                                                         </h3>
                                                     </div>
                                                     <div class="p-4 md:p-5">
                                                         <div class="space-y-3">
-                                                            <div v-if="!teamMembers?.length"
+                                                            <div
+                                                                v-if="!hasTeamMembersFeature"
+                                                                class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                                            >
+                                                                <div class="font-semibold">{{ $t('jobs.form.team.solo_title') }}</div>
+                                                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('jobs.form.team.solo_subtitle') }}</p>
+                                                            </div>
+                                                            <div v-else-if="!teamMembers?.length"
                                                                 class="text-sm text-stone-600 dark:text-neutral-400">
                                                                 {{ $t('jobs.form.team.empty') }}
                                                             </div>
@@ -1140,9 +1168,9 @@ onBeforeUnmount(() => {
                                                                     </label>
                                                                 </template>
                                                             </div>
-                                                            <div v-if="teamMembers?.length"
+                                                            <div v-if="hasTeamMembersFeature && teamMembers?.length"
                                                                 class="text-xs text-stone-500 dark:text-neutral-500">
-                                                                Selectionner un membre pour filtrer le calendrier.
+                                                                {{ $t('jobs.form.team.filter_hint') }}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1162,7 +1190,7 @@ onBeforeUnmount(() => {
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <div class="flex items-center">
+                                                    <div v-if="hasTeamMembersFeature && calendarTeamOptions.length" class="flex items-center">
                                                         <FloatingSelect
                                                             v-model="calendarTeamFilter"
                                                             :label="$t('jobs.form.calendar.filter_label')"
@@ -1336,12 +1364,19 @@ onBeforeUnmount(() => {
                                                 <div
                                                     class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                     <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                                                        {{ $t('jobs.form.team.title') }}
+                                                        {{ teamPanelTitle }}
                                                     </h3>
                                                 </div>
                                                 <div class="p-4 md:p-5">
                                                     <div class="space-y-3">
-                                                        <div v-if="!teamMembers?.length"
+                                                        <div
+                                                            v-if="!hasTeamMembersFeature"
+                                                            class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                                        >
+                                                            <div class="font-semibold">{{ $t('jobs.form.team.solo_title') }}</div>
+                                                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('jobs.form.team.solo_subtitle') }}</p>
+                                                        </div>
+                                                        <div v-else-if="!teamMembers?.length"
                                                             class="text-sm text-stone-600 dark:text-neutral-400">
                                                             {{ $t('jobs.form.team.empty') }}
                                                         </div>
@@ -1450,7 +1485,7 @@ onBeforeUnmount(() => {
                                                                 </label>
                                                             </template>
                                                         </div>
-                                                        <div v-if="teamMembers?.length"
+                                                        <div v-if="hasTeamMembersFeature && teamMembers?.length"
                                                             class="text-xs text-stone-500 dark:text-neutral-500">
                                                             {{ $t('jobs.form.team.filter_hint') }}
                                                         </div>
@@ -1472,7 +1507,7 @@ onBeforeUnmount(() => {
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <div class="flex items-center">
+                                                <div v-if="hasTeamMembersFeature && calendarTeamOptions.length" class="flex items-center">
                                                     <FloatingSelect
                                                         v-model="calendarTeamFilter"
                                                         :label="$t('jobs.form.calendar.filter_label')"

@@ -19,6 +19,8 @@ use App\Models\ReservationReview;
 use App\Models\ReservationWaitlist;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\BillingPlanService;
+use App\Services\BillingSubscriptionService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationIntentGuardService;
 use App\Services\ReservationNotificationService;
@@ -49,19 +51,22 @@ class ClientReservationController extends Controller
 
         $this->authorize('create', Reservation::class);
         [$account, $customer] = $this->resolveClientContext($user);
+        $ownerOnlyMode = $this->ownerOnlyMode($account);
 
-        $teamMembers = TeamMember::query()
-            ->forAccount($account->id)
-            ->active()
-            ->with('user:id,name')
-            ->orderBy('id')
-            ->get()
-            ->map(fn (TeamMember $member) => [
-                'id' => $member->id,
-                'name' => $member->user?->name ?? 'Member',
-                'title' => $member->title,
-            ])
-            ->values();
+        $teamMembers = $ownerOnlyMode
+            ? collect()
+            : TeamMember::query()
+                ->forAccount($account->id)
+                ->active()
+                ->with('user:id,name')
+                ->orderBy('id')
+                ->get()
+                ->map(fn (TeamMember $member) => [
+                    'id' => $member->id,
+                    'name' => $member->user?->name ?? 'Member',
+                    'title' => $member->title,
+                ])
+                ->values();
 
         $services = Product::query()
             ->services()
@@ -82,7 +87,7 @@ class ClientReservationController extends Controller
             ->with(['teamMember.user:id,name', 'service:id,name,price', 'review:id,reservation_id,rating,feedback'])
             ->get();
 
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $settings = $this->effectiveSettings($account);
 
         return $this->inertiaOrJson('Reservation/ClientBook', [
             'timezone' => $this->availabilityService->timezoneForAccount($account),
@@ -130,12 +135,19 @@ class ClientReservationController extends Controller
         $this->authorize('viewAny', Reservation::class);
         [$account] = $this->resolveClientContext($user);
         $validated = $request->validated();
-
         $durationMinutes = $this->availabilityService->resolveDurationMinutes(
             $account->id,
             isset($validated['service_id']) ? (int) $validated['service_id'] : null,
             isset($validated['duration_minutes']) ? (int) $validated['duration_minutes'] : null
         );
+
+        if ($this->ownerOnlyMode($account)) {
+            return response()->json([
+                'timezone' => $this->availabilityService->timezoneForAccount($account),
+                'duration_minutes' => $durationMinutes,
+                'slots' => [],
+            ]);
+        }
 
         $result = $this->availabilityService->generateSlots(
             $account->id,
@@ -163,8 +175,9 @@ class ClientReservationController extends Controller
 
         $this->authorize('create', Reservation::class);
         [$account, $customer] = $this->resolveClientContext($user);
+        $this->ensureSlotBookingEnabled($account);
         $validated = $request->validated();
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $settings = $this->effectiveSettings($account);
         $this->intentGuard->ensureCanCreateReservation($account->id, $customer->id, $user->id, $settings);
         $durationMinutes = $this->slotDurationMinutes($account->id);
 
@@ -251,7 +264,7 @@ class ClientReservationController extends Controller
             'today' => (clone $query)->whereDate('starts_at', now()->toDateString())->count(),
         ];
 
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $settings = $this->effectiveSettings($account);
 
         return $this->inertiaOrJson('Reservation/ClientIndex', [
             'filters' => $filters,
@@ -339,7 +352,10 @@ class ClientReservationController extends Controller
             ]);
         }
 
-        $settings = $this->availabilityService->resolveSettings($account->id, $reservation->team_member_id);
+        $settings = $this->effectiveSettings(
+            $account,
+            $this->availabilityService->resolveSettings($account->id, $reservation->team_member_id)
+        );
         if (! $settings['allow_client_cancel']) {
             throw ValidationException::withMessages([
                 'reservation' => ['Cancellation is disabled for this company.'],
@@ -379,6 +395,7 @@ class ClientReservationController extends Controller
         if ((int) $reservation->account_id !== (int) $account->id) {
             abort(404);
         }
+        $this->ensureSlotBookingEnabled($account);
 
         if (! $reservation->canBeCancelled()) {
             throw ValidationException::withMessages([
@@ -386,7 +403,10 @@ class ClientReservationController extends Controller
             ]);
         }
 
-        $settings = $this->availabilityService->resolveSettings($account->id, $reservation->team_member_id);
+        $settings = $this->effectiveSettings(
+            $account,
+            $this->availabilityService->resolveSettings($account->id, $reservation->team_member_id)
+        );
         if (! $settings['allow_client_reschedule']) {
             throw ValidationException::withMessages([
                 'reservation' => ['Rescheduling is disabled for this company.'],
@@ -422,7 +442,7 @@ class ClientReservationController extends Controller
 
         $this->authorize('create', Reservation::class);
         [$account, $customer] = $this->resolveClientContext($user);
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $settings = $this->effectiveSettings($account);
         if (! ($settings['waitlist_enabled'] ?? false)) {
             throw ValidationException::withMessages([
                 'waitlist' => ['Waitlist is disabled for this company.'],
@@ -499,7 +519,7 @@ class ClientReservationController extends Controller
 
         $this->authorize('create', Reservation::class);
         [$account, $customer] = $this->resolveClientContext($user);
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $settings = $this->effectiveSettings($account);
         $this->ensureQueueModeEnabled($settings);
 
         $validated = $request->validated();
@@ -534,7 +554,7 @@ class ClientReservationController extends Controller
             abort(403);
         }
 
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $settings = $this->effectiveSettings($account);
         $this->ensureQueueModeEnabled($settings);
         $this->queueService->transition($ticket, 'cancel', $user, $settings, [
             'by_client' => true,
@@ -563,7 +583,7 @@ class ClientReservationController extends Controller
             abort(403);
         }
 
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $settings = $this->effectiveSettings($account);
         $this->ensureQueueModeEnabled($settings);
         $this->queueService->transition($ticket, 'still_here', $user, $settings);
 
@@ -632,7 +652,7 @@ class ClientReservationController extends Controller
 
         $this->authorize('viewAny', Reservation::class);
         [$account] = $this->resolveClientContext($user);
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $settings = $this->effectiveSettings($account);
 
         if (! $this->queueModeEnabled($settings)) {
             return redirect()->route('client.reservations.index')
@@ -729,6 +749,41 @@ class ClientReservationController extends Controller
         }
 
         return (int) $ticket->client_id === $customerId;
+    }
+
+    private function effectiveSettings(User $account, ?array $settings = null): array
+    {
+        $settings = $settings ?? $this->availabilityService->resolveSettings($account->id, null);
+        $ownerOnlyMode = $this->ownerOnlyMode($account);
+
+        if ($ownerOnlyMode) {
+            $settings['queue_mode_enabled'] = false;
+            $settings['queue_no_show_on_grace_expiry'] = false;
+            $settings['allow_client_reschedule'] = false;
+        }
+
+        $settings['owner_only_mode'] = $ownerOnlyMode;
+        $settings['slot_booking_enabled'] = ! $ownerOnlyMode;
+
+        return $settings;
+    }
+
+    private function ownerOnlyMode(User $account): bool
+    {
+        $planKey = app(BillingSubscriptionService::class)->resolvePlanKey($account, config('billing.plans', []));
+
+        return $planKey ? app(BillingPlanService::class)->isOwnerOnlyPlan($planKey) : false;
+    }
+
+    private function ensureSlotBookingEnabled(User $account): void
+    {
+        if (! $this->ownerOnlyMode($account)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'reservation' => ['Scheduled booking is unavailable in owner-only solo mode.'],
+        ]);
     }
 
     private function queueFeaturesAvailable(array $settings): bool

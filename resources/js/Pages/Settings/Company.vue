@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
@@ -62,7 +62,9 @@ const props = defineProps({
     },
 });
 
+const page = usePage();
 const { t, tm } = useI18n();
+const hasPresenceFeature = computed(() => Boolean(page.props.auth?.account?.features?.presence));
 
 const countryOptions = computed(() => [
     { id: '', name: t('settings.company.select.country') },
@@ -958,11 +960,13 @@ const submit = () => {
                 },
             };
 
-            payload.company_time_settings = {
-                auto_clock_in: Boolean(data.presence_auto_clock_in),
-                auto_clock_out: Boolean(data.presence_auto_clock_out),
-                manual_clock: Boolean(data.presence_manual_clock),
-            };
+            if (hasPresenceFeature.value) {
+                payload.company_time_settings = {
+                    auto_clock_in: Boolean(data.presence_auto_clock_in),
+                    auto_clock_out: Boolean(data.presence_auto_clock_out),
+                    manual_clock: Boolean(data.presence_manual_clock),
+                };
+            }
 
             delete payload.fulfillment_delivery_enabled;
             delete payload.fulfillment_pickup_enabled;
@@ -1330,7 +1334,7 @@ watch(activeTab, (value) => {
                         </p>
                     </div>
 
-                    <div v-if="isProductCompany" class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
+                    <div v-if="isProductCompany && hasPresenceFeature" class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
                         <div>
                             <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ $t('settings.company.presence.title') }}
@@ -2065,6 +2069,5 @@ watch(activeTab, (value) => {
         </div>
     </SettingsLayout>
 </template>
-
 
 
