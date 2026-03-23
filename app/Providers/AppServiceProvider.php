@@ -51,6 +51,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->environment('testing')) {
+            config()->set('observability.enabled', false);
+        }
+
         Payment::observe(PaymentObserver::class);
 
         RateLimiter::for('api', function (Request $request) {

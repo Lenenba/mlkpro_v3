@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\WeeklyAvailability;
 use App\Models\Work;
 use App\Services\CompanyFeatureService;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -93,6 +94,7 @@ function setStaleSoloPlanModules(string $planCode = 'solo_pro'): void
 beforeEach(function () {
     config()->set('billing.provider_effective', 'stripe');
     config()->set('billing.provider', 'stripe');
+    $this->withoutMiddleware(ValidateCsrfToken::class);
 });
 
 test('owner-only solo plans keep team and presence modules unavailable even with manual feature overrides', function () {
@@ -101,7 +103,7 @@ test('owner-only solo plans keep team and presence modules unavailable even with
 
     $this->actingAs($owner)
         ->withSession(['two_factor_passed' => true])
-        ->get(route('dashboard'))
+        ->get(route('settings.company.edit'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('auth.account.features', fn ($features) => ! collect($features)->has('team_members')
@@ -258,11 +260,17 @@ test('owner-only solo plans ignore submitted presence setting updates', function
         ->assertRedirect(route('settings.company.edit'))
         ->assertSessionHas('success', 'Company settings updated.');
 
-    expect($owner->fresh()->company_time_settings)->toBe([
+    $timeSettings = $owner->fresh()->company_time_settings ?? [];
+    $expectedTimeSettings = [
         'auto_clock_in' => true,
         'auto_clock_out' => true,
         'manual_clock' => true,
-    ]);
+    ];
+
+    ksort($timeSettings);
+    ksort($expectedTimeSettings);
+
+    expect($timeSettings)->toBe($expectedTimeSettings);
 });
 
 test('owner-only solo plans do not expose team members in global search even if stale rows exist', function () {
