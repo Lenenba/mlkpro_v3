@@ -34,7 +34,13 @@ class PlatformPageContentService
 
     private const VISIBILITY_DEVICES = ['all', 'mobile', 'desktop'];
 
-    private const BACKGROUND_PRESETS = ['welcome-hero'];
+    private const BACKGROUND_PRESETS = [
+        'welcome-hero',
+        'graphite-crimson',
+        'obsidian-amber',
+        'midnight-cobalt',
+        'deep-ocean',
+    ];
 
     private const INDUSTRY_CARD_ICONS = [
         'tree-pine',

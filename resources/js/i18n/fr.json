@@ -1500,7 +1500,11 @@
         "background_preset": "Preset de fond",
         "background_presets": {
           "none": "Aucun preset",
-          "welcome_hero": "Dégradé hero d'accueil"
+          "welcome_hero": "Dégradé hero d'accueil",
+          "graphite_crimson": "Noir et rouge",
+          "obsidian_amber": "Noir et ambre",
+          "midnight_cobalt": "Bleu nuit",
+          "deep_ocean": "Océan profond"
         },
         "move_up": "Monter",
         "move_down": "Descendre",
@@ -1738,6 +1742,15 @@
         "description": "Description",
         "background": "Background",
         "background_hex": "Couleur de fond (#hex)",
+        "background_preset": "Preset de fond",
+        "background_presets": {
+          "none": "Aucun preset",
+          "welcome_hero": "Dégradé hero d'accueil",
+          "graphite_crimson": "Noir et rouge",
+          "obsidian_amber": "Noir et ambre",
+          "midnight_cobalt": "Bleu nuit",
+          "deep_ocean": "Océan profond"
+        },
         "panel_background": "Fond du bloc contenu",
         "panel_background_hex": "Couleur du bloc contenu (#hex)",
         "image_position": "Position de l'image",

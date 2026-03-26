@@ -25,7 +25,13 @@ class PlatformSectionContentService
 
     private const TONES = ['default', 'muted', 'contrast'];
 
-    private const BACKGROUND_PRESETS = ['welcome-hero'];
+    private const BACKGROUND_PRESETS = [
+        'welcome-hero',
+        'graphite-crimson',
+        'obsidian-amber',
+        'midnight-cobalt',
+        'deep-ocean',
+    ];
 
     private const FOOTER_GROUP_LAYOUTS = ['stack', 'split'];
 

@@ -1500,7 +1500,11 @@
         "background_preset": "Background preset",
         "background_presets": {
           "none": "No preset",
-          "welcome_hero": "Welcome hero gradient"
+          "welcome_hero": "Welcome hero gradient",
+          "graphite_crimson": "Black and red",
+          "obsidian_amber": "Black and amber",
+          "midnight_cobalt": "Midnight blue",
+          "deep_ocean": "Deep ocean"
         },
         "move_up": "Up",
         "move_down": "Down",
@@ -1738,6 +1742,15 @@
         "description": "Description",
         "background": "Background",
         "background_hex": "Background color (#hex)",
+        "background_preset": "Background preset",
+        "background_presets": {
+          "none": "No preset",
+          "welcome_hero": "Welcome hero gradient",
+          "graphite_crimson": "Black and red",
+          "obsidian_amber": "Black and amber",
+          "midnight_cobalt": "Midnight blue",
+          "deep_ocean": "Deep ocean"
+        },
         "panel_background": "Content panel background",
         "panel_background_hex": "Content panel color (#hex)",
         "image_position": "Image position",

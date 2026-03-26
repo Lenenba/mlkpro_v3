@@ -867,21 +867,21 @@ it('exposes reusable background presets on public page sections', function () {
         'layout' => 'split',
         'title' => 'Preset section',
         'body' => '<p>Uses the welcome hero background preset.</p>',
-        'background_preset' => 'welcome-hero',
+        'background_preset' => 'graphite-crimson',
     ]];
 
     $service->updateLocale($page, 'fr', $payload, $user->id);
 
     $resolvedEn = $service->resolveForLocale($page->fresh(), 'en');
 
-    expect($resolvedEn['sections'][0]['background_preset'])->toBe('welcome-hero');
+    expect($resolvedEn['sections'][0]['background_preset'])->toBe('graphite-crimson');
 
     $this->withHeader('Accept-Language', 'en')
         ->get(route('public.pages.show', ['slug' => $page->slug]))
         ->assertOk()
         ->assertInertia(fn (Assert $inertia) => $inertia
             ->component('Public/Page')
-            ->where('content.sections.0.background_preset', 'welcome-hero')
+            ->where('content.sections.0.background_preset', 'graphite-crimson')
         );
 });
 
@@ -1164,12 +1164,12 @@ it('shares reusable section background presets across locales', function () {
     $service->updateLocale($section, 'fr', [
         'layout' => 'split',
         'title' => 'Titre FR',
-        'background_preset' => 'welcome-hero',
+        'background_preset' => 'midnight-cobalt',
     ], $user->id);
 
     $resolvedEn = $service->resolveForLocale($section->fresh(), 'en');
 
-    expect($resolvedEn['background_preset'])->toBe('welcome-hero');
+    expect($resolvedEn['background_preset'])->toBe('midnight-cobalt');
 });
 
 it('stores reusable industry grid library sections with card items', function () {
