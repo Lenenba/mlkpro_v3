@@ -1497,6 +1497,11 @@
         "style": "Style",
         "background": "Background",
         "background_hex": "Background color (#hex)",
+        "background_preset": "Background preset",
+        "background_presets": {
+          "none": "No preset",
+          "welcome_hero": "Welcome hero gradient"
+        },
         "move_up": "Up",
         "move_down": "Down",
         "remove": "Remove",

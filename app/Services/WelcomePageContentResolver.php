@@ -128,6 +128,7 @@ class WelcomePageContentResolver
         return [
             'enabled' => true,
             'background_color' => $this->stringOrNull($section['background_color'] ?? null),
+            'background_preset' => $this->stringOrNull($section['background_preset'] ?? null),
             'eyebrow' => (string) ($section['kicker'] ?? ''),
             'title' => (string) ($section['title'] ?? ''),
             'title_color' => $this->stringOrNull($section['title_color'] ?? null),
@@ -153,6 +154,7 @@ class WelcomePageContentResolver
         return [
             'enabled' => true,
             'background_color' => $this->stringOrNull($section['background_color'] ?? null),
+            'background_preset' => $this->stringOrNull($section['background_preset'] ?? null),
             'title' => (string) ($section['title'] ?? ''),
             'items' => is_array($section['items'] ?? null) ? $section['items'] : [],
         ];
@@ -171,6 +173,7 @@ class WelcomePageContentResolver
         return [
             'enabled' => true,
             'background_color' => $this->stringOrNull($section['background_color'] ?? null),
+            'background_preset' => $this->stringOrNull($section['background_preset'] ?? null),
             'kicker' => (string) ($section['kicker'] ?? ''),
             'title' => (string) ($section['title'] ?? ''),
             'subtitle' => (string) ($section['body'] ?? ''),
@@ -192,6 +195,7 @@ class WelcomePageContentResolver
         return [
             'enabled' => true,
             'background_color' => $this->stringOrNull($section['background_color'] ?? null),
+            'background_preset' => $this->stringOrNull($section['background_preset'] ?? null),
             'kicker' => (string) ($section['kicker'] ?? ''),
             'title' => (string) ($section['title'] ?? ''),
             'subtitle' => (string) ($section['body'] ?? ''),
@@ -206,6 +210,7 @@ class WelcomePageContentResolver
         return [
             'enabled' => true,
             'background_color' => $this->stringOrNull($section['background_color'] ?? null),
+            'background_preset' => $this->stringOrNull($section['background_preset'] ?? null),
             'kicker' => (string) ($section['kicker'] ?? ''),
             'title' => (string) ($section['title'] ?? ''),
             'subtitle' => (string) ($section['body'] ?? ''),
@@ -220,6 +225,7 @@ class WelcomePageContentResolver
         return [
             'enabled' => true,
             'background_color' => $this->stringOrNull($section['background_color'] ?? null),
+            'background_preset' => $this->stringOrNull($section['background_preset'] ?? null),
             'title' => (string) ($section['title'] ?? ''),
             'subtitle' => (string) ($section['body'] ?? ''),
             'primary' => (string) ($section['primary_label'] ?? ''),

@@ -847,6 +847,91 @@ it('shares public page media across locales while keeping text localized', funct
     expect($resolvedEn['sections'][0]['story_cards'][0]['image_alt'])->toBe('EN card image');
 });
 
+it('exposes reusable background presets on public page sections', function () {
+    $user = User::factory()->create();
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'background-preset-page',
+        'title' => 'Background preset page',
+        'is_active' => true,
+        'content' => [
+            'locales' => [],
+        ],
+    ]);
+
+    $service = app(PlatformPageContentService::class);
+    $payload = $service->defaultContent('fr', $page);
+    $payload['sections'] = [[
+        'id' => 'preset-section-1',
+        'enabled' => true,
+        'layout' => 'split',
+        'title' => 'Preset section',
+        'body' => '<p>Uses the welcome hero background preset.</p>',
+        'background_preset' => 'welcome-hero',
+    ]];
+
+    $service->updateLocale($page, 'fr', $payload, $user->id);
+
+    $resolvedEn = $service->resolveForLocale($page->fresh(), 'en');
+
+    expect($resolvedEn['sections'][0]['background_preset'])->toBe('welcome-hero');
+
+    $this->withHeader('Accept-Language', 'en')
+        ->get(route('public.pages.show', ['slug' => $page->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $inertia) => $inertia
+            ->component('Public/Page')
+            ->where('content.sections.0.background_preset', 'welcome-hero')
+        );
+});
+
+it('shares public page hero slides across locales without inflating section counts', function () {
+    $user = User::factory()->create();
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'shared-page-hero-slides',
+        'title' => 'Shared page hero slides',
+        'is_active' => true,
+        'content' => [
+            'locales' => [],
+        ],
+    ]);
+
+    $service = app(PlatformPageContentService::class);
+
+    $frPayload = $service->defaultContent('fr', $page);
+    $frPayload['sections'] = [[
+        'id' => 'fr-section-1',
+        'enabled' => true,
+        'layout' => 'split',
+        'title' => 'Hero FR',
+        'body' => '<p>Corps FR</p>',
+        'hero_images' => [
+            ['image_url' => 'https://example.com/hero-fr-1.jpg', 'image_alt' => 'Hero FR 1'],
+            ['image_url' => 'https://example.com/hero-fr-2.jpg', 'image_alt' => 'Hero FR 2'],
+        ],
+    ]];
+
+    $enPayload = $service->defaultContent('en', $page);
+    $enPayload['sections'] = [[
+        'id' => 'en-section-1',
+        'enabled' => true,
+        'layout' => 'split',
+        'title' => 'Hero EN',
+        'body' => '<p>Body EN</p>',
+        'hero_images' => [],
+    ]];
+
+    $service->updateLocale($page, 'fr', $frPayload, $user->id);
+    $service->updateLocale($page->fresh(), 'en', $enPayload, $user->id);
+
+    $resolvedEn = $service->resolveForLocale($page->fresh(), 'en');
+
+    expect($resolvedEn['sections'])->toHaveCount(1);
+    expect($resolvedEn['sections'][0]['hero_images'][0]['image_url'])->toBe('https://example.com/hero-fr-1.jpg');
+    expect($resolvedEn['sections'][0]['hero_images'][1]['image_url'])->toBe('https://example.com/hero-fr-2.jpg');
+});
+
 it('stores reusable duo and testimonial library sections with their enhanced fields', function () {
     $user = User::factory()->create();
     $service = app(\App\Services\PlatformSectionContentService::class);
@@ -1029,6 +1114,62 @@ it('shares reusable section media across locales while keeping text localized', 
     expect($resolvedEn['aside_image_url'])->toBe('https://example.com/shared-section-aside.jpg');
     expect($resolvedFr['aside_image_alt'])->toBe('Image aside FR');
     expect($resolvedEn['aside_image_alt'])->toBe('Aside image EN');
+});
+
+it('shares reusable section hero slides across locales while keeping localized alt text', function () {
+    $user = User::factory()->create();
+    $service = app(\App\Services\PlatformSectionContentService::class);
+
+    $section = PlatformSection::query()->create([
+        'name' => 'Shared hero slides section',
+        'type' => 'welcome_hero',
+        'is_active' => true,
+        'content' => ['locales' => []],
+    ]);
+
+    $service->updateLocale($section, 'fr', [
+        'layout' => 'split',
+        'title' => 'Titre FR',
+        'hero_images' => [
+            ['image_url' => 'https://example.com/slide-1.jpg', 'image_alt' => 'Diapo FR 1'],
+            ['image_url' => 'https://example.com/slide-2.jpg', 'image_alt' => 'Diapo FR 2'],
+        ],
+    ], $user->id);
+
+    $enPayload = $service->resolveForLocale($section->fresh(), 'en');
+    $enPayload['title'] = 'Title EN';
+    $enPayload['hero_images'][0]['image_alt'] = 'Slide EN 1';
+
+    $service->updateLocale($section->fresh(), 'en', $enPayload, $user->id);
+
+    $resolvedEn = $service->resolveForLocale($section->fresh(), 'en');
+
+    expect($resolvedEn['hero_images'][0]['image_url'])->toBe('https://example.com/slide-1.jpg');
+    expect($resolvedEn['hero_images'][1]['image_url'])->toBe('https://example.com/slide-2.jpg');
+    expect($resolvedEn['hero_images'][0]['image_alt'])->toBe('Slide EN 1');
+    expect($resolvedEn['hero_images'][1]['image_alt'])->toBe('');
+});
+
+it('shares reusable section background presets across locales', function () {
+    $user = User::factory()->create();
+    $service = app(\App\Services\PlatformSectionContentService::class);
+
+    $section = PlatformSection::query()->create([
+        'name' => 'Shared background preset section',
+        'type' => 'welcome_hero',
+        'is_active' => true,
+        'content' => ['locales' => []],
+    ]);
+
+    $service->updateLocale($section, 'fr', [
+        'layout' => 'split',
+        'title' => 'Titre FR',
+        'background_preset' => 'welcome-hero',
+    ], $user->id);
+
+    $resolvedEn = $service->resolveForLocale($section->fresh(), 'en');
+
+    expect($resolvedEn['background_preset'])->toBe('welcome-hero');
 });
 
 it('stores reusable industry grid library sections with card items', function () {

@@ -25,6 +25,8 @@ class PlatformSectionContentService
 
     private const TONES = ['default', 'muted', 'contrast'];
 
+    private const BACKGROUND_PRESETS = ['welcome-hero'];
+
     private const FOOTER_GROUP_LAYOUTS = ['stack', 'split'];
 
     private const INDUSTRY_CARD_ICONS = [
@@ -144,10 +146,16 @@ class PlatformSectionContentService
     {
         $locale = $this->normalizeLocale($locale);
         $default = $this->defaultContent($locale, $section->type);
-        $stored = $this->storedLocales($section)[$locale] ?? [];
+        $storedLocales = $this->storedLocales($section);
+        $stored = $storedLocales[$locale] ?? [];
 
         $merged = $this->mergeContent($default, is_array($stored) ? $stored : []);
         $merged = $this->applySharedMedia($merged, $this->sharedMedia($section));
+        $merged['background_preset'] = $this->resolveBackgroundPresetForLocale(
+            $merged['background_preset'] ?? null,
+            $storedLocales,
+            $locale
+        );
 
         return $this->sanitizeSection($merged);
     }
@@ -160,7 +168,19 @@ class PlatformSectionContentService
 
         $payload = is_array($section->content) ? $section->content : [];
         $locales = is_array($payload['locales'] ?? null) ? $payload['locales'] : [];
+        $sanitized['hero_images'] = $this->resolveHeroImagesForLocale(
+            $this->sanitizeHeroImages($sanitized['hero_images'] ?? []),
+            $locales,
+            $locale
+        );
+        $sanitized['background_preset'] = $this->resolveBackgroundPresetForLocale(
+            $sanitized['background_preset'] ?? null,
+            $locales,
+            $locale
+        );
         $locales[$locale] = $sanitized;
+        $locales = $this->syncHeroImagesForOtherLocales($locales, $locale, $section->type);
+        $locales = $this->syncBackgroundPresetForOtherLocales($locales, $locale, $section->type);
 
         $sharedMedia = $this->mergeSharedMedia(
             is_array($payload['shared_media'] ?? null) ? $payload['shared_media'] : [],
@@ -197,6 +217,7 @@ class PlatformSectionContentService
         return [
             'layout' => $defaultLayout,
             'background_color' => $this->defaultBackgroundColorForLayout($defaultLayout),
+            'background_preset' => '',
             'title_color' => '',
             'body_color' => '',
             'image_position' => in_array($defaultLayout, ['testimonial', 'showcase_cta'], true) ? 'right' : 'left',
@@ -271,6 +292,7 @@ class PlatformSectionContentService
                 $this->defaultLayoutForType(null)
             ),
             'background_color' => $this->cleanColor($section['background_color'] ?? null) ?? '',
+            'background_preset' => $this->cleanBackgroundPreset($section['background_preset'] ?? null) ?? '',
             'title_color' => $this->cleanColor($section['title_color'] ?? null) ?? '',
             'body_color' => $this->cleanColor($section['body_color'] ?? null) ?? '',
             'image_position' => $this->cleanThemeChoice(
@@ -504,6 +526,137 @@ class PlatformSectionContentService
         }
 
         return $merged;
+    }
+
+    private function syncHeroImagesForOtherLocales(array $locales, string $sourceLocale, ?string $type = null): array
+    {
+        $source = is_array($locales[$sourceLocale] ?? null) ? $locales[$sourceLocale] : [];
+        $sourceSlides = $this->sanitizeHeroImages($source['hero_images'] ?? []);
+        if ($sourceSlides === []) {
+            return $locales;
+        }
+
+        foreach ($this->locales() as $locale) {
+            if ($locale === $sourceLocale) {
+                continue;
+            }
+
+            $target = is_array($locales[$locale] ?? null)
+                ? $locales[$locale]
+                : $this->defaultContent($locale, $type);
+
+            $target['hero_images'] = $this->mergeHeroImages(
+                $this->sanitizeHeroImages($target['hero_images'] ?? []),
+                $sourceSlides
+            );
+
+            $locales[$locale] = $target;
+        }
+
+        return $locales;
+    }
+
+    private function mergeHeroImages(array $targetSlides, array $sourceSlides): array
+    {
+        $merged = [];
+
+        foreach ($sourceSlides as $index => $sourceSlide) {
+            if (! is_array($sourceSlide)) {
+                continue;
+            }
+
+            $targetSlide = is_array($targetSlides[$index] ?? null) ? $targetSlides[$index] : [];
+
+            $merged[] = [
+                'image_url' => $this->cleanText($sourceSlide['image_url'] ?? ''),
+                'image_alt' => $this->cleanText($targetSlide['image_alt'] ?? ''),
+            ];
+        }
+
+        foreach ($targetSlides as $index => $targetSlide) {
+            if (! is_array($targetSlide) || array_key_exists($index, $sourceSlides)) {
+                continue;
+            }
+
+            $merged[] = [
+                'image_url' => $this->cleanText($targetSlide['image_url'] ?? ''),
+                'image_alt' => $this->cleanText($targetSlide['image_alt'] ?? ''),
+            ];
+        }
+
+        return $this->sanitizeHeroImages($merged);
+    }
+
+    private function syncBackgroundPresetForOtherLocales(array $locales, string $sourceLocale, ?string $type = null): array
+    {
+        $source = is_array($locales[$sourceLocale] ?? null) ? $locales[$sourceLocale] : [];
+        $sourcePreset = $this->cleanBackgroundPreset($source['background_preset'] ?? null) ?? '';
+        if ($sourcePreset === '') {
+            return $locales;
+        }
+
+        foreach ($this->locales() as $locale) {
+            if ($locale === $sourceLocale) {
+                continue;
+            }
+
+            $target = is_array($locales[$locale] ?? null)
+                ? $locales[$locale]
+                : $this->defaultContent($locale, $type);
+
+            $targetPreset = $this->cleanBackgroundPreset($target['background_preset'] ?? null) ?? '';
+            if ($targetPreset === '') {
+                $target['background_preset'] = $sourcePreset;
+            }
+
+            $locales[$locale] = $target;
+        }
+
+        return $locales;
+    }
+
+    private function resolveBackgroundPresetForLocale($currentPreset, array $locales, string $locale): string
+    {
+        $preset = $this->cleanBackgroundPreset($currentPreset) ?? '';
+        if ($preset !== '') {
+            return $preset;
+        }
+
+        foreach ($this->locales() as $candidateLocale) {
+            if ($candidateLocale === $locale) {
+                continue;
+            }
+
+            $candidate = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
+            $candidatePreset = $this->cleanBackgroundPreset($candidate['background_preset'] ?? null) ?? '';
+
+            if ($candidatePreset !== '') {
+                return $candidatePreset;
+            }
+        }
+
+        return '';
+    }
+
+    private function resolveHeroImagesForLocale(array $currentSlides, array $locales, string $locale): array
+    {
+        if ($currentSlides !== []) {
+            return $currentSlides;
+        }
+
+        foreach ($this->locales() as $candidateLocale) {
+            if ($candidateLocale === $locale) {
+                continue;
+            }
+
+            $candidate = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
+            $candidateSlides = $this->sanitizeHeroImages($candidate['hero_images'] ?? []);
+            if ($candidateSlides !== []) {
+                return $candidateSlides;
+            }
+        }
+
+        return [];
     }
 
     private function sanitizeStringList($items): array
@@ -906,6 +1059,16 @@ class PlatformSectionContentService
         }
 
         return '#'.strtolower($color);
+    }
+
+    private function cleanBackgroundPreset($value): ?string
+    {
+        $preset = strtolower($this->cleanText($value));
+        if ($preset === '') {
+            return null;
+        }
+
+        return in_array($preset, self::BACKGROUND_PRESETS, true) ? $preset : null;
     }
 
     private function cleanThemeChoice($value, array $allowed, string $default): string

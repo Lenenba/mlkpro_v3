@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import FeatureTabsShowcaseSection from '@/Components/Public/FeatureTabsShowcaseSection.vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import { buildBackgroundStyle } from '@/utils/backgroundPresets';
 import { resolveIndustryIconComponent } from '@/utils/industryGrid';
 
 const props = defineProps({
@@ -169,17 +170,15 @@ onBeforeUnmount(() => {
 });
 
 const sectionStyle = (section) => {
-    const value = String(section?.background_color || '').trim();
-    if (!value || section?.layout === 'duo') {
+    if (section?.layout === 'duo') {
         return {};
     }
 
-    return { background: value };
+    return buildBackgroundStyle(section);
 };
 
 const duoPanelStyle = (section) => {
-    const value = String(section?.background_color || '').trim();
-    return value ? { background: value } : {};
+    return buildBackgroundStyle(section);
 };
 
 const resolveHref = (href) => {

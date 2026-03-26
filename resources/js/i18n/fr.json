@@ -1497,6 +1497,11 @@
         "style": "Style",
         "background": "Background",
         "background_hex": "Couleur de fond (#hex)",
+        "background_preset": "Preset de fond",
+        "background_presets": {
+          "none": "Aucun preset",
+          "welcome_hero": "Dégradé hero d'accueil"
+        },
         "move_up": "Monter",
         "move_down": "Descendre",
         "remove": "Supprimer",

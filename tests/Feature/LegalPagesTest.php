@@ -286,6 +286,95 @@ test('welcome page can override hero highlights note and stats from a sourced se
         );
 });
 
+test('welcome page exposes reusable background presets from sourced hero sections', function () {
+    $heroSection = PlatformSection::query()->create([
+        'name' => 'Welcome Hero Preset',
+        'type' => 'welcome_hero',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'en' => [
+                    'layout' => 'split',
+                    'title' => 'Preset hero',
+                    'body' => '<p>Hero body</p>',
+                    'background_preset' => 'welcome-hero',
+                    'hero_images' => [
+                        ['image_url' => '/images/landing/hero-dashboard.svg', 'image_alt' => 'Hero dashboard'],
+                    ],
+                ],
+                'fr' => [
+                    'layout' => 'split',
+                    'title' => 'Hero preset',
+                    'body' => '<p>Corps hero</p>',
+                    'background_preset' => 'welcome-hero',
+                    'hero_images' => [
+                        ['image_url' => '/images/landing/hero-dashboard.svg', 'image_alt' => 'Dashboard hero'],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    PlatformPage::query()->create([
+        'slug' => 'welcome',
+        'title' => 'Welcome',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'en' => [
+                    'page_title' => '',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'section-1',
+                            'enabled' => true,
+                            'source_id' => $heroSection->id,
+                            'use_source' => true,
+                            'layout' => 'split',
+                            'background_preset' => 'welcome-hero',
+                        ],
+                    ],
+                ],
+                'fr' => [
+                    'page_title' => '',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'section-1',
+                            'enabled' => true,
+                            'source_id' => $heroSection->id,
+                            'use_source' => true,
+                            'layout' => 'split',
+                            'background_preset' => 'welcome-hero',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $this->get(route('welcome'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Welcome')
+            ->where('welcomeContent.hero.background_preset', 'welcome-hero')
+        );
+});
+
 test('welcome page preserves reusable generic section layouts for rendering', function () {
     $heroSection = PlatformSection::query()->create([
         'name' => 'Welcome Hero',
