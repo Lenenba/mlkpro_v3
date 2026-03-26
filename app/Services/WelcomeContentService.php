@@ -65,11 +65,12 @@ class WelcomeContentService
 
         $merged['custom_sections'] = collect($merged['custom_sections'] ?? [])
             ->map(function ($section) {
-                if (!is_array($section)) {
+                if (! is_array($section)) {
                     return null;
                 }
                 $section['id'] = (string) ($section['id'] ?? Str::uuid());
                 $section['enabled'] = array_key_exists('enabled', $section) ? (bool) $section['enabled'] : true;
+
                 return $section;
             })
             ->filter()
@@ -92,7 +93,7 @@ class WelcomeContentService
     public function meta(): array
     {
         $payload = PlatformSetting::getValue(self::SETTING_KEY, []);
-        if (!is_array($payload)) {
+        if (! is_array($payload)) {
             return [
                 'updated_at' => null,
                 'updated_by' => null,
@@ -440,13 +441,13 @@ class WelcomeContentService
     private function sanitizeNav(array $incoming, array $default): array
     {
         $menu = $incoming['menu'] ?? [];
-        if (!is_array($menu)) {
+        if (! is_array($menu)) {
             $menu = [];
         }
 
         $items = [];
         foreach ($menu as $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
             $items[] = [
@@ -500,7 +501,7 @@ class WelcomeContentService
     private function sanitizeFeatures(array $incoming, array $default): array
     {
         $newFeatures = $incoming['new_features'] ?? [];
-        if (!is_array($newFeatures)) {
+        if (! is_array($newFeatures)) {
             $newFeatures = [];
         }
 
@@ -578,13 +579,13 @@ class WelcomeContentService
 
     private function sanitizeCustomSections($sections): array
     {
-        if (!is_array($sections)) {
+        if (! is_array($sections)) {
             return [];
         }
 
         $items = [];
         foreach ($sections as $section) {
-            if (!is_array($section)) {
+            if (! is_array($section)) {
                 continue;
             }
 
@@ -609,13 +610,13 @@ class WelcomeContentService
 
     private function sanitizeFeatureItems($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $sanitized = [];
         foreach ($items as $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
             $sanitized[] = [
@@ -630,13 +631,13 @@ class WelcomeContentService
 
     private function sanitizePreviewCards($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $sanitized = [];
         foreach ($items as $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
             $sanitized[] = [
@@ -650,7 +651,7 @@ class WelcomeContentService
 
     private function sanitizeHeroImages($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
@@ -681,13 +682,13 @@ class WelcomeContentService
 
     private function sanitizeStatItems($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
         $sanitized = [];
         foreach ($items as $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
             $sanitized[] = [
@@ -701,7 +702,7 @@ class WelcomeContentService
 
     private function sanitizeStringList($items): array
     {
-        if (!is_array($items)) {
+        if (! is_array($items)) {
             return [];
         }
 
@@ -726,11 +727,12 @@ class WelcomeContentService
     private function storedLocales(): array
     {
         $payload = PlatformSetting::getValue(self::SETTING_KEY, []);
-        if (!is_array($payload)) {
+        if (! is_array($payload)) {
             return [];
         }
 
         $locales = $payload['locales'] ?? [];
+
         return is_array($locales) ? $locales : [];
     }
 
@@ -738,13 +740,14 @@ class WelcomeContentService
     {
         $merged = $default;
         foreach ($stored as $key => $value) {
-            if (!array_key_exists($key, $default)) {
+            if (! array_key_exists($key, $default)) {
                 continue;
             }
 
             if (is_array($value) && is_array($default[$key])) {
                 if (array_is_list($value) || array_is_list($default[$key])) {
                     $merged[$key] = $value;
+
                     continue;
                 }
                 $merged[$key] = $this->mergeContent($default[$key], $value);
@@ -759,11 +762,12 @@ class WelcomeContentService
     private function extractImagePath(array $payload): ?string
     {
         $path = $payload['image_path'] ?? null;
-        if (!is_string($path)) {
+        if (! is_string($path)) {
             return null;
         }
 
         $path = trim($path);
+
         return $path !== '' ? $path : null;
     }
 
@@ -774,7 +778,7 @@ class WelcomeContentService
 
     private function stringify($value): string
     {
-        if (!is_string($value) && !is_numeric($value)) {
+        if (! is_string($value) && ! is_numeric($value)) {
             return '';
         }
 
@@ -795,17 +799,17 @@ class WelcomeContentService
             return '';
         }
 
-        $allowed = '<' . implode('><', self::ALLOWED_HTML_TAGS) . '>';
+        $allowed = '<'.implode('><', self::ALLOWED_HTML_TAGS).'>';
         $html = strip_tags($html, $allowed);
 
         $previous = libxml_use_internal_errors(true);
         $doc = new \DOMDocument('1.0', 'UTF-8');
-        $doc->loadHTML('<div>' . $html . '</div>', \LIBXML_HTML_NOIMPLIED | \LIBXML_HTML_NODEFDTD);
+        $doc->loadHTML('<div>'.$html.'</div>', \LIBXML_HTML_NOIMPLIED | \LIBXML_HTML_NODEFDTD);
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
 
         $root = $doc->getElementsByTagName('div')->item(0);
-        if (!$root) {
+        if (! $root) {
             return '';
         }
 
@@ -821,7 +825,7 @@ class WelcomeContentService
 
     private function sanitizeHtmlNode(\DOMNode $node): void
     {
-        if (!$node->hasChildNodes()) {
+        if (! $node->hasChildNodes()) {
             return;
         }
 
@@ -829,9 +833,10 @@ class WelcomeContentService
         foreach (iterator_to_array($node->childNodes) as $child) {
             if ($child instanceof \DOMElement) {
                 $tag = strtolower($child->tagName);
-                if (!in_array($tag, $allowedTags, true)) {
+                if (! in_array($tag, $allowedTags, true)) {
                     $text = $child->textContent ?? '';
                     $node->replaceChild($node->ownerDocument->createTextNode($text), $child);
+
                     continue;
                 }
 
@@ -839,11 +844,11 @@ class WelcomeContentService
                 if ($child->hasAttributes()) {
                     for ($i = $child->attributes->length - 1; $i >= 0; $i--) {
                         $attribute = $child->attributes->item($i);
-                        if (!$attribute) {
+                        if (! $attribute) {
                             continue;
                         }
                         $name = strtolower($attribute->name);
-                        if (!in_array($name, $allowedAttributes, true)) {
+                        if (! in_array($name, $allowedAttributes, true)) {
                             $child->removeAttribute($attribute->name);
                         }
                     }
@@ -866,6 +871,7 @@ class WelcomeContentService
                     $src = $this->sanitizeUrl($child->getAttribute('src'), 'image');
                     if ($src === null) {
                         $node->removeChild($child);
+
                         continue;
                     }
                     $child->setAttribute('src', $src);
@@ -919,7 +925,7 @@ class WelcomeContentService
             return null;
         }
 
-        if (!preg_match('/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $color)) {
+        if (! preg_match('/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $color)) {
             return null;
         }
 
@@ -929,12 +935,14 @@ class WelcomeContentService
     private function cleanStyle($value): string
     {
         $style = $this->cleanText($value);
+
         return in_array($style, ['solid', 'outline', 'ghost'], true) ? $style : 'outline';
     }
 
     private function normalizeLocale(string $locale): string
     {
         $locale = strtolower(trim($locale));
+
         return in_array($locale, $this->locales(), true) ? $locale : $this->locales()[0];
     }
 
@@ -946,6 +954,7 @@ class WelcomeContentService
         try {
             /** @var array $result */
             $result = $callback();
+
             return $result;
         } finally {
             app()->setLocale($current);

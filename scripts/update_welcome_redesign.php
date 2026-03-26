@@ -1,12 +1,12 @@
 <?php
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
-$app = require __DIR__ . '/../bootstrap/app.php';
+$app = require __DIR__.'/../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
-use App\Models\PlatformPage;
 use App\Models\PlatformAsset;
+use App\Models\PlatformPage;
 use App\Models\PlatformSection;
 use App\Services\PlatformPageContentService;
 use App\Services\PlatformSectionContentService;
@@ -17,9 +17,9 @@ $pageService = app(PlatformPageContentService::class);
 $sectionService = app(PlatformSectionContentService::class);
 
 $ensureAsset = static function (string $name, string $relativePath, array $tags, string $alt, int $userId): void {
-    $fullPath = storage_path('app/public/' . ltrim($relativePath, '/'));
+    $fullPath = storage_path('app/public/'.ltrim($relativePath, '/'));
 
-    if (!is_file($fullPath)) {
+    if (! is_file($fullPath)) {
         return;
     }
 
