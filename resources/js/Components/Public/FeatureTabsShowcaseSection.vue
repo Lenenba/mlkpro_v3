@@ -512,10 +512,15 @@ const setActiveChild = (child) => {
 
 .feature-tabs-showcase__media {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    inset: 1rem 1rem 4.2rem 1rem;
+    width: calc(100% - 2rem);
+    height: calc(100% - 5.2rem);
+    object-fit: contain;
+    object-position: center top;
+    padding: 0.35rem;
+    border-radius: 0.45rem;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 26px 44px -34px rgba(15, 23, 42, 0.34);
 }
 
 .feature-tabs-showcase__media-fallback {

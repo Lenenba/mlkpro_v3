@@ -76,9 +76,9 @@ class WelcomePageContentResolver
                     break;
 
                 default:
-                    $custom = $this->mapCustomSection($pageSection);
-                    if ($custom) {
-                        $payload['custom_sections'][] = $custom;
+                    $generic = $this->mapGenericSection($pageSection);
+                    if ($generic) {
+                        $payload['generic_sections'][] = $generic;
                     }
                     break;
             }
@@ -111,6 +111,7 @@ class WelcomePageContentResolver
 
         $content['cta']['enabled'] = false;
         $content['custom_sections'] = [];
+        $content['generic_sections'] = [];
         $content['home_service_showcase'] = [
             'enabled' => false,
         ];
@@ -120,19 +121,26 @@ class WelcomePageContentResolver
 
     private function mapHero(array $section, array $source): array
     {
+        $heroImages = is_array($section['hero_images'] ?? null) && count($section['hero_images']) > 0
+            ? $section['hero_images']
+            : (is_array($source['hero_images'] ?? null) ? $source['hero_images'] : []);
+
         return [
             'enabled' => true,
             'background_color' => $this->stringOrNull($section['background_color'] ?? null),
             'eyebrow' => (string) ($section['kicker'] ?? ''),
             'title' => (string) ($section['title'] ?? ''),
+            'title_color' => $this->stringOrNull($section['title_color'] ?? null),
+            'body_color' => $this->stringOrNull($section['body_color'] ?? null),
+            'title_font_size' => (int) ($section['title_font_size'] ?? 0),
             'subtitle' => (string) ($section['body'] ?? ''),
             'primary_cta' => (string) ($section['primary_label'] ?? ''),
             'primary_href' => (string) ($section['primary_href'] ?? ''),
             'secondary_cta' => (string) ($section['secondary_label'] ?? ''),
             'secondary_href' => (string) ($section['secondary_href'] ?? ''),
-            'note' => (string) ($source['note'] ?? ''),
-            'stats' => is_array($source['stats'] ?? null) ? $source['stats'] : [],
-            'hero_images' => is_array($source['hero_images'] ?? null) ? $source['hero_images'] : [],
+            'note' => (string) ($section['note'] ?? ''),
+            'stats' => is_array($section['stats'] ?? null) ? $section['stats'] : [],
+            'hero_images' => $heroImages,
             'highlights' => is_array($section['items'] ?? null) ? $section['items'] : [],
             'preview_cards' => is_array($source['preview_cards'] ?? null) ? $source['preview_cards'] : [],
             'image_url' => (string) ($section['image_url'] ?? ''),
@@ -221,29 +229,13 @@ class WelcomePageContentResolver
         ];
     }
 
-    private function mapCustomSection(array $section): ?array
+    private function mapGenericSection(array $section): ?array
     {
-        $title = trim((string) ($section['title'] ?? ''));
-        $body = trim((string) ($section['body'] ?? ''));
-
-        if ($title === '' && $body === '' && empty($section['image_url']) && empty($section['primary_label']) && empty($section['secondary_label'])) {
+        if (! is_array($section)) {
             return null;
         }
 
-        return [
-            'id' => (string) ($section['id'] ?? ''),
-            'enabled' => true,
-            'background_color' => $this->stringOrNull($section['background_color'] ?? null),
-            'kicker' => (string) ($section['kicker'] ?? ''),
-            'title' => $title,
-            'body' => $body,
-            'image_url' => (string) ($section['image_url'] ?? ''),
-            'image_alt' => (string) ($section['image_alt'] ?? ''),
-            'primary_label' => (string) ($section['primary_label'] ?? ''),
-            'primary_href' => (string) ($section['primary_href'] ?? ''),
-            'secondary_label' => (string) ($section['secondary_label'] ?? ''),
-            'secondary_href' => (string) ($section['secondary_href'] ?? ''),
-        ];
+        return $section;
     }
 
     private function stringOrNull($value): ?string

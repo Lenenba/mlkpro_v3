@@ -167,3 +167,274 @@ test('welcome page resolves reusable welcome sections from the page library', fu
             ->where('welcomeContent.hero.hero_images.1.image_url', '/images/mega-menu/operations-suite.svg')
         );
 });
+
+test('welcome page can override hero highlights note and stats from a sourced section', function () {
+    $heroSection = PlatformSection::query()->create([
+        'name' => 'Welcome Hero',
+        'type' => 'welcome_hero',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'en' => [
+                    'layout' => 'split',
+                    'kicker' => 'Operations suite',
+                    'title' => 'Run the whole business from one flow',
+                    'body' => '<p>Public pages, quoting, scheduling, and payments stay connected.</p>',
+                    'note' => '<p>Trusted by local operators.</p>',
+                    'stats' => [
+                        ['value' => '24/7', 'label' => 'Availability'],
+                    ],
+                    'items' => ['Capture leads faster'],
+                    'image_url' => '/images/landing/hero-dashboard.svg',
+                    'image_alt' => 'Hero dashboard',
+                ],
+                'fr' => [
+                    'layout' => 'split',
+                    'kicker' => 'Suite operations',
+                    'title' => 'Pilotez l activite dans un seul flux',
+                    'body' => '<p>Pages publiques, devis, planning et paiements restent relies.</p>',
+                    'note' => '<p>Adopte par les equipes locales.</p>',
+                    'stats' => [
+                        ['value' => '24/7', 'label' => 'Disponibilite'],
+                    ],
+                    'items' => ['Capturez vos leads plus vite'],
+                    'image_url' => '/images/landing/hero-dashboard.svg',
+                    'image_alt' => 'Dashboard hero',
+                ],
+            ],
+        ],
+    ]);
+
+    PlatformPage::query()->create([
+        'slug' => 'welcome',
+        'title' => 'Welcome',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'en' => [
+                    'page_title' => '',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'section-1',
+                            'enabled' => true,
+                            'source_id' => $heroSection->id,
+                            'use_source' => true,
+                            'layout' => 'split',
+                            'title_color' => '#f8fafc',
+                            'body_color' => '#d6f5e3',
+                            'title_font_size' => 78,
+                            'override_items' => true,
+                            'override_note' => true,
+                            'override_stats' => true,
+                            'items' => [],
+                            'note' => '',
+                            'stats' => [],
+                        ],
+                    ],
+                ],
+                'fr' => [
+                    'page_title' => '',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'section-1',
+                            'enabled' => true,
+                            'source_id' => $heroSection->id,
+                            'use_source' => true,
+                            'layout' => 'split',
+                            'title_color' => '#f8fafc',
+                            'body_color' => '#d6f5e3',
+                            'title_font_size' => 78,
+                            'override_items' => true,
+                            'override_note' => true,
+                            'override_stats' => true,
+                            'items' => [],
+                            'note' => '',
+                            'stats' => [],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $this->get(route('welcome'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Welcome')
+            ->where('welcomeContent.hero.highlights', [])
+            ->where('welcomeContent.hero.note', '')
+            ->where('welcomeContent.hero.stats', [])
+            ->where('welcomeContent.hero.title_color', '#f8fafc')
+            ->where('welcomeContent.hero.body_color', '#d6f5e3')
+            ->where('welcomeContent.hero.title_font_size', 78)
+        );
+});
+
+test('welcome page preserves reusable generic section layouts for rendering', function () {
+    $heroSection = PlatformSection::query()->create([
+        'name' => 'Welcome Hero',
+        'type' => 'welcome_hero',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'en' => [
+                    'layout' => 'split',
+                    'title' => 'Welcome',
+                    'body' => '<p>Hero body</p>',
+                ],
+                'fr' => [
+                    'layout' => 'split',
+                    'title' => 'Accueil',
+                    'body' => '<p>Hero body</p>',
+                ],
+            ],
+        ],
+    ]);
+
+    $showcaseSection = PlatformSection::query()->create([
+        'name' => 'Showcase CTA',
+        'type' => 'showcase_cta',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'en' => [
+                    'layout' => 'showcase_cta',
+                    'kicker' => 'Product tour',
+                    'title' => 'A real reusable layout',
+                    'body' => '<p>The welcome page should reuse the same renderer as other public pages.</p>',
+                    'image_url' => '/images/landing/hero-dashboard.svg',
+                    'image_alt' => 'Dashboard',
+                    'aside_image_url' => '/images/landing/mobile-field.svg',
+                    'aside_image_alt' => 'Mobile',
+                    'aside_link_label' => 'Watch the demo',
+                    'aside_link_href' => '/contact',
+                    'showcase_badge_label' => 'Trusted by',
+                    'showcase_badge_value' => '+120k',
+                    'showcase_badge_note' => 'Pros',
+                    'primary_label' => 'Get started',
+                    'primary_href' => '/onboarding',
+                    'secondary_label' => 'Learn more',
+                    'secondary_href' => '/pricing',
+                ],
+                'fr' => [
+                    'layout' => 'showcase_cta',
+                    'kicker' => 'Visite produit',
+                    'title' => 'Un vrai layout reutilisable',
+                    'body' => '<p>Le welcome doit reutiliser le meme rendu que les autres pages.</p>',
+                    'image_url' => '/images/landing/hero-dashboard.svg',
+                    'image_alt' => 'Dashboard',
+                    'aside_image_url' => '/images/landing/mobile-field.svg',
+                    'aside_image_alt' => 'Mobile',
+                    'aside_link_label' => 'Voir la demo',
+                    'aside_link_href' => '/contact',
+                    'showcase_badge_label' => 'Adopte par',
+                    'showcase_badge_value' => '+120k',
+                    'showcase_badge_note' => 'Pros',
+                    'primary_label' => 'Commencer',
+                    'primary_href' => '/onboarding',
+                    'secondary_label' => 'En savoir plus',
+                    'secondary_href' => '/tarifs',
+                ],
+            ],
+        ],
+    ]);
+
+    PlatformPage::query()->create([
+        'slug' => 'welcome',
+        'title' => 'Welcome',
+        'is_active' => true,
+        'content' => [
+            'theme' => [
+                'primary_color' => '#16a34a',
+                'font_body' => 'work-sans',
+                'font_heading' => 'space-grotesk',
+            ],
+            'locales' => [
+                'en' => [
+                    'page_title' => '',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'section-hero',
+                            'enabled' => true,
+                            'source_id' => $heroSection->id,
+                            'use_source' => true,
+                            'layout' => 'split',
+                        ],
+                        [
+                            'id' => 'section-showcase',
+                            'enabled' => true,
+                            'source_id' => $showcaseSection->id,
+                            'use_source' => true,
+                            'layout' => 'showcase_cta',
+                        ],
+                    ],
+                ],
+                'fr' => [
+                    'page_title' => '',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'section-hero',
+                            'enabled' => true,
+                            'source_id' => $heroSection->id,
+                            'use_source' => true,
+                            'layout' => 'split',
+                        ],
+                        [
+                            'id' => 'section-showcase',
+                            'enabled' => true,
+                            'source_id' => $showcaseSection->id,
+                            'use_source' => true,
+                            'layout' => 'showcase_cta',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $this->get(route('welcome'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Welcome')
+            ->where('pageTheme.primary_color', '#16a34a')
+            ->where('welcomeContent.generic_sections.0.layout', 'showcase_cta')
+            ->where('welcomeContent.generic_sections.0.aside_image_url', '/images/landing/mobile-field.svg')
+            ->where('welcomeContent.generic_sections.0.showcase_badge_value', '+120k')
+            ->where('welcomeContent.generic_sections.0.primary_label', fn (string $value) => in_array($value, [
+                'Commencer',
+                'Get started',
+            ], true))
+        );
+});
