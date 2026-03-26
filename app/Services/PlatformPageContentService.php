@@ -168,6 +168,7 @@ class PlatformPageContentService
                     'feature_tabs_font_size' => $this->cleanFeatureTabsFontSize($section['feature_tabs_font_size'] ?? null),
                     'testimonial_cards' => $this->sanitizeTestimonialCards($section['testimonial_cards'] ?? []),
                     'stats' => $this->sanitizeStatItems($section['stats'] ?? []),
+                    'hero_images' => $this->sanitizeHeroImages($section['hero_images'] ?? []),
                     'items' => $this->sanitizeStringList($section['items'] ?? []),
                     'testimonial_author' => $this->cleanText($section['testimonial_author'] ?? ''),
                     'testimonial_role' => $this->cleanText($section['testimonial_role'] ?? ''),
@@ -293,6 +294,7 @@ class PlatformPageContentService
             'feature_tabs_font_size' => 0,
             'testimonial_cards' => [],
             'stats' => [],
+            'hero_images' => [],
             'items' => [],
             'testimonial_author' => '',
             'testimonial_role' => '',
@@ -394,6 +396,7 @@ class PlatformPageContentService
                 'feature_tabs_font_size' => $this->cleanFeatureTabsFontSize($section['feature_tabs_font_size'] ?? null),
                 'testimonial_cards' => $this->sanitizeTestimonialCards($section['testimonial_cards'] ?? []),
                 'stats' => $this->sanitizeStatItems($section['stats'] ?? []),
+                'hero_images' => $this->sanitizeHeroImages($section['hero_images'] ?? []),
                 'items' => $this->sanitizeStringList($section['items'] ?? []),
                 'testimonial_author' => $this->cleanText($section['testimonial_author'] ?? ''),
                 'testimonial_role' => $this->cleanText($section['testimonial_role'] ?? ''),
@@ -740,6 +743,34 @@ class PlatformPageContentService
         }
 
         return array_slice($cards, 0, 12);
+    }
+
+    private function sanitizeHeroImages($items): array
+    {
+        if (! is_array($items)) {
+            return [];
+        }
+
+        $slides = [];
+        foreach (array_values($items) as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $imageUrl = $this->cleanImageValue($item['image_url'] ?? '');
+            if ($imageUrl === '') {
+                continue;
+            }
+
+            $id = $this->cleanText($item['id'] ?? '');
+            $slides[] = [
+                'id' => $id !== '' ? $id : 'hero-image-'.($index + 1),
+                'image_url' => $imageUrl,
+                'image_alt' => $this->cleanText($item['image_alt'] ?? ''),
+            ];
+        }
+
+        return array_slice($slides, 0, 12);
     }
 
     private function sanitizeFeatureTabChildren($items): array
@@ -1284,6 +1315,10 @@ class PlatformPageContentService
 
         if (empty($section['override_stats'])) {
             $section['stats'] = $source['stats'] ?? [];
+        }
+
+        if (empty($section['hero_images'])) {
+            $section['hero_images'] = $source['hero_images'] ?? [];
         }
 
         if (empty($section['override_items'])) {

@@ -382,6 +382,16 @@ const ensureStatItems = (items) => (
     Array.isArray(items) ? items.map((item) => createStatItem(item)) : []
 );
 
+const createHeroImage = (overrides = {}) => ({
+    id: overrides.id || createLocalId('page-hero-image'),
+    image_url: overrides.image_url || '',
+    image_alt: overrides.image_alt || '',
+});
+
+const ensureHeroImages = (items) => (
+    Array.isArray(items) ? items.map((item) => createHeroImage(item)) : []
+);
+
 const stripHtml = (value) =>
     String(value || '')
         .replace(/<[^>]*>/g, ' ')
@@ -572,6 +582,7 @@ const ensureSection = (section, index) => ({
     feature_tabs_font_size: normalizeFeatureTabsTriggerFontSize(section?.feature_tabs_font_size),
     testimonial_cards: ensureTestimonialCards(section?.testimonial_cards),
     stats: ensureStatItems(section?.stats),
+    hero_images: ensureHeroImages(section?.hero_images),
     items: Array.isArray(section?.items) ? section.items : [],
     testimonial_author: section?.testimonial_author || '',
     testimonial_role: section?.testimonial_role || '',
@@ -706,6 +717,21 @@ const updateSectionStatField = (section, item, key, value) => {
     item[key] = value;
 };
 
+const addSectionHeroImage = (section) => {
+    if (!section) return;
+    section.hero_images = [...(section.hero_images || []), createHeroImage()];
+};
+
+const moveSectionHeroImage = (section, index, direction) => {
+    if (!section?.hero_images?.length) return;
+    moveItem(section.hero_images, index, direction);
+};
+
+const removeSectionHeroImage = (section, index) => {
+    if (!section?.hero_images) return;
+    section.hero_images.splice(index, 1);
+};
+
 const updateVisibilityList = (section, key, value) => {
     if (!section?.visibility) {
         section.visibility = ensureVisibility({});
@@ -818,6 +844,7 @@ const sectionPreviewText = (section) => {
 
 const sectionPreviewImages = (section) =>
     [
+        ...(Array.isArray(section?.hero_images) ? section.hero_images.map((item) => item?.image_url) : []),
         section?.image_url,
         section?.aside_image_url,
         ...(Array.isArray(section?.story_cards) ? section.story_cards.map((card) => card?.image_url) : []),
@@ -917,6 +944,7 @@ const applyLibraryToSection = (section) => {
     section.feature_tabs_font_size = normalizeFeatureTabsTriggerFontSize(content.feature_tabs_font_size);
     section.testimonial_cards = ensureTestimonialCards(content.testimonial_cards);
     section.stats = ensureStatItems(content.stats);
+    section.hero_images = ensureHeroImages(content.hero_images);
     section.items = Array.isArray(content.items) ? content.items : [];
     section.override_items = false;
     section.override_note = false;
@@ -1803,6 +1831,77 @@ syncFormFromProps(currentLocale.value);
                                                 :label="$t('super_admin.sections.welcome.hero.stat_label')"
                                                 @update:modelValue="updateSectionStatField(section, item, 'label', $event)"
                                             />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-3">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                            {{ $t('super_admin.sections.welcome.hero.slides_title') }}
+                                        </h3>
+                                        <p class="text-xs text-stone-500 dark:text-neutral-500">
+                                            {{ $t('super_admin.sections.welcome.hero.slides_subtitle') }}
+                                        </p>
+                                    </div>
+                                    <button type="button"
+                                        class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                        @click="addSectionHeroImage(section)">
+                                        {{ $t('super_admin.sections.welcome.hero.add_slide') }}
+                                    </button>
+                                </div>
+
+                                <div v-if="section.hero_images?.length" class="grid gap-3 xl:grid-cols-2">
+                                    <div v-for="(item, slideIndex) in section.hero_images" :key="item.id || `page-hero-slide-${slideIndex}`"
+                                        class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700 space-y-3">
+                                        <div class="flex flex-wrap justify-between gap-2 text-xs">
+                                            <div class="font-semibold text-stone-700 dark:text-neutral-200">
+                                                {{ $t('super_admin.sections.welcome.hero.slide_label', { number: slideIndex + 1 }) }}
+                                            </div>
+                                            <div class="flex flex-wrap gap-2">
+                                                <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                    @click="moveSectionHeroImage(section, slideIndex, -1)">
+                                                    {{ $t('super_admin.pages.common.move_up') }}
+                                                </button>
+                                                <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 hover:bg-stone-50"
+                                                    @click="moveSectionHeroImage(section, slideIndex, 1)">
+                                                    {{ $t('super_admin.pages.common.move_down') }}
+                                                </button>
+                                                <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                                    @click="removeSectionHeroImage(section, slideIndex)">
+                                                    {{ $t('super_admin.pages.common.remove') }}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_240px]">
+                                            <div class="space-y-3">
+                                                <FloatingInput
+                                                    v-model="item.image_url"
+                                                    :label="$t('super_admin.sections.welcome.hero.slide_image_url')"
+                                                />
+                                                <FloatingInput
+                                                    v-model="item.image_alt"
+                                                    :label="$t('super_admin.sections.welcome.hero.slide_image_alt')"
+                                                />
+                                                <button type="button"
+                                                    class="rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                                    @click="openAssetPicker(item, 'image_url', 'image_alt')">
+                                                    {{ $t('super_admin.sections.welcome.hero.choose_asset') }}
+                                                </button>
+                                            </div>
+
+                                            <div v-if="item.image_url" class="overflow-hidden rounded-sm border border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-950">
+                                                <img
+                                                    :src="item.image_url"
+                                                    :alt="item.image_alt || `${$t('super_admin.sections.welcome.hero.slide_image_alt')} ${slideIndex + 1}`"
+                                                    class="h-36 w-full object-cover"
+                                                    loading="lazy"
+                                                    decoding="async"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

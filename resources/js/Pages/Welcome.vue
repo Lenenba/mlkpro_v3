@@ -1,7 +1,8 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import FeatureTabsShowcaseSection from '@/Components/Public/FeatureTabsShowcaseSection.vue';
 import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
+import PublicSectionsRenderer from '@/Components/Public/PublicSectionsRenderer.vue';
 import PublicSiteHeader from '@/Components/Public/PublicSiteHeader.vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
@@ -21,6 +22,10 @@ const props = defineProps({
         default: null,
     },
     welcomeContent: {
+        type: Object,
+        default: () => ({}),
+    },
+    pageTheme: {
         type: Object,
         default: () => ({}),
     },
@@ -150,89 +155,102 @@ const headerMenuItems = computed(() =>
     }))
 );
 
-const customSections = computed(() =>
-    (welcomeContent.value.custom_sections || []).filter((section) => section && section.enabled !== false)
+const genericSections = computed(() =>
+    (welcomeContent.value.generic_sections || []).filter((section) => section && section.enabled !== false)
 );
 
-const heroLayoutRef = ref(null);
-const heroVisibleHeight = ref(null);
-let heroLayoutObserver = null;
+const heroSlides = computed(() => {
+    const items = Array.isArray(welcomeContent.value.hero?.hero_images)
+        ? welcomeContent.value.hero.hero_images
+        : [];
 
-const syncHeroVisibleHeight = () => {
-    if (typeof window !== 'undefined' && !window.matchMedia('(min-width: 1024px)').matches) {
-        heroVisibleHeight.value = null;
-        return;
-    }
-
-    if (!heroLayoutRef.value) {
-        return;
-    }
-
-    const nextHeight = Math.max(Math.round(heroLayoutRef.value.getBoundingClientRect().height), 0);
-    heroVisibleHeight.value = nextHeight ? `${nextHeight}px` : null;
-};
-
-const normalizeHeroSlides = (value) => {
-    if (!Array.isArray(value)) {
-        return [];
-    }
-
-    return value
-        .map((item) => {
-            const src = String(item?.image_url || '').trim();
+    const slides = items
+        .map((item, index) => {
+            const src = String(typeof item === 'string' ? item : item?.image_url || '').trim();
             if (!src) {
                 return null;
             }
 
             return {
+                id: String((typeof item === 'object' && item?.id) || `hero-slide-${index}`),
                 src,
-                alt: String(item?.image_alt || '').trim(),
+                alt: String(typeof item === 'object' ? item?.image_alt || '' : '').trim() || t('welcome.images.hero_alt'),
             };
         })
         .filter(Boolean);
-};
 
-const defaultHeroSlides = computed(() => {
-    const baseImage = welcomeContent.value.hero?.image_url || '/images/landing/hero-dashboard.svg';
-    const baseAlt = welcomeContent.value.hero?.image_alt || t('welcome.images.hero_alt');
-
-    if (normalizedLocale.value === 'fr') {
-        return [
-            { src: baseImage, alt: baseAlt },
-            { src: '/images/mega-menu/operations-suite.svg', alt: 'Suite operations terrain' },
-            { src: '/images/mega-menu/sales-crm-suite.svg', alt: 'Suite ventes et CRM' },
-            { src: '/images/mega-menu/reservations-suite.svg', alt: 'Suite reservations' },
-            { src: '/images/mega-menu/ai-automation-suite.svg', alt: 'Suite IA et automatisation' },
-            { src: '/images/mega-menu/commerce-suite.svg', alt: 'Suite commerce' },
-            { src: '/images/mega-menu/marketing-loyalty-suite.svg', alt: 'Suite marketing et fidelisation' },
-            { src: '/images/mega-menu/platform-command-center.svg', alt: 'Centre de commandement plateforme' },
-        ];
+    if (slides.length) {
+        return slides;
     }
 
-    return [
-        { src: baseImage, alt: baseAlt },
-        { src: '/images/mega-menu/operations-suite.svg', alt: 'Field operations suite' },
-        { src: '/images/mega-menu/sales-crm-suite.svg', alt: 'Sales and CRM suite' },
-        { src: '/images/mega-menu/reservations-suite.svg', alt: 'Reservations suite' },
-        { src: '/images/mega-menu/ai-automation-suite.svg', alt: 'AI and automation suite' },
-        { src: '/images/mega-menu/commerce-suite.svg', alt: 'Commerce suite' },
-        { src: '/images/mega-menu/marketing-loyalty-suite.svg', alt: 'Marketing and loyalty suite' },
-        { src: '/images/mega-menu/platform-command-center.svg', alt: 'Platform command center' },
-    ];
+    const fallbackSrc = String(welcomeContent.value.hero?.image_url || '').trim();
+    if (!fallbackSrc) {
+        return [];
+    }
+
+    return [{
+        id: 'hero-slide-fallback',
+        src: fallbackSrc,
+        alt: String(welcomeContent.value.hero?.image_alt || '').trim() || t('welcome.images.hero_alt'),
+    }];
+});
+const heroSlideIndex = ref(0);
+let heroSlideInterval = null;
+const HERO_SLIDE_INTERVAL_MS = 5000;
+
+const clearHeroSlideInterval = () => {
+    if (heroSlideInterval && typeof window !== 'undefined') {
+        window.clearInterval(heroSlideInterval);
+        heroSlideInterval = null;
+    }
+};
+
+const startHeroSlideInterval = () => {
+    clearHeroSlideInterval();
+    if (typeof window === 'undefined' || heroSlides.value.length <= 1) {
+        return;
+    }
+
+    heroSlideInterval = window.setInterval(() => {
+        heroSlideIndex.value = (heroSlideIndex.value + 1) % heroSlides.value.length;
+    }, HERO_SLIDE_INTERVAL_MS);
+};
+
+watch(heroSlides, (slides) => {
+    heroSlideIndex.value = 0;
+    if (!slides.length) {
+        clearHeroSlideInterval();
+        return;
+    }
+
+    startHeroSlideInterval();
+}, { deep: true });
+
+onMounted(() => {
+    startHeroSlideInterval();
 });
 
-const heroSlides = computed(() => {
-    const configuredSlides = normalizeHeroSlides(welcomeContent.value.hero?.hero_images);
-
-    return configuredSlides.length ? configuredSlides : defaultHeroSlides.value;
+onBeforeUnmount(() => {
+    clearHeroSlideInterval();
 });
 
-const heroSlidesLoop = computed(() => [...heroSlides.value, ...heroSlides.value]);
+const heroSideImage = computed(() => (
+    heroSlides.value[heroSlideIndex.value] || null
+));
+const heroHasVisual = computed(() => Boolean(heroSideImage.value));
 
-const heroSliderStyle = computed(() => ({
-    '--welcome-slide-count': String(heroSlides.value.length),
-    '--welcome-slider-height': heroVisibleHeight.value || 'clamp(24rem, 38vw, 34rem)',
-}));
+const heroStatCards = computed(() =>
+    Array.isArray(welcomeContent.value.hero?.stats)
+        ? welcomeContent.value.hero.stats
+            .map((stat, index) => ({
+                id: stat?.id || `stat-${index}`,
+                value: String(stat?.value || '').trim(),
+                label: String(stat?.label || '').trim(),
+            }))
+            .filter((stat) => stat.value || stat.label)
+            .slice(0, 3)
+        : []
+);
 
 const normalizedHeroTitleSize = computed(() => {
     const raw = Number(welcomeContent.value.hero?.title_font_size || 0);
@@ -240,7 +258,8 @@ const normalizedHeroTitleSize = computed(() => {
         return 0;
     }
 
-    return Math.max(40, Math.min(Math.round(raw), 96));
+    const maxSize = heroHasVisual.value ? 72 : 96;
+    return Math.max(40, Math.min(Math.round(raw), maxSize));
 });
 
 const heroTitleStyle = computed(() => {
@@ -255,6 +274,9 @@ const heroTitleStyle = computed(() => {
         const minSize = Math.max(32, maxSize - 18);
         style.fontSize = `clamp(${minSize}px, 5vw, ${maxSize}px)`;
         style.lineHeight = maxSize >= 72 ? '0.95' : '1';
+    } else if (heroHasVisual.value) {
+        style.fontSize = 'clamp(2.35rem, 3.6vw, 3.9rem)';
+        style.lineHeight = '0.92';
     }
 
     return style;
@@ -268,28 +290,6 @@ const heroBodyStyle = computed(() => {
     }
 
     return style;
-});
-
-onMounted(() => {
-    syncHeroVisibleHeight();
-
-    if (typeof ResizeObserver !== 'undefined' && heroLayoutRef.value) {
-        heroLayoutObserver = new ResizeObserver(() => {
-            syncHeroVisibleHeight();
-        });
-        heroLayoutObserver.observe(heroLayoutRef.value);
-    }
-
-    window.addEventListener('resize', syncHeroVisibleHeight);
-});
-
-onBeforeUnmount(() => {
-    if (heroLayoutObserver) {
-        heroLayoutObserver.disconnect();
-        heroLayoutObserver = null;
-    }
-
-    window.removeEventListener('resize', syncHeroVisibleHeight);
 });
 </script>
 
@@ -307,110 +307,101 @@ onBeforeUnmount(() => {
         <main>
             <section v-if="welcomeContent.hero?.enabled !== false" class="welcome-section welcome-hero"
                 :style="sectionStyle(welcomeContent.hero?.background_color)">
-                <div class="welcome-container">
-                    <div class="grid grid-cols-1 items-center lg:grid-cols-2 lg:items-stretch welcome-split welcome-hero-layout">
-                        <div ref="heroLayoutRef" class="space-y-6 welcome-hero-copy">
-                            <div class="welcome-kicker welcome-fade-up">
-                                {{ welcomeContent.hero?.eyebrow || $t('welcome.hero.eyebrow') }}
-                            </div>
+                <div class="welcome-hero-shell" :class="{ 'welcome-hero-shell--with-visual': heroSideImage }">
+                    <div class="space-y-4 welcome-hero-copy welcome-hero-copy--left">
+                        <div class="welcome-kicker welcome-hero-kicker-intro">
+                            {{ welcomeContent.hero?.eyebrow || $t('welcome.hero.eyebrow') }}
+                        </div>
+                        <div class="welcome-hero-title-wrap">
+                            <span class="welcome-hero-title-accent" aria-hidden="true"></span>
                             <h1
-                                class="welcome-title text-4xl font-semibold tracking-tight sm:text-5xl welcome-fade-up"
-                                :style="[{ animationDelay: '0.1s' }, heroTitleStyle]"
+                                class="welcome-title welcome-hero-headline welcome-hero-title-intro text-4xl font-semibold tracking-tight sm:text-5xl"
+                                :style="heroTitleStyle"
                             >
                                 {{ welcomeContent.hero?.title || $t('welcome.hero.title') }}
                             </h1>
-                            <div
-                                class="welcome-rich text-base text-stone-600 sm:text-lg welcome-fade-up"
-                                :style="[{ animationDelay: '0.2s' }, heroBodyStyle]"
-                                v-html="welcomeContent.hero?.subtitle || $t('welcome.hero.subtitle')"></div>
+                        </div>
+                        <div
+                            class="welcome-rich welcome-hero-body-intro text-sm sm:text-base"
+                            :style="[{ animationDelay: '0.3s' }, heroBodyStyle]"
+                            v-html="welcomeContent.hero?.subtitle || $t('welcome.hero.subtitle')"></div>
 
-                            <div class="flex flex-wrap gap-3 welcome-fade-up" style="animation-delay: 0.3s;">
-                                <template v-if="welcomeContent.hero?.primary_cta && isHrefAllowed(welcomeContent.hero?.primary_href)">
-                                    <a
-                                        v-if="isExternalHref(resolveHref(welcomeContent.hero?.primary_href))"
-                                        :href="resolveHref(welcomeContent.hero?.primary_href)"
-                                        class="rounded-sm border border-transparent bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
-                                        rel="noopener noreferrer"
-                                        target="_blank"
-                                    >
-                                        {{ welcomeContent.hero?.primary_cta }}
-                                    </a>
-                                    <Link
-                                        v-else
-                                        :href="resolveHref(welcomeContent.hero?.primary_href)"
-                                        class="rounded-sm border border-transparent bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
-                                    >
-                                        {{ welcomeContent.hero?.primary_cta }}
-                                    </Link>
-                                </template>
-                                <template v-if="welcomeContent.hero?.secondary_cta && isHrefAllowed(welcomeContent.hero?.secondary_href)">
-                                    <a
-                                        v-if="isExternalHref(resolveHref(welcomeContent.hero?.secondary_href))"
-                                        :href="resolveHref(welcomeContent.hero?.secondary_href)"
-                                        class="rounded-sm border border-stone-300 bg-white px-5 py-2.5 text-sm font-semibold text-stone-900 shadow-sm hover:bg-stone-100"
-                                        rel="noopener noreferrer"
-                                        target="_blank"
-                                    >
-                                        {{ welcomeContent.hero?.secondary_cta }}
-                                    </a>
-                                    <Link
-                                        v-else
-                                        :href="resolveHref(welcomeContent.hero?.secondary_href)"
-                                        class="rounded-sm border border-stone-200 bg-white px-5 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50"
-                                    >
-                                        {{ welcomeContent.hero?.secondary_cta }}
-                                    </Link>
-                                </template>
-                            </div>
-
-                            <div class="grid gap-3 text-sm text-stone-700 sm:grid-cols-3 welcome-fade-up" style="animation-delay: 0.4s;">
-                                <div
-                                    v-for="(stat, statIndex) in (welcomeContent.hero?.stats || [])"
-                                    :key="stat.id || statIndex"
-                                    class="rounded-sm border border-stone-200 bg-white/80 px-3 py-3"
+                        <div class="welcome-hero-actions welcome-fade-up" style="animation-delay: 0.3s;">
+                            <template v-if="welcomeContent.hero?.primary_cta || $t('welcome.hero.primary_cta')">
+                                <a
+                                    v-if="isExternalHref(resolveHref(welcomeContent.hero?.primary_href || 'onboarding.index'))"
+                                    :href="resolveHref(welcomeContent.hero?.primary_href || 'onboarding.index')"
+                                    class="welcome-hero-button welcome-hero-button--primary"
+                                    rel="noopener noreferrer"
+                                    target="_blank"
                                 >
-                                    <div class="text-lg font-semibold text-stone-900">{{ stat.value }}</div>
-                                    <div class="text-xs text-stone-500">{{ stat.label }}</div>
-                                </div>
-                            </div>
+                                    {{ welcomeContent.hero?.primary_cta || $t('welcome.hero.primary_cta') }}
+                                </a>
+                                <Link
+                                    v-else
+                                    :href="resolveHref(welcomeContent.hero?.primary_href || 'onboarding.index')"
+                                    class="welcome-hero-button welcome-hero-button--primary"
+                                >
+                                    {{ welcomeContent.hero?.primary_cta || $t('welcome.hero.primary_cta') }}
+                                </Link>
+                            </template>
 
+                            <template v-if="welcomeContent.hero?.secondary_cta || $t('welcome.hero.secondary_cta')">
+                                <a
+                                    v-if="isExternalHref(resolveHref(welcomeContent.hero?.secondary_href || 'login'))"
+                                    :href="resolveHref(welcomeContent.hero?.secondary_href || 'login')"
+                                    class="welcome-hero-button welcome-hero-button--secondary"
+                                    rel="noopener noreferrer"
+                                    target="_blank"
+                                >
+                                    {{ welcomeContent.hero?.secondary_cta || $t('welcome.hero.secondary_cta') }}
+                                </a>
+                                <Link
+                                    v-else
+                                    :href="resolveHref(welcomeContent.hero?.secondary_href || 'login')"
+                                    class="welcome-hero-button welcome-hero-button--secondary"
+                                >
+                                    {{ welcomeContent.hero?.secondary_cta || $t('welcome.hero.secondary_cta') }}
+                                </Link>
+                            </template>
+                        </div>
+
+                        <div
+                            v-if="welcomeContent.hero?.note || $t('welcome.hero.note')"
+                            class="welcome-rich welcome-hero-note welcome-hero-body-intro"
+                            style="animation-delay: 0.42s;"
+                            v-html="welcomeContent.hero?.note || $t('welcome.hero.note')"
+                        ></div>
+
+                        <div
+                            v-if="heroStatCards.length"
+                            class="welcome-hero-metrics welcome-fade-up"
+                            style="animation-delay: 0.5s;"
+                        >
                             <div
-                                class="grid gap-2 text-sm text-stone-600 welcome-fade-up"
-                                :style="[{ animationDelay: '0.5s' }, heroBodyStyle]"
+                                v-for="stat in heroStatCards"
+                                :key="stat.id"
+                                class="welcome-hero-metric"
                             >
-                                <div v-for="(item, highlightIndex) in (welcomeContent.hero?.highlights || [])" :key="highlightIndex" class="flex items-start gap-2">
-                                    <span class="mt-1 size-1.5 rounded-full bg-green-600"></span>
-                                    <span>{{ item }}</span>
-                                </div>
-                            </div>
-
-                            <div
-                                class="welcome-rich text-xs text-stone-500 welcome-fade-up"
-                                :style="[{ animationDelay: '0.6s' }, heroBodyStyle]"
-                                v-html="welcomeContent.hero?.note || $t('welcome.hero.note')"></div>
-                        </div>
-
-                        <div class="relative welcome-fade-in welcome-hero-visual">
-                            <div class="welcome-hero-slider" :style="heroSliderStyle">
-                                <div class="welcome-hero-track">
-                                    <article
-                                        v-for="(slide, slideIndex) in heroSlidesLoop"
-                                        :key="`${slide.src}-${slideIndex}`"
-                                        class="welcome-hero-slide"
-                                    >
-                                        <div class="welcome-hero-slide-frame">
-                                            <img
-                                                :src="slide.src"
-                                                :alt="slide.alt"
-                                                class="welcome-hero-slide-image"
-                                                loading="lazy"
-                                                decoding="async"
-                                            />
-                                        </div>
-                                    </article>
-                                </div>
+                                <div class="welcome-hero-metric__value">{{ stat.value }}</div>
+                                <div class="welcome-hero-metric__label">{{ stat.label }}</div>
                             </div>
                         </div>
+
+                    </div>
+
+                    <div v-if="heroSideImage" class="welcome-hero-visual welcome-fade-in">
+                        <Transition name="welcome-hero-slide">
+                            <img
+                                :key="heroSideImage.id"
+                                :src="heroSideImage.src"
+                                :alt="heroSideImage.alt"
+                                class="welcome-hero-visual-image"
+                                loading="eager"
+                                fetchpriority="high"
+                                decoding="async"
+                            />
+                        </Transition>
                     </div>
                 </div>
             </section>
@@ -557,71 +548,10 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section v-if="customSections.length" class="welcome-section welcome-custom">
-                <div class="welcome-container space-y-10">
-                    <article v-for="(section, customIndex) in customSections" :key="section.id || customIndex"
-                        class="welcome-custom-card" :style="sectionStyle(section.background_color)">
-                        <div class="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-center">
-                            <div class="space-y-4">
-                                <div v-if="section.kicker" class="welcome-kicker">{{ section.kicker }}</div>
-                                <h2 class="welcome-title text-3xl font-semibold">{{ section.title }}</h2>
-                                <div v-if="section.body" class="welcome-rich text-sm text-stone-600" v-html="section.body"></div>
-
-                                <div class="flex flex-wrap gap-2">
-                                    <template v-if="section.primary_label && isHrefAllowed(section.primary_href)">
-                                        <a
-                                            v-if="isExternalHref(resolveHref(section.primary_href))"
-                                            :href="resolveHref(section.primary_href)"
-                                            class="rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
-                                            rel="noopener noreferrer"
-                                            target="_blank"
-                                        >
-                                            {{ section.primary_label }}
-                                        </a>
-                                        <Link
-                                            v-else
-                                            :href="resolveHref(section.primary_href)"
-                                            class="rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
-                                        >
-                                            {{ section.primary_label }}
-                                        </Link>
-                                    </template>
-                                    <template v-if="section.secondary_label && isHrefAllowed(section.secondary_href)">
-                                        <a
-                                            v-if="isExternalHref(resolveHref(section.secondary_href))"
-                                            :href="resolveHref(section.secondary_href)"
-                                            class="rounded-sm border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-50"
-                                            rel="noopener noreferrer"
-                                            target="_blank"
-                                        >
-                                            {{ section.secondary_label }}
-                                        </a>
-                                        <Link
-                                            v-else
-                                            :href="resolveHref(section.secondary_href)"
-                                            class="rounded-sm border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-50"
-                                        >
-                                            {{ section.secondary_label }}
-                                        </Link>
-                                    </template>
-                                </div>
-                            </div>
-
-                            <div v-if="section.image_url" class="welcome-custom-media">
-                                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-lg">
-                                    <img
-                                        :src="section.image_url"
-                                        :alt="section.image_alt || section.title"
-                                        class="h-auto w-full rounded-sm"
-                                        loading="lazy"
-                                        decoding="async"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-            </section>
+            <PublicSectionsRenderer
+                v-if="genericSections.length"
+                :content="{ sections: genericSections, theme: pageTheme }"
+            />
 
             <section v-if="welcomeContent.cta?.enabled !== false" class="welcome-section welcome-cta"
                 :style="sectionStyle(welcomeContent.cta?.background_color)">
@@ -687,6 +617,7 @@ onBeforeUnmount(() => {
 .welcome-page {
     --public-shell-width: 88rem;
     --public-shell-gutter: 1.25rem;
+    --public-site-header-height: 5.75rem;
     --welcome-ink: #0f172a;
     --welcome-muted: #475569;
     --welcome-accent: #16a34a;
@@ -718,19 +649,101 @@ onBeforeUnmount(() => {
     row-gap: clamp(2.5rem, 6vw, 4rem);
 }
 
-.welcome-hero-layout {
-    column-gap: clamp(1.75rem, 4vw, 3.25rem);
+.welcome-hero {
+    background:
+        radial-gradient(circle at top center, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0) 24%),
+        linear-gradient(135deg, #0d1d35 0%, #0d3137 48%, #0d5a46 100%);
+    color: #ecfdf5;
+    --section-pad: 0;
 }
 
-.welcome-hero {
-    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 55%, #ecfdf5 100%);
+.welcome-hero-shell {
+    width: min(var(--public-shell-width), 100%);
+    margin: 0 auto;
+    padding-left: var(--public-shell-gutter);
+    padding-right: var(--public-shell-gutter);
+    display: grid;
+    gap: clamp(1.5rem, 4vw, 2.75rem);
+    align-items: center;
+}
+
+.welcome-hero-shell--with-visual {
+    width: 100%;
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+    gap: 0;
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+    min-height: clamp(28rem, calc(100svh - var(--public-site-header-height, 5.75rem) - 0.75rem), 34rem);
+    align-items: stretch;
+}
+
+.welcome-hero-copy {
     padding-top: 0;
     padding-bottom: 0;
 }
 
-.welcome-hero-copy {
-    padding-top: clamp(1.5rem, 2.5vw, 2.35rem);
-    padding-bottom: clamp(2.75rem, 5vw, 4.5rem);
+.welcome-hero-copy--left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    text-align: left;
+    min-width: 0;
+    max-width: 42rem;
+    background:
+        radial-gradient(circle at top center, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0) 24%),
+        linear-gradient(135deg, #0d1d35 0%, #0d3137 48%, #0d5a46 100%);
+    color: #ecfdf5;
+}
+
+.welcome-hero-shell--with-visual .welcome-hero-copy--left {
+    width: 100%;
+    max-width: none;
+    min-height: 100%;
+    padding-top: clamp(2rem, 3vw, 3rem);
+    padding-bottom: clamp(2rem, 3vw, 3rem);
+    padding-right: clamp(1.5rem, 2.4vw, 2.5rem);
+    padding-left: max(var(--public-shell-gutter), calc((100vw - var(--public-shell-width)) / 2 + var(--public-shell-gutter)));
+}
+
+.welcome-hero-title-wrap {
+    position: relative;
+    display: inline-block;
+    max-width: 34rem;
+    padding-top: 0.15rem;
+    padding-bottom: 0.9rem;
+    isolation: isolate;
+}
+
+.welcome-hero-title-accent {
+    position: absolute;
+    left: 0;
+    bottom: 0.35rem;
+    width: clamp(4.5rem, 7vw, 7.5rem);
+    height: 0.28rem;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(110, 231, 183, 0.95), rgba(45, 212, 191, 0.5));
+    box-shadow: none;
+    z-index: 0;
+    transform-origin: left center;
+    animation: welcomeHeroAccentIn 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: 0.22s;
+}
+
+.welcome-hero-headline {
+    position: relative;
+    z-index: 1;
+    text-wrap: balance;
+}
+
+.welcome-hero-title-intro {
+    opacity: 0;
+    transform: translateY(22px);
+    clip-path: inset(0 0 100% 0);
+    animation: welcomeHeroTitleIn 0.95s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: 0.12s;
+    will-change: opacity, transform, clip-path;
 }
 
 .welcome-trust {
@@ -756,25 +769,205 @@ onBeforeUnmount(() => {
     --section-pad: clamp(4rem, 8vw, 8.5rem);
 }
 
-.welcome-custom {
-    background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 100%);
-    --section-pad: clamp(3.5rem, 7vw, 7.5rem);
-}
-
 .welcome-cta {
     background: linear-gradient(120deg, #0f172a 0%, #0f766e 100%);
     --section-pad: clamp(3.5rem, 7vw, 7.5rem);
 }
 
 .welcome-kicker {
+    display: inline-block;
+    padding: 0;
+    color: #a7f3d0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.welcome-hero .welcome-kicker {
+    background: transparent;
+    border: 0;
+    color: #a7f3d0;
+}
+
+.welcome-hero-kicker-intro {
+    opacity: 0;
+    transform: translateX(-16px);
+    animation: welcomeHeroKickerIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: 0.02s;
+}
+
+.welcome-hero .welcome-title {
+    color: #f8fafc;
+    max-width: 11ch;
+    line-height: 0.92;
+}
+
+.welcome-hero-copy--left .welcome-rich {
+    max-width: 31rem;
+    color: rgba(236, 253, 245, 0.84);
+    line-height: 1.55;
+}
+
+.welcome-hero-body-intro {
+    opacity: 0;
+    transform: translateY(16px);
+    filter: blur(10px);
+    animation: welcomeHeroBodyIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: opacity, transform, filter;
+}
+
+.welcome-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.welcome-hero-button {
     display: inline-flex;
     align-items: center;
-    padding: 0.35rem 0.75rem;
+    justify-content: center;
+    min-height: 3rem;
+    padding: 0.72rem 1.2rem;
     border-radius: 0.125rem;
-    background: rgba(16, 185, 129, 0.12);
-    color: #065f46;
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    transition: transform 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.welcome-hero-button:hover {
+    transform: translateY(-1px);
+}
+
+.welcome-hero-button--primary {
+    background: #1f2937;
+    color: #ffffff;
+    box-shadow: 0 18px 30px -24px rgba(15, 23, 42, 0.42);
+}
+
+.welcome-hero-button--secondary {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.welcome-hero-note {
+    max-width: 31rem;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: rgba(236, 253, 245, 0.72);
+}
+
+.welcome-hero-metrics {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 0.65rem;
+    width: min(100%, 31rem);
+}
+
+.welcome-hero-metric {
+    min-width: 0;
+    min-height: 4.15rem;
+    border-radius: 0.125rem;
+    border: 1px solid rgba(148, 163, 184, 0.26);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 24px 46px -40px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(10px);
+}
+
+.welcome-hero-metric {
+    padding: 1rem 1rem 0.95rem;
+    text-align: center;
+}
+
+.welcome-hero-metric__value {
+    color: #f8fafc;
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.welcome-hero-metric__label {
+    margin-top: 0.42rem;
+    color: rgba(236, 253, 245, 0.72);
+    font-size: 0.7rem;
+    line-height: 1.35;
+}
+
+.welcome-hero-visual {
+    position: relative;
+    display: block;
+    align-self: stretch;
+    min-width: 0;
+    min-height: 100%;
+    overflow: hidden;
+    background: #dbe4f0;
+    isolation: isolate;
+}
+
+.welcome-hero-visual::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(9, 16, 24, 0.08) 0%, rgba(9, 16, 24, 0.02) 36%, rgba(9, 16, 24, 0.12) 100%);
+}
+
+.welcome-hero-visual::after {
+    content: '';
+    position: absolute;
+    inset: -8% -12%;
+    z-index: 1;
+    pointer-events: none;
+    background: radial-gradient(circle at 22% 24%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 42%);
+    opacity: 0.75;
+}
+
+.welcome-hero-visual-image {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    transform: scale(1.015);
+    filter: saturate(0.98) contrast(1.02);
+    will-change: opacity, transform, filter;
+}
+
+.welcome-hero-slide-enter-active,
+.welcome-hero-slide-leave-active {
+    transition:
+        opacity 1.25s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 1.8s cubic-bezier(0.22, 1, 0.36, 1),
+        filter 1.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.welcome-hero-slide-enter-from {
+    opacity: 0;
+    transform: scale(1.04);
+    filter: saturate(0.94) contrast(1) brightness(1.02);
+}
+
+.welcome-hero-slide-leave-to {
+    opacity: 0;
+    transform: scale(1.01);
+    filter: saturate(1.02) contrast(1.03) brightness(0.98);
+}
+
+.welcome-hero-slide-enter-active {
+    z-index: 0;
+}
+
+.welcome-hero-slide-leave-active {
+    z-index: 0;
 }
 
 .welcome-pill {
@@ -836,89 +1029,55 @@ onBeforeUnmount(() => {
     color: #0f172a;
 }
 
-.welcome-custom-card {
-    border: 1px solid #e2e8f0;
-    border-radius: 0.125rem;
-    padding: clamp(1.5rem, 4vw, 2.75rem);
-    background: #ffffff;
-    box-shadow: 0 24px 45px -38px rgba(15, 23, 42, 0.35);
-}
-
-.welcome-custom-media {
-    display: flex;
-    justify-content: center;
-}
-
-.welcome-hero-visual {
-    position: relative;
-    display: flex;
-    align-self: stretch;
-    width: 100%;
-    height: 100%;
-    min-width: 0;
-    max-width: none;
-}
-
-.welcome-hero-slider {
-    --welcome-slider-height: clamp(24rem, 38vw, 34rem);
-    --welcome-slide-height: clamp(11.5rem, 17vw, 14rem);
-    --welcome-slide-gap: 1.15rem;
-    width: 100%;
-    flex: 1 1 auto;
-    height: var(--welcome-slider-height);
-    overflow: hidden;
-}
-
-.welcome-hero-track {
-    display: flex;
-    flex-direction: column;
-    gap: var(--welcome-slide-gap);
-    transform: translateY(calc(-1 * (var(--welcome-slide-height) + var(--welcome-slide-gap)) * var(--welcome-slide-count)));
-    animation: welcomeHeroVerticalSlider 34s linear infinite;
-    will-change: transform;
-}
-
-.welcome-hero-slider:hover .welcome-hero-track {
-    animation-play-state: paused;
-}
-
-.welcome-hero-slide {
-    height: var(--welcome-slide-height);
-}
-
-.welcome-hero-slide-frame {
-    display: flex;
-    align-items: stretch;
-    justify-content: stretch;
-    height: 100%;
-    padding: 0;
-    overflow: hidden;
-    border-radius: 0.125rem;
-    background: #f8fafc;
-    box-shadow: 0 18px 40px -34px rgba(15, 23, 42, 0.18);
-}
-
-.welcome-hero-slide-image {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-}
-
 @media (min-width: 1024px) {
-    .welcome-hero-slider {
-        --welcome-slide-height: calc((var(--welcome-slider-height) - var(--welcome-slide-gap)) / 2);
+    .welcome-hero-metrics {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+    .welcome-hero-metrics {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 1023px) {
-    .welcome-hero-visual {
-        max-width: none;
+    .welcome-hero-shell--with-visual {
+        width: min(var(--public-shell-width), 100%);
+        padding-left: var(--public-shell-gutter);
+        padding-right: var(--public-shell-gutter);
+        gap: clamp(1.5rem, 4vw, 2.75rem);
+        grid-template-columns: minmax(0, 1fr);
+        min-height: auto;
     }
 
-    .welcome-hero-slider {
-        --welcome-slide-height: clamp(12rem, 60vw, 15.5rem);
+    .welcome-hero-shell--with-visual .welcome-hero-copy--left {
+        padding: 0;
+    }
+
+    .welcome-hero-copy--left {
+        padding: clamp(2.5rem, 6vw, 3.5rem);
+    }
+
+    .welcome-hero-visual {
+        width: 100%;
+        min-height: clamp(18rem, 60vw, 24rem);
+    }
+
+    .welcome-hero-visual-image {
+        width: 100%;
+        height: 100%;
+    }
+
+    .welcome-hero-title-accent {
+        bottom: 0.8rem;
+        width: clamp(4rem, 12vw, 5.5rem);
+        height: 0.24rem;
+    }
+
+    .welcome-hero .welcome-title {
+        max-width: 11.5ch;
     }
 }
 
@@ -987,6 +1146,56 @@ onBeforeUnmount(() => {
     }
 }
 
+@keyframes welcomeHeroKickerIn {
+    from {
+        opacity: 0;
+        transform: translateX(-16px);
+        letter-spacing: 0.12em;
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+        letter-spacing: 0.04em;
+    }
+}
+
+@keyframes welcomeHeroAccentIn {
+    from {
+        opacity: 0;
+        transform: scaleX(0);
+    }
+    to {
+        opacity: 1;
+        transform: scaleX(1);
+    }
+}
+
+@keyframes welcomeHeroTitleIn {
+    from {
+        opacity: 0;
+        transform: translateY(22px);
+        clip-path: inset(0 0 100% 0);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+@keyframes welcomeHeroBodyIn {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+        filter: blur(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+    }
+}
+
 @keyframes welcomeFadeIn {
     from {
         opacity: 0;
@@ -998,20 +1207,26 @@ onBeforeUnmount(() => {
     }
 }
 
-@keyframes welcomeHeroVerticalSlider {
-    from {
-        transform: translateY(calc(-1 * (var(--welcome-slide-height) + var(--welcome-slide-gap)) * var(--welcome-slide-count)));
-    }
-    to {
-        transform: translateY(0);
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
     .welcome-fade-up,
     .welcome-fade-in,
-    .welcome-hero-track {
+    .welcome-hero-kicker-intro,
+    .welcome-hero-title-intro,
+    .welcome-hero-body-intro,
+    .welcome-hero-title-accent,
+    .welcome-hero-slide-enter-active,
+    .welcome-hero-slide-leave-active {
         animation: none;
+        transition: none;
+    }
+
+    .welcome-hero-kicker-intro,
+    .welcome-hero-title-intro,
+    .welcome-hero-body-intro {
+        opacity: 1;
+        transform: none;
+        filter: none;
+        clip-path: none;
     }
 }
 

@@ -288,6 +288,7 @@ class WelcomeContentService
                     'stats' => $heroStats,
                     'highlights' => $heroHighlights,
                     'preview_cards' => $heroPreview,
+                    'hero_images' => [],
                     'image_url' => '/images/landing/hero-dashboard.svg',
                     'image_path' => null,
                     'image_alt' => (string) trans('welcome.images.hero_alt'),
@@ -479,6 +480,7 @@ class WelcomeContentService
             'stats' => $this->sanitizeStatItems($incoming['stats'] ?? $default['stats']),
             'highlights' => $this->sanitizeStringList($incoming['highlights'] ?? $default['highlights']),
             'preview_cards' => $this->sanitizePreviewCards($incoming['preview_cards'] ?? $default['preview_cards']),
+            'hero_images' => $this->sanitizeHeroImages($incoming['hero_images'] ?? $default['hero_images'] ?? []),
             'image_url' => $this->cleanText($incoming['image_url'] ?? ''),
             'image_path' => $this->extractImagePath($incoming) ?? $this->extractImagePath($default),
             'image_alt' => $this->cleanText($incoming['image_alt'] ?? $default['image_alt']),
@@ -644,6 +646,37 @@ class WelcomeContentService
         }
 
         return array_values($sanitized);
+    }
+
+    private function sanitizeHeroImages($items): array
+    {
+        if (!is_array($items)) {
+            return [];
+        }
+
+        $sanitized = [];
+        foreach (array_values($items) as $item) {
+            $imageUrl = null;
+            $imageAlt = '';
+
+            if (is_string($item)) {
+                $imageUrl = $this->sanitizeUrl($item, 'image');
+            } elseif (is_array($item)) {
+                $imageUrl = $this->sanitizeUrl((string) ($item['image_url'] ?? ''), 'image');
+                $imageAlt = $this->cleanText($item['image_alt'] ?? '');
+            }
+
+            if ($imageUrl === null || $imageUrl === '') {
+                continue;
+            }
+
+            $sanitized[] = [
+                'image_url' => $imageUrl,
+                'image_alt' => $imageAlt,
+            ];
+        }
+
+        return array_slice($sanitized, 0, 12);
     }
 
     private function sanitizeStatItems($items): array

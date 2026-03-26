@@ -716,11 +716,11 @@ const footerCopy = computed(() => (
 <style scoped>
 .public-site-footer {
     background:
-        radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0) 32%),
+        radial-gradient(circle at top center, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0) 24%),
         linear-gradient(
-            180deg,
-            var(--public-site-footer-background, #07384a) 0%,
-            var(--public-site-footer-background-end, #062f3f) 100%
+            135deg,
+            var(--public-site-footer-background, #0d1d35) 0%,
+            var(--public-site-footer-background-end, #0d5a46) 100%
         );
     color: rgba(255, 255, 255, 0.9);
 }
@@ -729,12 +729,15 @@ const footerCopy = computed(() => (
     width: min(var(--public-shell-width, 88rem), 100%);
     margin-inline: auto;
     padding-inline: var(--public-shell-gutter, 1.25rem);
-    padding-top: clamp(3rem, 7vw, 5rem);
-    padding-bottom: 2rem;
+    padding-top: clamp(4rem, 8vw, 6rem);
+    padding-bottom: 2.25rem;
 }
 
 .public-site-footer__brand-row {
-    margin-bottom: 2.5rem;
+    margin-bottom: 2.75rem;
+    display: flex;
+    justify-content: flex-start;
+    padding-inline-start: 1.25rem;
 }
 
 .public-site-footer__brand {
@@ -751,26 +754,35 @@ const footerCopy = computed(() => (
 .public-site-footer__grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 2rem;
+    gap: 1rem;
 }
 
 .public-site-footer__nav {
     display: grid;
-    gap: 2rem;
+    gap: 1rem;
     min-width: 0;
 }
 
 .public-site-footer__group,
-.public-site-footer__support,
 .public-site-footer__contact {
     min-width: 0;
+    padding: 1.25rem;
+}
+
+.public-site-footer__support {
+    min-width: 0;
+    padding: 1.25rem;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 0.125rem;
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 26px 42px -38px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
 }
 
 .public-site-footer__contact {
     display: grid;
     align-content: start;
     gap: 1.25rem;
-    padding-top: 0.25rem;
 }
 
 .public-site-footer__contact-stack {
@@ -806,7 +818,7 @@ const footerCopy = computed(() => (
     justify-content: center;
     width: 2rem;
     height: 2rem;
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: var(--page-radius, 4px);
     color: rgba(255, 255, 255, 0.86);
     text-decoration: none;
@@ -848,8 +860,8 @@ const footerCopy = computed(() => (
     gap: 0.75rem;
     padding: 0.7rem 0.9rem;
     border: 1px solid rgba(255, 255, 255, 0.22);
-    border-radius: 0.5rem;
-    background: rgba(6, 9, 12, 0.92);
+    border-radius: 0.125rem;
+    background: rgba(255, 255, 255, 0.06);
     color: #ffffff;
     text-decoration: none;
     transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
@@ -909,10 +921,10 @@ const footerCopy = computed(() => (
 .public-site-footer__group-title {
     margin: 0 0 1.15rem;
     color: #ffffff;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
-    font-size: 1.4rem;
-    line-height: 1.05;
-    letter-spacing: -0.02em;
+    font-family: 'Montserrat', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-size: 1.25rem;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
 }
 
 .public-site-footer__links {
@@ -964,7 +976,7 @@ const footerCopy = computed(() => (
 .public-site-footer__column-title,
 .public-site-footer__block-title {
     margin: 0;
-    color: rgba(255, 255, 255, 0.7);
+    color: #a7f3d0;
     font-size: 0.74rem;
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -996,14 +1008,14 @@ const footerCopy = computed(() => (
 
 .public-site-footer__callout {
     padding: 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: var(--page-radius, 4px);
-    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 0.125rem;
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .public-site-footer__eyebrow {
     margin-bottom: 0.45rem;
-    color: #90ee90;
+    color: #a7f3d0;
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -1042,11 +1054,6 @@ const footerCopy = computed(() => (
 }
 
 .public-site-footer__support {
-    padding: 1.25rem;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: var(--page-radius, 4px);
-    background: rgba(255, 255, 255, 0.05);
-    box-shadow: 0 30px 60px -44px rgba(0, 0, 0, 0.45);
     min-width: 0;
     width: 100%;
 }
@@ -1105,8 +1112,8 @@ const footerCopy = computed(() => (
     align-items: center;
     gap: 0.45rem;
     padding: 0.78rem 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: var(--page-radius, 4px);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 0.125rem;
     color: #ffffff;
     font-size: 0.9rem;
     font-weight: 700;
@@ -1173,7 +1180,7 @@ const footerCopy = computed(() => (
             minmax(0, 1fr)
             minmax(360px, 24rem);
         align-items: start;
-        gap: 2.5rem;
+        gap: 1rem;
     }
 
     .public-site-footer__nav {

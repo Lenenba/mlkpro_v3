@@ -95,7 +95,12 @@ const syncHeaderHeight = () => {
     }
 
     const nextHeight = Math.max(Math.round(headerRef.value.getBoundingClientRect().height), 0);
-    headerHeight.value = nextHeight ? `${nextHeight}px` : null;
+    const resolvedHeight = nextHeight ? `${nextHeight}px` : '5.75rem';
+    headerHeight.value = resolvedHeight;
+
+    if (typeof document !== 'undefined') {
+        document.documentElement.style.setProperty('--public-site-header-height', resolvedHeight);
+    }
 };
 
 const headerShellStyle = computed(() => ({
@@ -123,6 +128,10 @@ onBeforeUnmount(() => {
     if (headerResizeObserver) {
         headerResizeObserver.disconnect();
         headerResizeObserver = null;
+    }
+
+    if (typeof document !== 'undefined') {
+        document.documentElement.style.removeProperty('--public-site-header-height');
     }
 });
 </script>

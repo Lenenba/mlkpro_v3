@@ -186,6 +186,17 @@ class PlatformWelcomePageService
     private function mapHeroSection(array $legacy): array
     {
         $hero = is_array($legacy['hero'] ?? null) ? $legacy['hero'] : [];
+        $heroImages = is_array($hero['hero_images'] ?? null) ? $hero['hero_images'] : [];
+
+        if ($heroImages === []) {
+            $fallbackImageUrl = trim((string) ($hero['image_url'] ?? ''));
+            if ($fallbackImageUrl !== '') {
+                $heroImages = [[
+                    'image_url' => $fallbackImageUrl,
+                    'image_alt' => (string) ($hero['image_alt'] ?? ''),
+                ]];
+            }
+        }
 
         return [
             'layout' => 'split',
@@ -201,6 +212,7 @@ class PlatformWelcomePageService
             'stats' => is_array($hero['stats'] ?? null) ? $hero['stats'] : [],
             'items' => is_array($hero['highlights'] ?? null) ? $hero['highlights'] : [],
             'preview_cards' => is_array($hero['preview_cards'] ?? null) ? $hero['preview_cards'] : [],
+            'hero_images' => $heroImages,
             'image_url' => (string) ($hero['image_url'] ?? ''),
             'image_alt' => (string) ($hero['image_alt'] ?? ''),
             'primary_label' => (string) ($hero['primary_cta'] ?? ''),
