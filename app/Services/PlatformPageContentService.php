@@ -772,6 +772,7 @@ class PlatformPageContentService
             $currentSlides = $this->sanitizeHeroImages($section['hero_images'] ?? []);
             if ($currentSlides !== []) {
                 $sections[$index]['hero_images'] = $currentSlides;
+
                 continue;
             }
 

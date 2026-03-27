@@ -45,7 +45,7 @@ class PublicStoreController extends Controller
     {
         $cart = $request->session()->get($this->cartKey($owner), []);
         $rawItems = $cart['items'] ?? [];
-        if (!is_array($rawItems)) {
+        if (! is_array($rawItems)) {
             return [];
         }
 
@@ -65,6 +65,7 @@ class PublicStoreController extends Controller
     {
         if (empty($items)) {
             $request->session()->forget($this->cartKey($owner));
+
             return;
         }
 
@@ -77,8 +78,8 @@ class PublicStoreController extends Controller
         $promoStart = $product->promo_start_at;
         $promoEnd = $product->promo_end_at;
         $promoActive = $discount > 0
-            && (!$promoStart || $promoStart->lessThanOrEqualTo($now))
-            && (!$promoEnd || $promoEnd->greaterThanOrEqualTo($now));
+            && (! $promoStart || $promoStart->lessThanOrEqualTo($now))
+            && (! $promoEnd || $promoEnd->greaterThanOrEqualTo($now));
 
         $basePrice = (float) $product->price;
         $promoPrice = $promoActive
@@ -91,7 +92,7 @@ class PublicStoreController extends Controller
     private function buildCartPayload(User $owner, array $items): array
     {
         $now = now();
-        if (!$items) {
+        if (! $items) {
             return [
                 'items' => [],
                 'cart' => [
@@ -121,7 +122,7 @@ class PublicStoreController extends Controller
 
         foreach ($items as $productId => $quantity) {
             $product = $products->get((int) $productId);
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -199,10 +200,10 @@ class PublicStoreController extends Controller
         $hasPickupAddress = trim((string) ($merged['pickup_address'] ?? '')) !== '';
         $hasPrepTime = $merged['prep_time_minutes'] !== null && $merged['prep_time_minutes'] !== '';
 
-        if ($deliveryEnabled && !$hasDeliveryZone) {
+        if ($deliveryEnabled && ! $hasDeliveryZone) {
             $deliveryEnabled = false;
         }
-        if ($pickupEnabled && (!$hasPickupAddress || !$hasPrepTime)) {
+        if ($pickupEnabled && (! $hasPickupAddress || ! $hasPrepTime)) {
             $pickupEnabled = false;
         }
 
@@ -241,7 +242,7 @@ class PublicStoreController extends Controller
             ->where('email', $payload['email'])
             ->first();
 
-        if ($existing && !$existing->portal_user_id) {
+        if ($existing && ! $existing->portal_user_id) {
             $existing->forceFill([
                 'portal_user_id' => $user->id,
                 'portal_access' => true,
@@ -270,7 +271,7 @@ class PublicStoreController extends Controller
         $authUser = $request->user();
 
         if ($authUser) {
-            if (!$authUser->isClient()) {
+            if (! $authUser->isClient()) {
                 throw ValidationException::withMessages([
                     'auth' => 'Veuillez utiliser un compte client pour commander.',
                 ]);
@@ -298,7 +299,7 @@ class PublicStoreController extends Controller
 
         $existingUser = User::query()->where('email', $payload['email'])->first();
         if ($existingUser) {
-            if (!$existingUser->isClient()) {
+            if (! $existingUser->isClient()) {
                 throw ValidationException::withMessages([
                     'email' => 'Cet email est deja utilise. Merci de vous connecter.',
                 ]);
@@ -309,7 +310,7 @@ class PublicStoreController extends Controller
                 ->where('portal_user_id', $existingUser->id)
                 ->first();
 
-            if (!$customer) {
+            if (! $customer) {
                 throw ValidationException::withMessages([
                     'email' => 'Cet email est deja lie a un autre compte client.',
                 ]);
@@ -353,7 +354,7 @@ class PublicStoreController extends Controller
 
         foreach ($itemsPayload as $payload) {
             $product = $products->get($payload['product_id']);
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -378,7 +379,7 @@ class PublicStoreController extends Controller
             ->get(['user_id', 'permissions']);
 
         $userIds = $teamMembers
-            ->filter(fn(TeamMember $member) => $member->hasPermission('sales.manage') || $member->hasPermission('sales.pos'))
+            ->filter(fn (TeamMember $member) => $member->hasPermission('sales.manage') || $member->hasPermission('sales.pos'))
             ->pluck('user_id')
             ->push($owner->id)
             ->unique()
@@ -397,7 +398,7 @@ class PublicStoreController extends Controller
         $actionUrl = route('sales.show', $sale);
         $preferences = app(NotificationPreferenceService::class);
         foreach ($users as $user) {
-            if (!$preferences->shouldNotify(
+            if (! $preferences->shouldNotify(
                 $user,
                 NotificationPreferenceService::CATEGORY_ORDERS,
                 NotificationPreferenceService::CHANNEL_IN_APP
@@ -408,6 +409,7 @@ class PublicStoreController extends Controller
             $user->notify(new OrderStatusNotification($sale, $title, $message, $actionUrl));
         }
     }
+
     public function show(Request $request, string $slug): Response
     {
         $owner = $this->resolveOwner($slug);
@@ -428,8 +430,8 @@ class PublicStoreController extends Controller
                 $promoStart = $product->promo_start_at;
                 $promoEnd = $product->promo_end_at;
                 $promoActive = $discount > 0
-                    && (!$promoStart || $promoStart->lessThanOrEqualTo($now))
-                    && (!$promoEnd || $promoEnd->greaterThanOrEqualTo($now));
+                    && (! $promoStart || $promoStart->lessThanOrEqualTo($now))
+                    && (! $promoEnd || $promoEnd->greaterThanOrEqualTo($now));
                 $promoPrice = $discount > 0
                     ? round((float) $product->price * (1 - ($discount / 100)), 2)
                     : null;
@@ -450,7 +452,7 @@ class PublicStoreController extends Controller
                     'images' => $product->images
                         ->sortBy('sort_order')
                         ->values()
-                        ->map(fn($image) => $image->url)
+                        ->map(fn ($image) => $image->url)
                         ->all(),
                     'stock' => $product->stock_available,
                     'category_id' => $product->category_id,
@@ -481,16 +483,17 @@ class PublicStoreController extends Controller
             ->values();
 
         $promotions = $products
-            ->filter(fn ($product) => !empty($product['promo_active']))
+            ->filter(fn ($product) => ! empty($product['promo_active']))
             ->take(8)
             ->values();
 
         $newArrivals = $products
             ->filter(function ($product) {
                 $createdAt = $product['created_at'] ?? null;
-                if (!$createdAt) {
+                if (! $createdAt) {
                     return false;
                 }
+
                 return Carbon::parse($createdAt)->greaterThanOrEqualTo(now()->subDays(30));
             })
             ->values();
@@ -539,7 +542,7 @@ class PublicStoreController extends Controller
     {
         $owner = $this->resolveOwner($slug);
 
-        if ($product->user_id !== $owner->id || $product->item_type !== Product::ITEM_TYPE_PRODUCT || !$product->is_active) {
+        if ($product->user_id !== $owner->id || $product->item_type !== Product::ITEM_TYPE_PRODUCT || ! $product->is_active) {
             abort(404);
         }
 
@@ -560,8 +563,8 @@ class PublicStoreController extends Controller
                     if ($company !== '') {
                         $name = $company;
                     } elseif ($first !== '' || $last !== '') {
-                        $lastInitial = $last !== '' ? Str::substr($last, 0, 1) . '.' : '';
-                        $name = trim($first . ' ' . $lastInitial);
+                        $lastInitial = $last !== '' ? Str::substr($last, 0, 1).'.' : '';
+                        $name = trim($first.' '.$lastInitial);
                     }
                 }
 
@@ -620,7 +623,7 @@ class PublicStoreController extends Controller
     {
         $owner = $this->resolveOwner($slug);
 
-        if ($product->user_id !== $owner->id || $product->item_type !== Product::ITEM_TYPE_PRODUCT || !$product->is_active) {
+        if ($product->user_id !== $owner->id || $product->item_type !== Product::ITEM_TYPE_PRODUCT || ! $product->is_active) {
             abort(404);
         }
 
@@ -651,7 +654,7 @@ class PublicStoreController extends Controller
     {
         $owner = $this->resolveOwner($slug);
 
-        if ($product->user_id !== $owner->id || $product->item_type !== Product::ITEM_TYPE_PRODUCT || !$product->is_active) {
+        if ($product->user_id !== $owner->id || $product->item_type !== Product::ITEM_TYPE_PRODUCT || ! $product->is_active) {
             abort(404);
         }
 
@@ -712,7 +715,7 @@ class PublicStoreController extends Controller
             'substitution_notes' => 'nullable|string|max:2000',
         ];
 
-        if (!$request->user()) {
+        if (! $request->user()) {
             $rules['name'] = 'required|string|max:150';
             $rules['email'] = 'required|email|max:255';
         }
@@ -722,7 +725,7 @@ class PublicStoreController extends Controller
         $email = $validated['email'] ?? ($request->user()?->email ?? null);
         $phone = $validated['phone'] ?? ($request->user()?->phone_number ?? null);
 
-        if (!$email) {
+        if (! $email) {
             throw ValidationException::withMessages([
                 'email' => 'Email requis.',
             ]);
@@ -731,7 +734,7 @@ class PublicStoreController extends Controller
         $parts = preg_split('/\s+/', $name);
         $firstName = $parts ? array_shift($parts) : null;
         $lastName = $parts ? trim(implode(' ', $parts)) : null;
-        if ((!$firstName || $firstName === '') && $email) {
+        if ((! $firstName || $firstName === '') && $email) {
             $firstName = Str::before($email, '@');
         }
         $firstName = $firstName ?: 'Client';
@@ -749,7 +752,7 @@ class PublicStoreController extends Controller
         $requestedMethod = $validated['fulfillment_method'] ?? null;
         $deliveryEnabled = (bool) ($fulfillment['delivery_enabled'] ?? false);
         $pickupEnabled = (bool) ($fulfillment['pickup_enabled'] ?? false);
-        if (!$deliveryEnabled && !$pickupEnabled) {
+        if (! $deliveryEnabled && ! $pickupEnabled) {
             throw ValidationException::withMessages([
                 'fulfillment_method' => 'Livraison ou retrait non configure.',
             ]);
@@ -760,7 +763,7 @@ class PublicStoreController extends Controller
             $fulfillmentMethod = 'pickup';
         } elseif ($requestedMethod === 'delivery' && $deliveryEnabled) {
             $fulfillmentMethod = 'delivery';
-        } elseif (!$deliveryEnabled && $pickupEnabled) {
+        } elseif (! $deliveryEnabled && $pickupEnabled) {
             $fulfillmentMethod = 'pickup';
         }
 
@@ -775,7 +778,7 @@ class PublicStoreController extends Controller
             : 0;
 
         $scheduledFor = null;
-        if (!empty($validated['scheduled_for'])) {
+        if (! empty($validated['scheduled_for'])) {
             $scheduledFor = Carbon::parse($validated['scheduled_for']);
         }
 
@@ -808,7 +811,7 @@ class PublicStoreController extends Controller
             'source' => 'public_store',
         ]);
 
-        $itemsPayload = collect($cart['items'])->map(fn($item) => [
+        $itemsPayload = collect($cart['items'])->map(fn ($item) => [
             'product_id' => $item['product_id'],
             'description' => $item['name'],
             'quantity' => $item['quantity'],

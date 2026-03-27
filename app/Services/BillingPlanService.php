@@ -9,8 +9,8 @@ use App\Exceptions\Billing\PlanPriceNotFoundException;
 use App\Models\Plan;
 use App\Models\PlanPrice;
 use App\Models\PlatformSetting;
-use App\Support\CurrencyFormatter;
 use App\Models\User;
+use App\Support\CurrencyFormatter;
 use App\Support\PlanDisplay;
 
 class BillingPlanService
