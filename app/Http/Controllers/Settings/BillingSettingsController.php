@@ -133,6 +133,7 @@ class BillingSettingsController extends Controller
 
         $planLimits = PlatformSetting::getValue('plan_limits', []);
         $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
+        $tenantCurrencyCode = $user->businessCurrencyCode();
         $plans = $billingService->isStripe()
             ? collect(app(BillingPlanService::class)->plansForTenant($user))
                 ->map(function (array $plan) use ($planLimits) {
@@ -153,11 +154,11 @@ class BillingSettingsController extends Controller
                 ->values()
                 ->all()
             : collect(config('billing.plans', []))
-                ->map(function (array $plan, string $key) use ($planLimits, $planDisplayOverrides) {
+                ->map(function (array $plan, string $key) use ($planLimits, $planDisplayOverrides, $tenantCurrencyCode) {
                     $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
                     $displayPrice = $this->resolvePlanDisplayPrice([
                         'price' => $display['price'],
-                    ], $user->businessCurrencyCode());
+                    ], $tenantCurrencyCode);
                     $isOwnerOnly = (bool) ($plan['owner_only'] ?? false);
                     $teamLimitRaw = $isOwnerOnly ? null : ($planLimits[$key]['team_members'] ?? null);
                     $teamLimit = is_numeric($teamLimitRaw) ? (int) $teamLimitRaw : null;
