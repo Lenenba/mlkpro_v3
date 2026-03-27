@@ -9,9 +9,9 @@ use App\Exceptions\Billing\PlanPriceNotFoundException;
 use App\Models\Plan;
 use App\Models\PlanPrice;
 use App\Models\PlatformSetting;
+use App\Support\CurrencyFormatter;
 use App\Models\User;
 use App\Support\PlanDisplay;
-use Laravel\Paddle\Cashier;
 
 class BillingPlanService
 {
@@ -84,7 +84,7 @@ class BillingPlanService
                     'billing_period' => BillingPeriod::MONTHLY->value,
                     'display_price' => $amount !== null
                         ? $this->formatMoney((float) $amount, $currency)
-                        : $this->resolveLegacyDisplayPrice($display['price'] ?? null),
+                        : $this->resolveLegacyDisplayPrice($display['price'] ?? null, $currency),
                     'contact_only' => (bool) ($configuredPlan['contact_only'] ?? $plan?->contact_only ?? false),
                     'team_members_min' => is_numeric($configuredPlan['team_members_min'] ?? null)
                         ? (int) $configuredPlan['team_members_min']
@@ -218,9 +218,7 @@ class BillingPlanService
 
     public function formatMoney(float $amount, CurrencyCode|string $currencyCode): string
     {
-        $currency = CurrencyCode::tryFromMixed($currencyCode) ?? CurrencyCode::default();
-
-        return Cashier::formatAmount((int) round($amount * 100), $currency->value);
+        return CurrencyFormatter::format($amount, $currencyCode);
     }
 
     private function currencyOptionsForPlan(string $planCode): array
@@ -299,11 +297,11 @@ class BillingPlanService
         ];
     }
 
-    private function resolveLegacyDisplayPrice(mixed $raw): ?string
+    private function resolveLegacyDisplayPrice(mixed $raw, CurrencyCode|string|null $currencyCode = null): ?string
     {
         $rawValue = is_string($raw) ? trim($raw) : $raw;
         if (is_numeric($rawValue)) {
-            return Cashier::formatAmount((int) round((float) $rawValue * 100), CurrencyCode::default()->value);
+            return CurrencyFormatter::format((float) $rawValue, $currencyCode);
         }
 
         if (is_string($rawValue) && $rawValue !== '') {

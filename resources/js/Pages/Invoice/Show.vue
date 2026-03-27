@@ -7,6 +7,7 @@ import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethod
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     invoice: Object,
@@ -115,8 +116,7 @@ const ratingCount = computed(() => work.value?.ratings?.length || 0);
 
 const formatDate = (value) => humanizeDate(value) || '-';
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 const roundMoney = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
 const setPaymentAmount = (value) => {
     const normalized = roundMoney(Math.max(0, Math.min(Number(value || 0), balanceDue.value)));

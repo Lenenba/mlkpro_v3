@@ -6,6 +6,7 @@ import StarRating from '@/Components/UI/StarRating.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     quotes: {
@@ -148,8 +149,7 @@ const clearFilters = () => {
     autoFilter();
 };
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 
 const formatDate = (value) => humanizeDate(value);
 

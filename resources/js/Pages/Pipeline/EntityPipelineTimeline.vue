@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { humanizeDate } from '@/utils/date';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 /**
  * @typedef {Object} PipelineCustomer
@@ -61,6 +62,7 @@ const errorMessage = ref('');
 const tasksExpanded = ref(false);
 const copyState = ref('idle');
 const creatingInvoice = ref(false);
+const { formatCurrency: formatResolvedCurrency } = useCurrencyFormatter();
 
 const fetchPipeline = async () => {
     loading.value = true;
@@ -119,7 +121,7 @@ const formatCurrency = (value) => {
     if (Number.isNaN(amount)) {
         return '-';
     }
-    return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return formatResolvedCurrency(amount);
 };
 
 const requestLink = computed(() => {

@@ -47,6 +47,7 @@ class PortalInvoiceController extends Controller
             'company' => [
                 'name' => $owner?->company_name ?: config('app.name'),
                 'logo_url' => $owner?->company_logo_url,
+                'currency_code' => $owner?->businessCurrencyCode(),
             ],
             'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $invoice->user_id),
         ]);

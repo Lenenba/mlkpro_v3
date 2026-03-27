@@ -84,6 +84,7 @@ class PublicQuoteController extends Controller
                 'id' => $quote->id,
                 'number' => $quote->number,
                 'status' => $quote->status,
+                'currency_code' => $quote->currency_code,
                 'job_title' => $quote->job_title,
                 'subtotal' => (float) $quote->subtotal,
                 'total' => (float) $quote->total,
@@ -110,6 +111,7 @@ class PublicQuoteController extends Controller
             'company' => [
                 'name' => $owner?->company_name ?: config('app.name'),
                 'logo_url' => $owner?->company_logo_url,
+                'currency_code' => $owner?->businessCurrencyCode(),
             ],
             'allowAccept' => $allowAccept,
             'allowDecline' => $allowDecline,

@@ -6,6 +6,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { humanizeDate } from '@/utils/date';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     customer: { type: Object, default: () => ({}) },
@@ -136,7 +137,7 @@ const pointLabel = computed(() => props.program?.points_label || t('loyalty_modu
 const currentPage = computed(() => Number(props.entries?.current_page || 1));
 const totalPages = computed(() => Number(props.entries?.last_page || 1));
 const formatNumber = (value) => Number(value || 0).toLocaleString();
-const formatCurrency = (value) => `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 const formatDateTime = (value) => humanizeDate(value) || '-';
 
 const referenceLabel = (entry) => {

@@ -399,6 +399,7 @@ class PortalProductOrderController extends Controller
                 'id' => $owner->id,
                 'name' => $owner->company_name,
                 'logo_url' => $owner->company_logo_url,
+                'currency_code' => $owner->businessCurrencyCode(),
             ],
             'customer' => [
                 'id' => $customer->id,
@@ -495,6 +496,7 @@ class PortalProductOrderController extends Controller
                 'id' => $owner->id,
                 'name' => $owner->company_name,
                 'logo_url' => $owner->company_logo_url,
+                'currency_code' => $owner->businessCurrencyCode(),
             ],
             'customer' => [
                 'id' => $customer->id,
@@ -537,6 +539,7 @@ class PortalProductOrderController extends Controller
                 'id' => $owner->id,
                 'name' => $owner->company_name,
                 'logo_url' => $owner->company_logo_url,
+                'currency_code' => $owner->businessCurrencyCode(),
             ],
             'customer' => [
                 'id' => $customer->id,
@@ -782,6 +785,7 @@ class PortalProductOrderController extends Controller
                 'id' => $owner->id,
                 'name' => $owner->company_name,
                 'logo_url' => $owner->company_logo_url,
+                'currency_code' => $owner->businessCurrencyCode(),
             ],
             'customer' => [
                 'id' => $customer->id,
@@ -1303,6 +1307,7 @@ class PortalProductOrderController extends Controller
             'id' => $sale->id,
             'number' => $sale->number,
             'status' => $sale->status,
+            'currency_code' => $sale->currency_code,
             'payment_status' => $sale->payment_status,
             'amount_paid' => $sale->amount_paid,
             'balance_due' => $sale->balance_due,
@@ -1328,6 +1333,7 @@ class PortalProductOrderController extends Controller
             'id' => $sale->id,
             'number' => $sale->number,
             'status' => $sale->status,
+            'currency_code' => $sale->currency_code,
             'payment_status' => $sale->payment_status,
             'amount_paid' => $sale->amount_paid,
             'balance_due' => $sale->balance_due,

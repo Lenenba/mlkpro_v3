@@ -6,6 +6,7 @@ import Modal from '@/Components/Modal.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     company: {
@@ -222,8 +223,7 @@ const resetFilters = () => {
     trackingFilter.value = 'all';
 };
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 
 const priceMeta = (product) => {
     const promoActive = Boolean(product?.promo_active) && Number(product?.promo_price ?? 0) > 0;

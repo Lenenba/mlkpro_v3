@@ -50,6 +50,7 @@ class PublicRequestController extends Controller
                 'id' => $user->id,
                 'name' => $user->company_name ?: $user->name,
                 'logo_url' => $user->company_logo_url,
+                'currency_code' => $user->businessCurrencyCode(),
                 'phone' => $user->phone_number ?: config('app.support_phone'),
             ],
             'embed' => $request->boolean('embed'),

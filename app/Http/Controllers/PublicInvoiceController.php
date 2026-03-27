@@ -74,6 +74,7 @@ class PublicInvoiceController extends Controller
                 'id' => $invoice->id,
                 'number' => $invoice->number,
                 'status' => $invoice->status,
+                'currency_code' => $invoice->currency_code,
                 'total' => (float) $invoice->total,
                 'amount_paid' => (float) $invoice->amount_paid,
                 'balance_due' => (float) $invoice->balance_due,
@@ -114,6 +115,7 @@ class PublicInvoiceController extends Controller
             'company' => [
                 'name' => $owner?->company_name ?: config('app.name'),
                 'logo_url' => $owner?->company_logo_url,
+                'currency_code' => $owner?->businessCurrencyCode(),
             ],
             'allowPayment' => $canPay,
             'paymentMessage' => $paymentMessage,

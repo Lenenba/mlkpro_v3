@@ -1,6 +1,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     invoices: {
@@ -11,8 +12,7 @@ const props = defineProps({
 
 const formatDate = (value) => humanizeDate(value);
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 
 const formatStatus = (status) => (status || 'draft').replace(/_/g, ' ');
 

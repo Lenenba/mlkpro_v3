@@ -141,6 +141,7 @@ class HandleInertiaRequests extends Middleware
                     'is_client' => $user->isClient(),
                     'is_superadmin' => $user->isSuperadmin(),
                     'is_platform_admin' => $user->isPlatformAdmin(),
+                    'currency_code' => $accountOwner?->businessCurrencyCode(),
                     'company' => $accountOwner ? [
                         'name' => $accountOwner->company_name,
                         'type' => $accountOwner->company_type,

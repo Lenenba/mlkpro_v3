@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     items: {
@@ -22,8 +23,7 @@ const total = computed(() =>
     props.items.reduce((sum, item) => sum + Number(item.total || 0), 0)
 );
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 
 const displayCustomer = (item) =>
     item.customer?.company_name ||

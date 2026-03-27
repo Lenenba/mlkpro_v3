@@ -521,6 +521,7 @@ class PublicStoreController extends Controller
                 'slug' => $owner->company_slug,
                 'logo_url' => $owner->company_logo_url,
                 'description' => $owner->company_description,
+                'currency_code' => $owner->businessCurrencyCode(),
                 'store_settings' => $storeSettings,
             ],
             'products' => $products,

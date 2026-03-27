@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\BillingPeriod;
-use App\Models\Plan;
-use App\Models\PlanPrice;
+use App\Services\Concerns\InteractsWithStripePlanCatalog;
 use RuntimeException;
 use Stripe\Exception\ApiErrorException;
 use Stripe\Price;
@@ -14,11 +12,7 @@ use Stripe\StripeClient;
 
 class StripePlanPriceProvisioner
 {
-    public const SOLO_PLAN_CODES = [
-        'solo_essential',
-        'solo_pro',
-        'solo_growth',
-    ];
+    use InteractsWithStripePlanCatalog;
 
     public function execute(array $options = []): array
     {
@@ -81,6 +75,25 @@ class StripePlanPriceProvisioner
                 ));
             }
 
+            $baseAmount = $this->normalizeStripeAmount($basePrice);
+            $this->addResolvedEnvValues($resolved, $planCode, 'CAD', $basePrice->id, $baseAmount);
+            $resolvedPlanPrices[] = [
+                'plan_code' => $planCode,
+                'currency_code' => 'CAD',
+                'amount' => $baseAmount,
+                'stripe_price_id' => $basePrice->id,
+            ];
+
+            $items[] = [
+                'plan_code' => $planCode,
+                'product_id' => $productId,
+                'currency_code' => 'CAD',
+                'amount' => $baseAmount,
+                'stripe_price_id' => $basePrice->id,
+                'env_key' => $this->envKeyFor($planCode, 'CAD'),
+                'action' => 'BASE',
+            ];
+
             $existingPrices = $client->prices->all([
                 'product' => $productId,
                 'active' => true,
@@ -142,11 +155,12 @@ class StripePlanPriceProvisioner
                     $action = 'CREATED';
                 }
 
-                $resolved[$envKey] = $price->id;
+                $resolvedAmount = $this->normalizeStripeAmount($price);
+                $this->addResolvedEnvValues($resolved, $planCode, $currencyCode, $price->id, $resolvedAmount);
                 $resolvedPlanPrices[] = [
                     'plan_code' => $planCode,
                     'currency_code' => $currencyCode,
-                    'amount' => $amount,
+                    'amount' => $resolvedAmount,
                     'stripe_price_id' => $price->id,
                 ];
 
@@ -154,7 +168,7 @@ class StripePlanPriceProvisioner
                     'plan_code' => $planCode,
                     'product_id' => $productId,
                     'currency_code' => $currencyCode,
-                    'amount' => $amount,
+                    'amount' => $resolvedAmount,
                     'stripe_price_id' => $price->id,
                     'env_key' => $envKey,
                     'action' => $action,
@@ -184,115 +198,9 @@ class StripePlanPriceProvisioner
         ];
     }
 
-    public function resolveSelectedPlanCodes(array $selectedPlans, bool $soloOnly = false): array
+    private function normalizeStripeAmount(Price $price): float
     {
-        $expanded = [];
-
-        if ($soloOnly) {
-            $expanded = [...self::SOLO_PLAN_CODES];
-        }
-
-        foreach ($selectedPlans as $selectedPlan) {
-            if (! is_string($selectedPlan)) {
-                continue;
-            }
-
-            $normalized = trim(strtolower($selectedPlan));
-            if ($normalized === '') {
-                continue;
-            }
-
-            if ($normalized === 'solo') {
-                $expanded = [...$expanded, ...self::SOLO_PLAN_CODES];
-
-                continue;
-            }
-
-            $expanded[] = $normalized;
-        }
-
-        return array_values(array_unique($expanded));
-    }
-
-    private function resolveCatalog(array $selectedPlans, bool $soloOnly, array $selectedCurrencies): array
-    {
-        $defaults = (array) config('billing.catalog_defaults', []);
-        $resolvedPlanCodes = $this->resolveSelectedPlanCodes($selectedPlans, $soloOnly);
-
-        $catalog = [];
-
-        foreach ($defaults as $planCode => $definition) {
-            if (($definition['contact_only'] ?? false) === true) {
-                continue;
-            }
-
-            if ($resolvedPlanCodes !== [] && ! in_array($planCode, $resolvedPlanCodes, true)) {
-                continue;
-            }
-
-            $prices = [];
-            foreach ((array) ($definition['prices'] ?? []) as $currencyCode => $row) {
-                $currencyCode = strtoupper((string) $currencyCode);
-
-                if ($currencyCode === 'CAD') {
-                    continue;
-                }
-
-                if ($selectedCurrencies !== [] && ! in_array($currencyCode, $selectedCurrencies, true)) {
-                    continue;
-                }
-
-                if (! is_array($row)) {
-                    continue;
-                }
-
-                $amount = (float) ($row['amount'] ?? 0);
-                if ($amount <= 0) {
-                    continue;
-                }
-
-                $prices[$currencyCode] = [
-                    'amount' => $amount,
-                    'configured_price_id' => $this->normalizeNullableString($row['stripe_price_id'] ?? null),
-                    'env_key' => $this->envKeyFor($planCode, $currencyCode),
-                ];
-            }
-
-            if ($prices === []) {
-                continue;
-            }
-
-            $catalog[$planCode] = [
-                'base_price_id' => $this->normalizeNullableString(
-                    $definition['prices']['CAD']['stripe_price_id']
-                        ?? $definition['prices']['cad']['stripe_price_id']
-                        ?? null
-                ),
-                'prices' => $prices,
-            ];
-        }
-
-        if ($catalog === []) {
-            throw new RuntimeException('No matching plans or currencies were found in billing.catalog_defaults.');
-        }
-
-        return $catalog;
-    }
-
-    private function envKeyFor(string $planCode, string $currencyCode): string
-    {
-        return 'STRIPE_PRICE_'.strtoupper($planCode).'_'.strtoupper($currencyCode);
-    }
-
-    private function normalizeNullableString(mixed $value): ?string
-    {
-        if (! is_string($value)) {
-            return null;
-        }
-
-        $trimmed = trim($value);
-
-        return $trimmed !== '' ? $trimmed : null;
+        return round(((int) ($price->unit_amount ?? 0)) / 100, 2);
     }
 
     private function resolveExistingConfiguredPrice(
@@ -352,69 +260,5 @@ class StripePlanPriceProvisioner
         }
 
         return null;
-    }
-
-    private function writeEnvValues(string $path, array $values): void
-    {
-        if (! file_exists($path)) {
-            throw new RuntimeException("Env file not found: {$path}");
-        }
-
-        $contents = file_get_contents($path);
-        if ($contents === false) {
-            throw new RuntimeException("Unable to read env file: {$path}");
-        }
-
-        foreach ($values as $key => $value) {
-            $pattern = '/^'.preg_quote($key, '/').'=.*/m';
-            $replacement = $key.'='.$value;
-
-            if (preg_match($pattern, $contents) === 1) {
-                $contents = preg_replace($pattern, $replacement, $contents, 1) ?? $contents;
-
-                continue;
-            }
-
-            $contents = rtrim($contents).PHP_EOL.$replacement.PHP_EOL;
-        }
-
-        file_put_contents($path, $contents);
-    }
-
-    private function syncDatabasePlanPrices(array $resolvedPlanPrices): void
-    {
-        $configuredPlans = (array) config('billing.plans', []);
-        $configuredDefaults = (array) config('billing.catalog_defaults', []);
-        $sortOrderMap = array_flip(array_keys($configuredPlans));
-
-        foreach ($resolvedPlanPrices as $row) {
-            $planCode = $row['plan_code'];
-            $configuredPlan = $configuredPlans[$planCode] ?? [];
-            $configuredDefault = $configuredDefaults[$planCode] ?? [];
-
-            $plan = Plan::query()->updateOrCreate(
-                ['code' => $planCode],
-                [
-                    'name' => $configuredPlan['name'] ?? ucfirst($planCode),
-                    'description' => $configuredDefault['description'] ?? null,
-                    'is_active' => true,
-                    'contact_only' => (bool) ($configuredPlan['contact_only'] ?? $configuredDefault['contact_only'] ?? false),
-                    'sort_order' => (int) ($sortOrderMap[$planCode] ?? 0),
-                ]
-            );
-
-            PlanPrice::query()->updateOrCreate(
-                [
-                    'plan_id' => $plan->id,
-                    'currency_code' => $row['currency_code'],
-                    'billing_period' => BillingPeriod::MONTHLY->value,
-                ],
-                [
-                    'amount' => number_format((float) $row['amount'], 2, '.', ''),
-                    'stripe_price_id' => $row['stripe_price_id'],
-                    'is_active' => true,
-                ]
-            );
-        }
     }
 }
