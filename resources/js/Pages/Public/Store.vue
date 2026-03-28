@@ -15,6 +15,7 @@ import Price from '@/Components/Store/Price.vue';
 import ProductCard from '@/Components/Store/ProductCard.vue';
 import ProductCarouselSection from '@/Components/Store/ProductCarouselSection.vue';
 import SectionHeader from '@/Components/Store/SectionHeader.vue';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     company: { type: Object, default: () => ({}) },
@@ -288,9 +289,10 @@ const portalLink = computed(() => {
     return route('dashboard');
 });
 
+const { formatCurrency: formatResolvedCurrency } = useCurrencyFormatter();
 const formatCurrency = (value) => {
     const numeric = Number(value || 0);
-    return `$${numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return formatResolvedCurrency(numeric);
 };
 
 const priceMeta = (product) => {

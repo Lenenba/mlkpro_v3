@@ -4,6 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import ApexCharts from 'apexcharts';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 
 // Props pour personnaliser les données et options du graphique
@@ -30,6 +31,7 @@ const props = defineProps({
 const chartRef = ref(null);
 // Variable pour stocker l'instance du graphique
 let chartInstance = null;
+const { formatCurrency } = useCurrencyFormatter();
 
 // Options du graphique
 const chartOptions = {
@@ -106,7 +108,7 @@ const chartOptions = {
       format: 'MMMM yyyy',
     },
     y: {
-      formatter: (value) => `$${value >= 1000 ? `${value / 1000}k` : value}`,
+      formatter: (value) => formatCurrency(value),
     },
   },
   responsive: [

@@ -4,6 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     invoice: Object,
@@ -52,8 +53,7 @@ const property = computed(() => work.value?.quote?.property || fallbackProperty.
 
 const formatDate = (value) => humanizeDate(value) || '-';
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 
 const paymentTipAmount = (payment) => {
     const value = Number(payment?.tip_amount || 0);

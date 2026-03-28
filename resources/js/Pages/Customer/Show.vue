@@ -16,6 +16,7 @@ import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import CustomerPreviewCard from './UI/CustomerPreviewCard.vue';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     customer: Object,
@@ -108,8 +109,7 @@ const latestWork = computed(() => (props.customer?.works || [])[0] || null);
 const latestInvoice = computed(() => (props.customer?.invoices || [])[0] || null);
 
 const formatDate = (value) => humanizeDate(value);
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 const formatNumber = (value, fractionDigits = 0) =>
     Number(value || 0).toLocaleString(undefined, {
         minimumFractionDigits: fractionDigits,

@@ -5,6 +5,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import { isFeatureEnabled } from '@/utils/features';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     filters: {
@@ -97,8 +98,7 @@ const clearFilters = () => {
 
 const exportUrl = computed(() => route('payments.tips.export', sanitizedFilters.value));
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 
 const formatDateTime = (value) => {
     const formatted = humanizeDate(value);

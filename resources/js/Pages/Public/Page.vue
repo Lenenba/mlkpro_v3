@@ -4,6 +4,7 @@ import FeatureTabsShowcaseSection from '@/Components/Public/FeatureTabsShowcaseS
 import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
 import PublicSiteHeader from '@/Components/Public/PublicSiteHeader.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
+import { buildBackgroundStyle } from '@/utils/backgroundPresets';
 import { useI18n } from 'vue-i18n';
 import { resolveIndustryIconComponent } from '@/utils/industryGrid';
 
@@ -271,17 +272,15 @@ onBeforeUnmount(() => {
 });
 
 const sectionStyle = (section) => {
-    const value = String(section?.background_color || '').trim();
-    if (!value || section?.layout === 'duo') {
+    if (section?.layout === 'duo') {
         return {};
     }
 
-    return { background: value };
+    return buildBackgroundStyle(section);
 };
 
 const duoPanelStyle = (section) => {
-    const value = String(section?.background_color || '').trim();
-    return value ? { background: value } : {};
+    return buildBackgroundStyle(section);
 };
 
 const resolveHref = (href) => {

@@ -4,12 +4,26 @@ $providerRequested = strtolower((string) env('BILLING_PROVIDER', 'stripe'));
 $providerRequested = $providerRequested !== '' ? $providerRequested : 'stripe';
 $providerEffective = in_array($providerRequested, ['stripe', 'paddle'], true) ? $providerRequested : 'stripe';
 
+$billingEnv = static function (string $key, mixed $default = null): mixed {
+    $value = env($key);
+
+    if ($value === null) {
+        return $default;
+    }
+
+    if (is_string($value) && trim($value) === '') {
+        return $default;
+    }
+
+    return $value;
+};
+
 $stripeEnabled = filter_var(env('STRIPE_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
 $stripeKeysReady = (bool) env('STRIPE_SECRET');
 $stripePrices = [
-    env('STRIPE_PRICE_STARTER'),
-    env('STRIPE_PRICE_GROWTH'),
-    env('STRIPE_PRICE_SCALE'),
+    $billingEnv('STRIPE_PRICE_STARTER'),
+    $billingEnv('STRIPE_PRICE_GROWTH'),
+    $billingEnv('STRIPE_PRICE_SCALE'),
 ];
 $stripePricesReady = ! empty(array_filter(
     $stripePrices,
@@ -28,63 +42,63 @@ return [
             'description' => 'Free starter access for very small teams.',
             'contact_only' => false,
             'prices' => [
-                'CAD' => ['amount' => 0, 'stripe_price_id' => env('STRIPE_PRICE_FREE_CAD', env('STRIPE_PRICE_FREE'))],
-                'EUR' => ['amount' => 0, 'stripe_price_id' => env('STRIPE_PRICE_FREE_EUR')],
-                'USD' => ['amount' => 0, 'stripe_price_id' => env('STRIPE_PRICE_FREE_USD')],
+                'CAD' => ['amount' => 0, 'stripe_price_id' => $billingEnv('STRIPE_PRICE_FREE_CAD', $billingEnv('STRIPE_PRICE_FREE'))],
+                'EUR' => ['amount' => 0, 'stripe_price_id' => $billingEnv('STRIPE_PRICE_FREE_EUR')],
+                'USD' => ['amount' => 0, 'stripe_price_id' => $billingEnv('STRIPE_PRICE_FREE_USD')],
             ],
         ],
         'solo_essential' => [
             'description' => 'Essential solo plan for independent operators.',
             'contact_only' => false,
             'prices' => [
-                'CAD' => ['amount' => env('STRIPE_PRICE_SOLO_ESSENTIAL_CAD_AMOUNT', env('STRIPE_PRICE_SOLO_ESSENTIAL_AMOUNT', 19)), 'stripe_price_id' => env('STRIPE_PRICE_SOLO_ESSENTIAL_CAD', env('STRIPE_PRICE_SOLO_ESSENTIAL'))],
-                'EUR' => ['amount' => env('STRIPE_PRICE_SOLO_ESSENTIAL_EUR_AMOUNT', 14), 'stripe_price_id' => env('STRIPE_PRICE_SOLO_ESSENTIAL_EUR')],
-                'USD' => ['amount' => env('STRIPE_PRICE_SOLO_ESSENTIAL_USD_AMOUNT', 16), 'stripe_price_id' => env('STRIPE_PRICE_SOLO_ESSENTIAL_USD')],
+                'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_AMOUNT', 19)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_CAD', $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL'))],
+                'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_EUR_AMOUNT', 14), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_EUR')],
+                'USD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_USD_AMOUNT', 16), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_USD')],
             ],
         ],
         'solo_pro' => [
             'description' => 'Structured solo plan for active independent operators.',
             'contact_only' => false,
             'prices' => [
-                'CAD' => ['amount' => env('STRIPE_PRICE_SOLO_PRO_CAD_AMOUNT', env('STRIPE_PRICE_SOLO_PRO_AMOUNT', 39)), 'stripe_price_id' => env('STRIPE_PRICE_SOLO_PRO_CAD', env('STRIPE_PRICE_SOLO_PRO'))],
-                'EUR' => ['amount' => env('STRIPE_PRICE_SOLO_PRO_EUR_AMOUNT', 29), 'stripe_price_id' => env('STRIPE_PRICE_SOLO_PRO_EUR')],
-                'USD' => ['amount' => env('STRIPE_PRICE_SOLO_PRO_USD_AMOUNT', 32), 'stripe_price_id' => env('STRIPE_PRICE_SOLO_PRO_USD')],
+                'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_PRO_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_SOLO_PRO_AMOUNT', 39)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_PRO_CAD', $billingEnv('STRIPE_PRICE_SOLO_PRO'))],
+                'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_PRO_EUR_AMOUNT', 29), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_PRO_EUR')],
+                'USD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_PRO_USD_AMOUNT', 32), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_PRO_USD')],
             ],
         ],
         'solo_growth' => [
             'description' => 'Advanced solo plan with automation and richer booking flows.',
             'contact_only' => false,
             'prices' => [
-                'CAD' => ['amount' => env('STRIPE_PRICE_SOLO_GROWTH_CAD_AMOUNT', env('STRIPE_PRICE_SOLO_GROWTH_AMOUNT', 59)), 'stripe_price_id' => env('STRIPE_PRICE_SOLO_GROWTH_CAD', env('STRIPE_PRICE_SOLO_GROWTH'))],
-                'EUR' => ['amount' => env('STRIPE_PRICE_SOLO_GROWTH_EUR_AMOUNT', 43), 'stripe_price_id' => env('STRIPE_PRICE_SOLO_GROWTH_EUR')],
-                'USD' => ['amount' => env('STRIPE_PRICE_SOLO_GROWTH_USD_AMOUNT', 48), 'stripe_price_id' => env('STRIPE_PRICE_SOLO_GROWTH_USD')],
+                'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_SOLO_GROWTH_AMOUNT', 59)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_CAD', $billingEnv('STRIPE_PRICE_SOLO_GROWTH'))],
+                'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_EUR_AMOUNT', 43), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_EUR')],
+                'USD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_USD_AMOUNT', 48), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_USD')],
             ],
         ],
         'starter' => [
             'description' => 'Starter plan for growing teams.',
             'contact_only' => false,
             'prices' => [
-                'CAD' => ['amount' => env('STRIPE_PRICE_STARTER_CAD_AMOUNT', env('STRIPE_PRICE_STARTER_AMOUNT', 29)), 'stripe_price_id' => env('STRIPE_PRICE_STARTER_CAD', env('STRIPE_PRICE_STARTER'))],
-                'EUR' => ['amount' => env('STRIPE_PRICE_STARTER_EUR_AMOUNT', 21), 'stripe_price_id' => env('STRIPE_PRICE_STARTER_EUR')],
-                'USD' => ['amount' => env('STRIPE_PRICE_STARTER_USD_AMOUNT', 24), 'stripe_price_id' => env('STRIPE_PRICE_STARTER_USD')],
+                'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_STARTER_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_STARTER_AMOUNT', 29)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_STARTER_CAD', $billingEnv('STRIPE_PRICE_STARTER'))],
+                'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_STARTER_EUR_AMOUNT', 21), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_STARTER_EUR')],
+                'USD' => ['amount' => $billingEnv('STRIPE_PRICE_STARTER_USD_AMOUNT', 24), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_STARTER_USD')],
             ],
         ],
         'growth' => [
             'description' => 'Growth plan for larger teams and automation.',
             'contact_only' => false,
             'prices' => [
-                'CAD' => ['amount' => env('STRIPE_PRICE_GROWTH_CAD_AMOUNT', env('STRIPE_PRICE_GROWTH_AMOUNT', 79)), 'stripe_price_id' => env('STRIPE_PRICE_GROWTH_CAD', env('STRIPE_PRICE_GROWTH'))],
-                'EUR' => ['amount' => env('STRIPE_PRICE_GROWTH_EUR_AMOUNT', 57), 'stripe_price_id' => env('STRIPE_PRICE_GROWTH_EUR')],
-                'USD' => ['amount' => env('STRIPE_PRICE_GROWTH_USD_AMOUNT', 64), 'stripe_price_id' => env('STRIPE_PRICE_GROWTH_USD')],
+                'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_GROWTH_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_GROWTH_AMOUNT', 79)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_GROWTH_CAD', $billingEnv('STRIPE_PRICE_GROWTH'))],
+                'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_GROWTH_EUR_AMOUNT', 57), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_GROWTH_EUR')],
+                'USD' => ['amount' => $billingEnv('STRIPE_PRICE_GROWTH_USD_AMOUNT', 64), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_GROWTH_USD')],
             ],
         ],
         'scale' => [
             'description' => 'Scale plan with advanced support and included AI.',
             'contact_only' => false,
             'prices' => [
-                'CAD' => ['amount' => env('STRIPE_PRICE_SCALE_CAD_AMOUNT', env('STRIPE_PRICE_SCALE_AMOUNT', 149)), 'stripe_price_id' => env('STRIPE_PRICE_SCALE_CAD', env('STRIPE_PRICE_SCALE'))],
-                'EUR' => ['amount' => env('STRIPE_PRICE_SCALE_EUR_AMOUNT', 109), 'stripe_price_id' => env('STRIPE_PRICE_SCALE_EUR')],
-                'USD' => ['amount' => env('STRIPE_PRICE_SCALE_USD_AMOUNT', 119), 'stripe_price_id' => env('STRIPE_PRICE_SCALE_USD')],
+                'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_SCALE_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_SCALE_AMOUNT', 149)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SCALE_CAD', $billingEnv('STRIPE_PRICE_SCALE'))],
+                'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_SCALE_EUR_AMOUNT', 109), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SCALE_EUR')],
+                'USD' => ['amount' => $billingEnv('STRIPE_PRICE_SCALE_USD_AMOUNT', 119), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SCALE_USD')],
             ],
         ],
         'enterprise' => [

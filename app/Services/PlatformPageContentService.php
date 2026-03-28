@@ -34,6 +34,14 @@ class PlatformPageContentService
 
     private const VISIBILITY_DEVICES = ['all', 'mobile', 'desktop'];
 
+    private const BACKGROUND_PRESETS = [
+        'welcome-hero',
+        'graphite-crimson',
+        'obsidian-amber',
+        'midnight-cobalt',
+        'deep-ocean',
+    ];
+
     private const INDUSTRY_CARD_ICONS = [
         'tree-pine',
         'brush-cleaning',
@@ -121,10 +129,12 @@ class PlatformPageContentService
     {
         $locale = $this->normalizeLocale($locale);
         $default = $this->defaultContent($locale, $page);
-        $stored = $this->storedLocales($page)[$locale] ?? [];
+        $storedLocales = $this->storedLocales($page);
+        $stored = $storedLocales[$locale] ?? [];
 
         $merged = $this->mergeContent($default, is_array($stored) ? $stored : []);
         $merged = $this->applySharedMedia($merged, $this->sharedMedia($page));
+        $merged = $this->resolveBackgroundPresetsForLocale($merged, $storedLocales, $locale);
         $merged['page_title'] = $this->cleanText($merged['page_title'] ?? $page->title);
         $merged['page_subtitle'] = $this->cleanHtml($merged['page_subtitle'] ?? '');
         $merged['header'] = $this->sanitizeHeader($merged['header'] ?? null);
@@ -149,6 +159,7 @@ class PlatformPageContentService
                     'override_note' => array_key_exists('override_note', $section) ? (bool) $section['override_note'] : false,
                     'override_stats' => array_key_exists('override_stats', $section) ? (bool) $section['override_stats'] : false,
                     'background_color' => $this->cleanColor($section['background_color'] ?? null) ?? '',
+                    'background_preset' => $this->cleanBackgroundPreset($section['background_preset'] ?? null) ?? '',
                     'title_color' => $this->cleanColor($section['title_color'] ?? null) ?? '',
                     'body_color' => $this->cleanColor($section['body_color'] ?? null) ?? '',
                     'layout' => $this->cleanLayout($section['layout'] ?? 'split'),
@@ -212,7 +223,11 @@ class PlatformPageContentService
 
         $payload = is_array($page->content) ? $page->content : [];
         $locales = is_array($payload['locales'] ?? null) ? $payload['locales'] : [];
+        $sanitized = $this->resolveHeroImagesForLocale($sanitized, $locales, $locale);
+        $sanitized = $this->resolveBackgroundPresetsForLocale($sanitized, $locales, $locale);
         $locales[$locale] = $sanitized;
+        $locales = $this->syncHeroImagesForOtherLocales($locales, $locale, $page);
+        $locales = $this->syncBackgroundPresetsForOtherLocales($locales, $locale, $page);
         $themePayload = $theme;
         if ($themePayload === null && array_key_exists('theme', $incoming)) {
             $themePayload = is_array($incoming['theme']) ? $incoming['theme'] : null;
@@ -275,6 +290,7 @@ class PlatformPageContentService
             'override_note' => false,
             'override_stats' => false,
             'background_color' => '',
+            'background_preset' => '',
             'title_color' => '',
             'body_color' => '',
             'layout' => 'split',
@@ -377,6 +393,7 @@ class PlatformPageContentService
                 'override_note' => array_key_exists('override_note', $section) ? (bool) $section['override_note'] : false,
                 'override_stats' => array_key_exists('override_stats', $section) ? (bool) $section['override_stats'] : false,
                 'background_color' => $this->cleanColor($section['background_color'] ?? null) ?? '',
+                'background_preset' => $this->cleanBackgroundPreset($section['background_preset'] ?? null) ?? '',
                 'title_color' => $this->cleanColor($section['title_color'] ?? null) ?? '',
                 'body_color' => $this->cleanColor($section['body_color'] ?? null) ?? '',
                 'layout' => $this->cleanLayout($section['layout'] ?? 'split'),
@@ -578,6 +595,209 @@ class PlatformPageContentService
         }
 
         return $merged;
+    }
+
+    private function syncHeroImagesForOtherLocales(array $locales, string $sourceLocale, PlatformPage $page): array
+    {
+        $source = is_array($locales[$sourceLocale] ?? null) ? $locales[$sourceLocale] : [];
+        $sourceSections = is_array($source['sections'] ?? null) ? $source['sections'] : [];
+        if ($sourceSections === []) {
+            return $locales;
+        }
+
+        foreach ($this->locales() as $locale) {
+            if ($locale === $sourceLocale) {
+                continue;
+            }
+
+            $target = is_array($locales[$locale] ?? null)
+                ? $locales[$locale]
+                : $this->defaultContent($locale, $page);
+
+            $targetSections = is_array($target['sections'] ?? null) ? $target['sections'] : [];
+
+            foreach ($sourceSections as $index => $sourceSection) {
+                if (! is_array($sourceSection) || ! is_array($targetSections[$index] ?? null)) {
+                    continue;
+                }
+
+                $sourceSlides = $this->sanitizeHeroImages($sourceSection['hero_images'] ?? []);
+                if ($sourceSlides === []) {
+                    continue;
+                }
+
+                $targetSections[$index]['hero_images'] = $this->mergeHeroImages(
+                    $this->sanitizeHeroImages($targetSections[$index]['hero_images'] ?? []),
+                    $sourceSlides
+                );
+            }
+
+            $target['sections'] = $targetSections;
+            $locales[$locale] = $target;
+        }
+
+        return $locales;
+    }
+
+    private function mergeHeroImages(array $targetSlides, array $sourceSlides): array
+    {
+        $merged = [];
+
+        foreach ($sourceSlides as $index => $sourceSlide) {
+            if (! is_array($sourceSlide)) {
+                continue;
+            }
+
+            $targetSlide = is_array($targetSlides[$index] ?? null) ? $targetSlides[$index] : [];
+
+            $merged[] = [
+                'image_url' => $this->cleanText($sourceSlide['image_url'] ?? ''),
+                'image_alt' => $this->cleanText($targetSlide['image_alt'] ?? ''),
+            ];
+        }
+
+        foreach ($targetSlides as $index => $targetSlide) {
+            if (! is_array($targetSlide) || array_key_exists($index, $sourceSlides)) {
+                continue;
+            }
+
+            $merged[] = [
+                'image_url' => $this->cleanText($targetSlide['image_url'] ?? ''),
+                'image_alt' => $this->cleanText($targetSlide['image_alt'] ?? ''),
+            ];
+        }
+
+        return $this->sanitizeHeroImages($merged);
+    }
+
+    private function syncBackgroundPresetsForOtherLocales(array $locales, string $sourceLocale, PlatformPage $page): array
+    {
+        $source = is_array($locales[$sourceLocale] ?? null) ? $locales[$sourceLocale] : [];
+        $sourceSections = is_array($source['sections'] ?? null) ? $source['sections'] : [];
+        if ($sourceSections === []) {
+            return $locales;
+        }
+
+        foreach ($this->locales() as $locale) {
+            if ($locale === $sourceLocale) {
+                continue;
+            }
+
+            $target = is_array($locales[$locale] ?? null)
+                ? $locales[$locale]
+                : $this->defaultContent($locale, $page);
+
+            $targetSections = is_array($target['sections'] ?? null) ? $target['sections'] : [];
+
+            foreach ($sourceSections as $index => $sourceSection) {
+                if (! is_array($sourceSection) || ! is_array($targetSections[$index] ?? null)) {
+                    continue;
+                }
+
+                $sourcePreset = $this->cleanBackgroundPreset($sourceSection['background_preset'] ?? null) ?? '';
+                if ($sourcePreset === '') {
+                    continue;
+                }
+
+                $targetPreset = $this->cleanBackgroundPreset($targetSections[$index]['background_preset'] ?? null) ?? '';
+                if ($targetPreset !== '') {
+                    continue;
+                }
+
+                $targetSections[$index]['background_preset'] = $sourcePreset;
+            }
+
+            $target['sections'] = $targetSections;
+            $locales[$locale] = $target;
+        }
+
+        return $locales;
+    }
+
+    private function resolveBackgroundPresetsForLocale(array $currentContent, array $locales, string $locale): array
+    {
+        $sections = is_array($currentContent['sections'] ?? null) ? $currentContent['sections'] : [];
+        if ($sections === []) {
+            return $currentContent;
+        }
+
+        foreach ($sections as $index => $section) {
+            if (! is_array($section)) {
+                continue;
+            }
+
+            $currentPreset = $this->cleanBackgroundPreset($section['background_preset'] ?? null) ?? '';
+            if ($currentPreset !== '') {
+                $sections[$index]['background_preset'] = $currentPreset;
+
+                continue;
+            }
+
+            foreach ($this->locales() as $candidateLocale) {
+                if ($candidateLocale === $locale) {
+                    continue;
+                }
+
+                $candidateContent = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
+                $candidateSections = is_array($candidateContent['sections'] ?? null) ? $candidateContent['sections'] : [];
+                $candidateSection = is_array($candidateSections[$index] ?? null) ? $candidateSections[$index] : [];
+                $candidatePreset = $this->cleanBackgroundPreset($candidateSection['background_preset'] ?? null) ?? '';
+
+                if ($candidatePreset === '') {
+                    continue;
+                }
+
+                $sections[$index]['background_preset'] = $candidatePreset;
+                break;
+            }
+        }
+
+        $currentContent['sections'] = $sections;
+
+        return $currentContent;
+    }
+
+    private function resolveHeroImagesForLocale(array $currentContent, array $locales, string $locale): array
+    {
+        $sections = is_array($currentContent['sections'] ?? null) ? $currentContent['sections'] : [];
+        if ($sections === []) {
+            return $currentContent;
+        }
+
+        foreach ($sections as $index => $section) {
+            if (! is_array($section)) {
+                continue;
+            }
+
+            $currentSlides = $this->sanitizeHeroImages($section['hero_images'] ?? []);
+            if ($currentSlides !== []) {
+                $sections[$index]['hero_images'] = $currentSlides;
+
+                continue;
+            }
+
+            foreach ($this->locales() as $candidateLocale) {
+                if ($candidateLocale === $locale) {
+                    continue;
+                }
+
+                $candidateContent = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
+                $candidateSections = is_array($candidateContent['sections'] ?? null) ? $candidateContent['sections'] : [];
+                $candidateSection = is_array($candidateSections[$index] ?? null) ? $candidateSections[$index] : [];
+                $candidateSlides = $this->sanitizeHeroImages($candidateSection['hero_images'] ?? []);
+
+                if ($candidateSlides === []) {
+                    continue;
+                }
+
+                $sections[$index]['hero_images'] = $candidateSlides;
+                break;
+            }
+        }
+
+        $currentContent['sections'] = $sections;
+
+        return $currentContent;
     }
 
     private function sanitizeStringList($items): array
@@ -981,6 +1201,16 @@ class PlatformPageContentService
         return strtolower($color);
     }
 
+    private function cleanBackgroundPreset($value): ?string
+    {
+        $preset = strtolower($this->cleanText($value));
+        if ($preset === '') {
+            return null;
+        }
+
+        return in_array($preset, self::BACKGROUND_PRESETS, true) ? $preset : null;
+    }
+
     private function sanitizeEmbedUrl($value): string
     {
         $url = $this->sanitizeUrl($value, 'link');
@@ -1284,6 +1514,7 @@ class PlatformPageContentService
 
     private function mergeSectionWithSource(array $section, array $source): array
     {
+        $section['background_preset'] = $section['background_preset'] !== '' ? $section['background_preset'] : ($source['background_preset'] ?? '');
         $section['kicker'] = $section['kicker'] !== '' ? $section['kicker'] : ($source['kicker'] ?? '');
         $section['title'] = $section['title'] !== '' ? $section['title'] : ($source['title'] ?? '');
         $section['body'] = $section['body'] !== '' ? $section['body'] : ($source['body'] ?? '');

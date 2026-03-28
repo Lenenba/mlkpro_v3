@@ -5,6 +5,7 @@ import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
 import PublicSectionsRenderer from '@/Components/Public/PublicSectionsRenderer.vue';
 import PublicSiteHeader from '@/Components/Public/PublicSiteHeader.vue';
 import { Head, Link } from '@inertiajs/vue3';
+import { buildBackgroundStyle } from '@/utils/backgroundPresets';
 import { useI18n } from 'vue-i18n';
 import { defaultFeatureTabsShowcaseSection } from '@/utils/featureTabs';
 
@@ -104,10 +105,7 @@ const isExternalHref = (href) => {
     }
 };
 
-const sectionStyle = (color) => {
-    const value = String(color || '').trim();
-    return value ? { background: value } : {};
-};
+const sectionStyle = (section) => buildBackgroundStyle(section || {});
 
 const navMenuItems = computed(() =>
     (welcomeContent.value.nav?.menu || []).filter((item) => item && item.enabled !== false && isHrefAllowed(item.href))
@@ -306,7 +304,7 @@ const heroBodyStyle = computed(() => {
 
         <main>
             <section v-if="welcomeContent.hero?.enabled !== false" class="welcome-section welcome-hero"
-                :style="sectionStyle(welcomeContent.hero?.background_color)">
+                :style="sectionStyle(welcomeContent.hero)">
                 <div class="welcome-hero-shell" :class="{ 'welcome-hero-shell--with-visual': heroSideImage }">
                     <div class="space-y-4 welcome-hero-copy welcome-hero-copy--left">
                         <div class="welcome-kicker welcome-hero-kicker-intro">
@@ -407,7 +405,7 @@ const heroBodyStyle = computed(() => {
             </section>
 
             <section v-if="welcomeContent.trust?.enabled !== false" class="welcome-section welcome-trust"
-                :style="sectionStyle(welcomeContent.trust?.background_color)">
+                :style="sectionStyle(welcomeContent.trust)">
                 <div class="welcome-container">
                     <div class="flex flex-col gap-3 text-center">
                         <div class="text-sm font-semibold text-stone-700">
@@ -425,7 +423,7 @@ const heroBodyStyle = computed(() => {
             <FeatureTabsShowcaseSection v-if="welcomeShowcaseSection?.enabled !== false" :section="welcomeShowcaseSection" />
 
             <section v-if="welcomeContent.features?.enabled !== false" class="welcome-section welcome-features"
-                :style="sectionStyle(welcomeContent.features?.background_color)">
+                :style="sectionStyle(welcomeContent.features)">
                 <div class="welcome-container">
                     <div class="flex flex-col gap-2 text-center">
                         <div class="text-xs uppercase tracking-wide text-emerald-200">
@@ -450,7 +448,7 @@ const heroBodyStyle = computed(() => {
                     </div>
 
                     <div v-if="welcomeContent.features?.new_features?.enabled !== false" class="mt-12"
-                        :style="sectionStyle(welcomeContent.features?.new_features?.background_color)">
+                        :style="sectionStyle(welcomeContent.features?.new_features)">
                         <div class="flex flex-col gap-2 text-center">
                             <div class="text-xs uppercase tracking-wide text-emerald-200">
                                 {{ welcomeContent.features?.new_features?.kicker || $t('welcome.new_features.kicker') }}
@@ -480,7 +478,7 @@ const heroBodyStyle = computed(() => {
             </section>
 
             <section v-if="welcomeContent.workflow?.enabled !== false" class="welcome-section welcome-workflow"
-                :style="sectionStyle(welcomeContent.workflow?.background_color)">
+                :style="sectionStyle(welcomeContent.workflow)">
                 <div class="welcome-container">
                     <div class="grid grid-cols-1 lg:grid-cols-2 lg:items-center welcome-split">
                         <div>
@@ -515,7 +513,7 @@ const heroBodyStyle = computed(() => {
             </section>
 
             <section v-if="welcomeContent.field?.enabled !== false" class="welcome-section welcome-field"
-                :style="sectionStyle(welcomeContent.field?.background_color)">
+                :style="sectionStyle(welcomeContent.field)">
                 <div class="welcome-container">
                     <div class="grid grid-cols-1 lg:grid-cols-2 lg:items-center welcome-split">
                         <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-lg">
@@ -554,7 +552,7 @@ const heroBodyStyle = computed(() => {
             />
 
             <section v-if="welcomeContent.cta?.enabled !== false" class="welcome-section welcome-cta"
-                :style="sectionStyle(welcomeContent.cta?.background_color)">
+                :style="sectionStyle(welcomeContent.cta)">
                 <div class="welcome-container">
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div>

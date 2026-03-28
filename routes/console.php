@@ -27,6 +27,7 @@ use App\Services\ReservationNotificationService;
 use App\Services\ReservationQueueService;
 use App\Services\SaleNotificationService;
 use App\Services\SmsNotificationService;
+use App\Services\StripePlanEnvSyncService;
 use App\Services\StripePlanPriceProvisioner;
 use App\Services\SupportAssignmentService;
 use App\Services\SupportSettingsService;
@@ -379,6 +380,95 @@ Artisan::command('billing:stripe-plan-prices
 
     return 0;
 })->purpose('Create or reuse Stripe multi-currency plan prices, then optionally sync .env and plan_prices');
+
+Artisan::command('billing:stripe-sync-env
+    {--dry-run : Show the Stripe matches without changing the local .env file or the database}
+    {--live : Required when STRIPE_SECRET is a live key}
+    {--no-env : Do not update the local .env file}
+    {--no-db : Do not sync plan_prices in the database}
+    {--solo : Include the 3 owner-only solo plans}
+    {--plans= : Optional comma-separated list of plan codes}
+    {--currencies= : Optional comma-separated list of currency codes}', function (
+    StripePlanEnvSyncService $syncService
+): int {
+    $parseCsv = static function (?string $value): array {
+        if (! is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        return collect(explode(',', $value))
+            ->map(fn ($part) => trim((string) $part))
+            ->filter(fn ($part) => $part !== '')
+            ->values()
+            ->all();
+    };
+
+    $writeEnvPath = null;
+    if (! (bool) $this->option('no-env')) {
+        $defaultEnvPath = base_path('.env');
+        $writeEnvPath = file_exists($defaultEnvPath) ? $defaultEnvPath : null;
+    }
+
+    try {
+        $result = $syncService->execute([
+            'dry_run' => (bool) $this->option('dry-run'),
+            'live' => (bool) $this->option('live'),
+            'plans' => $parseCsv((string) $this->option('plans')),
+            'solo_only' => (bool) $this->option('solo'),
+            'currencies' => array_map('strtoupper', $parseCsv((string) $this->option('currencies'))),
+            'write_env' => $writeEnvPath,
+            'sync_db' => ! (bool) $this->option('no-db'),
+        ]);
+    } catch (\Throwable $exception) {
+        $this->error($exception->getMessage());
+
+        return 1;
+    }
+
+    $rows = collect($result['items'])
+        ->map(fn (array $item) => [
+            strtoupper((string) $item['plan_code']),
+            (string) $item['currency_code'],
+            (string) $item['action'],
+            number_format((float) $item['amount'], 2, '.', ''),
+            (string) ($item['stripe_price_id'] ?? '-'),
+            (string) $item['env_key'],
+        ])
+        ->all();
+
+    if ($rows !== []) {
+        $this->table(['Plan', 'Currency', 'Match', 'Amount', 'Stripe price', 'Env key'], $rows);
+    }
+
+    if ($result['resolved'] !== []) {
+        $this->newLine();
+        $this->info('Resolved environment values:');
+        foreach ($result['resolved'] as $envKey => $value) {
+            $this->line($envKey.'='.$value);
+        }
+    }
+
+    if ($result['dry_run']) {
+        $this->newLine();
+        $this->warn('Dry run: Stripe was read-only; no .env file or database row was changed.');
+
+        return 0;
+    }
+
+    if ($result['env_updated']) {
+        $this->info('Local .env file updated.');
+    } elseif ((bool) $this->option('no-env')) {
+        $this->warn('Skipped .env update because --no-env was used.');
+    }
+
+    if ($result['db_synced']) {
+        $this->info('plan_prices synchronized in the database.');
+    } elseif ((bool) $this->option('no-db')) {
+        $this->warn('Skipped database synchronization because --no-db was used.');
+    }
+
+    return 0;
+})->purpose('Read existing Stripe plan prices and sync .env and plan_prices without creating new Stripe prices');
 
 Artisan::command('platform:notifications-digest {--frequency=daily}', function (PlatformAdminNotifier $notifier): int {
     $frequency = (string) $this->option('frequency');

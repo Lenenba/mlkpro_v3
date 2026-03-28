@@ -10,6 +10,7 @@ import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import RichTextEditor from '@/Components/RichTextEditor.vue';
 import AssetPickerModal from '@/Components/AssetPickerModal.vue';
+import { backgroundPresetKeys } from '@/utils/backgroundPresets';
 import {
     createIndustryCard,
     defaultIndustryCards,
@@ -107,6 +108,14 @@ const toneOptions = computed(() => [
     { value: 'default', label: t('super_admin.pages.tones.default') },
     { value: 'muted', label: t('super_admin.pages.tones.muted') },
     { value: 'contrast', label: t('super_admin.pages.tones.contrast') },
+]);
+
+const backgroundPresetOptions = computed(() => [
+    { value: '', label: t('super_admin.pages.common.background_presets.none') },
+    ...backgroundPresetKeys.map((preset) => ({
+        value: preset,
+        label: t(`super_admin.pages.common.background_presets.${preset.replace(/-/g, '_')}`),
+    })),
 ]);
 
 const footerGroupLayoutOptions = computed(() => [
@@ -488,6 +497,7 @@ const sectionTypePreset = (type) => {
         return {
             layout: 'split',
             background_color: '',
+            background_preset: 'welcome-hero',
             image_position: 'right',
             alignment: 'left',
             density: 'normal',
@@ -654,6 +664,7 @@ const ensureStructure = (content, type = form.type) => {
     return {
         layout: content?.layout || preset.layout,
         background_color: content?.background_color ?? preset.background_color,
+        background_preset: content?.background_preset ?? preset.background_preset ?? '',
         title_color: content?.title_color ?? preset.title_color ?? '',
         body_color: content?.body_color ?? preset.body_color ?? '',
         image_position: content?.image_position || preset.image_position,
@@ -753,6 +764,7 @@ watch(
             layout: next.layout,
             image_position: current.image_position === previous.image_position ? next.image_position : current.image_position,
             background_color: current.background_color === previous.background_color ? next.background_color : current.background_color,
+            background_preset: current.background_preset === (previous.background_preset ?? '') ? (next.background_preset ?? '') : current.background_preset,
             title_color: current.title_color || next.title_color || '',
             body_color: current.body_color || next.body_color || '',
             tone: current.tone === previous.tone ? next.tone : current.tone,
@@ -1353,6 +1365,8 @@ syncFormFromProps(currentLocale.value);
                         :label="$t('super_admin.pages.common.density')" />
                     <FloatingSelect v-model="form.content.tone" :options="toneOptions"
                         :label="$t('super_admin.pages.common.tone')" />
+                    <FloatingSelect v-model="form.content.background_preset" :options="backgroundPresetOptions"
+                        :label="$t('super_admin.pages.common.background_preset')" />
                 </div>
 
                 <div class="rounded-sm border border-dashed border-stone-200 p-3 dark:border-neutral-700">
@@ -1941,6 +1955,8 @@ syncFormFromProps(currentLocale.value);
                             </div>
                         </summary>
                         <div class="border-t border-stone-200 p-4 dark:border-neutral-700 space-y-4">
+                            <FloatingSelect v-model="form.content.background_preset" :options="backgroundPresetOptions"
+                                :label="$t('super_admin.pages.common.background_preset')" />
                             <div class="grid gap-2 md:grid-cols-[160px_1fr] md:items-center">
                                 <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                     {{ $t('super_admin.pages.common.background_hex') }}

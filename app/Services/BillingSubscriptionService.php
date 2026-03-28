@@ -63,6 +63,7 @@ class BillingSubscriptionService
                 'on_trial' => $this->isStripeOnTrial($status, $trialEndsAt),
                 'status' => $status,
                 'price_id' => $subscription?->price_id,
+                'plan_code' => $subscription?->plan_code,
                 'ends_at' => $subscription?->ends_at,
                 'trial_ends_at' => $trialEndsAt,
                 'provider_id' => $subscription?->stripe_id,
@@ -76,6 +77,7 @@ class BillingSubscriptionService
             'on_trial' => $user->onTrial(PaddleSubscription::DEFAULT_TYPE),
             'status' => $subscription?->status,
             'price_id' => $subscription?->items()->value('price_id'),
+            'plan_code' => null,
             'ends_at' => $subscription?->ends_at,
             'trial_ends_at' => $subscription?->trial_ends_at,
             'provider_id' => $subscription?->paddle_id,
@@ -84,6 +86,11 @@ class BillingSubscriptionService
 
     public function resolvePlanKey(User $accountOwner, array $planConfig): ?string
     {
+        $storedPlanCode = $this->resolveStoredPlanCode($accountOwner);
+        if ($storedPlanCode) {
+            return $storedPlanCode;
+        }
+
         $priceId = $this->resolvePriceId($accountOwner);
         if ($priceId) {
             $planCode = app(BillingPlanService::class)->resolvePlanCodeByStripePriceId($priceId);
@@ -198,5 +205,25 @@ class BillingSubscriptionService
     private function resolveTrialEndsAt(User $accountOwner): ?Carbon
     {
         return $accountOwner->trial_ends_at;
+    }
+
+    private function resolveStoredPlanCode(User $accountOwner): ?string
+    {
+        if (! $this->isStripe()) {
+            return null;
+        }
+
+        $planCode = StripeSubscription::query()
+            ->where('user_id', $accountOwner->id)
+            ->orderByDesc('updated_at')
+            ->value('plan_code');
+
+        if (! is_string($planCode)) {
+            return null;
+        }
+
+        $normalized = trim($planCode);
+
+        return $normalized !== '' ? $normalized : null;
     }
 }

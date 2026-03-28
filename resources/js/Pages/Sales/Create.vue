@@ -14,6 +14,7 @@ import Modal from '@/Components/UI/Modal.vue';
 import AppModal from '@/Components/Modal.vue';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     customers: {
@@ -337,8 +338,7 @@ const total = computed(() =>
 );
 const canStripeCheckout = computed(() => total.value > 0);
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 
 const handleCustomerCreated = (payload) => {
     const customer = payload?.customer;

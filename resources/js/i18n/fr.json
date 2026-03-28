@@ -1497,6 +1497,15 @@
         "style": "Style",
         "background": "Background",
         "background_hex": "Couleur de fond (#hex)",
+        "background_preset": "Preset de fond",
+        "background_presets": {
+          "none": "Aucun preset",
+          "welcome_hero": "Dégradé hero d'accueil",
+          "graphite_crimson": "Noir et rouge",
+          "obsidian_amber": "Noir et ambre",
+          "midnight_cobalt": "Bleu nuit",
+          "deep_ocean": "Océan profond"
+        },
         "move_up": "Monter",
         "move_down": "Descendre",
         "remove": "Supprimer",
@@ -1733,6 +1742,15 @@
         "description": "Description",
         "background": "Background",
         "background_hex": "Couleur de fond (#hex)",
+        "background_preset": "Preset de fond",
+        "background_presets": {
+          "none": "Aucun preset",
+          "welcome_hero": "Dégradé hero d'accueil",
+          "graphite_crimson": "Noir et rouge",
+          "obsidian_amber": "Noir et ambre",
+          "midnight_cobalt": "Bleu nuit",
+          "deep_ocean": "Océan profond"
+        },
         "panel_background": "Fond du bloc contenu",
         "panel_background_hex": "Couleur du bloc contenu (#hex)",
         "image_position": "Position de l'image",
@@ -6392,7 +6410,8 @@
         "switch_plan": "Changer pour ce plan",
         "choose_plan": "Choisir ce plan",
         "contact_sales": "Demander une offre",
-        "contact_phone": "Telephone : {phone}"
+        "contact_phone": "Telephone : {phone}",
+        "processing": "Traitement..."
       },
       "status": {
         "active": "Actif",
@@ -6418,11 +6437,103 @@
         "provider_not_supported": "Le fournisseur de facturation est defini sur {provider}. Les actions Paddle sont desactivees.",
         "stripe_not_configured": "Stripe n'est pas configure. Verifiez STRIPE_SECRET, STRIPE_PRICE_* et STRIPE_ENABLED=true.",
         "stripe_checkout_failed": "Impossible de demarrer le checkout Stripe.",
-        "stripe_portal_failed": "Impossible d'ouvrir le portail client Stripe."
+        "stripe_portal_failed": "Impossible d'ouvrir le portail client Stripe.",
+        "plan_change_failed": "Impossible de changer de forfait pour le moment."
       },
       "plans": {
         "title": "Abonnement plateforme",
-        "subtitle": "Choisissez un plan mensuel pour activer toutes les fonctionnalites."
+        "subtitle": "Consultez votre plan actif, ajustez votre forfait et gerez l usage IA associe.",
+        "advisor": {
+          "title": "Changer de forfait",
+          "dialog_title": "Assistant de choix de forfait",
+          "subtitle": "Repondez a quelques questions et nous vous proposons les forfaits les plus coherents avec votre contexte actuel.",
+          "trigger_change": "Changer de forfait",
+          "trigger_choose": "Trouver un forfait",
+          "close": "Fermer",
+          "back": "Precedent",
+          "next": "Suivant",
+          "show_results": "Voir les suggestions",
+          "top_match": "Meilleure recommandation",
+          "alternative": "Alternative",
+          "current_match": "Votre forfait actuel correspond deja bien a vos reponses.",
+          "steps": {
+            "business": "Organisation",
+            "focus": "Besoins",
+            "ai": "IA",
+            "results": "Suggestions"
+          },
+          "questions": {
+            "business": "Quelle est votre taille d organisation ?",
+            "focus": "Quel est votre besoin principal ?",
+            "ai": "Quelle place doit prendre l IA ?"
+          },
+          "options": {
+            "business": {
+              "solo": {
+                "label": "Solo",
+                "description": "Je travaille seul et je veux un forfait pense pour un independant."
+              },
+              "small_team": {
+                "label": "Petite equipe",
+                "description": "Nous sommes une petite equipe avec un besoin simple de coordination."
+              },
+              "growing_team": {
+                "label": "Equipe en croissance",
+                "description": "Nous avons deja une vraie equipe et le besoin de mieux structurer nos operations."
+              },
+              "large_team": {
+                "label": "Equipe structuree",
+                "description": "Nous gerons un volume plus important avec davantage de coordination et de support."
+              },
+              "custom_scale": {
+                "label": "Sur mesure",
+                "description": "Nous avons 50+ utilisateurs ou des besoins d accompagnement plus specifiques."
+              }
+            },
+            "focus": {
+              "quotes": {
+                "label": "Devis et factures",
+                "description": "Je veux surtout aller vite sur les devis, factures et le suivi client."
+              },
+              "operations": {
+                "label": "Operations terrain",
+                "description": "Je veux mieux gerer jobs, taches, planning et coordination quotidienne."
+              },
+              "automation": {
+                "label": "Automatisation et IA",
+                "description": "Je cherche plus d automatisations, de performance, de scan et d IA."
+              }
+            },
+            "ai": {
+              "none": {
+                "label": "Pas prioritaire",
+                "description": "L IA n est pas un critere important pour l instant."
+              },
+              "optional": {
+                "label": "Option payante OK",
+                "description": "Je veux garder l IA disponible si besoin, sans l inclure forcement."
+              },
+              "included": {
+                "label": "Incluse de preference",
+                "description": "Je prefere un forfait ou l IA fait deja partie de la proposition."
+              }
+            }
+          },
+          "reasons": {
+            "solo": "Adapte a une activite solo.",
+            "small_team": "Bon fit pour une petite equipe.",
+            "growing_team": "Concu pour une equipe en croissance.",
+            "large_team": "Mieux calibre pour une structure plus large.",
+            "custom_scale": "Plus adapte a un besoin sur mesure.",
+            "room_to_grow": "Laisse de la marge pour grandir sans changer trop vite.",
+            "quotes": "Garde une experience simple pour devis et factures.",
+            "operations": "Renforce jobs, taches et planning au quotidien.",
+            "automation": "Ouvre plus d automatisations, de performance et de workflows avances.",
+            "ai_optional": "Assistant IA disponible en option.",
+            "ai_included": "Assistant IA deja inclus dans la proposition.",
+            "custom_support": "Permet un accompagnement et un cadrage plus personnalises."
+          }
+        }
       },
       "checkout": {
         "success_title": "Abonnement active. Merci !",
@@ -6435,6 +6546,7 @@
       "summary": {
         "active_plan": "Vous etes sur {plan} (Statut: {status})",
         "trialing": "Essai en cours",
+        "trialing_until": "Essai en cours jusqu au {date}",
         "no_subscription": "Aucun abonnement actif. Selectionnez un plan pour demarrer."
       },
       "plan": {
@@ -6444,13 +6556,14 @@
         "interval_month": "/mois",
         "current_plan": "Vous etes sur ce plan.",
         "cta_active": "Plan actif",
+        "custom_pricing": "Sur mesure",
         "team_limit": "Jusqu a {count} employes",
         "team_limit_plus": "{count}+ employes"
       },
       "assistant_addon": {
         "title": "Assistant IA",
-        "subtitle": "Ajoutez l Assistant IA a votre forfait et payez a l usage.",
-        "subtitle_credit": "Ajoutez l Assistant IA a votre forfait et achetez des packs de credits.",
+        "subtitle": "Gerez l Assistant IA et payez uniquement l usage additionnel.",
+        "subtitle_credit": "Gerez l Assistant IA et achetez des packs de credits si necessaire.",
         "included_badge": "Inclus",
         "optional_badge": "Option payante",
         "cta_enable": "Activer l option",

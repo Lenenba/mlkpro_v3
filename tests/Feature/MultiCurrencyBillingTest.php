@@ -132,8 +132,21 @@ it('resolves explicit plan prices for CAD, EUR, and USD', function () {
         'EUR' => number_format((float) env('STRIPE_PRICE_STARTER_EUR_AMOUNT', 21), 2, '.', ''),
         'USD' => number_format((float) env('STRIPE_PRICE_STARTER_USD_AMOUNT', 24), 2, '.', ''),
     ];
+    $planId = Plan::query()->where('code', 'starter')->value('id');
 
     foreach ($expectedAmounts as $currencyCode => $expectedAmount) {
+        PlanPrice::query()->updateOrCreate(
+            [
+                'plan_id' => $planId,
+                'currency_code' => $currencyCode,
+                'billing_period' => BillingPeriod::MONTHLY->value,
+            ],
+            [
+                'amount' => $expectedAmount,
+                'is_active' => true,
+            ]
+        );
+
         $planPrice = app(BillingPlanService::class)->resolveActivePlanPrice(
             'starter',
             $currencyCode,

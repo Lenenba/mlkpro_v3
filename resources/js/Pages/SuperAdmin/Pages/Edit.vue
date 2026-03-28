@@ -10,6 +10,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import RichTextEditor from '@/Components/RichTextEditor.vue';
 import AssetPickerModal from '@/Components/AssetPickerModal.vue';
+import { backgroundPresetKeys } from '@/utils/backgroundPresets';
 import {
     createIndustryCard,
     defaultIndustryCards,
@@ -258,6 +259,14 @@ const toneOptions = computed(() => [
     { value: 'default', label: t('super_admin.pages.tones.default') },
     { value: 'muted', label: t('super_admin.pages.tones.muted') },
     { value: 'contrast', label: t('super_admin.pages.tones.contrast') },
+]);
+
+const backgroundPresetOptions = computed(() => [
+    { value: '', label: t('super_admin.pages.common.background_presets.none') },
+    ...backgroundPresetKeys.map((preset) => ({
+        value: preset,
+        label: t(`super_admin.pages.common.background_presets.${preset.replace(/-/g, '_')}`),
+    })),
 ]);
 
 const fontOptions = computed(() => [
@@ -563,6 +572,7 @@ const ensureSection = (section, index) => ({
     override_note: section?.override_note ?? false,
     override_stats: section?.override_stats ?? false,
     background_color: section?.background_color ?? '',
+    background_preset: section?.background_preset ?? '',
     title_color: section?.title_color ?? '',
     body_color: section?.body_color ?? '',
     layout: section?.layout || 'split',
@@ -926,6 +936,7 @@ const applyLibraryToSection = (section) => {
     }
     section.use_source = true;
     section.background_color = content.background_color ?? section.background_color ?? '';
+    section.background_preset = content.background_preset ?? section.background_preset ?? '';
     section.title_color = content.title_color ?? section.title_color ?? '';
     section.body_color = content.body_color ?? section.body_color ?? '';
     section.layout = content.layout ?? section.layout ?? 'split';
@@ -1638,6 +1649,8 @@ syncFormFromProps(currentLocale.value);
                                 :label="$t('super_admin.pages.common.density')" />
                             <FloatingSelect v-model="section.tone" :options="toneOptions"
                                 :label="$t('super_admin.pages.common.tone')" />
+                            <FloatingSelect v-model="section.background_preset" :options="backgroundPresetOptions"
+                                :label="$t('super_admin.pages.common.background_preset')" />
                             <div class="grid gap-2 md:col-span-2 md:grid-cols-[140px_1fr] md:items-center">
                                 <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                     {{ backgroundHeadingLabel(section) }}

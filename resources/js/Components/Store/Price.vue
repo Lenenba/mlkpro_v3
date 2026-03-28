@@ -1,10 +1,12 @@
 <script setup>
 import { computed } from 'vue';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     current: { type: Number, required: true },
     original: { type: Number, default: null },
     size: { type: String, default: 'md' },
+    currencyCode: { type: String, default: null },
 });
 
 const sizeClasses = {
@@ -14,12 +16,7 @@ const sizeClasses = {
     lg: 'text-lg',
 };
 
-const formatter = new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-});
-
-const format = (value) => `$${formatter.format(Number(value || 0))}`;
+const { formatCurrency: format } = useCurrencyFormatter(computed(() => props.currencyCode));
 
 const priceClass = computed(() => sizeClasses[props.size] || sizeClasses.md);
 </script>

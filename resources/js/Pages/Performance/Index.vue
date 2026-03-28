@@ -4,6 +4,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Card from '@/Components/UI/Card.vue';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     employeePerformance: {
@@ -42,8 +43,7 @@ const periodOptions = computed(() => ([
     { key: 'year', label: t('performance.period.year') },
 ]));
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });

@@ -1,5 +1,6 @@
 <script setup>
 import { useI18n } from 'vue-i18n';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const { t } = useI18n();
 const props = defineProps({
@@ -12,8 +13,7 @@ const props = defineProps({
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 </script>
 
 <template>
