@@ -294,7 +294,7 @@ const heroBodyStyle = computed(() => {
 <template>
     <Head :title="$t('welcome.meta.title')" />
 
-    <div class="welcome-page text-stone-900 dark:text-neutral-100">
+    <div class="welcome-page front-public-page text-stone-900 dark:text-neutral-100">
         <PublicSiteHeader
             :mega-menu="megaMenu"
             :fallback-items="headerMenuItems"
@@ -610,8 +610,6 @@ const heroBodyStyle = computed(() => {
 </template>
 
 <style scoped>
-@import url('https://fonts.bunny.net/css?family=Montserrat:400,500,600,700,800&display=swap');
-
 .welcome-page {
     --public-shell-width: 88rem;
     --public-shell-gutter: 1.25rem;
@@ -619,8 +617,6 @@ const heroBodyStyle = computed(() => {
     --welcome-ink: #0f172a;
     --welcome-muted: #475569;
     --welcome-accent: #16a34a;
-    --page-font-body: 'Montserrat', 'Figtree', sans-serif;
-    --page-font-heading: 'Montserrat', 'Figtree', sans-serif;
     font-family: var(--page-font-body);
     background: #ffffff;
 }

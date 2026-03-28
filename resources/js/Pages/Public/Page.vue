@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import FeatureTabsShowcaseSection from '@/Components/Public/FeatureTabsShowcaseSection.vue';
 import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
+import PublicFrontHero from '@/Components/Public/PublicFrontHero.vue';
 import PublicSiteHeader from '@/Components/Public/PublicSiteHeader.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { buildBackgroundStyle } from '@/utils/backgroundPresets';
@@ -65,12 +66,6 @@ const themeStyle = computed(() => {
         soft: '0 18px 40px -30px rgba(15, 23, 42, 0.4)',
         deep: '0 24px 60px -32px rgba(15, 23, 42, 0.55)',
     };
-    const fontMap = {
-        'work-sans': "'Work Sans', 'Figtree', sans-serif",
-        'space-grotesk': "'Space Grotesk', 'Figtree', sans-serif",
-        'sora': "'Sora', 'Figtree', sans-serif",
-        'dm-sans': "'DM Sans', 'Figtree', sans-serif",
-    };
     const bg = palette.background_color || '#f8fafc';
     const bgAlt = palette.background_alt_color || bg;
     const background =
@@ -90,8 +85,8 @@ const themeStyle = computed(() => {
         '--page-border': palette.border_color || '#e2e8f0',
         '--page-radius': radiusMap[palette.radius] || radiusMap.sm,
         '--page-shadow': shadowMap[palette.shadow] || shadowMap.soft,
-        '--page-font-body': fontMap[palette.font_body] || fontMap['work-sans'],
-        '--page-font-heading': fontMap[palette.font_heading] || fontMap['space-grotesk'],
+        '--page-font-body': 'var(--front-font-body)',
+        '--page-font-heading': 'var(--front-font-heading)',
         '--page-bg': background,
     };
 });
@@ -109,6 +104,80 @@ const pageHeader = computed(() => ({
     background_image_alt: props.content?.header?.background_image_alt || '',
     alignment: props.content?.header?.alignment || 'center',
 }));
+
+const alignedHeroProductSlugs = new Set([
+    'ai-automation',
+    'command-center',
+    'commerce',
+    'marketing-loyalty',
+    'operations',
+    'reservations',
+    'sales-crm',
+]);
+
+const usesWelcomeAlignedHero = computed(() => {
+    const slug = String(props.page?.slug || '').trim();
+
+    return slug === 'contact-us'
+        || slug.startsWith('solution-')
+        || slug.startsWith('industry-')
+        || alignedHeroProductSlugs.has(slug);
+});
+
+const frontHeroEyebrow = computed(() => {
+    const slug = String(props.page?.slug || '').trim();
+    const isFrench = String(currentLocale.value || 'fr').toLowerCase().startsWith('fr');
+
+    if (slug === 'contact-us') {
+        return isFrench ? 'Contact' : 'Contact us';
+    }
+
+    if (slug.startsWith('solution-')) {
+        return isFrench ? 'Solutions' : 'Solutions';
+    }
+
+    if (slug.startsWith('industry-')) {
+        return isFrench ? 'Industries' : 'Industries';
+    }
+
+    return isFrench ? 'Produits' : 'Products';
+});
+
+const firstHeroSectionWithImage = computed(() => {
+    const sections = Array.isArray(props.content?.sections) ? props.content.sections : [];
+
+    return sections.find((section) => String(section?.image_url || section?.aside_image_url || '').trim()) || null;
+});
+
+const frontHeroImage = computed(() => {
+    const headerImage = String(pageHeader.value.background_image_url || '').trim();
+    if (headerImage) {
+        return headerImage;
+    }
+
+    const section = firstHeroSectionWithImage.value;
+    const sectionImage = String(section?.image_url || section?.aside_image_url || '').trim();
+    if (sectionImage) {
+        return sectionImage;
+    }
+
+    return '/images/landing/workflow-board.svg';
+});
+
+const frontHeroImageAlt = computed(() => {
+    const headerAlt = String(pageHeader.value.background_image_alt || '').trim();
+    if (headerAlt) {
+        return headerAlt;
+    }
+
+    const section = firstHeroSectionWithImage.value;
+    const sectionAlt = String(section?.image_alt || section?.aside_title || section?.title || '').trim();
+    if (sectionAlt) {
+        return sectionAlt;
+    }
+
+    return String(props.content?.page_title || props.page?.title || 'Page hero').trim();
+});
 
 const isDarkHexColor = (value) => {
     const input = String(value || '').trim().replace('#', '');
@@ -749,7 +818,7 @@ const headerMenuItems = computed(() => ([
 <template>
     <Head :title="content.page_title || page.title" />
 
-    <div class="public-page" :style="themeStyle">
+    <div class="public-page front-public-page" :style="themeStyle">
         <PublicSiteHeader
             :mega-menu="megaMenu"
             :fallback-items="headerMenuItems"
@@ -759,7 +828,16 @@ const headerMenuItems = computed(() => ([
         />
 
         <main>
+            <PublicFrontHero
+                v-if="usesWelcomeAlignedHero"
+                :eyebrow="frontHeroEyebrow"
+                :title="content.page_title || page.title"
+                :subtitle-html="content.page_subtitle"
+                :image-src="frontHeroImage"
+                :image-alt="frontHeroImageAlt"
+            />
             <section
+                v-else
                 class="public-section public-hero"
                 :class="{ 'public-hero--contrast': heroUsesContrast }"
                 :style="heroStyle"
@@ -1634,15 +1712,13 @@ const headerMenuItems = computed(() => ([
 </template>
 
 <style scoped>
-@import url('https://fonts.bunny.net/css?family=Cal+Sans:400&family=DM+Sans:400,500,600,700&family=Space+Grotesk:400,500,600,700&family=Sora:400,500,600,700&family=Work+Sans:400,500,600,700&display=swap');
-
 .public-page {
     --public-shell-width: 88rem;
     --public-shell-gutter: 1.25rem;
     min-height: 100vh;
     background: var(--page-bg, linear-gradient(180deg, #f8fafc 0%, #ffffff 40%, #ecfdf5 100%));
     color: var(--page-text, #0f172a);
-    font-family: var(--page-font-body, 'Work Sans', sans-serif);
+    font-family: var(--page-font-body, var(--front-font-body));
 }
 
 .public-container {
@@ -1741,7 +1817,7 @@ const headerMenuItems = computed(() => ([
 
 .public-title {
     color: var(--page-text, #0f172a);
-    font-family: var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
 }
 
 .public-tone--muted .public-rich {
@@ -1865,7 +1941,7 @@ const headerMenuItems = computed(() => ([
 .public-testimonial-title {
     margin: 1.5rem 0 1rem;
     color: #23282b;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: 28px;
     font-weight: 400;
     line-height: 1.12;
@@ -1882,7 +1958,7 @@ const headerMenuItems = computed(() => ([
 .public-testimonial-title--rich :deep(div) {
     margin: 0;
     color: #23282b;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: 28px;
     font-weight: 400;
     line-height: 1.12;
@@ -2017,7 +2093,7 @@ const headerMenuItems = computed(() => ([
 .public-testimonial-grid__title {
     margin: 0;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2.15rem, 1.72rem + 1vw, 3.55rem);
     line-height: 1.03;
     letter-spacing: -0.05em;
@@ -2187,7 +2263,7 @@ const headerMenuItems = computed(() => ([
 .public-feature-pairs__title {
     margin: 0 0 0.95rem;
     color: #23282b;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(1.75rem, 1.45rem + 0.55vw, 2.1rem);
     line-height: 1.08;
     letter-spacing: -0.03em;
@@ -2264,7 +2340,7 @@ const headerMenuItems = computed(() => ([
 .public-feature-tabs__title {
     margin: 0;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2.1rem, 1.75rem + 0.9vw, 3.2rem);
     line-height: 1.02;
     letter-spacing: -0.04em;
@@ -2325,7 +2401,7 @@ const headerMenuItems = computed(() => ([
     border-radius: var(--page-radius, 4px);
     background: #0b3446;
     color: #ffffff;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: 1.15rem;
     line-height: 1;
     text-align: left;
@@ -2483,7 +2559,7 @@ ul .public-feature-tabs__subitem::before {
 .public-feature-tabs__panel-title {
     margin: 0;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(1.7rem, 1.48rem + 0.55vw, 2.2rem);
     line-height: 1.05;
     letter-spacing: -0.03em;
@@ -2544,7 +2620,7 @@ ul .public-feature-tabs__subitem::before {
 .public-industry-grid__title {
     margin: 0;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2.25rem, 1.95rem + 1vw, 3.55rem);
     line-height: 1.02;
     letter-spacing: -0.04em;
@@ -2615,7 +2691,7 @@ ul .public-feature-tabs__subitem::before {
 
 .public-industry-grid__label {
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: 1.1rem;
     line-height: 1.15;
     letter-spacing: -0.02em;
@@ -2635,7 +2711,7 @@ ul .public-feature-tabs__subitem::before {
     display: inline-flex;
     align-items: center;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: 1.25rem;
     text-decoration: none;
 }
@@ -2685,7 +2761,7 @@ ul .public-feature-tabs__subitem::before {
 .public-story-grid__title {
     margin: 0;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2rem, 1.55rem + 1.2vw, 3.25rem);
     line-height: 1.03;
     letter-spacing: -0.045em;
@@ -2791,7 +2867,7 @@ ul .public-feature-tabs__subitem::before {
 .public-story-grid__card-title {
     margin: 0;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(1.45rem, 1.2rem + 0.45vw, 1.85rem);
     line-height: 1.08;
     letter-spacing: -0.03em;
@@ -2862,7 +2938,7 @@ ul .public-feature-tabs__subitem::before {
 .public-duo-title {
     margin-bottom: 1.5rem;
     color: #23282b;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2.125rem, 1.75rem + 1vw, 2.625rem);
     line-height: 1.05;
     letter-spacing: -0.04em;
@@ -2871,7 +2947,7 @@ ul .public-feature-tabs__subitem::before {
 .public-duo-body {
     margin-bottom: 1rem;
     color: #23282b;
-    font-family: 'Google Sans Flex', 'DM Sans', var(--page-font-body, 'Work Sans', sans-serif);
+    font-family: var(--page-font-body, var(--front-font-body));
     font-size: clamp(1.05rem, 0.95rem + 0.35vw, 1.25rem);
     line-height: 1.55;
 }
@@ -2912,7 +2988,7 @@ ul .public-feature-tabs__subitem::before {
 .public-showcase-title {
     margin: 0;
     color: #f8fafc;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2.45rem, 2rem + 1.6vw, 4.6rem);
     line-height: 0.98;
     letter-spacing: -0.055em;
@@ -3336,3 +3412,4 @@ ul .public-feature-tabs__subitem::before {
     }
 }
 </style>
+

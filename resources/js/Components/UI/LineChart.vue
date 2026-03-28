@@ -72,7 +72,7 @@ const chartOptions = {
             style: {
                 colors: '#a8a29e',
                 fontSize: '13px',
-                fontFamily: 'Inter, ui-sans-serif',
+                fontFamily: 'var(--app-font-body)',
                 fontWeight: 400,
             },
             formatter: (title) => title.slice(0, 3),
@@ -84,7 +84,7 @@ const chartOptions = {
             style: {
                 colors: '#a8a29e',
                 fontSize: '13px',
-                fontFamily: 'Inter, ui-sans-serif',
+                fontFamily: 'var(--app-font-body)',
                 fontWeight: 400,
             },
             formatter: (value) => (value >= 1000 ? `${value / 1000}k` : value),

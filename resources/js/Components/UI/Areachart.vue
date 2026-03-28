@@ -75,11 +75,11 @@ const chartOptions = {
     axisTicks: {
       show: false,
     },
-    labels: {
+        labels: {
       style: {
         colors: '#9ca3af',
         fontSize: '13px',
-        fontFamily: 'Inter, ui-sans-serif',
+        fontFamily: 'var(--app-font-body)',
         fontWeight: 400,
       },
       formatter: (title) => {
@@ -97,7 +97,7 @@ const chartOptions = {
       style: {
         colors: '#9ca3af',
         fontSize: '13px',
-        fontFamily: 'Inter, ui-sans-serif',
+        fontFamily: 'var(--app-font-body)',
         fontWeight: 400,
       },
       formatter: (value) => (value >= 1000 ? `${value / 1000}k` : value),

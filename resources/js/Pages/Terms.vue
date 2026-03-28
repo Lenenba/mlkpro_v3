@@ -49,7 +49,7 @@ const headerMenuItems = computed(() => ([
 <template>
     <Head :title="$t('terms.meta.title')" />
 
-    <div class="min-h-screen bg-stone-50 text-stone-900 dark:bg-neutral-900 dark:text-neutral-100">
+    <div class="front-public-page min-h-screen bg-stone-50 text-stone-900 dark:bg-neutral-900 dark:text-neutral-100">
         <PublicSiteHeader
             :mega-menu="props.megaMenu"
             :fallback-items="headerMenuItems"

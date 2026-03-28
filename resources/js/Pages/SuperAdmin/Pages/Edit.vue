@@ -70,8 +70,8 @@ const themeDefaults = {
     text_color: '#0f172a',
     muted_color: '#64748b',
     border_color: '#e2e8f0',
-    font_body: 'work-sans',
-    font_heading: 'space-grotesk',
+    font_body: 'montserrat',
+    font_heading: 'montserrat',
     radius: 'sm',
     shadow: 'soft',
     button_style: 'solid',
@@ -270,10 +270,7 @@ const backgroundPresetOptions = computed(() => [
 ]);
 
 const fontOptions = computed(() => [
-    { value: 'work-sans', label: t('super_admin.pages.theme.fonts.work_sans') },
-    { value: 'space-grotesk', label: t('super_admin.pages.theme.fonts.space_grotesk') },
-    { value: 'sora', label: t('super_admin.pages.theme.fonts.sora') },
-    { value: 'dm-sans', label: t('super_admin.pages.theme.fonts.dm_sans') },
+    { value: 'montserrat', label: t('super_admin.pages.theme.fonts.montserrat') },
 ]);
 
 const radiusOptions = computed(() => [

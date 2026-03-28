@@ -1938,6 +1938,7 @@
           "background_style": "Style de fond"
         },
         "fonts": {
+          "montserrat": "Montserrat",
           "work_sans": "Work Sans",
           "space_grotesk": "Space Grotesk",
           "sora": "Sora",

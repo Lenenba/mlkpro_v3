@@ -18,7 +18,7 @@ class PlatformPageContentService
         'avatar_url',
     ];
 
-    private const THEME_FONTS = ['work-sans', 'space-grotesk', 'sora', 'dm-sans'];
+    private const THEME_FONTS = ['montserrat'];
 
     private const THEME_RADII = ['sm', 'md', 'lg', 'xl'];
 
@@ -1332,8 +1332,8 @@ class PlatformPageContentService
             'text_color' => '#0f172a',
             'muted_color' => '#64748b',
             'border_color' => '#e2e8f0',
-            'font_body' => 'work-sans',
-            'font_heading' => 'space-grotesk',
+            'font_body' => 'montserrat',
+            'font_heading' => 'montserrat',
             'radius' => 'sm',
             'shadow' => 'soft',
             'button_style' => 'solid',
