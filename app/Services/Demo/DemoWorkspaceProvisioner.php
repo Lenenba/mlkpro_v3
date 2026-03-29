@@ -38,9 +38,7 @@ use Illuminate\Support\Str;
 
 class DemoWorkspaceProvisioner
 {
-    public function __construct(private DemoWorkspaceCatalog $catalog)
-    {
-    }
+    public function __construct(private DemoWorkspaceCatalog $catalog) {}
 
     /**
      * @param  array<string, mixed>  $payload

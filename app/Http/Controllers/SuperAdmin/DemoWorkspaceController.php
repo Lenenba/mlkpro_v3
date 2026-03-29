@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Models\DemoWorkspace;
-use App\Support\PlatformPermissions;
 use App\Services\Demo\DemoWorkspaceCatalog;
 use App\Services\Demo\DemoWorkspaceProvisioner;
 use App\Services\Demo\DemoWorkspacePurgeService;
+use App\Support\PlatformPermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -16,9 +16,7 @@ use Inertia\Response;
 
 class DemoWorkspaceController extends BaseSuperAdminController
 {
-    public function __construct(private DemoWorkspaceCatalog $catalog)
-    {
-    }
+    public function __construct(private DemoWorkspaceCatalog $catalog) {}
 
     public function index(Request $request): Response
     {

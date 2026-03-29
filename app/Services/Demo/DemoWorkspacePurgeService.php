@@ -7,9 +7,7 @@ use App\Services\AccountDeletionService;
 
 class DemoWorkspacePurgeService
 {
-    public function __construct(private AccountDeletionService $accountDeletionService)
-    {
-    }
+    public function __construct(private AccountDeletionService $accountDeletionService) {}
 
     public function purge(DemoWorkspace $workspace): void
     {
