@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\EnsureTwoFactorVerified::class,
             \App\Http\Middleware\EnsureOnboardingIsComplete::class,
             \App\Http\Middleware\EnsureNotSuspended::class,
+            \App\Http\Middleware\EnsureDemoWorkspaceNotExpired::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
         $middleware->api(append: [

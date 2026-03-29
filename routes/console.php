@@ -19,6 +19,7 @@ use App\Services\DailyAgendaService;
 use App\Services\Demo\DemoAccountService;
 use App\Services\Demo\DemoResetService;
 use App\Services\Demo\DemoSeedService;
+use App\Services\Demo\DemoWorkspacePurgeService;
 use App\Services\Observability\ObservabilityReportService;
 use App\Services\PlatformAdminNotifier;
 use App\Services\QueueHealthService;
@@ -890,6 +891,14 @@ Artisan::command('demo:reset {--tenant_id=}', function (
     return 0;
 })->purpose('Reset demo tenant data and tour progress');
 
+Artisan::command('demo:purge-expired', function (DemoWorkspacePurgeService $purgeService): int {
+    $count = $purgeService->purgeExpired();
+
+    $this->info("Purged {$count} expired demo workspace(s).");
+
+    return 0;
+})->purpose('Delete expired demo workspaces and their tenant data');
+
 Artisan::command('reservations:notifications', function (ReservationNotificationService $notificationService): int {
     $result = $notificationService->processScheduledNotifications();
 
@@ -1348,6 +1357,7 @@ Schedule::command('campaigns:automations')->everyFiveMinutes()->withoutOverlappi
 Schedule::command('campaigns:vip-auto-sync')->dailyAt('02:35')->withoutOverlapping();
 Schedule::command('campaigns:interest-scores')->dailyAt('02:15');
 Schedule::command('campaigns:reconcile-delivery')->everyTenMinutes()->withoutOverlapping();
+Schedule::command('demo:purge-expired')->dailyAt('03:10')->withoutOverlapping();
 Schedule::command('observability:report --notify')->everyTenMinutes()->withoutOverlapping();
 Schedule::command('notifications:retry-failed --notification=App\\Notifications\\InviteUserNotification --max=20 --within-hours=24 --cooldown=30')
     ->everyTenMinutes()

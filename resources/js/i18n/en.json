@@ -2,6 +2,7 @@
   "nav": {
     "admin": "Admin",
     "tenants": "Tenants",
+    "demo_workspaces": "Demos",
     "plans": "Plans",
     "support": "Support",
     "admins": "Admins",

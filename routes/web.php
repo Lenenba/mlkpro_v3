@@ -81,6 +81,7 @@ use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController
 use App\Http\Controllers\SuperAdmin\AiImageController as SuperAdminAiImageController;
 use App\Http\Controllers\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
+use App\Http\Controllers\SuperAdmin\DemoWorkspaceController as SuperAdminDemoWorkspaceController;
 use App\Http\Controllers\SuperAdmin\MegaMenuController as SuperAdminMegaMenuController;
 use App\Http\Controllers\SuperAdmin\NotificationController as SuperAdminNotificationController;
 use App\Http\Controllers\SuperAdmin\PlatformAssetController as SuperAdminPlatformAssetController;
@@ -768,6 +769,13 @@ Route::prefix('super-admin')
         Route::put('/tenants/{tenant}/plan', [SuperAdminTenantController::class, 'updatePlan'])->name('tenants.plan.update');
         Route::post('/tenants/{tenant}/impersonate', [SuperAdminTenantController::class, 'impersonate'])->name('tenants.impersonate');
         Route::get('/tenants/{tenant}/export', [SuperAdminTenantController::class, 'export'])->name('tenants.export');
+
+        Route::get('/demo-workspaces', [SuperAdminDemoWorkspaceController::class, 'index'])->name('demo-workspaces.index');
+        Route::post('/demo-workspaces', [SuperAdminDemoWorkspaceController::class, 'store'])->name('demo-workspaces.store');
+        Route::patch('/demo-workspaces/{demoWorkspace}/expiration', [SuperAdminDemoWorkspaceController::class, 'updateExpiration'])
+            ->name('demo-workspaces.expiration.update');
+        Route::delete('/demo-workspaces/{demoWorkspace}', [SuperAdminDemoWorkspaceController::class, 'destroy'])
+            ->name('demo-workspaces.destroy');
 
         Route::get('/admins', [SuperAdminAdminController::class, 'index'])->name('admins.index');
         Route::post('/admins', [SuperAdminAdminController::class, 'store'])->name('admins.store');

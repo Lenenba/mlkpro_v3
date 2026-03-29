@@ -179,6 +179,22 @@ const isCustomerActive = computed(() => {
                                         </template>
                                     </LinkAncor>
 
+                                    <LinkAncor v-if="canPlatform('demos.manage')" :label="$t('nav.demo_workspaces')" :href="'superadmin.demo-workspaces.index'" tone="support"
+                                        :active="route().current('superadmin.demo-workspaces.*')">
+                                        <template #icon>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="lucide lucide-flask-round">
+                                                <path d="M10 2v7.31" />
+                                                <path d="M14 9.3V2" />
+                                                <path d="M8.5 2h7" />
+                                                <path d="M14 9.3a6 6 0 1 1-4 0" />
+                                                <path d="M5.58 16h12.85" />
+                                            </svg>
+                                        </template>
+                                    </LinkAncor>
+
                                     <LinkAncor v-if="isSuperadmin" :label="$t('nav.plans')" :href="'superadmin.settings.edit'" tone="settings"
                                         :active="route().current('superadmin.settings.*')">
                                         <template #icon>

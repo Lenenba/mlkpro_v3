@@ -10,6 +10,8 @@ class PlatformPermissions
 
     public const TENANTS_MANAGE = 'tenants.manage';
 
+    public const DEMOS_MANAGE = 'demos.manage';
+
     public const BILLING_VIEW = 'billing.view';
 
     public const BILLING_MANAGE = 'billing.manage';
@@ -40,6 +42,7 @@ class PlatformPermissions
             self::ANALYTICS_VIEW,
             self::TENANTS_VIEW,
             self::TENANTS_MANAGE,
+            self::DEMOS_MANAGE,
             self::BILLING_VIEW,
             self::BILLING_MANAGE,
             self::NOTIFICATIONS_MANAGE,
@@ -61,6 +64,7 @@ class PlatformPermissions
             self::ANALYTICS_VIEW => 'Analytics view',
             self::TENANTS_VIEW => 'Tenants view',
             self::TENANTS_MANAGE => 'Tenants manage',
+            self::DEMOS_MANAGE => 'Demo workspaces manage',
             self::BILLING_VIEW => 'Billing view',
             self::BILLING_MANAGE => 'Billing manage',
             self::NOTIFICATIONS_MANAGE => 'Notifications manage',
@@ -92,6 +96,7 @@ class PlatformPermissions
             'ops' => [
                 self::TENANTS_VIEW,
                 self::TENANTS_MANAGE,
+                self::DEMOS_MANAGE,
                 self::SETTINGS_MANAGE,
                 self::ANNOUNCEMENTS_MANAGE,
                 self::MEGA_MENUS_MANAGE,
