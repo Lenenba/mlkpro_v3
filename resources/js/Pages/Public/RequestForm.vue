@@ -7,6 +7,7 @@ import GuestLayout from '@/Layouts/GuestLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     company: {
@@ -34,6 +35,7 @@ const props = defineProps({
 const { t } = useI18n();
 const isEmbedded = computed(() => props.embed === true);
 const logoVisible = ref(Boolean(props.company?.logo_url));
+const { formatCurrency } = useCurrencyFormatter();
 
 const contactPhone = computed(() => (props.company?.phone || '').trim());
 const phoneHref = computed(() => {
@@ -259,7 +261,7 @@ const formatMoney = (value) => {
         return t('requests.form.sur_devis_label');
     }
 
-    return `$${numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return formatCurrency(numeric);
 };
 
 const resolveServicePriceLabel = (service) => {

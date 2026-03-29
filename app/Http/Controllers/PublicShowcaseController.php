@@ -73,6 +73,7 @@ class PublicShowcaseController extends Controller
                 'slug' => $owner->company_slug,
                 'logo_url' => $owner->company_logo_url,
                 'description' => $owner->company_description,
+                'currency_code' => $owner->businessCurrencyCode(),
                 'city' => $owner->company_city,
                 'province' => $owner->company_province,
                 'country' => $owner->company_country,

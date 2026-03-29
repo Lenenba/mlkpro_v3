@@ -12,6 +12,7 @@ use App\Services\BillingSubscriptionService;
 use App\Services\CompanyFeatureService;
 use App\Services\StripeBillingService;
 use App\Services\StripeConnectService;
+use App\Support\CurrencyFormatter;
 use App\Support\PlanDisplay;
 use App\Support\TenantPaymentMethodsResolver;
 use App\Support\TipSettingsResolver;
@@ -132,6 +133,7 @@ class BillingSettingsController extends Controller
 
         $planLimits = PlatformSetting::getValue('plan_limits', []);
         $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
+        $tenantCurrencyCode = $user->businessCurrencyCode();
         $plans = $billingService->isStripe()
             ? collect(app(BillingPlanService::class)->plansForTenant($user))
                 ->map(function (array $plan) use ($planLimits) {
@@ -152,11 +154,11 @@ class BillingSettingsController extends Controller
                 ->values()
                 ->all()
             : collect(config('billing.plans', []))
-                ->map(function (array $plan, string $key) use ($planLimits, $planDisplayOverrides) {
+                ->map(function (array $plan, string $key) use ($planLimits, $planDisplayOverrides, $tenantCurrencyCode) {
                     $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
                     $displayPrice = $this->resolvePlanDisplayPrice([
                         'price' => $display['price'],
-                    ]);
+                    ], $tenantCurrencyCode);
                     $isOwnerOnly = (bool) ($plan['owner_only'] ?? false);
                     $teamLimitRaw = $isOwnerOnly ? null : ($planLimits[$key]['team_members'] ?? null);
                     $teamLimit = is_numeric($teamLimitRaw) ? (int) $teamLimitRaw : null;
@@ -661,13 +663,13 @@ class BillingSettingsController extends Controller
         return redirect()->back()->with('success', 'Payment settings updated.');
     }
 
-    private function resolvePlanDisplayPrice(array $plan): ?string
+    private function resolvePlanDisplayPrice(array $plan, ?string $currencyCode = null): ?string
     {
         $raw = $plan['price'] ?? null;
         $rawValue = is_string($raw) ? trim($raw) : $raw;
 
         if (is_numeric($rawValue)) {
-            return Cashier::formatAmount((int) round((float) $rawValue * 100), config('cashier.currency', 'USD'));
+            return CurrencyFormatter::format((float) $rawValue, $currencyCode);
         }
 
         if (is_string($rawValue) && $rawValue !== '') {

@@ -5,12 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\PlatformSetting;
 use App\Services\MegaMenus\MegaMenuRenderer;
 use App\Services\PublicFooterSectionResolver;
+use App\Support\CurrencyFormatter;
 use App\Support\PlanDisplay;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
-use Laravel\Paddle\Cashier;
 
 class LegalController extends Controller
 {
@@ -81,7 +81,7 @@ class LegalController extends Controller
         $rawValue = is_string($raw) ? trim($raw) : $raw;
 
         if (is_numeric($rawValue)) {
-            return Cashier::formatAmount((int) round((float) $rawValue * 100), config('cashier.currency', 'USD'));
+            return CurrencyFormatter::format((float) $rawValue, null);
         }
 
         if (is_string($rawValue) && $rawValue !== '') {

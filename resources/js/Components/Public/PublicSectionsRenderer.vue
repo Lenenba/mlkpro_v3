@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import FeatureTabsShowcaseSection from '@/Components/Public/FeatureTabsShowcaseSection.vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import { buildBackgroundStyle } from '@/utils/backgroundPresets';
 import { resolveIndustryIconComponent } from '@/utils/industryGrid';
 
 const props = defineProps({
@@ -48,13 +49,10 @@ const themeStyle = computed(() => {
         soft: '0 18px 40px -30px rgba(15, 23, 42, 0.4)',
         deep: '0 24px 60px -32px rgba(15, 23, 42, 0.55)',
     };
-    const fontMap = {
-        'work-sans': "'Work Sans', 'Figtree', sans-serif",
-        'space-grotesk': "'Space Grotesk', 'Figtree', sans-serif",
-        'sora': "'Sora', 'Figtree', sans-serif",
-        'dm-sans': "'DM Sans', 'Figtree', sans-serif",
+    const style = {
+        '--page-font-body': 'var(--front-font-body)',
+        '--page-font-heading': 'var(--front-font-heading)',
     };
-    const style = {};
     if (palette.primary_color) style['--page-primary'] = palette.primary_color;
     if (palette.primary_soft_color) style['--page-primary-soft'] = palette.primary_soft_color;
     if (palette.primary_contrast_color) style['--page-primary-contrast'] = palette.primary_contrast_color;
@@ -66,8 +64,6 @@ const themeStyle = computed(() => {
     if (palette.border_color) style['--page-border'] = palette.border_color;
     if (palette.radius && radiusMap[palette.radius]) style['--page-radius'] = radiusMap[palette.radius];
     if (palette.shadow && shadowMap[palette.shadow]) style['--page-shadow'] = shadowMap[palette.shadow];
-    if (palette.font_body && fontMap[palette.font_body]) style['--page-font-body'] = fontMap[palette.font_body];
-    if (palette.font_heading && fontMap[palette.font_heading]) style['--page-font-heading'] = fontMap[palette.font_heading];
     if (palette.background_color) {
         const bg = palette.background_color;
         const bgAlt = palette.background_alt_color || bg;
@@ -169,17 +165,15 @@ onBeforeUnmount(() => {
 });
 
 const sectionStyle = (section) => {
-    const value = String(section?.background_color || '').trim();
-    if (!value || section?.layout === 'duo') {
+    if (section?.layout === 'duo') {
         return {};
     }
 
-    return { background: value };
+    return buildBackgroundStyle(section);
 };
 
 const duoPanelStyle = (section) => {
-    const value = String(section?.background_color || '').trim();
-    return value ? { background: value } : {};
+    return buildBackgroundStyle(section);
 };
 
 const resolveHref = (href) => {
@@ -1491,13 +1485,11 @@ const toneClass = (tone) => {
 </template>
 
 <style scoped>
-@import url('https://fonts.bunny.net/css?family=Cal+Sans:400&family=DM+Sans:400,500,600,700&family=Space+Grotesk:400,500,600,700&family=Sora:400,500,600,700&family=Work+Sans:400,500,600,700&display=swap');
-
 .public-sections {
     --public-shell-width: 88rem;
     --public-shell-gutter: 1.25rem;
     color: var(--page-text, #0f172a);
-    font-family: var(--page-font-body, 'Work Sans', sans-serif);
+    font-family: var(--page-font-body, var(--front-font-body));
 }
 
 .public-container {
@@ -1596,7 +1588,7 @@ const toneClass = (tone) => {
 
 .public-title {
     color: var(--page-text, #0f172a);
-    font-family: var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
 }
 
 .public-tone--muted .public-rich {
@@ -1720,7 +1712,7 @@ const toneClass = (tone) => {
 .public-testimonial-title {
     margin: 1.5rem 0 1rem;
     color: #23282b;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: 28px;
     font-weight: 400;
     line-height: 1.12;
@@ -1737,7 +1729,7 @@ const toneClass = (tone) => {
 .public-testimonial-title--rich :deep(div) {
     margin: 0;
     color: #23282b;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: 28px;
     font-weight: 400;
     line-height: 1.12;
@@ -1872,7 +1864,7 @@ const toneClass = (tone) => {
 .public-testimonial-grid__title {
     margin: 0;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2.15rem, 1.72rem + 1vw, 3.55rem);
     line-height: 1.03;
     letter-spacing: -0.05em;
@@ -2061,7 +2053,7 @@ const toneClass = (tone) => {
 .public-feature-pairs__title {
     margin: 0 0 0.95rem;
     color: #23282b;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(1.75rem, 1.45rem + 0.55vw, 2.1rem);
     line-height: 1.08;
     letter-spacing: -0.03em;
@@ -2138,7 +2130,7 @@ const toneClass = (tone) => {
 .public-feature-tabs__title {
     margin: 0;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2.1rem, 1.75rem + 0.9vw, 3.2rem);
     line-height: 1.02;
     letter-spacing: -0.04em;
@@ -2199,7 +2191,7 @@ const toneClass = (tone) => {
     border-radius: var(--page-radius, 4px);
     background: #0b3446;
     color: #ffffff;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: 1.15rem;
     line-height: 1;
     text-align: left;
@@ -2357,7 +2349,7 @@ ul .public-feature-tabs__subitem::before {
 .public-feature-tabs__panel-title {
     margin: 0;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(1.7rem, 1.48rem + 0.55vw, 2.2rem);
     line-height: 1.05;
     letter-spacing: -0.03em;
@@ -2418,7 +2410,7 @@ ul .public-feature-tabs__subitem::before {
 .public-industry-grid__title {
     margin: 0;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2.25rem, 1.95rem + 1vw, 3.55rem);
     line-height: 1.02;
     letter-spacing: -0.04em;
@@ -2489,7 +2481,7 @@ ul .public-feature-tabs__subitem::before {
 
 .public-industry-grid__label {
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: 1.1rem;
     line-height: 1.15;
     letter-spacing: -0.02em;
@@ -2509,7 +2501,7 @@ ul .public-feature-tabs__subitem::before {
     display: inline-flex;
     align-items: center;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: 1.25rem;
     text-decoration: none;
 }
@@ -2559,7 +2551,7 @@ ul .public-feature-tabs__subitem::before {
 .public-story-grid__title {
     margin: 0;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2rem, 1.55rem + 1.2vw, 3.25rem);
     line-height: 1.03;
     letter-spacing: -0.045em;
@@ -2665,7 +2657,7 @@ ul .public-feature-tabs__subitem::before {
 .public-story-grid__card-title {
     margin: 0;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(1.45rem, 1.2rem + 0.45vw, 1.85rem);
     line-height: 1.08;
     letter-spacing: -0.03em;
@@ -2736,7 +2728,7 @@ ul .public-feature-tabs__subitem::before {
 .public-duo-title {
     margin-bottom: 1.5rem;
     color: #23282b;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2.125rem, 1.75rem + 1vw, 2.625rem);
     line-height: 1.05;
     letter-spacing: -0.04em;
@@ -2745,7 +2737,7 @@ ul .public-feature-tabs__subitem::before {
 .public-duo-body {
     margin-bottom: 1rem;
     color: #23282b;
-    font-family: 'Google Sans Flex', 'DM Sans', var(--page-font-body, 'Work Sans', sans-serif);
+    font-family: var(--page-font-body, var(--front-font-body));
     font-size: clamp(1.05rem, 0.95rem + 0.35vw, 1.25rem);
     line-height: 1.55;
 }
@@ -2786,7 +2778,7 @@ ul .public-feature-tabs__subitem::before {
 .public-showcase-title {
     margin: 0;
     color: #f8fafc;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2.45rem, 2rem + 1.6vw, 4.6rem);
     line-height: 0.98;
     letter-spacing: -0.055em;
@@ -3228,3 +3220,4 @@ ul .public-feature-tabs__subitem::before {
     }
 }
 </style>
+

@@ -5,6 +5,7 @@ import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethod
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import { humanizeDate } from '@/utils/date';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     sale: {
@@ -31,8 +32,7 @@ const sellerName = computed(() => createdBy.value?.name || page.props.auth?.user
 const sellerEmail = computed(() => createdBy.value?.email || page.props.auth?.user?.email || null);
 const sellerPhone = computed(() => createdBy.value?.phone_number || page.props.auth?.user?.phone_number || null);
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 
 const statusLabels = computed(() => ({
     draft: t('sales.status.draft'),

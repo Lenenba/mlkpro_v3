@@ -9,6 +9,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
 import { isFeatureEnabled } from '@/utils/features';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     stats: {
@@ -122,8 +123,7 @@ const stat = (key) => props.stats?.[key] ?? 0;
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 const formatPercent = (value, maxFractionDigits = 2) => {
     if (value === null || value === undefined || Number.isNaN(Number(value))) {
         return '-';

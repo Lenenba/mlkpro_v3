@@ -4,6 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import ApexCharts from 'apexcharts';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 
 // Props pour personnaliser les données et options du graphique
@@ -30,6 +31,7 @@ const props = defineProps({
 const chartRef = ref(null);
 // Variable pour stocker l'instance du graphique
 let chartInstance = null;
+const { formatCurrency } = useCurrencyFormatter();
 
 // Options du graphique
 const chartOptions = {
@@ -73,11 +75,11 @@ const chartOptions = {
     axisTicks: {
       show: false,
     },
-    labels: {
+        labels: {
       style: {
         colors: '#9ca3af',
         fontSize: '13px',
-        fontFamily: 'Inter, ui-sans-serif',
+        fontFamily: 'var(--app-font-body)',
         fontWeight: 400,
       },
       formatter: (title) => {
@@ -95,7 +97,7 @@ const chartOptions = {
       style: {
         colors: '#9ca3af',
         fontSize: '13px',
-        fontFamily: 'Inter, ui-sans-serif',
+        fontFamily: 'var(--app-font-body)',
         fontWeight: 400,
       },
       formatter: (value) => (value >= 1000 ? `${value / 1000}k` : value),
@@ -106,7 +108,7 @@ const chartOptions = {
       format: 'MMMM yyyy',
     },
     y: {
-      formatter: (value) => `$${value >= 1000 ? `${value / 1000}k` : value}`,
+      formatter: (value) => formatCurrency(value),
     },
   },
   responsive: [

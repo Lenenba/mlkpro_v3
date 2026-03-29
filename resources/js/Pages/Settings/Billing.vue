@@ -1,8 +1,9 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import axios from 'axios';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import Modal from '@/Components/Modal.vue';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
 
@@ -81,7 +82,7 @@ const props = defineProps({
     },
 });
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const page = usePage();
 
 const ALLOWED_PAYMENT_METHOD_IDS = ['cash', 'card', 'bank_transfer', 'check'];
@@ -181,7 +182,6 @@ const form = useForm({
 });
 
 const paddleUiError = ref('');
-const paddleIsLoading = ref(false);
 const paymentMethodIsLoading = ref(false);
 const connectIsLoading = ref(false);
 const connectError = ref('');
@@ -246,22 +246,6 @@ const hasSubscription = computed(() => Boolean(props.subscription?.provider_id))
 const hasPlans = computed(() => props.plans.some((plan) => Boolean(plan.price_id)));
 const canUsePaddle = computed(() => Boolean(isPaddleProvider.value && props.paddle?.js_enabled && props.paddle?.api_enabled && !props.paddle?.error));
 const activePlanKey = computed(() => props.activePlanKey || null);
-const seatQuantity = computed(() => {
-    const value = Number(props.seatQuantity || 1);
-    if (!Number.isFinite(value)) {
-        return 1;
-    }
-    return Math.max(1, Math.floor(value));
-});
-const supportPhone = computed(() => (props.billing?.support_phone || '').trim());
-const supportPhoneHref = computed(() => {
-    const raw = supportPhone.value;
-    if (!raw) {
-        return '';
-    }
-    const digits = raw.replace(/[^\d+]/g, '');
-    return digits ? `tel:${digits}` : '';
-});
 
 const availablePaymentMethodOptions = computed(() => {
     const fromProps = Array.isArray(props.availableMethods) ? props.availableMethods : [];
@@ -354,6 +338,12 @@ const cashContextLabel = (contextOption) => {
 };
 
 const activePlan = computed(() => {
+    const subscriptionPlanCode = typeof props.subscription?.plan_code === 'string'
+        ? props.subscription.plan_code
+        : null;
+    if (subscriptionPlanCode) {
+        return props.plans.find((plan) => plan.key === subscriptionPlanCode) || null;
+    }
     if (activePlanKey.value) {
         return props.plans.find((plan) => plan.key === activePlanKey.value) || null;
     }
@@ -364,23 +354,459 @@ const activePlan = computed(() => {
     return props.plans.find((plan) => plan.price_id === props.subscription.price_id) || null;
 });
 
-const isPlanActive = (plan) => {
-    if (!plan) {
-        return false;
+const displayedPlan = computed(() => {
+    if (!activePlan.value) {
+        return null;
     }
-    if (activePlanKey.value) {
-        return plan.key === activePlanKey.value;
-    }
-    if (props.subscription?.price_id) {
-        return plan.price_id === props.subscription.price_id;
-    }
-    return false;
+
+    return activePlan.value.key === 'free' ? null : activePlan.value;
+});
+
+const PLAN_RECOMMENDATION_ORDER = [
+    'solo_essential',
+    'solo_pro',
+    'solo_growth',
+    'starter',
+    'growth',
+    'scale',
+    'enterprise',
+];
+
+const planOrder = (planKey) => {
+    const index = PLAN_RECOMMENDATION_ORDER.indexOf(planKey);
+    return index === -1 ? PLAN_RECOMMENDATION_ORDER.length : index;
 };
 
-const planActionLabel = computed(() =>
-    isSubscribed.value
-        ? t('settings.billing.actions.switch_plan')
-        : t('settings.billing.actions.choose_plan')
+const isCurrentPlan = (plan) => Boolean(plan?.key && activePlan.value?.key === plan.key);
+
+const resolveInitialAdvisorBusiness = () => {
+    if (activePlan.value?.audience === 'solo') {
+        return 'solo';
+    }
+
+    if (activePlan.value?.key === 'enterprise') {
+        return 'custom_scale';
+    }
+
+    const seats = Number(props.seatQuantity || 0);
+    if (seats > 50) {
+        return 'custom_scale';
+    }
+    if (seats > 25) {
+        return 'large_team';
+    }
+    if (seats > 10) {
+        return 'growing_team';
+    }
+
+    return 'small_team';
+};
+
+const resolveInitialAdvisorFocus = () => {
+    switch (activePlan.value?.key) {
+    case 'solo_essential':
+        return 'quotes';
+    case 'solo_pro':
+    case 'starter':
+        return 'operations';
+    case 'solo_growth':
+    case 'growth':
+    case 'scale':
+    case 'enterprise':
+        return 'automation';
+    default:
+        return 'operations';
+    }
+};
+
+const resolveInitialAdvisorAi = () => {
+    if (assistantIncluded.value || ['solo_growth', 'scale', 'enterprise'].includes(activePlan.value?.key || '')) {
+        return 'included';
+    }
+
+    if (assistantAddonEnabled.value || ['starter', 'growth'].includes(activePlan.value?.key || '')) {
+        return 'optional';
+    }
+
+    return 'none';
+};
+
+const planAdvisor = reactive({
+    business: resolveInitialAdvisorBusiness(),
+    focus: resolveInitialAdvisorFocus(),
+    ai: resolveInitialAdvisorAi(),
+});
+
+const planAdvisorDialogOpen = ref(false);
+const planAdvisorStep = ref(0);
+const planActionLoadingKey = ref(null);
+const planActionError = ref('');
+
+const availablePlanOptions = computed(() =>
+    props.plans.filter((plan) => {
+        if (plan.key === 'free') {
+            return false;
+        }
+
+        if (isCurrentPlan(plan)) {
+            return true;
+        }
+
+        return Boolean(plan.price_id || plan.contact_only);
+    })
+);
+
+const planAdvisorQuestions = computed(() => [
+    {
+        id: 'business',
+        label: t('settings.billing.plans.advisor.questions.business'),
+        options: [
+            {
+                value: 'solo',
+                label: t('settings.billing.plans.advisor.options.business.solo.label'),
+                description: t('settings.billing.plans.advisor.options.business.solo.description'),
+            },
+            {
+                value: 'small_team',
+                label: t('settings.billing.plans.advisor.options.business.small_team.label'),
+                description: t('settings.billing.plans.advisor.options.business.small_team.description'),
+            },
+            {
+                value: 'growing_team',
+                label: t('settings.billing.plans.advisor.options.business.growing_team.label'),
+                description: t('settings.billing.plans.advisor.options.business.growing_team.description'),
+            },
+            {
+                value: 'large_team',
+                label: t('settings.billing.plans.advisor.options.business.large_team.label'),
+                description: t('settings.billing.plans.advisor.options.business.large_team.description'),
+            },
+            {
+                value: 'custom_scale',
+                label: t('settings.billing.plans.advisor.options.business.custom_scale.label'),
+                description: t('settings.billing.plans.advisor.options.business.custom_scale.description'),
+            },
+        ],
+    },
+    {
+        id: 'focus',
+        label: t('settings.billing.plans.advisor.questions.focus'),
+        options: [
+            {
+                value: 'quotes',
+                label: t('settings.billing.plans.advisor.options.focus.quotes.label'),
+                description: t('settings.billing.plans.advisor.options.focus.quotes.description'),
+            },
+            {
+                value: 'operations',
+                label: t('settings.billing.plans.advisor.options.focus.operations.label'),
+                description: t('settings.billing.plans.advisor.options.focus.operations.description'),
+            },
+            {
+                value: 'automation',
+                label: t('settings.billing.plans.advisor.options.focus.automation.label'),
+                description: t('settings.billing.plans.advisor.options.focus.automation.description'),
+            },
+        ],
+    },
+    {
+        id: 'ai',
+        label: t('settings.billing.plans.advisor.questions.ai'),
+        options: [
+            {
+                value: 'none',
+                label: t('settings.billing.plans.advisor.options.ai.none.label'),
+                description: t('settings.billing.plans.advisor.options.ai.none.description'),
+            },
+            {
+                value: 'optional',
+                label: t('settings.billing.plans.advisor.options.ai.optional.label'),
+                description: t('settings.billing.plans.advisor.options.ai.optional.description'),
+            },
+            {
+                value: 'included',
+                label: t('settings.billing.plans.advisor.options.ai.included.label'),
+                description: t('settings.billing.plans.advisor.options.ai.included.description'),
+            },
+        ],
+    },
+]);
+
+const planAdvisorSteps = computed(() => [
+    { id: 'business', label: t('settings.billing.plans.advisor.steps.business') },
+    { id: 'focus', label: t('settings.billing.plans.advisor.steps.focus') },
+    { id: 'ai', label: t('settings.billing.plans.advisor.steps.ai') },
+    { id: 'results', label: t('settings.billing.plans.advisor.steps.results') },
+]);
+
+const planAdvisorActiveQuestion = computed(() => planAdvisorQuestions.value[planAdvisorStep.value] || null);
+const planAdvisorOnResults = computed(() => planAdvisorStep.value >= planAdvisorQuestions.value.length);
+const planAdvisorCanMoveNext = computed(() => {
+    if (planAdvisorOnResults.value) {
+        return false;
+    }
+
+    const question = planAdvisorActiveQuestion.value;
+    return Boolean(question?.id && planAdvisor[question.id]);
+});
+
+const planAdvisorTriggerLabel = computed(() =>
+    displayedPlan.value
+        ? t('settings.billing.plans.advisor.trigger_change')
+        : t('settings.billing.plans.advisor.trigger_choose')
+);
+
+const openPlanAdvisor = () => {
+    planActionError.value = '';
+    planAdvisorStep.value = 0;
+    planAdvisorDialogOpen.value = true;
+};
+
+const closePlanAdvisor = () => {
+    planAdvisorDialogOpen.value = false;
+};
+
+const nextPlanAdvisorStep = () => {
+    if (!planAdvisorCanMoveNext.value) {
+        return;
+    }
+
+    planAdvisorStep.value = Math.min(planAdvisorStep.value + 1, planAdvisorSteps.value.length - 1);
+};
+
+const previousPlanAdvisorStep = () => {
+    planAdvisorStep.value = Math.max(planAdvisorStep.value - 1, 0);
+};
+
+const goToPlanAdvisorStep = (index) => {
+    if (!Number.isInteger(index)) {
+        return;
+    }
+
+    if (index < 0 || index >= planAdvisorSteps.value.length) {
+        return;
+    }
+
+    if (index > planAdvisorStep.value) {
+        return;
+    }
+
+    planAdvisorStep.value = index;
+};
+
+const addRecommendationReason = (reasons, key, params = {}) => {
+    const label = t(key, params);
+    if (!reasons.includes(label)) {
+        reasons.push(label);
+    }
+};
+
+const planDisplayPrice = (plan) => {
+    if (plan?.display_price) {
+        return plan.display_price;
+    }
+
+    if (plan?.contact_only) {
+        return t('settings.billing.plan.custom_pricing');
+    }
+
+    return '--';
+};
+
+const previewPlanFeatures = (plan) => {
+    if (!Array.isArray(plan?.features)) {
+        return [];
+    }
+
+    return plan.features.slice(0, 4);
+};
+
+const recommendationBadgeLabel = (recommendation, index) => {
+    if (recommendation.isCurrent) {
+        return t('settings.billing.plan.badge_active');
+    }
+
+    return index === 0
+        ? t('settings.billing.plans.advisor.top_match')
+        : t('settings.billing.plans.advisor.alternative');
+};
+
+const recommendationScore = (plan) => {
+    let score = 0;
+    const reasons = [];
+
+    switch (planAdvisor.business) {
+    case 'solo':
+        if (plan.audience === 'solo') {
+            score += 9;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.solo');
+        } else {
+            score -= 8;
+        }
+        break;
+    case 'small_team':
+        if (plan.key === 'starter') {
+            score += 9;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.small_team');
+        } else if (plan.key === 'growth') {
+            score += 4;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.room_to_grow');
+        } else if (plan.key === 'scale') {
+            score += 1;
+        } else if (plan.key === 'enterprise') {
+            score -= 3;
+        } else {
+            score -= 6;
+        }
+        break;
+    case 'growing_team':
+        if (plan.key === 'growth') {
+            score += 9;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.growing_team');
+        } else if (plan.key === 'scale') {
+            score += 5;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.large_team');
+        } else if (plan.key === 'starter') {
+            score += 3;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.small_team');
+        } else if (plan.key === 'enterprise') {
+            score += 0;
+        } else {
+            score -= 8;
+        }
+        break;
+    case 'large_team':
+        if (plan.key === 'scale') {
+            score += 10;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.large_team');
+        } else if (plan.key === 'enterprise') {
+            score += 5;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.custom_scale');
+        } else if (plan.key === 'growth') {
+            score += 4;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.growing_team');
+        } else {
+            score -= 9;
+        }
+        break;
+    case 'custom_scale':
+        if (plan.key === 'enterprise') {
+            score += 12;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.custom_scale');
+        } else if (plan.key === 'scale') {
+            score += 5;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.large_team');
+        } else {
+            score -= 10;
+        }
+        break;
+    default:
+        break;
+    }
+
+    switch (planAdvisor.focus) {
+    case 'quotes':
+        if (['solo_essential', 'starter'].includes(plan.key)) {
+            score += 5;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.quotes');
+        } else if (['solo_pro', 'growth'].includes(plan.key)) {
+            score += 2;
+        }
+        break;
+    case 'operations':
+        if (['solo_pro', 'starter', 'growth'].includes(plan.key)) {
+            score += 5;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.operations');
+        } else if (['solo_growth', 'scale'].includes(plan.key)) {
+            score += 3;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.automation');
+        }
+        break;
+    case 'automation':
+        if (['solo_growth', 'growth', 'scale', 'enterprise'].includes(plan.key)) {
+            score += 6;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.automation');
+        } else if (['solo_pro', 'starter'].includes(plan.key)) {
+            score += 1;
+        }
+        break;
+    default:
+        break;
+    }
+
+    switch (planAdvisor.ai) {
+    case 'none':
+        if (['solo_essential', 'solo_pro', 'starter'].includes(plan.key)) {
+            score += 2;
+        } else if (plan.key === 'enterprise') {
+            score -= 1;
+        }
+        break;
+    case 'optional':
+        if (['starter', 'growth'].includes(plan.key)) {
+            score += 4;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_optional');
+        } else if (['solo_growth', 'scale'].includes(plan.key)) {
+            score += 2;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_included');
+        }
+        break;
+    case 'included':
+        if (['solo_growth', 'scale'].includes(plan.key)) {
+            score += 7;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_included');
+        } else if (plan.key === 'enterprise') {
+            score += 4;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.custom_support');
+        } else if (['starter', 'growth'].includes(plan.key)) {
+            score += 1;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_optional');
+        }
+        break;
+    default:
+        break;
+    }
+
+    const teamLabel = resolveTeamLimitLabel(plan);
+    if (teamLabel) {
+        reasons.push(teamLabel);
+    }
+
+    if (plan.contact_only) {
+        addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.custom_support');
+    }
+
+    if (plan.recommended) {
+        score += 0.5;
+    }
+
+    if (isCurrentPlan(plan)) {
+        score += 0.25;
+    }
+
+    return {
+        plan,
+        score,
+        reasons: reasons.slice(0, 3),
+        isCurrent: isCurrentPlan(plan),
+    };
+};
+
+const recommendedPlans = computed(() =>
+    availablePlanOptions.value
+        .map(recommendationScore)
+        .sort((left, right) => {
+            if (right.score !== left.score) {
+                return right.score - left.score;
+            }
+
+            if (left.isCurrent !== right.isCurrent) {
+                return left.isCurrent ? -1 : 1;
+            }
+
+            return planOrder(left.plan.key) - planOrder(right.plan.key);
+        })
+        .slice(0, 3)
 );
 
 const resolveTeamLimitLabel = (plan) => {
@@ -398,8 +824,6 @@ const resolveTeamLimitLabel = (plan) => {
     return null;
 };
 
-const resolveCheckoutQuantity = (plan) => (plan?.owner_only ? 1 : seatQuantity.value);
-
 const checkoutPlanName = computed(() => {
     if (!props.checkoutPlanKey) {
         return null;
@@ -408,6 +832,27 @@ const checkoutPlanName = computed(() => {
     const plan = props.plans.find((item) => item.key === props.checkoutPlanKey);
     return plan?.name || null;
 });
+
+const formatDisplayDate = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+    const localeCode = typeof locale?.value === 'string' && locale.value.trim()
+        ? locale.value
+        : 'fr';
+
+    return new Intl.DateTimeFormat(localeCode, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    }).format(date);
+};
 
 const subscriptionStatusLabel = computed(() => {
     const rawStatus = props.subscription?.status || (props.subscription?.active ? 'active' : 'inactive');
@@ -421,6 +866,18 @@ const subscriptionStatusLabel = computed(() => {
         inactive: t('settings.billing.status.inactive'),
     };
     return statusMap[rawStatus] || rawStatus;
+});
+
+const trialStatusLabel = computed(() => {
+    if (!props.subscription?.on_trial) {
+        return null;
+    }
+
+    const formattedDate = formatDisplayDate(props.subscription?.trial_ends_at);
+
+    return formattedDate
+        ? t('settings.billing.summary.trialing_until', { date: formattedDate })
+        : t('settings.billing.summary.trialing');
 });
 
 const stripeConnectStatusLabel = computed(() => {
@@ -478,6 +935,13 @@ watch(activeTab, (value) => {
     }
     window.sessionStorage.setItem(`${tabPrefix}-tab`, value);
 });
+
+watch(
+    () => [planAdvisor.business, planAdvisor.focus, planAdvisor.ai],
+    () => {
+        planActionError.value = '';
+    }
+);
 
 const submit = () => {
     form.transform((data) => {
@@ -662,30 +1126,6 @@ const ensurePaddleReady = async () => {
     return Boolean(window.Paddle?.Checkout?.open);
 };
 
-const startStripeCheckout = async (plan) => {
-    paddleUiError.value = '';
-    if (!providerReady.value) {
-        paddleUiError.value = t('settings.billing.errors.stripe_not_configured');
-        return;
-    }
-
-    paddleIsLoading.value = true;
-    try {
-        const response = await axios.post(route('settings.billing.checkout'), {
-            plan_key: plan.key,
-        });
-        const url = response?.data?.url;
-        if (!url) {
-            throw new Error(t('settings.billing.errors.stripe_checkout_failed'));
-        }
-        window.location.href = url;
-    } catch (error) {
-        paddleUiError.value = resolveStripeError(error, 'settings.billing.errors.stripe_checkout_failed');
-    } finally {
-        paddleIsLoading.value = false;
-    }
-};
-
 const updateAssistantAddon = async (enabled) => {
     assistantAddonError.value = '';
     if (!assistantAddonAvailable.value) {
@@ -736,71 +1176,83 @@ const featureClass = (feature) =>
         ? 'plan-card__feature plan-card__feature--optional'
         : 'plan-card__feature';
 
-const openPaddleCheckout = async (plan) => {
-    paddleUiError.value = '';
-
-    if (!canUsePaddle.value) {
-        paddleUiError.value = props.paddle?.error || t('settings.billing.errors.paddle_not_configured');
-        return;
+const planActionLabel = (plan) => {
+    if (isCurrentPlan(plan)) {
+        return t('settings.billing.plan.cta_active');
     }
 
-    paddleIsLoading.value = true;
-
-    const ready = await ensurePaddleReady();
-    if (!ready) {
-        paddleIsLoading.value = false;
-        paddleUiError.value = paddleUiError.value || t('settings.billing.errors.paddle_not_ready');
-        return;
+    if (plan?.contact_only) {
+        return t('settings.billing.actions.contact_sales');
     }
 
-    const successUrl = route('settings.billing.edit', { checkout: 'success', plan: plan.key });
-
-    const options = {
-        settings: {
-            displayMode: 'overlay',
-            successUrl,
-            allowLogout: false,
-        },
-        items: [
-            {
-                priceId: plan.price_id,
-                quantity: resolveCheckoutQuantity(plan),
-            },
-        ],
-        customData: {
-            subscription_type: 'default',
-            plan_key: plan.key,
-        },
-    };
-
-    if (props.paddle?.customer_id) {
-        options.customer = { id: props.paddle.customer_id };
-    }
-
-    window.Paddle.Checkout.open(options);
-    paddleIsLoading.value = false;
+    return hasSubscription.value
+        ? t('settings.billing.actions.switch_plan')
+        : t('settings.billing.actions.choose_plan');
 };
 
-const startCheckout = (plan) => {
-    if (!plan?.price_id || isPlanActive(plan)) {
+const openRecommendedPlan = async (plan) => {
+    if (!plan || isCurrentPlan(plan)) {
         return;
     }
 
-    if (isStripeProvider.value) {
-        if (isSubscribed.value) {
-            router.post(route('settings.billing.swap'), { plan_key: plan.key }, { preserveScroll: true });
-        } else {
-            startStripeCheckout(plan);
+    if (plan.contact_only) {
+        if (plan.cta_url) {
+            window.location.href = plan.cta_url;
+            return;
         }
+
+        const supportPhone = props.billing?.support_phone;
+        if (supportPhone) {
+            window.location.href = `tel:${supportPhone}`;
+            return;
+        }
+    }
+
+    planActionError.value = '';
+    planActionLoadingKey.value = plan.key;
+
+    try {
+        if (hasSubscription.value) {
+            await axios.post(route('settings.billing.swap'), { plan_key: plan.key });
+            router.visit(route('settings.billing.edit', { checkout: 'swapped', plan: plan.key }), {
+                preserveScroll: true,
+            });
+            return;
+        }
+
+        if (!isStripeProvider.value) {
+            planActionError.value = t('settings.billing.errors.no_active_subscription');
+            return;
+        }
+
+        if (!providerReady.value) {
+            planActionError.value = t('settings.billing.errors.stripe_not_configured');
+            return;
+        }
+
+        const response = await axios.post(route('settings.billing.checkout'), { plan_key: plan.key });
+        const url = response?.data?.url;
+        if (!url) {
+            throw new Error(t('settings.billing.errors.stripe_checkout_failed'));
+        }
+
+        window.location.href = url;
+    } catch (error) {
+        const fallbackKey = hasSubscription.value
+            ? 'settings.billing.errors.plan_change_failed'
+            : 'settings.billing.errors.stripe_checkout_failed';
+        planActionError.value = resolveStripeError(error, fallbackKey);
+    } finally {
+        planActionLoadingKey.value = null;
+    }
+};
+
+const selectPlanAdvisorOption = (questionId, value) => {
+    if (!questionId) {
         return;
     }
 
-    if (isSubscribed.value) {
-        router.post(route('settings.billing.swap'), { plan_key: plan.key }, { preserveScroll: true });
-        return;
-    }
-
-    openPaddleCheckout(plan);
+    planAdvisor[questionId] = value;
 };
 
 onMounted(() => {
@@ -936,6 +1388,14 @@ watch(
                                 {{ $t('settings.billing.plans.subtitle') }}
                             </p>
                         </div>
+                        <button
+                            type="button"
+                            :disabled="!availablePlanOptions.length"
+                            @click="openPlanAdvisor"
+                            class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                        >
+                            {{ planAdvisorTriggerLabel }}
+                        </button>
                     </div>
 
                     <div v-if="isPaddleProvider && !paddle?.api_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
@@ -973,10 +1433,10 @@ watch(
 
                     <div
                         class="rounded-sm border border-stone-100 bg-stone-50 px-3 py-2 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-200">
-                        <p v-if="activePlan">
-                            {{ $t('settings.billing.summary.active_plan', { plan: activePlan.name, status: subscriptionStatusLabel }) }}
-                            <span v-if="subscription?.on_trial" class="text-emerald-700 dark:text-emerald-300">
-                                {{ $t('settings.billing.summary.trialing') }}
+                        <p v-if="displayedPlan">
+                            {{ $t('settings.billing.summary.active_plan', { plan: displayedPlan.name, status: subscriptionStatusLabel }) }}
+                            <span v-if="trialStatusLabel" class="text-emerald-700 dark:text-emerald-300">
+                                {{ trialStatusLabel }}
                             </span>
                         </p>
                         <p v-else>
@@ -992,66 +1452,42 @@ watch(
                         {{ $t('settings.billing.errors.no_plans_configured') }}
                     </div>
 
-                    <div class="billing-plans">
-                            <div class="billing-plans__grid">
-                            <div v-for="plan in plans" :key="plan.key" class="plan-card"
-                                :data-active="isPlanActive(plan)">
-                                <div class="plan-card__top">
-                                    <div>
-                                        <h3 class="plan-card__name">{{ plan.name }}</h3>
-                                        <p class="plan-card__meta">{{ $t('settings.billing.plan.monthly') }}</p>
-                                    </div>
-                                    <span v-if="isPlanActive(plan)"
-                                        class="plan-card__badge plan-card__badge--active">
-                                        {{ $t('settings.billing.plan.badge_active') }}
-                                    </span>
-                                    <span v-else-if="plan.badge" class="plan-card__badge">
-                                        {{ plan.badge }}
-                                    </span>
-                                    <span v-else-if="plan.recommended" class="plan-card__badge">
-                                        {{ $t('settings.billing.plan.badge_popular') }}
-                                    </span>
-                                </div>
-                                <div class="plan-card__price">
-                                    <span class="plan-card__amount">{{ plan.display_price || '--' }}</span>
-                                    <span v-if="!plan.contact_only" class="plan-card__interval">
-                                        {{ $t('settings.billing.plan.interval_month') }}
-                                    </span>
-                                </div>
-                                <p v-if="resolveTeamLimitLabel(plan)" class="plan-card__limit">
-                                    {{ resolveTeamLimitLabel(plan) }}
-                                </p>
-                                <p v-if="isPlanActive(plan)"
-                                    class="plan-card__status">
-                                    {{ $t('settings.billing.plan.current_plan') }}
-                                </p>
-                                <ul class="plan-card__features">
-                                    <li v-for="feature in plan.features" :key="feature" :class="featureClass(feature)">
-                                        {{ feature }}
-                                    </li>
-                                </ul>
-                                <div v-if="plan.contact_only" class="plan-card__contact">
-                                    <a v-if="plan.cta_url"
-                                        :href="plan.cta_url"
-                                        class="plan-card__cta plan-card__cta--contact"
-                                    >
-                                        {{ $t('settings.billing.actions.contact_sales') }}
-                                    </a>
-                                    <div v-if="supportPhone" class="plan-card__phone">
-                                        <a v-if="supportPhoneHref" :href="supportPhoneHref">
-                                            {{ $t('settings.billing.actions.contact_phone', { phone: supportPhone }) }}
-                                        </a>
-                                        <span v-else>
-                                            {{ $t('settings.billing.actions.contact_phone', { phone: supportPhone }) }}
+                    <div v-if="displayedPlan" class="billing-plans">
+                        <div class="billing-plans__layout">
+                            <div v-if="displayedPlan" class="billing-plans__current">
+                                <div class="plan-card" data-active="true">
+                                    <div class="plan-card__top">
+                                        <div>
+                                            <h3 class="plan-card__name">{{ displayedPlan.name }}</h3>
+                                            <p class="plan-card__meta">{{ $t('settings.billing.plan.monthly') }}</p>
+                                        </div>
+                                        <span class="plan-card__badge plan-card__badge--active">
+                                            {{ $t('settings.billing.plan.badge_active') }}
                                         </span>
                                     </div>
+                                    <div class="plan-card__price">
+                                        <span class="plan-card__amount" :class="{ 'plan-card__amount--text': displayedPlan.contact_only }">
+                                            {{ planDisplayPrice(displayedPlan) }}
+                                        </span>
+                                        <span v-if="!displayedPlan.contact_only" class="plan-card__interval">
+                                            {{ $t('settings.billing.plan.interval_month') }}
+                                        </span>
+                                    </div>
+                                    <p v-if="resolveTeamLimitLabel(displayedPlan)" class="plan-card__limit">
+                                        {{ resolveTeamLimitLabel(displayedPlan) }}
+                                    </p>
+                                    <p class="plan-card__status">
+                                        {{ $t('settings.billing.plan.current_plan') }}
+                                    </p>
+                                    <p v-if="trialStatusLabel" class="plan-card__status">
+                                        {{ trialStatusLabel }}
+                                    </p>
+                                    <ul class="plan-card__features">
+                                        <li v-for="feature in displayedPlan.features" :key="feature" :class="featureClass(feature)">
+                                            {{ feature }}
+                                        </li>
+                                    </ul>
                                 </div>
-                                <button v-else type="button" @click="startCheckout(plan)" class="plan-card__cta"
-                                    :disabled="paddleIsLoading || !plan.price_id || isPlanActive(plan)"
-                                    :class="{ 'is-active': isPlanActive(plan) }">
-                                    <span v-if="isPlanActive(plan)">{{ $t('settings.billing.plan.cta_active') }}</span>
-                                    <span v-else>{{ planActionLabel }}</span>
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -1142,6 +1578,178 @@ watch(
                             </div>
                         </div>
                     </div>
+
+                    <Modal :show="planAdvisorDialogOpen" max-width="4xl" @close="closePlanAdvisor">
+                        <div class="plan-advisor-modal">
+                            <div class="plan-advisor-modal__header">
+                                <div>
+                                    <p class="plan-advisor-modal__eyebrow">
+                                        {{ $t('settings.billing.plans.advisor.title') }}
+                                    </p>
+                                    <h3 class="plan-advisor-modal__title">
+                                        {{ $t('settings.billing.plans.advisor.dialog_title') }}
+                                    </h3>
+                                    <p class="plan-advisor-modal__subtitle">
+                                        {{ $t('settings.billing.plans.advisor.subtitle') }}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="plan-advisor-modal__close"
+                                    @click="closePlanAdvisor"
+                                >
+                                    {{ $t('settings.billing.plans.advisor.close') }}
+                                </button>
+                            </div>
+
+                            <div class="plan-advisor-stepper">
+                                <button
+                                    v-for="(step, index) in planAdvisorSteps"
+                                    :key="step.id"
+                                    type="button"
+                                    class="plan-advisor-stepper__item"
+                                    :class="{
+                                        'is-active': planAdvisorStep === index,
+                                        'is-complete': planAdvisorStep > index,
+                                    }"
+                                    @click="goToPlanAdvisorStep(index)"
+                                >
+                                    <span class="plan-advisor-stepper__index">
+                                        {{ index + 1 }}
+                                    </span>
+                                    <span class="plan-advisor-stepper__label">
+                                        {{ step.label }}
+                                    </span>
+                                </button>
+                            </div>
+
+                            <div v-if="!planAdvisorOnResults && planAdvisorActiveQuestion" class="plan-advisor">
+                                <div class="plan-advisor__question-card">
+                                    <p class="plan-advisor__question-label">
+                                        {{ planAdvisorActiveQuestion.label }}
+                                    </p>
+                                    <div class="plan-advisor__options plan-advisor__options--stacked">
+                                        <button
+                                            v-for="option in planAdvisorActiveQuestion.options"
+                                            :key="option.value"
+                                            type="button"
+                                            class="plan-advisor__option"
+                                            :class="{ 'is-selected': planAdvisor[planAdvisorActiveQuestion.id] === option.value }"
+                                            @click="selectPlanAdvisorOption(planAdvisorActiveQuestion.id, option.value)"
+                                        >
+                                            <strong>{{ option.label }}</strong>
+                                            <span>{{ option.description }}</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-else class="plan-advisor">
+                                <div v-if="planActionError" class="plan-advisor__error">
+                                    {{ planActionError }}
+                                </div>
+
+                                <div class="plan-advisor__results">
+                                    <div
+                                        v-for="(recommendation, index) in recommendedPlans"
+                                        :key="recommendation.plan.key"
+                                        class="plan-card"
+                                        :data-active="recommendation.isCurrent"
+                                        :data-recommended="index === 0"
+                                    >
+                                        <div class="plan-card__top">
+                                            <div>
+                                                <h3 class="plan-card__name">{{ recommendation.plan.name }}</h3>
+                                                <p class="plan-card__meta">{{ $t('settings.billing.plan.monthly') }}</p>
+                                            </div>
+                                            <div class="plan-card__badges">
+                                                <span
+                                                    class="plan-card__badge"
+                                                    :class="recommendation.isCurrent ? 'plan-card__badge--active' : (index === 0 ? 'plan-card__badge--match' : '')"
+                                                >
+                                                    {{ recommendationBadgeLabel(recommendation, index) }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="plan-card__price">
+                                            <span class="plan-card__amount" :class="{ 'plan-card__amount--text': recommendation.plan.contact_only }">
+                                                {{ planDisplayPrice(recommendation.plan) }}
+                                            </span>
+                                            <span v-if="!recommendation.plan.contact_only" class="plan-card__interval">
+                                                {{ $t('settings.billing.plan.interval_month') }}
+                                            </span>
+                                        </div>
+                                        <p v-if="resolveTeamLimitLabel(recommendation.plan)" class="plan-card__limit">
+                                            {{ resolveTeamLimitLabel(recommendation.plan) }}
+                                        </p>
+                                        <p v-if="recommendation.isCurrent" class="plan-card__status">
+                                            {{ $t('settings.billing.plans.advisor.current_match') }}
+                                        </p>
+                                        <ul v-if="recommendation.reasons.length" class="plan-card__reasons">
+                                            <li v-for="reason in recommendation.reasons" :key="reason">
+                                                {{ reason }}
+                                            </li>
+                                        </ul>
+                                        <ul class="plan-card__features">
+                                            <li
+                                                v-for="feature in previewPlanFeatures(recommendation.plan)"
+                                                :key="feature"
+                                                :class="featureClass(feature)"
+                                            >
+                                                {{ feature }}
+                                            </li>
+                                        </ul>
+                                        <button
+                                            type="button"
+                                            class="plan-card__cta"
+                                            :class="{ 'plan-card__cta--contact': recommendation.plan.contact_only }"
+                                            :disabled="planActionLoadingKey !== null || recommendation.isCurrent"
+                                            @click="openRecommendedPlan(recommendation.plan)"
+                                        >
+                                            {{
+                                                planActionLoadingKey === recommendation.plan.key
+                                                    ? $t('settings.billing.actions.processing')
+                                                    : planActionLabel(recommendation.plan)
+                                            }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="plan-advisor-modal__footer">
+                                <button
+                                    type="button"
+                                    class="plan-advisor-modal__footer-btn"
+                                    :disabled="planAdvisorStep === 0"
+                                    @click="previousPlanAdvisorStep"
+                                >
+                                    {{ $t('settings.billing.plans.advisor.back') }}
+                                </button>
+                                <div class="plan-advisor-modal__footer-actions">
+                                    <button
+                                        type="button"
+                                        class="plan-advisor-modal__footer-btn"
+                                        @click="closePlanAdvisor"
+                                    >
+                                        {{ $t('settings.billing.plans.advisor.close') }}
+                                    </button>
+                                    <button
+                                        v-if="!planAdvisorOnResults"
+                                        type="button"
+                                        class="plan-advisor-modal__footer-btn plan-advisor-modal__footer-btn--primary"
+                                        :disabled="!planAdvisorCanMoveNext"
+                                        @click="nextPlanAdvisorStep"
+                                    >
+                                        {{
+                                            planAdvisorStep === planAdvisorQuestions.length - 1
+                                                ? $t('settings.billing.plans.advisor.show_results')
+                                                : $t('settings.billing.plans.advisor.next')
+                                        }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </Modal>
                 </div>
             </div>
 
@@ -1196,8 +1804,8 @@ watch(
 
                     <div
                         class="rounded-sm border border-stone-100 bg-stone-50 px-3 py-2 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-200">
-                        <p v-if="activePlan">
-                            {{ $t('settings.billing.payment.summary_active', { plan: activePlan.name, status: subscriptionStatusLabel }) }}
+                        <p v-if="displayedPlan">
+                            {{ $t('settings.billing.payment.summary_active', { plan: displayedPlan.name, status: subscriptionStatusLabel }) }}
                         </p>
                         <p v-else>
                             {{ $t('settings.billing.payment.summary_none') }}
@@ -1591,14 +2199,134 @@ watch(
     background: var(--plan-bg);
 }
 
+:global(.dark) .plan-card__badge--match {
+    border-color: rgba(56, 189, 248, 0.35);
+    color: #bae6fd;
+    background: rgba(14, 165, 233, 0.16);
+}
+
+:global(.dark) .plan-card__reasons {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.55);
+}
+
+:global(.dark) .plan-advisor__option.is-selected {
+    background: rgba(16, 185, 129, 0.12);
+}
+
+:global(.dark) .plan-advisor__error {
+    border-color: rgba(248, 113, 113, 0.18);
+    background: rgba(69, 10, 10, 0.45);
+    color: #fecaca;
+}
+
+:global(.dark) .plan-advisor-modal__eyebrow {
+    color: #6ee7b7;
+}
+
+:global(.dark) .plan-advisor-modal {
+    --plan-bg: #0b0f14;
+    --plan-card: #0f1116;
+    --plan-border: rgba(255, 255, 255, 0.08);
+    --plan-border-hover: rgba(255, 255, 255, 0.18);
+    --plan-text: #e2e8f0;
+    --plan-muted: rgba(226, 232, 240, 0.7);
+    --plan-feature-text: rgba(226, 232, 240, 0.85);
+    --plan-feature-muted: rgba(226, 232, 240, 0.55);
+    --plan-accent: rgba(16, 185, 129, 0.8);
+    --plan-status: rgba(167, 243, 208, 0.85);
+    --plan-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --plan-shadow-hover: 0 2px 6px rgba(0, 0, 0, 0.6);
+    --plan-active-shadow: 0 0 0 1px rgba(16, 185, 129, 0.45);
+    --plan-badge-bg: rgba(15, 23, 42, 0.5);
+    --plan-badge-border: rgba(255, 255, 255, 0.16);
+    --plan-badge-text: #e2e8f0;
+    --plan-badge-active-bg: rgba(16, 185, 129, 0.18);
+    --plan-badge-active-border: rgba(16, 185, 129, 0.6);
+    --plan-badge-active-text: #d1fae5;
+    --plan-dot: rgba(148, 163, 184, 0.9);
+    --plan-dot-ring: rgba(148, 163, 184, 0.12);
+    --plan-cta-bg: rgba(15, 23, 42, 0.8);
+    --plan-cta-border: rgba(255, 255, 255, 0.18);
+    --plan-cta-text: #f8fafc;
+    --plan-cta-hover-bg: rgba(15, 23, 42, 0.95);
+    --plan-cta-hover-border: rgba(255, 255, 255, 0.32);
+    --plan-cta-disabled: rgba(226, 232, 240, 0.6);
+    --plan-cta-disabled-bg: rgba(15, 23, 42, 0.5);
+    --plan-cta-disabled-border: rgba(255, 255, 255, 0.08);
+}
+
+:global(.dark) .plan-advisor-modal__title {
+    color: #f8fafc;
+}
+
+:global(.dark) .plan-advisor-modal__subtitle {
+    color: rgba(226, 232, 240, 0.72);
+}
+
+:global(.dark) .plan-advisor-modal__close,
+:global(.dark) .plan-advisor-modal__footer-btn,
+:global(.dark) .plan-advisor-stepper__item,
+:global(.dark) .plan-advisor__question-card {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.72);
+    color: #f8fafc;
+}
+
+:global(.dark) .plan-advisor-stepper__item.is-active {
+    border-color: rgba(16, 185, 129, 0.48);
+    background: rgba(16, 185, 129, 0.14);
+}
+
+:global(.dark) .plan-advisor-stepper__item.is-complete {
+    border-color: rgba(56, 189, 248, 0.22);
+    background: rgba(14, 165, 233, 0.12);
+}
+
+:global(.dark) .plan-advisor-stepper__index {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f8fafc;
+}
+
+:global(.dark) .plan-advisor-modal__footer-btn--primary {
+    border-color: rgba(16, 185, 129, 0.42);
+    background: rgba(16, 185, 129, 0.18);
+    color: #d1fae5;
+}
+
+:global(.dark) .plan-advisor__results {
+    border-color: rgba(255, 255, 255, 0.08);
+    background:
+        linear-gradient(180deg, rgba(14, 165, 233, 0.08), rgba(14, 165, 233, 0) 24%),
+        rgba(15, 23, 42, 0.72);
+}
+
 .billing-plans__grid {
     display: grid;
     gap: 16px;
 }
 
+.billing-plans__layout {
+    display: grid;
+    gap: 20px;
+}
+
+.billing-plans__current {
+    display: grid;
+    gap: 16px;
+    max-width: 32rem;
+}
+
 @media (min-width: 768px) {
     .billing-plans__grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1100px) {
+    .billing-plans__layout {
+        grid-template-columns: minmax(18rem, 30rem) minmax(0, 1fr);
+        align-items: start;
     }
 }
 
@@ -1608,12 +2336,13 @@ watch(
     flex-direction: column;
     gap: 14px;
     padding: 20px;
-    border-radius: 2px;
+    min-height: 100%;
+    border-radius: 6px;
     border: 1px solid var(--plan-border);
     background: var(--plan-card);
     color: var(--plan-text);
     box-shadow: var(--plan-shadow);
-        transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+    transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
 }
 
 .plan-card:hover {
@@ -1665,6 +2394,17 @@ watch(
     background: var(--plan-badge-active-bg);
 }
 
+.plan-card__badge--match {
+    border-color: rgba(14, 165, 233, 0.32);
+    color: #075985;
+    background: rgba(14, 165, 233, 0.12);
+}
+
+.plan-card__badges {
+    display: flex;
+    justify-content: flex-end;
+}
+
 .plan-card__price {
     display: flex;
     align-items: baseline;
@@ -1675,6 +2415,11 @@ watch(
     font-size: 2.25rem;
     font-weight: 600;
     color: var(--plan-text);
+}
+
+.plan-card__amount--text {
+    font-size: 1.35rem;
+    line-height: 1.2;
 }
 
 .plan-card__interval {
@@ -1693,6 +2438,36 @@ watch(
     color: var(--plan-status);
 }
 
+.plan-card__reasons {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 12px;
+    list-style: none;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(248, 250, 252, 0.8);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: var(--plan-feature-text);
+}
+
+.plan-card__reasons li {
+    position: relative;
+    padding-left: 16px;
+    line-height: 1.35;
+}
+
+.plan-card__reasons li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.35rem;
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--plan-accent);
+}
+
 .plan-card__features {
     display: grid;
     gap: 10px;
@@ -1701,6 +2476,8 @@ watch(
     list-style: none;
     color: var(--plan-feature-text);
     font-size: 0.85rem;
+    align-content: start;
+    flex: 1 1 auto;
 }
 
 .plan-card__feature {
@@ -1729,6 +2506,7 @@ watch(
 
 .plan-card__cta {
     width: 100%;
+    margin-top: auto;
     border-radius: 2px;
     border: 1px solid var(--plan-cta-border);
     background: var(--plan-cta-bg);
@@ -1736,6 +2514,7 @@ watch(
     padding: 10px 14px;
     font-size: 0.85rem;
     font-weight: 600;
+    min-height: 44px;
     transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
 }
 
@@ -1784,6 +2563,302 @@ watch(
     color: var(--plan-cta-disabled);
     background: var(--plan-cta-disabled-bg);
     border-color: var(--plan-cta-disabled-border);
+}
+
+.plan-advisor {
+    display: grid;
+    gap: 18px;
+}
+
+.plan-advisor-modal {
+    --plan-bg: #ffffff;
+    --plan-card: #ffffff;
+    --plan-border: rgba(15, 23, 42, 0.08);
+    --plan-border-hover: rgba(15, 23, 42, 0.18);
+    --plan-text: #0f172a;
+    --plan-muted: rgba(15, 23, 42, 0.6);
+    --plan-feature-text: rgba(15, 23, 42, 0.78);
+    --plan-feature-muted: rgba(15, 23, 42, 0.45);
+    --plan-accent: rgba(16, 185, 129, 0.85);
+    --plan-status: rgba(15, 118, 110, 0.85);
+    --plan-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    --plan-shadow-hover: 0 2px 6px rgba(15, 23, 42, 0.12);
+    --plan-active-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35);
+    --plan-badge-bg: rgba(15, 23, 42, 0.06);
+    --plan-badge-border: rgba(15, 23, 42, 0.14);
+    --plan-badge-text: #0f172a;
+    --plan-badge-active-bg: rgba(16, 185, 129, 0.16);
+    --plan-badge-active-border: rgba(16, 185, 129, 0.5);
+    --plan-badge-active-text: #0f766e;
+    --plan-dot: rgba(148, 163, 184, 0.9);
+    --plan-dot-ring: rgba(148, 163, 184, 0.18);
+    --plan-cta-bg: #ffffff;
+    --plan-cta-border: rgba(15, 23, 42, 0.14);
+    --plan-cta-text: #0f172a;
+    --plan-cta-hover-bg: rgba(15, 23, 42, 0.04);
+    --plan-cta-hover-border: rgba(15, 23, 42, 0.3);
+    --plan-cta-disabled: rgba(15, 23, 42, 0.35);
+    --plan-cta-disabled-bg: rgba(15, 23, 42, 0.03);
+    --plan-cta-disabled-border: rgba(15, 23, 42, 0.1);
+    display: grid;
+    gap: 20px;
+    padding: 24px;
+}
+
+.plan-advisor-modal__header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.plan-advisor-modal__eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #0f766e;
+}
+
+.plan-advisor-modal__title {
+    margin-top: 6px;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.plan-advisor-modal__subtitle {
+    margin-top: 6px;
+    max-width: 42rem;
+    font-size: 0.9rem;
+    color: rgba(15, 23, 42, 0.68);
+}
+
+.plan-advisor-modal__close {
+    border-radius: 4px;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    background: #ffffff;
+    color: #0f172a;
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.plan-advisor-stepper {
+    display: grid;
+    gap: 10px;
+}
+
+.plan-advisor-stepper__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 4px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    background: #f8fafc;
+    color: #0f172a;
+    text-align: left;
+}
+
+.plan-advisor-stepper__item.is-active {
+    border-color: rgba(16, 185, 129, 0.45);
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.plan-advisor-stepper__item.is-complete {
+    border-color: rgba(14, 165, 233, 0.2);
+    background: rgba(14, 165, 233, 0.06);
+}
+
+.plan-advisor-stepper__index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.08);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.plan-advisor-stepper__item.is-active .plan-advisor-stepper__index {
+    background: rgba(16, 185, 129, 0.16);
+    color: #0f766e;
+}
+
+.plan-advisor-stepper__label {
+    font-size: 0.84rem;
+    font-weight: 600;
+}
+
+.plan-advisor__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.plan-advisor__title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--plan-text);
+}
+
+.plan-advisor__subtitle {
+    margin-top: 4px;
+    font-size: 0.85rem;
+    color: var(--plan-muted);
+    max-width: 52rem;
+}
+
+.plan-advisor__questions {
+    display: grid;
+    gap: 16px;
+}
+
+.plan-advisor__question {
+    display: grid;
+    gap: 10px;
+}
+
+.plan-advisor__question-card {
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+    border-radius: 4px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: #f8fafc;
+}
+
+.plan-advisor__question-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--plan-muted);
+}
+
+.plan-advisor__options {
+    display: grid;
+    gap: 10px;
+}
+
+.plan-advisor__options.plan-advisor__options--stacked {
+    grid-template-columns: 1fr;
+}
+
+.plan-advisor__option {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--plan-border);
+    background: var(--plan-card);
+    color: var(--plan-text);
+    text-align: left;
+    transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.plan-advisor__option strong {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.plan-advisor__option span {
+    font-size: 0.8rem;
+    color: var(--plan-muted);
+    line-height: 1.35;
+}
+
+.plan-advisor__option:hover {
+    transform: translateY(-1px);
+    border-color: var(--plan-border-hover);
+    box-shadow: var(--plan-shadow);
+}
+
+.plan-advisor__option.is-selected {
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.plan-advisor__results {
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+    border-radius: 8px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background:
+        linear-gradient(180deg, rgba(14, 165, 233, 0.05), rgba(14, 165, 233, 0) 24%),
+        #f8fafc;
+    align-items: stretch;
+}
+
+.plan-advisor__error {
+    border: 1px solid rgba(239, 68, 68, 0.18);
+    background: rgba(254, 242, 242, 0.9);
+    color: #b91c1c;
+    border-radius: 4px;
+    padding: 12px 14px;
+    font-size: 0.85rem;
+}
+
+.plan-advisor-modal__footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 4px;
+}
+
+.plan-advisor-modal__footer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.plan-advisor-modal__footer-btn {
+    border-radius: 4px;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    background: #ffffff;
+    color: #0f172a;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.plan-advisor-modal__footer-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.plan-advisor-modal__footer-btn--primary {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.12);
+    color: #0f766e;
+}
+
+@media (min-width: 768px) {
+    .plan-advisor-stepper {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .plan-advisor__options {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .plan-advisor__options.plan-advisor__options--stacked {
+        grid-template-columns: 1fr;
+    }
+
+    .plan-advisor__results {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-auto-rows: 1fr;
+    }
 }
 
 .assistant-addon {
@@ -1987,5 +3062,3 @@ watch(
     color: rgba(226, 232, 240, 0.6);
 }
 </style>
-
-

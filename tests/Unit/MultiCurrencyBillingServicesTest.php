@@ -101,6 +101,23 @@ it('resolves the active plan price for the tenant currency', function () {
     $tenant = User::factory()->create([
         'currency_code' => 'USD',
     ]);
+    $expectedAmount = number_format((float) env('STRIPE_PRICE_STARTER_USD_AMOUNT', 24), 2, '.', '');
+    $planId = Plan::query()->where('code', 'starter')->value('id');
+
+    DB::table('plan_prices')
+        ->updateOrInsert(
+            [
+                'plan_id' => $planId,
+                'currency_code' => 'USD',
+                'billing_period' => BillingPeriod::MONTHLY->value,
+            ],
+            [
+                'amount' => $expectedAmount,
+                'is_active' => true,
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
 
     $planPrice = app(ResolvePlanPriceForTenant::class)->execute(
         $tenant,
@@ -111,7 +128,7 @@ it('resolves the active plan price for the tenant currency', function () {
     expect($planPrice->planCode)->toBe('starter')
         ->and($planPrice->currencyCode)->toBe(CurrencyCode::USD)
         ->and($planPrice->billingPeriod)->toBe(BillingPeriod::MONTHLY)
-        ->and($planPrice->amount)->toBe(number_format((float) env('STRIPE_PRICE_STARTER_USD_AMOUNT', 24), 2, '.', ''));
+        ->and($planPrice->amount)->toBe($expectedAmount);
 });
 
 it('marks solo plans as owner-only and bills a single seat for them', function () {

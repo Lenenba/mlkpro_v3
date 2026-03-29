@@ -147,7 +147,7 @@ const resolveTrialHref = (plan) => {
 <template>
     <Head :title="$t('pricing.meta.title')" />
 
-    <div class="public-pricing-page">
+    <div class="public-pricing-page front-public-page">
         <PublicSiteHeader
             :mega-menu="megaMenu"
             :fallback-items="headerMenuItems"
@@ -337,13 +337,11 @@ const resolveTrialHref = (plan) => {
 </template>
 
 <style scoped>
-@import url('https://fonts.bunny.net/css?family=Space+Grotesk:400,500,600,700&family=Work+Sans:400,500,600,700&display=swap');
-
 .public-pricing-page {
     min-height: 100vh;
     background: #ffffff;
     color: #0f172a;
-    font-family: 'Work Sans', 'Figtree', sans-serif;
+    font-family: var(--page-font-body);
 }
 
 .public-pricing-container {
@@ -370,7 +368,7 @@ const resolveTrialHref = (plan) => {
 }
 
 .public-pricing-title {
-    font-family: 'Space Grotesk', 'Figtree', sans-serif;
+    font-family: var(--page-font-heading);
     letter-spacing: -0.02em;
 }
 

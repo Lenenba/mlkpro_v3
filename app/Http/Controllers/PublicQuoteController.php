@@ -10,8 +10,8 @@ use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Notifications\ActionEmailNotification;
-use App\Support\NotificationDispatcher;
 use App\Services\UsageLimitService;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -36,8 +36,8 @@ class PublicQuoteController extends Controller
         $owner = User::find($quote->user_id);
 
         $hasDecision = in_array($quote->status, ['accepted', 'declined'], true);
-        $allowAccept = !$quote->isArchived() && !$hasDecision;
-        $allowDecline = !$quote->isArchived() && !$hasDecision;
+        $allowAccept = ! $quote->isArchived() && ! $hasDecision;
+        $allowDecline = ! $quote->isArchived() && ! $hasDecision;
         $statusMessage = null;
         if ($quote->isArchived()) {
             $statusMessage = 'Archived quotes cannot be updated.';
@@ -84,6 +84,7 @@ class PublicQuoteController extends Controller
                 'id' => $quote->id,
                 'number' => $quote->number,
                 'status' => $quote->status,
+                'currency_code' => $quote->currency_code,
                 'job_title' => $quote->job_title,
                 'subtotal' => (float) $quote->subtotal,
                 'total' => (float) $quote->total,
@@ -110,6 +111,7 @@ class PublicQuoteController extends Controller
             'company' => [
                 'name' => $owner?->company_name ?: config('app.name'),
                 'logo_url' => $owner?->company_logo_url,
+                'currency_code' => $owner?->businessCurrencyCode(),
             ],
             'allowAccept' => $allowAccept,
             'allowDecline' => $allowDecline,
@@ -154,7 +156,7 @@ class PublicQuoteController extends Controller
         }
 
         $existingWork = Work::where('quote_id', $quote->id)->first();
-        if (!$existingWork) {
+        if (! $existingWork) {
             $owner = User::find($quote->user_id);
             if ($owner) {
                 app(UsageLimitService::class)->enforceLimit($owner, 'jobs');
@@ -164,7 +166,7 @@ class PublicQuoteController extends Controller
         $work = null;
         DB::transaction(function () use ($quote, $validated, $depositAmount, $existingWork, &$work) {
             $work = $existingWork;
-            if (!$work) {
+            if (! $work) {
                 $work = Work::create([
                     'user_id' => $quote->user_id,
                     'customer_id' => $quote->customer_id,
@@ -197,7 +199,7 @@ class PublicQuoteController extends Controller
                     ->where('status', 'completed')
                     ->exists();
 
-                if (!$hasDeposit) {
+                if (! $hasDeposit) {
                     Transaction::create([
                         'quote_id' => $quote->id,
                         'work_id' => $work->id,
@@ -248,15 +250,15 @@ class PublicQuoteController extends Controller
         if ($owner && $owner->email) {
             $customer = $quote->customer;
             $customerLabel = $customer?->company_name
-                ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+                ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Quote accepted by client',
-                $customerLabel ? $customerLabel . ' accepted a quote.' : 'A client accepted a quote.',
+                $customerLabel ? $customerLabel.' accepted a quote.' : 'A client accepted a quote.',
                 [
                     ['label' => 'Quote', 'value' => $quote->number ?? $quote->id],
                     ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
-                    ['label' => 'Total', 'value' => '$' . number_format((float) $quote->total, 2)],
+                    ['label' => 'Total', 'value' => '$'.number_format((float) $quote->total, 2)],
                 ],
                 route('customer.quote.show', $quote->id),
                 'View quote',
@@ -303,15 +305,15 @@ class PublicQuoteController extends Controller
         if ($owner && $owner->email) {
             $customer = $quote->customer;
             $customerLabel = $customer?->company_name
-                ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+                ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Quote declined by client',
-                $customerLabel ? $customerLabel . ' declined a quote.' : 'A client declined a quote.',
+                $customerLabel ? $customerLabel.' declined a quote.' : 'A client declined a quote.',
                 [
                     ['label' => 'Quote', 'value' => $quote->number ?? $quote->id],
                     ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
-                    ['label' => 'Total', 'value' => '$' . number_format((float) $quote->total, 2)],
+                    ['label' => 'Total', 'value' => '$'.number_format((float) $quote->total, 2)],
                 ],
                 route('customer.quote.show', $quote->id),
                 'View quote',

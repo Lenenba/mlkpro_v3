@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import InputError from '@/Components/InputError.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     sale: {
@@ -251,8 +252,7 @@ const total = computed(() =>
     Math.max(0, subtotal.value - discountTotal.value) + discountedTaxTotal.value
 );
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 
 const submit = () => {
     form.fulfillment_status = form.fulfillment_status || null;

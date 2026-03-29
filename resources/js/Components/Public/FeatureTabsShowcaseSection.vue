@@ -399,7 +399,7 @@ const setActiveChild = (child) => {
 .feature-tabs-showcase__title {
     margin-top: 1.2rem;
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2.2rem, 1.95rem + 1.2vw, 3.85rem);
     line-height: 1.02;
     letter-spacing: -0.04em;
@@ -538,7 +538,7 @@ const setActiveChild = (child) => {
 
 .feature-tabs-showcase__media-mark {
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2.2rem, 1.95rem + 0.8vw, 3rem);
     line-height: 0.95;
     letter-spacing: -0.04em;
@@ -576,7 +576,7 @@ const setActiveChild = (child) => {
 
 .feature-tabs-showcase__copy-title {
     color: #083a5c;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(1.8rem, 1.55rem + 0.6vw, 2.45rem);
     line-height: 1.05;
     letter-spacing: -0.03em;
@@ -759,3 +759,4 @@ const setActiveChild = (child) => {
     }
 }
 </style>
+

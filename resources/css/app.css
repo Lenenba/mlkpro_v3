@@ -1,9 +1,16 @@
+@import url('https://fonts.bunny.net/css?family=Montserrat:400,500,600,700,800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
+    --app-font-family: 'Montserrat', 'Figtree', sans-serif;
+    --app-font-body: var(--app-font-family);
+    --app-font-heading: var(--app-font-family);
+    --front-font-body: var(--app-font-body);
+    --front-font-heading: var(--app-font-heading);
     --app-background: #f8fafc;
     --app-foreground: #0f172a;
     --app-layer: #ffffff;
@@ -119,6 +126,25 @@
   body {
     width: 100%;
     overflow-x: hidden;
+    font-family: var(--app-font-body);
+  }
+
+  body :is(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--app-font-heading);
+  }
+
+  body :is(button, input, select, textarea) {
+    font: inherit;
+  }
+
+  .front-public-page {
+    --page-font-body: var(--app-font-body);
+    --page-font-heading: var(--app-font-heading);
+    font-family: var(--page-font-body);
+  }
+
+  .front-public-page :is(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--page-font-heading);
   }
 
   img,

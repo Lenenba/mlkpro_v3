@@ -921,7 +921,7 @@ const footerCopy = computed(() => (
 .public-site-footer__group-title {
     margin: 0 0 1.15rem;
     color: #ffffff;
-    font-family: 'Montserrat', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: 1.25rem;
     line-height: 1.1;
     letter-spacing: -0.03em;
@@ -1024,7 +1024,7 @@ const footerCopy = computed(() => (
 
 .public-site-footer__callout-title {
     color: #ffffff;
-    font-family: 'Cal Sans', var(--page-font-heading, 'Space Grotesk', sans-serif);
+    font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: 1.05rem;
     line-height: 1.1;
 }
@@ -1200,3 +1200,4 @@ const footerCopy = computed(() => (
     }
 }
 </style>
+

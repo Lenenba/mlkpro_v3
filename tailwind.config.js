@@ -27,7 +27,7 @@ export default {
         },
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['var(--app-font-body)', ...defaultTheme.fontFamily.sans],
             },
             spacing: {
                 '4.5': '1.125rem',

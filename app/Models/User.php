@@ -286,6 +286,16 @@ class User extends Authenticatable
         return $this->hasOne(PlatformAdmin::class);
     }
 
+    public function demoWorkspace(): HasOne
+    {
+        return $this->hasOne(DemoWorkspace::class, 'owner_user_id');
+    }
+
+    public function createdDemoWorkspaces(): HasMany
+    {
+        return $this->hasMany(DemoWorkspace::class, 'created_by_user_id');
+    }
+
     public function teamMembership(): HasOne
     {
         return $this->hasOne(TeamMember::class, 'user_id')->where('is_active', true);

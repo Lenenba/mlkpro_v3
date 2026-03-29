@@ -4,6 +4,7 @@ import { Link } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import CardNoHeader from '@/Components/UI/CardNoHeader.vue';
 import { humanizeDate } from '@/utils/date';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     stats: {
@@ -31,8 +32,7 @@ const props = defineProps({
 const { t } = useI18n();
 
 const formatDate = (value) => humanizeDate(value);
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, {
         minimumFractionDigits: 0,

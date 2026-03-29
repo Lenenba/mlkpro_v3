@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\DemoWorkspace;
 use App\Models\PlatformSetting;
 use App\Models\TeamMemberShift;
 use App\Models\User;
@@ -131,6 +132,14 @@ class HandleInertiaRequests extends Middleware
             $assistantEnabled = $assistantEnabled && (bool) ($accountFeatures['assistant'] ?? false);
         }
 
+        $demoWorkspace = null;
+        if ($user && ($user->is_demo || $user->is_demo_user)) {
+            $demoWorkspace = DemoWorkspace::query()
+                ->select(['id', 'owner_user_id', 'company_name', 'prospect_name', 'expires_at'])
+                ->where('owner_user_id', $user->accountOwnerId())
+                ->first();
+        }
+
         return [
             ...parent::share($request),
             'auth' => [
@@ -141,6 +150,7 @@ class HandleInertiaRequests extends Middleware
                     'is_client' => $user->isClient(),
                     'is_superadmin' => $user->isSuperadmin(),
                     'is_platform_admin' => $user->isPlatformAdmin(),
+                    'currency_code' => $accountOwner?->businessCurrencyCode(),
                     'company' => $accountOwner ? [
                         'name' => $accountOwner->company_name,
                         'type' => $accountOwner->company_type,
@@ -177,6 +187,10 @@ class HandleInertiaRequests extends Middleware
                 'demo_type' => $user?->demo_type,
                 'demo_role' => $user?->demo_role,
                 'is_guided' => (bool) ($user?->demo_type === 'guided' || $user?->demo_role === 'guided_demo'),
+                'workspace_id' => $demoWorkspace?->id,
+                'workspace_name' => $demoWorkspace?->company_name,
+                'workspace_prospect_name' => $demoWorkspace?->prospect_name,
+                'expires_at' => $demoWorkspace?->expires_at?->toIso8601String(),
             ],
             'assistant' => [
                 'enabled' => $assistantEnabled,

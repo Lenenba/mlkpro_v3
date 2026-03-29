@@ -7,6 +7,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     filters: Object,
@@ -137,8 +138,7 @@ const toggleSort = (column) => {
     filterForm.direction = 'asc';
 };
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 
 const formatDate = (value) => humanizeDate(value);
 

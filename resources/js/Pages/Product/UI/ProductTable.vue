@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import axios from 'axios';
+import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
     filters: Object,
@@ -267,8 +268,7 @@ const clearFilters = () => {
 
 const exportUrl = computed(() => route('product.export', filterPayload()));
 
-const formatCurrency = (value) =>
-    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const { formatCurrency } = useCurrencyFormatter();
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });

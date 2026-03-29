@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -65,6 +65,7 @@ const queueItems = computed(() => (Array.isArray(queueData.value?.items) ? queue
 const statusBadgeClass = (status) => reservationStatusBadgeClass(status);
 const formatDateTime = (value) => (value ? dayjs(value).locale(dayjsLocale.value).format('DD MMM HH:mm') : '-');
 const formatNow = (value) => (value ? dayjs(value).locale(dayjsLocale.value).format('HH:mm:ss') : '-');
+const queueNumberLabel = (item) => item?.queue_number || (item?.id ? `#${item.id}` : '-');
 
 const refreshScreen = async () => {
     loading.value = true;
@@ -120,6 +121,53 @@ const chairStateStyles = computed(() => ({
 }));
 
 const chairStateMeta = (state) => chairStateStyles.value[state] || chairStateStyles.value.available;
+const chairAccentTextClass = (state) => ({
+    available: 'text-emerald-700 dark:text-emerald-200',
+    available_ready: 'text-green-700 dark:text-green-200',
+    called: 'text-sky-700 dark:text-sky-200',
+    in_service: 'text-violet-700 dark:text-violet-200',
+    check_in_needed: 'text-amber-700 dark:text-amber-200',
+    blocked: 'text-rose-700 dark:text-rose-200',
+}[state] || 'text-emerald-700 dark:text-emerald-200');
+
+const IDLE_CHAIR_VIDEO_INTERVAL_SECONDS = 15 * 60;
+const IDLE_CHAIR_VIDEO_TRIGGER_WINDOW_SECONDS = 45;
+const idleChairVideoCycle = computed(() => Math.floor(nowTick.value.unix() / IDLE_CHAIR_VIDEO_INTERVAL_SECONDS));
+const idleChairVideoSecondsIntoCycle = computed(() => nowTick.value.unix() % IDLE_CHAIR_VIDEO_INTERVAL_SECONDS);
+const idleChairVideoActiveCycleByChair = ref({});
+const idleChairVideoCompletedCycleByChair = ref({});
+const takenChairVideoActiveCycleByChair = ref({});
+const takenChairVideoCompletedCycleByChair = ref({});
+
+const isIdleChairVideoPlaying = (chair) => (
+    !chair?.current && idleChairVideoActiveCycleByChair.value[chair.id] === idleChairVideoCycle.value
+);
+
+const isTakenChairVideoPlaying = (chair) => (
+    !!chair?.current && takenChairVideoActiveCycleByChair.value[chair.id] === idleChairVideoCycle.value
+);
+
+const markIdleChairVideoCompleted = (chairId) => {
+    idleChairVideoActiveCycleByChair.value = {
+        ...idleChairVideoActiveCycleByChair.value,
+        [chairId]: null,
+    };
+    idleChairVideoCompletedCycleByChair.value = {
+        ...idleChairVideoCompletedCycleByChair.value,
+        [chairId]: idleChairVideoCycle.value,
+    };
+};
+
+const markTakenChairVideoCompleted = (chairId) => {
+    takenChairVideoActiveCycleByChair.value = {
+        ...takenChairVideoActiveCycleByChair.value,
+        [chairId]: null,
+    };
+    takenChairVideoCompletedCycleByChair.value = {
+        ...takenChairVideoCompletedCycleByChair.value,
+        [chairId]: idleChairVideoCycle.value,
+    };
+};
 
 const originBadgeClass = (origin) => (
     origin === 'booking'
@@ -227,6 +275,61 @@ const chairs = computed(() => {
 
     return deriveChairsFromItems();
 });
+
+watch(
+    [chairs, idleChairVideoCycle, idleChairVideoSecondsIntoCycle],
+    ([chairList, cycle, secondsIntoCycle]) => {
+        const nextIdleActive = { ...idleChairVideoActiveCycleByChair.value };
+        const nextIdleCompleted = { ...idleChairVideoCompletedCycleByChair.value };
+        const nextTakenActive = { ...takenChairVideoActiveCycleByChair.value };
+        const nextTakenCompleted = { ...takenChairVideoCompletedCycleByChair.value };
+        let idleActiveChanged = false;
+        let idleCompletedChanged = false;
+        let takenActiveChanged = false;
+
+        for (const chair of chairList) {
+            if (chair?.current) {
+                if (nextIdleActive[chair.id] !== undefined && nextIdleActive[chair.id] !== null) {
+                    delete nextIdleActive[chair.id];
+                    idleActiveChanged = true;
+                }
+                if (
+                    secondsIntoCycle < IDLE_CHAIR_VIDEO_TRIGGER_WINDOW_SECONDS
+                    && nextTakenActive[chair.id] !== cycle
+                    && nextTakenCompleted[chair.id] !== cycle
+                ) {
+                    nextTakenActive[chair.id] = cycle;
+                    takenActiveChanged = true;
+                }
+                continue;
+            }
+
+            if (
+                secondsIntoCycle < IDLE_CHAIR_VIDEO_TRIGGER_WINDOW_SECONDS
+                && nextIdleActive[chair.id] !== cycle
+                && nextIdleCompleted[chair.id] !== cycle
+            ) {
+                nextIdleActive[chair.id] = cycle;
+                idleActiveChanged = true;
+            }
+            if (nextTakenActive[chair.id] !== undefined && nextTakenActive[chair.id] !== null) {
+                delete nextTakenActive[chair.id];
+                takenActiveChanged = true;
+            }
+        }
+
+        if (idleActiveChanged) {
+            idleChairVideoActiveCycleByChair.value = nextIdleActive;
+        }
+        if (idleCompletedChanged) {
+            idleChairVideoCompletedCycleByChair.value = nextIdleCompleted;
+        }
+        if (takenActiveChanged) {
+            takenChairVideoActiveCycleByChair.value = nextTakenActive;
+        }
+    },
+    { immediate: true },
+);
 
 const summary = computed(() => {
     const activeSeats = chairs.value.length;
@@ -342,14 +445,23 @@ onBeforeUnmount(() => {
                     </article>
                 </section>
 
-                <section :class="isTvMode ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3' : 'grid gap-3 sm:grid-cols-2 xl:grid-cols-4'">
-                    <article v-for="chair in chairs" :key="`chair-card-${chair.id}`" class="overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <section :class="isTvMode ? 'grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5' : 'grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'">
+                    <article
+                        v-for="chair in chairs"
+                        :key="`chair-card-${chair.id}`"
+                        class="overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    >
                         <div class="h-1.5" :class="chairStateMeta(chair.state).band" />
-                        <div class="space-y-3 p-4">
+                        <div class="space-y-2.5 p-3">
                             <div class="flex items-start justify-between gap-2">
-                                <div>
-                                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ chair.chair_label || `Chair ${chair.chair_number || '-'}` }}</p>
-                                    <p :class="isTvMode ? 'text-lg font-semibold text-stone-900 dark:text-neutral-100' : 'text-sm font-semibold text-stone-900 dark:text-neutral-100'">{{ chair.team_member_name || '-' }}</p>
+                                <div :class="isTvMode ? 'min-w-0 flex-1 min-h-[4.75rem]' : 'min-w-0 flex-1 min-h-[4.25rem]'">
+                                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ chair.chair_label || `Chair ${chair.chair_number || '-'}` }}
+                                    </p>
+                                    <p :class="isTvMode ? 'mt-1 text-lg font-semibold leading-tight text-stone-900 dark:text-neutral-100' : 'mt-1 text-sm font-semibold leading-tight text-stone-900 dark:text-neutral-100'">
+                                        {{ chair.team_member_name || '-' }}
+                                    </p>
+                                    <p v-if="chair.team_member_title" class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">{{ chair.team_member_title }}</p>
                                 </div>
                                 <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="chairStateMeta(chair.state).badge">
                                     <span class="size-1.5 rounded-full bg-current" />
@@ -357,7 +469,65 @@ onBeforeUnmount(() => {
                                 </span>
                             </div>
 
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800/70">
+                            <div class="relative overflow-hidden rounded-sm border border-stone-200 bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800/70">
+                                <div
+                                    v-if="chair.current"
+                                    class="absolute right-2 top-2 z-10 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-stone-700 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                >
+                                    {{ queueNumberLabel(chair.current) }}
+                                </div>
+
+                                <div :class="isTvMode ? 'relative min-h-[210px]' : 'relative min-h-[180px]'">
+                                        <video
+                                            v-if="isTakenChairVideoPlaying(chair)"
+                                            :key="`taken-chair-video-${chair.id}-${idleChairVideoCycle}`"
+                                            class="absolute inset-0 h-full w-full object-contain object-center select-none"
+                                            autoplay
+                                            muted
+                                            playsinline
+                                            preload="metadata"
+                                            poster="/images/chair-taken.png"
+                                            aria-hidden="true"
+                                            disablepictureinpicture
+                                            @ended="markTakenChairVideoCompleted(chair.id)"
+                                        >
+                                            <source src="/videos/chair-taken.mp4" type="video/mp4" />
+                                        </video>
+                                        <img
+                                            v-else-if="chair.current"
+                                            src="/images/chair-taken.png"
+                                            :alt="chair.chair_label || `Chair ${chair.chair_number || '-'}`"
+                                            class="absolute inset-0 h-full w-full object-contain object-center select-none"
+                                            draggable="false"
+                                            loading="lazy"
+                                        />
+                                        <video
+                                            v-else-if="isIdleChairVideoPlaying(chair)"
+                                            :key="`idle-chair-video-${chair.id}-${idleChairVideoCycle}`"
+                                            class="absolute inset-0 h-full w-full object-contain object-center select-none"
+                                            autoplay
+                                            muted
+                                            playsinline
+                                            preload="metadata"
+                                            poster="/images/barber-chair.png"
+                                            aria-hidden="true"
+                                            disablepictureinpicture
+                                            @ended="markIdleChairVideoCompleted(chair.id)"
+                                        >
+                                            <source src="/videos/barber-chair.mp4" type="video/mp4" />
+                                        </video>
+                                        <img
+                                            v-else
+                                            src="/images/barber-chair.png"
+                                            :alt="chair.chair_label || `Chair ${chair.chair_number || '-'}`"
+                                            class="absolute inset-0 h-full w-full object-contain object-center select-none"
+                                            draggable="false"
+                                            loading="lazy"
+                                        />
+                                </div>
+                            </div>
+
+                            <div class="rounded-sm border border-stone-200 bg-stone-50 p-2.5 dark:border-neutral-700 dark:bg-neutral-800/70">
                                 <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.screen.current') }}</p>
                                 <template v-if="chair.current">
                                     <div class="mt-1 flex items-center gap-1.5">
@@ -372,21 +542,21 @@ onBeforeUnmount(() => {
                                     <div class="mt-2">
                                         <div class="flex items-center justify-between text-xs">
                                             <span class="text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.screen.timer') }}</span>
-                                            <span class="font-semibold text-stone-700 dark:text-neutral-200">{{ timerValue(chair.current) }}</span>
+                                            <span class="font-semibold" :class="chairAccentTextClass(chair.state)">{{ timerValue(chair.current) }}</span>
                                         </div>
                                         <div class="mt-1 h-1.5 w-full rounded-full bg-stone-200 dark:bg-neutral-700">
-                                            <div class="h-1.5 rounded-full transition-all duration-700" :class="chair.current.status === 'in_service' ? 'bg-violet-500' : 'bg-sky-500 animate-pulse'" :style="{ width: `${progressPercent(chair.current)}%` }" />
+                                            <div class="h-1.5 rounded-full" :class="chair.current.status === 'in_service' ? chairStateMeta(chair.state).band : 'bg-sky-500'" :style="{ width: `${progressPercent(chair.current)}%` }" />
                                         </div>
                                     </div>
                                 </template>
                                 <p v-else class="mt-1 text-sm text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.screen.states.available') }}</p>
                             </div>
 
-                            <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900/40">
+                            <div class="rounded-sm border border-stone-200 bg-white p-2.5 dark:border-neutral-700 dark:bg-neutral-900/40">
                                 <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.screen.up_next') }}</p>
                                 <template v-if="chair.next">
                                     <div class="mt-1 flex items-center justify-between gap-2">
-                                        <p class="text-sm font-semibold text-stone-900 dark:text-neutral-100">{{ chair.next.queue_number || `#${chair.next.id}` }}</p>
+                                        <p class="text-sm font-semibold text-stone-900 dark:text-neutral-100">{{ queueNumberLabel(chair.next) }}</p>
                                         <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="originBadgeClass(chair.next.origin)">
                                             {{ originLabel(chair.next.origin, chair.next.item_type) }}
                                         </span>

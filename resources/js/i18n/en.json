@@ -2,6 +2,7 @@
   "nav": {
     "admin": "Admin",
     "tenants": "Tenants",
+    "demo_workspaces": "Demos",
     "plans": "Plans",
     "support": "Support",
     "admins": "Admins",
@@ -1497,6 +1498,15 @@
         "style": "Style",
         "background": "Background",
         "background_hex": "Background color (#hex)",
+        "background_preset": "Background preset",
+        "background_presets": {
+          "none": "No preset",
+          "welcome_hero": "Welcome hero gradient",
+          "graphite_crimson": "Black and red",
+          "obsidian_amber": "Black and amber",
+          "midnight_cobalt": "Midnight blue",
+          "deep_ocean": "Deep ocean"
+        },
         "move_up": "Up",
         "move_down": "Down",
         "remove": "Remove",
@@ -1733,6 +1743,15 @@
         "description": "Description",
         "background": "Background",
         "background_hex": "Background color (#hex)",
+        "background_preset": "Background preset",
+        "background_presets": {
+          "none": "No preset",
+          "welcome_hero": "Welcome hero gradient",
+          "graphite_crimson": "Black and red",
+          "obsidian_amber": "Black and amber",
+          "midnight_cobalt": "Midnight blue",
+          "deep_ocean": "Deep ocean"
+        },
         "panel_background": "Content panel background",
         "panel_background_hex": "Content panel color (#hex)",
         "image_position": "Image position",
@@ -1920,6 +1939,7 @@
           "background_style": "Background style"
         },
         "fonts": {
+          "montserrat": "Montserrat",
           "work_sans": "Work Sans",
           "space_grotesk": "Space Grotesk",
           "sora": "Sora",
@@ -6392,7 +6412,8 @@
         "switch_plan": "Switch to this plan",
         "choose_plan": "Choose this plan",
         "contact_sales": "Contact sales",
-        "contact_phone": "Phone: {phone}"
+        "contact_phone": "Phone: {phone}",
+        "processing": "Processing..."
       },
       "status": {
         "active": "Active",
@@ -6418,11 +6439,103 @@
         "provider_not_supported": "Billing provider is set to {provider}. Paddle actions are disabled.",
         "stripe_not_configured": "Stripe is not configured. Check STRIPE_SECRET, STRIPE_PRICE_* and STRIPE_ENABLED=true.",
         "stripe_checkout_failed": "Unable to start Stripe checkout.",
-        "stripe_portal_failed": "Unable to open Stripe customer portal."
+        "stripe_portal_failed": "Unable to open Stripe customer portal.",
+        "plan_change_failed": "Unable to change plans right now."
       },
       "plans": {
         "title": "Platform subscription",
-        "subtitle": "Choose a monthly plan to unlock all features."
+        "subtitle": "Review your active plan, adjust your subscription, and manage related AI usage.",
+        "advisor": {
+          "title": "Change plan",
+          "dialog_title": "Plan advisor",
+          "subtitle": "Answer a few quick questions and we will surface the plans that best fit your current operating needs.",
+          "trigger_change": "Change plan",
+          "trigger_choose": "Find a plan",
+          "close": "Close",
+          "back": "Back",
+          "next": "Next",
+          "show_results": "See suggestions",
+          "top_match": "Best match",
+          "alternative": "Alternative",
+          "current_match": "Your current plan already fits these answers well.",
+          "steps": {
+            "business": "Organization",
+            "focus": "Needs",
+            "ai": "AI",
+            "results": "Suggestions"
+          },
+          "questions": {
+            "business": "What does your organization look like today?",
+            "focus": "What do you need most right now?",
+            "ai": "How important should AI be in the package?"
+          },
+          "options": {
+            "business": {
+              "solo": {
+                "label": "Solo",
+                "description": "I work alone and want a plan designed for an independent operator."
+              },
+              "small_team": {
+                "label": "Small team",
+                "description": "We are a small crew and mainly need lightweight coordination."
+              },
+              "growing_team": {
+                "label": "Growing team",
+                "description": "We already have a real team and need more structure for operations."
+              },
+              "large_team": {
+                "label": "Structured team",
+                "description": "We handle a larger volume and need more coordination and support."
+              },
+              "custom_scale": {
+                "label": "Custom scale",
+                "description": "We have 50+ users or need a more tailored rollout and support model."
+              }
+            },
+            "focus": {
+              "quotes": {
+                "label": "Quotes and invoices",
+                "description": "I mainly want speed on quotes, invoicing, and client follow-up."
+              },
+              "operations": {
+                "label": "Field operations",
+                "description": "I want stronger jobs, tasks, scheduling, and day-to-day coordination."
+              },
+              "automation": {
+                "label": "Automation and AI",
+                "description": "I am looking for more automation, performance tooling, scan, and AI."
+              }
+            },
+            "ai": {
+              "none": {
+                "label": "Not a priority",
+                "description": "AI is not an important criterion right now."
+              },
+              "optional": {
+                "label": "Paid add-on is fine",
+                "description": "I want AI available when needed without requiring it in the base package."
+              },
+              "included": {
+                "label": "Prefer included",
+                "description": "I would rather choose a plan where AI is already part of the offer."
+              }
+            }
+          },
+          "reasons": {
+            "solo": "Fits a solo operation well.",
+            "small_team": "Good match for a small team.",
+            "growing_team": "Designed for a growing team.",
+            "large_team": "Better suited to a larger operation.",
+            "custom_scale": "Better suited to a tailored deployment.",
+            "room_to_grow": "Leaves room to grow without changing too quickly.",
+            "quotes": "Keeps the experience simple for quotes and invoicing.",
+            "operations": "Strengthens jobs, tasks, and scheduling day to day.",
+            "automation": "Unlocks more automation, performance tools, and advanced workflows.",
+            "ai_optional": "AI assistant is available as an add-on.",
+            "ai_included": "AI assistant is already included in the package.",
+            "custom_support": "Allows for more tailored rollout, support, and commercial framing."
+          }
+        }
       },
       "checkout": {
         "success_title": "Subscription activated. Thank you!",
@@ -6435,6 +6548,7 @@
       "summary": {
         "active_plan": "You are on {plan} (Status: {status})",
         "trialing": "Trial in progress",
+        "trialing_until": "Trial in progress until {date}",
         "no_subscription": "No active subscription. Select a plan to get started."
       },
       "plan": {
@@ -6444,13 +6558,14 @@
         "interval_month": "/month",
         "current_plan": "You are on this plan.",
         "cta_active": "Active plan",
+        "custom_pricing": "Custom pricing",
         "team_limit": "Up to {count} employees",
         "team_limit_plus": "{count}+ employees"
       },
       "assistant_addon": {
         "title": "AI assistant",
-        "subtitle": "Add the AI assistant to your plan and pay based on usage.",
-        "subtitle_credit": "Add the AI assistant to your plan and buy credit packs.",
+        "subtitle": "Manage the AI assistant and pay only for additional usage.",
+        "subtitle_credit": "Manage the AI assistant and buy credit packs when needed.",
         "included_badge": "Included",
         "optional_badge": "Paid add-on",
         "cta_enable": "Enable add-on",
