@@ -18,13 +18,12 @@ class LeadFollowUpNotification extends Notification implements ShouldQueue
         public LeadRequest $lead,
         public string $type = 'follow_up_overdue',
         public int $hours = 24
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {
         $channels = ['database'];
-        if (!empty($notifiable->email)) {
+        if (! empty($notifiable->email)) {
             $channels[] = 'mail';
         }
 

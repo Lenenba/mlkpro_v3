@@ -400,8 +400,9 @@ class DemoWorkspaceController extends BaseSuperAdminController
         $prospectEmail = trim((string) $demoWorkspace->prospect_email);
         $accessEmail = trim((string) $demoWorkspace->access_email);
         $accessPassword = trim((string) $demoWorkspace->access_password);
+        $hasValidProspectEmail = filter_var($prospectEmail, FILTER_VALIDATE_EMAIL) !== false;
 
-        if ($prospectEmail === '' || ! filter_var($prospectEmail, FILTER_VALIDATE_EMAIL)) {
+        if ($prospectEmail === '' || ! $hasValidProspectEmail) {
             throw ValidationException::withMessages([
                 'prospect_email' => ['Add a valid prospect email before sending access.'],
             ]);

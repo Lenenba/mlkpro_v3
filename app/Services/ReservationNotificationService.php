@@ -21,8 +21,7 @@ class ReservationNotificationService
     public function __construct(
         private readonly ReservationNotificationPreferenceService $preferences,
         private readonly SmsNotificationService $smsService
-    ) {
-    }
+    ) {}
 
     public function handleCreated(Reservation $reservation, User $actor): void
     {
@@ -57,7 +56,7 @@ class ReservationNotificationService
             'rescheduled',
             $actor,
             $isFr ? 'Reservation replanifiee' : 'Reservation rescheduled',
-            ($actor->name ?: ($isFr ? 'Un utilisateur' : 'A user')) . ($isFr ? ' a replanifie une reservation.' : ' rescheduled a reservation.'),
+            ($actor->name ?: ($isFr ? 'Un utilisateur' : 'A user')).($isFr ? ' a replanifie une reservation.' : ' rescheduled a reservation.'),
             [],
             includeClient: true,
             includeInternal: true
@@ -78,7 +77,7 @@ class ReservationNotificationService
             'cancelled',
             $actor,
             $isFr ? 'Reservation annulee' : 'Reservation cancelled',
-            ($actor->name ?: ($isFr ? 'Un utilisateur' : 'A user')) . ($isFr ? ' a annule une reservation.' : ' cancelled a reservation.'),
+            ($actor->name ?: ($isFr ? 'Un utilisateur' : 'A user')).($isFr ? ' a annule une reservation.' : ' cancelled a reservation.'),
             $details,
             includeClient: true,
             includeInternal: true
@@ -122,14 +121,14 @@ class ReservationNotificationService
             'client:id,first_name,last_name,company_name',
         ])->first();
 
-        if (!$reservation) {
+        if (! $reservation) {
             return;
         }
         $accountLocale = $this->reservationLocale($reservation);
         $isFr = str_starts_with($accountLocale, 'fr');
 
         $details = [
-            ['label' => $isFr ? 'Note' : 'Rating', 'value' => ((int) $review->rating) . ' / 5'],
+            ['label' => $isFr ? 'Note' : 'Rating', 'value' => ((int) $review->rating).' / 5'],
             ['label' => $isFr ? 'Commentaire' : 'Feedback', 'value' => $review->feedback ?: ($isFr ? 'Aucun commentaire fourni' : 'No feedback provided')],
         ];
 
@@ -150,11 +149,12 @@ class ReservationNotificationService
         string $event,
         ?User $actor = null,
         array $context = []
-    ): bool {
+    ): bool
+    {
         $event = strtolower(trim($event));
 
         $account = User::query()->find($item->account_id);
-        if (!$account) {
+        if (! $account) {
             return false;
         }
         $isFr = str_starts_with(LocalePreference::forUser($account), 'fr');
@@ -168,17 +168,17 @@ class ReservationNotificationService
             default => null,
         };
 
-        if (!$config) {
+        if (! $config) {
             return false;
         }
 
         $settings = $this->preferences->resolveFor($account);
-        if (!$this->isEventEnabled($settings, $event)) {
+        if (! $this->isEventEnabled($settings, $event)) {
             return false;
         }
 
         $shouldDedupe = (bool) ($config['dedupe'] ?? true);
-        $metaKey = (string) ($context['meta_key'] ?? ($event . '_sent_at'));
+        $metaKey = (string) ($context['meta_key'] ?? ($event.'_sent_at'));
         if ($shouldDedupe && empty($context['force']) && $this->hasQueueNotificationMeta($item, $metaKey)) {
             return false;
         }
@@ -205,12 +205,12 @@ class ReservationNotificationService
         $memberUser = $item->teamMember?->user ?: $item->reservation?->teamMember?->user;
         $clientLabel = (string) (
             $client?->company_name
-            ?: trim(($client?->first_name ?? '') . ' ' . ($client?->last_name ?? ''))
+            ?: trim(($client?->first_name ?? '').' '.($client?->last_name ?? ''))
             ?: ($clientUser?->name ?? 'Client')
         );
 
         $serviceLabel = $item->service?->name ?: ($isFr ? 'Service' : 'Service');
-        $queueLabel = $item->queue_number ?: ('#' . $item->id);
+        $queueLabel = $item->queue_number ?: ('#'.$item->id);
         $fromStatus = is_string($context['from_status'] ?? null)
             ? trim((string) $context['from_status'])
             : null;
@@ -224,7 +224,7 @@ class ReservationNotificationService
             ['label' => $isFr ? 'Client' : 'Client', 'value' => $clientLabel],
             ['label' => $isFr ? 'Statut' : 'Status', 'value' => $toStatus],
             ['label' => $isFr ? 'Position' : 'Position', 'value' => $item->position ?? '-'],
-            ['label' => 'ETA', 'value' => $item->eta_minutes !== null ? ((int) $item->eta_minutes . ' min') : '-'],
+            ['label' => 'ETA', 'value' => $item->eta_minutes !== null ? ((int) $item->eta_minutes.' min') : '-'],
         ];
         if ($event === 'queue_status_changed') {
             if ($fromStatus !== null && $fromStatus !== '') {
@@ -258,8 +258,8 @@ class ReservationNotificationService
                 : "Your queue status changed from {$fromStatus} to {$toStatus}.";
         } elseif ($event === 'queue_eta_10m' && is_numeric($item->eta_minutes)) {
             $eventMessage = $isFr
-                ? 'Votre tour est prevu dans environ ' . max(0, (int) $item->eta_minutes) . ' minutes.'
-                : 'Your turn is expected in about ' . max(0, (int) $item->eta_minutes) . ' minutes.';
+                ? 'Votre tour est prevu dans environ '.max(0, (int) $item->eta_minutes).' minutes.'
+                : 'Your turn is expected in about '.max(0, (int) $item->eta_minutes).' minutes.';
         }
 
         $internalUsers = collect([$account, $memberUser])
@@ -271,10 +271,10 @@ class ReservationNotificationService
             ->values();
 
         $userRecipients = collect();
-        if (!empty($config['include_internal'])) {
+        if (! empty($config['include_internal'])) {
             $userRecipients = $userRecipients->merge($internalUsers);
         }
-        if (!empty($config['include_client']) && $clientUser instanceof User) {
+        if (! empty($config['include_client']) && $clientUser instanceof User) {
             $userRecipients->push($clientUser);
         }
         $userRecipients = $userRecipients
@@ -294,7 +294,7 @@ class ReservationNotificationService
                 ? route('client.reservations.index')
                 : route('reservation.index');
 
-            if (!empty($settings['in_app'])) {
+            if (! empty($settings['in_app'])) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ReservationDatabaseNotification([
                     'title' => (string) $config['title'],
                     'message' => $eventMessage,
@@ -315,7 +315,7 @@ class ReservationNotificationService
                 }
             }
 
-            if (!empty($settings['email']) && !empty($recipient->email)) {
+            if (! empty($settings['email']) && ! empty($recipient->email)) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ActionEmailNotification(
                     (string) $config['title'],
                     $eventMessage,
@@ -336,11 +336,11 @@ class ReservationNotificationService
         }
 
         if (
-            !empty($config['include_client'])
-            && !($clientUser instanceof User)
+            ! empty($config['include_client'])
+            && ! ($clientUser instanceof User)
             && $client instanceof Customer
-            && !empty($client->email)
-            && !empty($settings['email'])
+            && ! empty($client->email)
+            && ! empty($settings['email'])
         ) {
             $dispatchOk = NotificationDispatcher::send($client, new ActionEmailNotification(
                 (string) $config['title'],
@@ -360,7 +360,7 @@ class ReservationNotificationService
             }
         }
 
-        if (!empty($settings['sms']) && !empty($config['include_client'])) {
+        if (! empty($settings['sms']) && ! empty($config['include_client'])) {
             $smsMessage = $this->queueSmsMessage(
                 $event,
                 $queueLabel,
@@ -433,12 +433,12 @@ class ReservationNotificationService
 
         foreach ($reservations as $reservation) {
             $account = User::query()->find($reservation->account_id);
-            if (!$account) {
+            if (! $account) {
                 continue;
             }
 
             $settings = $this->preferences->resolveFor($account);
-            if (!$this->isEventEnabled($settings, 'reminder')) {
+            if (! $this->isEventEnabled($settings, 'reminder')) {
                 continue;
             }
 
@@ -453,7 +453,7 @@ class ReservationNotificationService
                     continue;
                 }
 
-                $metaKey = 'reminder_' . ((int) $hours) . 'h_sent_at';
+                $metaKey = 'reminder_'.((int) $hours).'h_sent_at';
                 if ($this->hasNotificationMeta($reservation, $metaKey)) {
                     continue;
                 }
@@ -464,8 +464,8 @@ class ReservationNotificationService
                     null,
                     str_starts_with(LocalePreference::forUser($account), 'fr') ? 'Rappel reservation' : 'Reservation reminder',
                     str_starts_with(LocalePreference::forUser($account), 'fr')
-                        ? 'Rappel : votre reservation commence dans ' . ((int) $hours) . ' heure(s).'
-                        : 'Reminder: your reservation starts in ' . ((int) $hours) . ' hour(s).',
+                        ? 'Rappel : votre reservation commence dans '.((int) $hours).' heure(s).'
+                        : 'Reminder: your reservation starts in '.((int) $hours).' hour(s).',
                     [],
                     includeClient: true,
                     includeInternal: true
@@ -524,12 +524,12 @@ class ReservationNotificationService
         }
 
         $account = User::query()->find($reservation->account_id);
-        if (!$account) {
+        if (! $account) {
             return false;
         }
 
         $settings = $this->preferences->resolveFor($account);
-        if (!$this->isEventEnabled($settings, 'review_request')) {
+        if (! $this->isEventEnabled($settings, 'review_request')) {
             return false;
         }
 
@@ -564,14 +564,15 @@ class ReservationNotificationService
         array $details = [],
         bool $includeClient = true,
         bool $includeInternal = true
-    ): int {
+    ): int
+    {
         $account = User::query()->find($reservation->account_id);
-        if (!$account) {
+        if (! $account) {
             return 0;
         }
 
         $settings = $this->preferences->resolveFor($account);
-        if (!$this->isEventEnabled($settings, $event)) {
+        if (! $this->isEventEnabled($settings, $event)) {
             return 0;
         }
         $isFr = str_starts_with(LocalePreference::forUser($account), 'fr');
@@ -631,7 +632,7 @@ class ReservationNotificationService
                 ? route('client.reservations.index')
                 : route('reservation.index');
 
-            if (!empty($settings['in_app'])) {
+            if (! empty($settings['in_app'])) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ReservationDatabaseNotification([
                     'title' => $title,
                     'message' => $message,
@@ -649,7 +650,7 @@ class ReservationNotificationService
                 }
             }
 
-            if (!empty($settings['email']) && !empty($recipient->email)) {
+            if (! empty($settings['email']) && ! empty($recipient->email)) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ActionEmailNotification(
                     $title,
                     $message,
@@ -669,10 +670,10 @@ class ReservationNotificationService
 
         if (
             $includeClient
-            && !($clientUser instanceof User)
+            && ! ($clientUser instanceof User)
             && $client instanceof Customer
-            && !empty($client->email)
-            && !empty($settings['email'])
+            && ! empty($client->email)
+            && ! empty($settings['email'])
         ) {
             $dispatchOk = NotificationDispatcher::send($client, new ActionEmailNotification(
                 $title,
@@ -729,7 +730,7 @@ class ReservationNotificationService
         $metadata = (array) ($reservation->metadata ?? []);
         $notifications = (array) ($metadata['notifications'] ?? []);
 
-        return !empty($notifications[$key]);
+        return ! empty($notifications[$key]);
     }
 
     private function setNotificationMeta(Reservation $reservation, string $key, string $value): void
@@ -749,7 +750,7 @@ class ReservationNotificationService
         $metadata = (array) ($item->metadata ?? []);
         $notifications = (array) ($metadata['notifications'] ?? []);
 
-        return !empty($notifications[$key]);
+        return ! empty($notifications[$key]);
     }
 
     private function setQueueNotificationMeta(ReservationQueueItem $item, string $key, string $value): void
@@ -768,7 +769,8 @@ class ReservationNotificationService
         ReservationQueueItem $item,
         ?Customer $client,
         ?User $clientUser
-    ): array {
+    ): array
+    {
         $rawCandidates = [
             (string) data_get($item->metadata, 'guest_phone', ''),
             (string) data_get($item->metadata, 'guest_phone_normalized', ''),
@@ -795,11 +797,11 @@ class ReservationNotificationService
         }
 
         if (strlen($digits) === 10) {
-            return '+1' . $digits;
+            return '+1'.$digits;
         }
 
         if (strlen($digits) >= 11) {
-            return '+' . ltrim($digits, '+');
+            return '+'.ltrim($digits, '+');
         }
 
         return null;
@@ -876,10 +878,11 @@ class ReservationNotificationService
         ReservationQueueItem $item,
         ?Customer $client,
         ?User $clientUser
-    ): string {
+    ): string
+    {
         $candidates = [
             (string) data_get($item->metadata, 'guest_name', ''),
-            trim((string) (($client?->first_name ?? '') . ' ' . ($client?->last_name ?? ''))),
+            trim((string) (($client?->first_name ?? '').' '.($client?->last_name ?? ''))),
             (string) ($clientUser?->name ?? ''),
             (string) ($client?->company_name ?? ''),
         ];
@@ -906,21 +909,21 @@ class ReservationNotificationService
                 return $cleaned;
             }
 
-            return mb_substr($cleaned, 0, $maxLength - 3) . '...';
+            return mb_substr($cleaned, 0, $maxLength - 3).'...';
         }
 
         if (strlen($cleaned) <= $maxLength) {
             return $cleaned;
         }
 
-        return substr($cleaned, 0, $maxLength - 3) . '...';
+        return substr($cleaned, 0, $maxLength - 3).'...';
     }
 
     private function clientLabel(Reservation $reservation): string
     {
         return (string) (
             $reservation->client?->company_name
-            ?: trim(($reservation->client?->first_name ?? '') . ' ' . ($reservation->client?->last_name ?? ''))
+            ?: trim(($reservation->client?->first_name ?? '').' '.($reservation->client?->last_name ?? ''))
             ?: ($reservation->clientUser?->name ?? '')
         );
     }

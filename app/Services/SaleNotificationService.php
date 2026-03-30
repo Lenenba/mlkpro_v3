@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Sale;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\OrderStatusNotification;
-use App\Services\NotificationPreferenceService;
 use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 
@@ -14,7 +13,7 @@ class SaleNotificationService
     public function notifyStatusChange(Sale $sale, array $changes = []): void
     {
         $customer = $sale->customer;
-        if (!$customer) {
+        if (! $customer) {
             return;
         }
         $owner = $sale->relationLoaded('user')
@@ -52,21 +51,21 @@ class SaleNotificationService
         if (($changes['status'] ?? null) !== null) {
             $newStatus = $sale->status;
             $intro = $customerIsFr
-                ? 'Votre commande est maintenant ' . ($statusLabels[$newStatus] ?? $newStatus) . '.'
-                : 'Your order is now ' . ($statusLabels[$newStatus] ?? $newStatus) . '.';
+                ? 'Votre commande est maintenant '.($statusLabels[$newStatus] ?? $newStatus).'.'
+                : 'Your order is now '.($statusLabels[$newStatus] ?? $newStatus).'.';
         }
 
         if (($changes['fulfillment_status'] ?? null) !== null) {
             $newFulfillment = $sale->fulfillment_status;
             $intro = $customerIsFr
-                ? 'Livraison: ' . ($fulfillmentLabels[$newFulfillment] ?? $newFulfillment) . '.'
-                : 'Delivery: ' . ($fulfillmentLabels[$newFulfillment] ?? $newFulfillment) . '.';
+                ? 'Livraison: '.($fulfillmentLabels[$newFulfillment] ?? $newFulfillment).'.'
+                : 'Delivery: '.($fulfillmentLabels[$newFulfillment] ?? $newFulfillment).'.';
         }
 
         if (($changes['scheduled_for'] ?? null) !== null && $sale->scheduled_for) {
             $intro = $customerIsFr
-                ? 'Nouvelle estimation: ' . $sale->scheduled_for->toDayDateTimeString() . '.'
-                : 'Updated ETA: ' . $sale->scheduled_for->toDayDateTimeString() . '.';
+                ? 'Nouvelle estimation: '.$sale->scheduled_for->toDayDateTimeString().'.'
+                : 'Updated ETA: '.$sale->scheduled_for->toDayDateTimeString().'.';
         }
 
         $details = [
@@ -124,25 +123,25 @@ class SaleNotificationService
                 $portalMessage = $portalIsFr ? 'Votre commande a ete mise a jour.' : 'Your order was updated.';
                 if (($changes['status'] ?? null) !== null) {
                     $portalMessage = $portalIsFr
-                        ? 'Votre commande est maintenant ' . ($portalStatusLabels[$sale->status] ?? $sale->status) . '.'
-                        : 'Your order is now ' . ($portalStatusLabels[$sale->status] ?? $sale->status) . '.';
+                        ? 'Votre commande est maintenant '.($portalStatusLabels[$sale->status] ?? $sale->status).'.'
+                        : 'Your order is now '.($portalStatusLabels[$sale->status] ?? $sale->status).'.';
                 }
                 if (($changes['fulfillment_status'] ?? null) !== null) {
                     $portalMessage = $portalIsFr
-                        ? 'Livraison: ' . ($portalFulfillmentLabels[$sale->fulfillment_status] ?? $sale->fulfillment_status) . '.'
-                        : 'Delivery: ' . ($portalFulfillmentLabels[$sale->fulfillment_status] ?? $sale->fulfillment_status) . '.';
+                        ? 'Livraison: '.($portalFulfillmentLabels[$sale->fulfillment_status] ?? $sale->fulfillment_status).'.'
+                        : 'Delivery: '.($portalFulfillmentLabels[$sale->fulfillment_status] ?? $sale->fulfillment_status).'.';
                 }
                 if (($changes['scheduled_for'] ?? null) !== null && $sale->scheduled_for) {
                     $portalMessage = $portalIsFr
-                        ? 'Nouvelle estimation: ' . $sale->scheduled_for->toDayDateTimeString() . '.'
-                        : 'Updated ETA: ' . $sale->scheduled_for->toDayDateTimeString() . '.';
+                        ? 'Nouvelle estimation: '.$sale->scheduled_for->toDayDateTimeString().'.'
+                        : 'Updated ETA: '.$sale->scheduled_for->toDayDateTimeString().'.';
                 }
 
                 $portalUser->notify(new OrderStatusNotification($sale, $portalTitle, $portalMessage, $actionUrl));
             }
         }
 
-        if (!$isProductCompany) {
+        if (! $isProductCompany) {
             NotificationDispatcher::send($customer, new ActionEmailNotification(
                 $title,
                 $intro,
@@ -153,7 +152,7 @@ class SaleNotificationService
                 'sale_id' => $sale->id,
             ]);
 
-            if (!empty($customer->phone)) {
+            if (! empty($customer->phone)) {
                 $statusValue = $statusLabels[$sale->status] ?? $sale->status;
                 $smsMessage = $intro ? "{$title}: {$intro}" : "{$title}: {$statusValue}";
                 app(SmsNotificationService::class)->send($customer->phone, $smsMessage);
@@ -180,7 +179,7 @@ class SaleNotificationService
     public function notifyDepositRequested(Sale $sale, float $amount): void
     {
         $customer = $sale->customer;
-        if (!$customer) {
+        if (! $customer) {
             return;
         }
 
@@ -188,7 +187,7 @@ class SaleNotificationService
         $owner = $sale->relationLoaded('user') ? $sale->user : $sale->user()->select(['id', 'locale'])->first();
         $customerLocale = LocalePreference::forCustomer($customer, $owner);
         $customerIsFr = str_starts_with($customerLocale, 'fr');
-        $formatted = '$' . number_format($amount, 2);
+        $formatted = '$'.number_format($amount, 2);
         $title = $customerIsFr ? 'Acompte requis' : 'Deposit required';
         $message = $customerIsFr
             ? "Un acompte de {$formatted} est requis pour commencer la preparation."
@@ -228,11 +227,11 @@ class SaleNotificationService
             }
         }
 
-        if (!empty($customer->email)) {
+        if (! empty($customer->email)) {
             $details = [
                 ['label' => $customerIsFr ? 'Commande' : 'Order', 'value' => $sale->number ?: "Sale #{$sale->id}"],
                 ['label' => $customerIsFr ? 'Acompte requis' : 'Required deposit', 'value' => $formatted],
-                ['label' => 'Total', 'value' => '$' . number_format((float) $sale->total, 2)],
+                ['label' => 'Total', 'value' => '$'.number_format((float) $sale->total, 2)],
             ];
             NotificationDispatcher::send($customer, new ActionEmailNotification(
                 $title,
@@ -249,7 +248,7 @@ class SaleNotificationService
     public function notifyDepositReminder(Sale $sale, float $amount): void
     {
         $customer = $sale->customer;
-        if (!$customer) {
+        if (! $customer) {
             return;
         }
 
@@ -257,7 +256,7 @@ class SaleNotificationService
         $owner = $sale->relationLoaded('user') ? $sale->user : $sale->user()->select(['id', 'locale'])->first();
         $customerLocale = LocalePreference::forCustomer($customer, $owner);
         $customerIsFr = str_starts_with($customerLocale, 'fr');
-        $formatted = '$' . number_format($amount, 2);
+        $formatted = '$'.number_format($amount, 2);
         $title = $customerIsFr ? 'Rappel acompte' : 'Deposit reminder';
         $message = $customerIsFr
             ? "Rappel: un acompte de {$formatted} est requis pour commencer la preparation."
@@ -297,11 +296,11 @@ class SaleNotificationService
             }
         }
 
-        if (!empty($customer->email)) {
+        if (! empty($customer->email)) {
             $details = [
                 ['label' => $customerIsFr ? 'Commande' : 'Order', 'value' => $sale->number ?: "Sale #{$sale->id}"],
                 ['label' => $customerIsFr ? 'Acompte requis' : 'Required deposit', 'value' => $formatted],
-                ['label' => 'Total', 'value' => '$' . number_format((float) $sale->total, 2)],
+                ['label' => 'Total', 'value' => '$'.number_format((float) $sale->total, 2)],
             ];
             NotificationDispatcher::send($customer, new ActionEmailNotification(
                 $title,

@@ -17,8 +17,7 @@ class InvoicePaymentNotification extends Notification
         public Invoice $invoice,
         public Payment $payment,
         public string $audience = 'owner'
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {
@@ -32,7 +31,7 @@ class InvoicePaymentNotification extends Notification
             : $this->invoice->user()->select(['id', 'locale'])->first();
         $locale = LocalePreference::forNotifiable($notifiable, $owner);
         $isFr = str_starts_with($locale, 'fr');
-        $amount = '$' . number_format((float) $this->payment->amount, 2);
+        $amount = '$'.number_format((float) $this->payment->amount, 2);
         $number = $this->invoice->number ?? $this->invoice->id;
 
         if ($this->audience === 'client') {

@@ -4,7 +4,7 @@ namespace App\Models;
 
 use App\Support\LocalePreference;
 use App\Traits\GeneratesSequentialNumber;
-use Illuminate\Contracts\Translation\HasLocalePreference;
+use Illuminate\Contracts\Translation\HasLocalePreference as HasLocalePreferenceContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 
-class Customer extends Model implements HasLocalePreference
+class Customer extends Model implements HasLocalePreferenceContract
 {
     use GeneratesSequentialNumber, HasFactory, Notifiable;
 

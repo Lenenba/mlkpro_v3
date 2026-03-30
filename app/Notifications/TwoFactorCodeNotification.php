@@ -4,17 +4,15 @@ namespace App\Notifications;
 
 use App\Support\LocalePreference;
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\Notification;
 use Illuminate\Support\Carbon;
 
 class TwoFactorCodeNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(private readonly string $code, private readonly ?Carbon $expiresAt)
-    {
-    }
+    public function __construct(private readonly string $code, private readonly ?Carbon $expiresAt) {}
 
     public function via(object $notifiable): array
     {

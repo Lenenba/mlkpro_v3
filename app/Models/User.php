@@ -7,18 +7,18 @@ use App\Enums\CurrencyCode;
 use App\Notifications\ResetPasswordLinkNotification;
 use App\Services\CompanyFeatureService;
 use App\Support\LocalePreference;
+use Illuminate\Contracts\Translation\HasLocalePreference as HasLocalePreferenceContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Paddle\Billable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable implements HasLocalePreference
+class User extends Authenticatable implements HasLocalePreferenceContract
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use Billable, HasApiTokens, HasFactory, Notifiable;
