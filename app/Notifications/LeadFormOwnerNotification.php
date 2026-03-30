@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Services\NotificationPreferenceService;
+use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -41,8 +42,10 @@ class LeadFormOwnerNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $title = $this->title();
         $owner = $this->lead->user;
+        $locale = LocalePreference::forNotifiable($notifiable, $owner);
+        $isFr = str_starts_with($locale, 'fr');
+        $title = $this->title($isFr);
         $companyName = $owner?->company_name ?: config('app.name');
         $companyLogo = $owner?->company_logo_url;
 
@@ -50,11 +53,11 @@ class LeadFormOwnerNotification extends Notification implements ShouldQueue
             ->subject($title)
             ->view('emails.notifications.action', [
                 'title' => $title,
-                'intro' => $this->message(),
-                'details' => $this->details(),
+                'intro' => $this->message($isFr),
+                'details' => $this->details($isFr),
                 'actionUrl' => $this->actionUrl(),
-                'actionLabel' => 'Open lead',
-                'note' => $this->note(),
+                'actionLabel' => $isFr ? 'Ouvrir le lead' : 'Open lead',
+                'note' => $this->note($isFr),
                 'companyName' => $companyName,
                 'companyLogo' => $companyLogo,
             ]);
@@ -62,9 +65,13 @@ class LeadFormOwnerNotification extends Notification implements ShouldQueue
 
     public function toArray(object $notifiable): array
     {
+        $owner = $this->lead->user;
+        $locale = LocalePreference::forNotifiable($notifiable, $owner);
+        $isFr = str_starts_with($locale, 'fr');
+
         return [
-            'title' => $this->title(),
-            'message' => $this->message(),
+            'title' => $this->title($isFr),
+            'message' => $this->message($isFr),
             'action_url' => $this->actionUrl(),
             'category' => NotificationPreferenceService::CATEGORY_CRM,
             'event' => $this->event,
@@ -73,63 +80,73 @@ class LeadFormOwnerNotification extends Notification implements ShouldQueue
         ];
     }
 
-    private function title(): string
+    private function title(bool $isFr = false): string
     {
         if ($this->event === 'lead_call_requested') {
-            return 'New call request from lead form';
+            return $isFr ? 'Nouvelle demande d appel depuis le formulaire lead' : 'New call request from lead form';
         }
 
         if ($this->event === 'lead_email_failed') {
-            return 'Quote email failed';
+            return $isFr ? 'Echec de l envoi du devis' : 'Quote email failed';
         }
 
-        return 'New quote created from lead form';
+        return $isFr ? 'Nouveau devis cree depuis le formulaire lead' : 'New quote created from lead form';
     }
 
-    private function message(): string
+    private function message(bool $isFr = false): string
     {
         $leadLabel = $this->leadLabel();
         if ($this->event === 'lead_call_requested') {
-            return "Lead {$leadLabel} requested a call and needs qualification.";
+            return $isFr
+                ? "Le lead {$leadLabel} a demande un appel et doit etre qualifie."
+                : "Lead {$leadLabel} requested a call and needs qualification.";
         }
 
         if ($this->event === 'lead_email_failed') {
             $quoteLabel = $this->quoteLabel();
 
-            return "Quote {$quoteLabel} was created for {$leadLabel}, but customer email delivery failed.";
+            return $isFr
+                ? "Le devis {$quoteLabel} a ete cree pour {$leadLabel}, mais l envoi email au client a echoue."
+                : "Quote {$quoteLabel} was created for {$leadLabel}, but customer email delivery failed.";
         }
 
         $quoteLabel = $this->quoteLabel();
 
-        return "Lead {$leadLabel} generated quote {$quoteLabel}.";
+        return $isFr
+            ? "Le lead {$leadLabel} a genere le devis {$quoteLabel}."
+            : "Lead {$leadLabel} generated quote {$quoteLabel}.";
     }
 
-    private function details(): array
+    private function details(bool $isFr = false): array
     {
         $details = [
             ['label' => 'Lead', 'value' => $this->leadLabel()],
-            ['label' => 'Contact', 'value' => $this->lead->contact_name ?: '-'],
+            ['label' => $isFr ? 'Contact' : 'Contact', 'value' => $this->lead->contact_name ?: '-'],
             ['label' => 'Email', 'value' => $this->lead->contact_email ?: '-'],
-            ['label' => 'Phone', 'value' => $this->lead->contact_phone ?: '-'],
-            ['label' => 'Status', 'value' => $this->lead->status ?: '-'],
+            ['label' => $isFr ? 'Telephone' : 'Phone', 'value' => $this->lead->contact_phone ?: '-'],
+            ['label' => $isFr ? 'Statut' : 'Status', 'value' => $this->lead->status ?: '-'],
         ];
 
         if ($this->quote) {
-            $details[] = ['label' => 'Quote', 'value' => $this->quoteLabel()];
-            $details[] = ['label' => 'Total', 'value' => '$'.number_format((float) ($this->quote->total ?? 0), 2)];
+            $details[] = ['label' => $isFr ? 'Devis' : 'Quote', 'value' => $this->quoteLabel()];
+            $details[] = ['label' => $isFr ? 'Total' : 'Total', 'value' => '$'.number_format((float) ($this->quote->total ?? 0), 2)];
         }
 
         return $details;
     }
 
-    private function note(): ?string
+    private function note(bool $isFr = false): ?string
     {
         if ($this->event === 'lead_email_failed') {
-            return 'The quote remains created. Retry email delivery from the quote screen.';
+            return $isFr
+                ? 'Le devis reste cree. Relancez l envoi email depuis l ecran du devis.'
+                : 'The quote remains created. Retry email delivery from the quote screen.';
         }
 
         if ($this->event === 'lead_call_requested') {
-            return 'A follow-up task has been created to qualify the lead and schedule a call.';
+            return $isFr
+                ? 'Une tache de suivi a ete creee pour qualifier le lead et planifier un appel.'
+                : 'A follow-up task has been created to qualify the lead and schedule a call.';
         }
 
         return null;

@@ -1,41 +1,83 @@
 @extends('emails.layouts.base')
 
-@section('title', $title ?? 'Notification')
+@section('title', $title ?? __('mail.action.default_title'))
+@section('preheader', $intro ?? $title ?? __('mail.action.default_preheader'))
 
 @section('content')
+    @php
+        $normalizedDetails = collect($details ?? [])
+            ->map(function ($detail, $key) {
+                if (is_array($detail) && array_key_exists('label', $detail)) {
+                    return [
+                        'label' => $detail['label'] ?? __('mail.common.detail'),
+                        'value' => $detail['value'] ?? '-',
+                    ];
+                }
+
+                return [
+                    'label' => is_string($key) && $key !== '' ? $key : __('mail.common.detail'),
+                    'value' => is_scalar($detail) || $detail === null ? ($detail ?? '-') : json_encode($detail),
+                ];
+            })
+            ->values()
+            ->all();
+        $heroRows = [];
+        foreach (array_slice($normalizedDetails, 0, 3) as $detail) {
+            if (! filled($detail['value'] ?? null)) {
+                continue;
+            }
+
+            $heroRows[] = [
+                'label' => $detail['label'] ?? __('mail.common.detail'),
+                'value' => $detail['value'],
+            ];
+        }
+
+        if (empty($heroRows)) {
+            $heroRows[] = [
+                'label' => __('mail.action.platform_row'),
+                'value' => $companyName ?? config('app.name'),
+            ];
+        }
+    @endphp
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr>
-            <td style="padding-bottom:16px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:6px;">
-                    <tr>
-                        <td style="padding:16px;">
-                            <div style="font-size:18px; font-weight:700; color:#0f172a;">
-                                {{ $title ?? 'Notification' }}
-                            </div>
-                            @if (!empty($intro))
-                                <div style="margin-top:6px; font-size:13px; color:#475569; line-height:1.5;">
-                                    {{ $intro }}
-                                </div>
-                            @endif
-                        </td>
-                    </tr>
-                </table>
+            <td style="padding-bottom:12px;">
+                @include('emails.partials.structured-hero', [
+                    'heroEyebrow' => __('mail.action.eyebrow'),
+                    'heroTitle' => $title ?? __('mail.action.default_title'),
+                    'heroIntro' => $intro ?? __('mail.action.default_intro'),
+                    'heroActionUrl' => $actionUrl ?? null,
+                    'heroActionLabel' => $actionLabel ?? null,
+                    'heroCaption' => __('mail.action.caption'),
+                    'heroSideTitle' => __('mail.action.side_title'),
+                    'heroSideLogo' => $companyLogo ?? null,
+                    'heroSideRows' => $heroRows,
+                    'heroMetrics' => [
+                        ['value' => (string) count($normalizedDetails), 'label' => __('mail.action.detail_metric')],
+                        ['value' => !empty($actionUrl) ? '1' : '0', 'label' => __('mail.action.cta_metric')],
+                        ['value' => __('mail.action.live_value'), 'label' => __('mail.action.update_metric')],
+                    ],
+                ])
             </td>
         </tr>
 
-        @if (!empty($details))
+        @if (!empty($normalizedDetails))
             <tr>
-                <td style="padding-bottom:16px;">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border:1px solid #e2e8f0; border-radius:6px;">
+                <td style="padding-bottom:12px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border:1px solid #e7e5e4; border-radius:3px;">
                         <tr>
-                            <td style="padding:12px;">
-                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-                                    @foreach ($details as $detail)
-                                        <tr style="border-top:1px solid #e2e8f0;">
-                                            <td style="padding:8px; font-size:12px; color:#64748b;">
-                                                {{ $detail['label'] ?? 'Detail' }}
+                            <td style="padding:16px;">
+                                <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#78716c;">
+                                    {{ __('mail.action.summary_heading') }}
+                                </div>
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px; border-collapse:collapse;">
+                                    @foreach ($normalizedDetails as $detail)
+                                        <tr>
+                                            <td style="padding:10px 0; border-top:{{ $loop->first ? '0' : '1px solid #e7e5e4' }}; font-size:12px; color:#78716c;">
+                                                {{ $detail['label'] ?? __('mail.common.detail') }}
                                             </td>
-                                            <td align="right" style="padding:8px; font-size:12px; color:#0f172a; font-weight:600;">
+                                            <td align="right" style="padding:10px 0; border-top:{{ $loop->first ? '0' : '1px solid #e7e5e4' }}; font-size:13px; font-weight:600; color:#292524;">
                                                 {{ $detail['value'] ?? '-' }}
                                             </td>
                                         </tr>
@@ -50,20 +92,26 @@
 
         @if (!empty($note))
             <tr>
-                <td style="padding-bottom:16px; font-size:12px; color:#64748b;">
-                    {{ $note }}
+                <td style="padding-bottom:12px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f4; border:1px solid #e7e5e4; border-radius:3px;">
+                        <tr>
+                            <td style="padding:14px 16px; font-size:13px; color:#57534e; line-height:1.7;">
+                                {{ $note }}
+                            </td>
+                        </tr>
+                    </table>
                 </td>
             </tr>
         @endif
 
         @if (!empty($actionUrl))
             <tr>
-                <td>
+                <td align="left">
                     <table role="presentation" cellpadding="0" cellspacing="0">
                         <tr>
-                            <td bgcolor="#16a34a" style="border-radius:6px;">
+                            <td bgcolor="#16a34a" style="border-radius:3px;">
                                 <a href="{{ $actionUrl }}" style="display:inline-block; padding:10px 16px; font-size:14px; font-weight:600; color:#ffffff; text-decoration:none;">
-                                    {{ $actionLabel ?? 'Open' }}
+                                    {{ $actionLabel ?? __('mail.action.open_cta') }}
                                 </a>
                             </td>
                         </tr>

@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -48,13 +49,14 @@ class SendQuoteNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $companyUser = $this->quote?->customer?->user;
+        $locale = LocalePreference::forNotifiable($notifiable, $companyUser);
         $companyName = $companyUser?->company_name ?: config('app.name');
         $companyLogo = $companyUser?->company_logo_url;
         $customer = $this->quote?->customer;
         $usePublicLink = ! (bool) ($customer?->portal_access ?? true) || ! $customer?->portal_user_id;
         $actionUrl = route('dashboard');
-        $actionLabel = 'Open dashboard';
-        $actionMessage = 'Log in to your portal to review and validate the quote.';
+        $actionLabel = LocalePreference::trans('mail.quote.action_open_dashboard', locale: $locale);
+        $actionMessage = LocalePreference::trans('mail.quote.action_message_dashboard', locale: $locale);
         if ($usePublicLink) {
             $expiresAt = now()->addDays(7);
             $actionUrl = URL::temporarySignedRoute(
@@ -62,12 +64,12 @@ class SendQuoteNotification extends Notification implements ShouldQueue
                 $expiresAt,
                 ['quote' => $this->quote->id]
             );
-            $actionLabel = 'Review quote';
-            $actionMessage = 'Use the secure link below to review and validate the quote.';
+            $actionLabel = LocalePreference::trans('mail.quote.action_review_quote', locale: $locale);
+            $actionMessage = LocalePreference::trans('mail.quote.action_message_public', locale: $locale);
         }
 
         return (new MailMessage)
-            ->subject('Your Quote from '.$companyName)
+            ->subject(LocalePreference::trans('mail.quote.subject', ['company' => $companyName], $locale))
             ->view('emails.quotes.send', [
                 'quote' => $this->quote,
                 'companyName' => $companyName,

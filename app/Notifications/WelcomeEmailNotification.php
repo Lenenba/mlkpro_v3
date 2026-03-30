@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -33,6 +34,7 @@ class WelcomeEmailNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
+        $locale = LocalePreference::forNotifiable($notifiable, $this->accountOwner);
         $companyName = $this->accountOwner->company_name ?: config('app.name');
         $companyLogo = $this->accountOwner->company_logo_url;
         $userName = $this->accountOwner->name ?: $companyName;
@@ -41,27 +43,19 @@ class WelcomeEmailNotification extends Notification implements ShouldQueue
         $actionUrl = url('/dashboard');
 
         $quickSteps = $companyType === 'products'
-            ? [
-                'Ajoutez vos produits et categories',
-                'Mettez a jour vos stocks',
-                'Creez vos premiers devis',
-                'Suivez vos ventes et factures',
-            ]
-            : [
-                'Ajoutez vos services et categories',
-                'Creez vos premiers devis',
-                'Planifiez vos jobs et taches',
-                'Suivez vos factures et paiements',
-            ];
+            ? (str_starts_with($locale, 'fr')
+                ? ['Ajoutez vos produits et categories', 'Mettez a jour vos stocks', 'Creez vos premiers devis', 'Suivez vos ventes et factures']
+                : ['Add your products and categories', 'Update your stock', 'Create your first quotes', 'Track your sales and invoices'])
+            : (str_starts_with($locale, 'fr')
+                ? ['Ajoutez vos services et categories', 'Creez vos premiers devis', 'Planifiez vos jobs et taches', 'Suivez vos factures et paiements']
+                : ['Add your services and categories', 'Create your first quotes', 'Schedule your jobs and tasks', 'Track invoices and payments']);
 
-        $highlights = [
-            'Devis pro en quelques minutes',
-            'Suivi clients, jobs, taches et factures',
-            'Espace client clair et rapide',
-        ];
+        $highlights = str_starts_with($locale, 'fr')
+            ? ['Devis pro en quelques minutes', 'Suivi clients, jobs, taches et factures', 'Espace client clair et rapide']
+            : ['Professional quotes in minutes', 'Customer, job, task, and invoice tracking', 'A clear, fast client portal'];
 
         return (new MailMessage)
-            ->subject('Bienvenue '.$companyName)
+            ->subject(LocalePreference::trans('mail.welcome.subject', ['company' => $companyName], $locale))
             ->view('emails.onboarding.welcome', [
                 'companyName' => $companyName,
                 'companyLogo' => $companyLogo,

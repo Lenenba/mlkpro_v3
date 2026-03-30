@@ -6,6 +6,7 @@ use App\Models\Sale;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\OrderStatusNotification;
 use App\Services\NotificationPreferenceService;
+use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 
 class SaleNotificationService
@@ -18,71 +19,127 @@ class SaleNotificationService
         }
         $owner = $sale->relationLoaded('user')
             ? $sale->user
-            : $sale->user()->select(['id', 'company_type'])->first();
+            : $sale->user()->select(['id', 'company_type', 'locale'])->first();
         $isProductCompany = $owner?->company_type === 'products';
+        $customerLocale = LocalePreference::forCustomer($customer, $owner);
+        $customerIsFr = str_starts_with($customerLocale, 'fr');
 
-        $statusLabels = [
-            'draft' => 'Brouillon',
-            'pending' => 'En attente',
-            'paid' => 'Payee',
-            'canceled' => 'Annulee',
-        ];
+        $statusLabels = $customerIsFr
+            ? ['draft' => 'Brouillon', 'pending' => 'En attente', 'paid' => 'Payee', 'canceled' => 'Annulee']
+            : ['draft' => 'Draft', 'pending' => 'Pending', 'paid' => 'Paid', 'canceled' => 'Canceled'];
 
-        $fulfillmentLabels = [
-            'pending' => 'Commande recue',
-            'preparing' => 'Preparation',
-            'out_for_delivery' => 'En cours de livraison',
-            'ready_for_pickup' => 'Pret a retirer',
-            'completed' => 'Livree',
-            'confirmed' => 'Confirmee',
-        ];
+        $fulfillmentLabels = $customerIsFr
+            ? [
+                'pending' => 'Commande recue',
+                'preparing' => 'Preparation',
+                'out_for_delivery' => 'En cours de livraison',
+                'ready_for_pickup' => 'Pret a retirer',
+                'completed' => 'Livree',
+                'confirmed' => 'Confirmee',
+            ]
+            : [
+                'pending' => 'Order received',
+                'preparing' => 'Preparing',
+                'out_for_delivery' => 'Out for delivery',
+                'ready_for_pickup' => 'Ready for pickup',
+                'completed' => 'Delivered',
+                'confirmed' => 'Confirmed',
+            ];
 
-        $title = 'Mise a jour de commande';
+        $title = $customerIsFr ? 'Mise a jour de commande' : 'Order update';
         $intro = null;
 
         if (($changes['status'] ?? null) !== null) {
             $newStatus = $sale->status;
-            $intro = 'Votre commande est maintenant ' . ($statusLabels[$newStatus] ?? $newStatus) . '.';
+            $intro = $customerIsFr
+                ? 'Votre commande est maintenant ' . ($statusLabels[$newStatus] ?? $newStatus) . '.'
+                : 'Your order is now ' . ($statusLabels[$newStatus] ?? $newStatus) . '.';
         }
 
         if (($changes['fulfillment_status'] ?? null) !== null) {
             $newFulfillment = $sale->fulfillment_status;
-            $intro = 'Livraison: ' . ($fulfillmentLabels[$newFulfillment] ?? $newFulfillment) . '.';
+            $intro = $customerIsFr
+                ? 'Livraison: ' . ($fulfillmentLabels[$newFulfillment] ?? $newFulfillment) . '.'
+                : 'Delivery: ' . ($fulfillmentLabels[$newFulfillment] ?? $newFulfillment) . '.';
         }
 
         if (($changes['scheduled_for'] ?? null) !== null && $sale->scheduled_for) {
-            $intro = 'Nouvelle estimation: ' . $sale->scheduled_for->toDayDateTimeString() . '.';
+            $intro = $customerIsFr
+                ? 'Nouvelle estimation: ' . $sale->scheduled_for->toDayDateTimeString() . '.'
+                : 'Updated ETA: ' . $sale->scheduled_for->toDayDateTimeString() . '.';
         }
 
         $details = [
-            'Commande' => $sale->number ?: "Sale #{$sale->id}",
-            'Statut' => $statusLabels[$sale->status] ?? $sale->status,
+            ['label' => $customerIsFr ? 'Commande' : 'Order', 'value' => $sale->number ?: "Sale #{$sale->id}"],
+            ['label' => $customerIsFr ? 'Statut' : 'Status', 'value' => $statusLabels[$sale->status] ?? $sale->status],
         ];
 
         if ($sale->fulfillment_status) {
-            $details['Livraison'] = $fulfillmentLabels[$sale->fulfillment_status] ?? $sale->fulfillment_status;
+            $details[] = ['label' => $customerIsFr ? 'Livraison' : 'Delivery', 'value' => $fulfillmentLabels[$sale->fulfillment_status] ?? $sale->fulfillment_status];
         }
 
         if ($sale->scheduled_for) {
-            $details['ETA'] = $sale->scheduled_for->toDayDateTimeString();
+            $details[] = ['label' => 'ETA', 'value' => $sale->scheduled_for->toDayDateTimeString()];
         }
 
         $actionUrl = route('portal.orders.show', $sale);
 
-        $message = $intro ?? 'Votre commande a ete mise a jour.';
+        $message = $intro ?? ($customerIsFr ? 'Votre commande a ete mise a jour.' : 'Your order was updated.');
         $preferences = app(NotificationPreferenceService::class);
         $portalUser = null;
+        $portalTitle = $title;
+        $portalMessage = $message;
         if ($customer->portal_user_id) {
             $portalUser = $customer->relationLoaded('portalUser')
                 ? $customer->portalUser
                 : $customer->portalUser()->first();
-        if ($portalUser && $preferences->shouldNotify(
-            $portalUser,
-            NotificationPreferenceService::CATEGORY_ORDERS,
-            NotificationPreferenceService::CHANNEL_IN_APP
-        )) {
-            $portalUser->notify(new OrderStatusNotification($sale, $title, $message, $actionUrl));
-        }
+            if ($portalUser && $preferences->shouldNotify(
+                $portalUser,
+                NotificationPreferenceService::CATEGORY_ORDERS,
+                NotificationPreferenceService::CHANNEL_IN_APP
+            )) {
+                $portalLocale = LocalePreference::forUser($portalUser);
+                $portalIsFr = str_starts_with($portalLocale, 'fr');
+                $portalStatusLabels = $portalIsFr
+                    ? ['draft' => 'Brouillon', 'pending' => 'En attente', 'paid' => 'Payee', 'canceled' => 'Annulee']
+                    : ['draft' => 'Draft', 'pending' => 'Pending', 'paid' => 'Paid', 'canceled' => 'Canceled'];
+                $portalFulfillmentLabels = $portalIsFr
+                    ? [
+                        'pending' => 'Commande recue',
+                        'preparing' => 'Preparation',
+                        'out_for_delivery' => 'En cours de livraison',
+                        'ready_for_pickup' => 'Pret a retirer',
+                        'completed' => 'Livree',
+                        'confirmed' => 'Confirmee',
+                    ]
+                    : [
+                        'pending' => 'Order received',
+                        'preparing' => 'Preparing',
+                        'out_for_delivery' => 'Out for delivery',
+                        'ready_for_pickup' => 'Ready for pickup',
+                        'completed' => 'Delivered',
+                        'confirmed' => 'Confirmed',
+                    ];
+                $portalTitle = $portalIsFr ? 'Mise a jour de commande' : 'Order update';
+                $portalMessage = $portalIsFr ? 'Votre commande a ete mise a jour.' : 'Your order was updated.';
+                if (($changes['status'] ?? null) !== null) {
+                    $portalMessage = $portalIsFr
+                        ? 'Votre commande est maintenant ' . ($portalStatusLabels[$sale->status] ?? $sale->status) . '.'
+                        : 'Your order is now ' . ($portalStatusLabels[$sale->status] ?? $sale->status) . '.';
+                }
+                if (($changes['fulfillment_status'] ?? null) !== null) {
+                    $portalMessage = $portalIsFr
+                        ? 'Livraison: ' . ($portalFulfillmentLabels[$sale->fulfillment_status] ?? $sale->fulfillment_status) . '.'
+                        : 'Delivery: ' . ($portalFulfillmentLabels[$sale->fulfillment_status] ?? $sale->fulfillment_status) . '.';
+                }
+                if (($changes['scheduled_for'] ?? null) !== null && $sale->scheduled_for) {
+                    $portalMessage = $portalIsFr
+                        ? 'Nouvelle estimation: ' . $sale->scheduled_for->toDayDateTimeString() . '.'
+                        : 'Updated ETA: ' . $sale->scheduled_for->toDayDateTimeString() . '.';
+                }
+
+                $portalUser->notify(new OrderStatusNotification($sale, $portalTitle, $portalMessage, $actionUrl));
+            }
         }
 
         if (!$isProductCompany) {
@@ -91,13 +148,14 @@ class SaleNotificationService
                 $intro,
                 $details,
                 $actionUrl,
-                'Voir la commande'
+                $customerIsFr ? 'Voir la commande' : 'View order'
             ), [
                 'sale_id' => $sale->id,
             ]);
 
             if (!empty($customer->phone)) {
-                $smsMessage = $intro ? "{$title}: {$intro}" : "{$title}: {$details['Statut']}";
+                $statusValue = $statusLabels[$sale->status] ?? $sale->status;
+                $smsMessage = $intro ? "{$title}: {$intro}" : "{$title}: {$statusValue}";
                 app(SmsNotificationService::class)->send($customer->phone, $smsMessage);
             }
         }
@@ -108,8 +166,8 @@ class SaleNotificationService
             NotificationPreferenceService::CHANNEL_PUSH
         )) {
             app(PushNotificationService::class)->sendToUsers([$portalUser->id], [
-                'title' => $title,
-                'body' => $message,
+                'title' => $portalTitle,
+                'body' => $portalMessage,
                 'data' => [
                     'sale_id' => $sale->id,
                     'status' => $sale->status,
@@ -127,52 +185,61 @@ class SaleNotificationService
         }
 
         $portalUser = $customer->portalUser;
-        if (!$portalUser) {
-            return;
-        }
-
+        $owner = $sale->relationLoaded('user') ? $sale->user : $sale->user()->select(['id', 'locale'])->first();
+        $customerLocale = LocalePreference::forCustomer($customer, $owner);
+        $customerIsFr = str_starts_with($customerLocale, 'fr');
         $formatted = '$' . number_format($amount, 2);
-        $title = 'Acompte requis';
-        $message = "Un acompte de {$formatted} est requis pour commencer la preparation.";
+        $title = $customerIsFr ? 'Acompte requis' : 'Deposit required';
+        $message = $customerIsFr
+            ? "Un acompte de {$formatted} est requis pour commencer la preparation."
+            : "A deposit of {$formatted} is required to start preparation.";
         $actionUrl = route('portal.orders.show', $sale);
 
         $preferences = app(NotificationPreferenceService::class);
-        if ($preferences->shouldNotify(
-            $portalUser,
-            NotificationPreferenceService::CATEGORY_ORDERS,
-            NotificationPreferenceService::CHANNEL_IN_APP
-        )) {
-            $portalUser->notify(new OrderStatusNotification($sale, $title, $message, $actionUrl));
-        }
+        if ($portalUser) {
+            $portalLocale = LocalePreference::forUser($portalUser);
+            $portalIsFr = str_starts_with($portalLocale, 'fr');
+            $portalTitle = $portalIsFr ? 'Acompte requis' : 'Deposit required';
+            $portalMessage = $portalIsFr
+                ? "Un acompte de {$formatted} est requis pour commencer la preparation."
+                : "A deposit of {$formatted} is required to start preparation.";
+            if ($preferences->shouldNotify(
+                $portalUser,
+                NotificationPreferenceService::CATEGORY_ORDERS,
+                NotificationPreferenceService::CHANNEL_IN_APP
+            )) {
+                $portalUser->notify(new OrderStatusNotification($sale, $portalTitle, $portalMessage, $actionUrl));
+            }
 
-        if ($preferences->shouldNotify(
-            $portalUser,
-            NotificationPreferenceService::CATEGORY_ORDERS,
-            NotificationPreferenceService::CHANNEL_PUSH
-        )) {
-            app(PushNotificationService::class)->sendToUsers([$portalUser->id], [
-                'title' => $title,
-                'body' => $message,
-                'data' => [
-                    'sale_id' => $sale->id,
-                    'status' => $sale->status,
-                    'fulfillment_status' => $sale->fulfillment_status,
-                ],
-            ]);
+            if ($preferences->shouldNotify(
+                $portalUser,
+                NotificationPreferenceService::CATEGORY_ORDERS,
+                NotificationPreferenceService::CHANNEL_PUSH
+            )) {
+                app(PushNotificationService::class)->sendToUsers([$portalUser->id], [
+                    'title' => $portalTitle,
+                    'body' => $portalMessage,
+                    'data' => [
+                        'sale_id' => $sale->id,
+                        'status' => $sale->status,
+                        'fulfillment_status' => $sale->fulfillment_status,
+                    ],
+                ]);
+            }
         }
 
         if (!empty($customer->email)) {
             $details = [
-                'Commande' => $sale->number ?: "Sale #{$sale->id}",
-                'Acompte requis' => $formatted,
-                'Total' => '$' . number_format((float) $sale->total, 2),
+                ['label' => $customerIsFr ? 'Commande' : 'Order', 'value' => $sale->number ?: "Sale #{$sale->id}"],
+                ['label' => $customerIsFr ? 'Acompte requis' : 'Required deposit', 'value' => $formatted],
+                ['label' => 'Total', 'value' => '$' . number_format((float) $sale->total, 2)],
             ];
             NotificationDispatcher::send($customer, new ActionEmailNotification(
                 $title,
                 $message,
                 $details,
                 $actionUrl,
-                'Payer maintenant'
+                $customerIsFr ? 'Payer maintenant' : 'Pay now'
             ), [
                 'sale_id' => $sale->id,
             ]);
@@ -187,19 +254,30 @@ class SaleNotificationService
         }
 
         $portalUser = $customer->portalUser;
+        $owner = $sale->relationLoaded('user') ? $sale->user : $sale->user()->select(['id', 'locale'])->first();
+        $customerLocale = LocalePreference::forCustomer($customer, $owner);
+        $customerIsFr = str_starts_with($customerLocale, 'fr');
         $formatted = '$' . number_format($amount, 2);
-        $title = 'Rappel acompte';
-        $message = "Rappel: un acompte de {$formatted} est requis pour commencer la preparation.";
+        $title = $customerIsFr ? 'Rappel acompte' : 'Deposit reminder';
+        $message = $customerIsFr
+            ? "Rappel: un acompte de {$formatted} est requis pour commencer la preparation."
+            : "Reminder: a deposit of {$formatted} is required to start preparation.";
         $actionUrl = route('portal.orders.show', $sale);
 
         if ($portalUser) {
             $preferences = app(NotificationPreferenceService::class);
+            $portalLocale = LocalePreference::forUser($portalUser);
+            $portalIsFr = str_starts_with($portalLocale, 'fr');
+            $portalTitle = $portalIsFr ? 'Rappel acompte' : 'Deposit reminder';
+            $portalMessage = $portalIsFr
+                ? "Rappel: un acompte de {$formatted} est requis pour commencer la preparation."
+                : "Reminder: a deposit of {$formatted} is required to start preparation.";
             if ($preferences->shouldNotify(
                 $portalUser,
                 NotificationPreferenceService::CATEGORY_ORDERS,
                 NotificationPreferenceService::CHANNEL_IN_APP
             )) {
-                $portalUser->notify(new OrderStatusNotification($sale, $title, $message, $actionUrl));
+                $portalUser->notify(new OrderStatusNotification($sale, $portalTitle, $portalMessage, $actionUrl));
             }
 
             if ($preferences->shouldNotify(
@@ -208,8 +286,8 @@ class SaleNotificationService
                 NotificationPreferenceService::CHANNEL_PUSH
             )) {
                 app(PushNotificationService::class)->sendToUsers([$portalUser->id], [
-                    'title' => $title,
-                    'body' => $message,
+                    'title' => $portalTitle,
+                    'body' => $portalMessage,
                     'data' => [
                         'sale_id' => $sale->id,
                         'status' => $sale->status,
@@ -221,16 +299,16 @@ class SaleNotificationService
 
         if (!empty($customer->email)) {
             $details = [
-                'Commande' => $sale->number ?: "Sale #{$sale->id}",
-                'Acompte requis' => $formatted,
-                'Total' => '$' . number_format((float) $sale->total, 2),
+                ['label' => $customerIsFr ? 'Commande' : 'Order', 'value' => $sale->number ?: "Sale #{$sale->id}"],
+                ['label' => $customerIsFr ? 'Acompte requis' : 'Required deposit', 'value' => $formatted],
+                ['label' => 'Total', 'value' => '$' . number_format((float) $sale->total, 2)],
             ];
             NotificationDispatcher::send($customer, new ActionEmailNotification(
                 $title,
                 $message,
                 $details,
                 $actionUrl,
-                'Payer maintenant'
+                $customerIsFr ? 'Payer maintenant' : 'Pay now'
             ), [
                 'sale_id' => $sale->id,
             ]);

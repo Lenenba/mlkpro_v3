@@ -8,6 +8,7 @@ use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Services\TaskBillingService;
 use App\Services\WorkBillingService;
+use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
@@ -60,29 +61,31 @@ class UpdateWorkStatusAction
             if ($customer && $customer->email) {
                 $customerLabel = $customer->company_name
                     ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
+                $locale = LocalePreference::forCustomer($customer, $actor);
+                $isFr = str_starts_with($locale, 'fr');
                 $usePublicLink = ! (bool) ($customer->portal_access ?? true) || ! $customer->portal_user_id;
                 $actionUrl = route('dashboard');
-                $actionLabel = 'Open dashboard';
+                $actionLabel = $isFr ? 'Ouvrir le tableau de bord' : 'Open dashboard';
                 if ($usePublicLink) {
                     $actionUrl = URL::temporarySignedRoute(
                         'public.works.show',
                         now()->addDays(7),
                         ['work' => $work->id]
                     );
-                    $actionLabel = 'Review job';
+                    $actionLabel = $isFr ? 'Verifier l intervention' : 'Review job';
                 }
 
                 NotificationDispatcher::send($customer, new ActionEmailNotification(
-                    'Job ready for validation',
-                    'A job is ready for your validation.',
+                    $isFr ? 'Intervention prete pour validation' : 'Job ready for validation',
+                    $isFr ? 'Une intervention est prete pour votre validation.' : 'A job is ready for your validation.',
                     [
-                        ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
-                        ['label' => 'Status', 'value' => $nextStatus],
-                        ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
+                        ['label' => $isFr ? 'Intervention' : 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
+                        ['label' => $isFr ? 'Statut' : 'Status', 'value' => $nextStatus],
+                        ['label' => $isFr ? 'Client' : 'Customer', 'value' => $customerLabel ?: ($isFr ? 'Client' : 'Customer')],
                     ],
                     $actionUrl,
                     $actionLabel,
-                    'Job ready for validation'
+                    $isFr ? 'Intervention prete pour validation' : 'Job ready for validation'
                 ), [
                     'work_id' => $work->id,
                 ]);

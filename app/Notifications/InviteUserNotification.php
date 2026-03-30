@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -45,6 +46,7 @@ class InviteUserNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
+        $locale = LocalePreference::forNotifiable($notifiable);
         $email = method_exists($notifiable, 'getEmailForPasswordReset')
             ? $notifiable->getEmailForPasswordReset()
             : ($notifiable->email ?? null);
@@ -58,13 +60,13 @@ class InviteUserNotification extends Notification implements ShouldQueue
         $expires = (int) (config("auth.passwords.{$broker}.expire") ?? 60);
 
         $roleLabel = $this->context === 'client'
-            ? 'client'
-            : 'membre d\'equipe';
+            ? LocalePreference::trans('mail.auth.invite.role_client', locale: $locale)
+            : LocalePreference::trans('mail.auth.invite.role_team_member', locale: $locale);
 
         $companyName = $this->companyName ?: config('app.name');
 
         return (new MailMessage)
-            ->subject('Votre acces a '.$companyName)
+            ->subject(LocalePreference::trans('mail.auth.invite.subject', ['company' => $companyName], $locale))
             ->view('emails.auth.invite', [
                 'companyName' => $companyName,
                 'companyLogo' => $this->companyLogo,

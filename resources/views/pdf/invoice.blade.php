@@ -27,6 +27,14 @@
         padding: 12px;
         border-radius: 3px;
       }
+      .items-card {
+        padding: 16px 0 0;
+        overflow: hidden;
+      }
+      .summary-card {
+        padding: 0;
+        overflow: hidden;
+      }
       .card-strong {
         border-color: #e7e5e4;
       }
@@ -128,7 +136,7 @@
       }
       .items-table th,
       .items-table td {
-        padding: 8px 6px;
+        padding: 12px 14px;
         border-bottom: 1px solid #e7e5e4;
         text-align: left;
         vertical-align: top;
@@ -137,10 +145,20 @@
         font-weight: 600;
         color: #292524;
         font-size: 12px;
+        background: #f5f5f4;
       }
       .items-table td {
         font-size: 11px;
         color: #44403c;
+      }
+      .items-table tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      .table-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1c1917;
+        padding: 0 16px 12px;
       }
       .right {
         text-align: right;
@@ -150,7 +168,7 @@
         text-align: center;
       }
       .summary-table td {
-        padding: 8px 0;
+        padding: 10px 0;
         font-size: 11px;
       }
       .summary-table .label {
@@ -161,7 +179,7 @@
         font-weight: 600;
       }
       .summary-table .highlight {
-        color: #16a34a;
+        color: #292524;
       }
       .summary-divider td {
         border-top: 1px solid #e7e5e4;
@@ -417,7 +435,8 @@
       </table>
     </div>
 
-    <div class="card section">
+    <div class="card section items-card">
+      <div class="table-title">Items</div>
       <table class="full items-table">
         <thead>
           @if($isTaskBased)
@@ -470,11 +489,16 @@
       </table>
     </div>
 
-    <div class="card section">
+    <div class="card section summary-card">
       <table class="full">
         <tr>
-          <td style="width: 60%;"></td>
-          <td style="width: 40%; border-left: 1px solid #e7e5e4; padding-left: 12px;">
+          <td style="width: 52%; padding: 18px 20px; vertical-align: top;">
+            <div class="company-label">Suivi facture</div>
+            <div style="margin-top: 10px; font-size: 12px; color: #57534e; line-height: 1.7;">
+              Consultez le solde restant, les paiements deja recus et le montant final dans un bloc clair et facile a relire.
+            </div>
+          </td>
+          <td style="width: 48%; border-left: 1px solid #e7e5e4; padding: 18px 20px; vertical-align: top;">
             <table class="full summary-table">
               <tr>
                 <td class="label">Sous-total:</td>

@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -35,10 +36,13 @@ class PlatformAdminDigestNotification extends Notification implements ShouldQueu
 
     public function toMail(object $notifiable): MailMessage
     {
-        $label = $this->frequency === 'weekly' ? 'Weekly' : 'Daily';
+        $locale = LocalePreference::forNotifiable($notifiable);
+        $label = $this->frequency === 'weekly'
+            ? LocalePreference::trans('mail.platform_admin_digest.weekly', locale: $locale)
+            : LocalePreference::trans('mail.platform_admin_digest.daily', locale: $locale);
 
         return (new MailMessage)
-            ->subject($label.' admin digest')
+            ->subject(LocalePreference::trans('mail.platform_admin_digest.subject', ['frequency' => $label], $locale))
             ->view('emails.notifications.digest', [
                 'frequency' => $label,
                 'items' => $this->items,

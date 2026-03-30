@@ -510,6 +510,27 @@ class StripeBillingService
             ->first();
     }
 
+    public function previewUpcomingInvoice(User $user, ?StripeSubscription $subscription = null): ?array
+    {
+        $local = $subscription ?: $this->getLocalSubscription($user);
+        if (! $local?->stripe_id) {
+            return null;
+        }
+
+        $customerId = $local->stripe_customer_id ?: $this->resolveCustomerId($user);
+        if (! $customerId) {
+            return null;
+        }
+
+        $invoice = $this->client()->invoices->createPreview([
+            'customer' => $customerId,
+            'subscription' => $local->stripe_id,
+            'expand' => ['lines.data.price.product'],
+        ]);
+
+        return method_exists($invoice, 'toArray') ? $invoice->toArray() : null;
+    }
+
     private function upsertSubscription(User $user, $subscription, ?string $customerId = null): ?StripeSubscription
     {
         $stripeId = $subscription->id ?? null;

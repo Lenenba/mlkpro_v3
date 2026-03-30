@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\NotificationPreferenceService;
+use App\Support\LocalePreference;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -26,16 +27,25 @@ class InvoicePaymentNotification extends Notification
 
     public function toArray(object $notifiable): array
     {
+        $owner = $this->invoice->relationLoaded('user')
+            ? $this->invoice->user
+            : $this->invoice->user()->select(['id', 'locale'])->first();
+        $locale = LocalePreference::forNotifiable($notifiable, $owner);
+        $isFr = str_starts_with($locale, 'fr');
         $amount = '$' . number_format((float) $this->payment->amount, 2);
         $number = $this->invoice->number ?? $this->invoice->id;
 
         if ($this->audience === 'client') {
-            $title = 'Payment confirmed';
-            $message = "Your payment of {$amount} for invoice {$number} is confirmed.";
+            $title = $isFr ? 'Paiement confirme' : 'Payment confirmed';
+            $message = $isFr
+                ? "Votre paiement de {$amount} pour la facture {$number} est confirme."
+                : "Your payment of {$amount} for invoice {$number} is confirmed.";
             $actionUrl = route('dashboard');
         } else {
-            $title = 'Payment received';
-            $message = "Invoice {$number} was paid ({$amount}).";
+            $title = $isFr ? 'Paiement recu' : 'Payment received';
+            $message = $isFr
+                ? "La facture {$number} a ete payee ({$amount})."
+                : "Invoice {$number} was paid ({$amount}).";
             $actionUrl = route('invoice.show', $this->invoice->id);
         }
 

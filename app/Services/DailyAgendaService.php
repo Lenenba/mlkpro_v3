@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\ShiftNoticeNotification;
+use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 use App\Services\CompanyNotificationPreferenceService;
 use App\Services\NotificationPreferenceService;
@@ -519,7 +520,7 @@ class DailyAgendaService
             return false;
         }
 
-        $locale = $owner->locale ?? 'fr';
+        $locale = LocalePreference::forCustomer($customer, $owner);
         $isFr = str_starts_with(strtolower($locale), 'fr');
         $assignee = $task->assignee?->user?->name;
         $timeLabel = $this->formatTimeLabel($task->start_time);

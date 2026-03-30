@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Support\LocalePreference;
 use App\Traits\GeneratesSequentialNumber;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 
-class Customer extends Model
+class Customer extends Model implements HasLocalePreference
 {
     use GeneratesSequentialNumber, HasFactory, Notifiable;
 
@@ -110,6 +112,11 @@ class Customer extends Model
     public function portalUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'portal_user_id');
+    }
+
+    public function preferredLocale(): string
+    {
+        return LocalePreference::forCustomer($this);
     }
 
     public function vipTier(): BelongsTo
