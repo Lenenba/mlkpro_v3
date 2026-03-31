@@ -82,12 +82,20 @@ return [
     'openai' => [
         'key' => env('OPENAI_API_KEY'),
         'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        'plan_scan_model' => env('OPENAI_PLAN_SCAN_MODEL', 'gpt-4.1-mini'),
+        'plan_scan_fallback_model' => env('OPENAI_PLAN_SCAN_FALLBACK_MODEL', 'gpt-4.1'),
+        'plan_scan_cache_ttl' => env('OPENAI_PLAN_SCAN_CACHE_TTL', 1440),
+        'plan_scan_primary_input_cost_per_1m' => env('OPENAI_PLAN_SCAN_PRIMARY_INPUT_COST_PER_1M'),
+        'plan_scan_primary_output_cost_per_1m' => env('OPENAI_PLAN_SCAN_PRIMARY_OUTPUT_COST_PER_1M'),
+        'plan_scan_fallback_input_cost_per_1m' => env('OPENAI_PLAN_SCAN_FALLBACK_INPUT_COST_PER_1M'),
+        'plan_scan_fallback_output_cost_per_1m' => env('OPENAI_PLAN_SCAN_FALLBACK_OUTPUT_COST_PER_1M'),
         'image_model' => env('OPENAI_IMAGE_MODEL', 'gpt-image-1'),
         'image_size' => env('OPENAI_IMAGE_SIZE', '1024x1024'),
         'image_quality' => env('OPENAI_IMAGE_QUALITY'),
         'image_background' => env('OPENAI_IMAGE_BACKGROUND'),
         'image_output_format' => env('OPENAI_IMAGE_OUTPUT_FORMAT', 'png'),
         'image_timeout' => env('OPENAI_IMAGE_TIMEOUT', 120),
+        'plan_scan_timeout' => env('OPENAI_PLAN_SCAN_TIMEOUT', 90),
     ],
 
     'rate_limits' => [

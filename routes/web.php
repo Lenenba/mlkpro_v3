@@ -387,6 +387,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             Route::get('/plan-scans/create', [PlanScanController::class, 'create'])->name('plan-scans.create');
             Route::post('/plan-scans', [PlanScanController::class, 'store'])->name('plan-scans.store');
             Route::get('/plan-scans/{planScan}', [PlanScanController::class, 'show'])->name('plan-scans.show');
+            Route::patch('/plan-scans/{planScan}/review', [PlanScanController::class, 'review'])->name('plan-scans.review');
+            Route::post('/plan-scans/{planScan}/reanalyze', [PlanScanController::class, 'reanalyze'])->name('plan-scans.reanalyze');
+            Route::delete('/plan-scans/{planScan}', [PlanScanController::class, 'destroy'])->name('plan-scans.destroy');
             Route::post('/plan-scans/{planScan}/convert', [PlanScanController::class, 'convert'])->name('plan-scans.convert');
         });
     });

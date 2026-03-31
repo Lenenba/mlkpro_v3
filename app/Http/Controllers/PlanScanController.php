@@ -5,15 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\PlanScan;
-use App\Models\Product;
-use App\Models\Quote;
-use App\Models\User;
+use App\Services\PlanScanQuoteService;
+use App\Services\PlanScanReviewService;
 use App\Services\PlanScanService;
-use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PlanScanController extends Controller
 {
@@ -151,52 +150,29 @@ class PlanScanController extends Controller
             }
         }
 
-        $file = $request->file('plan_file');
-        $path = $file->store('plan-scans', 'public');
+        $metrics = [
+            'surface_m2' => $validated['surface_m2'] ?? null,
+            'rooms' => $validated['rooms'] ?? null,
+            'priority' => $validated['priority'] ?? 'balanced',
+        ];
 
-        $scan = PlanScan::create([
-            'user_id' => $accountId,
-            'customer_id' => $customerId,
-            'property_id' => $propertyId,
-            'job_title' => $validated['job_title'] ?? null,
-            'trade_type' => $validated['trade_type'],
-            'status' => PlanScanService::STATUS_PROCESSING,
-            'plan_file_path' => $path,
-            'plan_file_name' => $file->getClientOriginalName(),
-        ]);
+        $scan = $service->submit(
+            $user,
+            $request->file('plan_file'),
+            [
+                'customer_id' => $customerId,
+                'property_id' => $propertyId,
+                'job_title' => $validated['job_title'] ?? null,
+                'trade_type' => $validated['trade_type'],
+            ],
+            $metrics
+        );
 
-        try {
-            $metrics = [
-                'surface_m2' => $validated['surface_m2'] ?? null,
-                'rooms' => $validated['rooms'] ?? null,
-                'priority' => $validated['priority'] ?? 'balanced',
-            ];
-
-            $analysis = $service->analyze($scan, $metrics, $metrics['priority']);
-
-            $scan->update([
-                'status' => PlanScanService::STATUS_READY,
-                'metrics' => $analysis['metrics'],
-                'analysis' => $analysis['analysis'],
-                'variants' => $analysis['variants'],
-                'confidence_score' => $analysis['confidence_score'],
-                'analyzed_at' => now(),
-            ]);
-
-            ActivityLog::record($user, $scan, 'analyzed', [
-                'trade_type' => $scan->trade_type,
-                'confidence_score' => $scan->confidence_score,
-            ], 'Plan scan analyzed');
-        } catch (\Throwable $exception) {
-            $scan->update([
-                'status' => PlanScanService::STATUS_FAILED,
-                'error_message' => $exception->getMessage(),
-            ]);
-
+        if ($scan?->status === PlanScanService::STATUS_FAILED) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Plan scan failed. Please try again.',
-                    'scan' => $scan->fresh(),
+                    'scan' => $scan,
                 ], 500);
             }
 
@@ -205,19 +181,23 @@ class PlanScanController extends Controller
                 ->with('error', 'Plan scan failed. Please try again.');
         }
 
+        $message = $scan?->status === PlanScanService::STATUS_READY
+            ? 'Plan scan ready.'
+            : 'Plan scan queued. Analysis started.';
+
         if ($this->shouldReturnJson($request)) {
             return response()->json([
-                'message' => 'Plan scan ready.',
+                'message' => $message,
                 'scan' => $scan->fresh(),
             ], 201);
         }
 
         return redirect()
             ->route('plan-scans.show', $scan)
-            ->with('success', 'Plan scan ready.');
+            ->with('success', $message);
     }
 
-    public function show(Request $request, PlanScan $planScan)
+    public function show(Request $request, PlanScan $planScan, PlanScanService $service)
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
@@ -261,10 +241,12 @@ class PlanScanController extends Controller
         return $this->inertiaOrJson('PlanScan/Show', [
             'scan' => $planScan->load(['customer', 'property']),
             'customers' => $customers,
+            'tradeOptions' => $service->tradeOptions(),
+            'priorityOptions' => $service->priorityOptions(),
         ]);
     }
 
-    public function convert(Request $request, PlanScan $planScan, PlanScanService $service)
+    public function review(Request $request, PlanScan $planScan, PlanScanService $service, PlanScanReviewService $reviewService)
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
@@ -273,17 +255,165 @@ class PlanScanController extends Controller
             abort(403);
         }
 
-        if ($planScan->status !== PlanScanService::STATUS_READY) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Plan scan is not ready yet.',
-                    'errors' => [
-                        'status' => ['Plan scan is not ready yet.'],
-                    ],
-                ], 422);
-            }
+        $tradeIds = collect($service->tradeOptions())->pluck('id')->all();
+        $priorityIds = collect($service->priorityOptions())->pluck('id')->all();
 
-            return back()->withErrors(['status' => 'Plan scan is not ready yet.']);
+        $validated = $request->validate([
+            'trade_type' => ['required', Rule::in($tradeIds)],
+            'surface_m2' => 'nullable|numeric|min:0|max:10000',
+            'rooms' => 'nullable|integer|min:0|max:200',
+            'priority' => ['nullable', Rule::in($priorityIds)],
+            'line_items' => 'nullable|array',
+            'line_items.*.name' => 'required|string|max:255',
+            'line_items.*.quantity' => 'required|numeric|min:0.1|max:100000',
+            'line_items.*.unit' => 'nullable|string|max:20',
+            'line_items.*.description' => 'nullable|string|max:500',
+            'line_items.*.base_cost' => 'nullable|numeric|min:0|max:1000000',
+            'line_items.*.is_labor' => 'nullable|boolean',
+            'line_items.*.confidence' => 'nullable|numeric|min:0|max:100',
+            'line_items.*.notes' => 'nullable|string|max:500',
+        ]);
+
+        $reviewedPayload = [
+            'trade_type' => $validated['trade_type'],
+            'metrics' => [
+                'surface_m2' => $validated['surface_m2'] ?? null,
+                'rooms' => $validated['rooms'] ?? null,
+                'priority' => $validated['priority'] ?? data_get($planScan->ai_reviewed_payload, 'metrics.priority', 'balanced'),
+            ],
+            'line_items' => collect($validated['line_items'] ?? [])
+                ->map(function (array $line) {
+                    return [
+                        'name' => trim((string) ($line['name'] ?? '')),
+                        'quantity' => round(max(0.1, (float) ($line['quantity'] ?? 1)), 2),
+                        'unit' => trim((string) ($line['unit'] ?? 'u')) ?: 'u',
+                        'description' => $line['description'] ?? null,
+                        'base_cost' => isset($line['base_cost']) && $line['base_cost'] !== ''
+                            ? round((float) $line['base_cost'], 2)
+                            : null,
+                        'is_labor' => (bool) ($line['is_labor'] ?? false),
+                        'confidence' => isset($line['confidence']) && $line['confidence'] !== ''
+                            ? (int) round((float) $line['confidence'])
+                            : null,
+                        'notes' => $line['notes'] ?? null,
+                    ];
+                })
+                ->filter(fn (array $line) => $line['name'] !== '')
+                ->values()
+                ->all(),
+            'assumptions' => is_array(data_get($planScan->ai_reviewed_payload, 'assumptions'))
+                ? data_get($planScan->ai_reviewed_payload, 'assumptions')
+                : (is_array(data_get($planScan->ai_extraction_normalized, 'assumptions'))
+                    ? data_get($planScan->ai_extraction_normalized, 'assumptions')
+                    : []),
+            'review_flags' => is_array(data_get($planScan->ai_reviewed_payload, 'review_flags'))
+                ? data_get($planScan->ai_reviewed_payload, 'review_flags')
+                : (is_array(data_get($planScan->ai_extraction_normalized, 'review_flags'))
+                    ? data_get($planScan->ai_extraction_normalized, 'review_flags')
+                    : []),
+            'reviewed_at' => now()->toIso8601String(),
+            'updated_by_user_id' => $user->id,
+        ];
+
+        $planScan = $reviewService->applyReviewedPayload($planScan, $user, $reviewedPayload, [
+            'source' => 'manual_ui',
+            'activity' => 'reviewed',
+            'activity_message' => 'Plan scan review saved',
+            'summary' => 'Estimation mise a jour a partir du payload de revue confirme.',
+            'ai_review_required' => false,
+        ]);
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Plan scan review saved.',
+                'scan' => $planScan->fresh(),
+            ]);
+        }
+
+        return redirect()
+            ->route('plan-scans.show', $planScan)
+            ->with('success', 'Plan scan review saved.');
+    }
+
+    public function reanalyze(Request $request, PlanScan $planScan, PlanScanService $service)
+    {
+        $user = $request->user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        if (! $user || $planScan->user_id !== $accountId) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'mode' => ['nullable', Rule::in(['retry', 'escalate'])],
+        ]);
+
+        $mode = $validated['mode'] ?? 'retry';
+        $scan = $service->reanalyze($planScan, $user, $mode);
+
+        $message = $scan?->status === PlanScanService::STATUS_READY
+            ? ($mode === 'escalate' ? 'AI analysis escalated and refreshed.' : 'AI analysis refreshed.')
+            : ($mode === 'escalate' ? 'AI escalation queued. Analysis started.' : 'AI reanalysis queued. Analysis started.');
+
+        ActivityLog::record($user, $scan, 'reanalyzed', [
+            'mode' => $mode,
+            'ai_retry_count' => $scan->ai_retry_count,
+        ], $mode === 'escalate' ? 'Plan scan AI escalated' : 'Plan scan AI retried');
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => $message,
+                'scan' => $scan->fresh(),
+            ]);
+        }
+
+        return redirect()
+            ->route('plan-scans.show', $scan)
+            ->with('success', $message);
+    }
+
+    public function destroy(Request $request, PlanScan $planScan)
+    {
+        $user = $request->user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        if (! $user || $planScan->user_id !== $accountId) {
+            abort(403);
+        }
+
+        $snapshot = [
+            'id' => $planScan->id,
+            'job_title' => $planScan->job_title,
+            'status' => $planScan->status,
+            'trade_type' => $planScan->trade_type,
+        ];
+
+        if ($planScan->plan_file_path && Storage::disk('public')->exists($planScan->plan_file_path)) {
+            Storage::disk('public')->delete($planScan->plan_file_path);
+        }
+
+        ActivityLog::record($user, $planScan, 'deleted', $snapshot, 'Plan scan deleted');
+
+        $planScan->delete();
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Plan scan deleted.',
+            ]);
+        }
+
+        return redirect()
+            ->route('plan-scans.index')
+            ->with('success', 'Plan scan deleted.');
+    }
+
+    public function convert(Request $request, PlanScan $planScan, PlanScanQuoteService $quoteService)
+    {
+        $user = $request->user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        if (! $user || $planScan->user_id !== $accountId) {
+            abort(403);
         }
 
         $validated = $request->validate([
@@ -291,132 +421,24 @@ class PlanScanController extends Controller
             'customer_id' => ['nullable', Rule::exists('customers', 'id')],
             'property_id' => ['nullable', Rule::exists('properties', 'id')],
         ]);
-
-        $customerId = $planScan->customer_id ?? $validated['customer_id'] ?? null;
-        $propertyId = $planScan->property_id ?? $validated['property_id'] ?? null;
-
-        if (! $customerId) {
+        try {
+            $quote = $quoteService->createQuoteFromScan(
+                $planScan,
+                $user,
+                $validated['variant'],
+                $validated['customer_id'] ?? null,
+                $validated['property_id'] ?? null
+            );
+        } catch (ValidationException $exception) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Validation error.',
-                    'errors' => [
-                        'customer_id' => ['Select a customer to create the quote.'],
-                    ],
+                    'errors' => $exception->errors(),
                 ], 422);
             }
 
-            return back()->withErrors(['customer_id' => 'Select a customer to create the quote.']);
+            return back()->withErrors($exception->errors());
         }
-
-        $customer = Customer::byUser($accountId)->findOrFail($customerId);
-        if ($propertyId && ! $customer->properties()->whereKey($propertyId)->exists()) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Validation error.',
-                    'errors' => [
-                        'property_id' => ['Invalid property for this customer.'],
-                    ],
-                ], 422);
-            }
-
-            return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
-        }
-
-        $variant = collect($planScan->variants ?? [])->firstWhere('key', $validated['variant']);
-        if (! $variant) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Validation error.',
-                    'errors' => [
-                        'variant' => ['Variant not available.'],
-                    ],
-                ], 422);
-            }
-
-            return back()->withErrors(['variant' => 'Variant not available.']);
-        }
-
-        app(UsageLimitService::class)->enforceLimit($user, 'plan_scan_quotes');
-        app(UsageLimitService::class)->enforceLimit($user, 'quotes');
-
-        $owner = $accountId === $user->id ? $user : User::query()->find($accountId);
-        $itemType = ($owner?->company_type === 'products')
-            ? Product::ITEM_TYPE_PRODUCT
-            : Product::ITEM_TYPE_SERVICE;
-
-        $variantKey = $validated['variant'];
-        $lines = collect($variant['items'] ?? [])->map(function (array $item) use ($service, $accountId, $itemType, $variantKey) {
-            $product = $service->resolveOrCreateProduct($accountId, $itemType, $item);
-            $quantity = (int) ($item['quantity'] ?? 1);
-            $price = (float) ($item['unit_price'] ?? 0);
-            $total = round($quantity * $price, 2);
-            $sourceDetails = [
-                'strategy' => $variantKey,
-                'selected_source' => $item['selected_source'] ?? null,
-                'sources' => $item['sources'] ?? [],
-                'source_query' => $item['source_query'] ?? null,
-                'selection_basis' => $item['selection_basis'] ?? null,
-                'selection_reason' => $item['selection_reason'] ?? null,
-                'benchmarks' => $item['source_benchmarks'] ?? null,
-                'best_source' => $item['best_source'] ?? null,
-                'preferred_source' => $item['preferred_source'] ?? null,
-                'preferred_suppliers' => $item['preferred_suppliers'] ?? [],
-                'source_status' => $item['source_status'] ?? null,
-            ];
-
-            return [
-                'id' => $product->id,
-                'quantity' => $quantity,
-                'price' => $price,
-                'total' => $total,
-                'description' => $item['description'] ?? null,
-                'source_details' => $sourceDetails,
-            ];
-        });
-
-        $subtotal = round($lines->sum('total'), 2);
-        $total = $subtotal;
-        $jobTitle = $planScan->job_title ?: ('Plan scan '.($planScan->trade_type ?: 'project'));
-
-        $quote = null;
-        DB::transaction(function () use (&$quote, $planScan, $customer, $propertyId, $accountId, $jobTitle, $subtotal, $total, $lines) {
-            $quote = Quote::create([
-                'user_id' => $accountId,
-                'customer_id' => $customer->id,
-                'property_id' => $propertyId,
-                'job_title' => $jobTitle,
-                'subtotal' => $subtotal,
-                'total' => $total,
-                'status' => 'draft',
-                'is_fixed' => false,
-            ]);
-
-            $pivotData = $lines->mapWithKeys(function (array $line) {
-                return [
-                    $line['id'] => [
-                        'quantity' => $line['quantity'],
-                        'price' => $line['price'],
-                        'total' => $line['total'],
-                        'description' => $line['description'],
-                        'source_details' => $line['source_details'] ? json_encode($line['source_details']) : null,
-                    ],
-                ];
-            });
-
-            $quote->syncProductLines($pivotData);
-
-            $planScan->increment('quotes_generated');
-        });
-
-        ActivityLog::record($user, $quote, 'created', [
-            'source' => 'plan_scan',
-            'plan_scan_id' => $planScan->id,
-        ], 'Quote created from plan scan');
-
-        ActivityLog::record($user, $planScan, 'converted', [
-            'quote_id' => $quote?->id,
-            'variant' => $validated['variant'],
-        ], 'Plan scan converted to quote');
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([

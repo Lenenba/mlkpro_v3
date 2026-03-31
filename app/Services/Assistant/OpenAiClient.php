@@ -20,15 +20,23 @@ class OpenAiClient
             'temperature' => $options['temperature'] ?? 0.2,
         ];
 
-        if (($options['json'] ?? true) === true) {
+        if (array_key_exists('response_format', $options)) {
+            $payload['response_format'] = $options['response_format'];
+        } elseif (($options['json'] ?? true) === true) {
             $payload['response_format'] = ['type' => 'json_object'];
         }
 
+        if (isset($options['max_tokens'])) {
+            $payload['max_tokens'] = (int) $options['max_tokens'];
+        }
+
+        $timeout = (int) ($options['timeout'] ?? 30);
+
         $response = Http::withToken($apiKey)
-            ->timeout(30)
+            ->timeout($timeout)
             ->post('https://api.openai.com/v1/chat/completions', $payload);
 
-        if (!$response->ok()) {
+        if (! $response->ok()) {
             $status = $response->status();
             $payload = $response->json();
             $payload = is_array($payload) ? $payload : [];
@@ -99,7 +107,7 @@ class OpenAiClient
             ->timeout($timeout)
             ->post('https://api.openai.com/v1/images/generations', $payload);
 
-        if (!$response->ok()) {
+        if (! $response->ok()) {
             $status = $response->status();
             $payload = $response->json();
             $payload = is_array($payload) ? $payload : [];
