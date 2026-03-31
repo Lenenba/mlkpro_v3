@@ -363,10 +363,15 @@ it('can provision and fully purge a commerce demo workspace', function () {
 
     $this->actingAs($admin)
         ->delete(route('superadmin.demo-workspaces.destroy', $workspace))
-        ->assertRedirect(route('superadmin.demo-workspaces.index'))
+        ->assertRedirect(route('superadmin.demo-workspaces.index', ['status' => 'purged']))
         ->assertSessionHas('success');
 
-    expect(DemoWorkspace::query()->find($workspace->id))->toBeNull();
+    $purgedWorkspace = DemoWorkspace::query()->withTrashed()->find($workspace->id);
+
+    expect($purgedWorkspace)->not->toBeNull();
+    expect($purgedWorkspace?->provisioning_status)->toBe('purged');
+    expect($purgedWorkspace?->purged_at)->not->toBeNull();
+    expect($purgedWorkspace?->owner_user_id)->toBeNull();
     expect(User::query()->find($ownerId))->toBeNull();
 });
 

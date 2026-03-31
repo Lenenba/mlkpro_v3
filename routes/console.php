@@ -56,7 +56,7 @@ use App\Services\WorkBillingService;
 use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 use App\Support\SchemaAudit\ManualSelectContractAudit;
-use Database\Seeders\LaunchSeeder;
+use Database\Seeders\LaunchResetSeeder;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -1708,7 +1708,7 @@ Artisan::command('notifications:retry-failed
 Artisan::command('app:launch-reset {--force : Skip confirmation prompt}', function (): int {
     if (! (bool) $this->option('force')) {
         $confirmed = $this->confirm(
-            'This will run migrate:fresh, reseed LaunchSeeder, clear caches and optimize. Continue?',
+            'This will run migrate:fresh, seed only the minimal platform baseline (without demo companies), clear caches, and optimize. Continue?',
             false
         );
         if (! $confirmed) {
@@ -1719,8 +1719,8 @@ Artisan::command('app:launch-reset {--force : Skip confirmation prompt}', functi
     }
 
     $steps = [
-        ['migrate:fresh', ['--seed' => true, '--force' => true], 'Database refreshed and first seed...'],
-        ['db:seed', ['--class' => LaunchSeeder::class, '--force' => true], 'LaunchSeeder executed.'],
+        ['migrate:fresh', ['--force' => true], 'Database refreshed.'],
+        ['db:seed', ['--class' => LaunchResetSeeder::class, '--force' => true], 'Minimal launch baseline seeded.'],
         ['optimize:clear', [], 'Caches cleared.'],
         ['optimize', [], 'Application optimized.'],
     ];
@@ -1738,9 +1738,10 @@ Artisan::command('app:launch-reset {--force : Skip confirmation prompt}', functi
 
     $this->newLine();
     $this->info('Launch reset completed successfully.');
+    $this->line('No demo company was created. Use the Demo Workspace module for tenant provisioning.');
 
     return 0;
-})->purpose('Reset database for launch demo data, clear caches, and optimize');
+})->purpose('Reset database with the minimal platform baseline, clear caches, and optimize');
 
 Artisan::command('queue:health {--json}', function (QueueHealthService $queueHealth): int {
     $summary = $queueHealth->summary();

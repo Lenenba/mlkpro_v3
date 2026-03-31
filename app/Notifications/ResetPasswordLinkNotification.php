@@ -3,31 +3,25 @@
 namespace App\Notifications;
 
 use App\Support\LocalePreference;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
-class ResetPasswordLinkNotification extends Notification
+class ResetPasswordLinkNotification extends ResetPassword
 {
     use Queueable;
 
     public function __construct(
-        private readonly string $token,
-    ) {}
-
-    public function via(object $notifiable): array
-    {
-        return ['mail'];
+        string $token,
+    ) {
+        parent::__construct($token);
     }
 
-    public function toMail(object $notifiable): MailMessage
+    public function toMail($notifiable): MailMessage
     {
         $locale = LocalePreference::forNotifiable($notifiable);
         $broker = (string) config('auth.defaults.passwords', 'users');
         $expires = (int) config("auth.passwords.{$broker}.expire", 60);
-        $email = method_exists($notifiable, 'getEmailForPasswordReset')
-            ? $notifiable->getEmailForPasswordReset()
-            : (string) ($notifiable->email ?? '');
 
         return (new MailMessage)
             ->subject(LocalePreference::trans('mail.auth.reset_password.subject', locale: $locale))
@@ -35,10 +29,7 @@ class ResetPasswordLinkNotification extends Notification
                 'companyName' => config('app.name'),
                 'companyLogo' => null,
                 'recipientName' => (string) ($notifiable->name ?? ''),
-                'resetUrl' => route('password.reset', [
-                    'token' => $this->token,
-                    'email' => $email,
-                ]),
+                'resetUrl' => $this->resetUrl($notifiable),
                 'expiresInMinutes' => $expires,
             ]);
     }

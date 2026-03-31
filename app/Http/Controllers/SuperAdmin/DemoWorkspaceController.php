@@ -534,10 +534,11 @@ class DemoWorkspaceController extends BaseSuperAdminController
             'prospect_name' => ['nullable', 'string', 'max:120'],
             'prospect_email' => ['nullable', 'email', 'max:190'],
             'prospect_company' => ['nullable', 'string', 'max:160'],
-            'clone_data_mode' => ['required', Rule::in(collect(self::CLONE_DATA_MODE_OPTIONS)->pluck('value')->all())],
+            'clone_data_mode' => ['nullable', Rule::in(collect(self::CLONE_DATA_MODE_OPTIONS)->pluck('value')->all())],
             'seed_profile' => ['required', Rule::in(collect($this->catalog->seedProfiles())->pluck('value')->all())],
             'expires_at' => ['required', 'date', 'after_or_equal:today'],
         ]);
+        $validated['clone_data_mode'] = (string) ($validated['clone_data_mode'] ?? 'keep_current_profile');
 
         $clone = $provisioner->queueClone($demoWorkspace, $validated, $request->user());
         ProvisionDemoWorkspaceJob::dispatch($clone->id, (int) $request->user()->id);
