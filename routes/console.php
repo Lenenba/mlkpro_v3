@@ -35,9 +35,6 @@ use App\Services\Campaigns\CampaignAutomationService;
 use App\Services\Campaigns\VipService;
 use App\Services\Capacity\CapacityReportService;
 use App\Services\DailyAgendaService;
-use App\Services\Demo\DemoAccountService;
-use App\Services\Demo\DemoResetService;
-use App\Services\Demo\DemoSeedService;
 use App\Services\Demo\DemoWorkspacePurgeService;
 use App\Services\Observability\ObservabilityReportService;
 use App\Services\PlatformAdminNotifier;
@@ -1468,66 +1465,20 @@ Artisan::command('campaigns:reconcile-delivery', function (): int {
     return 0;
 })->purpose('Queue campaign delivery status reconciliation');
 
-Artisan::command('demo:seed {type=service} {--tenant_id=}', function (
-    DemoAccountService $accounts,
-    DemoSeedService $seeds
-): int {
-    if (! config('demo.enabled')) {
-        $this->error('DEMO_ENABLED is false.');
+Artisan::command('demo:seed {type=service} {--tenant_id=}', function (): int {
+    $this->warn('Legacy demo CLI seeding is disabled.');
+    $this->line('Use Super Admin > Demo Workspaces to provision a demo tenant.');
+    $this->line('Use app:launch-reset only for the minimal platform baseline.');
 
-        return 1;
-    }
+    return 1;
+})->purpose('Deprecated: use the Demo Workspace module instead of legacy demo seeding');
 
-    $type = (string) $this->argument('type');
-    $tenantId = $this->option('tenant_id');
+Artisan::command('demo:reset {--tenant_id=}', function (): int {
+    $this->warn('Legacy demo CLI reset is disabled.');
+    $this->line('Reset and reprovision demos from Super Admin > Demo Workspaces.');
 
-    if ($tenantId) {
-        $account = User::query()->find($tenantId);
-        if (! $account) {
-            $this->error('Tenant not found.');
-
-            return 1;
-        }
-        $accounts->resolveDemoUser($account, $type);
-    } else {
-        $account = $accounts->resolveDemoAccount($type);
-    }
-
-    $seeds->seed($account, $type);
-    $this->info("Demo seeded for {$account->email} ({$type}).");
-
-    return 0;
-})->purpose('Seed demo data for a demo tenant');
-
-Artisan::command('demo:reset {--tenant_id=}', function (
-    DemoResetService $reset,
-    DemoSeedService $seeds
-): int {
-    if (! config('demo.enabled')) {
-        $this->error('DEMO_ENABLED is false.');
-
-        return 1;
-    }
-
-    $tenantId = $this->option('tenant_id');
-    $accounts = $tenantId
-        ? User::query()->whereKey($tenantId)->get()
-        : User::query()->where('is_demo', true)->get();
-
-    if ($accounts->isEmpty()) {
-        $this->error('No demo tenants found.');
-
-        return 1;
-    }
-
-    foreach ($accounts as $account) {
-        $reset->reset($account);
-        $seeds->seed($account, $account->demo_type ?: DemoAccountService::TYPE_SERVICE);
-        $this->info("Demo reset for {$account->email}.");
-    }
-
-    return 0;
-})->purpose('Reset demo tenant data and tour progress');
+    return 1;
+})->purpose('Deprecated: reset demo tenants from the Demo Workspace module');
 
 Artisan::command('demo:purge-expired', function (DemoWorkspacePurgeService $purgeService): int {
     $count = $purgeService->purgeExpired();
