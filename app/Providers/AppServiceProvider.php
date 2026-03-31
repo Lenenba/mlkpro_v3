@@ -15,12 +15,15 @@ use App\Services\Campaigns\MarketingSettingsService;
 use App\Services\Campaigns\TemplateSeederService;
 use App\Services\Observability\SlowQueryService;
 use App\Services\PlatformAdminNotifier;
+use App\Support\LocalePreference;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\Events\NotificationFailed;
 use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
@@ -52,6 +55,27 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Payment::observe(PaymentObserver::class);
+
+        ResetPassword::toMailUsing(function ($notifiable, string $token): MailMessage {
+            $locale = LocalePreference::forNotifiable($notifiable);
+            $broker = (string) config('auth.defaults.passwords', 'users');
+            $expires = (int) config("auth.passwords.{$broker}.expire", 60);
+
+            return (new MailMessage)
+                ->subject(LocalePreference::trans('mail.auth.reset_password.subject', locale: $locale))
+                ->view('emails.auth.reset-password', [
+                    'companyName' => config('app.name'),
+                    'companyLogo' => null,
+                    'recipientName' => (string) ($notifiable->name ?? ''),
+                    'resetUrl' => route('password.reset', [
+                        'token' => $token,
+                        'email' => method_exists($notifiable, 'getEmailForPasswordReset')
+                            ? $notifiable->getEmailForPasswordReset()
+                            : (string) ($notifiable->email ?? ''),
+                    ]),
+                    'expiresInMinutes' => $expires,
+                ]);
+        });
 
         RateLimiter::for('api', function (Request $request) {
             $user = $request->user();

@@ -4,7 +4,6 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\CurrencyCode;
-use App\Notifications\ResetPasswordLinkNotification;
 use App\Services\CompanyFeatureService;
 use App\Support\LocalePreference;
 use Illuminate\Contracts\Translation\HasLocalePreference as HasLocalePreferenceContract;
@@ -141,7 +140,7 @@ class User extends Authenticatable implements HasLocalePreferenceContract
 
     public function sendPasswordResetNotification($token): void
     {
-        $this->notify(new ResetPasswordLinkNotification($token));
+        $this->notify(new \Illuminate\Auth\Notifications\ResetPassword($token));
     }
 
     public function products()

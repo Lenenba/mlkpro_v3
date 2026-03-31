@@ -25,7 +25,6 @@ use App\Notifications\LeadFollowUpNotification;
 use App\Notifications\LeadFormOwnerNotification;
 use App\Notifications\LeadQuoteRequestReceivedNotification;
 use App\Notifications\PlatformAdminDigestNotification;
-use App\Notifications\ResetPasswordLinkNotification;
 use App\Notifications\SendQuoteNotification;
 use App\Notifications\SupplierStockRequestNotification;
 use App\Notifications\TwoFactorCodeNotification;
@@ -54,6 +53,7 @@ use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 use App\Support\SchemaAudit\ManualSelectContractAudit;
 use Database\Seeders\LaunchResetSeeder;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -506,7 +506,7 @@ Artisan::command('mail:preview-pack {to}
                 code: '482913',
                 expiresAt: now()->addMinutes(10),
             )),
-            'reset-password' => $previewUser->notifyNow(new ResetPasswordLinkNotification(
+            'reset-password' => $previewUser->notifyNow(new ResetPassword(
                 token: Str::random(64),
             )),
             'welcome' => $previewUser->notifyNow(new WelcomeEmailNotification($owner)),

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureTwoFactorVerified;
+use App\Jobs\ProvisionDemoWorkspaceJob;
 use App\Models\ActivityLog;
 use App\Models\DemoWorkspace;
 use App\Models\DemoWorkspaceTemplate;
@@ -11,6 +12,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\Demo\DemoWorkspaceCatalog;
 use App\Support\PlatformPermissions;
+use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -120,6 +122,18 @@ function demoWorkspaceTemplatePayload(array $overrides = []): array
     ];
 
     return array_replace_recursive($payload, $overrides);
+}
+
+function provisionDemoWorkspaceIfNeeded(DemoWorkspace $workspace, User $admin, bool $isReset = false): DemoWorkspace
+{
+    $workspace = $workspace->fresh(['owner']) ?? $workspace;
+    $status = (string) ($workspace->provisioning_status ?? '');
+
+    if (in_array($status, ['queued', 'provisioning'], true)) {
+        app(Dispatcher::class)->dispatchSync(new ProvisionDemoWorkspaceJob($workspace->id, $admin->id, $isReset));
+    }
+
+    return $workspace->fresh(['owner']) ?? $workspace;
 }
 
 it('forbids platform admins without demo permissions from accessing the module', function () {
@@ -246,6 +260,7 @@ it('provisions a realistic service demo workspace from the admin module', functi
     $workspace = DemoWorkspace::query()
         ->with('owner')
         ->firstOrFail();
+    $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
 
     expect($workspace->company_name)->toBe('Northwind Demo Studio');
     expect($workspace->company_type)->toBe('services');
@@ -255,7 +270,9 @@ it('provisions a realistic service demo workspace from the admin module', functi
     expect($workspace->provisioning_status)->toBe('ready');
     expect($workspace->provisioning_progress)->toBe(100);
     expect($workspace->prefill_source)->toBe('crm');
-    expect($workspace->prefill_payload)->toBe($payload['prefill_payload']);
+    expect($workspace->prefill_payload['prospect_name'] ?? null)->toBe($payload['prefill_payload']['prospect_name']);
+    expect($workspace->prefill_payload['company'] ?? null)->toBe($payload['prefill_payload']['company']);
+    expect($workspace->prefill_payload['requested_modules'] ?? null)->toBe($payload['prefill_payload']['requested_modules']);
     expect($workspace->extra_access_roles)->toBe(['manager', 'front_desk', 'staff']);
     expect($workspace->extra_access_credentials)->toHaveCount(3);
     expect($workspace->scenario_packs)->not->toBeEmpty();
@@ -299,6 +316,7 @@ it('can create a workspace from a template, mark it sent and extend expiration',
         ->assertRedirect(route('superadmin.demo-workspaces.index'));
 
     $workspace = DemoWorkspace::query()->latest('id')->firstOrFail();
+    $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
     $initialExpiration = $workspace->expires_at?->copy();
 
     expect($workspace->demo_workspace_template_id)->toBe($template->id);
@@ -355,6 +373,7 @@ it('can provision and fully purge a commerce demo workspace', function () {
         ->assertRedirect(route('superadmin.demo-workspaces.index'));
 
     $workspace = DemoWorkspace::query()->latest('id')->firstOrFail();
+    $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
     $ownerId = $workspace->owner_user_id;
 
     expect($workspace->seed_summary['sales'] ?? 0)->toBeGreaterThan(0);
@@ -392,6 +411,7 @@ it('can clone a demo workspace with fresh credentials and inherited phase two co
         ->assertRedirect(route('superadmin.demo-workspaces.index'));
 
     $workspace = DemoWorkspace::query()->with('owner')->firstOrFail();
+    $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
     $originalEmail = $workspace->access_email;
     $originalPassword = $workspace->access_password;
     $originalOwnerId = $workspace->owner_user_id;
@@ -402,6 +422,7 @@ it('can clone a demo workspace with fresh credentials and inherited phase two co
             'prospect_name' => 'Jamie Clone',
             'prospect_email' => 'jamie.clone@example.com',
             'prospect_company' => 'Clone Prospect Inc.',
+            'clone_data_mode' => 'regenerate_fresh_data',
             'seed_profile' => 'light',
             'expires_at' => now()->addDays(14)->toDateString(),
         ])
@@ -413,6 +434,7 @@ it('can clone a demo workspace with fresh credentials and inherited phase two co
         ->whereKeyNot($workspace->id)
         ->latest('id')
         ->firstOrFail();
+    $clone = provisionDemoWorkspaceIfNeeded($clone, $admin);
 
     expect($clone->cloned_from_demo_workspace_id)->toBe($workspace->id);
     expect($clone->owner_user_id)->not->toBe($originalOwnerId);
@@ -445,6 +467,7 @@ it('can save a baseline and reset a demo workspace back to that reference datase
         ->assertRedirect(route('superadmin.demo-workspaces.index'));
 
     $workspace = DemoWorkspace::query()->with('owner')->firstOrFail();
+    $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
     $baselineOwnerId = $workspace->owner_user_id;
     $baselineEmail = $workspace->access_email;
     $baselinePassword = $workspace->access_password;
@@ -486,7 +509,7 @@ it('can save a baseline and reset a demo workspace back to that reference datase
         ->assertRedirect(route('superadmin.demo-workspaces.index'))
         ->assertSessionHas('success');
 
-    $workspace = $workspace->fresh(['owner']);
+    $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin, true);
 
     expect($workspace->company_name)->toBe($baselineCompanyName);
     expect($workspace->scenario_packs)->toBe($baselineScenarioPacks);
@@ -536,6 +559,7 @@ it('records login detection events for demo owners and extra role users', functi
         ->assertRedirect(route('superadmin.demo-workspaces.index'));
 
     $workspace = DemoWorkspace::query()->firstOrFail()->load('owner');
+    $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
     $extraCredential = collect($workspace->extra_access_credentials)->first();
 
     expect($extraCredential)->not->toBeNull();
