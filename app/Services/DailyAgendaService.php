@@ -483,6 +483,7 @@ class DailyAgendaService
                     if ($accountNow->gt($endAt)) {
                         $shift->late_alerted_at = $now;
                         $shift->save();
+
                         continue;
                     }
                 }
@@ -491,6 +492,7 @@ class DailyAgendaService
                 if ($this->hasClockedInForShift($accountId, $memberUser, $startAt, $lateAt)) {
                     $shift->late_alerted_at = $now;
                     $shift->save();
+
                     continue;
                 }
 

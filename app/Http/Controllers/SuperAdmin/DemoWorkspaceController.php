@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\SuperAdmin;
 
-use App\Mail\DemoWorkspaceAccessMail;
 use App\Jobs\ProvisionDemoWorkspaceJob;
+use App\Mail\DemoWorkspaceAccessMail;
 use App\Models\ActivityLog;
 use App\Models\DemoWorkspace;
 use App\Models\DemoWorkspaceTemplate;
@@ -17,8 +17,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
