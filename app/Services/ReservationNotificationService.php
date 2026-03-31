@@ -92,6 +92,7 @@ class ReservationNotificationService
 
         if ($reservation->status === Reservation::STATUS_CANCELLED) {
             $this->handleCancelled($reservation, $actor);
+
             return;
         }
 
@@ -381,6 +382,7 @@ class ReservationNotificationService
                 if ($dispatchOk) {
                     $sent += 1;
                     $channelStats['sms'] += 1;
+
                     continue;
                 }
 
