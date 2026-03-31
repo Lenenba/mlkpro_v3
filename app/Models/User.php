@@ -5,6 +5,8 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\CurrencyCode;
 use App\Services\CompanyFeatureService;
+use App\Support\LocalePreference;
+use Illuminate\Contracts\Translation\HasLocalePreference as HasLocalePreferenceContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,7 +17,7 @@ use Illuminate\Support\Facades\Storage;
 use Laravel\Paddle\Billable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements HasLocalePreferenceContract
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use Billable, HasApiTokens, HasFactory, Notifiable;
@@ -134,6 +136,11 @@ class User extends Authenticatable
             'stripe_connect_onboarded_at' => 'datetime',
             'currency_code' => 'string',
         ];
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \Illuminate\Auth\Notifications\ResetPassword($token));
     }
 
     public function products()
@@ -296,6 +303,16 @@ class User extends Authenticatable
         return $this->hasMany(DemoWorkspace::class, 'created_by_user_id');
     }
 
+    public function sentDemoWorkspaces(): HasMany
+    {
+        return $this->hasMany(DemoWorkspace::class, 'sent_by_user_id');
+    }
+
+    public function createdDemoWorkspaceTemplates(): HasMany
+    {
+        return $this->hasMany(DemoWorkspaceTemplate::class, 'created_by_user_id');
+    }
+
     public function teamMembership(): HasOne
     {
         return $this->hasOne(TeamMember::class, 'user_id')->where('is_active', true);
@@ -369,6 +386,11 @@ class User extends Authenticatable
     public function businessCurrencyCode(): string
     {
         return CurrencyCode::tryFromMixed($this->currency_code)?->value ?? CurrencyCode::default()->value;
+    }
+
+    public function preferredLocale(): string
+    {
+        return LocalePreference::forUser($this);
     }
 
     public function accountOwnerId(): int

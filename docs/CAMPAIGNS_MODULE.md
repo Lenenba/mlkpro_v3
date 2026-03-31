@@ -151,14 +151,15 @@ API:
 - `POST /api/v1/marketing/templates/preview`
 - `POST /api/v1/marketing/templates/{template}/preview`
 
-## 7) Templates par defaut dans LauncherSeeder
+## 7) Templates par defaut au bootstrap
 Strategie implementee:
 - **Approach A**: copie de templates par tenant a la creation (editable localement)
 
 Implementation:
 - `TemplateSeederService::seedDefaultsForTenant()`
 - integration dans:
-  - `LaunchSeeder` (boot local multi-tenants)
+  - `LaunchResetSeeder` pour le socle local minimal
+  - `Demo Workspace` provisioning pour les tenants de demo
   - `AppServiceProvider` sur event `Registered` pour nouveaux owners
 
 Coverage seeded:

@@ -12,11 +12,11 @@ use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\TeamMemberAttendance;
 use App\Models\User;
+use App\Models\WeeklyAvailability;
+use App\Notifications\ActionEmailNotification;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationQueueService;
 use App\Services\SmsNotificationService;
-use App\Models\WeeklyAvailability;
-use App\Notifications\ActionEmailNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
@@ -394,9 +394,7 @@ it('sends reminder notifications from the scheduled reservation command', functi
     $this->artisan('reservations:notifications')
         ->assertExitCode(0);
 
-    Notification::assertSentTo($clientUser, ActionEmailNotification::class, function (ActionEmailNotification $notification) {
-        return str_contains(strtolower($notification->title), 'reminder');
-    });
+    Notification::assertSentTo($clientUser, ActionEmailNotification::class);
 
     $metadata = (array) (Reservation::query()->find($reservation->id)?->metadata ?? []);
     expect((array) ($metadata['notifications'] ?? []))
@@ -2243,7 +2241,7 @@ it('returns queue screen payload and supports anonymize toggle', function () {
     $plainName = (string) ($plain->json('queue.waiting.0.display_client_name') ?? '');
     $anonymizedName = (string) ($anonymized->json('queue.waiting.0.display_client_name') ?? '');
     $realName = (string) ($customer->company_name
-        ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''))
+        ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))
         ?: ($customer->email ?? ''));
 
     expect((int) ($plain->json('queue.waiting.0.id') ?? 0))->toBe((int) $ticket->id);

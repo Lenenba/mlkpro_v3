@@ -18,7 +18,25 @@ class PlanScan extends Model
         'status',
         'plan_file_path',
         'plan_file_name',
+        'plan_file_sha256',
         'confidence_score',
+        'ai_status',
+        'ai_model',
+        'ai_cache_key',
+        'ai_cache_hit',
+        'ai_cache_source',
+        'ai_usage',
+        'ai_attempts',
+        'ai_estimated_cost_usd',
+        'ai_extraction_raw',
+        'ai_extraction_normalized',
+        'ai_reviewed_payload',
+        'ai_review_required',
+        'ai_retry_count',
+        'ai_last_requested_at',
+        'ai_escalated_at',
+        'ai_failed_at',
+        'ai_error_message',
         'metrics',
         'analysis',
         'variants',
@@ -29,6 +47,18 @@ class PlanScan extends Model
 
     protected $casts = [
         'confidence_score' => 'integer',
+        'ai_cache_hit' => 'boolean',
+        'ai_usage' => 'array',
+        'ai_attempts' => 'array',
+        'ai_estimated_cost_usd' => 'decimal:6',
+        'ai_extraction_raw' => 'array',
+        'ai_extraction_normalized' => 'array',
+        'ai_reviewed_payload' => 'array',
+        'ai_review_required' => 'boolean',
+        'ai_retry_count' => 'integer',
+        'ai_last_requested_at' => 'datetime',
+        'ai_escalated_at' => 'datetime',
+        'ai_failed_at' => 'datetime',
         'metrics' => 'array',
         'analysis' => 'array',
         'variants' => 'array',
@@ -62,7 +92,7 @@ class PlanScan extends Model
 
     public function getPlanFileUrlAttribute(): ?string
     {
-        if (!$this->plan_file_path) {
+        if (! $this->plan_file_path) {
             return null;
         }
 

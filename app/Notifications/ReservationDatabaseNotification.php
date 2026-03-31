@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Services\NotificationPreferenceService;
+use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -30,8 +31,10 @@ class ReservationDatabaseNotification extends Notification implements ShouldQueu
 
     public function toArray(object $notifiable): array
     {
+        $title = (string) ($this->payload['title'] ?? LocalePreference::trans('mail.action.default_title', locale: LocalePreference::forNotifiable($notifiable)));
+
         return [
-            'title' => (string) ($this->payload['title'] ?? 'Reservation update'),
+            'title' => $title,
             'message' => (string) ($this->payload['message'] ?? ''),
             'action_url' => $this->payload['action_url'] ?? null,
             'category' => NotificationPreferenceService::CATEGORY_PLANNING,

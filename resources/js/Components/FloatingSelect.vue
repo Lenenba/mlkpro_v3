@@ -45,8 +45,12 @@ const props = defineProps({
     },
 });
 const model = defineModel({
-    type: [String, Number, Array],
-    required: true,
+    default: null,
+    validator: (value) => value === null
+        || value === undefined
+        || typeof value === 'string'
+        || typeof value === 'number'
+        || Array.isArray(value),
 });
 
 const input = ref(null);

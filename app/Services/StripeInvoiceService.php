@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\InvoicePaymentNotification;
+use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -381,14 +382,18 @@ class StripeInvoiceService
             $customer = $invoice->customer;
             $customerLabel = $customer?->company_name
                 ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''));
+            $locale = LocalePreference::forUser($owner);
+            $isFr = str_starts_with($locale, 'fr');
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
-                'Payment received from client',
-                $customerLabel ? $customerLabel.' paid via Stripe.' : 'A client paid via Stripe.',
-                $this->buildPaymentDetails($invoice, $payment),
+                $isFr ? 'Paiement recu du client' : 'Payment received from client',
+                $customerLabel
+                    ? ($isFr ? $customerLabel.' a paye via Stripe.' : $customerLabel.' paid via Stripe.')
+                    : ($isFr ? 'Un client a paye via Stripe.' : 'A client paid via Stripe.'),
+                $this->buildPaymentDetails($invoice, $payment, $locale),
                 route('invoice.show', $invoice->id),
-                'View invoice',
-                'Stripe payment received'
+                $isFr ? 'Voir la facture' : 'View invoice',
+                $isFr ? 'Paiement Stripe recu' : 'Stripe payment received'
             ), [
                 'invoice_id' => $invoice->id,
                 'payment_id' => $payment->id,
@@ -411,13 +416,18 @@ class StripeInvoiceService
         }
 
         if ($customer->email) {
+            $owner = $invoice->relationLoaded('user')
+                ? $invoice->user
+                : User::query()->select(['id', 'locale'])->find($invoice->user_id);
+            $locale = LocalePreference::forCustomer($customer, $owner);
+            $isFr = str_starts_with($locale, 'fr');
             NotificationDispatcher::send($customer, new ActionEmailNotification(
-                'Payment confirmed',
-                'Your payment has been received.',
-                $this->buildPaymentDetails($invoice, $payment),
+                $isFr ? 'Paiement confirme' : 'Payment confirmed',
+                $isFr ? 'Votre paiement a bien ete recu.' : 'Your payment has been received.',
+                $this->buildPaymentDetails($invoice, $payment, $locale),
                 route('public.invoices.show', $invoice->id),
-                'View invoice',
-                'Payment confirmation'
+                $isFr ? 'Voir la facture' : 'View invoice',
+                $isFr ? 'Confirmation de paiement' : 'Payment confirmation'
             ), [
                 'invoice_id' => $invoice->id,
                 'payment_id' => $payment->id,
@@ -464,21 +474,22 @@ class StripeInvoiceService
         return $owner->stripe_connect_account_id ?: null;
     }
 
-    private function buildPaymentDetails(Invoice $invoice, Payment $payment): array
+    private function buildPaymentDetails(Invoice $invoice, Payment $payment, ?string $locale = null): array
     {
+        $isFr = str_starts_with(LocalePreference::normalize($locale), 'fr');
         $tipAmount = (float) ($payment->tip_amount ?? 0);
 
         $details = [
-            ['label' => 'Invoice', 'value' => $invoice->number ?? $invoice->id],
-            ['label' => 'Amount', 'value' => '$'.number_format((float) $payment->amount, 2)],
+            ['label' => $isFr ? 'Facture' : 'Invoice', 'value' => $invoice->number ?? $invoice->id],
+            ['label' => $isFr ? 'Montant' : 'Amount', 'value' => '$'.number_format((float) $payment->amount, 2)],
         ];
 
         if ($tipAmount > 0) {
-            $details[] = ['label' => 'Tip', 'value' => '$'.number_format($tipAmount, 2)];
-            $details[] = ['label' => 'Total charged', 'value' => '$'.number_format((float) $payment->amount + $tipAmount, 2)];
+            $details[] = ['label' => $isFr ? 'Pourboire' : 'Tip', 'value' => '$'.number_format($tipAmount, 2)];
+            $details[] = ['label' => $isFr ? 'Total facture' : 'Total charged', 'value' => '$'.number_format((float) $payment->amount + $tipAmount, 2)];
         }
 
-        $details[] = ['label' => 'Balance due', 'value' => '$'.number_format((float) $invoice->balance_due, 2)];
+        $details[] = ['label' => $isFr ? 'Solde restant' : 'Balance due', 'value' => '$'.number_format((float) $invoice->balance_due, 2)];
 
         return $details;
     }

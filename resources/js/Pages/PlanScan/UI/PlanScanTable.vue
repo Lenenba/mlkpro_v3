@@ -1,5 +1,6 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -45,6 +46,167 @@ const statusClass = (status) => {
             return 'bg-stone-100 text-stone-800 dark:bg-neutral-700 dark:text-neutral-200';
     }
 };
+
+const isScanStale = (scan) => {
+    if (scan?.status !== 'processing' || !scan?.updated_at) {
+        return false;
+    }
+
+    const updatedAt = new Date(scan.updated_at);
+    if (Number.isNaN(updatedAt.getTime())) {
+        return false;
+    }
+
+    return Date.now() - updatedAt.getTime() >= 5 * 60 * 1000;
+};
+
+const openMenuScanId = ref(null);
+const actionButtonRefs = ref({});
+const menuRef = ref(null);
+const menuStyle = ref({});
+const pendingActionScanId = ref(null);
+let listenersBound = false;
+
+const activeMenuScan = computed(() =>
+    (props.scans?.data || []).find((scan) => scan.id === openMenuScanId.value) || null
+);
+
+const setActionButtonRef = (scanId, element) => {
+    if (element) {
+        actionButtonRefs.value[scanId] = element;
+        return;
+    }
+
+    delete actionButtonRefs.value[scanId];
+};
+
+const isActionPending = (scanId) => pendingActionScanId.value === scanId;
+
+const updateMenuPosition = async () => {
+    if (!openMenuScanId.value) {
+        return;
+    }
+
+    await nextTick();
+
+    const button = actionButtonRefs.value[openMenuScanId.value];
+    if (!button || !menuRef.value) {
+        return;
+    }
+
+    const rect = button.getBoundingClientRect();
+    const menuRect = menuRef.value.getBoundingClientRect();
+    const padding = 12;
+    let left = rect.right - menuRect.width;
+    left = Math.max(padding, left);
+
+    if (left + menuRect.width > window.innerWidth - padding) {
+        left = Math.max(padding, window.innerWidth - menuRect.width - padding);
+    }
+
+    let top = rect.bottom + 8;
+    const maxTop = window.innerHeight - menuRect.height - padding;
+    if (top > maxTop) {
+        top = Math.max(padding, rect.top - menuRect.height - 8);
+    }
+
+    menuStyle.value = {
+        left: `${left}px`,
+        top: `${top}px`,
+    };
+};
+
+const closeActionMenu = () => {
+    openMenuScanId.value = null;
+    menuStyle.value = {};
+    teardownMenuListeners();
+};
+
+const toggleActionMenu = async (scanId) => {
+    if (openMenuScanId.value === scanId) {
+        closeActionMenu();
+        return;
+    }
+
+    openMenuScanId.value = scanId;
+    await updateMenuPosition();
+
+    if (!listenersBound) {
+        document.addEventListener('click', handleDocumentClick, true);
+        document.addEventListener('keydown', handleKeydown, true);
+        window.addEventListener('resize', updateMenuPosition);
+        window.addEventListener('scroll', updateMenuPosition, true);
+        listenersBound = true;
+    }
+};
+
+const teardownMenuListeners = () => {
+    if (!listenersBound) {
+        return;
+    }
+
+    document.removeEventListener('click', handleDocumentClick, true);
+    document.removeEventListener('keydown', handleKeydown, true);
+    window.removeEventListener('resize', updateMenuPosition);
+    window.removeEventListener('scroll', updateMenuPosition, true);
+    listenersBound = false;
+};
+
+const handleDocumentClick = (event) => {
+    const target = event.target;
+    const button = openMenuScanId.value ? actionButtonRefs.value[openMenuScanId.value] : null;
+
+    if (button?.contains(target) || menuRef.value?.contains(target)) {
+        return;
+    }
+
+    closeActionMenu();
+};
+
+const handleKeydown = (event) => {
+    if (event.key === 'Escape') {
+        closeActionMenu();
+    }
+};
+
+const finishAction = () => {
+    pendingActionScanId.value = null;
+};
+
+const startAction = (scanId) => {
+    pendingActionScanId.value = scanId;
+    closeActionMenu();
+};
+
+const reanalyze = (scan, mode = 'retry') => {
+    startAction(scan.id);
+
+    router.post(route('plan-scans.reanalyze', scan.id), {
+        mode,
+    }, {
+        preserveScroll: true,
+        onFinish: finishAction,
+    });
+};
+
+const deleteScan = (scan) => {
+    closeActionMenu();
+
+    if (!window.confirm(`Delete "${scan.job_title || `Plan scan #${scan.id}`}"?`)) {
+        return;
+    }
+
+    startAction(scan.id);
+
+    router.delete(route('plan-scans.destroy', scan.id), {
+        preserveScroll: true,
+        onFinish: finishAction,
+    });
+};
+
+onBeforeUnmount(() => {
+    teardownMenuListeners();
+});
 </script>
 
 <template>
@@ -115,9 +277,17 @@ const statusClass = (status) => {
                             {{ scan.trade_type || '-' }}
                         </td>
                         <td class="px-5 py-3">
-                            <span class="inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-medium" :class="statusClass(scan.status)">
-                                {{ statusLabel(scan.status) }}
-                            </span>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-medium" :class="statusClass(scan.status)">
+                                    {{ statusLabel(scan.status) }}
+                                </span>
+                                <span
+                                    v-if="isScanStale(scan)"
+                                    class="inline-flex items-center rounded-sm bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
+                                >
+                                    Stuck
+                                </span>
+                            </div>
                         </td>
                         <td class="px-5 py-3 text-sm text-stone-700 dark:text-neutral-300">
                             {{ scan.confidence_score ? `${scan.confidence_score}%` : '--' }}
@@ -126,12 +296,21 @@ const statusClass = (status) => {
                             {{ formatDate(scan.updated_at) }}
                         </td>
                         <td class="px-5 py-3 text-end">
-                            <Link
-                                :href="route('plan-scans.show', scan.id)"
-                                class="text-sm text-green-700 hover:underline dark:text-green-400"
+                            <button
+                                :ref="(element) => setActionButtonRef(scan.id, element)"
+                                type="button"
+                                class="inline-flex size-8 items-center justify-center rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                :disabled="isActionPending(scan.id)"
+                                :aria-expanded="openMenuScanId === scan.id ? 'true' : 'false'"
+                                aria-label="Open actions menu"
+                                @click="toggleActionMenu(scan.id)"
                             >
-                                View
-                            </Link>
+                                <svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="1" />
+                                    <circle cx="12" cy="5" r="1" />
+                                    <circle cx="12" cy="19" r="1" />
+                                </svg>
+                            </button>
                         </td>
                     </tr>
                     <tr v-if="!scans.data.length">
@@ -142,6 +321,50 @@ const statusClass = (status) => {
                 </tbody>
             </table>
         </div>
+
+        <Teleport to="body">
+            <div
+                v-if="activeMenuScan"
+                ref="menuRef"
+                class="fixed z-[90] w-52 rounded-sm border border-stone-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
+                :style="menuStyle"
+                role="menu"
+                aria-orientation="vertical"
+            >
+                <Link
+                    :href="route('plan-scans.show', activeMenuScan.id)"
+                    class="flex w-full items-center rounded-sm px-3 py-2 text-left text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                    @click="closeActionMenu"
+                >
+                    View details
+                </Link>
+                <button
+                    type="button"
+                    class="flex w-full items-center rounded-sm px-3 py-2 text-left text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                    role="menuitem"
+                    @click="reanalyze(activeMenuScan, 'retry')"
+                >
+                    Retry AI
+                </button>
+                <button
+                    type="button"
+                    class="flex w-full items-center rounded-sm px-3 py-2 text-left text-[13px] text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-950/20"
+                    role="menuitem"
+                    @click="reanalyze(activeMenuScan, 'escalate')"
+                >
+                    Escalate AI
+                </button>
+                <div class="my-1 h-px bg-stone-200 dark:bg-neutral-700"></div>
+                <button
+                    type="button"
+                    class="flex w-full items-center rounded-sm px-3 py-2 text-left text-[13px] text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/20"
+                    role="menuitem"
+                    @click="deleteScan(activeMenuScan)"
+                >
+                    Delete scan
+                </button>
+            </div>
+        </Teleport>
 
         <div v-if="scans.next_page_url || scans.prev_page_url" class="flex items-center justify-between gap-3">
             <Link

@@ -265,36 +265,35 @@ Fonctions:
 5. Ajouter des tags aux assets pour les retrouver rapidement.
 6. Tester le lien public apres chaque modification importante.
 
-## 14. Donnees de demo (LaunchSeeder)
-Seeder: `Database\\Seeders\\LaunchSeeder`
+## 14. Baseline locale minimale
+Seeder: `Database\\Seeders\\LaunchResetSeeder`
 
 Execution:
 ```
-php artisan db:seed --class=Database\\Seeders\\LaunchSeeder
+php artisan db:seed --class=Database\\Seeders\\LaunchResetSeeder
 ```
 
-Comptes demo:
-- owner.services@example.com / password
-- admin.services@example.com / password
-- member.services@example.com / password
-- owner.products@example.com / password
-- client.north@example.com / password
-- client.products@example.com / password
+Comptes crees:
+- superadmin@example.com / password
+- platform.admin@example.com / password
 
 Ce seeder cree:
-- entreprises services + products
-- clients + proprietes
-- produits/services
-- requests + devis + jobs + checklist
-- transactions + facture + paiement partiel
-- taches assignees
+- baseline plateforme
+- roles
+- settings plateforme
+- mega menu public
+
+Pour provisionner une entreprise de demo:
+- utiliser `Super Admin > Demo Workspaces`
+- ne plus utiliser `LaunchSeeder`
 
 ## 15. Commandes utiles (dev)
 ```
 php artisan migrate
 php artisan storage:link
 php artisan db:seed
-php artisan db:seed --class=Database\\Seeders\\LaunchSeeder
+php artisan db:seed --class=Database\\Seeders\\LaunchResetSeeder
+php artisan app:launch-reset --force
 php artisan workflow:auto-validate
 ```
 
@@ -335,41 +334,21 @@ Notes:
 - Stripe: checkout Stripe + portail client (payment method). Webhook: `/api/stripe/webhook`.
 - Paddle: le bouton "Gerer le paiement" redirige vers Paddle (update payment method).
 
-## 18. Scenarios de test (LaunchSeeder)
-Seeder: `Database\\Seeders\\LaunchSeeder`
+## 18. Scenarios de test (baseline + demo workspaces)
+Seeder baseline: `Database\\Seeders\\LaunchResetSeeder`
 
 Preparation:
 1. `php artisan migrate:fresh`
-2. `php artisan db:seed --class=Database\\Seeders\\LaunchSeeder`
+2. `php artisan db:seed --class=Database\\Seeders\\LaunchResetSeeder`
+3. creer ensuite les tenants de demo depuis `Super Admin > Demo Workspaces`
 
-Comptes:
-- owner.services@example.com / password
-- admin.services@example.com / password
-- member.services@example.com / password
-- owner.products@example.com / password
-- client.north@example.com / password (portail client)
-- client.products@example.com / password (portail client)
+Comptes baseline:
+- superadmin@example.com / password
+- platform.admin@example.com / password
 
 Donnees a tester:
-- Leads:
-  - Lead - Window cleaning (converti)
-  - Lead - Gutter cleaning (nouveau)
-  - Lead - Supply order (nouveau)
-- Quotes:
-  - Window cleaning package (accepted)
-  - Seasonal maintenance quote (sent)
-  - Draft - Exterior prep (draft)
-  - Declined - Fence wash (declined)
-  - Extra - Screen repair (change order)
-  - Starter supply pack (product, sent)
-- Jobs:
-  - Window cleaning package (validated)
-  - Review - Exterior refresh (pending_review)
-  - Scheduled - Seasonal checkup (scheduled)
-  - In progress - Driveway wash (in_progress)
-  - Dispute - Balcony cleanup (dispute)
-  - Cancelled - Patio wash (cancelled)
-  - Closed - Full service (closed)
+- les jeux de donnees metier doivent maintenant venir d un `Demo Workspace`
+- choisir le template et les scenarios depuis le module demo selon le cas a tester
 - Invoices:
   - Window cleaning package (partial)
   - Scheduled - Seasonal checkup (sent)

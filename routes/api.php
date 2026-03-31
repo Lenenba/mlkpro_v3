@@ -268,6 +268,9 @@ Route::name('api.')->group(function () {
                     Route::get('plan-scans/create', [PlanScanController::class, 'create']);
                     Route::post('plan-scans', [PlanScanController::class, 'store']);
                     Route::get('plan-scans/{planScan}', [PlanScanController::class, 'show']);
+                    Route::patch('plan-scans/{planScan}/review', [PlanScanController::class, 'review']);
+                    Route::post('plan-scans/{planScan}/reanalyze', [PlanScanController::class, 'reanalyze']);
+                    Route::delete('plan-scans/{planScan}', [PlanScanController::class, 'destroy']);
                     Route::post('plan-scans/{planScan}/convert', [PlanScanController::class, 'convert']);
                 });
             });

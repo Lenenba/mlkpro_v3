@@ -2,23 +2,38 @@
 
 use App\Jobs\ComputeInterestScoresJob;
 use App\Jobs\ReconcileDeliveryReportsJob;
+use App\Mail\DemoWorkspaceAccessMail;
 use App\Models\ActivityLog;
+use App\Models\Customer;
 use App\Models\PlatformSupportTicket;
+use App\Models\Product;
+use App\Models\Property;
+use App\Models\Quote;
+use App\Models\QuoteProduct;
+use App\Models\QuoteTax;
 use App\Models\Request as LeadRequest;
 use App\Models\ReservationSetting;
 use App\Models\Role;
 use App\Models\Sale;
+use App\Models\Tax;
 use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
+use App\Notifications\InviteUserNotification;
+use App\Notifications\LeadCallRequestReceivedNotification;
 use App\Notifications\LeadFollowUpNotification;
+use App\Notifications\LeadFormOwnerNotification;
+use App\Notifications\LeadQuoteRequestReceivedNotification;
+use App\Notifications\PlatformAdminDigestNotification;
+use App\Notifications\SendQuoteNotification;
+use App\Notifications\SupplierStockRequestNotification;
+use App\Notifications\TwoFactorCodeNotification;
+use App\Notifications\UpcomingBillingReminderNotification;
+use App\Notifications\WelcomeEmailNotification;
 use App\Services\Campaigns\CampaignAutomationService;
 use App\Services\Campaigns\VipService;
 use App\Services\Capacity\CapacityReportService;
 use App\Services\DailyAgendaService;
-use App\Services\Demo\DemoAccountService;
-use App\Services\Demo\DemoResetService;
-use App\Services\Demo\DemoSeedService;
 use App\Services\Demo\DemoWorkspacePurgeService;
 use App\Services\Observability\ObservabilityReportService;
 use App\Services\PlatformAdminNotifier;
@@ -32,10 +47,13 @@ use App\Services\StripePlanEnvSyncService;
 use App\Services\StripePlanPriceProvisioner;
 use App\Services\SupportAssignmentService;
 use App\Services\SupportSettingsService;
+use App\Services\UpcomingBillingReminderService;
 use App\Services\WorkBillingService;
+use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 use App\Support\SchemaAudit\ManualSelectContractAudit;
-use Database\Seeders\LaunchSeeder;
+use Database\Seeders\LaunchResetSeeder;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -43,8 +61,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -146,6 +166,621 @@ Artisan::command('mail:test {to} {--subject=Test} {--body=}', function (): int {
 
     return 0;
 })->purpose('Send a test email using current mailer');
+
+Artisan::command('mail:preview-pack {to}
+    {--only=* : Optional preview key(s). Can be repeated or comma-separated}
+    {--group= : Optional preview group, for example client-facing}
+    {--list : List available preview keys without sending}', function (): int {
+    $to = trim((string) $this->argument('to'));
+
+    if (! filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        $this->error('Adresse email invalide.');
+
+        return 1;
+    }
+
+    $available = [
+        'demo-access' => 'Demo workspace access email',
+        'action-generic' => 'Generic action email',
+        'invite-user' => 'Invite user email',
+        'two-factor' => 'Two-factor code email',
+        'reset-password' => 'Reset password email',
+        'welcome' => 'Welcome / onboarding email',
+        'quote' => 'Quote email',
+        'lead-call' => 'Lead call request received email',
+        'lead-quote' => 'Lead quote received email',
+        'lead-owner-quote' => 'Lead owner notification: quote created',
+        'lead-owner-call' => 'Lead owner notification: call requested',
+        'lead-owner-email-failed' => 'Lead owner notification: quote email failed',
+        'lead-follow-up' => 'Lead follow-up overdue email',
+        'lead-unassigned' => 'Lead unassigned reminder email',
+        'supplier-stock' => 'Supplier stock request email',
+        'admin-digest' => 'Platform admin digest email',
+        'billing-upcoming' => 'Upcoming billing reminder email',
+        'client-invoice-new' => 'Client email: new invoice available',
+        'client-payment-confirmed' => 'Client email: payment confirmed',
+        'client-order-update' => 'Client email: order status update',
+        'client-deposit-request' => 'Client email: deposit requested',
+        'client-deposit-reminder' => 'Client email: deposit reminder',
+        'client-reservation-reminder' => 'Client email: reservation reminder',
+        'client-review-request' => 'Client email: review request',
+        'client-job-validation' => 'Client email: job ready for validation',
+        'client-service-today' => 'Client email: service scheduled today',
+    ];
+
+    $groups = [
+        'client-facing' => [
+            'quote',
+            'lead-call',
+            'lead-quote',
+            'client-invoice-new',
+            'client-payment-confirmed',
+            'client-order-update',
+            'client-deposit-request',
+            'client-deposit-reminder',
+            'client-reservation-reminder',
+            'client-review-request',
+            'client-job-validation',
+            'client-service-today',
+        ],
+    ];
+
+    $selected = collect((array) $this->option('only'))
+        ->flatMap(fn ($value) => array_map('trim', explode(',', (string) $value)))
+        ->filter(fn ($value) => $value !== '')
+        ->map(fn ($value) => strtolower((string) $value))
+        ->unique()
+        ->values();
+
+    $group = strtolower(trim((string) $this->option('group')));
+    if ($group !== '') {
+        if (! array_key_exists($group, $groups)) {
+            $this->error('Unknown preview group: '.$group);
+            $this->line('Use --list to see the available groups.');
+
+            return 1;
+        }
+
+        $selected = $selected
+            ->merge($groups[$group])
+            ->unique()
+            ->values();
+    }
+
+    if ((bool) $this->option('list')) {
+        $this->table(
+            ['Key', 'Email'],
+            collect($available)->map(fn ($label, $key) => [$key, $label])->values()->all()
+        );
+
+        $this->newLine();
+        $this->table(
+            ['Group', 'Includes'],
+            collect($groups)->map(fn ($keys, $groupName) => [$groupName, implode(', ', $keys)])->values()->all()
+        );
+
+        return 0;
+    }
+
+    $unknown = $selected
+        ->reject(fn ($key) => array_key_exists($key, $available))
+        ->values();
+
+    if ($unknown->isNotEmpty()) {
+        $this->error('Unknown preview key(s): '.$unknown->implode(', '));
+        $this->line('Use --list to see the available keys.');
+
+        return 1;
+    }
+
+    $owner = new User;
+    $owner->forceFill([
+        'id' => 9101,
+        'name' => 'Preview Owner',
+        'email' => 'owner-preview@example.test',
+        'company_name' => 'Malikia Pro',
+        'company_logo' => '/images/presets/company-1.svg',
+        'company_type' => 'services',
+        'currency_code' => 'USD',
+    ]);
+
+    $previewUser = new User;
+    $previewUser->forceFill([
+        'id' => 9102,
+        'name' => 'Preview Recipient',
+        'email' => $to,
+        'locale' => $owner->locale ?? 'fr',
+        'company_name' => 'Malikia Pro',
+        'company_logo' => '/images/presets/company-1.svg',
+        'currency_code' => 'USD',
+    ]);
+
+    $customer = new Customer;
+    $customer->forceFill([
+        'id' => 9201,
+        'user_id' => $owner->id,
+        'portal_access' => false,
+        'first_name' => 'Camille',
+        'last_name' => 'Laurent',
+        'company_name' => 'Atelier Horizon',
+        'email' => $to,
+        'phone' => '+1 514 555 0192',
+        'logo' => Customer::DEFAULT_LOGO_PATH,
+    ]);
+    $customer->setRelation('user', $owner);
+
+    $property = new Property;
+    $property->forceFill([
+        'id' => 9301,
+        'customer_id' => $customer->id,
+        'type' => 'physical',
+        'is_default' => true,
+        'street1' => '125 Rue du Parc',
+        'city' => 'Montreal',
+        'state' => 'QC',
+        'zip' => 'H2X 1Y4',
+        'country' => 'CA',
+    ]);
+    $customer->setRelation('properties', collect([$property]));
+
+    $lead = new LeadRequest;
+    $lead->forceFill([
+        'id' => 9401,
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'status' => LeadRequest::STATUS_QUALIFIED,
+        'service_type' => 'Field services',
+        'title' => 'Multi-site rollout request',
+        'description' => 'The prospect wants a realistic workspace to validate the sales, quote, and operations handoff before rollout.',
+        'contact_name' => 'Camille Laurent',
+        'contact_email' => $to,
+        'contact_phone' => '+1 514 555 0192',
+        'city' => 'Montreal',
+        'country' => 'CA',
+    ]);
+    $lead->setRelation('user', $owner);
+    $lead->setRelation('customer', $customer);
+
+    $tax = new Tax;
+    $tax->forceFill([
+        'id' => 9501,
+        'name' => 'GST + QST',
+        'rate' => 14.975,
+    ]);
+
+    $quoteTax = new QuoteTax;
+    $quoteTax->forceFill([
+        'id' => 9502,
+        'quote_id' => 9601,
+        'tax_id' => $tax->id,
+        'rate' => 14.975,
+        'amount' => 104.83,
+    ]);
+    $quoteTax->setRelation('tax', $tax);
+
+    $productA = new Product;
+    $productA->forceFill([
+        'id' => 9602,
+        'user_id' => $owner->id,
+        'name' => 'Operational audit',
+        'price' => 350.00,
+        'stock' => 9,
+        'minimum_stock' => 3,
+        'sku' => 'SERV-AUDIT-01',
+        'item_type' => Product::ITEM_TYPE_SERVICE,
+    ]);
+    $productAPivot = new QuoteProduct;
+    $productAPivot->forceFill([
+        'quote_id' => 9601,
+        'product_id' => $productA->id,
+        'quantity' => 1,
+        'price' => 350.00,
+        'currency_code' => 'USD',
+        'total' => 350.00,
+    ]);
+    $productA->setRelation('pivot', $productAPivot);
+
+    $productB = new Product;
+    $productB->forceFill([
+        'id' => 9603,
+        'user_id' => $owner->id,
+        'name' => 'Deployment planning',
+        'price' => 350.00,
+        'stock' => 7,
+        'minimum_stock' => 2,
+        'sku' => 'SERV-DEPLOY-01',
+        'item_type' => Product::ITEM_TYPE_SERVICE,
+    ]);
+    $productBPivot = new QuoteProduct;
+    $productBPivot->forceFill([
+        'quote_id' => 9601,
+        'product_id' => $productB->id,
+        'quantity' => 2,
+        'price' => 350.00,
+        'currency_code' => 'USD',
+        'total' => 700.00,
+    ]);
+    $productB->setRelation('pivot', $productBPivot);
+
+    $quote = new Quote;
+    $quote->forceFill([
+        'id' => 9601,
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'property_id' => $property->id,
+        'request_id' => $lead->id,
+        'number' => 'Q-2026-0142',
+        'job_title' => 'Operational handoff setup',
+        'status' => 'sent',
+        'subtotal' => 700.00,
+        'total' => 804.83,
+        'initial_deposit' => 150.00,
+        'messages' => 'Review the scope and validate the quote from the secure portal.',
+    ]);
+    $quote->setRelation('customer', $customer);
+    $quote->setRelation('property', $property);
+    $quote->setRelation('products', collect([$productA, $productB]));
+    $quote->setRelation('taxes', collect([$quoteTax]));
+
+    $stockProduct = new Product;
+    $stockProduct->forceFill([
+        'id' => 9701,
+        'user_id' => $owner->id,
+        'name' => 'Premium paint kit',
+        'price' => 89.00,
+        'stock' => 3,
+        'minimum_stock' => 8,
+        'sku' => 'PAINT-KIT-01',
+        'item_type' => Product::ITEM_TYPE_PRODUCT,
+    ]);
+
+    $digestItems = [
+        [
+            'title' => '3 demos are ready for review',
+            'category' => 'sales',
+            'created_at' => now()->subHour()->toDateTimeString(),
+            'intro' => 'Review access kits and send the best-fit workspace to prospects.',
+        ],
+        [
+            'title' => '2 quote deliveries need attention',
+            'category' => 'operations',
+            'created_at' => now()->subMinutes(35)->toDateTimeString(),
+            'intro' => 'One quote email failed and one follow-up is overdue.',
+        ],
+        [
+            'title' => 'Low stock request pending confirmation',
+            'category' => 'stock',
+            'created_at' => now()->subMinutes(10)->toDateTimeString(),
+            'intro' => 'A supplier restock confirmation is still pending for a critical product.',
+        ],
+    ];
+
+    $sendPreview = function (string $key) use ($selected, $to, $owner, $previewUser, $customer, $lead, $quote, $stockProduct, $digestItems): bool {
+        if ($selected->isNotEmpty() && ! $selected->contains($key)) {
+            return false;
+        }
+
+        match ($key) {
+            'demo-access' => Mail::to($to)->send(new DemoWorkspaceAccessMail(
+                companyName: $owner->company_name ?: config('app.name'),
+                companyLogo: $owner->company_logo_url,
+                recipientName: 'Camille Laurent',
+                prospectCompany: 'Atelier Horizon',
+                workspaceName: 'Atelier Horizon Demo',
+                tagline: 'Concu pour les equipes terrain.',
+                loginUrl: url('/login'),
+                accessEmail: 'demo@atelier-horizon.test',
+                accessPassword: 'Demo1234!',
+                expiresAt: now()->addDays(7)->format('d/m/Y'),
+                templateName: 'Field Services',
+                moduleLabels: ['CRM', 'Quotes', 'Scheduling', 'Invoices'],
+                scenarioLabels: ['Discovery handoff', 'Quote validation', 'Ops walkthrough'],
+                extraCredentials: [
+                    ['role_label' => 'Sales manager', 'email' => 'sales@atelier-horizon.test', 'password' => 'Sales123!'],
+                    ['role_label' => 'Operations lead', 'email' => 'ops@atelier-horizon.test', 'password' => 'Ops123!'],
+                ],
+                suggestedFlow: "1. Log in with the main access.\n2. Review the quote and customer record.\n3. Switch to operations and validate the follow-up flow.",
+                replyToAddress: config('mail.from.address'),
+                preferredLocale: LocalePreference::forUser($owner),
+            )),
+            'action-generic' => $customer->notifyNow(new ActionEmailNotification(
+                title: 'Preview action email',
+                intro: 'This is the reusable action template used for platform updates and admin alerts.',
+                details: [
+                    ['label' => 'Module', 'value' => 'Mail previews'],
+                    ['label' => 'Environment', 'value' => (string) config('app.name')],
+                    ['label' => 'Generated', 'value' => now()->format('Y-m-d H:i')],
+                ],
+                actionUrl: url('/dashboard'),
+                actionLabel: 'Open dashboard',
+                subject: 'Preview - action email',
+                note: 'Use this preview to validate cards, spacing, and CTA styling.',
+            )),
+            'invite-user' => $previewUser->notifyNow(new InviteUserNotification(
+                token: Str::random(64),
+                companyName: $owner->company_name,
+                companyLogo: $owner->company_logo_url,
+                context: 'member',
+            )),
+            'two-factor' => $previewUser->notifyNow(new TwoFactorCodeNotification(
+                code: '482913',
+                expiresAt: now()->addMinutes(10),
+            )),
+            'reset-password' => $previewUser->notifyNow(new ResetPassword(
+                token: Str::random(64),
+            )),
+            'welcome' => $previewUser->notifyNow(new WelcomeEmailNotification($owner)),
+            'quote' => Notification::route('mail', $to)->notifyNow(new SendQuoteNotification($quote)),
+            'lead-call' => Notification::route('mail', $to)->notifyNow(new LeadCallRequestReceivedNotification($owner, $lead)),
+            'lead-quote' => Notification::route('mail', $to)->notifyNow(new LeadQuoteRequestReceivedNotification($owner, $lead, $quote, true)),
+            'lead-owner-quote' => $previewUser->notifyNow(new LeadFormOwnerNotification('lead_quote_created', $lead, $quote, true), ['mail']),
+            'lead-owner-call' => $previewUser->notifyNow(new LeadFormOwnerNotification('lead_call_requested', $lead, null, true), ['mail']),
+            'lead-owner-email-failed' => $previewUser->notifyNow(new LeadFormOwnerNotification('lead_email_failed', $lead, $quote, true), ['mail']),
+            'lead-follow-up' => $previewUser->notifyNow(new LeadFollowUpNotification($lead, 'follow_up_overdue', 24), ['mail']),
+            'lead-unassigned' => $previewUser->notifyNow(new LeadFollowUpNotification($lead, 'unassigned', 24), ['mail']),
+            'supplier-stock' => Notification::route('mail', $to)->notifyNow(new SupplierStockRequestNotification(
+                product: $stockProduct,
+                owner: $owner,
+                customMessage: 'Merci de confirmer la disponibilite et le prochain delai de reapprovisionnement.',
+            )),
+            'admin-digest' => Notification::route('mail', $to)->notifyNow(new PlatformAdminDigestNotification('daily', $digestItems)),
+            'billing-upcoming' => $previewUser->notifyNow(new UpcomingBillingReminderNotification([
+                'companyName' => 'Atelier Horizon',
+                'companyLogo' => $owner->company_logo_url,
+                'recipientName' => 'Camille Laurent',
+                'billingDate' => now()->addDays(3)->toDateString(),
+                'billingDateLabel' => now()->addDays(3)->format('d/m/Y'),
+                'daysUntilBilling' => 3,
+                'planName' => 'Growth',
+                'billingPeriod' => 'monthly',
+                'seatQuantity' => 5,
+                'currencyCode' => 'USD',
+                'formattedTotal' => '$79.00',
+                'formattedSubtotal' => '$69.00',
+                'formattedTax' => '$10.00',
+                'lineItems' => [
+                    ['label' => 'Growth plan', 'quantity' => 1, 'formatted_amount' => '$64.00'],
+                    ['label' => '5 active seats', 'quantity' => 5, 'formatted_amount' => '$15.00'],
+                ],
+                'lineItemCount' => 2,
+                'manageBillingUrl' => url('/settings/billing'),
+                'supportEmail' => config('mail.from.address'),
+                'reminderKey' => 'preview-billing-upcoming',
+            ])),
+            'client-invoice-new' => $customer->notifyNow(new ActionEmailNotification(
+                title: 'New invoice available',
+                intro: 'A new invoice has been generated for your job.',
+                details: [
+                    ['label' => 'Invoice', 'value' => 'INV-2026-0041'],
+                    ['label' => 'Job', 'value' => 'Operational handoff setup'],
+                    ['label' => 'Total', 'value' => '$804.83'],
+                ],
+                actionUrl: url('/public/invoices/preview'),
+                actionLabel: 'Pay invoice',
+                subject: 'New invoice available',
+                note: 'Review the balance and pay securely using the link provided.',
+            )),
+            'client-payment-confirmed' => $customer->notifyNow(new ActionEmailNotification(
+                title: 'Payment confirmed',
+                intro: 'Your payment has been received.',
+                details: [
+                    ['label' => 'Invoice', 'value' => 'INV-2026-0041'],
+                    ['label' => 'Amount paid', 'value' => '$804.83'],
+                    ['label' => 'Method', 'value' => 'Visa ending in 4242'],
+                ],
+                actionUrl: url('/public/invoices/preview'),
+                actionLabel: 'View invoice',
+                subject: 'Payment confirmation',
+                note: 'Thank you. A copy of your invoice remains available from your secure link.',
+            )),
+            'client-order-update' => $customer->notifyNow(new ActionEmailNotification(
+                title: 'Mise a jour de commande',
+                intro: 'Livraison: En cours de livraison.',
+                details: [
+                    ['label' => 'Commande', 'value' => 'ORD-2026-0019'],
+                    ['label' => 'Statut', 'value' => 'Payee'],
+                    ['label' => 'Livraison', 'value' => 'En cours de livraison'],
+                    ['label' => 'ETA', 'value' => now()->addHours(2)->format('D M j, Y g:i A')],
+                ],
+                actionUrl: url('/portal/orders/preview'),
+                actionLabel: 'Voir la commande',
+                subject: 'Mise a jour de commande',
+                note: 'Consultez le suivi et les prochaines etapes depuis votre espace client.',
+            )),
+            'client-deposit-request' => $customer->notifyNow(new ActionEmailNotification(
+                title: 'Acompte requis',
+                intro: 'Un acompte de $150.00 est requis pour commencer la preparation.',
+                details: [
+                    ['label' => 'Commande', 'value' => 'ORD-2026-0019'],
+                    ['label' => 'Acompte requis', 'value' => '$150.00'],
+                    ['label' => 'Total', 'value' => '$804.83'],
+                ],
+                actionUrl: url('/portal/orders/preview'),
+                actionLabel: 'Payer maintenant',
+                subject: 'Acompte requis',
+            )),
+            'client-deposit-reminder' => $customer->notifyNow(new ActionEmailNotification(
+                title: 'Rappel acompte',
+                intro: 'Rappel: un acompte de $150.00 est requis pour commencer la preparation.',
+                details: [
+                    ['label' => 'Commande', 'value' => 'ORD-2026-0019'],
+                    ['label' => 'Acompte requis', 'value' => '$150.00'],
+                    ['label' => 'Total', 'value' => '$804.83'],
+                ],
+                actionUrl: url('/portal/orders/preview'),
+                actionLabel: 'Payer maintenant',
+                subject: 'Rappel acompte',
+            )),
+            'client-reservation-reminder' => $customer->notifyNow(new ActionEmailNotification(
+                title: 'Reservation reminder',
+                intro: 'Reminder: your reservation starts in 24 hour(s).',
+                details: [
+                    ['label' => 'Service', 'value' => 'On-site consultation'],
+                    ['label' => 'When', 'value' => now()->addDay()->format('Y-m-d H:i')],
+                    ['label' => 'Team member', 'value' => 'Jordan Peters'],
+                    ['label' => 'Client', 'value' => 'Atelier Horizon'],
+                    ['label' => 'Status', 'value' => 'confirmed'],
+                ],
+                actionUrl: url('/client/reservations'),
+                actionLabel: 'Open reservations',
+                subject: 'Reservation reminder',
+            )),
+            'client-review-request' => $customer->notifyNow(new ActionEmailNotification(
+                title: 'How was your service?',
+                intro: 'Your reservation is completed. Share your rating and feedback.',
+                details: [
+                    ['label' => 'Service', 'value' => 'On-site consultation'],
+                    ['label' => 'When', 'value' => now()->subDay()->format('Y-m-d H:i')],
+                    ['label' => 'Team member', 'value' => 'Jordan Peters'],
+                    ['label' => 'Client', 'value' => 'Atelier Horizon'],
+                    ['label' => 'Status', 'value' => 'completed'],
+                ],
+                actionUrl: url('/client/reservations'),
+                actionLabel: 'Leave a review',
+                subject: 'How was your service?',
+            )),
+            'client-job-validation' => $customer->notifyNow(new ActionEmailNotification(
+                title: 'Job ready for validation',
+                intro: 'A job is ready for your validation.',
+                details: [
+                    ['label' => 'Job', 'value' => 'Operational handoff setup'],
+                    ['label' => 'Status', 'value' => 'pending_review'],
+                    ['label' => 'Customer', 'value' => 'Atelier Horizon'],
+                ],
+                actionUrl: url('/public/works/preview'),
+                actionLabel: 'Review job',
+                subject: 'Job ready for validation',
+            )),
+            'client-service-today' => $customer->notifyNow(new ActionEmailNotification(
+                title: 'Intervention aujourd hui',
+                intro: 'Bonjour, notre technicien arrive aujourd hui vers 14:30. Technicien: Jordan Peters.',
+                details: [
+                    ['label' => 'Tache', 'value' => 'Operational handoff setup'],
+                    ['label' => 'Heure estimee', 'value' => '14:30'],
+                    ['label' => 'Technicien', 'value' => 'Jordan Peters'],
+                ],
+                actionUrl: url('/public/works/preview'),
+                actionLabel: 'Voir le suivi',
+                subject: 'Intervention aujourd hui',
+            )),
+            default => null,
+        };
+
+        $this->info("Sent {$key} to {$to}");
+
+        return true;
+    };
+
+    $results = [];
+    $failures = 0;
+
+    foreach (array_keys($available) as $key) {
+        try {
+            if (! $sendPreview($key)) {
+                continue;
+            }
+
+            $results[] = [$key, 'sent', $available[$key]];
+        } catch (\Throwable $exception) {
+            $failures += 1;
+            $results[] = [$key, 'failed', $exception->getMessage()];
+            $this->error("Failed {$key}: ".$exception->getMessage());
+        }
+    }
+
+    if ($results === []) {
+        $this->warn('No emails were selected. Use --list to see the available keys.');
+
+        return 1;
+    }
+
+    $this->newLine();
+    $this->table(['Key', 'Status', 'Details'], $results);
+
+    if ($failures > 0) {
+        $this->warn("Completed with {$failures} failure(s).");
+
+        return 1;
+    }
+
+    $this->info('Preview pack sent successfully.');
+
+    return 0;
+})->purpose('Send a preview pack of the current transactional emails to a test inbox');
+
+Artisan::command('mail:preview-client-pack {to}', function (): int {
+    return (int) $this->call('mail:preview-pack', [
+        'to' => (string) $this->argument('to'),
+        '--group' => 'client-facing',
+    ]);
+})->purpose('Send the company-to-client email previews to a test inbox');
+
+Artisan::command('billing:upcoming-reminders
+    {--days= : Optional comma-separated override like 7,3,1}
+    {--tenant_id= : Limit processing to one account owner}
+    {--dry-run : Preview reminders without sending emails}', function (
+    UpcomingBillingReminderService $reminderService
+): int {
+    $daysOption = trim((string) $this->option('days'));
+    $days = $daysOption !== ''
+        ? array_map('trim', explode(',', $daysOption))
+        : [];
+    $tenantId = $this->option('tenant_id');
+    $dryRun = (bool) $this->option('dry-run');
+
+    $result = $reminderService->process(
+        $days,
+        is_numeric($tenantId) ? (int) $tenantId : null,
+        $dryRun
+    );
+
+    $this->info(sprintf(
+        'Upcoming billing reminders: provider=%s scanned=%d sent=%d already_sent=%d skipped=%d failed=%d',
+        (string) ($result['provider'] ?? 'unknown'),
+        (int) ($result['scanned'] ?? 0),
+        (int) ($result['sent'] ?? 0),
+        (int) ($result['already_sent'] ?? 0),
+        (int) ($result['skipped'] ?? 0),
+        (int) ($result['failed'] ?? 0),
+    ));
+
+    $candidates = collect($result['candidates'] ?? []);
+    if ($candidates->isNotEmpty()) {
+        $this->table(
+            ['Company', 'Email', 'Plan', 'Billing date', 'Days before', 'Estimated total'],
+            $candidates
+                ->map(fn (array $candidate) => [
+                    (string) ($candidate['company_name'] ?? ''),
+                    (string) ($candidate['email'] ?? ''),
+                    (string) ($candidate['plan_name'] ?? ''),
+                    (string) ($candidate['billing_date'] ?? ''),
+                    (string) ($candidate['days_before'] ?? ''),
+                    (string) ($candidate['formatted_total'] ?? ''),
+                ])
+                ->all()
+        );
+    }
+
+    if (! ($result['enabled'] ?? true)) {
+        $this->warn('Upcoming billing reminders are disabled in config(billing.upcoming_reminders.enabled).');
+
+        return 0;
+    }
+
+    if ((bool) ($result['missing_table'] ?? false)) {
+        $this->warn('billing_cycle_reminder_logs table is missing. Run migrations before sending reminders.');
+
+        return 1;
+    }
+
+    if (($result['provider'] ?? null) !== 'stripe') {
+        $this->warn('Upcoming billing reminders currently rely on Stripe subscription previews.');
+
+        return 0;
+    }
+
+    return (int) ($result['failed'] ?? 0) > 0 ? 1 : 0;
+})->purpose('Send billing reminder emails ahead of the next Stripe subscription renewal');
 
 Artisan::command('sms:test {to} {--message=}', function (SmsNotificationService $smsService): int {
     $to = trim((string) $this->argument('to'));
@@ -830,66 +1465,20 @@ Artisan::command('campaigns:reconcile-delivery', function (): int {
     return 0;
 })->purpose('Queue campaign delivery status reconciliation');
 
-Artisan::command('demo:seed {type=service} {--tenant_id=}', function (
-    DemoAccountService $accounts,
-    DemoSeedService $seeds
-): int {
-    if (! config('demo.enabled')) {
-        $this->error('DEMO_ENABLED is false.');
+Artisan::command('demo:seed {type=service} {--tenant_id=}', function (): int {
+    $this->warn('Legacy demo CLI seeding is disabled.');
+    $this->line('Use Super Admin > Demo Workspaces to provision a demo tenant.');
+    $this->line('Use app:launch-reset only for the minimal platform baseline.');
 
-        return 1;
-    }
+    return 1;
+})->purpose('Deprecated: use the Demo Workspace module instead of legacy demo seeding');
 
-    $type = (string) $this->argument('type');
-    $tenantId = $this->option('tenant_id');
+Artisan::command('demo:reset {--tenant_id=}', function (): int {
+    $this->warn('Legacy demo CLI reset is disabled.');
+    $this->line('Reset and reprovision demos from Super Admin > Demo Workspaces.');
 
-    if ($tenantId) {
-        $account = User::query()->find($tenantId);
-        if (! $account) {
-            $this->error('Tenant not found.');
-
-            return 1;
-        }
-        $accounts->resolveDemoUser($account, $type);
-    } else {
-        $account = $accounts->resolveDemoAccount($type);
-    }
-
-    $seeds->seed($account, $type);
-    $this->info("Demo seeded for {$account->email} ({$type}).");
-
-    return 0;
-})->purpose('Seed demo data for a demo tenant');
-
-Artisan::command('demo:reset {--tenant_id=}', function (
-    DemoResetService $reset,
-    DemoSeedService $seeds
-): int {
-    if (! config('demo.enabled')) {
-        $this->error('DEMO_ENABLED is false.');
-
-        return 1;
-    }
-
-    $tenantId = $this->option('tenant_id');
-    $accounts = $tenantId
-        ? User::query()->whereKey($tenantId)->get()
-        : User::query()->where('is_demo', true)->get();
-
-    if ($accounts->isEmpty()) {
-        $this->error('No demo tenants found.');
-
-        return 1;
-    }
-
-    foreach ($accounts as $account) {
-        $reset->reset($account);
-        $seeds->seed($account, $account->demo_type ?: DemoAccountService::TYPE_SERVICE);
-        $this->info("Demo reset for {$account->email}.");
-    }
-
-    return 0;
-})->purpose('Reset demo tenant data and tour progress');
+    return 1;
+})->purpose('Deprecated: reset demo tenants from the Demo Workspace module');
 
 Artisan::command('demo:purge-expired', function (DemoWorkspacePurgeService $purgeService): int {
     $count = $purgeService->purgeExpired();
@@ -1070,7 +1659,7 @@ Artisan::command('notifications:retry-failed
 Artisan::command('app:launch-reset {--force : Skip confirmation prompt}', function (): int {
     if (! (bool) $this->option('force')) {
         $confirmed = $this->confirm(
-            'This will run migrate:fresh, reseed LaunchSeeder, clear caches and optimize. Continue?',
+            'This will run migrate:fresh, seed only the minimal platform baseline (without demo companies), clear caches, and optimize. Continue?',
             false
         );
         if (! $confirmed) {
@@ -1081,8 +1670,8 @@ Artisan::command('app:launch-reset {--force : Skip confirmation prompt}', functi
     }
 
     $steps = [
-        ['migrate:fresh', ['--seed' => true, '--force' => true], 'Database refreshed and first seed...'],
-        ['db:seed', ['--class' => LaunchSeeder::class, '--force' => true], 'LaunchSeeder executed.'],
+        ['migrate:fresh', ['--force' => true], 'Database refreshed.'],
+        ['db:seed', ['--class' => LaunchResetSeeder::class, '--force' => true], 'Minimal launch baseline seeded.'],
         ['optimize:clear', [], 'Caches cleared.'],
         ['optimize', [], 'Application optimized.'],
     ];
@@ -1100,9 +1689,10 @@ Artisan::command('app:launch-reset {--force : Skip confirmation prompt}', functi
 
     $this->newLine();
     $this->info('Launch reset completed successfully.');
+    $this->line('No demo company was created. Use the Demo Workspace module for tenant provisioning.');
 
     return 0;
-})->purpose('Reset database for launch demo data, clear caches, and optimize');
+})->purpose('Reset database with the minimal platform baseline, clear caches, and optimize');
 
 Artisan::command('queue:health {--json}', function (QueueHealthService $queueHealth): int {
     $summary = $queueHealth->summary();
@@ -1348,6 +1938,9 @@ Schedule::command('platform:notifications-digest --frequency=daily')->dailyAt('0
 Schedule::command('platform:notifications-digest --frequency=weekly')->weeklyOn(1, '08:00');
 Schedule::command('platform:notifications-scan')->dailyAt('07:30');
 Schedule::command('agenda:process')->everyFiveMinutes();
+Schedule::command('billing:upcoming-reminders')
+    ->dailyAt((string) config('billing.upcoming_reminders.time', '09:00'))
+    ->withoutOverlapping();
 Schedule::command('orders:deposit-reminders')->everyFourHours();
 Schedule::command('leads:follow-up-reminders --hours=24')->hourly();
 Schedule::command('support:sla-reminders')->hourly();

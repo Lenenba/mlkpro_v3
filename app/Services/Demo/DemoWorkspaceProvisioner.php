@@ -30,6 +30,9 @@ use App\Models\User;
 use App\Models\VipTier;
 use App\Models\WeeklyAvailability;
 use App\Models\Work;
+use App\Services\AccountDeletionService;
+use App\Services\Campaigns\MarketingSettingsService;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -38,56 +41,52 @@ use Illuminate\Support\Str;
 
 class DemoWorkspaceProvisioner
 {
-    public function __construct(private DemoWorkspaceCatalog $catalog) {}
+    public const STATUS_DRAFT = 'draft';
+
+    public const STATUS_QUEUED = 'queued';
+
+    public const STATUS_PROVISIONING = 'provisioning';
+
+    public const STATUS_READY = 'ready';
+
+    public const STATUS_FAILED = 'failed';
+
+    public function __construct(
+        private DemoWorkspaceCatalog $catalog,
+        private MarketingSettingsService $marketingSettingsService,
+        private AccountDeletionService $accountDeletionService,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $payload
      */
     public function create(array $payload, User $admin): DemoWorkspace
     {
-        $payload['selected_modules'] = $this->normalizeModules($payload['selected_modules'] ?? []);
+        $payload = $this->normalizePayload($payload);
         $expiresAt = Carbon::parse((string) $payload['expires_at'])->endOfDay();
 
         return DB::transaction(function () use ($payload, $admin, $expiresAt) {
-            $credentials = $this->generateCredentials((string) $payload['company_name']);
+            $credentials = $this->resolveCredentials(null, (string) $payload['company_name']);
             $owner = $this->createOwner($payload, $credentials, $expiresAt);
-
-            $workspace = DemoWorkspace::create([
-                'owner_user_id' => $owner->id,
-                'created_by_user_id' => $admin->id,
-                'prospect_name' => (string) $payload['prospect_name'],
-                'prospect_email' => $payload['prospect_email'] ?: null,
-                'prospect_company' => $payload['prospect_company'] ?: null,
-                'company_name' => (string) $payload['company_name'],
-                'company_type' => (string) $payload['company_type'],
-                'company_sector' => $payload['company_sector'] ?: null,
-                'seed_profile' => (string) $payload['seed_profile'],
-                'team_size' => (int) $payload['team_size'],
-                'locale' => (string) $payload['locale'],
-                'timezone' => (string) $payload['timezone'],
-                'desired_outcome' => $payload['desired_outcome'] ?: null,
-                'internal_notes' => $payload['internal_notes'] ?: null,
-                'selected_modules' => $payload['selected_modules'],
-                'configuration' => [
-                    'profile_counts' => $this->catalog->seedCounts((string) $payload['seed_profile']),
-                    'module_labels' => collect($payload['selected_modules'])
-                        ->mapWithKeys(fn (string $key) => [$key => $this->catalog->moduleLabel($key)])
-                        ->all(),
-                ],
-                'access_email' => $credentials['email'],
-                'access_password' => $credentials['password'],
-                'expires_at' => $expiresAt,
-                'provisioned_at' => now(),
-                'last_seeded_at' => now(),
-            ]);
+            $workspace = $this->persistWorkspaceRecord(
+                new DemoWorkspace,
+                $payload,
+                $admin,
+                $owner,
+                $credentials,
+                $expiresAt,
+                true
+            );
 
             $summary = $this->seedEnvironment($owner, $workspace);
+            $extraAccessCredentials = $this->buildExtraAccessCredentials(
+                $owner,
+                $workspace->extra_access_roles ?? []
+            );
 
-            $workspace->forceFill([
-                'seed_summary' => $summary,
-            ])->save();
-
-            return $workspace->fresh(['owner', 'creator']);
+            return $this->finalizeProvisionedWorkspace($workspace, $summary, [
+                'extra_access_credentials' => $extraAccessCredentials,
+            ]);
         });
     }
 
@@ -107,6 +106,364 @@ class DemoWorkspaceProvisioner
     }
 
     /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function queueCreate(array $payload, User $admin): DemoWorkspace
+    {
+        $payload = $this->normalizePayload($payload);
+
+        return $this->prepareQueuedWorkspace(new DemoWorkspace, $payload, $admin);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function saveDraft(array $payload, User $admin): DemoWorkspace
+    {
+        $payload = $this->normalizePayload($payload);
+
+        return $this->prepareDraftWorkspace(new DemoWorkspace, $payload, $admin);
+    }
+
+    public function queueDraft(DemoWorkspace $workspace, User $admin): DemoWorkspace
+    {
+        $payload = $this->normalizePayload($this->workspaceSnapshotPayload($workspace));
+
+        return $this->prepareQueuedWorkspace($workspace, $payload, $admin);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    public function clone(DemoWorkspace $workspace, array $overrides, User $admin): DemoWorkspace
+    {
+        $cloneDataMode = (string) ($overrides['clone_data_mode'] ?? 'keep_current_profile');
+        $basePayload = $this->workspaceSnapshotPayload($workspace);
+        $days = $workspace->expires_at && $workspace->expires_at->isFuture()
+            ? max(1, now()->diffInDays($workspace->expires_at) + 1)
+            : 14;
+
+        $payload = array_replace_recursive($basePayload, $overrides, [
+            'company_name' => trim((string) ($overrides['company_name'] ?? ($workspace->company_name.' Copy'))),
+            'seed_profile' => $cloneDataMode === 'keep_current_profile'
+                ? (string) $workspace->seed_profile
+                : (string) ($overrides['seed_profile'] ?? $workspace->seed_profile),
+            'expires_at' => (string) ($overrides['expires_at'] ?? now()->addDays($days)->toDateString()),
+            'cloned_from_demo_workspace_id' => $workspace->id,
+        ]);
+
+        $notes = trim((string) ($payload['internal_notes'] ?? ''));
+        $payload['internal_notes'] = trim(implode("\n", array_filter([
+            $notes,
+            'Cloned from demo workspace #'.$workspace->id.'.',
+            $cloneDataMode === 'keep_current_profile'
+                ? 'Clone mode: keep current realism profile.'
+                : 'Clone mode: regenerate fresh sample data.',
+        ])));
+
+        return $this->create($payload, $admin);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    public function queueClone(DemoWorkspace $workspace, array $overrides, User $admin): DemoWorkspace
+    {
+        $cloneDataMode = (string) ($overrides['clone_data_mode'] ?? 'keep_current_profile');
+        $basePayload = $this->workspaceSnapshotPayload($workspace);
+        $days = $workspace->expires_at && $workspace->expires_at->isFuture()
+            ? max(1, now()->diffInDays($workspace->expires_at) + 1)
+            : 14;
+
+        $payload = array_replace_recursive($basePayload, $overrides, [
+            'company_name' => trim((string) ($overrides['company_name'] ?? ($workspace->company_name.' Copy'))),
+            'seed_profile' => $cloneDataMode === 'keep_current_profile'
+                ? (string) $workspace->seed_profile
+                : (string) ($overrides['seed_profile'] ?? $workspace->seed_profile),
+            'expires_at' => (string) ($overrides['expires_at'] ?? now()->addDays($days)->toDateString()),
+            'cloned_from_demo_workspace_id' => $workspace->id,
+            'prefill_source' => 'clone',
+            'prefill_payload' => [
+                'source_demo_workspace_id' => $workspace->id,
+                'clone_data_mode' => $cloneDataMode,
+                'source_seed_profile' => $workspace->seed_profile,
+                'target_seed_profile' => $cloneDataMode === 'keep_current_profile'
+                    ? $workspace->seed_profile
+                    : (string) ($overrides['seed_profile'] ?? $workspace->seed_profile),
+            ],
+        ]);
+
+        $notes = trim((string) ($payload['internal_notes'] ?? ''));
+        $payload['internal_notes'] = trim(implode("\n", array_filter([
+            $notes,
+            'Cloned from demo workspace #'.$workspace->id.'.',
+            $cloneDataMode === 'keep_current_profile'
+                ? 'Clone mode: keep current realism profile.'
+                : 'Clone mode: regenerate fresh sample data.',
+        ])));
+
+        return $this->prepareQueuedWorkspace(new DemoWorkspace, $this->normalizePayload($payload), $admin);
+    }
+
+    public function saveBaseline(DemoWorkspace $workspace): DemoWorkspace
+    {
+        $workspace->forceFill([
+            'baseline_snapshot' => $this->normalizePayload($this->workspaceSnapshotPayload($workspace)),
+            'baseline_created_at' => now(),
+        ])->save();
+
+        return $workspace->fresh(['owner', 'creator', 'template', 'sentBy', 'clonedFrom', 'lastResetBy']);
+    }
+
+    public function queueResetToBaseline(DemoWorkspace $workspace, User $admin): DemoWorkspace
+    {
+        $snapshot = is_array($workspace->baseline_snapshot) && $workspace->baseline_snapshot !== []
+            ? $workspace->baseline_snapshot
+            : $this->workspaceSnapshotPayload($workspace);
+
+        $payload = $this->normalizePayload(array_replace_recursive($snapshot, [
+            'expires_at' => $workspace->expires_at?->toDateString() ?? now()->addDays(14)->toDateString(),
+            'demo_workspace_template_id' => $workspace->demo_workspace_template_id,
+            'cloned_from_demo_workspace_id' => $workspace->cloned_from_demo_workspace_id,
+            'prefill_source' => $workspace->prefill_source,
+            'prefill_payload' => $workspace->prefill_payload ?? [],
+            'extra_access_roles' => $workspace->extra_access_roles ?? [],
+        ]));
+
+        return $this->prepareQueuedWorkspace($workspace, $payload, $admin, true);
+    }
+
+    public function resetToBaseline(DemoWorkspace $workspace, User $admin): DemoWorkspace
+    {
+        $snapshot = is_array($workspace->baseline_snapshot) && $workspace->baseline_snapshot !== []
+            ? $workspace->baseline_snapshot
+            : $this->workspaceSnapshotPayload($workspace);
+
+        $payload = $this->normalizePayload(array_replace_recursive($snapshot, [
+            'expires_at' => $workspace->expires_at?->toDateString() ?? now()->addDays(14)->toDateString(),
+            'demo_workspace_template_id' => $workspace->demo_workspace_template_id,
+            'cloned_from_demo_workspace_id' => $workspace->cloned_from_demo_workspace_id,
+        ]));
+        $expiresAt = Carbon::parse((string) $payload['expires_at'])->endOfDay();
+
+        return DB::transaction(function () use ($workspace, $payload, $admin, $expiresAt) {
+            $previousOwner = $workspace->owner()->first();
+            $preferredCredentials = [
+                'email' => (string) ($workspace->access_email ?? ''),
+                'password' => (string) ($workspace->access_password ?? ''),
+            ];
+
+            if ($previousOwner) {
+                $workspace->forceFill([
+                    'owner_user_id' => null,
+                ])->save();
+
+                $this->accountDeletionService->deleteAccount($previousOwner);
+            }
+
+            $credentials = $this->resolveCredentials($preferredCredentials, (string) $payload['company_name']);
+            $owner = $this->createOwner($payload, $credentials, $expiresAt);
+            $workspace = $this->persistWorkspaceRecord(
+                $workspace,
+                $payload,
+                $admin,
+                $owner,
+                $credentials,
+                $expiresAt,
+                false
+            );
+
+            $summary = $this->seedEnvironment($owner, $workspace);
+            $extraAccessCredentials = $this->buildExtraAccessCredentials(
+                $owner,
+                $workspace->extra_access_roles ?? []
+            );
+
+            return $this->finalizeProvisionedWorkspace($workspace, $summary, [
+                'extra_access_credentials' => $extraAccessCredentials,
+                'last_reset_at' => now(),
+                'last_reset_by_user_id' => $admin->id,
+            ]);
+        });
+    }
+
+    public function provisionQueuedWorkspace(DemoWorkspace $workspace, User $admin, bool $isReset = false): DemoWorkspace
+    {
+        $payload = $this->normalizePayload($this->workspaceSnapshotPayload($workspace));
+        $expiresAt = Carbon::parse((string) $payload['expires_at'])->endOfDay();
+
+        return DB::transaction(function () use ($workspace, $payload, $admin, $expiresAt, $isReset) {
+            $this->updateProvisioningState(
+                $workspace,
+                self::STATUS_PROVISIONING,
+                15,
+                $isReset ? 'Resetting tenant access' : 'Creating tenant access',
+                null,
+                [
+                    'provisioning_started_at' => now(),
+                    'provisioning_failed_at' => null,
+                ]
+            );
+
+            $preferredCredentials = $isReset
+                ? [
+                    'email' => (string) ($workspace->access_email ?? ''),
+                    'password' => (string) ($workspace->access_password ?? ''),
+                ]
+                : null;
+
+            if ($isReset) {
+                $previousOwner = $workspace->owner()->first();
+
+                if ($previousOwner) {
+                    $workspace->forceFill([
+                        'owner_user_id' => null,
+                    ])->save();
+
+                    $this->accountDeletionService->deleteAccount($previousOwner);
+                }
+            }
+
+            $credentials = $this->resolveCredentials($preferredCredentials, (string) $payload['company_name']);
+            $owner = $this->createOwner($payload, $credentials, $expiresAt);
+            $workspace = $this->persistWorkspaceRecord(
+                $workspace,
+                $payload,
+                $admin,
+                $owner,
+                $credentials,
+                $expiresAt,
+                ! $isReset
+            );
+
+            $this->updateProvisioningState(
+                $workspace,
+                self::STATUS_PROVISIONING,
+                60,
+                'Generating realistic sample data'
+            );
+
+            $summary = $this->seedEnvironment($owner, $workspace);
+            $extraAccessCredentials = $this->buildExtraAccessCredentials(
+                $owner,
+                $workspace->extra_access_roles ?? []
+            );
+
+            return $this->finalizeProvisionedWorkspace($workspace, $summary, [
+                'extra_access_credentials' => $extraAccessCredentials,
+                'last_reset_at' => $isReset ? now() : $workspace->last_reset_at,
+                'last_reset_by_user_id' => $isReset ? $admin->id : $workspace->last_reset_by_user_id,
+            ]);
+        });
+    }
+
+    public function markProvisioningFailed(DemoWorkspace $workspace, \Throwable|string $error): DemoWorkspace
+    {
+        $message = $error instanceof \Throwable
+            ? trim((string) $error->getMessage())
+            : trim((string) $error);
+
+        return $this->updateProvisioningState(
+            $workspace,
+            self::STATUS_FAILED,
+            100,
+            'Provisioning failed',
+            $message !== '' ? $message : 'Unknown provisioning error.',
+            [
+                'provisioning_failed_at' => now(),
+            ]
+        );
+    }
+
+    public function revokeExtraAccess(DemoWorkspace $workspace, string $roleKey): DemoWorkspace
+    {
+        return DB::transaction(function () use ($workspace, $roleKey) {
+            $resolved = $this->resolveExtraAccessAssignment($workspace, $roleKey);
+
+            if ($resolved['team_member']) {
+                $resolved['team_member']->forceFill([
+                    'is_active' => false,
+                ])->save();
+            }
+
+            if ($resolved['user']) {
+                $resolved['user']->forceFill([
+                    'password' => Hash::make(Str::random(40)),
+                    'remember_token' => Str::random(60),
+                ])->save();
+                $resolved['user']->tokens()->delete();
+            }
+
+            $workspace->forceFill([
+                'extra_access_credentials' => $this->upsertExtraAccessCredential(
+                    $workspace,
+                    $roleKey,
+                    [
+                        'role_label' => $resolved['role_label'],
+                        'team_member_id' => $resolved['team_member']?->id,
+                        'user_id' => $resolved['user']?->id,
+                        'name' => $resolved['user']?->name ?? ($resolved['credential']['name'] ?? null),
+                        'title' => $resolved['team_member']?->title ?? ($resolved['credential']['title'] ?? null),
+                        'email' => $resolved['user']?->email ?? ($resolved['credential']['email'] ?? null),
+                        'password' => null,
+                        'login_url' => url('/login'),
+                        'status' => 'revoked',
+                        'is_active' => false,
+                    ]
+                ),
+            ])->save();
+
+            return $workspace->fresh(['owner', 'creator', 'template', 'sentBy', 'clonedFrom', 'lastResetBy']);
+        });
+    }
+
+    public function regenerateExtraAccess(DemoWorkspace $workspace, string $roleKey): DemoWorkspace
+    {
+        return DB::transaction(function () use ($workspace, $roleKey) {
+            $resolved = $this->resolveExtraAccessAssignment($workspace, $roleKey, true);
+            $teamMember = $resolved['team_member'];
+            $user = $resolved['user'];
+
+            if (! $teamMember || ! $user) {
+                throw new \RuntimeException('No matching team member could be found for this extra access role.');
+            }
+
+            $password = $this->generateExtraAccessPassword();
+
+            $teamMember->forceFill([
+                'is_active' => true,
+            ])->save();
+
+            $user->forceFill([
+                'password' => Hash::make($password),
+                'remember_token' => Str::random(60),
+            ])->save();
+            $user->tokens()->delete();
+
+            $workspace->forceFill([
+                'extra_access_credentials' => $this->upsertExtraAccessCredential(
+                    $workspace,
+                    $roleKey,
+                    [
+                        'role_label' => $resolved['role_label'],
+                        'team_member_id' => $teamMember->id,
+                        'user_id' => $user->id,
+                        'name' => $user->name,
+                        'title' => $teamMember->title,
+                        'email' => $user->email,
+                        'password' => $password,
+                        'login_url' => url('/login'),
+                        'status' => 'active',
+                        'is_active' => true,
+                    ]
+                ),
+            ])->save();
+
+            return $workspace->fresh(['owner', 'creator', 'template', 'sentBy', 'clonedFrom', 'lastResetBy']);
+        });
+    }
+
+    /**
      * @param  array<int, string>  $selectedModules
      * @return array<int, string>
      */
@@ -119,6 +476,521 @@ class DemoWorkspaceProvisioner
             ->unique()
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  array<int, string>  $selectedModules
+     */
+    private function normalizeSuggestedFlow(
+        mixed $suggestedFlow,
+        string $companyType,
+        ?string $companySector,
+        array $selectedModules,
+        array $scenarioPacks = []
+    ): string {
+        $value = trim((string) ($suggestedFlow ?? ''));
+
+        if ($value !== '') {
+            return $value;
+        }
+
+        $scenarioFlow = $this->catalog->suggestedFlowFromScenarioPacks($scenarioPacks);
+        if ($scenarioFlow !== '') {
+            return $scenarioFlow;
+        }
+
+        return $this->catalog->suggestedFlow($companyType, $companySector, $selectedModules);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function normalizePayload(array $payload): array
+    {
+        $payload['selected_modules'] = $this->normalizeModules($payload['selected_modules'] ?? []);
+
+        $companyType = (string) ($payload['company_type'] ?? 'services');
+        $companySector = $payload['company_sector'] ? (string) $payload['company_sector'] : null;
+        $companyName = trim((string) ($payload['company_name'] ?? ''));
+        $prospectEmail = $payload['prospect_email'] ? (string) $payload['prospect_email'] : null;
+
+        $payload['scenario_packs'] = $this->normalizeScenarioPacks(
+            $payload['scenario_packs'] ?? [],
+            $companyType,
+            $companySector,
+            $payload['selected_modules']
+        );
+        $payload['branding_profile'] = $this->normalizeBrandingProfile(
+            $payload['branding_profile'] ?? [],
+            $companyName,
+            $companyType,
+            $companySector,
+            $prospectEmail
+        );
+        $payload['extra_access_roles'] = $this->normalizeExtraAccessRoles(
+            $payload['extra_access_roles'] ?? [],
+            $companyType,
+            $companySector
+        );
+        $payload['prefill_source'] = trim((string) ($payload['prefill_source'] ?? ''));
+        $payload['prefill_payload'] = is_array($payload['prefill_payload'] ?? null)
+            ? $payload['prefill_payload']
+            : [];
+        $payload['suggested_flow'] = $this->normalizeSuggestedFlow(
+            $payload['suggested_flow'] ?? null,
+            $companyType,
+            $companySector,
+            $payload['selected_modules'],
+            $payload['scenario_packs']
+        );
+
+        return $payload;
+    }
+
+    /**
+     * @param  array<int, string>  $extraAccessRoles
+     * @return array<int, string>
+     */
+    private function normalizeExtraAccessRoles(
+        array $extraAccessRoles,
+        string $companyType,
+        ?string $companySector
+    ): array {
+        $valid = array_fill_keys($this->catalog->extraAccessRoleKeys(), true);
+
+        $normalized = collect($extraAccessRoles)
+            ->filter(fn ($value) => is_string($value) && isset($valid[$value]))
+            ->unique()
+            ->values()
+            ->all();
+
+        return $normalized !== []
+            ? $normalized
+            : $this->catalog->defaultExtraAccessRoles($companyType, $companySector);
+    }
+
+    /**
+     * @param  array<int, string>  $scenarioPacks
+     * @param  array<int, string>  $selectedModules
+     * @return array<int, string>
+     */
+    private function normalizeScenarioPacks(
+        array $scenarioPacks,
+        string $companyType,
+        ?string $companySector,
+        array $selectedModules
+    ): array {
+        $valid = array_fill_keys($this->catalog->scenarioPackKeys(), true);
+
+        $normalized = collect($scenarioPacks)
+            ->filter(fn ($value) => is_string($value) && isset($valid[$value]))
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($normalized === []) {
+            return $this->catalog->defaultScenarioPacks($companyType, $companySector, $selectedModules);
+        }
+
+        $compatible = collect($this->catalog->scenarioPackDetails($normalized))
+            ->filter(function (array $pack) use ($companyType, $companySector, $selectedModules) {
+                if (! in_array($companyType, $pack['company_types'] ?? [], true)) {
+                    return false;
+                }
+
+                $sectors = $pack['sectors'] ?? [];
+                if ($sectors !== [] && ! in_array($companySector, $sectors, true)) {
+                    return false;
+                }
+
+                return collect($pack['required_modules'] ?? [])
+                    ->every(fn (string $moduleKey) => in_array($moduleKey, $selectedModules, true));
+            })
+            ->pluck('key')
+            ->values()
+            ->all();
+
+        return $compatible !== []
+            ? $compatible
+            : $this->catalog->defaultScenarioPacks($companyType, $companySector, $selectedModules);
+    }
+
+    /**
+     * @param  array<string, mixed>  $brandingProfile
+     * @return array<string, mixed>
+     */
+    private function normalizeBrandingProfile(
+        array $brandingProfile,
+        string $companyName,
+        string $companyType,
+        ?string $companySector,
+        ?string $prospectEmail
+    ): array {
+        $defaults = $this->catalog->brandingProfileDefaults($companyType, $companySector, $companyName);
+        $allowed = Arr::only($brandingProfile, array_keys($defaults));
+
+        foreach ([
+            'primary_color',
+            'secondary_color',
+            'accent_color',
+            'surface_color',
+            'hero_background_color',
+            'footer_background_color',
+            'text_color',
+            'muted_color',
+        ] as $colorKey) {
+            $candidate = strtoupper(trim((string) ($allowed[$colorKey] ?? '')));
+            if ($candidate === '' || preg_match('/^#[0-9A-F]{6}$/', $candidate) !== 1) {
+                unset($allowed[$colorKey]);
+
+                continue;
+            }
+
+            $allowed[$colorKey] = $candidate;
+        }
+
+        $profile = array_replace($defaults, $allowed);
+        $profile['name'] = trim((string) ($profile['name'] ?? '')) !== ''
+            ? trim((string) $profile['name'])
+            : $companyName;
+        $profile['logo_url'] = trim((string) ($profile['logo_url'] ?? '')) !== ''
+            ? trim((string) $profile['logo_url'])
+            : trim((string) ($defaults['logo_url'] ?? ''));
+        $profile['contact_email'] = trim((string) ($profile['contact_email'] ?? '')) !== ''
+            ? trim((string) $profile['contact_email'])
+            : $prospectEmail;
+
+        return $profile;
+    }
+
+    /**
+     * @param  array<string, string>|null  $preferred
+     * @return array<string, string>
+     */
+    private function resolveCredentials(?array $preferred, string $companyName): array
+    {
+        $email = trim((string) ($preferred['email'] ?? ''));
+        $password = trim((string) ($preferred['password'] ?? ''));
+
+        if ($email !== '' && $password !== '') {
+            return [
+                'email' => $email,
+                'password' => $password,
+            ];
+        }
+
+        return $this->generateCredentials($companyName);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, string>  $credentials
+     */
+    private function persistWorkspaceRecord(
+        DemoWorkspace $workspace,
+        array $payload,
+        User $admin,
+        User $owner,
+        array $credentials,
+        Carbon $expiresAt,
+        bool $refreshBaseline
+    ): DemoWorkspace {
+        $workspace->forceFill([
+            'owner_user_id' => $owner->id,
+            'created_by_user_id' => $workspace->created_by_user_id ?: $admin->id,
+            'demo_workspace_template_id' => $payload['demo_workspace_template_id'] ?? null,
+            'cloned_from_demo_workspace_id' => $payload['cloned_from_demo_workspace_id'] ?? $workspace->cloned_from_demo_workspace_id,
+            'prospect_name' => (string) $payload['prospect_name'],
+            'prospect_email' => $payload['prospect_email'] ?: null,
+            'prospect_company' => $payload['prospect_company'] ?: null,
+            'company_name' => (string) $payload['company_name'],
+            'company_type' => (string) $payload['company_type'],
+            'company_sector' => $payload['company_sector'] ?: null,
+            'seed_profile' => (string) $payload['seed_profile'],
+            'team_size' => (int) $payload['team_size'],
+            'locale' => (string) $payload['locale'],
+            'timezone' => (string) $payload['timezone'],
+            'desired_outcome' => $payload['desired_outcome'] ?: null,
+            'internal_notes' => $payload['internal_notes'] ?: null,
+            'suggested_flow' => (string) $payload['suggested_flow'],
+            'selected_modules' => $payload['selected_modules'],
+            'scenario_packs' => $payload['scenario_packs'],
+            'branding_profile' => $payload['branding_profile'],
+            'prefill_source' => $payload['prefill_source'] !== '' ? $payload['prefill_source'] : null,
+            'prefill_payload' => $payload['prefill_payload'],
+            'extra_access_roles' => $payload['extra_access_roles'],
+            'configuration' => [
+                'profile_counts' => $this->catalog->seedCounts((string) $payload['seed_profile']),
+                'module_labels' => collect($payload['selected_modules'])
+                    ->mapWithKeys(fn (string $key) => [$key => $this->catalog->moduleLabel($key)])
+                    ->all(),
+                'scenario_pack_labels' => collect($payload['scenario_packs'])
+                    ->mapWithKeys(fn (string $key) => [$key => $this->catalog->scenarioPackLabel($key)])
+                    ->all(),
+                'extra_access_labels' => collect($payload['extra_access_roles'])
+                    ->mapWithKeys(function (string $key) {
+                        $matched = collect($this->catalog->extraAccessRoles())
+                            ->firstWhere('key', $key);
+                        $label = is_array($matched)
+                            ? (string) ($matched['label'] ?? $key)
+                            : $key;
+
+                        return [$key => $label];
+                    })
+                    ->all(),
+            ],
+            'access_email' => $credentials['email'],
+            'access_password' => $credentials['password'],
+            'expires_at' => $expiresAt,
+            'provisioned_at' => now(),
+            'last_seeded_at' => now(),
+        ]);
+
+        if ($refreshBaseline || ! is_array($workspace->baseline_snapshot) || $workspace->baseline_snapshot === []) {
+            $workspace->baseline_snapshot = $this->buildBaselineSnapshot($payload);
+            $workspace->baseline_created_at = now();
+        }
+
+        $workspace->save();
+        $this->applyBrandingProfile($owner, $payload['branding_profile']);
+
+        return $workspace;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function prepareQueuedWorkspace(
+        DemoWorkspace $workspace,
+        array $payload,
+        User $admin,
+        bool $isReset = false
+    ): DemoWorkspace {
+        $expiresAt = Carbon::parse((string) $payload['expires_at'])->endOfDay();
+        $workspace->forceFill([
+            'created_by_user_id' => $workspace->created_by_user_id ?: $admin->id,
+            'demo_workspace_template_id' => $payload['demo_workspace_template_id'] ?? null,
+            'cloned_from_demo_workspace_id' => $payload['cloned_from_demo_workspace_id'] ?? $workspace->cloned_from_demo_workspace_id,
+            'prospect_name' => (string) $payload['prospect_name'],
+            'prospect_email' => $payload['prospect_email'] ?: null,
+            'prospect_company' => $payload['prospect_company'] ?: null,
+            'company_name' => (string) $payload['company_name'],
+            'company_type' => (string) $payload['company_type'],
+            'company_sector' => $payload['company_sector'] ?: null,
+            'seed_profile' => (string) $payload['seed_profile'],
+            'team_size' => (int) $payload['team_size'],
+            'locale' => (string) $payload['locale'],
+            'timezone' => (string) $payload['timezone'],
+            'desired_outcome' => $payload['desired_outcome'] ?: null,
+            'internal_notes' => $payload['internal_notes'] ?: null,
+            'suggested_flow' => (string) $payload['suggested_flow'],
+            'selected_modules' => $payload['selected_modules'],
+            'scenario_packs' => $payload['scenario_packs'],
+            'branding_profile' => $payload['branding_profile'],
+            'prefill_source' => $payload['prefill_source'] !== '' ? $payload['prefill_source'] : null,
+            'prefill_payload' => $payload['prefill_payload'],
+            'extra_access_roles' => $payload['extra_access_roles'],
+            'expires_at' => $expiresAt,
+            'baseline_snapshot' => $this->buildBaselineSnapshot($payload),
+            'baseline_created_at' => $workspace->baseline_created_at ?? now(),
+            'provisioning_status' => self::STATUS_QUEUED,
+            'provisioning_progress' => 5,
+            'provisioning_stage' => $isReset ? 'Queued for baseline reset' : 'Queued for provisioning',
+            'provisioning_error' => null,
+            'queued_at' => now(),
+            'provisioning_started_at' => null,
+            'provisioning_finished_at' => null,
+            'provisioning_failed_at' => null,
+            'purged_at' => null,
+        ])->save();
+
+        return $workspace->fresh(['owner', 'creator', 'template', 'sentBy', 'clonedFrom', 'lastResetBy']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function prepareDraftWorkspace(
+        DemoWorkspace $workspace,
+        array $payload,
+        User $admin
+    ): DemoWorkspace {
+        $expiresAt = Carbon::parse((string) $payload['expires_at'])->endOfDay();
+
+        $workspace->forceFill([
+            'created_by_user_id' => $workspace->created_by_user_id ?: $admin->id,
+            'demo_workspace_template_id' => $payload['demo_workspace_template_id'] ?? null,
+            'cloned_from_demo_workspace_id' => $payload['cloned_from_demo_workspace_id'] ?? $workspace->cloned_from_demo_workspace_id,
+            'prospect_name' => (string) $payload['prospect_name'],
+            'prospect_email' => $payload['prospect_email'] ?: null,
+            'prospect_company' => $payload['prospect_company'] ?: null,
+            'company_name' => (string) $payload['company_name'],
+            'company_type' => (string) $payload['company_type'],
+            'company_sector' => $payload['company_sector'] ?: null,
+            'seed_profile' => (string) $payload['seed_profile'],
+            'team_size' => (int) $payload['team_size'],
+            'locale' => (string) $payload['locale'],
+            'timezone' => (string) $payload['timezone'],
+            'desired_outcome' => $payload['desired_outcome'] ?: null,
+            'internal_notes' => $payload['internal_notes'] ?: null,
+            'suggested_flow' => (string) $payload['suggested_flow'],
+            'selected_modules' => $payload['selected_modules'],
+            'scenario_packs' => $payload['scenario_packs'],
+            'branding_profile' => $payload['branding_profile'],
+            'prefill_source' => $payload['prefill_source'] !== '' ? $payload['prefill_source'] : null,
+            'prefill_payload' => $payload['prefill_payload'],
+            'extra_access_roles' => $payload['extra_access_roles'],
+            'expires_at' => $expiresAt,
+            'baseline_snapshot' => $this->buildBaselineSnapshot($payload),
+            'baseline_created_at' => $workspace->baseline_created_at ?? now(),
+            'owner_user_id' => null,
+            'access_email' => null,
+            'access_password' => null,
+            'extra_access_credentials' => [],
+            'seed_summary' => null,
+            'provisioned_at' => null,
+            'last_seeded_at' => null,
+            'sent_at' => null,
+            'sent_by_user_id' => null,
+            'provisioning_status' => self::STATUS_DRAFT,
+            'provisioning_progress' => 0,
+            'provisioning_stage' => 'Draft saved',
+            'provisioning_error' => null,
+            'queued_at' => null,
+            'provisioning_started_at' => null,
+            'provisioning_finished_at' => null,
+            'provisioning_failed_at' => null,
+            'purged_at' => null,
+        ])->save();
+
+        return $workspace->fresh(['owner', 'creator', 'template', 'sentBy', 'clonedFrom', 'lastResetBy']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    private function updateProvisioningState(
+        DemoWorkspace $workspace,
+        string $status,
+        int $progress,
+        ?string $stage = null,
+        ?string $error = null,
+        array $extra = []
+    ): DemoWorkspace {
+        $workspace->forceFill([
+            'provisioning_status' => $status,
+            'provisioning_progress' => max(0, min(100, $progress)),
+            'provisioning_stage' => $stage,
+            'provisioning_error' => $error,
+            ...$extra,
+        ])->save();
+
+        return $workspace->fresh(['owner', 'creator', 'template', 'sentBy', 'clonedFrom', 'lastResetBy']);
+    }
+
+    /**
+     * @param  array<string, int>  $summary
+     * @param  array<string, mixed>  $extra
+     */
+    private function finalizeProvisionedWorkspace(
+        DemoWorkspace $workspace,
+        array $summary,
+        array $extra = []
+    ): DemoWorkspace {
+        $workspace->forceFill([
+            'provisioning_status' => self::STATUS_READY,
+            'provisioning_progress' => 100,
+            'provisioning_stage' => 'Ready',
+            'provisioning_error' => null,
+            'provisioning_finished_at' => now(),
+            'seed_summary' => $summary,
+            'provisioned_at' => now(),
+            'last_seeded_at' => now(),
+            ...$extra,
+        ])->save();
+
+        return $workspace->fresh(['owner', 'creator', 'template', 'sentBy', 'clonedFrom', 'lastResetBy']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function buildBaselineSnapshot(array $payload): array
+    {
+        return Arr::only($payload, [
+            'demo_workspace_template_id',
+            'prospect_name',
+            'prospect_email',
+            'prospect_company',
+            'company_name',
+            'company_type',
+            'company_sector',
+            'seed_profile',
+            'team_size',
+            'locale',
+            'timezone',
+            'desired_outcome',
+            'internal_notes',
+            'suggested_flow',
+            'selected_modules',
+            'scenario_packs',
+            'branding_profile',
+            'extra_access_roles',
+            'prefill_source',
+            'prefill_payload',
+            'expires_at',
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function workspaceSnapshotPayload(DemoWorkspace $workspace): array
+    {
+        return [
+            'demo_workspace_template_id' => $workspace->demo_workspace_template_id,
+            'prospect_name' => $workspace->prospect_name,
+            'prospect_email' => $workspace->prospect_email,
+            'prospect_company' => $workspace->prospect_company,
+            'company_name' => $workspace->company_name,
+            'company_type' => $workspace->company_type,
+            'company_sector' => $workspace->company_sector,
+            'seed_profile' => $workspace->seed_profile,
+            'team_size' => $workspace->team_size,
+            'locale' => $workspace->locale,
+            'timezone' => $workspace->timezone,
+            'desired_outcome' => $workspace->desired_outcome,
+            'internal_notes' => $workspace->internal_notes,
+            'suggested_flow' => $workspace->suggested_flow,
+            'selected_modules' => $workspace->selected_modules ?? [],
+            'scenario_packs' => $workspace->scenario_packs ?? [],
+            'branding_profile' => $workspace->branding_profile ?? [],
+            'extra_access_roles' => $workspace->extra_access_roles ?? [],
+            'prefill_source' => $workspace->prefill_source,
+            'prefill_payload' => $workspace->prefill_payload ?? [],
+            'expires_at' => $workspace->expires_at?->toDateString() ?? now()->addDays(14)->toDateString(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $brandingProfile
+     */
+    private function applyBrandingProfile(User $owner, array $brandingProfile): void
+    {
+        $owner->forceFill([
+            'company_name' => trim((string) ($brandingProfile['name'] ?? '')) ?: $owner->company_name,
+            'company_logo' => trim((string) ($brandingProfile['logo_url'] ?? '')) ?: $owner->company_logo,
+            'company_description' => trim((string) ($brandingProfile['description'] ?? '')) ?: $owner->company_description,
+            'phone_number' => trim((string) ($brandingProfile['phone'] ?? '')) ?: $owner->phone_number,
+        ])->save();
+
+        $this->marketingSettingsService->update($owner, [
+            'templates' => [
+                'brand_profile' => $brandingProfile,
+            ],
+        ]);
     }
 
     /**
@@ -188,7 +1060,8 @@ class DemoWorkspaceProvisioner
             $selectedModules,
             max(1, (int) $workspace->team_size),
             max(1, (int) ($counts['team'] ?? 1)),
-            (string) $workspace->company_sector
+            (string) $workspace->company_sector,
+            $workspace->extra_access_roles ?? []
         );
         $catalog = $this->createCatalog($owner, $selectedModules, (int) ($counts['catalog'] ?? 0), (string) $workspace->company_sector);
         $customers = $this->createCustomers($owner, (int) ($counts['customers'] ?? 0), (string) $workspace->company_sector);
@@ -240,7 +1113,8 @@ class DemoWorkspaceProvisioner
         array $selectedModules,
         int $requestedTeamSize,
         int $profileTeamSize,
-        string $sector
+        string $sector,
+        array $requiredAccessRoles = []
     ): Collection {
         $needsTeam = collect(['team_members', 'jobs', 'tasks', 'reservations', 'planning'])
             ->intersect($selectedModules)
@@ -250,7 +1124,12 @@ class DemoWorkspaceProvisioner
             return collect();
         }
 
-        $targetCount = max(1, $requestedTeamSize, min($profileTeamSize, 6));
+        $targetCount = max(
+            1,
+            $requestedTeamSize,
+            min($profileTeamSize, 6),
+            $this->minimumTeamCountForAccessRoles($requiredAccessRoles)
+        );
         $profiles = $this->teamProfilesForSector($sector);
 
         return collect(range(1, $targetCount))->map(function (int $index) use ($owner, $profiles) {
@@ -1175,6 +2054,185 @@ class DemoWorkspaceProvisioner
             'field_services' => 'Laval',
             default => 'Montreal',
         };
+    }
+
+    /**
+     * @param  array<int, string>  $roles
+     */
+    private function minimumTeamCountForAccessRoles(array $roles): int
+    {
+        return collect($roles)
+            ->filter(fn ($role) => is_string($role) && trim($role) !== '')
+            ->unique()
+            ->count();
+    }
+
+    /**
+     * @return array{credential: array<string, mixed>, team_member: TeamMember|null, user: User|null, role_label: string}
+     */
+    private function resolveExtraAccessAssignment(
+        DemoWorkspace $workspace,
+        string $roleKey,
+        bool $preferInactive = false
+    ): array {
+        $labelMap = $this->extraAccessLabelMap();
+        $credential = collect($workspace->extra_access_credentials ?? [])
+            ->first(fn ($item) => is_array($item) && (string) ($item['role_key'] ?? '') === $roleKey);
+        $credential = is_array($credential) ? $credential : [];
+
+        $teamMembers = TeamMember::query()
+            ->where('account_id', $workspace->owner_user_id)
+            ->with('user:id,name,email')
+            ->get();
+
+        $teamMemberId = (int) ($credential['team_member_id'] ?? 0);
+        $userId = (int) ($credential['user_id'] ?? 0);
+
+        $teamMember = $teamMemberId > 0
+            ? $teamMembers->firstWhere('id', $teamMemberId)
+            : null;
+
+        if (! $teamMember && $userId > 0) {
+            $teamMember = $teamMembers->firstWhere('user_id', $userId);
+        }
+
+        if (! $teamMember) {
+            $matches = $teamMembers
+                ->filter(fn (TeamMember $candidate) => $this->matchesExtraAccessRole($candidate, $roleKey))
+                ->values();
+
+            $teamMember = $preferInactive
+                ? ($matches->sortBy(fn (TeamMember $candidate) => $candidate->is_active ? 1 : 0)->first())
+                : ($matches->sortByDesc(fn (TeamMember $candidate) => $candidate->is_active ? 1 : 0)->first());
+        }
+
+        return [
+            'credential' => $credential,
+            'team_member' => $teamMember,
+            'user' => $teamMember?->user,
+            'role_label' => (string) ($credential['role_label'] ?? $labelMap[$roleKey] ?? $roleKey),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<int, array<string, mixed>>
+     */
+    private function upsertExtraAccessCredential(DemoWorkspace $workspace, string $roleKey, array $attributes): array
+    {
+        $labelMap = $this->extraAccessLabelMap();
+        $credentialsByRole = collect($workspace->extra_access_credentials ?? [])
+            ->filter(fn ($credential) => is_array($credential) && is_string($credential['role_key'] ?? null))
+            ->mapWithKeys(fn (array $credential) => [(string) $credential['role_key'] => $credential])
+            ->all();
+
+        $credentialsByRole[$roleKey] = [
+            ...($credentialsByRole[$roleKey] ?? []),
+            'role_key' => $roleKey,
+            'role_label' => $labelMap[$roleKey] ?? $roleKey,
+            'login_url' => url('/login'),
+            ...$attributes,
+        ];
+
+        $orderedRoles = collect($workspace->extra_access_roles ?? [])
+            ->filter(fn ($value) => is_string($value) && trim($value) !== '')
+            ->merge(array_keys($credentialsByRole))
+            ->unique()
+            ->values();
+
+        return $orderedRoles
+            ->map(function (string $key) use ($credentialsByRole, $labelMap) {
+                return $credentialsByRole[$key] ?? [
+                    'role_key' => $key,
+                    'role_label' => $labelMap[$key] ?? $key,
+                    'login_url' => url('/login'),
+                    'status' => 'pending',
+                    'is_active' => false,
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function extraAccessLabelMap(): array
+    {
+        return collect($this->catalog->extraAccessRoles())
+            ->mapWithKeys(fn (array $role) => [(string) $role['key'] => (string) ($role['label'] ?? $role['key'])])
+            ->all();
+    }
+
+    private function matchesExtraAccessRole(TeamMember $member, string $roleKey): bool
+    {
+        return match ($roleKey) {
+            'manager' => $member->role === 'admin',
+            'front_desk' => $member->role === 'sales_manager'
+                || str_contains(strtolower((string) $member->title), 'front desk'),
+            'staff' => $member->role === 'member',
+            default => false,
+        };
+    }
+
+    private function generateExtraAccessPassword(): string
+    {
+        return 'Demo!'.Str::upper(Str::random(6));
+    }
+
+    /**
+     * @param  array<int, string>  $requestedRoles
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildExtraAccessCredentials(User $owner, array $requestedRoles): array
+    {
+        if ($requestedRoles === []) {
+            return [];
+        }
+
+        $teamMembers = TeamMember::query()
+            ->where('account_id', $owner->id)
+            ->with('user:id,name,email')
+            ->get();
+        $labels = $this->extraAccessLabelMap();
+
+        $assigned = [];
+
+        foreach ($requestedRoles as $roleKey) {
+            if (! isset($labels[$roleKey])) {
+                continue;
+            }
+
+            $member = $teamMembers
+                ->first(function (TeamMember $candidate) use ($roleKey, $assigned) {
+                    if (in_array($candidate->id, $assigned, true)) {
+                        return false;
+                    }
+
+                    return $this->matchesExtraAccessRole($candidate, $roleKey);
+                });
+
+            if (! $member || ! $member->user) {
+                continue;
+            }
+
+            $assigned[] = $member->id;
+
+            $credentials[] = [
+                'role_key' => $roleKey,
+                'role_label' => (string) ($labels[$roleKey] ?? $roleKey),
+                'team_member_id' => $member->id,
+                'user_id' => $member->user->id,
+                'name' => (string) $member->user->name,
+                'title' => (string) ($member->title ?? $member->role),
+                'email' => (string) $member->user->email,
+                'password' => 'password',
+                'login_url' => url('/login'),
+                'status' => 'active',
+                'is_active' => true,
+            ];
+        }
+
+        return $credentials ?? [];
     }
 
     /**

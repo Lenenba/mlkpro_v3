@@ -2,10 +2,13 @@
 
 namespace App\Services;
 
+use App\Jobs\AnalyzePlanScanJob;
 use App\Models\PlanScan;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 
 class PlanScanService
 {
@@ -25,6 +28,72 @@ class PlanScanService
         private PriceLookupService $priceLookupService,
         private SupplierDirectory $supplierDirectory
     ) {}
+
+    public function submit(User $user, UploadedFile $planFile, array $attributes = [], array $metrics = []): PlanScan
+    {
+        $accountId = $user->accountOwnerId();
+        $planFileHash = hash_file('sha256', $planFile->getRealPath()) ?: null;
+        $path = $planFile->store('plan-scans', 'public');
+
+        $scan = PlanScan::create([
+            'user_id' => $accountId,
+            'customer_id' => $attributes['customer_id'] ?? null,
+            'property_id' => $attributes['property_id'] ?? null,
+            'job_title' => $attributes['job_title'] ?? null,
+            'trade_type' => $attributes['trade_type'] ?? 'general',
+            'status' => self::STATUS_PROCESSING,
+            'ai_status' => config('services.openai.key') ? 'queued' : 'skipped',
+            'plan_file_path' => $path,
+            'plan_file_name' => $planFile->getClientOriginalName(),
+            'plan_file_sha256' => $planFileHash,
+        ]);
+
+        $this->dispatchAnalysisJob($scan, $user, Arr::only($metrics, [
+            'surface_m2',
+            'rooms',
+            'priority',
+        ]));
+
+        return $scan->fresh();
+    }
+
+    public function reanalyze(PlanScan $scan, User $user, string $mode = 'retry'): PlanScan
+    {
+        $metrics = [
+            'surface_m2' => data_get($scan->ai_reviewed_payload, 'metrics.surface_m2', data_get($scan->metrics, 'surface_m2')),
+            'rooms' => data_get($scan->ai_reviewed_payload, 'metrics.rooms', data_get($scan->metrics, 'rooms')),
+            'priority' => data_get($scan->ai_reviewed_payload, 'metrics.priority', data_get($scan->metrics, 'priority', 'balanced')),
+        ];
+
+        $options = [
+            'mode' => $mode,
+            'trigger' => 'manual_reanalysis',
+            'bypass_cache' => true,
+        ];
+
+        if ($mode === 'escalate') {
+            $options['model'] = (string) config('services.openai.plan_scan_fallback_model', config('services.openai.plan_scan_model'));
+        }
+
+        $this->dispatchAnalysisJob($scan, $user, $metrics, $options);
+
+        return $scan->fresh();
+    }
+
+    /**
+     * @param  array<string, mixed>  $metrics
+     * @param  array<string, mixed>  $options
+     */
+    private function dispatchAnalysisJob(PlanScan $scan, User $user, array $metrics, array $options = []): void
+    {
+        if ((bool) config('async.workloads.plan_scans.run_inline', false)) {
+            AnalyzePlanScanJob::dispatchSync($scan->id, $user->id, $metrics, $options);
+
+            return;
+        }
+
+        AnalyzePlanScanJob::dispatch($scan->id, $user->id, $metrics, $options);
+    }
 
     public function tradeOptions(): array
     {
@@ -47,17 +116,18 @@ class PlanScanService
         ];
     }
 
-    public function analyze(PlanScan $scan, array $metrics = [], ?string $priority = null): array
+    public function analyze(PlanScan $scan, array $metrics = [], ?string $priority = null, array $reviewedPayload = []): array
     {
         $normalized = $this->normalizeMetrics($metrics);
-        $trade = $scan->trade_type ?: 'general';
+        $trade = (string) (data_get($reviewedPayload, 'trade_type') ?: $scan->trade_type ?: 'general');
         $catalog = $this->catalogForTrade($trade);
-        $items = $this->buildItems($catalog, $normalized);
+        $reviewedItems = $this->buildItemsFromReviewedPayload($reviewedPayload, $catalog);
+        $items = $reviewedItems !== [] ? $reviewedItems : $this->buildItems($catalog, $normalized);
         $pricingContext = $this->buildPricingContext($scan);
         $itemsWithSources = $this->attachSources($items, $trade, $pricingContext);
 
         $variants = $this->buildVariants($itemsWithSources, $priority, $normalized, $pricingContext);
-        $analysis = $this->buildAnalysisSummary($trade, $normalized, $itemsWithSources, $pricingContext);
+        $analysis = $this->buildAnalysisSummary($trade, $normalized, $itemsWithSources, $pricingContext, $reviewedPayload);
 
         return [
             'metrics' => $normalized,
@@ -231,6 +301,81 @@ class PlanScanService
                 'is_labor' => (bool) ($item['is_labor'] ?? false),
             ];
         })->values()->all();
+    }
+
+    private function buildItemsFromReviewedPayload(array $reviewedPayload, array $catalog): array
+    {
+        $lines = data_get($reviewedPayload, 'line_items');
+        if (! is_array($lines)) {
+            return [];
+        }
+
+        return collect($lines)->map(function ($line) use ($catalog) {
+            if (! is_array($line)) {
+                return null;
+            }
+
+            $name = trim((string) ($line['name'] ?? ''));
+            if ($name === '') {
+                return null;
+            }
+
+            $quantity = is_numeric($line['quantity'] ?? null)
+                ? round(max(0.1, (float) $line['quantity']), 2)
+                : 1.0;
+            $isLabor = (bool) ($line['is_labor'] ?? false);
+
+            return [
+                'name' => $name,
+                'description' => $line['description'] ?? $line['notes'] ?? null,
+                'unit' => trim((string) ($line['unit'] ?? 'u')) ?: 'u',
+                'quantity' => $quantity,
+                'base_cost' => $this->resolveReviewedBaseCost($line, $catalog, $isLabor),
+                'is_labor' => $isLabor,
+            ];
+        })->filter()->values()->all();
+    }
+
+    private function resolveReviewedBaseCost(array $line, array $catalog, bool $isLabor): float
+    {
+        $explicit = $line['base_cost'] ?? null;
+        if (is_numeric($explicit) && (float) $explicit > 0) {
+            return round((float) $explicit, 2);
+        }
+
+        $name = strtolower(trim((string) ($line['name'] ?? '')));
+        if ($name !== '') {
+            foreach ($catalog as $catalogItem) {
+                $catalogName = strtolower(trim((string) ($catalogItem['name'] ?? '')));
+                if ($catalogName === '') {
+                    continue;
+                }
+
+                if ($catalogName === $name || str_contains($catalogName, $name) || str_contains($name, $catalogName)) {
+                    return (float) ($catalogItem['base_cost'] ?? 0);
+                }
+
+                similar_text($catalogName, $name, $similarity);
+                if ($similarity >= 75.0) {
+                    return (float) ($catalogItem['base_cost'] ?? 0);
+                }
+            }
+        }
+
+        $catalogCosts = collect($catalog)
+            ->pluck('base_cost')
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => (float) $value)
+            ->values();
+
+        if ($catalogCosts->isNotEmpty()) {
+            $average = round($catalogCosts->avg() ?? 0, 2);
+            if ($average > 0) {
+                return $average;
+            }
+        }
+
+        return $isLabor ? 45.0 : 25.0;
     }
 
     private function attachSources(array $items, string $trade, array $pricingContext): array
@@ -525,7 +670,7 @@ class PlanScanService
         return implode(' ', $parts);
     }
 
-    private function buildAnalysisSummary(string $trade, array $metrics, array $items, array $pricingContext = []): array
+    private function buildAnalysisSummary(string $trade, array $metrics, array $items, array $pricingContext = [], array $reviewedPayload = []): array
     {
         $elements = collect($items)->pluck('name')->values()->all();
         $surface = $metrics['surface_m2'] ?? 0;
@@ -545,26 +690,43 @@ class PlanScanService
             return in_array(($item['source_status'] ?? null), ['live', 'missing'], true);
         })->count();
         $lookupLimit = (int) ($pricingContext['live_lookup_limit'] ?? self::LIVE_LOOKUP_LIMIT);
+        $reviewedLines = data_get($reviewedPayload, 'line_items');
+        $reviewedAssumptions = data_get($reviewedPayload, 'assumptions');
+        $reviewedFlags = data_get($reviewedPayload, 'review_flags');
+        $usesReviewedPayload = is_array($reviewedLines) && $reviewedLines !== [];
+        $assumptions = [
+            'Quantites deduites du nombre de pieces et de la surface.',
+            'Prix compares sur plusieurs sources.',
+            'Marges ajustees par niveau de devis.',
+            $lookupLimit > 0
+                ? 'Live pricing limited to '.$lookupLimit.' items for faster scans.'
+                : 'Live pricing disabled for scans.',
+            $providerReady
+                ? 'Sources live via '.$provider.'.'
+                : 'Aucune source live configuree pour le moment.',
+        ];
+
+        if ($usesReviewedPayload) {
+            $assumptions[] = 'Les lignes de devis proviennent du payload de revue IA confirme par l utilisateur.';
+        }
+
+        if (is_array($reviewedAssumptions)) {
+            $assumptions = array_merge($assumptions, array_values(array_filter($reviewedAssumptions, fn ($value) => is_string($value) && trim($value) !== '')));
+        }
 
         return [
             'trade' => $trade,
-            'summary' => 'Estimation basee sur un plan et des metriques saisies.',
+            'summary' => $usesReviewedPayload
+                ? 'Estimation basee sur un plan, une extraction IA revue, et des lignes confirmees.'
+                : 'Estimation basee sur un plan et des metriques saisies.',
             'metrics' => [
                 'surface_m2' => $surface,
                 'rooms' => $rooms,
             ],
             'elements' => $elements,
-            'assumptions' => [
-                'Quantites deduites du nombre de pieces et de la surface.',
-                'Prix compares sur plusieurs sources.',
-                'Marges ajustees par niveau de devis.',
-                $lookupLimit > 0
-                    ? 'Live pricing limited to '.$lookupLimit.' items for faster scans.'
-                    : 'Live pricing disabled for scans.',
-                $providerReady
-                    ? 'Sources live via '.$provider.'.'
-                    : 'Aucune source live configuree pour le moment.',
-            ],
+            'assumptions' => array_values(array_unique($assumptions)),
+            'review_flags' => is_array($reviewedFlags) ? array_values(array_filter($reviewedFlags, fn ($value) => is_string($value) && trim($value) !== '')) : [],
+            'extraction_mode' => $usesReviewedPayload ? 'reviewed_lines' : 'catalog_heuristics',
             'pricing' => [
                 'provider' => $provider,
                 'provider_ready' => $providerReady,

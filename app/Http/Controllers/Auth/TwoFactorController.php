@@ -4,9 +4,10 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Services\AttendanceService;
+use App\Services\Demo\DemoWorkspaceTimelineService;
 use App\Services\SecurityEventService;
-use App\Services\TwoFactorService;
 use App\Services\TotpService;
+use App\Services\TwoFactorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,7 +20,7 @@ class TwoFactorController extends Controller
     public function create(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
-        if (!$user || !$user->requiresTwoFactor()) {
+        if (! $user || ! $user->requiresTwoFactor()) {
             return redirect()->route('dashboard');
         }
 
@@ -31,9 +32,9 @@ class TwoFactorController extends Controller
         );
 
         if ($effectiveMethod !== TwoFactorService::METHOD_APP) {
-            if (!$user->two_factor_expires_at || now()->greaterThan($user->two_factor_expires_at)) {
+            if (! $user->two_factor_expires_at || now()->greaterThan($user->two_factor_expires_at)) {
                 $result = $service->sendCode($user, true, $effectiveMethod);
-                if (!($result['sent'] ?? false)) {
+                if (! ($result['sent'] ?? false)) {
                     Auth::guard('web')->logout();
                     $request->session()->invalidate();
                     $request->session()->regenerateToken();
@@ -64,7 +65,7 @@ class TwoFactorController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $user = $request->user();
-        if (!$user || !$user->requiresTwoFactor()) {
+        if (! $user || ! $user->requiresTwoFactor()) {
             return redirect()->route('dashboard');
         }
 
@@ -72,9 +73,10 @@ class TwoFactorController extends Controller
             'code' => 'required|string|min:6|max:10',
         ]);
 
-        $limiterKey = 'two-factor-verify:' . $user->id . '|' . $request->ip();
+        $limiterKey = 'two-factor-verify:'.$user->id.'|'.$request->ip();
         if (RateLimiter::tooManyAttempts($limiterKey, 5)) {
             $seconds = RateLimiter::availableIn($limiterKey);
+
             return back()->withErrors([
                 'code' => "Trop de tentatives. Reessayez dans {$seconds} secondes.",
             ]);
@@ -89,20 +91,21 @@ class TwoFactorController extends Controller
         $code = trim($validated['code']);
 
         $verified = false;
-        if ($effectiveMethod === TwoFactorService::METHOD_APP && !empty($user->two_factor_secret)) {
+        if ($effectiveMethod === TwoFactorService::METHOD_APP && ! empty($user->two_factor_secret)) {
             $verified = app(TotpService::class)->verifyCode($user->two_factor_secret, $code);
         } else {
             $verified = $service->verifyCode($user, $code);
         }
 
-        if (!$verified) {
+        if (! $verified) {
             RateLimiter::hit($limiterKey);
+
             return back()->withErrors([
                 'code' => 'Code invalide ou expire.',
             ]);
         }
 
-        if ($effectiveMethod === TwoFactorService::METHOD_APP && !$user->two_factor_enabled) {
+        if ($effectiveMethod === TwoFactorService::METHOD_APP && ! $user->two_factor_enabled) {
             $user->forceFill([
                 'two_factor_enabled' => true,
             ])->save();
@@ -115,10 +118,12 @@ class TwoFactorController extends Controller
         app(SecurityEventService::class)->record($user, 'auth.login', $request, [
             'two_factor' => true,
         ]);
-
+        app(DemoWorkspaceTimelineService::class)->recordLoginForUser($user, [
+            'two_factor' => true,
+        ]);
         app(AttendanceService::class)->autoClockIn($user);
 
-        if ($user->isAccountOwner() && !$user->onboarding_completed_at && !$user->isSuperadmin() && !$user->isPlatformAdmin()) {
+        if ($user->isAccountOwner() && ! $user->onboarding_completed_at && ! $user->isSuperadmin() && ! $user->isPlatformAdmin()) {
             return redirect()->route('onboarding.index');
         }
 
@@ -134,13 +139,14 @@ class TwoFactorController extends Controller
     public function resend(Request $request): RedirectResponse
     {
         $user = $request->user();
-        if (!$user || !$user->requiresTwoFactor()) {
+        if (! $user || ! $user->requiresTwoFactor()) {
             return redirect()->route('dashboard');
         }
 
-        $limiterKey = 'two-factor-resend:' . $user->id . '|' . $request->ip();
+        $limiterKey = 'two-factor-resend:'.$user->id.'|'.$request->ip();
         if (RateLimiter::tooManyAttempts($limiterKey, 3)) {
             $seconds = RateLimiter::availableIn($limiterKey);
+
             return back()->withErrors([
                 'code' => "Veuillez patienter {$seconds} secondes avant de demander un nouveau code.",
             ]);
@@ -160,7 +166,7 @@ class TwoFactorController extends Controller
         }
 
         $result = $service->sendCode($user, false, $effectiveMethod);
-        if (!$result['sent']) {
+        if (! $result['sent']) {
             if (($result['reason'] ?? null) === 'cooldown') {
                 return back()->withErrors([
                     'code' => "Veuillez patienter {$result['retry_after']} secondes avant de demander un nouveau code.",

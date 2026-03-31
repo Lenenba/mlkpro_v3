@@ -30,6 +30,18 @@ $stripePricesReady = ! empty(array_filter(
     fn ($value) => is_string($value) ? trim($value) !== '' : ! empty($value)
 ));
 $stripeReady = $stripeEnabled && $stripeKeysReady && $stripePricesReady;
+$billingReminderDays = array_values(array_unique(array_filter(
+    array_map(
+        static fn (string $value): int => (int) trim($value),
+        explode(',', (string) env('BILLING_UPCOMING_REMINDER_DAYS', '7,3,1'))
+    ),
+    static fn (int $value): bool => $value >= 1 && $value <= 30
+)));
+if ($billingReminderDays === []) {
+    $billingReminderDays = [7, 3, 1];
+}
+$billingReminderTime = trim((string) env('BILLING_UPCOMING_REMINDERS_TIME', '09:00'));
+$billingReminderTime = preg_match('/^\d{2}:\d{2}$/', $billingReminderTime) ? $billingReminderTime : '09:00';
 
 $pricePrefix = $providerEffective === 'stripe' ? 'STRIPE' : 'PADDLE';
 
@@ -37,6 +49,11 @@ return [
     'provider' => $providerRequested,
     'provider_effective' => $providerEffective,
     'provider_ready' => $providerEffective === 'stripe' ? $stripeReady : true,
+    'upcoming_reminders' => [
+        'enabled' => filter_var(env('BILLING_UPCOMING_REMINDERS_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+        'days' => $billingReminderDays,
+        'time' => $billingReminderTime,
+    ],
     'catalog_defaults' => [
         'free' => [
             'description' => 'Free starter access for very small teams.',

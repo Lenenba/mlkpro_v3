@@ -10,22 +10,14 @@ use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\ShiftNoticeNotification;
+use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
-use App\Services\CompanyNotificationPreferenceService;
-use App\Services\NotificationPreferenceService;
-use App\Services\TaskBillingService;
-use App\Services\TaskStatusHistoryService;
-use App\Services\TaskTimingService;
-use App\Services\WhatsappNotificationService;
 use Carbon\Carbon;
-use App\Services\SmsNotificationService;
 use Illuminate\Support\Facades\URL;
 
 class DailyAgendaService
 {
-    public function __construct(private PushNotificationService $push)
-    {
-    }
+    public function __construct(private PushNotificationService $push) {}
 
     public function process(?Carbon $now = null): array
     {
@@ -172,7 +164,7 @@ class DailyAgendaService
 
     private function handleTaskEndOfDay(Carbon $now): int
     {
-        if (!config('agenda.auto_complete_tasks', true)) {
+        if (config('agenda.auto_complete_tasks', true) === false) {
             return 0;
         }
 
@@ -294,12 +286,12 @@ class DailyAgendaService
             $owner = User::query()
                 ->select(['id', 'name', 'locale', 'company_name', 'company_notification_settings'])
                 ->find($accountId);
-            if (!$owner) {
+            if ($owner === null) {
                 continue;
             }
 
             $channels = app(CompanyNotificationPreferenceService::class)->taskDayChannels($owner);
-            if (!array_filter($channels)) {
+            if (empty(array_filter($channels))) {
                 continue;
             }
 
@@ -326,7 +318,7 @@ class DailyAgendaService
 
             foreach ($tasks as $task) {
                 $sent = $this->notifyClientTaskDay($task, $owner, $channels, $accountNow);
-                if (!$sent) {
+                if ($sent === false) {
                     continue;
                 }
 
@@ -375,7 +367,7 @@ class DailyAgendaService
             $windowEnd = $accountNow->copy()->addMinutes($minutesBefore);
 
             $owner = User::query()->select(['id', 'name', 'locale'])->find($accountId);
-            if (!$owner) {
+            if ($owner === null) {
                 continue;
             }
 
@@ -398,12 +390,12 @@ class DailyAgendaService
                 ]);
 
             foreach ($shifts as $shift) {
-                if (!$shift->start_time) {
+                if (blank($shift->start_time)) {
                     continue;
                 }
 
                 $startAt = Carbon::parse(
-                    $shift->shift_date->toDateString() . ' ' . $shift->start_time,
+                    $shift->shift_date->toDateString().' '.$shift->start_time,
                     $timezone
                 );
 
@@ -446,7 +438,7 @@ class DailyAgendaService
             $today = $accountNow->toDateString();
 
             $owner = User::query()->select(['id', 'name', 'locale'])->find($accountId);
-            if (!$owner) {
+            if ($owner === null) {
                 continue;
             }
 
@@ -469,12 +461,12 @@ class DailyAgendaService
                 ]);
 
             foreach ($shifts as $shift) {
-                if (!$shift->start_time) {
+                if (blank($shift->start_time)) {
                     continue;
                 }
 
                 $startAt = Carbon::parse(
-                    $shift->shift_date->toDateString() . ' ' . $shift->start_time,
+                    $shift->shift_date->toDateString().' '.$shift->start_time,
                     $timezone
                 );
                 $lateAt = $startAt->copy()->addMinutes($graceMinutes);
@@ -485,12 +477,13 @@ class DailyAgendaService
 
                 if ($shift->end_time) {
                     $endAt = Carbon::parse(
-                        $shift->shift_date->toDateString() . ' ' . $shift->end_time,
+                        $shift->shift_date->toDateString().' '.$shift->end_time,
                         $timezone
                     );
                     if ($accountNow->gt($endAt)) {
                         $shift->late_alerted_at = $now;
                         $shift->save();
+
                         continue;
                     }
                 }
@@ -499,6 +492,7 @@ class DailyAgendaService
                 if ($this->hasClockedInForShift($accountId, $memberUser, $startAt, $lateAt)) {
                     $shift->late_alerted_at = $now;
                     $shift->save();
+
                     continue;
                 }
 
@@ -515,11 +509,11 @@ class DailyAgendaService
     private function notifyClientTaskDay(Task $task, User $owner, array $channels, Carbon $now): bool
     {
         $customer = $task->customer;
-        if (!$customer) {
+        if ($customer === null) {
             return false;
         }
 
-        $locale = $owner->locale ?? 'fr';
+        $locale = LocalePreference::forCustomer($customer, $owner);
         $isFr = str_starts_with(strtolower($locale), 'fr');
         $assignee = $task->assignee?->user?->name;
         $timeLabel = $this->formatTimeLabel($task->start_time);
@@ -550,7 +544,7 @@ class DailyAgendaService
         }
 
         $sent = false;
-        if (!empty($channels[CompanyNotificationPreferenceService::CHANNEL_EMAIL]) && $customer->email) {
+        if ((bool) ($channels[CompanyNotificationPreferenceService::CHANNEL_EMAIL] ?? false) && $customer->email) {
             $sent = NotificationDispatcher::send($customer, new ActionEmailNotification(
                 $title,
                 $intro,
@@ -563,12 +557,12 @@ class DailyAgendaService
             ]) || $sent;
         }
 
-        if (!empty($channels[CompanyNotificationPreferenceService::CHANNEL_SMS]) && $customer->phone) {
+        if ((bool) ($channels[CompanyNotificationPreferenceService::CHANNEL_SMS] ?? false) && $customer->phone) {
             $message = $intro ?: ($isFr ? 'Intervention prevue aujourd hui.' : 'Service scheduled today.');
             $sent = app(SmsNotificationService::class)->send($customer->phone, $message) || $sent;
         }
 
-        if (!empty($channels[CompanyNotificationPreferenceService::CHANNEL_WHATSAPP]) && $customer->phone) {
+        if ((bool) ($channels[CompanyNotificationPreferenceService::CHANNEL_WHATSAPP] ?? false) && $customer->phone) {
             $message = $intro ?: ($isFr ? 'Intervention prevue aujourd hui.' : 'Service scheduled today.');
             $sent = app(WhatsappNotificationService::class)->send($customer->phone, $message) || $sent;
         }
@@ -580,11 +574,11 @@ class DailyAgendaService
     {
         $intro = 'Bonjour, notre technicien arrive aujourd hui';
         if ($timeLabel) {
-            $intro .= ' vers ' . $timeLabel;
+            $intro .= ' vers '.$timeLabel;
         }
         $intro .= '.';
         if ($assignee) {
-            $intro .= ' Technicien: ' . $assignee . '.';
+            $intro .= ' Technicien: '.$assignee.'.';
         }
 
         return $intro;
@@ -594,11 +588,11 @@ class DailyAgendaService
     {
         $intro = 'Hello, our technician will arrive today';
         if ($timeLabel) {
-            $intro .= ' around ' . $timeLabel;
+            $intro .= ' around '.$timeLabel;
         }
         $intro .= '.';
         if ($assignee) {
-            $intro .= ' Technician: ' . $assignee . '.';
+            $intro .= ' Technician: '.$assignee.'.';
         }
 
         return $intro;
@@ -606,7 +600,7 @@ class DailyAgendaService
 
     private function formatTimeLabel(?string $time): ?string
     {
-        if (!$time) {
+        if (blank($time)) {
             return null;
         }
 
@@ -615,7 +609,7 @@ class DailyAgendaService
             return $time;
         }
 
-        return $parts[0] . ':' . $parts[1];
+        return $parts[0].':'.$parts[1];
     }
 
     private function notifyTaskStart(Task $task): void
@@ -690,7 +684,7 @@ class DailyAgendaService
         $users = collect();
 
         $teamUsers = $work->teamMembers
-            ? $work->teamMembers->map(fn($member) => $member->user)->filter()
+            ? $work->teamMembers->map(fn ($member) => $member->user)->filter()
             : collect();
         $users = $users->merge($teamUsers);
 
@@ -711,7 +705,7 @@ class DailyAgendaService
             ->where('role', 'admin')
             ->with('user:id,name,locale')
             ->get()
-            ->map(fn($member) => $member->user)
+            ->map(fn ($member) => $member->user)
             ->filter();
 
         return collect([$owner])->merge($admins)->filter()->unique('id');
@@ -727,7 +721,7 @@ class DailyAgendaService
             ->whereIn('role', ['sales_manager'])
             ->with('user:id,name,locale')
             ->get()
-            ->map(fn($member) => $member->user)
+            ->map(fn ($member) => $member->user)
             ->filter();
 
         return $owners->merge($managers)->filter()->unique('id');
@@ -739,7 +733,7 @@ class DailyAgendaService
         Carbon $startAt,
         Carbon $lateAt
     ): bool {
-        if (!$memberUser) {
+        if ($memberUser === null) {
             return false;
         }
 
@@ -771,7 +765,7 @@ class DailyAgendaService
 
         $preferences = app(NotificationPreferenceService::class);
         foreach ($recipients as $user) {
-            if (!$preferences->shouldNotify($user, NotificationPreferenceService::CATEGORY_PLANNING)) {
+            if ($preferences->shouldNotify($user, NotificationPreferenceService::CATEGORY_PLANNING) === false) {
                 continue;
             }
             $locale = $user->locale ?? 'fr';
@@ -820,7 +814,7 @@ class DailyAgendaService
 
         $preferences = app(NotificationPreferenceService::class);
         foreach ($recipients as $user) {
-            if (!$preferences->shouldNotify($user, NotificationPreferenceService::CATEGORY_PLANNING)) {
+            if ($preferences->shouldNotify($user, NotificationPreferenceService::CATEGORY_PLANNING) === false) {
                 continue;
             }
             $locale = $user->locale ?? 'fr';
@@ -865,8 +859,8 @@ class DailyAgendaService
             return [
                 'title' => $isFr ? 'Tache a demarrer' : 'Task should start',
                 'body' => $isFr
-                    ? "La tache \"{$title}\" doit commencer maintenant." . ($assignee ? " Assigne: {$assignee}." : '')
-                    : "Task \"{$title}\" should start now." . ($assignee ? " Assignee: {$assignee}." : ''),
+                    ? "La tache \"{$title}\" doit commencer maintenant.".($assignee ? " Assigne: {$assignee}." : '')
+                    : "Task \"{$title}\" should start now.".($assignee ? " Assignee: {$assignee}." : ''),
                 'data' => [
                     'type' => 'task_start',
                 ],

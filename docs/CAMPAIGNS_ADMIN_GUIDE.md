@@ -10,7 +10,8 @@ Pre-requis tenant:
 ## 2) Templates par defaut
 Les templates starter (EMAIL/SMS/IN_APP, FR/EN, tous campaign types) sont auto-crees:
 - a l inscription owner
-- au seeding local (`LaunchSeeder`)
+- au bootstrap local minimal (`LaunchResetSeeder`) pour le socle plateforme
+- au provisioning d un tenant demo via `Demo Workspaces`
 
 Admin peut ensuite:
 - editer les templates

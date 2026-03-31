@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+import { MEDIA_LIMITS, formatBytes, resizeImageFile } from '@/utils/media';
 
 const page = usePage();
 
@@ -36,6 +37,7 @@ const currentQuote = computed(() => {
         number: quote.number || '',
         status: quote.status || '',
         customer_id: quote.customer_id || quote.customer?.id || null,
+        property_id: quote.property_id || quote.property?.id || null,
         work_id: quote.work_id || null,
     };
 });
@@ -50,6 +52,7 @@ const currentWork = computed(() => {
         number: work.number || '',
         status: work.status || '',
         customer_id: work.customer_id || work.customer?.id || null,
+        property_id: work.property_id || work.property?.id || null,
     };
 });
 const currentInvoice = computed(() => {
@@ -63,6 +66,7 @@ const currentInvoice = computed(() => {
         number: invoice.number || '',
         status: invoice.status || '',
         customer_id: invoice.customer_id || invoice.customer?.id || null,
+        property_id: invoice.property_id || invoice.property?.id || null,
         work_id: invoice.work_id || invoice.work?.id || null,
     };
 });
@@ -79,6 +83,11 @@ const voiceReplyEnabled = ref(false);
 const autoSendVoice = ref(false);
 const lastAssistantMessage = ref('');
 const pendingAutoSend = ref(false);
+const attachment = ref(null);
+const attachmentError = ref('');
+const attachmentInputRef = ref(null);
+
+const MAX_PLAN_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 
 const storageKey = computed(() => `mlkpro_assistant_context_v2_${accountKey.value}`);
 const messagesKey = computed(() => `mlkpro_assistant_messages_v2_${accountKey.value}`);
@@ -161,13 +170,20 @@ const formatAssistantMessage = (payload) => {
 };
 
 const buildAssistantMeta = (payload) => {
+    const meta = {};
+
     if (payload?.campaign_review && typeof payload.campaign_review === 'object') {
-        return {
-            campaignReview: payload.campaign_review,
+        meta.campaignReview = payload.campaign_review;
+    }
+
+    if (payload?.plan_scan && typeof payload.plan_scan === 'object') {
+        meta.planScan = {
+            ...payload.plan_scan,
+            quote: payload?.quote && typeof payload.quote === 'object' ? payload.quote : null,
         };
     }
 
-    return null;
+    return Object.keys(meta).length > 0 ? meta : null;
 };
 
 const trimPreviewText = (value, limit = 120) => {
@@ -310,15 +326,79 @@ const speakMessage = (content) => {
     window.speechSynthesis.speak(utterance);
 };
 
+const clearAttachment = () => {
+    attachment.value = null;
+    attachmentError.value = '';
+    if (attachmentInputRef.value) {
+        attachmentInputRef.value.value = '';
+    }
+};
+
+const handleAttachmentChange = async (event) => {
+    const file = event?.target?.files?.[0] || null;
+    attachmentError.value = '';
+
+    if (!file) {
+        attachment.value = null;
+        return;
+    }
+
+    if (file.type === 'application/pdf') {
+        if (file.size > MAX_PLAN_ATTACHMENT_BYTES) {
+            attachment.value = null;
+            attachmentError.value = `PDF too large. Max ${formatBytes(MAX_PLAN_ATTACHMENT_BYTES)}.`;
+            return;
+        }
+
+        attachment.value = file;
+        return;
+    }
+
+    if (file.type?.startsWith('image/')) {
+        const result = await resizeImageFile(file, {
+            maxDimension: MEDIA_LIMITS.maxImageDimension,
+            maxBytes: MEDIA_LIMITS.maxImageBytes,
+        });
+
+        if (result.error) {
+            attachment.value = null;
+            attachmentError.value = result.error;
+            return;
+        }
+
+        attachment.value = result.file;
+        return;
+    }
+
+    attachment.value = null;
+    attachmentError.value = 'Unsupported file type. Use a PDF, JPG, PNG, or WEBP plan.';
+};
+
+const openAssistantUrl = (url) => {
+    if (!url) {
+        return;
+    }
+
+    router.get(url);
+};
+
+const canSend = computed(() => {
+    return !isLoading.value && (input.value.trim() !== '' || attachment.value instanceof File);
+});
+
 const sendMessage = async () => {
     const trimmed = input.value.trim();
-    if (!trimmed || isLoading.value) {
+    const selectedAttachment = attachment.value;
+    if ((!trimmed && !selectedAttachment) || isLoading.value) {
         return;
     }
 
     input.value = '';
     transcriptHint.value = '';
-    addMessage('user', trimmed);
+    const userMessage = selectedAttachment
+        ? [trimmed, `Attachment: ${selectedAttachment.name}`].filter(Boolean).join('\n')
+        : trimmed;
+    addMessage('user', userMessage);
     isLoading.value = true;
 
     try {
@@ -334,10 +414,24 @@ const sendMessage = async () => {
             },
         };
 
-        const response = await window.axios.post(route('assistant.message'), {
-            message: trimmed,
-            context: requestContext,
-        });
+        let response;
+        if (selectedAttachment) {
+            const formData = new FormData();
+            formData.append('message', trimmed);
+            formData.append('context', JSON.stringify(requestContext));
+            formData.append('attachment', selectedAttachment);
+
+            response = await window.axios.post(route('assistant.message'), formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+        } else {
+            response = await window.axios.post(route('assistant.message'), {
+                message: trimmed,
+                context: requestContext,
+            });
+        }
 
         const payload = response?.data || {};
         if (payload.context !== undefined) {
@@ -376,6 +470,7 @@ const sendMessage = async () => {
         }
     } finally {
         isLoading.value = false;
+        clearAttachment();
         persistState();
     }
 };
@@ -611,12 +706,89 @@ onMounted(() => {
                             </div>
                         </div>
                     </div>
+                    <div
+                        v-if="message.role === 'assistant' && message.meta?.planScan"
+                        class="mt-3 rounded-md border border-stone-200 bg-white p-3 text-xs text-stone-700 space-y-3"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                                    Plan scan
+                                </div>
+                                <div class="mt-1 text-sm font-semibold text-stone-900">
+                                    {{ message.meta.planScan.job_title || message.meta.planScan.file_name }}
+                                </div>
+                                <div class="text-[11px] text-stone-500">
+                                    {{ message.meta.planScan.file_name }}
+                                </div>
+                                <div
+                                    v-if="message.meta.planScan.assistant_state_label"
+                                    class="mt-1 text-[11px] font-medium text-emerald-700"
+                                >
+                                    {{ message.meta.planScan.assistant_state_label }}
+                                </div>
+                            </div>
+                            <div class="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold uppercase text-emerald-700">
+                                {{ message.meta.planScan.status_label }}
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="rounded-md bg-stone-50 px-2 py-2">
+                                <div class="text-[10px] uppercase tracking-wide text-stone-500">Trade</div>
+                                <div class="mt-1 text-xs font-semibold text-stone-800">{{ message.meta.planScan.trade_type || 'General' }}</div>
+                            </div>
+                            <div class="rounded-md bg-stone-50 px-2 py-2">
+                                <div class="text-[10px] uppercase tracking-wide text-stone-500">Confidence</div>
+                                <div class="mt-1 text-xs font-semibold text-stone-800">{{ message.meta.planScan.confidence_score || 'Pending' }}</div>
+                            </div>
+                            <div class="rounded-md bg-stone-50 px-2 py-2">
+                                <div class="text-[10px] uppercase tracking-wide text-stone-500">Customer</div>
+                                <div class="mt-1 text-xs font-semibold text-stone-800">{{ message.meta.planScan.customer_name || 'Not linked' }}</div>
+                            </div>
+                            <div class="rounded-md bg-stone-50 px-2 py-2">
+                                <div class="text-[10px] uppercase tracking-wide text-stone-500">Review</div>
+                                <div class="mt-1 text-xs font-semibold text-stone-800">{{ message.meta.planScan.review_required ? 'Required' : 'Ready' }}</div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                class="rounded-md border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] font-medium text-stone-700 hover:bg-stone-100 disabled:opacity-50"
+                                :disabled="isLoading"
+                                @click="openAssistantUrl(message.meta.planScan.urls?.show)"
+                            >
+                                Open scan
+                            </button>
+                            <button
+                                v-if="message.meta.planScan.quote?.urls?.edit"
+                                type="button"
+                                class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                                :disabled="isLoading"
+                                @click="openAssistantUrl(message.meta.planScan.quote.urls.edit)"
+                            >
+                                Open quote
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div v-if="isLoading" class="text-xs text-stone-400">Assistant is thinking...</div>
         </div>
 
         <div class="border-t border-stone-200 p-3 space-y-2">
+            <div v-if="attachment" class="flex items-center justify-between rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-[11px] text-stone-600">
+                <div class="truncate">
+                    {{ attachment.name }}
+                </div>
+                <button type="button" class="text-stone-500 hover:text-stone-800" @click="clearAttachment">
+                    Remove
+                </button>
+            </div>
+            <div v-if="attachmentError" class="text-[11px] text-red-600">
+                {{ attachmentError }}
+            </div>
             <div class="flex items-center gap-2">
                 <button
                     v-if="speechSupported"
@@ -644,6 +816,33 @@ onMounted(() => {
                     </svg>
                 </button>
                 <input
+                    ref="attachmentInputRef"
+                    type="file"
+                    accept="application/pdf,image/png,image/jpeg,image/webp"
+                    class="hidden"
+                    @change="handleAttachmentChange"
+                />
+                <button
+                    type="button"
+                    class="w-9 h-9 rounded-full border border-stone-200 flex items-center justify-center text-stone-600 hover:text-stone-900"
+                    @click="attachmentInputRef?.click()"
+                    aria-label="Attach a plan"
+                >
+                    <svg
+                        class="w-4 h-4"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                    >
+                        <path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.2-9.19a4 4 0 0 1 5.65 5.66l-9.2 9.19a2 2 0 1 1-2.83-2.83l8.49-8.48" />
+                    </svg>
+                </button>
+                <input
                     v-model="input"
                     type="text"
                     class="flex-1 rounded-md border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -654,7 +853,7 @@ onMounted(() => {
                 <button
                     type="button"
                     class="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm hover:bg-emerald-700 disabled:opacity-50"
-                    :disabled="isLoading || input.trim() === ''"
+                    :disabled="!canSend"
                     @click="sendMessage"
                 >
                     Send

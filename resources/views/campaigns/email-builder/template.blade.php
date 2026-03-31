@@ -83,9 +83,9 @@
         $safeUrl = trim($url) !== '' ? $url : '#';
 
         $buttonStyle = match ($style) {
-            'outline' => 'display:inline-block; margin-top:14px; padding:12px 18px; border-radius:8px; background:#FFFFFF; color:'.$primary.'; text-decoration:none; font-size:13px; line-height:16px; font-weight:700; border:1px solid '.$primary.';',
-            'soft' => 'display:inline-block; margin-top:14px; padding:12px 18px; border-radius:8px; background:'.$surface.'; color:'.$secondary.'; text-decoration:none; font-size:13px; line-height:16px; font-weight:700; border:1px solid #e7e5e4;',
-            default => 'display:inline-block; margin-top:14px; padding:12px 18px; border-radius:8px; background:'.$primary.'; color:#FFFFFF; text-decoration:none; font-size:13px; line-height:16px; font-weight:700;',
+            'outline' => 'display:inline-block; margin-top:14px; padding:12px 18px; border-radius:3px; background:#FFFFFF; color:'.$primary.'; text-decoration:none; font-size:13px; line-height:16px; font-weight:700; border:1px solid '.$primary.';',
+            'soft' => 'display:inline-block; margin-top:14px; padding:12px 18px; border-radius:3px; background:'.$surface.'; color:'.$secondary.'; text-decoration:none; font-size:13px; line-height:16px; font-weight:700; border:1px solid #e2e8f0;',
+            default => 'display:inline-block; margin-top:14px; padding:12px 18px; border-radius:3px; background:'.$primary.'; color:#FFFFFF; text-decoration:none; font-size:13px; line-height:16px; font-weight:700;',
         };
 
         return '<a href="'.e($safeUrl).'" style="'.$buttonStyle.'">'.e($label).'</a>';
@@ -113,7 +113,7 @@
             : '';
 
         $image = trim((string) ($block['image_url'] ?? '')) !== ''
-            ? '<div style="padding-bottom:16px;"><img src="'.e((string) $block['image_url']).'" alt="" style="display:block; width:100%; border-radius:8px; max-width:100%;"></div>'
+            ? '<div style="padding-bottom:16px;"><img src="'.e((string) $block['image_url']).'" alt="" style="display:block; width:100%; border-radius:3px; max-width:100%;"></div>'
             : '';
 
         $buttonHtml = $button((string) ($block['button_label'] ?? ''), (string) ($block['button_url'] ?? ''), (string) ($section['cta_style'] ?? 'solid'));
@@ -121,7 +121,7 @@
             ? '<div style="'.$alignmentStyle.'">'.$buttonHtml.'</div>'
             : '';
 
-        return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:'.$cardBackground.'; border:'.$cardBorder.'; border-radius:8px;"><tr><td style="padding:20px;">'
+        return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:'.$cardBackground.'; border:'.$cardBorder.'; border-radius:3px;"><tr><td style="padding:20px;">'
             .$image
             .$kicker
             .$title
@@ -160,7 +160,7 @@
         $wrapperBorder = '1px solid #e7e5e4';
         $wrapperAccent = $backgroundMode === 'highlight' ? ' border-top:3px solid '.$primary.';' : '';
 
-        return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:'.$wrapperBackground.'; border:'.$wrapperBorder.'; border-radius:8px;'.$wrapperAccent.'"><tr><td style="padding:20px 20px 4px 20px;">'
+        return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:'.$wrapperBackground.'; border:'.$wrapperBorder.'; border-radius:3px;'.$wrapperAccent.'"><tr><td style="padding:20px 20px 4px 20px;">'
             .$renderColumns($section)
             .'</td></tr></table>';
     };
@@ -177,7 +177,7 @@
         table, td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
         img { -ms-interpolation-mode:bicubic; border:0; outline:none; text-decoration:none; }
         table { border-collapse:collapse !important; }
-        body { margin:0 !important; padding:0 !important; width:100% !important; height:100% !important; background:#f5f5f4; }
+        body { margin:0 !important; padding:0 !important; width:100% !important; height:100% !important; background:#eef2f7; }
         @media screen and (max-width: 680px) {
             .stack-column { display:block !important; width:100% !important; }
             .mobile-pad { padding-left:24px !important; padding-right:24px !important; }
@@ -186,15 +186,15 @@
 </head>
 <body>
     <div style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all;">{{ $previewText }}</div>
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f5f5f4;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#eef2f7;">
         <tr>
             <td align="center" style="padding:24px 12px;">
-                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="680" style="width:100%; max-width:680px; background:#ffffff; border:1px solid #e7e5e4; border-radius:10px; overflow:hidden;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="680" style="width:100%; max-width:680px; background:#ffffff; border:1px solid #e2e8f0; border-radius:3px; overflow:hidden;">
                     <tr>
-                        <td style="background:#ffffff; border-top:4px solid {{ $primary }};">
+                        <td style="background:#ffffff; border-top:3px solid {{ $primary }};">
                             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                                 <tr>
-                                    <td class="mobile-pad" style="padding:24px 32px 18px 32px; border-bottom:1px solid #e7e5e4;">
+                                    <td class="mobile-pad" style="padding:24px 32px 18px 32px; border-bottom:1px solid #e2e8f0;">
                                         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                                             <tr>
                                                 <td valign="middle">
@@ -237,7 +237,7 @@
                                 @endforeach
 
                                 <tr>
-                                    <td style="background:#FFFFFF; border-top:1px solid #e7e5e4;">
+                                    <td style="background:#FFFFFF; border-top:1px solid #e2e8f0;">
                                         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                                             <tr>
                                                 <td class="mobile-pad" style="padding:24px 32px 32px 32px;">
@@ -261,7 +261,7 @@
                                                             </td>
                                                         </tr>
                                                         <tr>
-                                                            <td colspan="2" style="padding-top:18px; border-top:1px solid #e7e5e4; font-size:11px; line-height:18px; color:{{ $mutedColor }};">
+                                                            <td colspan="2" style="padding-top:18px; border-top:1px solid #e2e8f0; font-size:11px; line-height:18px; color:{{ $mutedColor }};">
                                                                 You are receiving this message from {brandName}. Use the unsubscribe link below if you no longer want to receive campaign emails.
                                                                 <div style="padding-top:8px;">
                                                                     <a href="{unsubscribeUrl}" style="color:{{ $primary }}; text-decoration:underline;">Unsubscribe</a>

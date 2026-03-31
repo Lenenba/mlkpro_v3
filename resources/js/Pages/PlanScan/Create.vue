@@ -94,7 +94,7 @@ const submit = () => {
             >
                 <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">New plan scan</h1>
                 <p class="text-sm text-stone-500 dark:text-neutral-400">
-                    Upload a plan, select the trade, and generate quote variants.
+                    Upload a plan, let AI extract the first metrics, then generate quote variants.
                 </p>
             </div>
 
@@ -113,7 +113,9 @@ const submit = () => {
                                 class="mt-2 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-500 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                                 @change="handleFileChange"
                             />
-                            <p class="mt-1 text-xs text-stone-400 dark:text-neutral-500">Max 5MB.</p>
+                            <p class="mt-1 text-xs text-stone-400 dark:text-neutral-500">
+                                Max 5MB. AI will try to detect trade hints, surface, rooms, and review flags from the uploaded file.
+                            </p>
                         </div>
                         <FloatingInput v-model="form.job_title" label="Project title" />
                         <FloatingSelect v-model="form.trade_type" label="Trade" :options="tradeOptions" />
@@ -140,6 +142,9 @@ const submit = () => {
                     class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-900 dark:border-neutral-700"
                 >
                     <h2 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">Plan metrics (optional)</h2>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        Leave these blank if you want the AI pass to estimate them first. Fill them in if you already know the values and want to guide the scan.
+                    </p>
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <FloatingNumberInput v-model="form.surface_m2" label="Surface (m2)" :step="0.1" />
                         <FloatingNumberInput v-model="form.rooms" label="Rooms" />

@@ -387,6 +387,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             Route::get('/plan-scans/create', [PlanScanController::class, 'create'])->name('plan-scans.create');
             Route::post('/plan-scans', [PlanScanController::class, 'store'])->name('plan-scans.store');
             Route::get('/plan-scans/{planScan}', [PlanScanController::class, 'show'])->name('plan-scans.show');
+            Route::patch('/plan-scans/{planScan}/review', [PlanScanController::class, 'review'])->name('plan-scans.review');
+            Route::post('/plan-scans/{planScan}/reanalyze', [PlanScanController::class, 'reanalyze'])->name('plan-scans.reanalyze');
+            Route::delete('/plan-scans/{planScan}', [PlanScanController::class, 'destroy'])->name('plan-scans.destroy');
             Route::post('/plan-scans/{planScan}/convert', [PlanScanController::class, 'convert'])->name('plan-scans.convert');
         });
     });
@@ -771,11 +774,41 @@ Route::prefix('super-admin')
         Route::get('/tenants/{tenant}/export', [SuperAdminTenantController::class, 'export'])->name('tenants.export');
 
         Route::get('/demo-workspaces', [SuperAdminDemoWorkspaceController::class, 'index'])->name('demo-workspaces.index');
+        Route::get('/demo-workspaces/create', [SuperAdminDemoWorkspaceController::class, 'create'])->name('demo-workspaces.create');
+        Route::get('/demo-workspaces/{demoWorkspace}', [SuperAdminDemoWorkspaceController::class, 'show'])->name('demo-workspaces.show');
         Route::post('/demo-workspaces', [SuperAdminDemoWorkspaceController::class, 'store'])->name('demo-workspaces.store');
+        Route::post('/demo-workspaces/{demoWorkspace}/queue', [SuperAdminDemoWorkspaceController::class, 'queueProvisioning'])
+            ->name('demo-workspaces.queue');
+        Route::patch('/demo-workspaces/{demoWorkspace}/extend', [SuperAdminDemoWorkspaceController::class, 'extendExpiration'])
+            ->name('demo-workspaces.expiration.extend');
         Route::patch('/demo-workspaces/{demoWorkspace}/expiration', [SuperAdminDemoWorkspaceController::class, 'updateExpiration'])
             ->name('demo-workspaces.expiration.update');
+        Route::patch('/demo-workspaces/{demoWorkspace}/delivery', [SuperAdminDemoWorkspaceController::class, 'updateDeliveryStatus'])
+            ->name('demo-workspaces.delivery.update');
+        Route::post('/demo-workspaces/{demoWorkspace}/send-access-email', [SuperAdminDemoWorkspaceController::class, 'sendAccessEmail'])
+            ->name('demo-workspaces.access-email.send');
+        Route::patch('/demo-workspaces/{demoWorkspace}/sales-status', [SuperAdminDemoWorkspaceController::class, 'updateSalesStatus'])
+            ->name('demo-workspaces.sales-status.update');
+        Route::post('/demo-workspaces/{demoWorkspace}/extra-access/{roleKey}/revoke', [SuperAdminDemoWorkspaceController::class, 'revokeExtraAccess'])
+            ->name('demo-workspaces.extra-access.revoke');
+        Route::post('/demo-workspaces/{demoWorkspace}/extra-access/{roleKey}/regenerate', [SuperAdminDemoWorkspaceController::class, 'regenerateExtraAccess'])
+            ->name('demo-workspaces.extra-access.regenerate');
+        Route::post('/demo-workspaces/{demoWorkspace}/clone', [SuperAdminDemoWorkspaceController::class, 'cloneWorkspace'])
+            ->name('demo-workspaces.clone');
+        Route::put('/demo-workspaces/{demoWorkspace}/baseline', [SuperAdminDemoWorkspaceController::class, 'snapshotBaseline'])
+            ->name('demo-workspaces.baseline.snapshot');
+        Route::post('/demo-workspaces/{demoWorkspace}/reset', [SuperAdminDemoWorkspaceController::class, 'resetToBaseline'])
+            ->name('demo-workspaces.baseline.reset');
         Route::delete('/demo-workspaces/{demoWorkspace}', [SuperAdminDemoWorkspaceController::class, 'destroy'])
             ->name('demo-workspaces.destroy');
+        Route::post('/demo-workspaces/templates', [SuperAdminDemoWorkspaceController::class, 'storeTemplate'])
+            ->name('demo-workspaces.templates.store');
+        Route::put('/demo-workspaces/templates/{demoWorkspaceTemplate}', [SuperAdminDemoWorkspaceController::class, 'updateTemplate'])
+            ->name('demo-workspaces.templates.update');
+        Route::post('/demo-workspaces/templates/{demoWorkspaceTemplate}/duplicate', [SuperAdminDemoWorkspaceController::class, 'duplicateTemplate'])
+            ->name('demo-workspaces.templates.duplicate');
+        Route::patch('/demo-workspaces/templates/{demoWorkspaceTemplate}/archive', [SuperAdminDemoWorkspaceController::class, 'toggleTemplateArchive'])
+            ->name('demo-workspaces.templates.archive');
 
         Route::get('/admins', [SuperAdminAdminController::class, 'index'])->name('admins.index');
         Route::post('/admins', [SuperAdminAdminController::class, 'store'])->name('admins.store');

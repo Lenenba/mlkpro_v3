@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Services\AttendanceService;
+use App\Services\Demo\DemoWorkspaceTimelineService;
 use App\Services\SecurityEventService;
 use App\Services\TwoFactorService;
 use Illuminate\Http\RedirectResponse;
@@ -53,7 +54,7 @@ class AuthenticatedSessionController extends Controller
 
             if ($effectiveMethod !== TwoFactorService::METHOD_APP) {
                 $result = $twoFactorService->sendCode($user, true, $effectiveMethod);
-                if (!($result['sent'] ?? false)) {
+                if (! ($result['sent'] ?? false)) {
                     Auth::guard('web')->logout();
                     $request->session()->invalidate();
                     $request->session()->regenerateToken();
@@ -84,9 +85,12 @@ class AuthenticatedSessionController extends Controller
             app(SecurityEventService::class)->record($user, 'auth.login', $request, [
                 'two_factor' => false,
             ]);
+            app(DemoWorkspaceTimelineService::class)->recordLoginForUser($user, [
+                'two_factor' => false,
+            ]);
         }
 
-        if ($user?->isAccountOwner() && !$user->onboarding_completed_at && !$user->isSuperadmin() && !$user->isPlatformAdmin()) {
+        if ($user?->isAccountOwner() && ! $user->onboarding_completed_at && ! $user->isSuperadmin() && ! $user->isPlatformAdmin()) {
             return redirect()->route('onboarding.index');
         }
 

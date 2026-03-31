@@ -9,12 +9,11 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
+use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
-use App\Services\UsageLimitService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
-use App\Services\TemplateService;
 
 class WorkBillingService
 {
@@ -145,7 +144,7 @@ class WorkBillingService
                     $taskDate = $task->due_date ?: $scheduledDate;
 
                     return $task->materials
-                        ->filter(fn($material) => $material->billable && (float) $material->quantity > 0)
+                        ->filter(fn ($material) => $material->billable && (float) $material->quantity > 0)
                         ->map(function ($material) use ($task, $assigneeName, $taskDate, $work) {
                             $quantity = max(0, (float) $material->quantity);
                             $unitPrice = max(0, (float) $material->unit_price);
@@ -155,7 +154,7 @@ class WorkBillingService
                                 'task_id' => null,
                                 'work_id' => $work->id,
                                 'assigned_team_member_id' => $task->assigned_team_member_id,
-                                'title' => 'Material - ' . $material->label,
+                                'title' => 'Material - '.$material->label,
                                 'description' => $material->description,
                                 'scheduled_date' => $taskDate,
                                 'start_time' => $task->start_time,
@@ -237,12 +236,14 @@ class WorkBillingService
         $customer = $work->customer;
         if ($customer && $customer->email) {
             $accountOwner = User::find($work->user_id);
+            $locale = LocalePreference::forCustomer($customer, $accountOwner);
+            $isFr = str_starts_with($locale, 'fr');
             $note = $accountOwner
                 ? app(TemplateService::class)->resolveInvoiceNote($accountOwner)
                 : null;
-            $usePublicLink = !(bool) ($customer->portal_access ?? true) || !$customer->portal_user_id;
+            $usePublicLink = ! (bool) ($customer->portal_access ?? true) || ! $customer->portal_user_id;
             $actionUrl = route('dashboard');
-            $actionLabel = 'Open dashboard';
+            $actionLabel = $isFr ? 'Ouvrir le tableau de bord' : 'Open dashboard';
             if ($usePublicLink) {
                 $expiresAt = now()->addDays(7);
                 $actionUrl = URL::temporarySignedRoute(
@@ -250,19 +251,19 @@ class WorkBillingService
                     $expiresAt,
                     ['invoice' => $invoice->id]
                 );
-                $actionLabel = 'Pay invoice';
+                $actionLabel = $isFr ? 'Payer la facture' : 'Pay invoice';
             }
             NotificationDispatcher::send($customer, new ActionEmailNotification(
-                'New invoice available',
-                'A new invoice has been generated for your job.',
+                $isFr ? 'Nouvelle facture disponible' : 'New invoice available',
+                $isFr ? 'Une nouvelle facture a ete generee pour votre intervention.' : 'A new invoice has been generated for your job.',
                 [
-                    ['label' => 'Invoice', 'value' => $invoice->number ?? $invoice->id],
-                    ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
-                    ['label' => 'Total', 'value' => '$' . number_format((float) $invoice->total, 2)],
+                    ['label' => $isFr ? 'Facture' : 'Invoice', 'value' => $invoice->number ?? $invoice->id],
+                    ['label' => $isFr ? 'Intervention' : 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
+                    ['label' => 'Total', 'value' => '$'.number_format((float) $invoice->total, 2)],
                 ],
                 $actionUrl,
                 $actionLabel,
-                'New invoice available',
+                $isFr ? 'Nouvelle facture disponible' : 'New invoice available',
                 $note
             ), [
                 'invoice_id' => $invoice->id,
