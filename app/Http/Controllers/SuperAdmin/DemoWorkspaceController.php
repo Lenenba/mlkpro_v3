@@ -41,7 +41,9 @@ class DemoWorkspaceController extends BaseSuperAdminController
         ['value' => 'lost', 'label' => 'Lost'],
     ];
 
-    public function __construct(private DemoWorkspaceCatalog $catalog) {}
+    public function __construct(private DemoWorkspaceCatalog $catalog)
+    {
+    }
 
     public function index(Request $request): Response
     {
@@ -181,7 +183,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
         Request $request,
         DemoWorkspaceProvisioner $provisioner,
         DemoWorkspaceTimelineService $timeline
-    ): RedirectResponse {
+    ): RedirectResponse
+    {
         $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
 
         $saveAsDraft = $request->boolean('save_as_draft');
@@ -190,7 +193,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
             ? $provisioner->saveDraft($payload, $request->user())
             : $provisioner->queueCreate($payload, $request->user());
 
-        if (!$saveAsDraft) {
+        if (! $saveAsDraft) {
             ProvisionDemoWorkspaceJob::dispatch($workspace->id, (int) $request->user()->id);
         }
 
@@ -235,7 +238,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
         DemoWorkspace $demoWorkspace,
         DemoWorkspaceProvisioner $provisioner,
         DemoWorkspaceTimelineService $timeline
-    ): RedirectResponse {
+    ): RedirectResponse
+    {
         $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
 
         if ($demoWorkspace->trashed()) {
@@ -280,7 +284,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
         DemoWorkspace $demoWorkspace,
         DemoWorkspaceProvisioner $provisioner,
         DemoWorkspaceTimelineService $timeline
-    ): RedirectResponse {
+    ): RedirectResponse
+    {
         $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
         $this->ensureWorkspaceIsNotPurged($demoWorkspace);
 
@@ -309,7 +314,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
         DemoWorkspace $demoWorkspace,
         DemoWorkspaceProvisioner $provisioner,
         DemoWorkspaceTimelineService $timeline
-    ): RedirectResponse {
+    ): RedirectResponse
+    {
         $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
         $this->ensureWorkspaceIsNotPurged($demoWorkspace);
 
@@ -346,7 +352,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
         Request $request,
         DemoWorkspace $demoWorkspace,
         DemoWorkspaceTimelineService $timeline
-    ): RedirectResponse {
+    ): RedirectResponse
+    {
         $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
         $this->ensureWorkspaceIsNotPurged($demoWorkspace);
         $this->ensureWorkspaceHasProvisionedTenant($demoWorkspace, 'Access delivery can be updated only after the demo has been provisioned.');
@@ -386,7 +393,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
         Request $request,
         DemoWorkspace $demoWorkspace,
         DemoWorkspaceTimelineService $timeline
-    ): RedirectResponse {
+    ): RedirectResponse
+    {
         $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
         $this->ensureWorkspaceIsNotPurged($demoWorkspace);
         $this->ensureWorkspaceHasProvisionedTenant($demoWorkspace, 'Access email can be sent only after the demo has been provisioned.');
@@ -402,7 +410,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
         $accessPassword = trim((string) $demoWorkspace->access_password);
         $hasValidProspectEmail = filter_var($prospectEmail, FILTER_VALIDATE_EMAIL) !== false;
 
-        if ($prospectEmail === '' || !$hasValidProspectEmail) {
+        if ($prospectEmail === '' || ! $hasValidProspectEmail) {
             throw ValidationException::withMessages([
                 'prospect_email' => ['Add a valid prospect email before sending access.'],
             ]);
@@ -487,7 +495,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
         Request $request,
         DemoWorkspace $demoWorkspace,
         DemoWorkspaceTimelineService $timeline
-    ): RedirectResponse {
+    ): RedirectResponse
+    {
         $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
 
         $validated = $request->validate([
@@ -526,7 +535,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
         DemoWorkspace $demoWorkspace,
         DemoWorkspaceProvisioner $provisioner,
         DemoWorkspaceTimelineService $timeline
-    ): RedirectResponse {
+    ): RedirectResponse
+    {
         $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
 
         $validated = $request->validate([
@@ -575,7 +585,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
         DemoWorkspace $demoWorkspace,
         DemoWorkspaceProvisioner $provisioner,
         DemoWorkspaceTimelineService $timeline
-    ): RedirectResponse {
+    ): RedirectResponse
+    {
         $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
         $this->ensureWorkspaceIsNotPurged($demoWorkspace);
         $this->ensureWorkspaceHasProvisionedTenant($demoWorkspace, 'A baseline can be saved only after the demo has been provisioned.');
@@ -601,7 +612,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
         DemoWorkspace $demoWorkspace,
         DemoWorkspaceProvisioner $provisioner,
         DemoWorkspaceTimelineService $timeline
-    ): RedirectResponse {
+    ): RedirectResponse
+    {
         $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
         $this->ensureWorkspaceIsNotPurged($demoWorkspace);
         $this->ensureWorkspaceHasProvisionedTenant($demoWorkspace, 'Draft demos must be queued first before they can be reset from baseline.');
@@ -629,7 +641,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
         DemoWorkspaceProvisioner $provisioner,
         DemoWorkspaceTimelineService $timeline,
         string $roleKey
-    ): RedirectResponse {
+    ): RedirectResponse
+    {
         $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
         $this->ensureWorkspaceIsNotPurged($demoWorkspace);
         $this->ensureExtraAccessRoleIsManageable($demoWorkspace, $roleKey);
@@ -665,7 +678,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
         DemoWorkspaceProvisioner $provisioner,
         DemoWorkspaceTimelineService $timeline,
         string $roleKey
-    ): RedirectResponse {
+    ): RedirectResponse
+    {
         $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
         $this->ensureWorkspaceIsNotPurged($demoWorkspace);
         $this->ensureExtraAccessRoleIsManageable($demoWorkspace, $roleKey);
@@ -800,7 +814,8 @@ class DemoWorkspaceController extends BaseSuperAdminController
         Request $request,
         DemoWorkspace $demoWorkspace,
         DemoWorkspacePurgeService $purgeService,
-    ): RedirectResponse {
+    ): RedirectResponse
+    {
         $this->authorizePermission($request, PlatformPermissions::DEMOS_MANAGE);
         $this->ensureWorkspaceIsNotPurged($demoWorkspace);
 
@@ -926,7 +941,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
 
     private function syncDefaultTemplate(DemoWorkspaceTemplate $template): void
     {
-        if (!$template->is_default || !$template->is_active) {
+        if (! $template->is_default || ! $template->is_active) {
             return;
         }
 
@@ -1385,17 +1400,17 @@ class DemoWorkspaceController extends BaseSuperAdminController
 
     private function ensureExtraAccessRoleIsManageable(DemoWorkspace $workspace, string $roleKey): void
     {
-        if (!in_array($roleKey, $this->catalog->extraAccessRoleKeys(), true)) {
+        if (! in_array($roleKey, $this->catalog->extraAccessRoleKeys(), true)) {
             abort(404);
         }
 
-        if (!in_array($roleKey, $workspace->extra_access_roles ?? [], true)) {
+        if (! in_array($roleKey, $workspace->extra_access_roles ?? [], true)) {
             throw ValidationException::withMessages([
                 'extra_access' => ['This extra role is not enabled for the selected demo.'],
             ]);
         }
 
-        if (!$workspace->owner_user_id) {
+        if (! $workspace->owner_user_id) {
             throw ValidationException::withMessages([
                 'extra_access' => ['Extra role logins are available only after the demo has been provisioned.'],
             ]);
@@ -1404,7 +1419,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
 
     private function ensureWorkspaceIsNotPurged(DemoWorkspace $workspace): void
     {
-        if (!$workspace->trashed()) {
+        if (! $workspace->trashed()) {
             return;
         }
 
@@ -1434,7 +1449,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
 
         if (
             $workspace->isExpired()
-            && !$events->contains(fn (array $event) => ($event['action'] ?? null) === 'demo_workspace.expired')
+            && ! $events->contains(fn (array $event) => ($event['action'] ?? null) === 'demo_workspace.expired')
         ) {
             $events->push([
                 'id' => 'synthetic-expired-'.$workspace->id,

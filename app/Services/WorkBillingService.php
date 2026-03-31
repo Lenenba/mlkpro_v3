@@ -241,7 +241,7 @@ class WorkBillingService
             $note = $accountOwner
                 ? app(TemplateService::class)->resolveInvoiceNote($accountOwner)
                 : null;
-            $usePublicLink = !(bool) ($customer->portal_access ?? true) || !$customer->portal_user_id;
+            $usePublicLink = ! (bool) ($customer->portal_access ?? true) || ! $customer->portal_user_id;
             $actionUrl = route('dashboard');
             $actionLabel = $isFr ? 'Ouvrir le tableau de bord' : 'Open dashboard';
             if ($usePublicLink) {
