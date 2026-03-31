@@ -730,8 +730,7 @@ class DailyAgendaService
         ?User $memberUser,
         Carbon $startAt,
         Carbon $lateAt
-    ): bool
-    {
+    ): bool {
         if ($memberUser === null) {
             return false;
         }
@@ -801,8 +800,7 @@ class DailyAgendaService
         TeamMemberShift $shift,
         Carbon $startAt,
         Carbon $lateAt
-    ): void
-    {
+    ): void {
         $memberUser = $shift->teamMember?->user;
         $memberName = $memberUser?->name ?? 'Employe';
         $timeLabel = $startAt->format('H:i');

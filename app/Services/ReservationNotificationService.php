@@ -149,8 +149,7 @@ class ReservationNotificationService
         string $event,
         ?User $actor = null,
         array $context = []
-    ): bool
-    {
+    ): bool {
         $event = strtolower(trim($event));
 
         $account = User::query()->find($item->account_id);
@@ -564,8 +563,7 @@ class ReservationNotificationService
         array $details = [],
         bool $includeClient = true,
         bool $includeInternal = true
-    ): int
-    {
+    ): int {
         $account = User::query()->find($reservation->account_id);
         if ($account === null) {
             return 0;
@@ -769,8 +767,7 @@ class ReservationNotificationService
         ReservationQueueItem $item,
         ?Customer $client,
         ?User $clientUser
-    ): array
-    {
+    ): array {
         $rawCandidates = [
             (string) data_get($item->metadata, 'guest_phone', ''),
             (string) data_get($item->metadata, 'guest_phone_normalized', ''),
@@ -813,8 +810,7 @@ class ReservationNotificationService
         string $serviceLabel,
         string $status,
         array $context = []
-    ): string
-    {
+    ): string {
         $companyName = $this->smsCompactLabel((string) ($context['company_name'] ?? ''), 42);
         $clientName = $this->smsCompactLabel((string) ($context['client_name'] ?? ''), 40);
         $teamMemberName = $this->smsCompactLabel((string) ($context['team_member_name'] ?? ''), 32);
@@ -878,8 +874,7 @@ class ReservationNotificationService
         ReservationQueueItem $item,
         ?Customer $client,
         ?User $clientUser
-    ): string
-    {
+    ): string {
         $candidates = [
             (string) data_get($item->metadata, 'guest_name', ''),
             trim((string) (($client?->first_name ?? '').' '.($client?->last_name ?? ''))),
