@@ -21,9 +21,7 @@ class ReservationNotificationService
     public function __construct(
         private readonly ReservationNotificationPreferenceService $preferences,
         private readonly SmsNotificationService $smsService
-    )
-    {
-    }
+    ) {}
 
     public function handleCreated(Reservation $reservation, User $actor): void
     {

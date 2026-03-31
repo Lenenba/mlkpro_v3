@@ -17,9 +17,7 @@ use Illuminate\Support\Facades\URL;
 
 class DailyAgendaService
 {
-    public function __construct(private PushNotificationService $push)
-    {
-    }
+    public function __construct(private PushNotificationService $push) {}
 
     public function process(?Carbon $now = null): array
     {

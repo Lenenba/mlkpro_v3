@@ -41,9 +41,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
         ['value' => 'lost', 'label' => 'Lost'],
     ];
 
-    public function __construct(private DemoWorkspaceCatalog $catalog)
-    {
-    }
+    public function __construct(private DemoWorkspaceCatalog $catalog) {}
 
     public function index(Request $request): Response
     {
