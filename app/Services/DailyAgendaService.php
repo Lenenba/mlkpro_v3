@@ -166,7 +166,7 @@ class DailyAgendaService
 
     private function handleTaskEndOfDay(Carbon $now): int
     {
-        if (! config('agenda.auto_complete_tasks', true)) {
+        if (config('agenda.auto_complete_tasks', true) === false) {
             return 0;
         }
 
@@ -288,12 +288,12 @@ class DailyAgendaService
             $owner = User::query()
                 ->select(['id', 'name', 'locale', 'company_name', 'company_notification_settings'])
                 ->find($accountId);
-            if (! $owner) {
+            if ($owner === null) {
                 continue;
             }
 
             $channels = app(CompanyNotificationPreferenceService::class)->taskDayChannels($owner);
-            if (! array_filter($channels)) {
+            if (empty(array_filter($channels))) {
                 continue;
             }
 
@@ -320,7 +320,7 @@ class DailyAgendaService
 
             foreach ($tasks as $task) {
                 $sent = $this->notifyClientTaskDay($task, $owner, $channels, $accountNow);
-                if (! $sent) {
+                if ($sent === false) {
                     continue;
                 }
 
@@ -369,7 +369,7 @@ class DailyAgendaService
             $windowEnd = $accountNow->copy()->addMinutes($minutesBefore);
 
             $owner = User::query()->select(['id', 'name', 'locale'])->find($accountId);
-            if (! $owner) {
+            if ($owner === null) {
                 continue;
             }
 
@@ -392,7 +392,7 @@ class DailyAgendaService
                 ]);
 
             foreach ($shifts as $shift) {
-                if (! $shift->start_time) {
+                if (blank($shift->start_time)) {
                     continue;
                 }
 
@@ -440,7 +440,7 @@ class DailyAgendaService
             $today = $accountNow->toDateString();
 
             $owner = User::query()->select(['id', 'name', 'locale'])->find($accountId);
-            if (! $owner) {
+            if ($owner === null) {
                 continue;
             }
 
@@ -463,7 +463,7 @@ class DailyAgendaService
                 ]);
 
             foreach ($shifts as $shift) {
-                if (! $shift->start_time) {
+                if (blank($shift->start_time)) {
                     continue;
                 }
 
@@ -509,7 +509,7 @@ class DailyAgendaService
     private function notifyClientTaskDay(Task $task, User $owner, array $channels, Carbon $now): bool
     {
         $customer = $task->customer;
-        if (! $customer) {
+        if ($customer === null) {
             return false;
         }
 
@@ -544,7 +544,7 @@ class DailyAgendaService
         }
 
         $sent = false;
-        if (! empty($channels[CompanyNotificationPreferenceService::CHANNEL_EMAIL]) && $customer->email) {
+        if ((bool) ($channels[CompanyNotificationPreferenceService::CHANNEL_EMAIL] ?? false) && $customer->email) {
             $sent = NotificationDispatcher::send($customer, new ActionEmailNotification(
                 $title,
                 $intro,
@@ -557,12 +557,12 @@ class DailyAgendaService
             ]) || $sent;
         }
 
-        if (! empty($channels[CompanyNotificationPreferenceService::CHANNEL_SMS]) && $customer->phone) {
+        if ((bool) ($channels[CompanyNotificationPreferenceService::CHANNEL_SMS] ?? false) && $customer->phone) {
             $message = $intro ?: ($isFr ? 'Intervention prevue aujourd hui.' : 'Service scheduled today.');
             $sent = app(SmsNotificationService::class)->send($customer->phone, $message) || $sent;
         }
 
-        if (! empty($channels[CompanyNotificationPreferenceService::CHANNEL_WHATSAPP]) && $customer->phone) {
+        if ((bool) ($channels[CompanyNotificationPreferenceService::CHANNEL_WHATSAPP] ?? false) && $customer->phone) {
             $message = $intro ?: ($isFr ? 'Intervention prevue aujourd hui.' : 'Service scheduled today.');
             $sent = app(WhatsappNotificationService::class)->send($customer->phone, $message) || $sent;
         }
@@ -600,7 +600,7 @@ class DailyAgendaService
 
     private function formatTimeLabel(?string $time): ?string
     {
-        if (! $time) {
+        if (blank($time)) {
             return null;
         }
 
@@ -732,8 +732,9 @@ class DailyAgendaService
         ?User $memberUser,
         Carbon $startAt,
         Carbon $lateAt
-    ): bool {
-        if (! $memberUser) {
+    ): bool
+    {
+        if ($memberUser === null) {
             return false;
         }
 
@@ -765,7 +766,7 @@ class DailyAgendaService
 
         $preferences = app(NotificationPreferenceService::class);
         foreach ($recipients as $user) {
-            if (! $preferences->shouldNotify($user, NotificationPreferenceService::CATEGORY_PLANNING)) {
+            if ($preferences->shouldNotify($user, NotificationPreferenceService::CATEGORY_PLANNING) === false) {
                 continue;
             }
             $locale = $user->locale ?? 'fr';
@@ -802,7 +803,8 @@ class DailyAgendaService
         TeamMemberShift $shift,
         Carbon $startAt,
         Carbon $lateAt
-    ): void {
+    ): void
+    {
         $memberUser = $shift->teamMember?->user;
         $memberName = $memberUser?->name ?? 'Employe';
         $timeLabel = $startAt->format('H:i');
@@ -814,7 +816,7 @@ class DailyAgendaService
 
         $preferences = app(NotificationPreferenceService::class);
         foreach ($recipients as $user) {
-            if (! $preferences->shouldNotify($user, NotificationPreferenceService::CATEGORY_PLANNING)) {
+            if ($preferences->shouldNotify($user, NotificationPreferenceService::CATEGORY_PLANNING) === false) {
                 continue;
             }
             $locale = $user->locale ?? 'fr';

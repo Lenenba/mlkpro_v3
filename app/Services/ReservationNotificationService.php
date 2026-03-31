@@ -21,7 +21,8 @@ class ReservationNotificationService
     public function __construct(
         private readonly ReservationNotificationPreferenceService $preferences,
         private readonly SmsNotificationService $smsService
-    ) {
+    )
+    {
     }
 
     public function handleCreated(Reservation $reservation, User $actor): void
@@ -122,7 +123,7 @@ class ReservationNotificationService
             'client:id,first_name,last_name,company_name',
         ])->first();
 
-        if (! $reservation) {
+        if ($reservation === null) {
             return;
         }
         $accountLocale = $this->reservationLocale($reservation);
@@ -155,7 +156,7 @@ class ReservationNotificationService
         $event = strtolower(trim($event));
 
         $account = User::query()->find($item->account_id);
-        if (! $account) {
+        if ($account === null) {
             return false;
         }
         $isFr = str_starts_with(LocalePreference::forUser($account), 'fr');
@@ -169,12 +170,12 @@ class ReservationNotificationService
             default => null,
         };
 
-        if (! $config) {
+        if ($config === null) {
             return false;
         }
 
         $settings = $this->preferences->resolveFor($account);
-        if (! $this->isEventEnabled($settings, $event)) {
+        if ($this->isEventEnabled($settings, $event) === false) {
             return false;
         }
 
@@ -272,10 +273,10 @@ class ReservationNotificationService
             ->values();
 
         $userRecipients = collect();
-        if (! empty($config['include_internal'])) {
+        if ((bool) ($config['include_internal'] ?? false)) {
             $userRecipients = $userRecipients->merge($internalUsers);
         }
-        if (! empty($config['include_client']) && $clientUser instanceof User) {
+        if ((bool) ($config['include_client'] ?? false) && $clientUser instanceof User) {
             $userRecipients->push($clientUser);
         }
         $userRecipients = $userRecipients
@@ -295,7 +296,7 @@ class ReservationNotificationService
                 ? route('client.reservations.index')
                 : route('reservation.index');
 
-            if (! empty($settings['in_app'])) {
+            if ((bool) ($settings['in_app'] ?? false)) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ReservationDatabaseNotification([
                     'title' => (string) $config['title'],
                     'message' => $eventMessage,
@@ -316,7 +317,7 @@ class ReservationNotificationService
                 }
             }
 
-            if (! empty($settings['email']) && ! empty($recipient->email)) {
+            if ((bool) ($settings['email'] ?? false) && filled($recipient->email)) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ActionEmailNotification(
                     (string) $config['title'],
                     $eventMessage,
@@ -337,11 +338,11 @@ class ReservationNotificationService
         }
 
         if (
-            ! empty($config['include_client'])
-            && ! ($clientUser instanceof User)
+            (bool) ($config['include_client'] ?? false)
+            && ($clientUser instanceof User) === false
             && $client instanceof Customer
-            && ! empty($client->email)
-            && ! empty($settings['email'])
+            && filled($client->email)
+            && (bool) ($settings['email'] ?? false)
         ) {
             $dispatchOk = NotificationDispatcher::send($client, new ActionEmailNotification(
                 (string) $config['title'],
@@ -361,7 +362,7 @@ class ReservationNotificationService
             }
         }
 
-        if (! empty($settings['sms']) && ! empty($config['include_client'])) {
+        if ((bool) ($settings['sms'] ?? false) && (bool) ($config['include_client'] ?? false)) {
             $smsMessage = $this->queueSmsMessage(
                 $event,
                 $queueLabel,
@@ -434,12 +435,12 @@ class ReservationNotificationService
 
         foreach ($reservations as $reservation) {
             $account = User::query()->find($reservation->account_id);
-            if (! $account) {
+            if ($account === null) {
                 continue;
             }
 
             $settings = $this->preferences->resolveFor($account);
-            if (! $this->isEventEnabled($settings, 'reminder')) {
+            if ($this->isEventEnabled($settings, 'reminder') === false) {
                 continue;
             }
 
@@ -525,12 +526,12 @@ class ReservationNotificationService
         }
 
         $account = User::query()->find($reservation->account_id);
-        if (! $account) {
+        if ($account === null) {
             return false;
         }
 
         $settings = $this->preferences->resolveFor($account);
-        if (! $this->isEventEnabled($settings, 'review_request')) {
+        if ($this->isEventEnabled($settings, 'review_request') === false) {
             return false;
         }
 
@@ -568,12 +569,12 @@ class ReservationNotificationService
     ): int
     {
         $account = User::query()->find($reservation->account_id);
-        if (! $account) {
+        if ($account === null) {
             return 0;
         }
 
         $settings = $this->preferences->resolveFor($account);
-        if (! $this->isEventEnabled($settings, $event)) {
+        if ($this->isEventEnabled($settings, $event) === false) {
             return 0;
         }
         $isFr = str_starts_with(LocalePreference::forUser($account), 'fr');
@@ -633,7 +634,7 @@ class ReservationNotificationService
                 ? route('client.reservations.index')
                 : route('reservation.index');
 
-            if (! empty($settings['in_app'])) {
+            if ((bool) ($settings['in_app'] ?? false)) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ReservationDatabaseNotification([
                     'title' => $title,
                     'message' => $message,
@@ -651,7 +652,7 @@ class ReservationNotificationService
                 }
             }
 
-            if (! empty($settings['email']) && ! empty($recipient->email)) {
+            if ((bool) ($settings['email'] ?? false) && filled($recipient->email)) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ActionEmailNotification(
                     $title,
                     $message,
@@ -671,10 +672,10 @@ class ReservationNotificationService
 
         if (
             $includeClient
-            && ! ($clientUser instanceof User)
+            && ($clientUser instanceof User) === false
             && $client instanceof Customer
-            && ! empty($client->email)
-            && ! empty($settings['email'])
+            && filled($client->email)
+            && (bool) ($settings['email'] ?? false)
         ) {
             $dispatchOk = NotificationDispatcher::send($client, new ActionEmailNotification(
                 $title,
@@ -731,7 +732,7 @@ class ReservationNotificationService
         $metadata = (array) ($reservation->metadata ?? []);
         $notifications = (array) ($metadata['notifications'] ?? []);
 
-        return ! empty($notifications[$key]);
+        return filled($notifications[$key] ?? null);
     }
 
     private function setNotificationMeta(Reservation $reservation, string $key, string $value): void
@@ -751,7 +752,7 @@ class ReservationNotificationService
         $metadata = (array) ($item->metadata ?? []);
         $notifications = (array) ($metadata['notifications'] ?? []);
 
-        return ! empty($notifications[$key]);
+        return filled($notifications[$key] ?? null);
     }
 
     private function setQueueNotificationMeta(ReservationQueueItem $item, string $key, string $value): void
