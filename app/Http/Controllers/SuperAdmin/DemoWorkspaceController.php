@@ -190,7 +190,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
             ? $provisioner->saveDraft($payload, $request->user())
             : $provisioner->queueCreate($payload, $request->user());
 
-        if (! $saveAsDraft) {
+        if (!$saveAsDraft) {
             ProvisionDemoWorkspaceJob::dispatch($workspace->id, (int) $request->user()->id);
         }
 
@@ -402,7 +402,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
         $accessPassword = trim((string) $demoWorkspace->access_password);
         $hasValidProspectEmail = filter_var($prospectEmail, FILTER_VALIDATE_EMAIL) !== false;
 
-        if ($prospectEmail === '' || ! $hasValidProspectEmail) {
+        if ($prospectEmail === '' || !$hasValidProspectEmail) {
             throw ValidationException::withMessages([
                 'prospect_email' => ['Add a valid prospect email before sending access.'],
             ]);
@@ -926,7 +926,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
 
     private function syncDefaultTemplate(DemoWorkspaceTemplate $template): void
     {
-        if (! $template->is_default || ! $template->is_active) {
+        if (!$template->is_default || !$template->is_active) {
             return;
         }
 
@@ -1385,17 +1385,17 @@ class DemoWorkspaceController extends BaseSuperAdminController
 
     private function ensureExtraAccessRoleIsManageable(DemoWorkspace $workspace, string $roleKey): void
     {
-        if (! in_array($roleKey, $this->catalog->extraAccessRoleKeys(), true)) {
+        if (!in_array($roleKey, $this->catalog->extraAccessRoleKeys(), true)) {
             abort(404);
         }
 
-        if (! in_array($roleKey, $workspace->extra_access_roles ?? [], true)) {
+        if (!in_array($roleKey, $workspace->extra_access_roles ?? [], true)) {
             throw ValidationException::withMessages([
                 'extra_access' => ['This extra role is not enabled for the selected demo.'],
             ]);
         }
 
-        if (! $workspace->owner_user_id) {
+        if (!$workspace->owner_user_id) {
             throw ValidationException::withMessages([
                 'extra_access' => ['Extra role logins are available only after the demo has been provisioned.'],
             ]);
@@ -1404,7 +1404,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
 
     private function ensureWorkspaceIsNotPurged(DemoWorkspace $workspace): void
     {
-        if (! $workspace->trashed()) {
+        if (!$workspace->trashed()) {
             return;
         }
 
@@ -1434,7 +1434,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
 
         if (
             $workspace->isExpired()
-            && ! $events->contains(fn (array $event) => ($event['action'] ?? null) === 'demo_workspace.expired')
+            && !$events->contains(fn (array $event) => ($event['action'] ?? null) === 'demo_workspace.expired')
         ) {
             $events->push([
                 'id' => 'synthetic-expired-'.$workspace->id,

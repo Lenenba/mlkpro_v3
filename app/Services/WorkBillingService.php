@@ -9,13 +9,11 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
-use App\Services\UsageLimitService;
 use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
-use App\Services\TemplateService;
 
 class WorkBillingService
 {
@@ -243,7 +241,7 @@ class WorkBillingService
             $note = $accountOwner
                 ? app(TemplateService::class)->resolveInvoiceNote($accountOwner)
                 : null;
-            $usePublicLink = ! (bool) ($customer->portal_access ?? true) || ! $customer->portal_user_id;
+            $usePublicLink = !(bool) ($customer->portal_access ?? true) || !$customer->portal_user_id;
             $actionUrl = route('dashboard');
             $actionLabel = $isFr ? 'Ouvrir le tableau de bord' : 'Open dashboard';
             if ($usePublicLink) {
