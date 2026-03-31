@@ -1,8 +1,8 @@
 <?php
 
-use App\Mail\DemoWorkspaceAccessMail;
 use App\Jobs\ComputeInterestScoresJob;
 use App\Jobs\ReconcileDeliveryReportsJob;
+use App\Mail\DemoWorkspaceAccessMail;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\PlatformSupportTicket;
@@ -31,7 +31,6 @@ use App\Notifications\SupplierStockRequestNotification;
 use App\Notifications\TwoFactorCodeNotification;
 use App\Notifications\UpcomingBillingReminderNotification;
 use App\Notifications\WelcomeEmailNotification;
-use App\Support\LocalePreference;
 use App\Services\Campaigns\CampaignAutomationService;
 use App\Services\Campaigns\VipService;
 use App\Services\Capacity\CapacityReportService;
@@ -54,6 +53,7 @@ use App\Services\SupportAssignmentService;
 use App\Services\SupportSettingsService;
 use App\Services\UpcomingBillingReminderService;
 use App\Services\WorkBillingService;
+use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 use App\Support\SchemaAudit\ManualSelectContractAudit;
 use Database\Seeders\LaunchSeeder;
@@ -276,7 +276,7 @@ Artisan::command('mail:preview-pack {to}
         return 1;
     }
 
-    $owner = new User();
+    $owner = new User;
     $owner->forceFill([
         'id' => 9101,
         'name' => 'Preview Owner',
@@ -287,7 +287,7 @@ Artisan::command('mail:preview-pack {to}
         'currency_code' => 'USD',
     ]);
 
-    $previewUser = new User();
+    $previewUser = new User;
     $previewUser->forceFill([
         'id' => 9102,
         'name' => 'Preview Recipient',
@@ -298,7 +298,7 @@ Artisan::command('mail:preview-pack {to}
         'currency_code' => 'USD',
     ]);
 
-    $customer = new Customer();
+    $customer = new Customer;
     $customer->forceFill([
         'id' => 9201,
         'user_id' => $owner->id,
@@ -312,7 +312,7 @@ Artisan::command('mail:preview-pack {to}
     ]);
     $customer->setRelation('user', $owner);
 
-    $property = new Property();
+    $property = new Property;
     $property->forceFill([
         'id' => 9301,
         'customer_id' => $customer->id,
@@ -326,7 +326,7 @@ Artisan::command('mail:preview-pack {to}
     ]);
     $customer->setRelation('properties', collect([$property]));
 
-    $lead = new LeadRequest();
+    $lead = new LeadRequest;
     $lead->forceFill([
         'id' => 9401,
         'user_id' => $owner->id,
@@ -344,14 +344,14 @@ Artisan::command('mail:preview-pack {to}
     $lead->setRelation('user', $owner);
     $lead->setRelation('customer', $customer);
 
-    $tax = new Tax();
+    $tax = new Tax;
     $tax->forceFill([
         'id' => 9501,
         'name' => 'GST + QST',
         'rate' => 14.975,
     ]);
 
-    $quoteTax = new QuoteTax();
+    $quoteTax = new QuoteTax;
     $quoteTax->forceFill([
         'id' => 9502,
         'quote_id' => 9601,
@@ -361,7 +361,7 @@ Artisan::command('mail:preview-pack {to}
     ]);
     $quoteTax->setRelation('tax', $tax);
 
-    $productA = new Product();
+    $productA = new Product;
     $productA->forceFill([
         'id' => 9602,
         'user_id' => $owner->id,
@@ -372,7 +372,7 @@ Artisan::command('mail:preview-pack {to}
         'sku' => 'SERV-AUDIT-01',
         'item_type' => Product::ITEM_TYPE_SERVICE,
     ]);
-    $productAPivot = new QuoteProduct();
+    $productAPivot = new QuoteProduct;
     $productAPivot->forceFill([
         'quote_id' => 9601,
         'product_id' => $productA->id,
@@ -383,7 +383,7 @@ Artisan::command('mail:preview-pack {to}
     ]);
     $productA->setRelation('pivot', $productAPivot);
 
-    $productB = new Product();
+    $productB = new Product;
     $productB->forceFill([
         'id' => 9603,
         'user_id' => $owner->id,
@@ -394,7 +394,7 @@ Artisan::command('mail:preview-pack {to}
         'sku' => 'SERV-DEPLOY-01',
         'item_type' => Product::ITEM_TYPE_SERVICE,
     ]);
-    $productBPivot = new QuoteProduct();
+    $productBPivot = new QuoteProduct;
     $productBPivot->forceFill([
         'quote_id' => 9601,
         'product_id' => $productB->id,
@@ -405,7 +405,7 @@ Artisan::command('mail:preview-pack {to}
     ]);
     $productB->setRelation('pivot', $productBPivot);
 
-    $quote = new Quote();
+    $quote = new Quote;
     $quote->forceFill([
         'id' => 9601,
         'user_id' => $owner->id,
@@ -425,7 +425,7 @@ Artisan::command('mail:preview-pack {to}
     $quote->setRelation('products', collect([$productA, $productB]));
     $quote->setRelation('taxes', collect([$quoteTax]));
 
-    $stockProduct = new Product();
+    $stockProduct = new Product;
     $stockProduct->forceFill([
         'id' => 9701,
         'user_id' => $owner->id,
@@ -458,7 +458,7 @@ Artisan::command('mail:preview-pack {to}
         ],
     ];
 
-    $sendPreview = function (string $key) use ($available, $selected, $to, $owner, $previewUser, $customer, $lead, $quote, $stockProduct, $digestItems): bool {
+    $sendPreview = function (string $key) use ($selected, $to, $owner, $previewUser, $customer, $lead, $quote, $stockProduct, $digestItems): bool {
         if ($selected->isNotEmpty() && ! $selected->contains($key)) {
             return false;
         }
