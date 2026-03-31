@@ -484,7 +484,7 @@ Artisan::command('mail:preview-pack {to}
                 ],
                 suggestedFlow: "1. Log in with the main access.\n2. Review the quote and customer record.\n3. Switch to operations and validate the follow-up flow.",
                 replyToAddress: config('mail.from.address'),
-                locale: LocalePreference::forUser($owner),
+                preferredLocale: LocalePreference::forUser($owner),
             )),
             'action-generic' => $customer->notifyNow(new ActionEmailNotification(
                 title: 'Preview action email',

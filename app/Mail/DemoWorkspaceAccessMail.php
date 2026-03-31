@@ -34,10 +34,10 @@ class DemoWorkspaceAccessMail extends Mailable
         public readonly array $extraCredentials,
         public readonly string $suggestedFlow,
         public readonly ?string $replyToAddress = null,
-        public readonly ?string $locale = null,
+        public readonly ?string $preferredLocale = null,
     ) {
-        if ($this->locale) {
-            $this->locale(LocalePreference::normalize($this->locale));
+        if ($this->preferredLocale) {
+            $this->locale(LocalePreference::normalize($this->preferredLocale));
         }
     }
 

@@ -444,7 +444,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
                 extraCredentials: $this->emailableExtraAccessCredentials($demoWorkspace),
                 suggestedFlow: trim((string) ($demoWorkspace->suggested_flow ?? '')),
                 replyToAddress: $replyToAddress !== '' ? $replyToAddress : null,
-                locale: LocalePreference::normalize((string) $demoWorkspace->locale),
+                preferredLocale: LocalePreference::normalize((string) $demoWorkspace->locale),
             ));
         } catch (\Throwable $exception) {
             report($exception);
