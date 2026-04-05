@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\PlatformPage;
 use App\Models\PlatformSection;
+use App\Support\WelcomeStockImages;
 
 class PlatformWelcomePageService
 {
@@ -350,6 +351,11 @@ class PlatformWelcomePageService
 
     private function defaultShowcaseSection(string $locale): array
     {
+        $getNoticedImage = WelcomeStockImages::showcaseImage('get_noticed', $locale);
+        $winJobsImage = WelcomeStockImages::showcaseImage('win_jobs', $locale);
+        $workSmarterImage = WelcomeStockImages::showcaseImage('work_smarter', $locale);
+        $boostProfitsImage = WelcomeStockImages::showcaseImage('boost_profits', $locale);
+
         if ($locale === 'fr') {
             return [
                 'layout' => 'feature_tabs',
@@ -358,6 +364,7 @@ class PlatformWelcomePageService
                 'alignment' => 'center',
                 'density' => 'normal',
                 'tone' => 'default',
+                'feature_tabs_style' => 'workflow',
                 'kicker' => 'Un systeme qui couvre tout le cycle client',
                 'title' => 'La solution tout-en-un pour les pros du service a domicile',
                 'body' => '<p>De la visibilite locale jusqu au paiement final, chaque etape reste dans un meme flux plutot que dans quatre outils separes.</p>',
@@ -372,8 +379,8 @@ class PlatformWelcomePageService
                         'items' => ['Avis', 'Demandes', 'Campagnes', 'Liens'],
                         'cta_label' => 'Voir Marketing & Loyalty',
                         'cta_href' => '/pages/marketing-loyalty',
-                        'image_url' => '/images/landing/hero-dashboard.svg',
-                        'image_alt' => 'Apercu marketing',
+                        'image_url' => $getNoticedImage['image_url'],
+                        'image_alt' => $getNoticedImage['image_alt'],
                     ],
                     [
                         'id' => 'welcome-showcase-fr-2',
@@ -384,8 +391,8 @@ class PlatformWelcomePageService
                         'items' => ['Qualification', 'Modeles', 'Options', 'Relances'],
                         'cta_label' => 'Voir Sales & CRM',
                         'cta_href' => '/pages/sales-crm',
-                        'image_url' => '/images/landing/workflow-board.svg',
-                        'image_alt' => 'Apercu pipeline commercial',
+                        'image_url' => $winJobsImage['image_url'],
+                        'image_alt' => $winJobsImage['image_alt'],
                     ],
                     [
                         'id' => 'welcome-showcase-fr-3',
@@ -396,8 +403,8 @@ class PlatformWelcomePageService
                         'items' => ['Planning', 'Dispatch', 'Checklists', 'Historique'],
                         'cta_label' => 'Voir Operations',
                         'cta_href' => '/pages/operations',
-                        'image_url' => '/images/landing/mobile-field.svg',
-                        'image_alt' => 'Apercu mobile terrain',
+                        'image_url' => $workSmarterImage['image_url'],
+                        'image_alt' => $workSmarterImage['image_alt'],
                     ],
                     [
                         'id' => 'welcome-showcase-fr-4',
@@ -408,8 +415,8 @@ class PlatformWelcomePageService
                         'items' => ['Factures', 'Paiements', 'Rappels', 'Rapports'],
                         'cta_label' => 'Voir Commerce',
                         'cta_href' => '/pages/commerce',
-                        'image_url' => '/images/mega-menu/commerce-suite.svg',
-                        'image_alt' => 'Apercu commerce et paiements',
+                        'image_url' => $boostProfitsImage['image_url'],
+                        'image_alt' => $boostProfitsImage['image_alt'],
                     ],
                 ],
             ];
@@ -422,6 +429,7 @@ class PlatformWelcomePageService
             'alignment' => 'center',
             'density' => 'normal',
             'tone' => 'default',
+            'feature_tabs_style' => 'workflow',
             'kicker' => 'One system across the full customer journey',
             'title' => 'The all-in-one solution for home service pros',
             'body' => '<p>From local visibility to final payment, each step stays inside one operating flow instead of being split across disconnected tools.</p>',
@@ -436,8 +444,8 @@ class PlatformWelcomePageService
                     'items' => ['Reviews', 'Requests', 'Campaigns', 'Links'],
                     'cta_label' => 'See Marketing & Loyalty',
                     'cta_href' => '/pages/marketing-loyalty',
-                    'image_url' => '/images/landing/hero-dashboard.svg',
-                    'image_alt' => 'Marketing preview',
+                    'image_url' => $getNoticedImage['image_url'],
+                    'image_alt' => $getNoticedImage['image_alt'],
                 ],
                 [
                     'id' => 'welcome-showcase-en-2',
@@ -448,8 +456,8 @@ class PlatformWelcomePageService
                     'items' => ['Qualification', 'Templates', 'Upsells', 'Follow-ups'],
                     'cta_label' => 'See Sales & CRM',
                     'cta_href' => '/pages/sales-crm',
-                    'image_url' => '/images/landing/workflow-board.svg',
-                    'image_alt' => 'Sales workflow preview',
+                    'image_url' => $winJobsImage['image_url'],
+                    'image_alt' => $winJobsImage['image_alt'],
                 ],
                 [
                     'id' => 'welcome-showcase-en-3',
@@ -460,8 +468,8 @@ class PlatformWelcomePageService
                     'items' => ['Scheduling', 'Dispatch', 'Checklists', 'History'],
                     'cta_label' => 'See Operations',
                     'cta_href' => '/pages/operations',
-                    'image_url' => '/images/landing/mobile-field.svg',
-                    'image_alt' => 'Field mobile preview',
+                    'image_url' => $workSmarterImage['image_url'],
+                    'image_alt' => $workSmarterImage['image_alt'],
                 ],
                 [
                     'id' => 'welcome-showcase-en-4',
@@ -472,8 +480,8 @@ class PlatformWelcomePageService
                     'items' => ['Invoices', 'Payments', 'Reminders', 'Reporting'],
                     'cta_label' => 'See Commerce',
                     'cta_href' => '/pages/commerce',
-                    'image_url' => '/images/mega-menu/commerce-suite.svg',
-                    'image_alt' => 'Commerce and payments preview',
+                    'image_url' => $boostProfitsImage['image_url'],
+                    'image_alt' => $boostProfitsImage['image_alt'],
                 ],
             ],
         ];

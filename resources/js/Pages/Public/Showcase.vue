@@ -2,7 +2,13 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import PublicSectionsRenderer from '@/Components/Public/PublicSectionsRenderer.vue';
 import Price from '@/Components/Store/Price.vue';
+import {
+    buildPublicCatalogTheme,
+    buildShowcasePublicSections,
+    publicCatalogStockImages,
+} from '@/utils/publicCatalogSections';
 
 const props = defineProps({
     company: { type: Object, default: () => ({}) },
@@ -37,7 +43,10 @@ const normalizeHeroImages = (value) => {
         .map((item) => String(item || '').trim())
         .filter((item) => item.length);
 };
-const heroSlides = computed(() => normalizeHeroImages(company.value?.store_settings?.hero_images));
+const heroSlides = computed(() => {
+    const slides = normalizeHeroImages(company.value?.store_settings?.hero_images);
+    return slides.length ? slides : publicCatalogStockImages.services.heroSlides;
+});
 const heroCopyHtml = computed(() => resolveHeroCopy(company.value?.store_settings?.hero_copy?.[locale.value]));
 const heroCaptions = computed(() => {
     const captions = company.value?.store_settings?.hero_captions || {};
@@ -93,6 +102,31 @@ const stats = computed(() => ({
     services: Number(props.stats?.services || 0),
     categories: Number(props.stats?.categories || 0),
 }));
+const showcaseEditorialSections = computed(() => {
+    const sections = buildShowcasePublicSections({
+        locale: locale.value,
+        companyName: companyName.value,
+        companyLocation: companyLocation.value,
+        heroService: heroService.value,
+        heroImages: heroSlides.value,
+        services: props.services,
+        categories: props.categories,
+        requestUrl: props.request_url,
+        phone: company.value?.phone,
+        email: company.value?.email,
+    });
+
+    return {
+        intro: {
+            theme: buildPublicCatalogTheme({ accent: headerAccent.value, variant: 'services' }),
+            sections: sections.intro || [],
+        },
+        contact: {
+            theme: buildPublicCatalogTheme({ accent: headerAccent.value, variant: 'services' }),
+            sections: sections.contact || [],
+        },
+    };
+});
 
 const clearHeroCarousel = () => {
     if (heroBackgroundInterval.value && typeof window !== 'undefined') {
@@ -141,35 +175,6 @@ watch(heroSlides, () => {
 
 onBeforeUnmount(() => {
     clearHeroCarousel();
-});
-
-const contactItems = computed(() => {
-    const items = [];
-    if (company.value?.phone) {
-        items.push({
-            key: 'phone',
-            label: t('public_showcase.contact.phone'),
-            value: company.value.phone,
-            href: `tel:${company.value.phone}`,
-        });
-    }
-    if (company.value?.email) {
-        items.push({
-            key: 'email',
-            label: t('public_showcase.contact.email'),
-            value: company.value.email,
-            href: `mailto:${company.value.email}`,
-        });
-    }
-    if (companyLocation.value) {
-        items.push({
-            key: 'location',
-            label: t('public_showcase.contact.location'),
-            value: companyLocation.value,
-            href: null,
-        });
-    }
-    return items;
 });
 </script>
 
@@ -313,6 +318,8 @@ const contactItems = computed(() => {
             </div>
         </header>
 
+        <PublicSectionsRenderer :content="showcaseEditorialSections.intro" />
+
         <section class="showcase-filters">
             <div class="showcase-filter">
                 <label class="showcase-filter-label">{{ t('public_showcase.filters.search') }}</label>
@@ -384,37 +391,9 @@ const contactItems = computed(() => {
             </div>
         </section>
 
-        <section id="contact" class="showcase-contact">
-            <div class="showcase-section-header">
-                <h2>{{ t('public_showcase.contact.title') }}</h2>
-                <p>{{ t('public_showcase.contact.subtitle') }}</p>
-            </div>
-            <div v-if="contactItems.length" class="showcase-contact-grid">
-                <div v-for="item in contactItems" :key="item.key" class="showcase-contact-card">
-                    <span class="showcase-contact-label">{{ item.label }}</span>
-                    <a v-if="item.href" :href="item.href" class="showcase-contact-value">
-                        {{ item.value }}
-                    </a>
-                    <span v-else class="showcase-contact-value">
-                        {{ item.value }}
-                    </span>
-                </div>
-            </div>
-            <div v-else class="showcase-contact-empty">
-                {{ t('public_showcase.contact.empty') }}
-            </div>
-            <div class="showcase-contact-actions">
-                <a v-if="request_url" :href="request_url" class="showcase-cta-primary">
-                    {{ t('public_showcase.cta_request') }}
-                </a>
-                <a v-else-if="company?.phone" :href="`tel:${company.phone}`" class="showcase-cta-primary">
-                    {{ t('public_showcase.cta_contact') }}
-                </a>
-                <a v-else-if="company?.email" :href="`mailto:${company.email}`" class="showcase-cta-primary">
-                    {{ t('public_showcase.cta_contact') }}
-                </a>
-            </div>
-        </section>
+        <div id="contact">
+            <PublicSectionsRenderer :content="showcaseEditorialSections.contact" />
+        </div>
     </div>
 </template>
 
@@ -951,60 +930,6 @@ const contactItems = computed(() => {
     border: 1px dashed #cbd5f5;
     color: #64748b;
     text-align: center;
-}
-
-.showcase-contact {
-    padding: 0 clamp(1.5rem, 6vw, 5rem) 4rem;
-    background: #f8fafc;
-}
-
-.showcase-contact-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
-}
-
-.showcase-contact-card {
-    background: #ffffff;
-    border-radius: 16px;
-    border: 1px solid #e2e8f0;
-    padding: 1rem 1.2rem;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-}
-
-.showcase-contact-label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #94a3b8;
-    font-weight: 700;
-}
-
-.showcase-contact-value {
-    font-size: 0.92rem;
-    font-weight: 600;
-    color: #0f172a;
-    text-decoration: none;
-}
-
-.showcase-contact-actions {
-    margin-top: 1.2rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-}
-
-.showcase-contact-empty {
-    border-radius: 16px;
-    padding: 1.2rem;
-    background: #ffffff;
-    border: 1px dashed #cbd5f5;
-    color: #64748b;
-    text-align: center;
-    margin-bottom: 1rem;
 }
 
 @media (max-width: 640px) {

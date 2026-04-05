@@ -25,7 +25,7 @@ const props = defineProps({
     },
     imageSrc: {
         type: String,
-        default: '/images/landing/workflow-board.svg',
+        default: '/images/landing/stock/team-laptop-window.jpg',
     },
     imageAlt: {
         type: String,

@@ -10,11 +10,17 @@ import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import PublicSectionsRenderer from '@/Components/Public/PublicSectionsRenderer.vue';
 import FlashToaster from '@/Components/UI/FlashToaster.vue';
 import Price from '@/Components/Store/Price.vue';
 import ProductCard from '@/Components/Store/ProductCard.vue';
 import ProductCarouselSection from '@/Components/Store/ProductCarouselSection.vue';
 import SectionHeader from '@/Components/Store/SectionHeader.vue';
+import {
+    buildPublicCatalogTheme,
+    buildStorePublicSections,
+    publicCatalogStockImages,
+} from '@/utils/publicCatalogSections';
 import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
@@ -551,8 +557,9 @@ const relatedProducts = computed(() => {
 const headerColor = computed(() => company.value?.store_settings?.header_color || '');
 const headerIsCustom = computed(() => Boolean(headerColor.value));
 const headerStyle = computed(() => (headerIsCustom.value ? { backgroundColor: headerColor.value } : {}));
+const storeAccent = computed(() => String(headerColor.value || '#15803d').trim() || '#15803d');
 const heroAccentStyle = computed(() => (
-    headerIsCustom.value ? { '--hero-accent': headerColor.value } : {}
+    { '--hero-accent': storeAccent.value }
 ));
 
 const heroBackgroundIndex = ref(0);
@@ -586,9 +593,25 @@ const normalizeHeroImages = (value) => {
 
 const heroBackgrounds = computed(() => {
     const images = normalizeHeroImages(company.value?.store_settings?.hero_images);
-    return images.map((image) => String(image || '').trim()).filter(Boolean);
+    const normalized = images.map((image) => String(image || '').trim()).filter(Boolean);
+    return normalized.length ? normalized : publicCatalogStockImages.store.heroSlides;
 });
 const heroSlides = computed(() => heroBackgrounds.value);
+const storeEditorialContent = computed(() => ({
+    theme: buildPublicCatalogTheme({ accent: storeAccent.value, variant: 'store' }),
+    sections: buildStorePublicSections({
+        locale: locale.value,
+        companyName: companyName.value,
+        heroProduct: heroProduct.value,
+        heroImages: heroSlides.value,
+        categories: categories.value,
+        products: props.products,
+        bestSellers: bestSellers.value,
+        promotions: promotions.value,
+        newArrivals: newArrivals.value,
+        fulfillment: fulfillmentSettings.value,
+    }),
+}));
 const categoryTrackRef = ref(null);
 const relatedTrackRef = ref(null);
 
@@ -1174,6 +1197,10 @@ const submitCheckout = async () => {
                     </div>
                 </div>
             </section>
+
+            <PublicSectionsRenderer
+                :content="storeEditorialContent"
+            />
 
             <section v-if="categorySlides.length" id="categories" class="py-8">
                 <div class="mx-auto w-full px-4 sm:px-6 lg:px-10">

@@ -33,6 +33,8 @@ class PlatformSectionContentService
         'deep-ocean',
     ];
 
+    private const SHOWCASE_DIVIDER_STYLES = ['diagonal', 'curve', 'notch'];
+
     private const FOOTER_GROUP_LAYOUTS = ['stack', 'split'];
 
     private const INDUSTRY_CARD_ICONS = [
@@ -71,6 +73,8 @@ class PlatformSectionContentService
         'circle-dollar-sign',
         'wrench',
     ];
+
+    private const FEATURE_TAB_STYLES = ['editorial', 'workflow'];
 
     private const ALLOWED_HTML_TAGS = [
         'div',
@@ -249,6 +253,7 @@ class PlatformSectionContentService
             'industry_cards' => [],
             'story_cards' => [],
             'feature_tabs' => [],
+            'feature_tabs_style' => 'editorial',
             'feature_tabs_font_size' => 0,
             'testimonial_cards' => [],
             'items' => [],
@@ -271,6 +276,7 @@ class PlatformSectionContentService
             'showcase_badge_label' => '',
             'showcase_badge_value' => '',
             'showcase_badge_note' => '',
+            'showcase_divider_style' => 'diagonal',
             'copy' => '',
             'brand_logo_url' => '',
             'brand_logo_alt' => '',
@@ -340,6 +346,7 @@ class PlatformSectionContentService
             'industry_cards' => $this->sanitizeIndustryCards($section['industry_cards'] ?? []),
             'story_cards' => $this->sanitizeStoryCards($section['story_cards'] ?? []),
             'feature_tabs' => $this->sanitizeFeatureTabs($section['feature_tabs'] ?? []),
+            'feature_tabs_style' => $this->cleanFeatureTabsStyle($section['feature_tabs_style'] ?? null),
             'feature_tabs_font_size' => $this->cleanFeatureTabsFontSize($section['feature_tabs_font_size'] ?? null),
             'testimonial_cards' => $this->sanitizeTestimonialCards($section['testimonial_cards'] ?? []),
             'items' => $this->sanitizeStringList($section['items'] ?? []),
@@ -362,6 +369,11 @@ class PlatformSectionContentService
             'showcase_badge_label' => $this->cleanText($section['showcase_badge_label'] ?? ''),
             'showcase_badge_value' => $this->cleanText($section['showcase_badge_value'] ?? ''),
             'showcase_badge_note' => $this->cleanText($section['showcase_badge_note'] ?? ''),
+            'showcase_divider_style' => $this->cleanThemeChoice(
+                $section['showcase_divider_style'] ?? null,
+                self::SHOWCASE_DIVIDER_STYLES,
+                'diagonal'
+            ),
             'copy' => $this->cleanText($section['copy'] ?? ''),
             'brand_logo_url' => $this->cleanImageValue($section['brand_logo_url'] ?? ''),
             'brand_logo_alt' => $this->cleanText($section['brand_logo_alt'] ?? ''),
@@ -1021,6 +1033,13 @@ class PlatformSectionContentService
         }
 
         return max(18, min($size, 40));
+    }
+
+    private function cleanFeatureTabsStyle($value): string
+    {
+        $style = strtolower($this->cleanText($value));
+
+        return in_array($style, self::FEATURE_TAB_STYLES, true) ? $style : 'editorial';
     }
 
     private function cleanHeroTitleFontSize($value): int

@@ -161,7 +161,7 @@ const frontHeroImage = computed(() => {
         return sectionImage;
     }
 
-    return '/images/landing/workflow-board.svg';
+    return '/images/landing/stock/team-laptop-window.jpg';
 });
 
 const frontHeroImageAlt = computed(() => {
@@ -341,7 +341,7 @@ onBeforeUnmount(() => {
 });
 
 const sectionStyle = (section) => {
-    if (section?.layout === 'duo') {
+    if (section?.layout === 'duo' || section?.layout === 'showcase_cta') {
         return {};
     }
 
@@ -350,6 +350,16 @@ const sectionStyle = (section) => {
 
 const duoPanelStyle = (section) => {
     return buildBackgroundStyle(section);
+};
+
+const showcaseCopyStyle = (section) => {
+    const style = buildBackgroundStyle(section);
+
+    return Object.keys(style).length
+        ? style
+        : {
+            background: 'linear-gradient(135deg, #062f4b 0%, #0c5b72 100%)',
+        };
 };
 
 const resolveHref = (href) => {
@@ -693,6 +703,10 @@ const sectionContainerClass = (section) => {
         return 'public-container public-container--feature-tabs';
     }
 
+    if (section?.layout === 'showcase_cta') {
+        return 'public-container public-container--showcase-cta';
+    }
+
     return section?.embed_url
         ? 'public-container public-container--embed'
         : 'public-container';
@@ -762,12 +776,45 @@ const sectionHasFeaturePairsAside = (section) =>
         section?.aside_image_url
     );
 
-const sectionHasShowcaseBadge = (section) =>
+const showcaseHasMedia = (section) =>
     Boolean(
-        section?.showcase_badge_label ||
-        section?.showcase_badge_value ||
-        section?.showcase_badge_note
+        String(section?.image_url || '').trim() ||
+        String(section?.aside_image_url || '').trim()
     );
+
+const showcaseDividerStyle = (section) => {
+    const value = String(section?.showcase_divider_style || '').trim().toLowerCase();
+
+    return ['curve', 'notch'].includes(value) ? value : 'diagonal';
+};
+
+const showcaseMainImageUrl = (section) =>
+    String(section?.image_url || '').trim() || String(section?.aside_image_url || '').trim();
+
+const showcaseMainImageAlt = (section) =>
+    String(section?.image_url || '').trim()
+        ? (section?.image_alt || section?.title)
+        : (section?.aside_image_alt || section?.image_alt || section?.title);
+
+const showcaseFloatingImageUrl = (section) => {
+    const primary = String(section?.image_url || '').trim();
+    const floating = String(section?.aside_image_url || '').trim();
+
+    return primary && floating ? floating : '';
+};
+
+const showcaseFloatingImageAlt = (section) =>
+    section?.aside_image_alt || section?.image_alt || section?.title;
+
+const showcaseHasBadge = (section) =>
+    Boolean(
+        String(section?.showcase_badge_label || '').trim() ||
+        String(section?.showcase_badge_value || '').trim() ||
+        String(section?.showcase_badge_note || '').trim()
+    );
+
+const showcaseUsesInlineAsideLink = (section) =>
+    !showcaseHasMedia(section) && Boolean(String(section?.aside_link_label || '').trim());
 
 const alignmentClass = (alignment) => {
     if (alignment === 'center') {
@@ -866,7 +913,12 @@ const headerMenuItems = computed(() => ([
                 }]"
                 :style="sectionStyle(section)">
                 <div :class="sectionContainerClass(section)">
-                    <div :class="layoutClass(section)">
+                    <div
+                        :class="[
+                            layoutClass(section),
+                            { 'public-showcase-grid--no-media': section.layout === 'showcase_cta' && !showcaseHasMedia(section) },
+                        ]"
+                    >
                         <template v-if="section.layout === 'contact'">
                             <div class="space-y-4" :class="alignmentClass(section.alignment)">
                                 <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
@@ -920,11 +972,11 @@ const headerMenuItems = computed(() => ([
                             </div>
 
                             <div v-if="section.image_url" class="public-media public-contact-media">
-                                <div class="public-media-card public-contact-map-card">
+                                <div class="public-media-card public-media-card--visual public-contact-map-card">
                                     <img
                                         :src="section.image_url"
                                         :alt="section.image_alt || section.title"
-                                        class="h-full w-full rounded-sm object-cover"
+                                        class="public-contact-map-card__image"
                                         loading="lazy"
                                         decoding="async"
                                     />
@@ -1043,7 +1095,7 @@ const headerMenuItems = computed(() => ([
                                         v-if="section.image_url"
                                         :src="section.image_url"
                                         :alt="section.image_alt || section.title"
-                                        class="h-full w-full object-cover"
+                                        class="public-testimonial-media__image"
                                         loading="lazy"
                                         decoding="async"
                                     />
@@ -1184,7 +1236,7 @@ const headerMenuItems = computed(() => ([
                                             v-if="section.image_url"
                                             :src="section.image_url"
                                             :alt="section.image_alt || section.title"
-                                            class="h-full w-full object-cover"
+                                            class="public-feature-pairs__image"
                                             loading="lazy"
                                             decoding="async"
                                         />
@@ -1291,7 +1343,7 @@ const headerMenuItems = computed(() => ([
                                             v-if="section.aside_image_url"
                                             :src="section.aside_image_url"
                                             :alt="section.aside_image_alt || section.aside_title || section.title"
-                                            class="h-full w-full object-cover"
+                                            class="public-feature-pairs__image"
                                             loading="lazy"
                                             decoding="async"
                                         />
@@ -1456,83 +1508,117 @@ const headerMenuItems = computed(() => ([
                         </template>
 
                         <template v-else-if="section.layout === 'showcase_cta'">
-                            <div class="public-showcase-copy">
-                                <div class="public-showcase-copy-inner" :class="alignmentClass(section.alignment)">
-                                    <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
-                                    <h2 class="public-title public-showcase-title">{{ section.title }}</h2>
-                                    <div v-if="section.body" class="public-rich public-showcase-body" v-html="section.body"></div>
-
-                                    <div class="public-showcase-actions">
-                                        <template v-if="section.primary_label">
-                                            <a
-                                                v-if="isExternalHref(resolveHref(section.primary_href))"
-                                                :href="resolveHref(section.primary_href)"
-                                                :class="['public-button', 'public-button--primary', primaryButtonClass]"
-                                                rel="noopener noreferrer"
-                                                target="_blank"
-                                            >
-                                                {{ section.primary_label }}
-                                            </a>
-                                            <Link
-                                                v-else
-                                                :href="resolveHref(section.primary_href)"
-                                                :class="['public-button', 'public-button--primary', primaryButtonClass]"
-                                            >
-                                                {{ section.primary_label }}
-                                            </Link>
-                                        </template>
-
-                                        <template v-if="section.secondary_label">
-                                            <a
-                                                v-if="isExternalHref(resolveHref(section.secondary_href))"
-                                                :href="resolveHref(section.secondary_href)"
-                                                class="public-button public-button--secondary"
-                                                rel="noopener noreferrer"
-                                                target="_blank"
-                                            >
-                                                {{ section.secondary_label }}
-                                            </a>
-                                            <Link
-                                                v-else
-                                                :href="resolveHref(section.secondary_href)"
-                                                class="public-button public-button--secondary"
-                                            >
-                                                {{ section.secondary_label }}
-                                            </Link>
-                                        </template>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div
-                                class="public-showcase-media"
-                                :class="{ 'public-showcase-media--media-left': section.image_position === 'left' }"
+                            <article
+                                class="public-showcase-shell"
+                                :class="[
+                                    `public-showcase-shell--media-${section.image_position === 'left' ? 'left' : 'right'}`,
+                                    `public-showcase-shell--divider-${showcaseDividerStyle(section)}`,
+                                    { 'public-showcase-shell--no-media': !showcaseHasMedia(section) },
+                                ]"
+                                :style="showcaseCopyStyle(section)"
                             >
-                                <div class="public-showcase-stage">
-                                    <div class="public-showcase-frame" :class="{ 'public-showcase-frame--empty': !section.image_url }">
-                                        <div class="public-showcase-browser">
-                                            <span class="public-showcase-browser-dot"></span>
-                                            <span class="public-showcase-browser-dot"></span>
-                                            <span class="public-showcase-browser-dot"></span>
-                                            <span class="public-showcase-browser-pill">
-                                                {{ section.image_alt || section.title || 'Platform preview' }}
+                                <div class="public-showcase-shell__copy" :style="showcaseCopyStyle(section)">
+                                    <div class="public-showcase-copy-inner" :class="alignmentClass(section.alignment)">
+                                        <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
+
+                                        <div v-if="showcaseHasBadge(section)" class="public-showcase-badge">
+                                            <span v-if="section.showcase_badge_label" class="public-showcase-badge__label">
+                                                {{ section.showcase_badge_label }}
+                                            </span>
+                                            <span v-if="section.showcase_badge_value" class="public-showcase-badge__value">
+                                                {{ section.showcase_badge_value }}
+                                            </span>
+                                            <span v-if="section.showcase_badge_note" class="public-showcase-badge__note">
+                                                {{ section.showcase_badge_note }}
                                             </span>
                                         </div>
-                                        <div class="public-showcase-screen">
-                                            <img
-                                                v-if="section.image_url"
-                                                :src="section.image_url"
-                                                :alt="section.image_alt || section.title"
-                                                loading="lazy"
-                                                decoding="async"
-                                            />
+
+                                        <h2 class="public-title public-showcase-title">{{ section.title }}</h2>
+                                        <div v-if="section.body" class="public-rich public-showcase-body" v-html="section.body"></div>
+
+                                        <div
+                                            v-if="section.primary_label || section.secondary_label || showcaseUsesInlineAsideLink(section)"
+                                            class="public-showcase-actions"
+                                        >
+                                            <template v-if="section.primary_label">
+                                                <a
+                                                    v-if="isExternalHref(resolveHref(section.primary_href))"
+                                                    :href="resolveHref(section.primary_href)"
+                                                    :class="['public-button', 'public-button--primary', primaryButtonClass]"
+                                                    rel="noopener noreferrer"
+                                                    target="_blank"
+                                                >
+                                                    {{ section.primary_label }}
+                                                </a>
+                                                <Link
+                                                    v-else
+                                                    :href="resolveHref(section.primary_href)"
+                                                    :class="['public-button', 'public-button--primary', primaryButtonClass]"
+                                                >
+                                                    {{ section.primary_label }}
+                                                </Link>
+                                            </template>
+
+                                            <template v-if="section.secondary_label">
+                                                <a
+                                                    v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                                    :href="resolveHref(section.secondary_href)"
+                                                    class="public-button public-button--secondary"
+                                                    rel="noopener noreferrer"
+                                                    target="_blank"
+                                                >
+                                                    {{ section.secondary_label }}
+                                                </a>
+                                                <Link
+                                                    v-else
+                                                    :href="resolveHref(section.secondary_href)"
+                                                    class="public-button public-button--secondary"
+                                                >
+                                                    {{ section.secondary_label }}
+                                                </Link>
+                                            </template>
+
+                                            <template v-if="showcaseUsesInlineAsideLink(section)">
+                                                <a
+                                                    v-if="section.aside_link_href && isExternalHref(resolveHref(section.aside_link_href))"
+                                                    :href="resolveHref(section.aside_link_href)"
+                                                    class="public-inline-link public-inline-link--muted"
+                                                    rel="noopener noreferrer"
+                                                    target="_blank"
+                                                >
+                                                    {{ section.aside_link_label }}
+                                                </a>
+                                                <Link
+                                                    v-else-if="section.aside_link_href"
+                                                    :href="resolveHref(section.aside_link_href)"
+                                                    class="public-inline-link public-inline-link--muted"
+                                                >
+                                                    {{ section.aside_link_label }}
+                                                </Link>
+                                                <span v-else class="public-inline-link public-inline-link--muted">
+                                                    {{ section.aside_link_label }}
+                                                </span>
+                                            </template>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="showcaseHasMedia(section)" class="public-showcase-shell__media">
+                                    <div class="public-showcase-visual">
+                                        <img
+                                            :src="showcaseMainImageUrl(section)"
+                                            :alt="showcaseMainImageAlt(section)"
+                                            class="public-showcase-visual__image"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                        <div class="public-showcase-visual__veil"></div>
 
                                         <template v-if="section.aside_link_label">
                                             <a
                                                 v-if="section.aside_link_href && isExternalHref(resolveHref(section.aside_link_href))"
                                                 :href="resolveHref(section.aside_link_href)"
-                                                class="public-showcase-overlay"
+                                                class="public-showcase-media-tag"
                                                 rel="noopener noreferrer"
                                                 target="_blank"
                                             >
@@ -1541,38 +1627,27 @@ const headerMenuItems = computed(() => ([
                                             <Link
                                                 v-else-if="section.aside_link_href"
                                                 :href="resolveHref(section.aside_link_href)"
-                                                class="public-showcase-overlay"
+                                                class="public-showcase-media-tag"
                                             >
                                                 {{ section.aside_link_label }}
                                             </Link>
-                                            <span v-else class="public-showcase-overlay">
+                                            <span v-else class="public-showcase-media-tag">
                                                 {{ section.aside_link_label }}
                                             </span>
                                         </template>
-                                    </div>
 
-                                    <div v-if="sectionHasShowcaseBadge(section)" class="public-showcase-badge">
-                                        <span v-if="section.showcase_badge_label" class="public-showcase-badge__label">
-                                            {{ section.showcase_badge_label }}
-                                        </span>
-                                        <span v-if="section.showcase_badge_value" class="public-showcase-badge__value">
-                                            {{ section.showcase_badge_value }}
-                                        </span>
-                                        <span v-if="section.showcase_badge_note" class="public-showcase-badge__note">
-                                            {{ section.showcase_badge_note }}
-                                        </span>
-                                    </div>
-
-                                    <div v-if="section.aside_image_url" class="public-showcase-floating">
-                                        <img
-                                            :src="section.aside_image_url"
-                                            :alt="section.aside_image_alt || section.title"
-                                            loading="lazy"
-                                            decoding="async"
-                                        />
+                                        <div v-if="showcaseFloatingImageUrl(section)" class="public-showcase-floating">
+                                            <img
+                                                :src="showcaseFloatingImageUrl(section)"
+                                                :alt="showcaseFloatingImageAlt(section)"
+                                                class="public-showcase-floating__image"
+                                                loading="lazy"
+                                                decoding="async"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            </article>
                         </template>
 
                         <template v-else-if="section.layout === 'duo'">
@@ -1587,7 +1662,7 @@ const headerMenuItems = computed(() => ([
                                     v-if="section.image_url"
                                     :src="section.image_url"
                                     :alt="section.image_alt || section.title"
-                                    class="h-full w-full object-cover"
+                                    class="public-duo-media__image"
                                     loading="lazy"
                                     decoding="async"
                                 />
@@ -1696,9 +1771,9 @@ const headerMenuItems = computed(() => ([
                                         @load="handleEmbeddedFrameLoad(section, index, $event)"
                                     />
                                 </div>
-                                <div v-else class="public-media-card">
+                                <div v-else class="public-media-card public-media-card--visual">
                                     <img :src="section.image_url" :alt="section.image_alt || section.title"
-                                        class="h-auto w-full rounded-sm object-cover" loading="lazy" decoding="async" />
+                                        class="public-media-card__image" loading="lazy" decoding="async" />
                                 </div>
                             </div>
                         </template>
@@ -1755,11 +1830,18 @@ const headerMenuItems = computed(() => ([
 }
 
 .public-container--feature-tabs {
-    width: min(var(--public-shell-width), 100%);
+    width: 100%;
+    padding-inline: 0;
+}
+
+.public-container--showcase-cta {
+    width: 100%;
+    max-width: none;
+    padding-inline: 0;
 }
 
 .public-section {
-    padding-block: clamp(3rem, 7vw, 7rem);
+    padding-block: clamp(1.5rem, 4vw, 3rem);
 }
 
 .public-hero {
@@ -1775,11 +1857,11 @@ const headerMenuItems = computed(() => ([
 }
 
 .public-section.public-density--compact {
-    padding-block: clamp(2.25rem, 5vw, 4.5rem);
+    padding-block: clamp(1rem, 2.8vw, 2rem);
 }
 
 .public-section.public-density--spacious {
-    padding-block: clamp(4.5rem, 10vw, 9rem);
+    padding-block: clamp(2rem, 5vw, 4rem);
 }
 
 .public-block {
@@ -1800,6 +1882,7 @@ const headerMenuItems = computed(() => ([
 }
 
 .public-block--showcase-cta {
+    padding-block: 0;
     border-top: 0;
 }
 
@@ -1812,6 +1895,7 @@ const headerMenuItems = computed(() => ([
 }
 
 .public-block--feature-tabs {
+    padding-block: 0;
     border-top: 0;
 }
 
@@ -2023,6 +2107,10 @@ const headerMenuItems = computed(() => ([
 
 .public-testimonial-media {
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
     min-height: clamp(20rem, 44vw, 28rem);
     background: linear-gradient(135deg, rgba(148, 163, 184, 0.18), rgba(226, 232, 240, 0.75));
 }
@@ -2031,6 +2119,16 @@ const headerMenuItems = computed(() => ([
     background:
         radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 35%),
         linear-gradient(135deg, rgba(254, 240, 138, 0.55), rgba(148, 163, 184, 0.18));
+}
+
+.public-testimonial-media__image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    border-radius: inherit;
 }
 
 .public-testimonial-play {
@@ -2225,6 +2323,10 @@ const headerMenuItems = computed(() => ([
 }
 
 .public-feature-pairs__media {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
     overflow: hidden;
     min-height: clamp(14rem, 28vw, 19rem);
     border-radius: var(--page-radius, 4px);
@@ -2236,6 +2338,16 @@ const headerMenuItems = computed(() => ([
     background:
         radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 38%),
         linear-gradient(135deg, rgba(191, 219, 254, 0.85), rgba(226, 232, 240, 0.85));
+}
+
+.public-feature-pairs__image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    border-radius: inherit;
 }
 
 .public-feature-pairs__copy {
@@ -2544,6 +2656,7 @@ ul .public-feature-tabs__subitem::before {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: inherit;
 }
 
 .public-feature-tabs__panel-media--empty {
@@ -2797,14 +2910,17 @@ ul .public-feature-tabs__subitem::before {
     display: grid;
     gap: 1.25rem;
     min-width: 0;
+    align-content: start;
 }
 
 .public-story-grid__visual {
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
     min-height: clamp(15rem, 30vw, 18.75rem);
-    padding: clamp(0.9rem, 1.6vw, 1.15rem);
-    border-radius: calc(var(--page-radius, 4px) + 10px);
+    border-radius: var(--page-radius, 4px);
     border: 1px solid rgba(8, 58, 92, 0.08);
     background:
         radial-gradient(circle at top left, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0) 44%),
@@ -2842,26 +2958,33 @@ ul .public-feature-tabs__subitem::before {
 }
 
 .public-story-grid__image {
-    position: relative;
+    position: absolute;
+    inset: 0;
     z-index: 1;
     width: 100%;
     height: 100%;
-    object-fit: contain;
-    border-radius: calc(var(--page-radius, 4px) + 6px);
+    object-fit: cover;
+    object-position: center;
+    border-radius: inherit;
 }
 
 .public-story-grid__copy {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    width: 100%;
+    align-items: flex-start;
+    text-align: left;
 }
 
 .public-story-grid__copy.text-center {
     align-items: center;
+    text-align: center;
 }
 
 .public-story-grid__copy.text-right {
     align-items: flex-end;
+    text-align: right;
 }
 
 .public-story-grid__card-title {
@@ -2893,6 +3016,11 @@ ul .public-feature-tabs__subitem::before {
 }
 
 .public-duo-media {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
     min-height: clamp(18rem, 45vw, 34rem);
     background: linear-gradient(135deg, rgba(148, 163, 184, 0.18), rgba(226, 232, 240, 0.75));
 }
@@ -2901,6 +3029,16 @@ ul .public-feature-tabs__subitem::before {
     background:
         radial-gradient(circle at top left, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 35%),
         linear-gradient(135deg, var(--page-primary-soft, #dcfce7), rgba(148, 163, 184, 0.26));
+}
+
+.public-duo-media__image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    border-radius: inherit;
 }
 
 .public-duo-panel {
@@ -2982,7 +3120,7 @@ ul .public-feature-tabs__subitem::before {
 }
 
 .public-showcase-copy-inner {
-    width: min(100%, 33rem);
+    width: min(100%, 40rem);
 }
 
 .public-showcase-title {
@@ -2994,8 +3132,44 @@ ul .public-feature-tabs__subitem::before {
     letter-spacing: -0.055em;
 }
 
-.public-showcase-copy .public-kicker {
+.public-showcase-shell__copy .public-kicker {
     margin-bottom: 1rem;
+}
+
+.public-showcase-badge {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    width: fit-content;
+    max-width: 100%;
+    margin-bottom: 1.5rem;
+    padding: 0.8rem 1rem;
+    border-radius: var(--page-radius, 4px);
+    background: rgba(248, 250, 252, 0.08);
+    color: #f8fafc;
+    box-shadow: inset 0 0 0 1px rgba(248, 250, 252, 0.08);
+}
+
+.public-showcase-badge__label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(226, 232, 240, 0.82);
+}
+
+.public-showcase-badge__value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.public-showcase-badge__note {
+    flex-basis: 100%;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: rgba(226, 232, 240, 0.82);
 }
 
 .public-showcase-body {
@@ -3023,8 +3197,20 @@ ul .public-feature-tabs__subitem::before {
     margin-top: 2rem;
 }
 
-.public-showcase-media {
-    position: relative;
+.public-showcase-actions .public-inline-link {
+    color: rgba(248, 250, 252, 0.92);
+}
+
+.public-showcase-actions .public-inline-link--muted {
+    color: rgba(226, 232, 240, 0.82);
+}
+
+.public-showcase-grid--no-media .public-showcase-copy-inner {
+    width: min(100%, 50rem);
+}
+
+.public-showcase-grid--no-media .public-showcase-body {
+    max-width: 48rem;
 }
 
 .public-showcase-stage {
@@ -3037,7 +3223,7 @@ ul .public-feature-tabs__subitem::before {
 .public-showcase-frame {
     position: relative;
     overflow: hidden;
-    border-radius: 1rem;
+    border-radius: var(--page-radius, 4px);
     border: 2px solid rgba(255, 255, 255, 0.18);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
@@ -3087,6 +3273,8 @@ ul .public-feature-tabs__subitem::before {
 
 .public-showcase-screen {
     aspect-ratio: 1.28 / 1;
+    overflow: hidden;
+    border-radius: inherit;
     background: rgba(15, 23, 42, 0.18);
 }
 
@@ -3095,6 +3283,7 @@ ul .public-feature-tabs__subitem::before {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: inherit;
 }
 
 .public-showcase-overlay {
@@ -3136,7 +3325,7 @@ ul .public-feature-tabs__subitem::before {
     bottom: 0;
     width: clamp(9rem, 26vw, 12.5rem);
     overflow: hidden;
-    border-radius: 1.55rem;
+    border-radius: var(--page-radius, 4px);
     border: 4px solid rgba(255, 255, 255, 0.92);
     background: #ffffff;
     box-shadow: 0 26px 42px -26px rgba(0, 0, 0, 0.75);
@@ -3147,44 +3336,187 @@ ul .public-feature-tabs__subitem::before {
     width: 100%;
     aspect-ratio: 9 / 18;
     object-fit: cover;
+    border-radius: inherit;
 }
 
-.public-showcase-badge {
-    position: absolute;
-    left: 0;
-    bottom: 0;
+.public-showcase-grid {
+    width: 100%;
+}
+
+.public-showcase-shell {
+    --showcase-divider-size: clamp(4rem, 9vw, 6.75rem);
+    --showcase-divider-overlap: calc(var(--showcase-divider-size) * 0.78);
+    --showcase-shell-edge-offset: max(var(--public-shell-gutter), calc((100vw - var(--public-shell-width)) / 2 + var(--public-shell-gutter)));
+    position: relative;
     display: grid;
-    gap: 0.18rem;
-    place-items: center;
-    width: clamp(7.75rem, 20vw, 9.75rem);
-    aspect-ratio: 1 / 1;
-    padding: 1rem;
-    border-radius: 999px;
+    min-height: clamp(22rem, 40vw, 32rem);
+    overflow: hidden;
+    border-radius: var(--page-radius, 4px);
+    background: #082d42;
+    box-shadow: 0 34px 60px -40px rgba(8, 58, 92, 0.5);
+    isolation: isolate;
+}
+
+.public-showcase-shell__copy,
+.public-showcase-shell__media {
+    min-width: 0;
+}
+
+.public-showcase-shell__copy {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: inherit;
+    padding: clamp(2rem, 5vw, 4rem);
+    overflow: visible;
+}
+
+.public-showcase-shell__copy::before {
+    content: '';
+    position: absolute;
+    inset: 0;
     background:
-        radial-gradient(circle at center, #163a6e 0, #163a6e 58%, #d8c15c 59%, #d8c15c 100%);
-    color: #f8fafc;
-    text-align: center;
-    box-shadow: 0 24px 38px -28px rgba(0, 0, 0, 0.72);
+        linear-gradient(135deg, rgba(6, 47, 75, 0.34), rgba(12, 91, 114, 0.12)),
+        radial-gradient(circle at top right, rgba(132, 204, 22, 0.18), rgba(132, 204, 22, 0) 36%);
+    pointer-events: none;
+    z-index: 0;
 }
 
-.public-showcase-badge__label {
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+.public-showcase-shell__copy::after {
+    content: '';
+    position: absolute;
+    top: -12%;
+    right: calc(var(--showcase-divider-size) * -0.52);
+    bottom: -12%;
+    width: var(--showcase-divider-size);
+    background: inherit;
+    pointer-events: none;
+    z-index: 0;
 }
 
-.public-showcase-badge__value {
-    font-size: clamp(1.4rem, 1.05rem + 0.8vw, 2rem);
-    font-weight: 700;
-    line-height: 1;
+.public-showcase-shell--media-left .public-showcase-shell__copy::after {
+    left: calc(var(--showcase-divider-size) * -0.52);
+    right: auto;
 }
 
-.public-showcase-badge__note {
+.public-showcase-shell--divider-diagonal .public-showcase-shell__copy::after {
+    clip-path: polygon(0 0, 100% 0, 60% 100%, 0 100%);
+}
+
+.public-showcase-shell--media-left.public-showcase-shell--divider-diagonal .public-showcase-shell__copy::after {
+    clip-path: polygon(40% 0, 100% 0, 100% 100%, 0 100%);
+}
+
+.public-showcase-shell--divider-curve .public-showcase-shell__copy::after {
+    border-radius: 0 100% 100% 0;
+    transform: translateX(10%);
+}
+
+.public-showcase-shell--media-left.public-showcase-shell--divider-curve .public-showcase-shell__copy::after {
+    border-radius: 100% 0 0 100%;
+    transform: translateX(-10%);
+}
+
+.public-showcase-shell--divider-notch .public-showcase-shell__copy::after {
+    clip-path: polygon(0 0, 100% 0, 68% 50%, 100% 100%, 0 100%);
+}
+
+.public-showcase-shell--media-left.public-showcase-shell--divider-notch .public-showcase-shell__copy::after {
+    clip-path: polygon(32% 0, 100% 0, 100% 100%, 0 50%);
+}
+
+.public-showcase-copy-inner {
+    position: relative;
+    z-index: 2;
+    width: min(100%, 40rem);
+}
+
+.public-showcase-copy-inner.text-center {
+    margin-inline: auto;
+}
+
+.public-showcase-copy-inner.text-right {
+    margin-left: auto;
+}
+
+.public-showcase-shell--media-left .public-showcase-copy-inner {
+    margin-left: auto;
+}
+
+.public-showcase-shell--no-media .public-showcase-shell__copy::after {
+    display: none;
+}
+
+.public-showcase-shell__media {
+    position: relative;
+    min-height: clamp(22rem, 40vw, 32rem);
+    z-index: 1;
+    clip-path: none;
+    -webkit-mask-image: none;
+    mask-image: none;
+}
+
+.public-showcase-visual {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 28%),
+        linear-gradient(135deg, rgba(12, 91, 114, 0.8), rgba(8, 58, 92, 0.55));
+}
+
+.public-showcase-visual__image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.public-showcase-visual__veil {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(8, 58, 92, 0.08), rgba(8, 58, 92, 0.28)),
+        linear-gradient(135deg, rgba(8, 58, 92, 0.18), rgba(8, 58, 92, 0) 48%);
+    pointer-events: none;
+}
+
+.public-showcase-media-tag {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.55rem 0.9rem;
+    border-radius: var(--page-radius, 4px);
+    background: rgba(248, 250, 252, 0.88);
+    color: #083a5c;
     font-size: 0.82rem;
-    font-weight: 700;
-    line-height: 1.1;
-    text-transform: uppercase;
+    font-weight: 800;
+    text-decoration: none;
+    box-shadow: 0 14px 28px -24px rgba(15, 23, 42, 0.38);
+}
+
+.public-showcase-floating {
+    z-index: 2;
+}
+
+.public-showcase-shell--media-left .public-showcase-floating {
+    left: 0;
+    right: auto;
+}
+
+.public-showcase-floating__image {
+    display: block;
+    width: 100%;
+    aspect-ratio: 9 / 18;
+    object-fit: cover;
+    object-position: center;
+    border-radius: inherit;
 }
 
 .public-media {
@@ -3209,6 +3541,11 @@ ul .public-feature-tabs__subitem::before {
     box-shadow: var(--page-shadow, 0 18px 40px -30px rgba(15, 23, 42, 0.4));
 }
 
+.public-media-card--visual {
+    padding: 0;
+    overflow: hidden;
+}
+
 .public-media-card--embed {
     width: 100%;
     padding: 0;
@@ -3220,11 +3557,24 @@ ul .public-feature-tabs__subitem::before {
 
 .public-contact-map-card {
     width: 100%;
-    padding: 0.75rem;
 }
 
-.public-contact-map-card img {
+.public-media-card__image {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    object-position: center;
+    border-radius: inherit;
+}
+
+.public-contact-map-card__image {
+    display: block;
+    width: 100%;
     aspect-ratio: 1 / 1;
+    object-fit: cover;
+    object-position: center;
+    border-radius: inherit;
 }
 
 .public-contact-aside {
@@ -3354,12 +3704,66 @@ ul .public-feature-tabs__subitem::before {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
-    .public-showcase-grid {
-        grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+    .public-showcase-shell {
+        grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
     }
 
-    .public-showcase-media--media-left {
+    .public-showcase-shell--media-right .public-showcase-shell__copy {
+        margin-right: calc(var(--showcase-divider-overlap) * -1);
+        padding-left: var(--showcase-shell-edge-offset);
+        padding-right: calc(clamp(2rem, 5vw, 4rem) + var(--showcase-divider-overlap));
+    }
+
+    .public-showcase-shell--media-left .public-showcase-shell__copy {
+        margin-left: calc(var(--showcase-divider-overlap) * -1);
+        padding-right: var(--showcase-shell-edge-offset);
+        padding-left: calc(clamp(2rem, 5vw, 4rem) + var(--showcase-divider-overlap));
+    }
+
+    .public-showcase-shell--media-left .public-showcase-shell__media {
         order: -1;
+    }
+
+    .public-showcase-shell--media-right.public-showcase-shell--divider-diagonal .public-showcase-shell__media {
+        clip-path: polygon(12% 0, 100% 0, 100% 100%, 0 100%);
+    }
+
+    .public-showcase-shell--media-left.public-showcase-shell--divider-diagonal .public-showcase-shell__media {
+        clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%);
+    }
+
+    .public-showcase-shell--media-right.public-showcase-shell--divider-notch .public-showcase-shell__media {
+        clip-path: polygon(12% 0, 100% 0, 100% 100%, 12% 100%, 0 50%);
+    }
+
+    .public-showcase-shell--media-left.public-showcase-shell--divider-notch .public-showcase-shell__media {
+        clip-path: polygon(0 0, 100% 0, 100% 50%, 88% 100%, 0 100%);
+    }
+
+    .public-showcase-shell--media-right.public-showcase-shell--divider-curve .public-showcase-shell__media {
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M18 0H100V100H18Q2 50 18 0Z'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M18 0H100V100H18Q2 50 18 0Z'/%3E%3C/svg%3E");
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-size: 100% 100%;
+        mask-size: 100% 100%;
+    }
+
+    .public-showcase-shell--media-left.public-showcase-shell--divider-curve .public-showcase-shell__media {
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M0 0H82Q98 50 82 100H0V0Z'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M0 0H82Q98 50 82 100H0V0Z'/%3E%3C/svg%3E");
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-size: 100% 100%;
+        mask-size: 100% 100%;
+    }
+
+    .public-showcase-grid--no-media .public-showcase-shell {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .public-feature-tabs__grid {
@@ -3377,6 +3781,16 @@ ul .public-feature-tabs__subitem::before {
 }
 
 @media (min-width: 640px) and (max-width: 1023px) {
+    .public-showcase-shell__copy::after {
+        display: none;
+    }
+
+    .public-showcase-shell--media-right .public-showcase-shell__copy,
+    .public-showcase-shell--media-left .public-showcase-shell__copy {
+        margin-inline: 0;
+        padding-inline: clamp(2rem, 5vw, 4rem);
+    }
+
     .public-industry-grid__cards {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -3391,6 +3805,19 @@ ul .public-feature-tabs__subitem::before {
 }
 
 @media (max-width: 639px) {
+    .public-showcase-shell {
+        min-height: 20rem;
+    }
+
+    .public-showcase-shell__copy {
+        margin-inline: 0;
+        padding: 1.6rem;
+    }
+
+    .public-showcase-shell__copy::after {
+        display: none;
+    }
+
     .public-showcase-stage {
         padding-bottom: 1.5rem;
     }
@@ -3406,10 +3833,5 @@ ul .public-feature-tabs__subitem::before {
         width: 7.6rem;
     }
 
-    .public-showcase-badge {
-        width: 6.8rem;
-        padding: 0.75rem;
-    }
 }
 </style>
-

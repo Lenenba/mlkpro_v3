@@ -501,7 +501,7 @@ const heroBodyStyle = computed(() => {
 
                         <div class="rounded-sm border border-stone-200 bg-white pl-4 p-4 shadow-lg">
                             <img
-                                :src="welcomeContent.workflow?.image_url || '/images/landing/workflow-board.svg'"
+                                :src="welcomeContent.workflow?.image_url || '/images/landing/stock/workflow-plan.jpg'"
                                 :alt="welcomeContent.workflow?.image_alt || $t('welcome.images.workflow_alt')"
                                 class="h-auto w-full rounded-sm"
                                 loading="lazy"
@@ -518,7 +518,7 @@ const heroBodyStyle = computed(() => {
                     <div class="grid grid-cols-1 lg:grid-cols-2 lg:items-center welcome-split">
                         <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-lg">
                             <img
-                                :src="welcomeContent.field?.image_url || '/images/landing/mobile-field.svg'"
+                                :src="welcomeContent.field?.image_url || '/images/landing/stock/field-checklist.jpg'"
                                 :alt="welcomeContent.field?.image_alt || $t('welcome.images.mobile_alt')"
                                 class="h-auto w-full rounded-sm"
                                 loading="lazy"
