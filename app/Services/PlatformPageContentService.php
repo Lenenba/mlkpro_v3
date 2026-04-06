@@ -235,14 +235,9 @@ class PlatformPageContentService
 
         $payload = is_array($page->content) ? $page->content : [];
         $locales = is_array($payload['locales'] ?? null) ? $payload['locales'] : [];
-        $existingSourceSections = $this->sanitizeSections(
-            is_array($locales[$locale]['sections'] ?? null) ? $locales[$locale]['sections'] : []
-        );
         $sanitized = $this->resolveHeroImagesForLocale($sanitized, $locales, $locale);
-        $sanitized = $this->resolveBackgroundPresetsForLocale($sanitized, $locales, $locale);
-        $removedSectionIds = $this->findRemovedSectionIds($existingSourceSections, $sanitized['sections'] ?? []);
         $locales[$locale] = $sanitized;
-        $locales = $this->syncRemovedSectionsForOtherLocales($locales, $locale, $removedSectionIds, $page);
+        $locales = $this->syncSectionStructureForOtherLocales($locales, $locale, $page);
         $locales = $this->syncHeroImagesForOtherLocales($locales, $locale, $page);
         $locales = $this->syncBackgroundPresetsForOtherLocales($locales, $locale, $page);
         foreach ($this->locales() as $candidateLocale) {
@@ -706,9 +701,6 @@ class PlatformPageContentService
     {
         $source = is_array($locales[$sourceLocale] ?? null) ? $locales[$sourceLocale] : [];
         $sourceSections = is_array($source['sections'] ?? null) ? $source['sections'] : [];
-        if ($sourceSections === []) {
-            return $locales;
-        }
 
         foreach ($this->locales() as $locale) {
             if ($locale === $sourceLocale) {
@@ -727,15 +719,6 @@ class PlatformPageContentService
                 }
 
                 $sourcePreset = $this->cleanBackgroundPreset($sourceSection['background_preset'] ?? null) ?? '';
-                if ($sourcePreset === '') {
-                    continue;
-                }
-
-                $targetPreset = $this->cleanBackgroundPreset($targetSections[$index]['background_preset'] ?? null) ?? '';
-                if ($targetPreset !== '') {
-                    continue;
-                }
-
                 $targetSections[$index]['background_preset'] = $sourcePreset;
             }
 
@@ -1038,28 +1021,10 @@ class PlatformPageContentService
         return preg_match('#^/images/(landing|mega-menu)/.+\.svg$#i', $identity) === 1;
     }
 
-    private function findRemovedSectionIds(array $existingSections, array $updatedSections): array
+    private function syncSectionStructureForOtherLocales(array $locales, string $sourceLocale, PlatformPage $page): array
     {
-        $existingIds = collect($existingSections)
-            ->map(fn ($section) => $this->cleanText($section['id'] ?? ''))
-            ->filter()
-            ->values()
-            ->all();
-
-        $updatedIds = collect($updatedSections)
-            ->map(fn ($section) => $this->cleanText($section['id'] ?? ''))
-            ->filter()
-            ->values()
-            ->all();
-
-        return array_values(array_diff($existingIds, $updatedIds));
-    }
-
-    private function syncRemovedSectionsForOtherLocales(array $locales, string $sourceLocale, array $removedSectionIds, PlatformPage $page): array
-    {
-        if ($removedSectionIds === []) {
-            return $locales;
-        }
+        $source = is_array($locales[$sourceLocale] ?? null) ? $locales[$sourceLocale] : [];
+        $sourceSections = $this->sanitizeSections($source['sections'] ?? []);
 
         foreach ($this->locales() as $locale) {
             if ($locale === $sourceLocale) {
@@ -1070,14 +1035,26 @@ class PlatformPageContentService
                 ? $locales[$locale]
                 : $this->defaultContent($locale, $page);
 
-            $targetSections = is_array($target['sections'] ?? null) ? $target['sections'] : [];
-            $target['sections'] = array_values(array_filter($targetSections, function ($section) use ($removedSectionIds) {
-                if (! is_array($section)) {
-                    return false;
+            $targetSections = $this->sanitizeSections($target['sections'] ?? []);
+            $targetSectionsById = collect($targetSections)
+                ->filter(fn ($section) => is_array($section))
+                ->mapWithKeys(function ($section) {
+                    $id = $this->cleanText($section['id'] ?? '');
+
+                    return $id !== '' ? [$id => $section] : [];
+                })
+                ->all();
+
+            $target['sections'] = array_values(array_map(function ($sourceSection) use ($targetSectionsById) {
+                $id = $this->cleanText($sourceSection['id'] ?? '');
+
+                if ($id !== '' && array_key_exists($id, $targetSectionsById)) {
+                    return $targetSectionsById[$id];
                 }
 
-                return ! in_array($this->cleanText($section['id'] ?? ''), $removedSectionIds, true);
-            }));
+                return $sourceSection;
+            }, $sourceSections));
+
             $locales[$locale] = $target;
         }
 

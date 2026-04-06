@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { ArrowRight, ChevronDown } from 'lucide-vue-next';
 import { Link } from '@inertiajs/vue3';
+import { buildBackgroundStyle, resolveBackgroundTone } from '@/utils/backgroundPresets';
 
 const props = defineProps({
     section: {
@@ -128,6 +129,7 @@ const featureTabsStyle = computed(() => (
 ));
 
 const isWorkflowStyle = computed(() => featureTabsStyle.value === 'workflow');
+const hasDarkBackground = computed(() => resolveBackgroundTone(props.section || {}) === 'dark');
 
 const showcaseStyle = computed(() => {
     const rawSize = Number(props.section?.feature_tabs_font_size);
@@ -137,6 +139,7 @@ const showcaseStyle = computed(() => {
 
     return {
         '--feature-tabs-showcase-tab-size': `${safeSize}px`,
+        ...buildBackgroundStyle(props.section || {}),
     };
 });
 
@@ -222,6 +225,7 @@ const setAccordionChild = (tab, child) => {
         :class="{
             'feature-tabs-showcase--workflow': isWorkflowStyle,
             'feature-tabs-showcase--editorial': !isWorkflowStyle,
+            'feature-tabs-showcase--contrast': hasDarkBackground,
         }"
         :style="showcaseStyle"
     >
@@ -496,6 +500,9 @@ const setAccordionChild = (tab, child) => {
 
 <style scoped>
 .feature-tabs-showcase {
+    --feature-tabs-showcase-overlay-opacity: 0.45;
+    --feature-tabs-showcase-overlay-dot: rgba(8, 58, 92, 0.06);
+    --feature-tabs-showcase-overlay-dot-alt: rgba(8, 58, 92, 0.04);
     position: relative;
     overflow: hidden;
     padding-block: clamp(4rem, 8vw, 6.75rem);
@@ -510,12 +517,18 @@ const setAccordionChild = (tab, child) => {
     position: absolute;
     inset: 0;
     background-image:
-        radial-gradient(rgba(8, 58, 92, 0.06) 0.8px, transparent 0.8px),
-        radial-gradient(rgba(8, 58, 92, 0.04) 0.8px, transparent 0.8px);
+        radial-gradient(var(--feature-tabs-showcase-overlay-dot) 0.8px, transparent 0.8px),
+        radial-gradient(var(--feature-tabs-showcase-overlay-dot-alt) 0.8px, transparent 0.8px);
     background-position: 0 0, 12px 12px;
     background-size: 24px 24px;
-    opacity: 0.45;
+    opacity: var(--feature-tabs-showcase-overlay-opacity);
     pointer-events: none;
+}
+
+.feature-tabs-showcase--contrast {
+    --feature-tabs-showcase-overlay-opacity: 0.28;
+    --feature-tabs-showcase-overlay-dot: rgba(248, 250, 252, 0.16);
+    --feature-tabs-showcase-overlay-dot-alt: rgba(248, 250, 252, 0.1);
 }
 
 .feature-tabs-showcase__container {
@@ -1081,6 +1094,26 @@ const setAccordionChild = (tab, child) => {
     margin-top: 0.1rem;
     color: #496173;
     font-size: 0.92rem;
+}
+
+.feature-tabs-showcase--contrast .feature-tabs-showcase__eyebrow {
+    background: rgba(248, 250, 252, 0.12);
+    color: #f8fafc;
+}
+
+.feature-tabs-showcase--contrast .feature-tabs-showcase__title,
+.feature-tabs-showcase--contrast .feature-tabs-showcase__header-link {
+    color: #f8fafc;
+}
+
+.feature-tabs-showcase--contrast .feature-tabs-showcase__subtitle,
+.feature-tabs-showcase--contrast .feature-tabs-showcase__header-link--muted {
+    color: rgba(226, 232, 240, 0.82);
+}
+
+.feature-tabs-showcase--contrast.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-child:hover,
+.feature-tabs-showcase--contrast.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-child:focus-visible {
+    background: rgba(248, 250, 252, 0.08);
 }
 
 .feature-tabs-showcase--workflow .feature-tabs-showcase__header {

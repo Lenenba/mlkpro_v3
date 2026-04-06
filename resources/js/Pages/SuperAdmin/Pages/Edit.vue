@@ -102,6 +102,7 @@ const sectionEditorOpen = ref({});
 const assetPickerOpen = ref(false);
 const assetTarget = ref(null);
 const removedSectionIds = ref([]);
+const contentByLocale = ref({});
 
 const localeOptions = computed(() =>
     (props.locales || []).map((locale) => ({ value: locale, label: locale.toUpperCase() }))
@@ -659,6 +660,61 @@ const applyPendingSectionRemovals = (content) => {
     };
 };
 
+const buildLocaleContentDrafts = (source = props.content) => {
+    const drafts = {};
+
+    localeList.value.forEach((locale) => {
+        drafts[locale] = applyPendingSectionRemovals(ensureStructure(source?.[locale] || {}));
+    });
+
+    return drafts;
+};
+
+const storeLocaleDraft = (locale = currentLocale.value) => {
+    if (!locale) {
+        return;
+    }
+
+    contentByLocale.value = {
+        ...contentByLocale.value,
+        [locale]: ensureStructure(clone(form.content)),
+    };
+};
+
+const syncSectionStructureAcrossLocales = (sections, sourceLocale = currentLocale.value) => {
+    const canonicalSections = Array.isArray(sections)
+        ? sections.map((section, index) => ensureSection(clone(section), index))
+        : [];
+
+    const nextDrafts = { ...contentByLocale.value };
+
+    localeList.value.forEach((locale) => {
+        const base = ensureStructure(nextDrafts[locale] || props.content?.[locale] || {});
+        const existingSections = new Map(
+            (base.sections || [])
+                .map((section, index) => [String(section?.id || '').trim(), ensureSection(section, index)])
+                .filter(([sectionId]) => sectionId.length > 0)
+        );
+
+        nextDrafts[locale] = {
+            ...base,
+            sections: canonicalSections.map((section, index) => (
+                ensureSection(clone(existingSections.get(section.id) || section), index)
+            )),
+        };
+    });
+
+    if (sourceLocale) {
+        nextDrafts[sourceLocale] = ensureStructure({
+            ...(nextDrafts[sourceLocale] || {}),
+            ...clone(form.content),
+            sections: canonicalSections,
+        });
+    }
+
+    contentByLocale.value = nextDrafts;
+};
+
 const rememberRemovedSection = (sectionId) => {
     const normalized = String(sectionId || '').trim();
     if (!normalized || removedSectionIds.value.includes(normalized)) {
@@ -702,16 +758,19 @@ const rebuildItemsLines = () => {
 };
 
 const syncFormFromProps = (locale = currentLocale.value) => {
-    const incoming = applyPendingSectionRemovals(ensureStructure(props.content?.[locale] || {}));
+    const incoming = ensureStructure(contentByLocale.value?.[locale] || props.content?.[locale] || {});
     form.locale = locale;
-    form.content = incoming;
+    form.content = clone(incoming);
     rebuildItemsLines();
     syncSectionEditorState();
 };
 
 watch(
     () => props.content,
-    () => syncFormFromProps(currentLocale.value),
+    () => {
+        contentByLocale.value = buildLocaleContentDrafts(props.content);
+        syncFormFromProps(currentLocale.value);
+    },
     { deep: true }
 );
 
@@ -723,7 +782,13 @@ watch(
     { deep: true }
 );
 
-watch(currentLocale, (locale) => syncFormFromProps(locale));
+watch(currentLocale, (locale, previousLocale) => {
+    if (previousLocale) {
+        storeLocaleDraft(previousLocale);
+    }
+
+    syncFormFromProps(locale);
+});
 
 const updateSectionItems = (section, value) => {
     sectionItemsLines.value = { ...sectionItemsLines.value, [section.id]: value };
@@ -1042,6 +1107,7 @@ const addFromLibrary = () => {
     );
     form.content.sections.push(section);
     applyLibraryToSection(section);
+    syncSectionStructureAcrossLocales(form.content.sections);
     selectedLibraryId.value = '';
     syncSectionEditorState({ openSectionId: section.id });
 };
@@ -1053,6 +1119,9 @@ const moveItem = (list, index, direction) => {
     const [item] = cloneList.splice(index, 1);
     cloneList.splice(nextIndex, 0, item);
     list.splice(0, list.length, ...cloneList);
+    if (list === form.content.sections) {
+        syncSectionStructureAcrossLocales(form.content.sections);
+    }
     rebuildItemsLines();
 };
 
@@ -1145,6 +1214,7 @@ const addSection = () => {
         nextIndex
     );
     form.content.sections.push(section);
+    syncSectionStructureAcrossLocales(form.content.sections);
     rebuildItemsLines();
     syncSectionEditorState({ openSectionId: section.id });
 };
@@ -1173,6 +1243,7 @@ const removeSection = (index) => {
         delete nextPlans[section.id];
         visibilityPlanLines.value = nextPlans;
     }
+    syncSectionStructureAcrossLocales(form.content.sections);
     syncSectionEditorState();
 };
 
@@ -1205,6 +1276,7 @@ const buildSubmitPayload = () => ({
 });
 
 const submit = () => {
+    storeLocaleDraft(currentLocale.value);
     const payload = buildSubmitPayload();
 
     if (props.mode === 'create') {
@@ -1220,9 +1292,11 @@ const applyTemplate = () => {
     const template = templates.value.find((item) => item.id === selectedTemplate.value);
     if (!template) return;
     form.content = ensureStructure(template.content);
+    syncSectionStructureAcrossLocales(form.content.sections);
     rebuildItemsLines();
 };
 
+contentByLocale.value = buildLocaleContentDrafts(props.content);
 syncFormFromProps(currentLocale.value);
 </script>
 

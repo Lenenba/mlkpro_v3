@@ -183,11 +183,6 @@ class PlatformSectionContentService
             $locales,
             $locale
         );
-        $sanitized['background_preset'] = $this->resolveBackgroundPresetForLocale(
-            $sanitized['background_preset'] ?? null,
-            $locales,
-            $locale
-        );
         $locales[$locale] = $sanitized;
         $locales = $this->syncHeroImagesForOtherLocales($locales, $locale, $section->type);
         $locales = $this->syncBackgroundPresetForOtherLocales($locales, $locale, $section->type);
@@ -609,9 +604,6 @@ class PlatformSectionContentService
     {
         $source = is_array($locales[$sourceLocale] ?? null) ? $locales[$sourceLocale] : [];
         $sourcePreset = $this->cleanBackgroundPreset($source['background_preset'] ?? null) ?? '';
-        if ($sourcePreset === '') {
-            return $locales;
-        }
 
         foreach ($this->locales() as $locale) {
             if ($locale === $sourceLocale) {
@@ -622,11 +614,7 @@ class PlatformSectionContentService
                 ? $locales[$locale]
                 : $this->defaultContent($locale, $type);
 
-            $targetPreset = $this->cleanBackgroundPreset($target['background_preset'] ?? null) ?? '';
-            if ($targetPreset === '') {
-                $target['background_preset'] = $sourcePreset;
-            }
-
+            $target['background_preset'] = $sourcePreset;
             $locales[$locale] = $target;
         }
 

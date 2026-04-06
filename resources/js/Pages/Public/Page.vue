@@ -818,8 +818,7 @@ const showcaseHasBadge = (section) =>
         String(section?.showcase_badge_note || '').trim()
     );
 
-const showcaseUsesInlineAsideLink = (section) =>
-    !showcaseHasMedia(section) && Boolean(String(section?.aside_link_label || '').trim());
+const showcaseUsesInlineAsideLink = (section) => Boolean(String(section?.aside_link_label || '').trim());
 
 const alignmentClass = (alignment) => {
     if (alignment === 'center') {
@@ -1524,20 +1523,6 @@ const headerMenuItems = computed(() => ([
                             >
                                 <div class="public-showcase-shell__copy" :style="showcaseCopyStyle(section)">
                                     <div class="public-showcase-copy-inner" :class="alignmentClass(section.alignment)">
-                                        <div v-if="section.kicker" class="public-kicker">{{ section.kicker }}</div>
-
-                                        <div v-if="showcaseHasBadge(section)" class="public-showcase-badge">
-                                            <span v-if="section.showcase_badge_label" class="public-showcase-badge__label">
-                                                {{ section.showcase_badge_label }}
-                                            </span>
-                                            <span v-if="section.showcase_badge_value" class="public-showcase-badge__value">
-                                                {{ section.showcase_badge_value }}
-                                            </span>
-                                            <span v-if="section.showcase_badge_note" class="public-showcase-badge__note">
-                                                {{ section.showcase_badge_note }}
-                                            </span>
-                                        </div>
-
                                         <h2 class="public-title public-showcase-title">{{ section.title }}</h2>
                                         <div v-if="section.body" class="public-rich public-showcase-body" v-html="section.body"></div>
 
@@ -1618,28 +1603,6 @@ const headerMenuItems = computed(() => ([
                                             decoding="async"
                                         />
                                         <div class="public-showcase-visual__veil"></div>
-
-                                        <template v-if="section.aside_link_label">
-                                            <a
-                                                v-if="section.aside_link_href && isExternalHref(resolveHref(section.aside_link_href))"
-                                                :href="resolveHref(section.aside_link_href)"
-                                                class="public-showcase-media-tag"
-                                                rel="noopener noreferrer"
-                                                target="_blank"
-                                            >
-                                                {{ section.aside_link_label }}
-                                            </a>
-                                            <Link
-                                                v-else-if="section.aside_link_href"
-                                                :href="resolveHref(section.aside_link_href)"
-                                                class="public-showcase-media-tag"
-                                            >
-                                                {{ section.aside_link_label }}
-                                            </Link>
-                                            <span v-else class="public-showcase-media-tag">
-                                                {{ section.aside_link_label }}
-                                            </span>
-                                        </template>
 
                                         <div v-if="showcaseFloatingImageUrl(section)" class="public-showcase-floating">
                                             <img
@@ -2282,7 +2245,7 @@ const headerMenuItems = computed(() => ([
 .public-testimonial-grid__avatar {
     width: 3.7rem;
     height: 3.7rem;
-    border-radius: 999px;
+    border-radius: 0.125rem;
     overflow: hidden;
     flex-shrink: 0;
     background: #d7d0c3;
@@ -3202,28 +3165,40 @@ ul .public-feature-tabs__subitem::before {
 .public-showcase-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-top: 2rem;
+    gap: 0.875rem;
+    margin-top: 2.25rem;
 }
 
-.public-showcase-actions .public-button {
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: none;
+.public-showcase-actions .public-button,
+.public-showcase-actions .public-inline-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.95rem 1.4rem;
+    border: 1px solid var(--showcase-copy-soft-border, rgba(255, 255, 255, 0.16));
+    border-radius: max(0px, calc(var(--page-radius, 4px) - 1px));
+    background: var(--showcase-copy-soft, rgba(255, 255, 255, 0.08));
     box-shadow: none;
-    color: var(--showcase-copy-link, var(--page-primary, #16a34a));
+    color: var(--showcase-copy-text, var(--page-text, #0f172a));
+    font-size: 0.96rem;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
 }
 
 .public-showcase-actions .public-button:hover,
-.public-showcase-actions .public-button:focus-visible {
-    background: none;
-    color: var(--showcase-copy-link, var(--page-primary, #16a34a));
+.public-showcase-actions .public-button:focus-visible,
+.public-showcase-actions .public-inline-link:hover,
+.public-showcase-actions .public-inline-link:focus-visible {
+    background: color-mix(in srgb, var(--showcase-copy-soft, rgba(255, 255, 255, 0.08)) 82%, white 18%);
+    border-color: color-mix(in srgb, var(--showcase-copy-soft-border, rgba(255, 255, 255, 0.16)) 78%, white 22%);
+    color: var(--showcase-copy-text, var(--page-text, #0f172a));
     filter: none;
-    text-decoration: underline;
+    text-decoration: none;
 }
 
-.public-showcase-actions .public-button:active {
+.public-showcase-actions .public-button:active,
+.public-showcase-actions .public-inline-link:active {
     transform: none;
 }
 
@@ -3237,11 +3212,11 @@ ul .public-feature-tabs__subitem::before {
 }
 
 .public-showcase-actions .public-inline-link {
-    color: var(--showcase-copy-link, var(--page-primary, #16a34a));
+    color: var(--showcase-copy-text, var(--page-text, #0f172a));
 }
 
 .public-showcase-actions .public-inline-link--muted {
-    color: var(--showcase-copy-link-muted, var(--page-muted, #64748b));
+    color: var(--showcase-copy-text, var(--page-text, #0f172a));
 }
 
 .public-showcase-grid--no-media .public-showcase-copy-inner {
