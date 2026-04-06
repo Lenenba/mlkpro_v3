@@ -325,7 +325,95 @@ it('does not inflate admin page sections from shared media stored in another loc
         ->assertOk()
         ->assertInertia(fn (Assert $inertia) => $inertia
             ->component('SuperAdmin/Pages/Edit')
-            ->where('content.fr.sections.0.id', 'fr-section-1')
-            ->missing('content.fr.sections.1')
+            ->where('content.fr.sections.0.id', 'en-section-1')
+            ->where('content.fr.sections.1.id', 'en-section-2')
+            ->missing('content.fr.sections.2')
+        );
+});
+
+it('keeps welcome page sections synchronized across locales when opening the admin editor', function () {
+    $admin = platformSectionAdmin([PlatformPermissions::WELCOME_MANAGE]);
+    app()->setLocale('fr');
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'welcome',
+        'title' => 'Welcome',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'fr' => [
+                    'page_title' => 'Accueil',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'welcome-hero',
+                            'enabled' => true,
+                            'layout' => 'split',
+                            'title' => 'Hero FR',
+                            'body' => '<p>Hero FR</p>',
+                        ],
+                        [
+                            'id' => 'welcome-cta',
+                            'enabled' => true,
+                            'layout' => 'cta',
+                            'title' => 'CTA FR',
+                            'body' => '<p>CTA FR</p>',
+                        ],
+                    ],
+                ],
+                'en' => [
+                    'page_title' => 'Welcome',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'welcome-hero',
+                            'enabled' => true,
+                            'layout' => 'split',
+                            'title' => 'Hero EN',
+                            'body' => '<p>Hero EN</p>',
+                        ],
+                        [
+                            'id' => 'welcome-bonus',
+                            'enabled' => true,
+                            'layout' => 'stack',
+                            'title' => 'Bonus EN',
+                            'body' => '<p>Bonus EN</p>',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('superadmin.pages.edit', $page))
+        ->assertOk()
+        ->assertInertia(fn (Assert $inertia) => $inertia
+            ->component('SuperAdmin/Pages/Edit')
+            ->where('default_locale', 'en')
+            ->where('content.en.sections.0.id', 'welcome-hero')
+            ->where('content.en.sections.1.id', 'welcome-bonus')
+            ->missing('content.en.sections.2')
+            ->where('content.fr.sections.0.id', 'welcome-hero')
+            ->where('content.fr.sections.0.title', 'Hero FR')
+            ->where('content.fr.sections.1.id', 'welcome-bonus')
+            ->where('content.fr.sections.1.title', 'Bonus EN')
+            ->missing('content.fr.sections.2')
+            ->where('content.en.sections.0.title', 'Hero EN')
+            ->where('content.en.sections.1.title', 'Bonus EN')
         );
 });

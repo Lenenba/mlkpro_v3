@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { ArrowRight } from 'lucide-vue-next';
+import { ArrowRight, ChevronDown } from 'lucide-vue-next';
 import { Link } from '@inertiajs/vue3';
+import { buildBackgroundStyle, resolveBackgroundTone } from '@/utils/backgroundPresets';
 
 const props = defineProps({
     section: {
@@ -17,27 +18,42 @@ const tabs = computed(() => (
 ));
 
 const activeTabId = ref(null);
+const previewTabId = ref(null);
 const activeChildId = ref(null);
 
 const currentTab = computed(() => (
-    tabs.value.find((tab) => tab.id === activeTabId.value) || tabs.value[0] || null
+    tabs.value.find((tab) => tab.id === activeTabId.value) || null
 ));
 
-const currentChildren = computed(() => (
-    Array.isArray(currentTab.value?.children)
-        ? currentTab.value.children.filter((child) => String(child?.label || '').trim().length > 0)
+const previewTab = computed(() => (
+    tabs.value.find((tab) => tab.id === previewTabId.value) || tabs.value[0] || null
+));
+
+const featureTabChildren = (tab) => (
+    Array.isArray(tab?.children)
+        ? tab.children.filter((child) => String(child?.label || '').trim().length > 0)
         : []
+);
+
+const currentChildren = computed(() => (
+    featureTabChildren(previewTab.value)
 ));
 
 watch(tabs, (nextTabs) => {
     if (!nextTabs.length) {
         activeTabId.value = null;
+        previewTabId.value = null;
         activeChildId.value = null;
         return;
     }
 
     if (!nextTabs.some((tab) => tab.id === activeTabId.value)) {
-        activeTabId.value = nextTabs[0].id;
+        activeTabId.value = null;
+    }
+
+    if (!nextTabs.some((tab) => tab.id === previewTabId.value)) {
+        previewTabId.value = nextTabs[0].id;
+        activeChildId.value = null;
     }
 }, { immediate: true });
 
@@ -53,31 +69,49 @@ watch(currentChildren, (nextChildren) => {
 }, { immediate: true });
 
 const currentPanel = computed(() => (
-    currentChildren.value.find((child) => child.id === activeChildId.value) || currentTab.value || null
+    currentChildren.value.find((child) => child.id === activeChildId.value) || previewTab.value || null
 ));
 
+const hasOpenPanel = computed(() => Boolean(currentTab.value));
+
 const currentMetric = computed(() => (
-    String(currentPanel.value?.metric || currentTab.value?.metric || '').trim()
+    String(currentPanel.value?.metric || previewTab.value?.metric || '').trim()
 ));
 
 const currentStory = computed(() => (
-    String(currentPanel.value?.story || currentTab.value?.story || '').trim()
+    String(currentPanel.value?.story || previewTab.value?.story || '').trim()
 ));
 
 const currentPerson = computed(() => (
-    String(currentPanel.value?.person || currentTab.value?.person || '').trim()
+    String(currentPanel.value?.person || previewTab.value?.person || '').trim()
 ));
 
 const currentRole = computed(() => (
-    String(currentPanel.value?.role || currentTab.value?.role || '').trim()
+    String(currentPanel.value?.role || previewTab.value?.role || '').trim()
 ));
 
 const currentAvatarUrl = computed(() => (
-    String(currentPanel.value?.avatar_url || currentTab.value?.avatar_url || '').trim()
+    String(currentPanel.value?.avatar_url || previewTab.value?.avatar_url || '').trim()
 ));
 
 const currentAvatarAlt = computed(() => (
-    String(currentPanel.value?.avatar_alt || currentTab.value?.avatar_alt || currentPerson.value || '').trim()
+    String(currentPanel.value?.avatar_alt || previewTab.value?.avatar_alt || currentPerson.value || '').trim()
+));
+
+const currentPanelImageUrl = computed(() => (
+    String(currentPanel.value?.image_url || previewTab.value?.image_url || '').trim()
+));
+
+const currentPanelImageAlt = computed(() => (
+    String(
+        currentPanel.value?.image_alt
+        || previewTab.value?.image_alt
+        || currentPanel.value?.title
+        || currentPanel.value?.label
+        || previewTab.value?.title
+        || previewTab.value?.label
+        || ''
+    ).trim()
 ));
 
 const currentPersonInitials = computed(() => {
@@ -90,6 +124,13 @@ const currentPersonInitials = computed(() => {
     return parts.map((part) => part.charAt(0).toUpperCase()).join('') || '?';
 });
 
+const featureTabsStyle = computed(() => (
+    props.section?.feature_tabs_style === 'workflow' ? 'workflow' : 'editorial'
+));
+
+const isWorkflowStyle = computed(() => featureTabsStyle.value === 'workflow');
+const hasDarkBackground = computed(() => resolveBackgroundTone(props.section || {}) === 'dark');
+
 const showcaseStyle = computed(() => {
     const rawSize = Number(props.section?.feature_tabs_font_size);
     const safeSize = Number.isFinite(rawSize) && rawSize > 0
@@ -98,6 +139,7 @@ const showcaseStyle = computed(() => {
 
     return {
         '--feature-tabs-showcase-tab-size': `${safeSize}px`,
+        ...buildBackgroundStyle(props.section || {}),
     };
 });
 
@@ -139,21 +181,54 @@ const setActiveTab = (tab) => {
         return;
     }
 
+    previewTabId.value = tab.id;
+
+    const nextChildren = featureTabChildren(tab);
+    if (!nextChildren.some((child) => child.id === activeChildId.value)) {
+        activeChildId.value = nextChildren[0]?.id ?? null;
+    }
+
+    if (activeTabId.value === tab.id) {
+        activeTabId.value = null;
+        return;
+    }
+
     activeTabId.value = tab.id;
-    activeChildId.value = Array.isArray(tab.children) && tab.children.length ? tab.children[0].id : null;
 };
 
-const setActiveChild = (child) => {
+const setActiveChild = (child, tab = previewTab.value) => {
     if (!child?.id) {
         return;
     }
 
+    if (tab?.id) {
+        previewTabId.value = tab.id;
+    }
+
+    activeChildId.value = child.id;
+};
+
+const setAccordionChild = (tab, child) => {
+    if (!tab?.id || !child?.id) {
+        return;
+    }
+
+    previewTabId.value = tab.id;
+    activeTabId.value = tab.id;
     activeChildId.value = child.id;
 };
 </script>
 
 <template>
-    <div class="feature-tabs-showcase" :style="showcaseStyle">
+    <div
+        class="feature-tabs-showcase"
+        :class="{
+            'feature-tabs-showcase--workflow': isWorkflowStyle,
+            'feature-tabs-showcase--editorial': !isWorkflowStyle,
+            'feature-tabs-showcase--contrast': hasDarkBackground,
+        }"
+        :style="showcaseStyle"
+    >
         <div class="feature-tabs-showcase__container">
             <div
                 v-if="section.kicker || section.title || section.body || section.primary_label || section.secondary_label"
@@ -212,140 +287,229 @@ const setActiveChild = (child) => {
                 </div>
             </div>
 
-            <div v-if="tabs.length" class="feature-tabs-showcase__tabs" role="tablist" :aria-label="section.title || 'Feature tabs'">
-                <button
-                    v-for="tab in tabs"
-                    :key="tab.id"
-                    type="button"
-                    class="feature-tabs-showcase__tab"
-                    :class="{ 'is-active': currentTab?.id === tab.id }"
-                    :aria-selected="currentTab?.id === tab.id"
-                    @click="setActiveTab(tab)"
-                >
-                    {{ tab.label }}
-                </button>
-            </div>
-
-            <article v-if="currentPanel" class="feature-tabs-showcase__panel">
-                <div class="feature-tabs-showcase__media-shell">
-                    <div class="feature-tabs-showcase__media-glow"></div>
-                    <img
-                        v-if="currentPanel.image_url"
-                        :src="currentPanel.image_url"
-                        :alt="currentPanel.image_alt || currentPanel.title || currentPanel.label"
-                        class="feature-tabs-showcase__media"
-                        loading="lazy"
-                        decoding="async"
+            <div
+                v-if="tabs.length"
+                class="feature-tabs-showcase__accordion-grid"
+                :class="{ 'feature-tabs-showcase__accordion-grid--collapsed': !hasOpenPanel }"
+            >
+                <div class="feature-tabs-showcase__accordion">
+                    <article
+                        v-for="tab in tabs"
+                        :key="tab.id"
+                        class="feature-tabs-showcase__accordion-item"
+                        :class="{ 'is-active': currentTab?.id === tab.id }"
                     >
-                    <div v-else class="feature-tabs-showcase__media-fallback">
-                        <div class="feature-tabs-showcase__media-mark">
-                            {{ currentTab?.label }}
+                        <button
+                            type="button"
+                            class="feature-tabs-showcase__accordion-trigger"
+                            :aria-expanded="currentTab?.id === tab.id && (!isWorkflowStyle || featureTabChildren(tab).length > 0)"
+                            @click="setActiveTab(tab)"
+                        >
+                            <div class="feature-tabs-showcase__accordion-trigger-copy">
+                                <span class="feature-tabs-showcase__accordion-label">
+                                    {{ isWorkflowStyle ? (tab.label || tab.title) : tab.label }}
+                                </span>
+                                <span v-if="!isWorkflowStyle" class="feature-tabs-showcase__accordion-heading">
+                                    {{ tab.title || tab.label }}
+                                </span>
+                            </div>
+                            <ChevronDown
+                                class="feature-tabs-showcase__accordion-icon"
+                                :class="{ 'is-open': currentTab?.id === tab.id }"
+                                aria-hidden="true"
+                            />
+                        </button>
+
+                        <div
+                            v-if="currentTab?.id === tab.id && (!isWorkflowStyle || featureTabChildren(tab).length > 0)"
+                            class="feature-tabs-showcase__accordion-content"
+                        >
+                            <div
+                                v-if="tab.body && !isWorkflowStyle"
+                                class="feature-tabs-showcase__accordion-body"
+                                v-html="tab.body"
+                            ></div>
+
+                            <div
+                                v-if="featureTabChildren(tab).length"
+                                class="feature-tabs-showcase__accordion-children"
+                            >
+                                <button
+                                    v-for="child in featureTabChildren(tab)"
+                                    :key="child.id"
+                                    type="button"
+                                    class="feature-tabs-showcase__accordion-child"
+                                    :class="{ 'is-active': currentPanel?.id === child.id }"
+                                    @click="setAccordionChild(tab, child)"
+                                >
+                                    <span class="feature-tabs-showcase__accordion-child-arrow" aria-hidden="true">-&gt;</span>
+                                    <span class="feature-tabs-showcase__accordion-child-label">{{ child.label }}</span>
+                                </button>
+                            </div>
+
+                            <ul v-else-if="tab.items?.length && !isWorkflowStyle" class="feature-tabs-showcase__accordion-points">
+                                <li
+                                    v-for="(item, itemIndex) in tab.items"
+                                    :key="`${tab.id}-accordion-item-${itemIndex}`"
+                                    class="feature-tabs-showcase__accordion-point"
+                                >
+                                    {{ item }}
+                                </li>
+                            </ul>
+
+                            <div v-if="tab.metric && !isWorkflowStyle" class="feature-tabs-showcase__accordion-metric">
+                                {{ tab.metric }}
+                            </div>
                         </div>
-                        <p v-if="currentMetric" class="feature-tabs-showcase__media-caption">
-                            {{ currentMetric }}
-                        </p>
-                    </div>
-                    <div v-if="currentMetric" class="feature-tabs-showcase__metric">
-                        {{ currentMetric }}
-                    </div>
+                    </article>
                 </div>
 
-                <div class="feature-tabs-showcase__copy">
-                    <div class="feature-tabs-showcase__copy-top">
-                        <h3 v-if="currentPanel.title || currentPanel.label" class="feature-tabs-showcase__copy-title">
-                            {{ currentPanel.title || currentPanel.label }}
-                        </h3>
-                        <div
-                            v-if="currentPanel.body"
-                            class="feature-tabs-showcase__copy-body"
-                            v-html="currentPanel.body"
-                        ></div>
-
-                        <component
-                            :is="shouldUseAnchor(currentPanel.cta_href) ? 'a' : Link"
-                            v-if="currentPanel.cta_label"
-                            :href="resolveHref(currentPanel.cta_href)"
-                            :target="isExternalHref(resolveHref(currentPanel.cta_href)) ? '_blank' : undefined"
-                            :rel="isExternalHref(resolveHref(currentPanel.cta_href)) ? 'noopener noreferrer' : undefined"
-                            class="feature-tabs-showcase__cta"
+                <article
+                    v-if="currentPanel"
+                    class="feature-tabs-showcase__panel feature-tabs-showcase__panel--detail"
+                    :class="{ 'feature-tabs-showcase__panel--workflow': isWorkflowStyle }"
+                >
+                    <div
+                        class="feature-tabs-showcase__media-shell"
+                        :class="{ 'feature-tabs-showcase__media-shell--filled': Boolean(currentPanelImageUrl) }"
+                    >
+                        <div class="feature-tabs-showcase__media-glow"></div>
+                        <img
+                            v-if="currentPanelImageUrl"
+                            :src="currentPanelImageUrl"
+                            :alt="currentPanelImageAlt"
+                            class="feature-tabs-showcase__media"
+                            loading="lazy"
+                            decoding="async"
                         >
-                            <span>{{ currentPanel.cta_label }}</span>
-                            <ArrowRight class="h-4 w-4" aria-hidden="true" />
-                        </component>
+                        <div v-else class="feature-tabs-showcase__media-fallback">
+                            <div class="feature-tabs-showcase__media-mark">
+                                {{ previewTab?.label }}
+                            </div>
+                            <p v-if="currentMetric" class="feature-tabs-showcase__media-caption">
+                                {{ currentMetric }}
+                            </p>
+                        </div>
+                        <div v-if="currentMetric && !isWorkflowStyle" class="feature-tabs-showcase__metric">
+                            {{ currentMetric }}
+                        </div>
                     </div>
 
-                    <div class="feature-tabs-showcase__details">
-                        <div v-if="currentChildren.length > 1" class="feature-tabs-showcase__subtabs" role="tablist" :aria-label="currentTab?.label || 'Feature tab details'">
-                            <button
-                                v-for="child in currentChildren"
-                                :key="child.id"
-                                type="button"
-                                class="feature-tabs-showcase__subtab"
-                                :class="{ 'is-active': currentPanel?.id === child.id }"
-                                :aria-selected="currentPanel?.id === child.id"
-                                @click="setActiveChild(child)"
-                            >
-                                {{ child.label }}
-                            </button>
-                        </div>
-
-                        <ul v-else-if="currentTab?.items?.length" class="feature-tabs-showcase__points">
-                            <li
-                                v-for="(item, itemIndex) in currentTab.items"
-                                :key="`${currentTab.id}-item-${itemIndex}`"
-                                class="feature-tabs-showcase__point"
-                            >
-                                {{ item }}
-                            </li>
-                        </ul>
-
-                        <div
-                            v-if="currentMetric || currentStory || currentPerson || currentRole || currentAvatarUrl"
-                            class="feature-tabs-showcase__story"
-                        >
-                            <div v-if="currentMetric" class="feature-tabs-showcase__story-metric">
+                    <div class="feature-tabs-showcase__copy" :class="{ 'feature-tabs-showcase__copy--workflow': isWorkflowStyle }">
+                        <div class="feature-tabs-showcase__copy-top">
+                            <div v-if="isWorkflowStyle && currentMetric" class="feature-tabs-showcase__copy-kicker">
                                 {{ currentMetric }}
                             </div>
+                            <h3 v-if="currentPanel.title || currentPanel.label" class="feature-tabs-showcase__copy-title">
+                                {{ currentPanel.title || currentPanel.label }}
+                            </h3>
                             <div
-                                v-if="currentStory"
-                                class="feature-tabs-showcase__story-quote"
-                                v-html="currentStory"
+                                v-if="currentPanel.body"
+                                class="feature-tabs-showcase__copy-body"
+                                v-html="currentPanel.body"
                             ></div>
-                            <div v-if="currentPerson || currentRole || currentAvatarUrl" class="feature-tabs-showcase__story-person">
-                                <img
-                                    v-if="currentAvatarUrl"
-                                    :src="currentAvatarUrl"
-                                    :alt="currentAvatarAlt"
-                                    class="feature-tabs-showcase__story-avatar"
-                                    loading="lazy"
-                                    decoding="async"
+
+                            <component
+                                :is="shouldUseAnchor(currentPanel.cta_href) ? 'a' : Link"
+                                v-if="currentPanel.cta_label"
+                                :href="resolveHref(currentPanel.cta_href)"
+                                :target="isExternalHref(resolveHref(currentPanel.cta_href)) ? '_blank' : undefined"
+                                :rel="isExternalHref(resolveHref(currentPanel.cta_href)) ? 'noopener noreferrer' : undefined"
+                                class="feature-tabs-showcase__cta"
+                            >
+                                <span>{{ currentPanel.cta_label }}</span>
+                                <ArrowRight class="h-4 w-4" aria-hidden="true" />
+                            </component>
+                        </div>
+
+                        <div class="feature-tabs-showcase__details">
+                            <div
+                                v-if="currentChildren.length > 1 && !isWorkflowStyle"
+                                class="feature-tabs-showcase__subtabs"
+                                role="tablist"
+                                :aria-label="previewTab?.label || 'Feature tab details'"
+                            >
+                                <button
+                                    v-for="child in currentChildren"
+                                    :key="child.id"
+                                    type="button"
+                                    class="feature-tabs-showcase__subtab"
+                                    :class="{ 'is-active': currentPanel?.id === child.id }"
+                                    :aria-selected="currentPanel?.id === child.id"
+                                    @click="setActiveChild(child)"
                                 >
-                                <div
-                                    v-else
-                                    class="feature-tabs-showcase__story-avatar feature-tabs-showcase__story-avatar--empty"
-                                    aria-hidden="true"
+                                    {{ child.label }}
+                                </button>
+                            </div>
+
+                            <ul v-else-if="previewTab?.items?.length" class="feature-tabs-showcase__points">
+                                <li
+                                    v-for="(item, itemIndex) in previewTab.items"
+                                    :key="`${previewTab.id}-item-${itemIndex}`"
+                                    class="feature-tabs-showcase__point"
                                 >
-                                    {{ currentPersonInitials }}
+                                    {{ item }}
+                                </li>
+                            </ul>
+
+                            <div
+                                v-if="currentMetric || currentStory || currentPerson || currentRole || currentAvatarUrl"
+                                class="feature-tabs-showcase__story"
+                            >
+                                <div v-if="currentMetric" class="feature-tabs-showcase__story-metric">
+                                    {{ currentMetric }}
                                 </div>
-                                <div>
-                                    <div v-if="currentPerson" class="feature-tabs-showcase__story-name">
-                                        {{ currentPerson }}
+                                <div
+                                    v-if="currentStory"
+                                    class="feature-tabs-showcase__story-quote"
+                                    v-html="currentStory"
+                                ></div>
+                                <div v-if="currentPerson || currentRole || currentAvatarUrl" class="feature-tabs-showcase__story-person">
+                                    <img
+                                        v-if="currentAvatarUrl"
+                                        :src="currentAvatarUrl"
+                                        :alt="currentAvatarAlt"
+                                        class="feature-tabs-showcase__story-avatar"
+                                        loading="lazy"
+                                        decoding="async"
+                                    >
+                                    <div
+                                        v-else
+                                        class="feature-tabs-showcase__story-avatar feature-tabs-showcase__story-avatar--empty"
+                                        aria-hidden="true"
+                                    >
+                                        {{ currentPersonInitials }}
                                     </div>
-                                    <div v-if="currentRole" class="feature-tabs-showcase__story-role">
-                                        {{ currentRole }}
+                                    <div>
+                                        <div v-if="currentPerson" class="feature-tabs-showcase__story-name">
+                                            {{ currentPerson }}
+                                        </div>
+                                        <div v-if="currentRole" class="feature-tabs-showcase__story-role">
+                                            {{ currentRole }}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </article>
+                </article>
+            </div>
         </div>
     </div>
 </template>
 
 <style scoped>
 .feature-tabs-showcase {
+    --feature-tabs-showcase-overlay-opacity: 0.45;
+    --feature-tabs-showcase-overlay-dot: rgba(8, 58, 92, 0.06);
+    --feature-tabs-showcase-overlay-dot-alt: rgba(8, 58, 92, 0.04);
+    --feature-tabs-accordion-accent: #0f766e;
+    --feature-tabs-accordion-accent-soft: #ccfbf1;
+    --feature-tabs-accordion-accent-strong: color-mix(in srgb, var(--feature-tabs-accordion-accent) 82%, black 18%);
+    --feature-tabs-accordion-accent-border: color-mix(in srgb, var(--feature-tabs-accordion-accent) 16%, white 84%);
+    --feature-tabs-accordion-accent-border-strong: color-mix(in srgb, var(--feature-tabs-accordion-accent) 28%, white 72%);
+    --feature-tabs-accordion-accent-muted: color-mix(in srgb, var(--feature-tabs-accordion-accent) 42%, #475569 58%);
+    --feature-tabs-accordion-accent-text: color-mix(in srgb, var(--feature-tabs-accordion-accent) 72%, #0f172a 28%);
     position: relative;
     overflow: hidden;
     padding-block: clamp(4rem, 8vw, 6.75rem);
@@ -360,12 +524,18 @@ const setActiveChild = (child) => {
     position: absolute;
     inset: 0;
     background-image:
-        radial-gradient(rgba(8, 58, 92, 0.06) 0.8px, transparent 0.8px),
-        radial-gradient(rgba(8, 58, 92, 0.04) 0.8px, transparent 0.8px);
+        radial-gradient(var(--feature-tabs-showcase-overlay-dot) 0.8px, transparent 0.8px),
+        radial-gradient(var(--feature-tabs-showcase-overlay-dot-alt) 0.8px, transparent 0.8px);
     background-position: 0 0, 12px 12px;
     background-size: 24px 24px;
-    opacity: 0.45;
+    opacity: var(--feature-tabs-showcase-overlay-opacity);
     pointer-events: none;
+}
+
+.feature-tabs-showcase--contrast {
+    --feature-tabs-showcase-overlay-opacity: 0.28;
+    --feature-tabs-showcase-overlay-dot: rgba(248, 250, 252, 0.16);
+    --feature-tabs-showcase-overlay-dot-alt: rgba(248, 250, 252, 0.1);
 }
 
 .feature-tabs-showcase__container {
@@ -448,6 +618,177 @@ const setActiveChild = (child) => {
     color: #496173;
 }
 
+.feature-tabs-showcase__accordion-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.4rem;
+    margin-top: 2.2rem;
+    align-items: start;
+}
+
+.feature-tabs-showcase__accordion {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.feature-tabs-showcase__accordion-item {
+    overflow: hidden;
+    border: 1px solid var(--feature-tabs-accordion-accent-border);
+    border-radius: var(--page-radius, 4px);
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow: 0 18px 34px -28px rgba(15, 23, 42, 0.36);
+}
+
+.feature-tabs-showcase__accordion-item.is-active {
+    border-color: var(--feature-tabs-accordion-accent-border-strong);
+    background: #fffdf8;
+}
+
+.feature-tabs-showcase__accordion-trigger {
+    display: flex;
+    width: 100%;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.05rem;
+    border: 0;
+    background: transparent;
+    text-align: left;
+}
+
+.feature-tabs-showcase__accordion-trigger-copy {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.feature-tabs-showcase__accordion-label {
+    color: var(--feature-tabs-accordion-accent-muted);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.feature-tabs-showcase__accordion-heading {
+    color: var(--feature-tabs-accordion-accent-text);
+    font-family: var(--page-font-heading, var(--front-font-heading));
+    font-size: clamp(1.05rem, 0.98rem + 0.2vw, 1.28rem);
+    line-height: 1.14;
+    letter-spacing: -0.02em;
+}
+
+.feature-tabs-showcase__accordion-icon {
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    margin-top: 0.25rem;
+    color: var(--feature-tabs-accordion-accent-text);
+    transition: transform 0.2s ease;
+}
+
+.feature-tabs-showcase__accordion-icon.is-open {
+    transform: rotate(180deg);
+}
+
+.feature-tabs-showcase__accordion-content {
+    display: grid;
+    gap: 0.85rem;
+    padding: 0 1.05rem 1.05rem;
+}
+
+.feature-tabs-showcase__accordion-body {
+    color: #29485c;
+    font-size: 0.94rem;
+    line-height: 1.65;
+}
+
+.feature-tabs-showcase__accordion-body :deep(p),
+.feature-tabs-showcase__accordion-body :deep(div) {
+    margin: 0 0 0.85rem;
+}
+
+.feature-tabs-showcase__accordion-body :deep(p:last-child),
+.feature-tabs-showcase__accordion-body :deep(div:last-child) {
+    margin-bottom: 0;
+}
+
+.feature-tabs-showcase__accordion-children {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.feature-tabs-showcase__accordion-child {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.58rem 0.82rem;
+    border: 1px solid var(--feature-tabs-accordion-accent-border);
+    border-radius: var(--page-radius, 4px);
+    background: rgba(255, 255, 255, 0.82);
+    color: var(--feature-tabs-accordion-accent-text);
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: left;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.feature-tabs-showcase__accordion-child:hover,
+.feature-tabs-showcase__accordion-child:focus-visible {
+    transform: translateY(-1px);
+    border-color: var(--feature-tabs-accordion-accent-border-strong);
+}
+
+.feature-tabs-showcase__accordion-child.is-active {
+    border-color: var(--feature-tabs-accordion-accent-border-strong);
+    background: color-mix(in srgb, var(--feature-tabs-accordion-accent-soft) 80%, white 20%);
+    color: var(--feature-tabs-accordion-accent-strong);
+}
+
+.feature-tabs-showcase__accordion-child-arrow {
+    display: none;
+    flex-shrink: 0;
+}
+
+.feature-tabs-showcase__accordion-child-label {
+    min-width: 0;
+}
+
+.feature-tabs-showcase__accordion-points {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.feature-tabs-showcase__accordion-point {
+    position: relative;
+    padding-left: 1rem;
+    color: #17394c;
+    font-size: 0.94rem;
+    line-height: 1.55;
+}
+
+.feature-tabs-showcase__accordion-point::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.56rem;
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 999px;
+    background: var(--feature-tabs-accordion-accent);
+}
+
+.feature-tabs-showcase__accordion-metric {
+    color: var(--feature-tabs-accordion-accent-text);
+    font-size: 0.88rem;
+    font-weight: 800;
+    line-height: 1.45;
+}
+
 .feature-tabs-showcase__tabs {
     display: flex;
     flex-wrap: wrap;
@@ -492,12 +833,20 @@ const setActiveChild = (child) => {
     overflow: hidden;
 }
 
+.feature-tabs-showcase__panel--detail {
+    margin-top: 0;
+}
+
 .feature-tabs-showcase__media-shell {
     position: relative;
     min-height: 21rem;
     background:
         radial-gradient(circle at top left, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 28%),
         linear-gradient(135deg, #e7edf2 0%, #d8e2ea 100%);
+}
+
+.feature-tabs-showcase__media-shell--filled {
+    background: linear-gradient(135deg, #dfe8ef 0%, #cfdbe5 100%);
 }
 
 .feature-tabs-showcase__media-glow {
@@ -512,15 +861,11 @@ const setActiveChild = (child) => {
 
 .feature-tabs-showcase__media {
     position: absolute;
-    inset: 1rem 1rem 4.2rem 1rem;
-    width: calc(100% - 2rem);
-    height: calc(100% - 5.2rem);
-    object-fit: contain;
-    object-position: center top;
-    padding: 0.35rem;
-    border-radius: 0.45rem;
-    background: rgba(255, 255, 255, 0.96);
-    box-shadow: 0 26px 44px -34px rgba(15, 23, 42, 0.34);
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
 }
 
 .feature-tabs-showcase__media-fallback {
@@ -580,6 +925,15 @@ const setActiveChild = (child) => {
     font-size: clamp(1.8rem, 1.55rem + 0.6vw, 2.45rem);
     line-height: 1.05;
     letter-spacing: -0.03em;
+}
+
+.feature-tabs-showcase__copy-kicker {
+    margin-bottom: 0.75rem;
+    color: #083a5c;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .feature-tabs-showcase__copy-body {
@@ -723,7 +1077,7 @@ const setActiveChild = (child) => {
 .feature-tabs-showcase__story-avatar {
     width: 3rem;
     height: 3rem;
-    border-radius: 999px;
+    border-radius: 0.125rem;
     object-fit: cover;
     background: #dbeafe;
 }
@@ -749,7 +1103,204 @@ const setActiveChild = (child) => {
     font-size: 0.92rem;
 }
 
+.feature-tabs-showcase--contrast .feature-tabs-showcase__eyebrow {
+    background: rgba(248, 250, 252, 0.12);
+    color: #f8fafc;
+}
+
+.feature-tabs-showcase--contrast .feature-tabs-showcase__title,
+.feature-tabs-showcase--contrast .feature-tabs-showcase__header-link {
+    color: #f8fafc;
+}
+
+.feature-tabs-showcase--contrast .feature-tabs-showcase__subtitle,
+.feature-tabs-showcase--contrast .feature-tabs-showcase__header-link--muted {
+    color: rgba(226, 232, 240, 0.82);
+}
+
+.feature-tabs-showcase--contrast.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-child:hover,
+.feature-tabs-showcase--contrast.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-child:focus-visible {
+    background: rgba(248, 250, 252, 0.08);
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__header {
+    max-width: 46rem;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__header-link {
+    font-size: 0.92rem;
+    text-decoration: underline;
+    text-decoration-thickness: 0.12em;
+    text-underline-offset: 0.18em;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__header-link::after {
+    content: none;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-grid {
+    gap: 1.6rem;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion {
+    gap: 0.7rem;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-item {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-trigger {
+    align-items: center;
+    padding: 1rem 1.15rem;
+    border-radius: var(--page-radius, 4px);
+    background: var(--feature-tabs-accordion-accent);
+    color: #f8fafc;
+    box-shadow: 0 18px 34px -28px color-mix(in srgb, var(--feature-tabs-accordion-accent) 58%, transparent);
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-item.is-active .feature-tabs-showcase__accordion-trigger {
+    background: var(--feature-tabs-accordion-accent-strong);
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-label,
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-heading,
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-icon {
+    color: #f8fafc;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-trigger-copy {
+    display: flex;
+    align-items: center;
+    min-height: 1.5rem;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-label {
+    font-size: clamp(1.12rem, 1rem + 0.25vw, 1.38rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-transform: none;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    margin-top: 0;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-heading {
+    display: none;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-content {
+    gap: 0.8rem;
+    padding: 0.8rem 0.4rem 0.15rem;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-body {
+    padding-left: 0.25rem;
+    font-size: 0.9rem;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-children {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-child {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 0.7rem;
+    padding: 0.7rem 0.75rem;
+    border: 0;
+    border-radius: var(--page-radius, 4px);
+    background: transparent;
+    box-shadow: none;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-child:hover,
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-child:focus-visible {
+    transform: none;
+    background: color-mix(in srgb, var(--feature-tabs-accordion-accent-soft) 65%, white 35%);
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-child.is-active {
+    background: color-mix(in srgb, var(--feature-tabs-accordion-accent-soft) 82%, white 18%);
+    color: var(--feature-tabs-accordion-accent-strong);
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-child-arrow {
+    display: inline-flex;
+    color: var(--feature-tabs-accordion-accent);
+    font-size: 0.9rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-point {
+    padding-left: 1.2rem;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__panel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.2rem;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__media-shell {
+    min-height: 22rem;
+    overflow: hidden;
+    border: 1px solid rgba(8, 58, 92, 0.08);
+    border-radius: var(--page-radius, 4px);
+    box-shadow: 0 26px 48px -34px rgba(15, 23, 42, 0.34);
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__media-glow {
+    display: none;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__copy {
+    gap: 1rem;
+    padding: 0;
+    background: transparent;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__copy-title {
+    font-size: clamp(1.7rem, 1.45rem + 0.5vw, 2.15rem);
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__copy-body {
+    margin-top: 0.7rem;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__cta {
+    margin-top: 1rem;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__details {
+    gap: 0.8rem;
+}
+
+.feature-tabs-showcase--workflow .feature-tabs-showcase__story {
+    padding-top: 0.9rem;
+}
+
 @media (min-width: 1024px) {
+    .feature-tabs-showcase__accordion-grid {
+        grid-template-columns: minmax(18rem, 0.78fr) minmax(0, 1.12fr);
+        gap: 1.5rem;
+    }
+
+    .feature-tabs-showcase__accordion-grid--collapsed {
+        grid-template-columns: minmax(18rem, 0.78fr) minmax(0, 1.12fr);
+    }
+
     .feature-tabs-showcase__panel {
         grid-template-columns: minmax(0, 0.94fr) minmax(0, 1fr);
     }
@@ -757,6 +1308,22 @@ const setActiveChild = (child) => {
     .feature-tabs-showcase__media-shell {
         min-height: 28rem;
     }
+
+    .feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-grid {
+        grid-template-columns: minmax(18rem, 0.72fr) minmax(0, 1fr);
+        gap: 2rem;
+    }
+
+    .feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-grid--collapsed {
+        grid-template-columns: minmax(18rem, 0.72fr) minmax(0, 1fr);
+    }
+
+    .feature-tabs-showcase--workflow .feature-tabs-showcase__panel {
+        align-content: start;
+    }
+
+    .feature-tabs-showcase--workflow .feature-tabs-showcase__media-shell {
+        min-height: 26rem;
+    }
 }
 </style>
-

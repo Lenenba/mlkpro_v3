@@ -1710,6 +1710,14 @@
         "left": "Image a gauche",
         "right": "Image a droite"
       },
+      "showcase_divider_styles": {
+        "diagonal": "Oblique",
+        "vertical": "Verticale",
+        "round": "Arrondie",
+        "curve": "Courbe",
+        "notch": "Pointe",
+        "glow": "Eclairee"
+      },
       "densities": {
         "compact": "Compact",
         "normal": "Normal",
@@ -1812,6 +1820,7 @@
         "showcase_badge_label": "Label badge",
         "showcase_badge_value": "Valeur badge",
         "showcase_badge_note": "Note badge",
+        "showcase_divider_style": "Forme de separation showcase",
         "showcase_floating_image_url": "URL image flottante",
         "showcase_floating_image_alt": "Texte alternatif image flottante",
         "image_url": "URL image",
@@ -1881,6 +1890,11 @@
         "subtitle": "Ajoutez les groupes de l'accordeon a gauche et le contenu detaille affiche a droite.",
         "add_tab": "Ajouter un onglet",
         "tab_label": "Onglet {number}",
+        "style_label": "Style d'accordeon",
+        "styles": {
+          "editorial": "Editorial + panneau media",
+          "workflow": "Workflow empile"
+        },
         "font_size_label": "Taille des titres d'accordeon (px)",
         "icon_auto": "Selectionner une icone",
         "children_title": "Items cliquables",
@@ -6942,9 +6956,9 @@
       "secondary": "Se connecter"
     },
     "images": {
-      "hero_alt": "Aperçu du tableau de bord",
-      "workflow_alt": "Aperçu du workflow",
-      "mobile_alt": "Aperçu d’une checklist mobile"
+      "hero_alt": "Équipe de chantier en coordination sur site",
+      "workflow_alt": "Professionnels qui relisent des plans sur un chantier",
+      "mobile_alt": "Technicien terrain avec checklist sur place"
     },
     "footer": {
       "terms": "Conditions d’utilisation",

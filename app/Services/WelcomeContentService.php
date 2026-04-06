@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\PlatformSetting;
+use App\Support\WelcomeStockImages;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -132,7 +133,11 @@ class WelcomeContentService
     {
         $locale = $this->normalizeLocale($locale);
 
-        return $this->withLocale($locale, function () {
+        return $this->withLocale($locale, function () use ($locale) {
+            $heroSlides = WelcomeStockImages::heroSlides($locale);
+            $heroImage = WelcomeStockImages::heroImage($locale);
+            $workflowImage = WelcomeStockImages::workflowImage($locale);
+            $fieldImage = WelcomeStockImages::fieldImage($locale);
             $heroStats = [
                 [
                     'value' => '8',
@@ -289,10 +294,10 @@ class WelcomeContentService
                     'stats' => $heroStats,
                     'highlights' => $heroHighlights,
                     'preview_cards' => $heroPreview,
-                    'hero_images' => [],
-                    'image_url' => '/images/landing/hero-dashboard.svg',
+                    'hero_images' => $heroSlides,
+                    'image_url' => $heroImage['image_url'],
                     'image_path' => null,
-                    'image_alt' => (string) trans('welcome.images.hero_alt'),
+                    'image_alt' => $heroImage['image_alt'],
                 ],
                 'trust' => [
                     'enabled' => true,
@@ -324,9 +329,9 @@ class WelcomeContentService
                     'title' => (string) trans('welcome.workflow.title'),
                     'subtitle' => (string) trans('welcome.workflow.subtitle'),
                     'steps' => $workflowSteps,
-                    'image_url' => '/images/landing/workflow-board.svg',
+                    'image_url' => $workflowImage['image_url'],
                     'image_path' => null,
-                    'image_alt' => (string) trans('welcome.images.workflow_alt'),
+                    'image_alt' => $workflowImage['image_alt'],
                 ],
                 'field' => [
                     'enabled' => true,
@@ -335,9 +340,9 @@ class WelcomeContentService
                     'title' => (string) trans('welcome.field.title'),
                     'subtitle' => (string) trans('welcome.field.subtitle'),
                     'items' => $fieldItems,
-                    'image_url' => '/images/landing/mobile-field.svg',
+                    'image_url' => $fieldImage['image_url'],
                     'image_path' => null,
-                    'image_alt' => (string) trans('welcome.images.mobile_alt'),
+                    'image_alt' => $fieldImage['image_alt'],
                 ],
                 'cta' => [
                     'enabled' => true,

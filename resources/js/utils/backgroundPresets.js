@@ -33,6 +33,107 @@ export const resolveBackgroundPreset = (value) => (
     backgroundPresetMap[String(value || '').trim()] || ''
 );
 
+const parseHexColor = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw.startsWith('#')) {
+        return null;
+    }
+
+    let hex = raw.slice(1);
+    if (hex.length === 3 || hex.length === 4) {
+        hex = hex
+            .slice(0, 3)
+            .split('')
+            .map((char) => char + char)
+            .join('');
+    } else if (hex.length === 6 || hex.length === 8) {
+        hex = hex.slice(0, 6);
+    } else {
+        return null;
+    }
+
+    const channels = hex.match(/.{2}/g)?.map((channel) => Number.parseInt(channel, 16));
+    if (!channels || channels.length !== 3 || channels.some((channel) => Number.isNaN(channel))) {
+        return null;
+    }
+
+    return channels;
+};
+
+const parseRgbColor = (value) => {
+    const match = String(value || '').trim().match(/^rgba?\(([^)]+)\)$/i);
+    if (!match) {
+        return null;
+    }
+
+    const channels = match[1]
+        .split(',')
+        .slice(0, 3)
+        .map((channel) => Number.parseFloat(channel.trim()));
+
+    if (channels.length !== 3 || channels.some((channel) => !Number.isFinite(channel))) {
+        return null;
+    }
+
+    return channels.map((channel) => Math.max(0, Math.min(255, channel)));
+};
+
+const relativeLuminance = ([red, green, blue]) => {
+    const normalized = [red, green, blue].map((channel) => channel / 255);
+    const linear = normalized.map((channel) => (
+        channel <= 0.03928
+            ? channel / 12.92
+            : ((channel + 0.055) / 1.055) ** 2.4
+    ));
+
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+};
+
+export const resolveBackgroundTone = (source = {}) => {
+    if (resolveBackgroundPreset(source?.background_preset)) {
+        return 'dark';
+    }
+
+    const color = String(source?.background_color || '').trim();
+    const channels = parseHexColor(color) || parseRgbColor(color);
+    if (!channels) {
+        return null;
+    }
+
+    return relativeLuminance(channels) > 0.58 ? 'light' : 'dark';
+};
+
+export const buildBackgroundToneStyle = (source = {}) => {
+    const tone = resolveBackgroundTone(source);
+    if (!tone) {
+        return {};
+    }
+
+    if (tone === 'dark') {
+        return {
+            '--showcase-copy-text': '#f8fafc',
+            '--showcase-copy-muted': 'rgba(226, 232, 240, 0.82)',
+            '--showcase-copy-soft': 'rgba(248, 250, 252, 0.10)',
+            '--showcase-copy-soft-border': 'rgba(248, 250, 252, 0.14)',
+            '--showcase-copy-kicker-text': '#f8fafc',
+            '--showcase-copy-link': '#f8fafc',
+            '--showcase-copy-link-muted': 'rgba(226, 232, 240, 0.82)',
+            '--showcase-media-tag-text': '#ffffff',
+        };
+    }
+
+    return {
+        '--showcase-copy-text': 'var(--page-text, #0f172a)',
+        '--showcase-copy-muted': 'var(--page-muted, #64748b)',
+        '--showcase-copy-soft': 'rgba(15, 23, 42, 0.05)',
+        '--showcase-copy-soft-border': 'rgba(15, 23, 42, 0.08)',
+        '--showcase-copy-kicker-text': 'var(--page-primary, #16a34a)',
+        '--showcase-copy-link': 'var(--page-primary, #16a34a)',
+        '--showcase-copy-link-muted': 'var(--page-muted, #64748b)',
+        '--showcase-media-tag-text': '#ffffff',
+    };
+};
+
 export const resolveBackgroundValue = (source = {}) => {
     const presetValue = resolveBackgroundPreset(source?.background_preset);
     if (presetValue) {

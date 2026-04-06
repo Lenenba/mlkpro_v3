@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /c/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Services/*.php)"
+    ]
+  }
+}

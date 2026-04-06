@@ -1710,6 +1710,14 @@
         "left": "Image left",
         "right": "Image right"
       },
+      "showcase_divider_styles": {
+        "diagonal": "Diagonal",
+        "vertical": "Vertical",
+        "round": "Round",
+        "curve": "Curve",
+        "notch": "Notch",
+        "glow": "Glow"
+      },
       "densities": {
         "compact": "Compact",
         "normal": "Normal",
@@ -1812,6 +1820,7 @@
         "showcase_badge_label": "Badge label",
         "showcase_badge_value": "Badge highlight",
         "showcase_badge_note": "Badge note",
+        "showcase_divider_style": "Showcase divider shape",
         "showcase_floating_image_url": "Floating image URL",
         "showcase_floating_image_alt": "Floating image alt text",
         "image_url": "Image URL",
@@ -1881,6 +1890,11 @@
         "subtitle": "Add the accordion groups on the left and the detailed content shown on the right.",
         "add_tab": "Add tab",
         "tab_label": "Tab {number}",
+        "style_label": "Accordion style",
+        "styles": {
+          "editorial": "Editorial + media panel",
+          "workflow": "Stacked workflow"
+        },
         "font_size_label": "Accordion title size (px)",
         "icon_auto": "Select an icon",
         "children_title": "Clickable items",
@@ -6942,9 +6956,9 @@
       "secondary": "Sign in"
     },
     "images": {
-      "hero_alt": "Dashboard preview",
-      "workflow_alt": "Workflow board preview",
-      "mobile_alt": "Mobile checklist preview"
+      "hero_alt": "Field crew coordinating on site",
+      "workflow_alt": "Professionals reviewing plans on a job site",
+      "mobile_alt": "Field technician holding an on-site checklist"
     },
     "footer": {
       "terms": "Terms and conditions",

@@ -8,6 +8,7 @@ use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Services\MegaMenus\MegaMenuManagerService;
 use App\Services\PublicLeadFormUrlService;
+use App\Support\PublicPageStockImages;
 use Illuminate\Database\Seeder;
 
 class MegaMenuSeeder extends Seeder
@@ -189,11 +190,13 @@ class MegaMenuSeeder extends Seeder
                 'fr' => [
                     'page_title' => $product['title'],
                     'page_subtitle' => $product['fr']['subtitle'],
+                    'header' => $this->pageHeader($product['slug'], 'fr'),
                     'sections' => $this->localizedProductSections($product, 'fr'),
                 ],
                 'en' => [
                     'page_title' => $product['title'],
                     'page_subtitle' => $product['en']['subtitle'],
+                    'header' => $this->pageHeader($product['slug'], 'en'),
                     'sections' => $this->localizedProductSections($product, 'en'),
                 ],
             ],
@@ -210,8 +213,9 @@ class MegaMenuSeeder extends Seeder
     {
         $copy = $product[$locale];
         $pricingHref = $product['pricing_href'];
-        $imageUrl = $product['image_url'];
-        $imageAlt = $locale === 'fr' ? $product['image_alt_fr'] : $product['image_alt_en'];
+        $overviewVisual = $this->stockImage($product['slug'], $locale, 'overview');
+        $workflowVisual = $this->stockImage($product['slug'], $locale, 'workflow');
+        $pagesVisual = $this->stockImage($product['slug'], $locale, 'pages');
 
         $labels = $locale === 'fr'
             ? [
@@ -236,8 +240,8 @@ class MegaMenuSeeder extends Seeder
                 title: $copy['overview_title'],
                 body: $copy['overview_body'],
                 items: $copy['overview_items'],
-                imageUrl: $imageUrl,
-                imageAlt: $imageAlt,
+                imageUrl: $overviewVisual['image_url'],
+                imageAlt: $overviewVisual['image_alt'],
                 primaryLabel: $labels['primary_label'],
                 primaryHref: $pricingHref,
                 secondaryLabel: $labels['secondary_label'],
@@ -249,8 +253,8 @@ class MegaMenuSeeder extends Seeder
                 title: $copy['workflow_title'],
                 body: $copy['workflow_body'],
                 items: $copy['workflow_items'],
-                imageUrl: $imageUrl,
-                imageAlt: $imageAlt,
+                imageUrl: $workflowVisual['image_url'],
+                imageAlt: $workflowVisual['image_alt'],
                 backgroundColor: '#f8fafc'
             ),
             $this->pageSection(
@@ -259,8 +263,8 @@ class MegaMenuSeeder extends Seeder
                 title: $copy['pages_title'],
                 body: $copy['pages_body'],
                 items: $copy['pages_items'],
-                imageUrl: $imageUrl,
-                imageAlt: $imageAlt,
+                imageUrl: $pagesVisual['image_url'],
+                imageAlt: $pagesVisual['image_alt'],
                 primaryLabel: $labels['secondary_label'],
                 primaryHref: '/demo',
                 secondaryLabel: $labels['primary_label'],
@@ -280,11 +284,13 @@ class MegaMenuSeeder extends Seeder
                 'fr' => [
                     'page_title' => $solution['title'],
                     'page_subtitle' => $solution['fr']['subtitle'],
+                    'header' => $this->pageHeader($solution['slug'], 'fr'),
                     'sections' => $this->localizedSolutionSections($solution, 'fr'),
                 ],
                 'en' => [
                     'page_title' => $solution['en']['title'],
                     'page_subtitle' => $solution['en']['subtitle'],
+                    'header' => $this->pageHeader($solution['slug'], 'en'),
                     'sections' => $this->localizedSolutionSections($solution, 'en'),
                 ],
             ],
@@ -300,7 +306,9 @@ class MegaMenuSeeder extends Seeder
     private function localizedSolutionSections(array $solution, string $locale): array
     {
         $copy = $solution[$locale];
-        $imageAlt = $locale === 'fr' ? $solution['image_alt_fr'] : $solution['image_alt_en'];
+        $overviewVisual = $this->stockImage($solution['slug'], $locale, 'overview');
+        $workflowVisual = $this->stockImage($solution['slug'], $locale, 'workflow');
+        $modulesVisual = $this->stockImage($solution['slug'], $locale, 'modules');
 
         $labels = $locale === 'fr'
             ? [
@@ -325,8 +333,8 @@ class MegaMenuSeeder extends Seeder
                 title: $copy['overview_title'],
                 body: $copy['overview_body'],
                 items: $copy['overview_items'],
-                imageUrl: $solution['image_url'],
-                imageAlt: $imageAlt,
+                imageUrl: $overviewVisual['image_url'],
+                imageAlt: $overviewVisual['image_alt'],
                 primaryLabel: $labels['primary_label'],
                 primaryHref: '/pricing',
                 secondaryLabel: $labels['secondary_label'],
@@ -338,8 +346,8 @@ class MegaMenuSeeder extends Seeder
                 title: $copy['workflow_title'],
                 body: $copy['workflow_body'],
                 items: $copy['workflow_items'],
-                imageUrl: $solution['image_url'],
-                imageAlt: $imageAlt,
+                imageUrl: $workflowVisual['image_url'],
+                imageAlt: $workflowVisual['image_alt'],
                 backgroundColor: '#f8fafc'
             ),
             $this->pageSection(
@@ -348,8 +356,8 @@ class MegaMenuSeeder extends Seeder
                 title: $copy['modules_title'],
                 body: $copy['modules_body'],
                 items: $copy['modules_items'],
-                imageUrl: $solution['image_url'],
-                imageAlt: $imageAlt
+                imageUrl: $modulesVisual['image_url'],
+                imageAlt: $modulesVisual['image_alt']
             ),
         ];
     }
@@ -427,11 +435,15 @@ class MegaMenuSeeder extends Seeder
      */
     private function partnersPageContent(): array
     {
+        $partnersFr = $this->stockImage('partners', 'fr', 'overview');
+        $partnersEn = $this->stockImage('partners', 'en', 'overview');
+
         return [
             'locales' => [
                 'fr' => [
                     'page_title' => 'Partenaires',
                     'page_subtitle' => '<p>Explorez l\'ecosysteme de partenaires et d\'integrations autour de la plateforme.</p>',
+                    'header' => $this->pageHeader('partners', 'fr'),
                     'sections' => [
                         $this->pageSection(
                             id: 'partners-overview',
@@ -443,8 +455,8 @@ class MegaMenuSeeder extends Seeder
                                 'Integrations metier et passerelles de paiement',
                                 'Partenaires de croissance et d\'acquisition',
                             ],
-                            imageUrl: '/images/mega-menu/platform-command-center.svg',
-                            imageAlt: 'Illustration des partenaires plateforme',
+                            imageUrl: $partnersFr['image_url'],
+                            imageAlt: $partnersFr['image_alt'],
                             primaryLabel: 'Voir les tarifs',
                             primaryHref: '/pricing',
                             secondaryLabel: 'Voir la demo',
@@ -455,6 +467,7 @@ class MegaMenuSeeder extends Seeder
                 'en' => [
                     'page_title' => 'Partners',
                     'page_subtitle' => '<p>Explore the partner and integration ecosystem around the platform.</p>',
+                    'header' => $this->pageHeader('partners', 'en'),
                     'sections' => [
                         $this->pageSection(
                             id: 'partners-overview',
@@ -466,8 +479,8 @@ class MegaMenuSeeder extends Seeder
                                 'Business integrations and payment gateways',
                                 'Growth and acquisition partners',
                             ],
-                            imageUrl: '/images/mega-menu/platform-command-center.svg',
-                            imageAlt: 'Platform partners illustration',
+                            imageUrl: $partnersEn['image_url'],
+                            imageAlt: $partnersEn['image_alt'],
                             primaryLabel: 'View pricing',
                             primaryHref: '/pricing',
                             secondaryLabel: 'View demo',
@@ -487,11 +500,17 @@ class MegaMenuSeeder extends Seeder
      */
     private function industryPageContent(array $industry): array
     {
+        $industryFrOverview = $this->stockImage($industry['slug'], 'fr', 'overview');
+        $industryFrWorkflow = $this->stockImage($industry['slug'], 'fr', 'workflow');
+        $industryEnOverview = $this->stockImage($industry['slug'], 'en', 'overview');
+        $industryEnWorkflow = $this->stockImage($industry['slug'], 'en', 'workflow');
+
         return [
             'locales' => [
                 'fr' => [
                     'page_title' => $industry['title'],
                     'page_subtitle' => $industry['fr']['subtitle'],
+                    'header' => $this->pageHeader($industry['slug'], 'fr'),
                     'sections' => [
                         $this->pageSection(
                             id: 'industry-overview',
@@ -499,8 +518,8 @@ class MegaMenuSeeder extends Seeder
                             title: $industry['fr']['overview_title'],
                             body: $industry['fr']['overview_body'],
                             items: $industry['fr']['overview_items'],
-                            imageUrl: $industry['image_url'],
-                            imageAlt: $industry['image_alt_fr'],
+                            imageUrl: $industryFrOverview['image_url'],
+                            imageAlt: $industryFrOverview['image_alt'],
                             primaryLabel: 'Voir les produits',
                             primaryHref: '/pricing',
                             secondaryLabel: 'Contact us',
@@ -513,8 +532,8 @@ class MegaMenuSeeder extends Seeder
                             title: $industry['fr']['workflow_title'],
                             body: $industry['fr']['workflow_body'],
                             items: $industry['fr']['workflow_items'],
-                            imageUrl: $industry['image_url'],
-                            imageAlt: $industry['image_alt_fr'],
+                            imageUrl: $industryFrWorkflow['image_url'],
+                            imageAlt: $industryFrWorkflow['image_alt'],
                             primaryLabel: '',
                             primaryHref: '',
                             secondaryLabel: '',
@@ -526,6 +545,7 @@ class MegaMenuSeeder extends Seeder
                 'en' => [
                     'page_title' => $industry['title'],
                     'page_subtitle' => $industry['en']['subtitle'],
+                    'header' => $this->pageHeader($industry['slug'], 'en'),
                     'sections' => [
                         $this->pageSection(
                             id: 'industry-overview',
@@ -533,8 +553,8 @@ class MegaMenuSeeder extends Seeder
                             title: $industry['en']['overview_title'],
                             body: $industry['en']['overview_body'],
                             items: $industry['en']['overview_items'],
-                            imageUrl: $industry['image_url'],
-                            imageAlt: $industry['image_alt_en'],
+                            imageUrl: $industryEnOverview['image_url'],
+                            imageAlt: $industryEnOverview['image_alt'],
                             primaryLabel: 'View products',
                             primaryHref: '/pricing',
                             secondaryLabel: 'Contact us',
@@ -547,8 +567,8 @@ class MegaMenuSeeder extends Seeder
                             title: $industry['en']['workflow_title'],
                             body: $industry['en']['workflow_body'],
                             items: $industry['en']['workflow_items'],
-                            imageUrl: $industry['image_url'],
-                            imageAlt: $industry['image_alt_en'],
+                            imageUrl: $industryEnWorkflow['image_url'],
+                            imageAlt: $industryEnWorkflow['image_alt'],
                             primaryLabel: '',
                             primaryHref: '',
                             secondaryLabel: '',
@@ -571,12 +591,17 @@ class MegaMenuSeeder extends Seeder
         $formUrl = $this->contactFormUrl();
         $embeddedFormUrl = $this->contactFormUrl(['embed' => 1]);
         $hasEmbeddedForm = $formUrl !== '';
+        $contactFr = $this->stockImage('contact-us', 'fr', 'overview');
+        $contactFrDetail = $this->stockImage('contact-us', 'fr', 'details');
+        $contactEn = $this->stockImage('contact-us', 'en', 'overview');
+        $contactEnDetail = $this->stockImage('contact-us', 'en', 'details');
 
         return [
             'locales' => [
                 'fr' => [
                     'page_title' => 'Contact us',
                     'page_subtitle' => '<p>Parlez-nous de votre contexte, de votre equipe et de votre mode operatoire. Le formulaire integre reste modifiable depuis l\'admin Pages.</p>',
+                    'header' => $this->pageHeader('contact-us', 'fr'),
                     'sections' => [
                         $this->pageSection(
                             id: 'contact-overview',
@@ -589,8 +614,8 @@ class MegaMenuSeeder extends Seeder
                                 'Possibilite d\'adapter le message par langue',
                                 'Page publique coherente avec le reste du site',
                             ],
-                            imageUrl: '/images/mega-menu/platform-command-center.svg',
-                            imageAlt: 'Illustration de contact plateforme',
+                            imageUrl: $contactFr['image_url'],
+                            imageAlt: $contactFr['image_alt'],
                             primaryLabel: $hasEmbeddedForm ? 'Ouvrir le formulaire' : '',
                             primaryHref: $formUrl,
                             secondaryLabel: 'Voir les tarifs',
@@ -609,8 +634,8 @@ class MegaMenuSeeder extends Seeder
                                 'Reponse sous un jour ouvrable',
                                 'Bloc complet editable depuis l\'admin Pages',
                             ],
-                            imageUrl: '/images/mega-menu/contact-map.svg',
-                            imageAlt: 'Carte de localisation du point de contact',
+                            imageUrl: $contactFrDetail['image_url'],
+                            imageAlt: $contactFrDetail['image_alt'],
                             primaryLabel: $hasEmbeddedForm ? 'Ouvrir le formulaire' : '',
                             primaryHref: $formUrl,
                             secondaryLabel: '',
@@ -634,6 +659,7 @@ class MegaMenuSeeder extends Seeder
                 'en' => [
                     'page_title' => 'Contact us',
                     'page_subtitle' => '<p>Tell us about your team, your workflow, and your business model. The embedded form stays editable from the Pages admin.</p>',
+                    'header' => $this->pageHeader('contact-us', 'en'),
                     'sections' => [
                         $this->pageSection(
                             id: 'contact-overview',
@@ -646,8 +672,8 @@ class MegaMenuSeeder extends Seeder
                                 'Localized messaging per language',
                                 'A public page aligned with the rest of the site',
                             ],
-                            imageUrl: '/images/mega-menu/platform-command-center.svg',
-                            imageAlt: 'Platform contact illustration',
+                            imageUrl: $contactEn['image_url'],
+                            imageAlt: $contactEn['image_alt'],
                             primaryLabel: $hasEmbeddedForm ? 'Open the form' : '',
                             primaryHref: $formUrl,
                             secondaryLabel: 'View pricing',
@@ -666,8 +692,8 @@ class MegaMenuSeeder extends Seeder
                                 'Reply within one business day',
                                 'Fully editable block from the Pages admin',
                             ],
-                            imageUrl: '/images/mega-menu/contact-map.svg',
-                            imageAlt: 'Map view for the contact point',
+                            imageUrl: $contactEnDetail['image_url'],
+                            imageAlt: $contactEnDetail['image_alt'],
                             primaryLabel: $hasEmbeddedForm ? 'Open the form' : '',
                             primaryHref: $formUrl,
                             secondaryLabel: '',
@@ -735,9 +761,9 @@ class MegaMenuSeeder extends Seeder
                                 $this->pagePath($productPages['sales-crm']),
                                 'Requests, quotes, customers, and pipelines.',
                                 'Capture demand, qualify opportunities, and move faster from first request to approved quote.',
-                                '/images/mega-menu/sales-crm-suite.svg',
-                                'Sales and CRM suite illustration',
-                                'Sales and CRM suite',
+                                $this->stockImage('sales-crm', 'en')['image_url'],
+                                $this->stockImage('sales-crm', 'en')['image_alt'],
+                                'Sales and CRM',
                                 'Popular'
                             ),
                             $this->showcaseProduct(
@@ -745,9 +771,9 @@ class MegaMenuSeeder extends Seeder
                                 $this->pagePath($productPages['reservations']),
                                 'Bookings, availability, and self-service scheduling.',
                                 'Let customers book online while teams keep live control over availability, queues, and confirmations.',
-                                '/images/mega-menu/reservations-suite.svg',
-                                'Reservations suite illustration',
-                                'Reservations suite',
+                                $this->stockImage('reservations', 'en')['image_url'],
+                                $this->stockImage('reservations', 'en')['image_alt'],
+                                'Reservations',
                                 'Core'
                             ),
                             $this->showcaseProduct(
@@ -755,27 +781,27 @@ class MegaMenuSeeder extends Seeder
                                 $this->pagePath($productPages['operations']),
                                 'Scheduling, jobs, tasks, and dispatch.',
                                 'Coordinate field execution, assignments, proof of work, and daily follow-up from one operational cockpit.',
-                                '/images/mega-menu/operations-suite.svg',
-                                'Operations suite dashboard illustration',
-                                'Operations suite dashboard'
+                                $this->stockImage('operations', 'en')['image_url'],
+                                $this->stockImage('operations', 'en')['image_alt'],
+                                'Operations'
                             ),
                             $this->showcaseProduct(
                                 'Commerce',
                                 $this->pagePath($productPages['commerce']),
                                 'Catalog, storefront, invoices, and payments.',
                                 'Sell products and services, invoice customers, and collect payments without fragmenting the journey.',
-                                '/images/mega-menu/commerce-suite.svg',
-                                'Commerce suite hero illustration',
-                                'Commerce suite hero'
+                                $this->stockImage('commerce', 'en')['image_url'],
+                                $this->stockImage('commerce', 'en')['image_alt'],
+                                'Commerce'
                             ),
                             $this->showcaseProduct(
                                 'Marketing & Loyalty',
                                 $this->pagePath($productPages['marketing-loyalty']),
                                 'Campaigns, segments, loyalty, and VIP journeys.',
                                 'Build retention programs and targeted follow-up using the same customer context as sales and operations.',
-                                '/images/mega-menu/marketing-loyalty-suite.svg',
-                                'Growth automation illustration',
-                                'Growth automation',
+                                $this->stockImage('marketing-loyalty', 'en')['image_url'],
+                                $this->stockImage('marketing-loyalty', 'en')['image_alt'],
+                                'Marketing and Loyalty',
                                 'Growth'
                             ),
                             $this->showcaseProduct(
@@ -783,9 +809,9 @@ class MegaMenuSeeder extends Seeder
                                 $this->pagePath($productPages['ai-automation']),
                                 'Assistant, drafts, summaries, and suggested actions.',
                                 'Embed AI into the workflow your teams already use instead of adding another disconnected tool.',
-                                '/images/mega-menu/ai-automation-suite.svg',
-                                'AI automation hero illustration',
-                                'AI automation hero',
+                                $this->stockImage('ai-automation', 'en')['image_url'],
+                                $this->stockImage('ai-automation', 'en')['image_alt'],
+                                'AI and Automation',
                                 'AI'
                             ),
                             $this->showcaseProduct(
@@ -793,9 +819,9 @@ class MegaMenuSeeder extends Seeder
                                 $this->pagePath($productPages['command-center']),
                                 'Cross-module visibility and leadership overview.',
                                 'Get one executive-level view across revenue, operations, and customer activity with a shared command center.',
-                                '/images/mega-menu/platform-command-center.svg',
-                                'Platform command center illustration',
-                                'Platform command center'
+                                $this->stockImage('command-center', 'en')['image_url'],
+                                $this->stockImage('command-center', 'en')['image_alt'],
+                                'Command Center'
                             ),
                         ]
                     ),
@@ -1046,6 +1072,30 @@ class MegaMenuSeeder extends Seeder
     }
 
     /**
+     * @return array{background_type:string,background_color:string,background_image_url:string,background_image_alt:string,alignment:string}
+     */
+    private function pageHeader(string $key, string $locale): array
+    {
+        $visual = $this->stockImage($key, $locale, 'header');
+
+        return [
+            'background_type' => 'image',
+            'background_color' => '',
+            'background_image_url' => $visual['image_url'],
+            'background_image_alt' => $visual['image_alt'],
+            'alignment' => 'center',
+        ];
+    }
+
+    /**
+     * @return array{image_alt:string,image_url:string}
+     */
+    private function stockImage(string $key, string $locale, string $slot = 'header'): array
+    {
+        return PublicPageStockImages::slot($key, $slot, $locale);
+    }
+
+    /**
      * @param  array<string, mixed>  $content
      */
     private function upsertPage(string $slug, string $title, array $content, ?int $userId): PlatformPage
@@ -1072,9 +1122,9 @@ class MegaMenuSeeder extends Seeder
             'plumbing' => [
                 'slug' => 'industry-plumbing',
                 'title' => 'Plomberie',
-                'image_url' => '/images/mega-menu/operations-suite.svg',
-                'image_alt_fr' => 'Illustration industrie plomberie',
-                'image_alt_en' => 'Plumbing industry illustration',
+                'image_url' => $this->stockImage('industry-plumbing', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('industry-plumbing', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('industry-plumbing', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Gerez demandes, devis, interventions et paiements dans un flux adapte aux equipes de plomberie.</p>',
                     'overview_title' => 'Un systeme simple pour la plomberie residentielle et commerciale',
@@ -1117,9 +1167,9 @@ class MegaMenuSeeder extends Seeder
             'hvac' => [
                 'slug' => 'industry-hvac',
                 'title' => 'HVAC / Climatisation',
-                'image_url' => '/images/mega-menu/operations-suite.svg',
-                'image_alt_fr' => 'Illustration industrie HVAC',
-                'image_alt_en' => 'HVAC industry illustration',
+                'image_url' => $this->stockImage('industry-hvac', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('industry-hvac', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('industry-hvac', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Coordonnez demandes, maintenance, interventions et facturation pour les equipes HVAC.</p>',
                     'overview_title' => 'Un flux operationnel pour les equipes climatisation et chauffage',
@@ -1162,9 +1212,9 @@ class MegaMenuSeeder extends Seeder
             'electrical' => [
                 'slug' => 'industry-electrical',
                 'title' => 'Electricite',
-                'image_url' => '/images/mega-menu/sales-crm-suite.svg',
-                'image_alt_fr' => 'Illustration industrie electricite',
-                'image_alt_en' => 'Electrical industry illustration',
+                'image_url' => $this->stockImage('industry-electrical', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('industry-electrical', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('industry-electrical', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Suivez devis, interventions et execution terrain avec une vue claire sur chaque dossier electrique.</p>',
                     'overview_title' => 'Une meilleure coordination pour les equipes electriques',
@@ -1207,9 +1257,9 @@ class MegaMenuSeeder extends Seeder
             'cleaning' => [
                 'slug' => 'industry-cleaning',
                 'title' => 'Nettoyage',
-                'image_url' => '/images/mega-menu/marketing-loyalty-suite.svg',
-                'image_alt_fr' => 'Illustration industrie nettoyage',
-                'image_alt_en' => 'Cleaning industry illustration',
+                'image_url' => $this->stockImage('industry-cleaning', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('industry-cleaning', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('industry-cleaning', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Organisez les equipes, les jobs recurrents et la relation client pour les entreprises de nettoyage.</p>',
                     'overview_title' => 'Un meilleur pilotage des operations recurrentes',
@@ -1252,9 +1302,9 @@ class MegaMenuSeeder extends Seeder
             'salon-beauty' => [
                 'slug' => 'industry-salon-beauty',
                 'title' => 'Salon & beaute',
-                'image_url' => '/images/mega-menu/reservations-suite.svg',
-                'image_alt_fr' => 'Illustration industrie salon et beaute',
-                'image_alt_en' => 'Salon and beauty industry illustration',
+                'image_url' => $this->stockImage('industry-salon-beauty', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('industry-salon-beauty', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('industry-salon-beauty', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Reservations, rappels, no-show fees et fidelisation dans une experience pensee pour les salons.</p>',
                     'overview_title' => 'Une experience fluide pour les businesses a rendez-vous',
@@ -1297,9 +1347,9 @@ class MegaMenuSeeder extends Seeder
             'restaurant' => [
                 'slug' => 'industry-restaurant',
                 'title' => 'Restaurant',
-                'image_url' => '/images/mega-menu/reservations-suite.svg',
-                'image_alt_fr' => 'Illustration industrie restaurant',
-                'image_alt_en' => 'Restaurant industry illustration',
+                'image_url' => $this->stockImage('industry-restaurant', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('industry-restaurant', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('industry-restaurant', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Reservations, file d\'attente, check-in et experience salle dans un parcours plus fluide.</p>',
                     'overview_title' => 'Une meilleure orchestration pour les restaurants',
@@ -1351,9 +1401,9 @@ class MegaMenuSeeder extends Seeder
             'field-services' => [
                 'slug' => 'solution-field-services',
                 'title' => 'Services terrain',
-                'image_url' => '/images/mega-menu/operations-suite.svg',
-                'image_alt_fr' => 'Illustration de la solution services terrain',
-                'image_alt_en' => 'Field services solution illustration',
+                'image_url' => $this->stockImage('solution-field-services', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('solution-field-services', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('solution-field-services', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Coordonnez la planification, l\'execution et la preuve de travail dans une seule solution pour les equipes terrain.</p>',
                     'overview_title' => 'Une solution complete pour les operations terrain',
@@ -1417,9 +1467,9 @@ class MegaMenuSeeder extends Seeder
             'reservations-queues' => [
                 'slug' => 'solution-reservations-queues',
                 'title' => 'Reservations & files',
-                'image_url' => '/images/mega-menu/reservations-suite.svg',
-                'image_alt_fr' => 'Illustration de la solution reservations et files',
-                'image_alt_en' => 'Reservations and queues solution illustration',
+                'image_url' => $this->stockImage('solution-reservations-queues', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('solution-reservations-queues', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('solution-reservations-queues', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Transformez la reservation, l\'accueil et la file d\'attente en une experience fluide et visible en temps reel.</p>',
                     'overview_title' => 'Une solution pour gerer le flux client avant et pendant la visite',
@@ -1483,9 +1533,9 @@ class MegaMenuSeeder extends Seeder
             'sales-quoting' => [
                 'slug' => 'solution-sales-quoting',
                 'title' => 'Vente & devis',
-                'image_url' => '/images/mega-menu/sales-crm-suite.svg',
-                'image_alt_fr' => 'Illustration de la solution vente et devis',
-                'image_alt_en' => 'Sales and quoting solution illustration',
+                'image_url' => $this->stockImage('solution-sales-quoting', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('solution-sales-quoting', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('solution-sales-quoting', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Captez les demandes, preparez les devis et suivez les opportunites dans un seul flux commercial.</p>',
                     'overview_title' => 'Une solution pour structurer la conversion commerciale',
@@ -1549,9 +1599,9 @@ class MegaMenuSeeder extends Seeder
             'commerce-catalog' => [
                 'slug' => 'solution-commerce-catalog',
                 'title' => 'Commerce & catalogue',
-                'image_url' => '/images/mega-menu/commerce-suite.svg',
-                'image_alt_fr' => 'Illustration de la solution commerce et catalogue',
-                'image_alt_en' => 'Commerce and catalog solution illustration',
+                'image_url' => $this->stockImage('solution-commerce-catalog', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('solution-commerce-catalog', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('solution-commerce-catalog', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Publiez votre offre, vendez, facturez et encaissez dans un meme environnement commercial.</p>',
                     'overview_title' => 'Une solution pour monetiser sans fragmenter le parcours',
@@ -1615,9 +1665,9 @@ class MegaMenuSeeder extends Seeder
             'marketing-loyalty' => [
                 'slug' => 'solution-marketing-loyalty',
                 'title' => 'Marketing & fidelisation',
-                'image_url' => '/images/mega-menu/marketing-loyalty-suite.svg',
-                'image_alt_fr' => 'Illustration de la solution marketing et fidelisation',
-                'image_alt_en' => 'Marketing and loyalty solution illustration',
+                'image_url' => $this->stockImage('solution-marketing-loyalty', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('solution-marketing-loyalty', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('solution-marketing-loyalty', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Activez la retention et les campagnes clients a partir des bons signaux, pas de listes statiques.</p>',
                     'overview_title' => 'Une solution pour relancer, segmenter et fideliser',
@@ -1681,9 +1731,9 @@ class MegaMenuSeeder extends Seeder
             'multi-entity-oversight' => [
                 'slug' => 'solution-multi-entity-oversight',
                 'title' => 'Pilotage multi-entreprise',
-                'image_url' => '/images/mega-menu/platform-command-center.svg',
-                'image_alt_fr' => 'Illustration de la solution pilotage multi-entreprise',
-                'image_alt_en' => 'Multi-entity oversight solution illustration',
+                'image_url' => $this->stockImage('solution-multi-entity-oversight', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('solution-multi-entity-oversight', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('solution-multi-entity-oversight', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Pilotez plusieurs entites, activites ou equipes avec une vue partagee sur les indicateurs et les priorites.</p>',
                     'overview_title' => 'Une solution de pilotage pour les structures complexes',
@@ -1757,9 +1807,9 @@ class MegaMenuSeeder extends Seeder
                 'slug' => 'sales-crm',
                 'title' => 'Sales & CRM',
                 'pricing_href' => '/pricing#sales-crm',
-                'image_url' => '/images/mega-menu/sales-crm-suite.svg',
-                'image_alt_fr' => 'Illustration du produit Sales et CRM',
-                'image_alt_en' => 'Sales and CRM product illustration',
+                'image_url' => $this->stockImage('sales-crm', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('sales-crm', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('sales-crm', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Centralisez les demandes, les devis et le suivi client dans un seul espace commercial.</p>',
                     'overview_title' => 'Passez de la demande au devis sans rupture',
@@ -1823,9 +1873,9 @@ class MegaMenuSeeder extends Seeder
                 'slug' => 'reservations',
                 'title' => 'Reservations',
                 'pricing_href' => '/pricing#reservations',
-                'image_url' => '/images/mega-menu/reservations-suite.svg',
-                'image_alt_fr' => 'Illustration du produit Reservations',
-                'image_alt_en' => 'Reservations product illustration',
+                'image_url' => $this->stockImage('reservations', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('reservations', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('reservations', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Offrez la reservation en libre-service tout en gardant la maitrise des disponibilites, des files et des confirmations.</p>',
                     'overview_title' => 'La prise de rendez-vous devient un vrai canal de vente',
@@ -1889,9 +1939,9 @@ class MegaMenuSeeder extends Seeder
                 'slug' => 'operations',
                 'title' => 'Operations',
                 'pricing_href' => '/pricing#operations',
-                'image_url' => '/images/mega-menu/operations-suite.svg',
-                'image_alt_fr' => 'Illustration du produit Operations',
-                'image_alt_en' => 'Operations product illustration',
+                'image_url' => $this->stockImage('operations', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('operations', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('operations', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Pilotez la planification, les interventions, les taches et l\'execution terrain depuis un cockpit unique.</p>',
                     'overview_title' => 'Une vue operationnelle complete pour mieux livrer',
@@ -1955,9 +2005,9 @@ class MegaMenuSeeder extends Seeder
                 'slug' => 'commerce',
                 'title' => 'Commerce',
                 'pricing_href' => '/pricing#commerce',
-                'image_url' => '/images/mega-menu/commerce-suite.svg',
-                'image_alt_fr' => 'Illustration du produit Commerce',
-                'image_alt_en' => 'Commerce product illustration',
+                'image_url' => $this->stockImage('commerce', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('commerce', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('commerce', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Vendez produits et services, emettez les factures et encaissez sans casser le parcours client.</p>',
                     'overview_title' => 'Reliez catalogue, vente, facturation et paiement',
@@ -2021,9 +2071,9 @@ class MegaMenuSeeder extends Seeder
                 'slug' => 'marketing-loyalty',
                 'title' => 'Marketing & Loyalty',
                 'pricing_href' => '/pricing#marketing',
-                'image_url' => '/images/mega-menu/marketing-loyalty-suite.svg',
-                'image_alt_fr' => 'Illustration du produit Marketing et Fidelisation',
-                'image_alt_en' => 'Marketing and loyalty product illustration',
+                'image_url' => $this->stockImage('marketing-loyalty', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('marketing-loyalty', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('marketing-loyalty', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Lancez des campagnes, creez des segments et activez des parcours de fidelisation relies a l\'activite reelle des clients.</p>',
                     'overview_title' => 'Une base de retention connectee a vos operations',
@@ -2087,9 +2137,9 @@ class MegaMenuSeeder extends Seeder
                 'slug' => 'ai-automation',
                 'title' => 'AI & Automation',
                 'pricing_href' => '/pricing#ai-automation',
-                'image_url' => '/images/mega-menu/ai-automation-suite.svg',
-                'image_alt_fr' => 'Illustration du produit AI et Automation',
-                'image_alt_en' => 'AI and automation product illustration',
+                'image_url' => $this->stockImage('ai-automation', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('ai-automation', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('ai-automation', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Utilisez l\'assistant, les brouillons intelligents et les suggestions d\'actions directement dans les flux de travail existants.</p>',
                     'overview_title' => 'L\'IA integree a la plateforme, pas a cote',
@@ -2153,9 +2203,9 @@ class MegaMenuSeeder extends Seeder
                 'slug' => 'command-center',
                 'title' => 'Command Center',
                 'pricing_href' => '/pricing#platform',
-                'image_url' => '/images/mega-menu/platform-command-center.svg',
-                'image_alt_fr' => 'Illustration du produit Command Center',
-                'image_alt_en' => 'Command center product illustration',
+                'image_url' => $this->stockImage('command-center', 'fr')['image_url'],
+                'image_alt_fr' => $this->stockImage('command-center', 'fr')['image_alt'],
+                'image_alt_en' => $this->stockImage('command-center', 'en')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Obtenez une vue transversale sur le revenu, les operations et l\'activite client avec un centre de pilotage partage.</p>',
                     'overview_title' => 'Un poste de pilotage pour la direction et les operations',

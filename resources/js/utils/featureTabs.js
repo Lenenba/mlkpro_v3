@@ -26,6 +26,11 @@ export const featureTabIconOptions = [
 ];
 
 export const defaultFeatureTabsTriggerFontSize = 28;
+export const defaultFeatureTabsStyle = 'editorial';
+export const featureTabStyleOptions = [
+    { value: 'editorial', label: 'Editorial' },
+    { value: 'workflow', label: 'Workflow' },
+];
 
 export const normalizeFeatureTabsTriggerFontSize = (value) => {
     const parsed = Number.parseInt(value, 10);
@@ -35,6 +40,10 @@ export const normalizeFeatureTabsTriggerFontSize = (value) => {
 
     return Math.min(Math.max(parsed, 18), 40);
 };
+
+export const normalizeFeatureTabsStyle = (value) => (
+    value === 'workflow' ? 'workflow' : defaultFeatureTabsStyle
+);
 
 export const sanitizeFeatureTabIconKey = (value) => (
     Object.prototype.hasOwnProperty.call(featureTabIconMap, value) ? value : ''
@@ -102,8 +111,8 @@ export const defaultFeatureTabs = (locale = 'fr') => {
                 body: '<p>Pages publiques, formulaires de demande, campagnes et relances restent coherents du premier clic jusqu au suivi.</p>',
                 cta_label: 'Voir Marketing & Loyalty',
                 cta_href: '/pages/marketing-loyalty',
-                image_url: '/images/landing/hero-dashboard.svg',
-                image_alt: 'Apercu marketing et tableau de bord',
+                image_url: '/images/landing/stock/marketing-desk.jpg',
+                image_alt: 'Professionnelle gerant messages et demandes depuis son poste de travail',
                 metric: '44 % de croissance moyenne la premiere annee',
                 story: '<p>Nous avons clarifie notre presence en ligne, automatise les suivis et augmente le volume de demandes qualifiees sans ajouter de friction.</p>',
                 person: 'Equipe croissance',
@@ -153,8 +162,8 @@ export const defaultFeatureTabs = (locale = 'fr') => {
                 body: '<p>Qualification, devis, relances et historique client sont relies pour faire avancer chaque opportunite sans perte de contexte.</p>',
                 cta_label: 'Voir Sales & CRM',
                 cta_href: '/pages/sales-crm',
-                image_url: '/images/landing/workflow-board.svg',
-                image_alt: 'Vue pipeline et workflow commercial',
+                image_url: '/images/landing/stock/workflow-plan.jpg',
+                image_alt: 'Deux professionnels qui valident des plans de chantier',
                 metric: 'Des devis plus rapides, mieux suivis',
                 story: '<p>Les modeles, les options et les relances automatiques nous ont aide a envoyer des propositions propres plus tot dans la journee.</p>',
                 person: 'Equipe commerciale',
@@ -204,8 +213,8 @@ export const defaultFeatureTabs = (locale = 'fr') => {
                 body: '<p>Planning, dispatch, fiches job, checklists et historique client restent visibles pour que les equipes interviennent avec le bon contexte.</p>',
                 cta_label: 'Voir Operations',
                 cta_href: '/pages/operations',
-                image_url: '/images/landing/mobile-field.svg',
-                image_alt: 'Apercu mobile pour equipes terrain',
+                image_url: '/images/landing/stock/field-checklist.jpg',
+                image_alt: 'Technicien avec checklist pret pour l intervention',
                 metric: 'Moins d aller-retour entre le bureau et le terrain',
                 story: '<p>Le planning et les details d intervention sont enfin partages dans le meme outil, ce qui reduit les appels de clarification pendant la journee.</p>',
                 person: 'Equipe terrain',
@@ -255,8 +264,8 @@ export const defaultFeatureTabs = (locale = 'fr') => {
                 body: '<p>Factures, paiements sur place, rappels et suivi de marge restent connectes au travail realise pour proteger vos revenus.</p>',
                 cta_label: 'Voir Commerce',
                 cta_href: '/pages/commerce',
-                image_url: '/images/mega-menu/commerce-suite.svg',
-                image_alt: 'Illustration commerce et paiements',
+                image_url: '/images/landing/stock/payments-terminal.jpg',
+                image_alt: 'Paiement par carte sur terminal au milieu des outils d intervention',
                 metric: 'Une meilleure visibilite sur la marge et la tresorerie',
                 story: '<p>Nos equipes cloturent plus vite les jobs et les rappels partent automatiquement, donc le cash rentre plus tot.</p>',
                 person: 'Equipe finance',
@@ -310,8 +319,8 @@ export const defaultFeatureTabs = (locale = 'fr') => {
             body: '<p>Public pages, intake forms, campaigns, and follow-ups stay aligned from the first click through long-term retention.</p>',
             cta_label: 'See Marketing & Loyalty',
             cta_href: '/pages/marketing-loyalty',
-            image_url: '/images/landing/hero-dashboard.svg',
-            image_alt: 'Marketing dashboard preview',
+            image_url: '/images/landing/stock/marketing-desk.jpg',
+            image_alt: 'Professional handling messages and requests from a desk',
             metric: '44% revenue growth on average in year one',
             story: '<p>We clarified our public presence, automated follow-ups, and increased qualified demand without adding more busywork.</p>',
             person: 'Growth team',
@@ -361,8 +370,8 @@ export const defaultFeatureTabs = (locale = 'fr') => {
             body: '<p>Qualification, quotes, follow-ups, and customer history stay connected so each opportunity moves with less friction.</p>',
             cta_label: 'See Sales & CRM',
             cta_href: '/pages/sales-crm',
-            image_url: '/images/landing/workflow-board.svg',
-            image_alt: 'Sales workflow and pipeline preview',
+            image_url: '/images/landing/stock/workflow-plan.jpg',
+            image_alt: 'Two professionals validating job plans together',
             metric: 'Faster quotes with cleaner follow-through',
             story: '<p>Templates, option sets, and automatic follow-ups helped us send polished proposals earlier in the day and keep them moving.</p>',
             person: 'Sales team',
@@ -412,8 +421,8 @@ export const defaultFeatureTabs = (locale = 'fr') => {
             body: '<p>Scheduling, dispatch, job records, checklists, and customer history stay visible so crews arrive prepared.</p>',
             cta_label: 'See Operations',
             cta_href: '/pages/operations',
-            image_url: '/images/landing/mobile-field.svg',
-            image_alt: 'Field mobile workspace preview',
+            image_url: '/images/landing/stock/field-checklist.jpg',
+            image_alt: 'Technician holding a checklist before an on-site visit',
             metric: 'Less back-and-forth between office and crews',
             story: '<p>Scheduling and job details finally live in one place, which cuts down on clarification calls during the day.</p>',
             person: 'Field team',
@@ -463,8 +472,8 @@ export const defaultFeatureTabs = (locale = 'fr') => {
             body: '<p>Invoices, on-site payments, reminders, and margin tracking stay tied to completed work so revenue is easier to protect.</p>',
             cta_label: 'See Commerce',
             cta_href: '/pages/commerce',
-            image_url: '/images/mega-menu/commerce-suite.svg',
-            image_alt: 'Commerce and payment illustration',
+            image_url: '/images/landing/stock/payments-terminal.jpg',
+            image_alt: 'Card payment on a terminal beside service tools',
             metric: 'Sharper visibility on margin and cash flow',
             story: '<p>Teams close jobs faster and reminders go out automatically, so cash arrives sooner with less manual chasing.</p>',
             person: 'Finance team',
@@ -521,6 +530,7 @@ export const defaultFeatureTabsShowcaseSection = (locale = 'fr') => {
             kicker: 'Un systeme qui couvre tout le cycle client',
             title: 'La solution tout-en-un pour les pros du service a domicile',
             body: '<p>De la visibilite locale jusqu au paiement final, chaque etape reste dans un meme flux plutot que dans quatre outils separes.</p>',
+            feature_tabs_style: 'workflow',
             feature_tabs_font_size: defaultFeatureTabsTriggerFontSize,
             feature_tabs: defaultFeatureTabs('fr'),
             primary_label: '',
@@ -540,6 +550,7 @@ export const defaultFeatureTabsShowcaseSection = (locale = 'fr') => {
         kicker: 'One system across the full customer journey',
         title: 'The all-in-one solution for home service pros',
         body: '<p>From local visibility to final payment, each step stays inside one operating flow instead of being split across disconnected tools.</p>',
+        feature_tabs_style: 'workflow',
         feature_tabs_font_size: defaultFeatureTabsTriggerFontSize,
         feature_tabs: defaultFeatureTabs('en'),
         primary_label: '',

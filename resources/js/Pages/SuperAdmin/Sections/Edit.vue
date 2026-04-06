@@ -34,6 +34,7 @@ import {
     defaultFeatureTabsShowcaseSection,
     ensureFeatureTabs,
     featureTabIconOptions,
+    normalizeFeatureTabsStyle,
     normalizeFeatureTabsTriggerFontSize,
     resolveFeatureTabIconComponent,
 } from '@/utils/featureTabs';
@@ -75,6 +76,10 @@ const featureTabIconSelectOptions = computed(() => [
     { value: '', label: t('super_admin.pages.feature_tabs.icon_auto') },
     ...featureTabIconOptions,
 ]);
+const featureTabStyleSelectOptions = computed(() => [
+    { value: 'editorial', label: t('super_admin.pages.feature_tabs.styles.editorial') },
+    { value: 'workflow', label: t('super_admin.pages.feature_tabs.styles.workflow') },
+]);
 
 const typeOptions = computed(() =>
     (props.types || []).map((type) => ({
@@ -90,6 +95,14 @@ const localeOptions = computed(() =>
 const imagePositionOptions = computed(() => [
     { value: 'left', label: t('super_admin.pages.image_positions.left') },
     { value: 'right', label: t('super_admin.pages.image_positions.right') },
+]);
+
+const showcaseDividerStyleOptions = computed(() => [
+    { value: 'diagonal', label: t('super_admin.pages.showcase_divider_styles.diagonal') },
+    { value: 'vertical', label: t('super_admin.pages.showcase_divider_styles.vertical') },
+    { value: 'round', label: t('super_admin.pages.showcase_divider_styles.round') },
+    { value: 'notch', label: t('super_admin.pages.showcase_divider_styles.notch') },
+    { value: 'glow', label: t('super_admin.pages.showcase_divider_styles.glow') },
 ]);
 
 const alignmentOptions = computed(() => [
@@ -175,36 +188,36 @@ const defaultWelcomeHeroSlides = (locale) => {
 
     return ensureHeroImages([
         {
-            image_url: '/images/landing/hero-dashboard.svg',
-            image_alt: isFrench ? 'Apercu tableau de bord' : 'Dashboard preview',
+            image_url: '/images/landing/stock/team-laptop-window.jpg',
+            image_alt: isFrench ? 'Equipe qui prepare l accueil et la planification' : 'Team preparing scheduling and reception',
         },
         {
-            image_url: '/images/mega-menu/operations-suite.svg',
-            image_alt: isFrench ? 'Suite operations terrain' : 'Field operations suite',
+            image_url: '/images/landing/stock/service-team.jpg',
+            image_alt: isFrench ? 'Equipe service en coordination' : 'Service team coordinating',
         },
         {
-            image_url: '/images/mega-menu/sales-crm-suite.svg',
-            image_alt: isFrench ? 'Suite ventes et CRM' : 'Sales and CRM suite',
+            image_url: '/images/landing/stock/desk-phone-laptop.jpg',
+            image_alt: isFrench ? 'Responsable commerciale au bureau' : 'Sales lead at a desk',
         },
         {
-            image_url: '/images/mega-menu/reservations-suite.svg',
-            image_alt: isFrench ? 'Suite reservations' : 'Reservations suite',
+            image_url: '/images/landing/stock/service-tablet.jpg',
+            image_alt: isFrench ? 'Coordination des rendez vous sur tablette' : 'Scheduling coordination on a tablet',
         },
         {
-            image_url: '/images/mega-menu/ai-automation-suite.svg',
-            image_alt: isFrench ? 'Suite IA et automatisation' : 'AI and automation suite',
+            image_url: '/images/landing/stock/collab-laptop-desk.jpg',
+            image_alt: isFrench ? 'Collegues en atelier autour d un ordinateur' : 'Colleagues collaborating around a laptop',
         },
         {
-            image_url: '/images/mega-menu/commerce-suite.svg',
-            image_alt: isFrench ? 'Suite commerce' : 'Commerce suite',
+            image_url: '/images/landing/stock/store-worker.jpg',
+            image_alt: isFrench ? 'Preparation des commandes et du stock' : 'Order and inventory preparation',
         },
         {
-            image_url: '/images/mega-menu/marketing-loyalty-suite.svg',
-            image_alt: isFrench ? 'Suite marketing et fidelisation' : 'Marketing and loyalty suite',
+            image_url: '/images/landing/stock/marketing-desk.jpg',
+            image_alt: isFrench ? 'Gestion des campagnes et messages' : 'Campaign and messaging management',
         },
         {
-            image_url: '/images/mega-menu/platform-command-center.svg',
-            image_alt: isFrench ? 'Centre de commandement plateforme' : 'Platform command center',
+            image_url: '/images/landing/stock/meeting-room-laptops.jpg',
+            image_alt: isFrench ? 'Equipe en reunion autour de plusieurs ecrans' : 'Team meeting around multiple screens',
         },
     ]);
 };
@@ -437,6 +450,7 @@ const sectionTypePreset = (type) => {
             layout: 'showcase_cta',
             background_color: '#202322',
             image_position: 'right',
+            showcase_divider_style: 'diagonal',
             alignment: 'left',
             density: 'normal',
             tone: 'contrast',
@@ -448,9 +462,6 @@ const sectionTypePreset = (type) => {
                 : '<p>Showcase your platform, product tour, or mobile experience with a more editorial conversion block.</p>',
             primary_label: currentLocale.value === 'fr' ? 'Commencer gratuitement' : 'Get started free',
             aside_link_label: currentLocale.value === 'fr' ? 'Voir la visite produit' : 'Watch product tour',
-            showcase_badge_label: currentLocale.value === 'fr' ? 'Adopte par' : 'Trusted by',
-            showcase_badge_value: '+120,000',
-            showcase_badge_note: currentLocale.value === 'fr' ? 'pros du service' : 'service pros',
         };
     }
 
@@ -690,6 +701,7 @@ const ensureStructure = (content, type = form.type) => {
         industry_cards: Array.isArray(content?.industry_cards) ? ensureIndustryCards(content.industry_cards) : ensureIndustryCards(preset.industry_cards),
         story_cards: Array.isArray(content?.story_cards) ? ensureStoryCards(content.story_cards) : ensureStoryCards(preset.story_cards),
         feature_tabs: Array.isArray(content?.feature_tabs) ? ensureFeatureTabs(content.feature_tabs) : ensureFeatureTabs(preset.feature_tabs),
+        feature_tabs_style: normalizeFeatureTabsStyle(content?.feature_tabs_style ?? preset.feature_tabs_style),
         feature_tabs_font_size: normalizeFeatureTabsTriggerFontSize(content?.feature_tabs_font_size ?? preset.feature_tabs_font_size),
         testimonial_cards: Array.isArray(content?.testimonial_cards) ? ensureTestimonialCards(content.testimonial_cards) : ensureTestimonialCards(preset.testimonial_cards),
         items: Array.isArray(content?.items) ? content.items : [],
@@ -712,6 +724,7 @@ const ensureStructure = (content, type = form.type) => {
         showcase_badge_label: content?.showcase_badge_label ?? preset.showcase_badge_label ?? '',
         showcase_badge_value: content?.showcase_badge_value ?? preset.showcase_badge_value ?? '',
         showcase_badge_note: content?.showcase_badge_note ?? preset.showcase_badge_note ?? '',
+        showcase_divider_style: content?.showcase_divider_style ?? preset.showcase_divider_style ?? 'diagonal',
         copy: content?.copy ?? preset.copy ?? '',
         brand_logo_url: content?.brand_logo_url ?? preset.brand_logo_url ?? '',
         brand_logo_alt: content?.brand_logo_alt ?? preset.brand_logo_alt ?? '',
@@ -793,6 +806,9 @@ watch(
             showcase_badge_label: current.showcase_badge_label || next.showcase_badge_label || '',
             showcase_badge_value: current.showcase_badge_value || next.showcase_badge_value || '',
             showcase_badge_note: current.showcase_badge_note || next.showcase_badge_note || '',
+            showcase_divider_style: current.showcase_divider_style === (previous.showcase_divider_style ?? 'diagonal')
+                ? (next.showcase_divider_style ?? 'diagonal')
+                : (current.showcase_divider_style || 'diagonal'),
             copy: current.copy || next.copy || '',
             brand_logo_url: current.brand_logo_url || next.brand_logo_url || '',
             brand_logo_alt: current.brand_logo_alt || next.brand_logo_alt || '',
@@ -811,6 +827,9 @@ watch(
             industry_cards: current.industry_cards?.length ? current.industry_cards : ensureIndustryCards(next.industry_cards),
             story_cards: current.story_cards?.length ? current.story_cards : ensureStoryCards(next.story_cards),
             feature_tabs: current.feature_tabs?.length ? current.feature_tabs : ensureFeatureTabs(next.feature_tabs),
+            feature_tabs_style: current.feature_tabs_style === previous.feature_tabs_style
+                ? normalizeFeatureTabsStyle(next.feature_tabs_style)
+                : normalizeFeatureTabsStyle(current.feature_tabs_style),
             feature_tabs_font_size: current.feature_tabs_font_size === previous.feature_tabs_font_size
                 ? normalizeFeatureTabsTriggerFontSize(next.feature_tabs_font_size)
                 : normalizeFeatureTabsTriggerFontSize(current.feature_tabs_font_size),
@@ -1359,6 +1378,8 @@ syncFormFromProps(currentLocale.value);
                 <div class="grid gap-3 md:grid-cols-4">
                     <FloatingSelect v-if="showImagePosition" v-model="form.content.image_position" :options="imagePositionOptions"
                         :label="$t('super_admin.pages.common.image_position')" />
+                    <FloatingSelect v-if="isShowcaseCtaType" v-model="form.content.showcase_divider_style" :options="showcaseDividerStyleOptions"
+                        :label="$t('super_admin.pages.common.showcase_divider_style')" />
                     <FloatingSelect v-model="form.content.alignment" :options="alignmentOptions"
                         :label="$t('super_admin.pages.common.alignment')" />
                     <FloatingSelect v-model="form.content.density" :options="densityOptions"
@@ -2343,7 +2364,12 @@ syncFormFromProps(currentLocale.value);
                         </button>
                     </div>
 
-                    <div class="max-w-xs">
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <FloatingSelect
+                            v-model="form.content.feature_tabs_style"
+                            :options="featureTabStyleSelectOptions"
+                            :label="$t('super_admin.pages.feature_tabs.style_label')"
+                        />
                         <FloatingNumberInput
                             v-model="form.content.feature_tabs_font_size"
                             :label="$t('super_admin.pages.feature_tabs.font_size_label')"
@@ -2722,12 +2748,6 @@ syncFormFromProps(currentLocale.value);
                     <div class="grid gap-3 md:grid-cols-2">
                         <FloatingInput v-model="form.content.aside_link_label" :label="$t('super_admin.pages.common.showcase_overlay_label')" />
                         <FloatingInput v-model="form.content.aside_link_href" :label="$t('super_admin.pages.common.showcase_overlay_href')" />
-                    </div>
-
-                    <div class="grid gap-3 md:grid-cols-3">
-                        <FloatingInput v-model="form.content.showcase_badge_label" :label="$t('super_admin.pages.common.showcase_badge_label')" />
-                        <FloatingInput v-model="form.content.showcase_badge_value" :label="$t('super_admin.pages.common.showcase_badge_value')" />
-                        <FloatingInput v-model="form.content.showcase_badge_note" :label="$t('super_admin.pages.common.showcase_badge_note')" />
                     </div>
 
                     <div class="grid gap-3 md:grid-cols-2">

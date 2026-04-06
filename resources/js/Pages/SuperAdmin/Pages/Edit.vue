@@ -34,6 +34,7 @@ import {
     defaultFeatureTabsShowcaseSection,
     ensureFeatureTabs,
     featureTabIconOptions,
+    normalizeFeatureTabsStyle,
     normalizeFeatureTabsTriggerFontSize,
     resolveFeatureTabIconComponent,
 } from '@/utils/featureTabs';
@@ -100,6 +101,8 @@ const visibilityPlanLines = ref({});
 const sectionEditorOpen = ref({});
 const assetPickerOpen = ref(false);
 const assetTarget = ref(null);
+const removedSectionIds = ref([]);
+const contentByLocale = ref({});
 
 const localeOptions = computed(() =>
     (props.locales || []).map((locale) => ({ value: locale, label: locale.toUpperCase() }))
@@ -243,6 +246,14 @@ const imagePositionOptions = computed(() => [
     { value: 'right', label: t('super_admin.pages.image_positions.right') },
 ]);
 
+const showcaseDividerStyleOptions = computed(() => [
+    { value: 'diagonal', label: t('super_admin.pages.showcase_divider_styles.diagonal') },
+    { value: 'vertical', label: t('super_admin.pages.showcase_divider_styles.vertical') },
+    { value: 'round', label: t('super_admin.pages.showcase_divider_styles.round') },
+    { value: 'notch', label: t('super_admin.pages.showcase_divider_styles.notch') },
+    { value: 'glow', label: t('super_admin.pages.showcase_divider_styles.glow') },
+]);
+
 const headerBackgroundTypeOptions = computed(() => [
     { value: 'none', label: t('super_admin.pages.header.background.none') },
     { value: 'color', label: t('super_admin.pages.header.background.color') },
@@ -369,6 +380,10 @@ const featureTabIconSelectOptions = computed(() => [
     { value: '', label: t('super_admin.pages.feature_tabs.icon_auto') },
     ...featureTabIconOptions,
 ]);
+const featureTabStyleSelectOptions = computed(() => [
+    { value: 'editorial', label: t('super_admin.pages.feature_tabs.styles.editorial') },
+    { value: 'workflow', label: t('super_admin.pages.feature_tabs.styles.workflow') },
+]);
 
 const linesToArray = (value) =>
     String(value || '')
@@ -469,6 +484,7 @@ const sectionPreset = (layout) => {
         return {
             layout: 'showcase_cta',
             image_position: 'right',
+            showcase_divider_style: 'diagonal',
             alignment: 'left',
             tone: 'contrast',
             background_color: '#202322',
@@ -480,9 +496,6 @@ const sectionPreset = (layout) => {
                 : '<p>Showcase your platform, product tour, or mobile experience with a more editorial conversion block.</p>',
             primary_label: currentLocale.value === 'fr' ? 'Commencer gratuitement' : 'Get started free',
             aside_link_label: currentLocale.value === 'fr' ? 'Voir la visite produit' : 'Watch product tour',
-            showcase_badge_label: currentLocale.value === 'fr' ? 'Adopte par' : 'Trusted by',
-            showcase_badge_value: '+120,000',
-            showcase_badge_note: currentLocale.value === 'fr' ? 'pros du service' : 'service pros',
         };
     }
 
@@ -586,6 +599,7 @@ const ensureSection = (section, index) => ({
     industry_cards: ensureIndustryCards(section?.industry_cards),
     story_cards: ensureStoryCards(section?.story_cards),
     feature_tabs: ensureFeatureTabs(section?.feature_tabs),
+    feature_tabs_style: normalizeFeatureTabsStyle(section?.feature_tabs_style),
     feature_tabs_font_size: normalizeFeatureTabsTriggerFontSize(section?.feature_tabs_font_size),
     testimonial_cards: ensureTestimonialCards(section?.testimonial_cards),
     stats: ensureStatItems(section?.stats),
@@ -613,6 +627,7 @@ const ensureSection = (section, index) => ({
     showcase_badge_label: section?.showcase_badge_label || '',
     showcase_badge_value: section?.showcase_badge_value || '',
     showcase_badge_note: section?.showcase_badge_note || '',
+    showcase_divider_style: section?.showcase_divider_style || 'diagonal',
 });
 
 const ensureStructure = (content) => {
@@ -624,6 +639,89 @@ const ensureStructure = (content) => {
     next.sections = next.sections.map((section, index) => ensureSection(section, index));
 
     return next;
+};
+
+const applyPendingSectionRemovals = (content) => {
+    const removed = new Set(
+        (removedSectionIds.value || [])
+            .map((value) => String(value || '').trim())
+            .filter((value) => value.length > 0)
+    );
+
+    if (!removed.size) {
+        return content;
+    }
+
+    return {
+        ...content,
+        sections: Array.isArray(content?.sections)
+            ? content.sections.filter((section) => !removed.has(String(section?.id || '').trim()))
+            : [],
+    };
+};
+
+const buildLocaleContentDrafts = (source = props.content) => {
+    const drafts = {};
+
+    localeList.value.forEach((locale) => {
+        drafts[locale] = applyPendingSectionRemovals(ensureStructure(source?.[locale] || {}));
+    });
+
+    return drafts;
+};
+
+const storeLocaleDraft = (locale = currentLocale.value) => {
+    if (!locale) {
+        return;
+    }
+
+    contentByLocale.value = {
+        ...contentByLocale.value,
+        [locale]: ensureStructure(clone(form.content)),
+    };
+};
+
+const syncSectionStructureAcrossLocales = (sections, sourceLocale = currentLocale.value) => {
+    const canonicalSections = Array.isArray(sections)
+        ? sections.map((section, index) => ensureSection(clone(section), index))
+        : [];
+
+    const nextDrafts = { ...contentByLocale.value };
+
+    localeList.value.forEach((locale) => {
+        const base = ensureStructure(nextDrafts[locale] || props.content?.[locale] || {});
+        const existingSections = new Map(
+            (base.sections || [])
+                .map((section, index) => [String(section?.id || '').trim(), ensureSection(section, index)])
+                .filter(([sectionId]) => sectionId.length > 0)
+        );
+
+        nextDrafts[locale] = {
+            ...base,
+            sections: canonicalSections.map((section, index) => (
+                ensureSection(clone(existingSections.get(section.id) || section), index)
+            )),
+        };
+    });
+
+    if (sourceLocale) {
+        nextDrafts[sourceLocale] = ensureStructure({
+            ...(nextDrafts[sourceLocale] || {}),
+            ...clone(form.content),
+            sections: canonicalSections,
+        });
+    }
+
+    contentByLocale.value = nextDrafts;
+};
+
+const rememberRemovedSection = (sectionId) => {
+    const normalized = String(sectionId || '').trim();
+    if (!normalized || removedSectionIds.value.includes(normalized)) {
+        return;
+    }
+
+    removedSectionIds.value = [...removedSectionIds.value, normalized];
 };
 
 const syncSectionEditorState = ({ openSectionId = null } = {}) => {
@@ -660,16 +758,19 @@ const rebuildItemsLines = () => {
 };
 
 const syncFormFromProps = (locale = currentLocale.value) => {
-    const incoming = props.content?.[locale] || {};
+    const incoming = ensureStructure(contentByLocale.value?.[locale] || props.content?.[locale] || {});
     form.locale = locale;
-    form.content = ensureStructure(incoming);
+    form.content = clone(incoming);
     rebuildItemsLines();
     syncSectionEditorState();
 };
 
 watch(
     () => props.content,
-    () => syncFormFromProps(currentLocale.value),
+    () => {
+        contentByLocale.value = buildLocaleContentDrafts(props.content);
+        syncFormFromProps(currentLocale.value);
+    },
     { deep: true }
 );
 
@@ -681,7 +782,13 @@ watch(
     { deep: true }
 );
 
-watch(currentLocale, (locale) => syncFormFromProps(locale));
+watch(currentLocale, (locale, previousLocale) => {
+    if (previousLocale) {
+        storeLocaleDraft(previousLocale);
+    }
+
+    syncFormFromProps(locale);
+});
 
 const updateSectionItems = (section, value) => {
     sectionItemsLines.value = { ...sectionItemsLines.value, [section.id]: value };
@@ -949,6 +1056,7 @@ const applyLibraryToSection = (section) => {
     section.industry_cards = ensureIndustryCards(content.industry_cards);
     section.story_cards = ensureStoryCards(content.story_cards);
     section.feature_tabs = ensureFeatureTabs(content.feature_tabs);
+    section.feature_tabs_style = normalizeFeatureTabsStyle(content.feature_tabs_style);
     section.feature_tabs_font_size = normalizeFeatureTabsTriggerFontSize(content.feature_tabs_font_size);
     section.testimonial_cards = ensureTestimonialCards(content.testimonial_cards);
     section.stats = ensureStatItems(content.stats);
@@ -979,6 +1087,7 @@ const applyLibraryToSection = (section) => {
     section.showcase_badge_label = content.showcase_badge_label ?? '';
     section.showcase_badge_value = content.showcase_badge_value ?? '';
     section.showcase_badge_note = content.showcase_badge_note ?? '';
+    section.showcase_divider_style = content.showcase_divider_style ?? 'diagonal';
     rebuildItemsLines();
 };
 
@@ -998,6 +1107,7 @@ const addFromLibrary = () => {
     );
     form.content.sections.push(section);
     applyLibraryToSection(section);
+    syncSectionStructureAcrossLocales(form.content.sections);
     selectedLibraryId.value = '';
     syncSectionEditorState({ openSectionId: section.id });
 };
@@ -1009,6 +1119,9 @@ const moveItem = (list, index, direction) => {
     const [item] = cloneList.splice(index, 1);
     cloneList.splice(nextIndex, 0, item);
     list.splice(0, list.length, ...cloneList);
+    if (list === form.content.sections) {
+        syncSectionStructureAcrossLocales(form.content.sections);
+    }
     rebuildItemsLines();
 };
 
@@ -1101,12 +1214,16 @@ const addSection = () => {
         nextIndex
     );
     form.content.sections.push(section);
+    syncSectionStructureAcrossLocales(form.content.sections);
     rebuildItemsLines();
     syncSectionEditorState({ openSectionId: section.id });
 };
 
 const removeSection = (index) => {
     const section = form.content.sections[index];
+    if (section?.id) {
+        rememberRemovedSection(section.id);
+    }
     form.content.sections.splice(index, 1);
     if (section?.id) {
         const next = { ...sectionItemsLines.value };
@@ -1126,6 +1243,7 @@ const removeSection = (index) => {
         delete nextPlans[section.id];
         visibilityPlanLines.value = nextPlans;
     }
+    syncSectionStructureAcrossLocales(form.content.sections);
     syncSectionEditorState();
 };
 
@@ -1158,6 +1276,7 @@ const buildSubmitPayload = () => ({
 });
 
 const submit = () => {
+    storeLocaleDraft(currentLocale.value);
     const payload = buildSubmitPayload();
 
     if (props.mode === 'create') {
@@ -1173,9 +1292,11 @@ const applyTemplate = () => {
     const template = templates.value.find((item) => item.id === selectedTemplate.value);
     if (!template) return;
     form.content = ensureStructure(template.content);
+    syncSectionStructureAcrossLocales(form.content.sections);
     rebuildItemsLines();
 };
 
+contentByLocale.value = buildLocaleContentDrafts(props.content);
 syncFormFromProps(currentLocale.value);
 </script>
 
@@ -1640,6 +1761,8 @@ syncFormFromProps(currentLocale.value);
                                 :label="$t('super_admin.pages.fields.layout')" />
                             <FloatingSelect v-if="['duo', 'testimonial', 'showcase_cta'].includes(section.layout)" v-model="section.image_position" :options="imagePositionOptions"
                                 :label="$t('super_admin.pages.fields.image_position')" />
+                            <FloatingSelect v-if="section.layout === 'showcase_cta'" v-model="section.showcase_divider_style" :options="showcaseDividerStyleOptions"
+                                :label="$t('super_admin.pages.common.showcase_divider_style')" />
                             <FloatingSelect v-model="section.alignment" :options="alignmentOptions"
                                 :label="$t('super_admin.pages.common.alignment')" />
                             <FloatingSelect v-model="section.density" :options="densityOptions"
@@ -2186,7 +2309,12 @@ syncFormFromProps(currentLocale.value);
                                 </button>
                             </div>
 
-                            <div class="max-w-xs">
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <FloatingSelect
+                                    v-model="section.feature_tabs_style"
+                                    :options="featureTabStyleSelectOptions"
+                                    :label="$t('super_admin.pages.feature_tabs.style_label')"
+                                />
                                 <FloatingNumberInput
                                     v-model="section.feature_tabs_font_size"
                                     :label="$t('super_admin.pages.feature_tabs.font_size_label')"
@@ -2433,12 +2561,6 @@ syncFormFromProps(currentLocale.value);
                             <div class="grid gap-3 md:grid-cols-2">
                                 <FloatingInput v-model="section.aside_link_label" :label="$t('super_admin.pages.common.showcase_overlay_label')" />
                                 <FloatingInput v-model="section.aside_link_href" :label="$t('super_admin.pages.common.showcase_overlay_href')" />
-                            </div>
-
-                            <div class="grid gap-3 md:grid-cols-3">
-                                <FloatingInput v-model="section.showcase_badge_label" :label="$t('super_admin.pages.common.showcase_badge_label')" />
-                                <FloatingInput v-model="section.showcase_badge_value" :label="$t('super_admin.pages.common.showcase_badge_value')" />
-                                <FloatingInput v-model="section.showcase_badge_note" :label="$t('super_admin.pages.common.showcase_badge_note')" />
                             </div>
 
                             <div class="grid gap-3 md:grid-cols-2">

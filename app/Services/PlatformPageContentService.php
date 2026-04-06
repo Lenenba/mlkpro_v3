@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\PlatformPage;
 use App\Models\PlatformSection;
+use App\Support\PublicPageStockImages;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
@@ -42,6 +43,8 @@ class PlatformPageContentService
         'deep-ocean',
     ];
 
+    private const SHOWCASE_DIVIDER_STYLES = ['diagonal', 'vertical', 'round', 'curve', 'notch', 'glow'];
+
     private const INDUSTRY_CARD_ICONS = [
         'tree-pine',
         'brush-cleaning',
@@ -78,6 +81,8 @@ class PlatformPageContentService
         'circle-dollar-sign',
         'wrench',
     ];
+
+    private const FEATURE_TAB_STYLES = ['editorial', 'workflow'];
 
     private const ALLOWED_HTML_TAGS = [
         'div',
@@ -123,6 +128,45 @@ class PlatformPageContentService
         }
 
         return $resolved;
+    }
+
+    public function synchronizeResolvedSectionStructure(array $contentByLocale, ?string $sourceLocale = null): array
+    {
+        $availableLocales = $this->locales();
+        $canonicalLocale = $this->normalizeLocale($sourceLocale ?? $availableLocales[0]);
+        $canonicalContent = is_array($contentByLocale[$canonicalLocale] ?? null)
+            ? $contentByLocale[$canonicalLocale]
+            : [];
+        $canonicalSections = $this->sanitizeSections($canonicalContent['sections'] ?? []);
+
+        foreach ($availableLocales as $locale) {
+            $localeContent = is_array($contentByLocale[$locale] ?? null)
+                ? $contentByLocale[$locale]
+                : [];
+            $existingSectionsById = collect($this->sanitizeSections($localeContent['sections'] ?? []))
+                ->filter(fn ($section) => is_array($section))
+                ->mapWithKeys(function ($section) {
+                    $id = $this->cleanText($section['id'] ?? '');
+
+                    return $id !== '' ? [$id => $section] : [];
+                })
+                ->all();
+
+            $contentByLocale[$locale] = [
+                ...$localeContent,
+                'sections' => array_values(array_map(function ($section) use ($existingSectionsById) {
+                    $id = $this->cleanText($section['id'] ?? '');
+
+                    if ($id !== '' && array_key_exists($id, $existingSectionsById)) {
+                        return $existingSectionsById[$id];
+                    }
+
+                    return $section;
+                }, $canonicalSections)),
+            ];
+        }
+
+        return $contentByLocale;
     }
 
     public function resolveForLocale(PlatformPage $page, string $locale): array
@@ -176,6 +220,7 @@ class PlatformPageContentService
                     'industry_cards' => $this->sanitizeIndustryCards($section['industry_cards'] ?? []),
                     'story_cards' => $this->sanitizeStoryCards($section['story_cards'] ?? []),
                     'feature_tabs' => $this->sanitizeFeatureTabs($section['feature_tabs'] ?? []),
+                    'feature_tabs_style' => $this->cleanFeatureTabsStyle($section['feature_tabs_style'] ?? null),
                     'feature_tabs_font_size' => $this->cleanFeatureTabsFontSize($section['feature_tabs_font_size'] ?? null),
                     'testimonial_cards' => $this->sanitizeTestimonialCards($section['testimonial_cards'] ?? []),
                     'stats' => $this->sanitizeStatItems($section['stats'] ?? []),
@@ -203,6 +248,11 @@ class PlatformPageContentService
                     'showcase_badge_label' => $this->cleanText($section['showcase_badge_label'] ?? ''),
                     'showcase_badge_value' => $this->cleanText($section['showcase_badge_value'] ?? ''),
                     'showcase_badge_note' => $this->cleanText($section['showcase_badge_note'] ?? ''),
+                    'showcase_divider_style' => $this->cleanThemeChoice(
+                        $section['showcase_divider_style'] ?? null,
+                        self::SHOWCASE_DIVIDER_STYLES,
+                        'diagonal'
+                    ),
                 ];
             })
             ->filter()
@@ -210,6 +260,7 @@ class PlatformPageContentService
             ->all();
 
         $merged['sections'] = $this->applyLibrarySections($merged['sections'], $locale);
+        $merged = $this->normalizeVisualsForLocale($merged, $page, $locale);
         $merged['theme'] = $this->resolveTheme($page);
 
         return $merged;
@@ -224,10 +275,17 @@ class PlatformPageContentService
         $payload = is_array($page->content) ? $page->content : [];
         $locales = is_array($payload['locales'] ?? null) ? $payload['locales'] : [];
         $sanitized = $this->resolveHeroImagesForLocale($sanitized, $locales, $locale);
-        $sanitized = $this->resolveBackgroundPresetsForLocale($sanitized, $locales, $locale);
         $locales[$locale] = $sanitized;
+        $locales = $this->syncSectionStructureForOtherLocales($locales, $locale, $page);
         $locales = $this->syncHeroImagesForOtherLocales($locales, $locale, $page);
         $locales = $this->syncBackgroundPresetsForOtherLocales($locales, $locale, $page);
+        foreach ($this->locales() as $candidateLocale) {
+            $localeContent = is_array($locales[$candidateLocale] ?? null)
+                ? $locales[$candidateLocale]
+                : $this->defaultContent($candidateLocale, $page);
+
+            $locales[$candidateLocale] = $this->normalizeVisualsForLocale($localeContent, $page, $candidateLocale);
+        }
         $themePayload = $theme;
         if ($themePayload === null && array_key_exists('theme', $incoming)) {
             $themePayload = is_array($incoming['theme']) ? $incoming['theme'] : null;
@@ -307,6 +365,7 @@ class PlatformPageContentService
             'industry_cards' => [],
             'story_cards' => [],
             'feature_tabs' => [],
+            'feature_tabs_style' => 'editorial',
             'feature_tabs_font_size' => 0,
             'testimonial_cards' => [],
             'stats' => [],
@@ -334,6 +393,7 @@ class PlatformPageContentService
             'showcase_badge_label' => '',
             'showcase_badge_value' => '',
             'showcase_badge_note' => '',
+            'showcase_divider_style' => 'diagonal',
         ];
     }
 
@@ -410,6 +470,7 @@ class PlatformPageContentService
                 'industry_cards' => $this->sanitizeIndustryCards($section['industry_cards'] ?? []),
                 'story_cards' => $this->sanitizeStoryCards($section['story_cards'] ?? []),
                 'feature_tabs' => $this->sanitizeFeatureTabs($section['feature_tabs'] ?? []),
+                'feature_tabs_style' => $this->cleanFeatureTabsStyle($section['feature_tabs_style'] ?? null),
                 'feature_tabs_font_size' => $this->cleanFeatureTabsFontSize($section['feature_tabs_font_size'] ?? null),
                 'testimonial_cards' => $this->sanitizeTestimonialCards($section['testimonial_cards'] ?? []),
                 'stats' => $this->sanitizeStatItems($section['stats'] ?? []),
@@ -437,6 +498,11 @@ class PlatformPageContentService
                 'showcase_badge_label' => $this->cleanText($section['showcase_badge_label'] ?? ''),
                 'showcase_badge_value' => $this->cleanText($section['showcase_badge_value'] ?? ''),
                 'showcase_badge_note' => $this->cleanText($section['showcase_badge_note'] ?? ''),
+                'showcase_divider_style' => $this->cleanThemeChoice(
+                    $section['showcase_divider_style'] ?? null,
+                    self::SHOWCASE_DIVIDER_STYLES,
+                    'diagonal'
+                ),
             ];
         }
 
@@ -674,9 +740,6 @@ class PlatformPageContentService
     {
         $source = is_array($locales[$sourceLocale] ?? null) ? $locales[$sourceLocale] : [];
         $sourceSections = is_array($source['sections'] ?? null) ? $source['sections'] : [];
-        if ($sourceSections === []) {
-            return $locales;
-        }
 
         foreach ($this->locales() as $locale) {
             if ($locale === $sourceLocale) {
@@ -695,15 +758,6 @@ class PlatformPageContentService
                 }
 
                 $sourcePreset = $this->cleanBackgroundPreset($sourceSection['background_preset'] ?? null) ?? '';
-                if ($sourcePreset === '') {
-                    continue;
-                }
-
-                $targetPreset = $this->cleanBackgroundPreset($targetSections[$index]['background_preset'] ?? null) ?? '';
-                if ($targetPreset !== '') {
-                    continue;
-                }
-
                 $targetSections[$index]['background_preset'] = $sourcePreset;
             }
 
@@ -798,6 +852,295 @@ class PlatformPageContentService
         $currentContent['sections'] = $sections;
 
         return $currentContent;
+    }
+
+    private function normalizeVisualsForLocale(array $content, PlatformPage $page, string $locale): array
+    {
+        $content = $this->replaceLegacyIllustrations($content, $page, $locale);
+
+        return $this->enforceUniquePageImages($content);
+    }
+
+    private function replaceLegacyIllustrations(array $content, PlatformPage $page, string $locale): array
+    {
+        $slug = $this->cleanText($page->slug ?? '');
+        if ($slug === '' || ! in_array($slug, PublicPageStockImages::managedPageSlugs(), true)) {
+            return $content;
+        }
+
+        $header = $this->sanitizeHeader($content['header'] ?? null);
+        $headerImage = $this->cleanImageValue($header['background_image_url'] ?? '');
+        if ($this->isLegacyIllustrationUrl($headerImage)) {
+            $visual = PublicPageStockImages::slot($slug, 'header', $locale);
+            $header['background_type'] = 'image';
+            $header['background_image_url'] = $visual['image_url'];
+            $header['background_image_alt'] = $visual['image_alt'];
+        }
+        $content['header'] = $header;
+
+        $sections = is_array($content['sections'] ?? null) ? $content['sections'] : [];
+        foreach ($sections as $index => $section) {
+            if (! is_array($section)) {
+                continue;
+            }
+
+            $slot = $this->sectionVisualSlot($slug, $this->cleanText($section['id'] ?? ''));
+            if ($slot === null) {
+                continue;
+            }
+
+            $visual = PublicPageStockImages::slot($slug, $slot, $locale);
+            $sections[$index] = $this->replaceLegacySectionVisuals($section, $visual);
+        }
+
+        $content['sections'] = $sections;
+
+        return $content;
+    }
+
+    /**
+     * @param  array{image_alt:string,image_url:string}  $visual
+     */
+    private function replaceLegacySectionVisuals(array $section, array $visual): array
+    {
+        $section = $this->replaceLegacyVisualField($section, 'image_url', 'image_alt', $visual);
+        $section = $this->replaceLegacyVisualField($section, 'aside_image_url', 'aside_image_alt', $visual);
+
+        $section['hero_images'] = array_values(array_map(
+            fn ($item) => $this->replaceLegacyVisualField(is_array($item) ? $item : [], 'image_url', 'image_alt', $visual),
+            is_array($section['hero_images'] ?? null) ? $section['hero_images'] : []
+        ));
+
+        $section['story_cards'] = array_values(array_map(
+            fn ($item) => $this->replaceLegacyVisualField(is_array($item) ? $item : [], 'image_url', 'image_alt', $visual),
+            is_array($section['story_cards'] ?? null) ? $section['story_cards'] : []
+        ));
+
+        $section['testimonial_cards'] = array_values(array_map(
+            fn ($item) => $this->replaceLegacyVisualField(is_array($item) ? $item : [], 'image_url', 'image_alt', $visual),
+            is_array($section['testimonial_cards'] ?? null) ? $section['testimonial_cards'] : []
+        ));
+
+        $section['feature_tabs'] = array_values(array_map(function ($tab) use ($visual) {
+            $tab = $this->replaceLegacyVisualField(is_array($tab) ? $tab : [], 'image_url', 'image_alt', $visual);
+            $tab['children'] = array_values(array_map(
+                fn ($item) => $this->replaceLegacyVisualField(is_array($item) ? $item : [], 'image_url', 'image_alt', $visual),
+                is_array($tab['children'] ?? null) ? $tab['children'] : []
+            ));
+
+            return $tab;
+        }, is_array($section['feature_tabs'] ?? null) ? $section['feature_tabs'] : []));
+
+        return $section;
+    }
+
+    /**
+     * @param  array{image_alt:string,image_url:string}  $visual
+     */
+    private function replaceLegacyVisualField(array $item, string $urlKey, string $altKey, array $visual): array
+    {
+        $current = $this->cleanImageValue($item[$urlKey] ?? '');
+        if (! $this->isLegacyIllustrationUrl($current)) {
+            return $item;
+        }
+
+        $item[$urlKey] = $visual['image_url'];
+        $item[$altKey] = $visual['image_alt'];
+
+        return $item;
+    }
+
+    private function enforceUniquePageImages(array $content): array
+    {
+        $used = [];
+
+        $header = $this->sanitizeHeader($content['header'] ?? null);
+        $header = $this->dedupeImageField($header, 'background_image_url', 'background_image_alt', $used);
+        $content['header'] = $header;
+
+        $sections = is_array($content['sections'] ?? null) ? $content['sections'] : [];
+        foreach ($sections as $index => $section) {
+            if (! is_array($section)) {
+                continue;
+            }
+
+            $section = $this->dedupeImageField($section, 'image_url', 'image_alt', $used);
+            $section = $this->dedupeImageField($section, 'aside_image_url', 'aside_image_alt', $used);
+
+            $heroSlidesUsed = [];
+            $section['hero_images'] = $this->sanitizeHeroImages(array_map(
+                fn ($item) => $this->dedupeImageField(is_array($item) ? $item : [], 'image_url', 'image_alt', $heroSlidesUsed),
+                is_array($section['hero_images'] ?? null) ? $section['hero_images'] : []
+            ));
+
+            $section['story_cards'] = array_values(array_map(
+                fn ($item) => $this->dedupeImageField(is_array($item) ? $item : [], 'image_url', 'image_alt', $used),
+                is_array($section['story_cards'] ?? null) ? $section['story_cards'] : []
+            ));
+
+            $section['testimonial_cards'] = array_values(array_map(
+                fn ($item) => $this->dedupeImageField(is_array($item) ? $item : [], 'image_url', 'image_alt', $used),
+                is_array($section['testimonial_cards'] ?? null) ? $section['testimonial_cards'] : []
+            ));
+
+            $section['feature_tabs'] = array_values(array_map(function ($tab) use (&$used) {
+                $tab = $this->dedupeImageField(is_array($tab) ? $tab : [], 'image_url', 'image_alt', $used);
+                $tab['children'] = array_values(array_map(
+                    fn ($item) => $this->dedupeImageField(is_array($item) ? $item : [], 'image_url', 'image_alt', $used),
+                    is_array($tab['children'] ?? null) ? $tab['children'] : []
+                ));
+
+                return $tab;
+            }, is_array($section['feature_tabs'] ?? null) ? $section['feature_tabs'] : []));
+
+            $sections[$index] = $section;
+        }
+
+        $content['sections'] = $sections;
+
+        return $content;
+    }
+
+    private function dedupeImageField(array $item, string $urlKey, string $altKey, array &$used): array
+    {
+        $url = $this->cleanImageValue($item[$urlKey] ?? '');
+        if ($url === '') {
+            $item[$urlKey] = '';
+
+            if (array_key_exists($altKey, $item)) {
+                $item[$altKey] = $this->cleanText($item[$altKey] ?? '');
+            }
+
+            return $item;
+        }
+
+        $identity = $this->normalizeImageIdentity($url);
+        if ($identity === '' || array_key_exists($identity, $used)) {
+            $item[$urlKey] = '';
+
+            if (array_key_exists($altKey, $item)) {
+                $item[$altKey] = '';
+            }
+
+            return $item;
+        }
+
+        $used[$identity] = true;
+        $item[$urlKey] = $url;
+
+        if (array_key_exists($altKey, $item)) {
+            $item[$altKey] = $this->cleanText($item[$altKey] ?? '');
+        }
+
+        return $item;
+    }
+
+    private function normalizeImageIdentity($value): string
+    {
+        $url = $this->cleanImageValue($value);
+        if ($url === '') {
+            return '';
+        }
+
+        $path = parse_url($url, PHP_URL_PATH);
+
+        return strtolower(trim(is_string($path) && $path !== '' ? $path : $url));
+    }
+
+    private function isLegacyIllustrationUrl(string $url): bool
+    {
+        $identity = $this->normalizeImageIdentity($url);
+        if ($identity === '') {
+            return false;
+        }
+
+        if (in_array($identity, PublicPageStockImages::legacyIllustrationUrls(), true)) {
+            return true;
+        }
+
+        return preg_match('#^/images/(landing|mega-menu)/.+\.svg$#i', $identity) === 1;
+    }
+
+    private function syncSectionStructureForOtherLocales(array $locales, string $sourceLocale, PlatformPage $page): array
+    {
+        $source = is_array($locales[$sourceLocale] ?? null) ? $locales[$sourceLocale] : [];
+        $sourceSections = $this->sanitizeSections($source['sections'] ?? []);
+
+        foreach ($this->locales() as $locale) {
+            if ($locale === $sourceLocale) {
+                continue;
+            }
+
+            $target = is_array($locales[$locale] ?? null)
+                ? $locales[$locale]
+                : $this->defaultContent($locale, $page);
+
+            $targetSections = $this->sanitizeSections($target['sections'] ?? []);
+            $targetSectionsById = collect($targetSections)
+                ->filter(fn ($section) => is_array($section))
+                ->mapWithKeys(function ($section) {
+                    $id = $this->cleanText($section['id'] ?? '');
+
+                    return $id !== '' ? [$id => $section] : [];
+                })
+                ->all();
+
+            $target['sections'] = array_values(array_map(function ($sourceSection) use ($targetSectionsById) {
+                $id = $this->cleanText($sourceSection['id'] ?? '');
+
+                if ($id !== '' && array_key_exists($id, $targetSectionsById)) {
+                    return $targetSectionsById[$id];
+                }
+
+                return $sourceSection;
+            }, $sourceSections));
+
+            $locales[$locale] = $target;
+        }
+
+        return $locales;
+    }
+
+    private function sectionVisualSlot(string $slug, string $sectionId): ?string
+    {
+        if ($sectionId === '') {
+            return null;
+        }
+
+        if ($slug === 'contact-us') {
+            return match ($sectionId) {
+                'contact-overview' => 'overview',
+                'contact-details' => 'details',
+                default => null,
+            };
+        }
+
+        if ($slug === 'partners') {
+            return $sectionId === 'partners-overview' ? 'overview' : null;
+        }
+
+        if (str_starts_with($slug, 'solution-')) {
+            if (str_contains($sectionId, 'workflow')) {
+                return 'workflow';
+            }
+
+            if (str_contains($sectionId, 'modules')) {
+                return 'modules';
+            }
+
+            return 'overview';
+        }
+
+        if (str_starts_with($slug, 'industry-')) {
+            return str_contains($sectionId, 'workflow') ? 'workflow' : 'overview';
+        }
+
+        return match ($sectionId) {
+            'overview' => 'overview',
+            'workflow' => 'workflow',
+            'pages' => 'pages',
+            default => null,
+        };
     }
 
     private function sanitizeStringList($items): array
@@ -1251,6 +1594,13 @@ class PlatformPageContentService
         return max(18, min($size, 40));
     }
 
+    private function cleanFeatureTabsStyle($value): string
+    {
+        $style = strtolower($this->cleanText($value));
+
+        return in_array($style, self::FEATURE_TAB_STYLES, true) ? $style : 'editorial';
+    }
+
     private function cleanHeroTitleFontSize($value): int
     {
         if ($value === null || $value === '') {
@@ -1536,6 +1886,10 @@ class PlatformPageContentService
             $section['feature_tabs'] = $source['feature_tabs'] ?? [];
         }
 
+        $section['feature_tabs_style'] = ! empty($section['feature_tabs_style'])
+            ? $this->cleanFeatureTabsStyle($section['feature_tabs_style'])
+            : $this->cleanFeatureTabsStyle($source['feature_tabs_style'] ?? null);
+
         $section['feature_tabs_font_size'] = ! empty($section['feature_tabs_font_size'])
             ? $section['feature_tabs_font_size']
             : ($source['feature_tabs_font_size'] ?? 0);
@@ -1580,6 +1934,9 @@ class PlatformPageContentService
         $section['showcase_badge_label'] = $section['showcase_badge_label'] !== '' ? $section['showcase_badge_label'] : ($source['showcase_badge_label'] ?? '');
         $section['showcase_badge_value'] = $section['showcase_badge_value'] !== '' ? $section['showcase_badge_value'] : ($source['showcase_badge_value'] ?? '');
         $section['showcase_badge_note'] = $section['showcase_badge_note'] !== '' ? $section['showcase_badge_note'] : ($source['showcase_badge_note'] ?? '');
+        $section['showcase_divider_style'] = $section['showcase_divider_style'] !== ''
+            ? $section['showcase_divider_style']
+            : ($source['showcase_divider_style'] ?? 'diagonal');
 
         return $section;
     }

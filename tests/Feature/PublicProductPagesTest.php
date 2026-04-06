@@ -81,7 +81,7 @@ it('seeds industries and contact us in the public header', function () {
             ->where('content.sections.0.embed_title', fn ($value) => in_array($value, ['Formulaire de demande commerciale', 'Commercial inquiry form'], true))
             ->where('content.sections.0.embed_url', fn ($value) => is_string($value) && str_contains($value, '/public/requests/') && str_contains($value, 'embed=1'))
             ->where('content.sections.1.layout', 'contact')
-            ->where('content.sections.1.image_url', '/images/mega-menu/contact-map.svg')
+            ->where('content.sections.1.image_url', '/images/landing/stock/desk-phone-laptop.jpg')
         );
 
     expect($embedUrl)->not->toBeEmpty();
@@ -847,6 +847,82 @@ it('shares public page media across locales while keeping text localized', funct
     expect($resolvedEn['sections'][0]['story_cards'][0]['image_alt'])->toBe('EN card image');
 });
 
+it('keeps public page section lists synchronized across locales when sections are added or removed', function () {
+    $user = User::factory()->create();
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'shared-page-section-structure',
+        'title' => 'Shared page section structure',
+        'is_active' => true,
+        'content' => [
+            'locales' => [],
+        ],
+    ]);
+
+    $service = app(PlatformPageContentService::class);
+
+    $frPayload = $service->defaultContent('fr', $page);
+    $frPayload['sections'] = [
+        [
+            'id' => 'overview',
+            'enabled' => true,
+            'layout' => 'split',
+            'title' => 'Vue d ensemble FR',
+            'body' => '<p>Bloc FR overview</p>',
+        ],
+        [
+            'id' => 'workflow',
+            'enabled' => true,
+            'layout' => 'stack',
+            'title' => 'Workflow FR',
+            'body' => '<p>Bloc FR workflow</p>',
+        ],
+    ];
+
+    $service->updateLocale($page, 'fr', $frPayload, $user->id);
+
+    $enPayload = $service->resolveForLocale($page->fresh(), 'en');
+    $enPayload['page_title'] = 'Shared page section structure EN';
+    $enPayload['sections'][0]['title'] = 'Overview EN';
+    $enPayload['sections'][0]['body'] = '<p>Overview EN body</p>';
+    $enPayload['sections'][1]['title'] = 'Workflow EN';
+    $enPayload['sections'][1]['body'] = '<p>Workflow EN body</p>';
+
+    $service->updateLocale($page->fresh(), 'en', $enPayload, $user->id);
+
+    $frWithNewSection = $service->resolveForLocale($page->fresh(), 'fr');
+    $frWithNewSection['sections'][] = [
+        'id' => 'pricing',
+        'enabled' => true,
+        'layout' => 'testimonial',
+        'title' => 'Tarifs FR',
+        'body' => '<p>Bloc tarifs FR</p>',
+    ];
+
+    $service->updateLocale($page->fresh(), 'fr', $frWithNewSection, $user->id);
+
+    $resolvedEnAfterAddition = $service->resolveForLocale($page->fresh(), 'en');
+
+    expect(array_column($resolvedEnAfterAddition['sections'], 'id'))->toBe(['overview', 'workflow', 'pricing']);
+    expect($resolvedEnAfterAddition['sections'][0]['title'])->toBe('Overview EN');
+    expect($resolvedEnAfterAddition['sections'][1]['title'])->toBe('Workflow EN');
+    expect($resolvedEnAfterAddition['sections'][2]['title'])->toBe('Tarifs FR');
+
+    $enWithRemoval = $service->resolveForLocale($page->fresh(), 'en');
+    $enWithRemoval['sections'] = array_values(array_filter(
+        $enWithRemoval['sections'],
+        fn ($section) => ($section['id'] ?? '') !== 'workflow'
+    ));
+
+    $service->updateLocale($page->fresh(), 'en', $enWithRemoval, $user->id);
+
+    $resolvedFrAfterRemoval = $service->resolveForLocale($page->fresh(), 'fr');
+
+    expect(array_column($resolvedFrAfterRemoval['sections'], 'id'))->toBe(['overview', 'pricing']);
+    expect($resolvedFrAfterRemoval['sections'][0]['title'])->toBe('Vue d ensemble FR');
+    expect($resolvedFrAfterRemoval['sections'][1]['title'])->toBe('Tarifs FR');
+});
+
 it('exposes reusable background presets on public page sections', function () {
     $user = User::factory()->create();
 
@@ -883,6 +959,44 @@ it('exposes reusable background presets on public page sections', function () {
             ->component('Public/Page')
             ->where('content.sections.0.background_preset', 'graphite-crimson')
         );
+});
+
+it('clears public page background presets across locales when set to none', function () {
+    $user = User::factory()->create();
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'background-preset-clear-page',
+        'title' => 'Background preset clear page',
+        'is_active' => true,
+        'content' => [
+            'locales' => [],
+        ],
+    ]);
+
+    $service = app(PlatformPageContentService::class);
+
+    $frPayload = $service->defaultContent('fr', $page);
+    $frPayload['sections'] = [[
+        'id' => 'preset-section-1',
+        'enabled' => true,
+        'layout' => 'split',
+        'title' => 'Preset section',
+        'body' => '<p>Preset body</p>',
+        'background_preset' => 'graphite-crimson',
+    ]];
+
+    $service->updateLocale($page, 'fr', $frPayload, $user->id);
+
+    $enPayload = $service->resolveForLocale($page->fresh(), 'en');
+    $enPayload['sections'][0]['background_preset'] = '';
+
+    $service->updateLocale($page->fresh(), 'en', $enPayload, $user->id);
+
+    $resolvedFr = $service->resolveForLocale($page->fresh(), 'fr');
+    $resolvedEn = $service->resolveForLocale($page->fresh(), 'en');
+
+    expect($resolvedFr['sections'][0]['background_preset'])->toBe('');
+    expect($resolvedEn['sections'][0]['background_preset'])->toBe('');
 });
 
 it('shares public page hero slides across locales without inflating section counts', function () {
@@ -1170,6 +1284,35 @@ it('shares reusable section background presets across locales', function () {
     $resolvedEn = $service->resolveForLocale($section->fresh(), 'en');
 
     expect($resolvedEn['background_preset'])->toBe('midnight-cobalt');
+});
+
+it('clears reusable section background presets across locales when set to none', function () {
+    $user = User::factory()->create();
+    $service = app(\App\Services\PlatformSectionContentService::class);
+
+    $section = PlatformSection::query()->create([
+        'name' => 'Clear shared background preset section',
+        'type' => 'showcase_cta',
+        'is_active' => true,
+        'content' => ['locales' => []],
+    ]);
+
+    $service->updateLocale($section, 'fr', [
+        'layout' => 'showcase_cta',
+        'title' => 'Titre FR',
+        'background_preset' => 'midnight-cobalt',
+    ], $user->id);
+
+    $enPayload = $service->resolveForLocale($section->fresh(), 'en');
+    $enPayload['background_preset'] = '';
+
+    $service->updateLocale($section->fresh(), 'en', $enPayload, $user->id);
+
+    $resolvedFr = $service->resolveForLocale($section->fresh(), 'fr');
+    $resolvedEn = $service->resolveForLocale($section->fresh(), 'en');
+
+    expect($resolvedFr['background_preset'])->toBe('');
+    expect($resolvedEn['background_preset'])->toBe('');
 });
 
 it('stores reusable industry grid library sections with card items', function () {
