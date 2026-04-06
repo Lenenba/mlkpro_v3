@@ -81,7 +81,7 @@ it('seeds industries and contact us in the public header', function () {
             ->where('content.sections.0.embed_title', fn ($value) => in_array($value, ['Formulaire de demande commerciale', 'Commercial inquiry form'], true))
             ->where('content.sections.0.embed_url', fn ($value) => is_string($value) && str_contains($value, '/public/requests/') && str_contains($value, 'embed=1'))
             ->where('content.sections.1.layout', 'contact')
-            ->where('content.sections.1.image_url', '/images/mega-menu/contact-map.svg')
+            ->where('content.sections.1.image_url', '/images/landing/stock/desk-phone-laptop.jpg')
         );
 
     expect($embedUrl)->not->toBeEmpty();

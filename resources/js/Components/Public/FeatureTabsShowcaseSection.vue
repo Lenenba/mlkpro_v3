@@ -503,6 +503,13 @@ const setAccordionChild = (tab, child) => {
     --feature-tabs-showcase-overlay-opacity: 0.45;
     --feature-tabs-showcase-overlay-dot: rgba(8, 58, 92, 0.06);
     --feature-tabs-showcase-overlay-dot-alt: rgba(8, 58, 92, 0.04);
+    --feature-tabs-accordion-accent: #0f766e;
+    --feature-tabs-accordion-accent-soft: #ccfbf1;
+    --feature-tabs-accordion-accent-strong: color-mix(in srgb, var(--feature-tabs-accordion-accent) 82%, black 18%);
+    --feature-tabs-accordion-accent-border: color-mix(in srgb, var(--feature-tabs-accordion-accent) 16%, white 84%);
+    --feature-tabs-accordion-accent-border-strong: color-mix(in srgb, var(--feature-tabs-accordion-accent) 28%, white 72%);
+    --feature-tabs-accordion-accent-muted: color-mix(in srgb, var(--feature-tabs-accordion-accent) 42%, #475569 58%);
+    --feature-tabs-accordion-accent-text: color-mix(in srgb, var(--feature-tabs-accordion-accent) 72%, #0f172a 28%);
     position: relative;
     overflow: hidden;
     padding-block: clamp(4rem, 8vw, 6.75rem);
@@ -626,14 +633,14 @@ const setAccordionChild = (tab, child) => {
 
 .feature-tabs-showcase__accordion-item {
     overflow: hidden;
-    border: 1px solid rgba(8, 58, 92, 0.12);
+    border: 1px solid var(--feature-tabs-accordion-accent-border);
     border-radius: var(--page-radius, 4px);
     background: rgba(255, 255, 255, 0.78);
     box-shadow: 0 18px 34px -28px rgba(15, 23, 42, 0.36);
 }
 
 .feature-tabs-showcase__accordion-item.is-active {
-    border-color: rgba(8, 58, 92, 0.28);
+    border-color: var(--feature-tabs-accordion-accent-border-strong);
     background: #fffdf8;
 }
 
@@ -656,7 +663,7 @@ const setAccordionChild = (tab, child) => {
 }
 
 .feature-tabs-showcase__accordion-label {
-    color: #496173;
+    color: var(--feature-tabs-accordion-accent-muted);
     font-size: 0.76rem;
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -664,7 +671,7 @@ const setAccordionChild = (tab, child) => {
 }
 
 .feature-tabs-showcase__accordion-heading {
-    color: #083a5c;
+    color: var(--feature-tabs-accordion-accent-text);
     font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(1.05rem, 0.98rem + 0.2vw, 1.28rem);
     line-height: 1.14;
@@ -676,7 +683,7 @@ const setAccordionChild = (tab, child) => {
     width: 1rem;
     height: 1rem;
     margin-top: 0.25rem;
-    color: #083a5c;
+    color: var(--feature-tabs-accordion-accent-text);
     transition: transform 0.2s ease;
 }
 
@@ -716,10 +723,10 @@ const setAccordionChild = (tab, child) => {
     display: inline-flex;
     align-items: center;
     padding: 0.58rem 0.82rem;
-    border: 1px solid rgba(8, 58, 92, 0.12);
+    border: 1px solid var(--feature-tabs-accordion-accent-border);
     border-radius: var(--page-radius, 4px);
     background: rgba(255, 255, 255, 0.82);
-    color: #0f3550;
+    color: var(--feature-tabs-accordion-accent-text);
     font-size: 0.84rem;
     font-weight: 700;
     line-height: 1.2;
@@ -730,13 +737,13 @@ const setAccordionChild = (tab, child) => {
 .feature-tabs-showcase__accordion-child:hover,
 .feature-tabs-showcase__accordion-child:focus-visible {
     transform: translateY(-1px);
-    border-color: rgba(8, 58, 92, 0.24);
+    border-color: var(--feature-tabs-accordion-accent-border-strong);
 }
 
 .feature-tabs-showcase__accordion-child.is-active {
-    border-color: rgba(8, 58, 92, 0.26);
-    background: rgba(132, 204, 22, 0.18);
-    color: #072b41;
+    border-color: var(--feature-tabs-accordion-accent-border-strong);
+    background: color-mix(in srgb, var(--feature-tabs-accordion-accent-soft) 80%, white 20%);
+    color: var(--feature-tabs-accordion-accent-strong);
 }
 
 .feature-tabs-showcase__accordion-child-arrow {
@@ -772,11 +779,11 @@ const setAccordionChild = (tab, child) => {
     width: 0.42rem;
     height: 0.42rem;
     border-radius: 999px;
-    background: #84cc16;
+    background: var(--feature-tabs-accordion-accent);
 }
 
 .feature-tabs-showcase__accordion-metric {
-    color: #083a5c;
+    color: var(--feature-tabs-accordion-accent-text);
     font-size: 0.88rem;
     font-weight: 800;
     line-height: 1.45;
@@ -1070,7 +1077,7 @@ const setAccordionChild = (tab, child) => {
 .feature-tabs-showcase__story-avatar {
     width: 3rem;
     height: 3rem;
-    border-radius: 999px;
+    border-radius: 0.125rem;
     object-fit: cover;
     background: #dbeafe;
 }
@@ -1151,13 +1158,13 @@ const setAccordionChild = (tab, child) => {
     align-items: center;
     padding: 1rem 1.15rem;
     border-radius: var(--page-radius, 4px);
-    background: #083a5c;
+    background: var(--feature-tabs-accordion-accent);
     color: #f8fafc;
-    box-shadow: 0 18px 34px -28px rgba(8, 58, 92, 0.56);
+    box-shadow: 0 18px 34px -28px color-mix(in srgb, var(--feature-tabs-accordion-accent) 58%, transparent);
 }
 
 .feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-item.is-active .feature-tabs-showcase__accordion-trigger {
-    background: #062f4b;
+    background: var(--feature-tabs-accordion-accent-strong);
 }
 
 .feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-label,
@@ -1218,17 +1225,17 @@ const setAccordionChild = (tab, child) => {
 .feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-child:hover,
 .feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-child:focus-visible {
     transform: none;
-    background: rgba(8, 58, 92, 0.06);
+    background: color-mix(in srgb, var(--feature-tabs-accordion-accent-soft) 65%, white 35%);
 }
 
 .feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-child.is-active {
-    background: rgba(132, 204, 22, 0.28);
-    color: #072b41;
+    background: color-mix(in srgb, var(--feature-tabs-accordion-accent-soft) 82%, white 18%);
+    color: var(--feature-tabs-accordion-accent-strong);
 }
 
 .feature-tabs-showcase--workflow .feature-tabs-showcase__accordion-child-arrow {
     display: inline-flex;
-    color: #083a5c;
+    color: var(--feature-tabs-accordion-accent);
     font-size: 0.9rem;
     font-weight: 800;
     line-height: 1;

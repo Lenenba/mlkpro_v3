@@ -130,6 +130,45 @@ class PlatformPageContentService
         return $resolved;
     }
 
+    public function synchronizeResolvedSectionStructure(array $contentByLocale, ?string $sourceLocale = null): array
+    {
+        $availableLocales = $this->locales();
+        $canonicalLocale = $this->normalizeLocale($sourceLocale ?? $availableLocales[0]);
+        $canonicalContent = is_array($contentByLocale[$canonicalLocale] ?? null)
+            ? $contentByLocale[$canonicalLocale]
+            : [];
+        $canonicalSections = $this->sanitizeSections($canonicalContent['sections'] ?? []);
+
+        foreach ($availableLocales as $locale) {
+            $localeContent = is_array($contentByLocale[$locale] ?? null)
+                ? $contentByLocale[$locale]
+                : [];
+            $existingSectionsById = collect($this->sanitizeSections($localeContent['sections'] ?? []))
+                ->filter(fn ($section) => is_array($section))
+                ->mapWithKeys(function ($section) {
+                    $id = $this->cleanText($section['id'] ?? '');
+
+                    return $id !== '' ? [$id => $section] : [];
+                })
+                ->all();
+
+            $contentByLocale[$locale] = [
+                ...$localeContent,
+                'sections' => array_values(array_map(function ($section) use ($existingSectionsById) {
+                    $id = $this->cleanText($section['id'] ?? '');
+
+                    if ($id !== '' && array_key_exists($id, $existingSectionsById)) {
+                        return $existingSectionsById[$id];
+                    }
+
+                    return $section;
+                }, $canonicalSections)),
+            ];
+        }
+
+        return $contentByLocale;
+    }
+
     public function resolveForLocale(PlatformPage $page, string $locale): array
     {
         $locale = $this->normalizeLocale($locale);
@@ -928,8 +967,9 @@ class PlatformPageContentService
             $section = $this->dedupeImageField($section, 'image_url', 'image_alt', $used);
             $section = $this->dedupeImageField($section, 'aside_image_url', 'aside_image_alt', $used);
 
+            $heroSlidesUsed = [];
             $section['hero_images'] = $this->sanitizeHeroImages(array_map(
-                fn ($item) => $this->dedupeImageField(is_array($item) ? $item : [], 'image_url', 'image_alt', $used),
+                fn ($item) => $this->dedupeImageField(is_array($item) ? $item : [], 'image_url', 'image_alt', $heroSlidesUsed),
                 is_array($section['hero_images'] ?? null) ? $section['hero_images'] : []
             ));
 

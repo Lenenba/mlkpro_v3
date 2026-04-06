@@ -199,6 +199,11 @@ class PlatformPageController extends BaseSuperAdminController
             }
         }
 
+        $resolvedContent = $service->resolveAll($page);
+        if (app(PlatformWelcomePageService::class)->isWelcomePage($page)) {
+            $resolvedContent = $service->synchronizeResolvedSectionStructure($resolvedContent, $defaultLocale);
+        }
+
         return Inertia::render('SuperAdmin/Pages/Edit', [
             'mode' => 'edit',
             'page' => [
@@ -209,7 +214,7 @@ class PlatformPageController extends BaseSuperAdminController
             ],
             'locales' => $locales,
             'default_locale' => $defaultLocale,
-            'content' => $service->resolveAll($page),
+            'content' => $resolvedContent,
             'theme' => $service->resolveTheme($page),
             'meta' => [
                 'updated_at' => $meta['updated_at'] ?? null,
