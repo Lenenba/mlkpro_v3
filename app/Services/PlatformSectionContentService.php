@@ -33,7 +33,7 @@ class PlatformSectionContentService
         'deep-ocean',
     ];
 
-    private const SHOWCASE_DIVIDER_STYLES = ['diagonal', 'curve', 'notch'];
+    private const SHOWCASE_DIVIDER_STYLES = ['diagonal', 'vertical', 'round', 'curve', 'notch', 'glow'];
 
     private const FOOTER_GROUP_LAYOUTS = ['stack', 'split'];
 

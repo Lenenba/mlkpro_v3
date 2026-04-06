@@ -1712,8 +1712,11 @@
       },
       "showcase_divider_styles": {
         "diagonal": "Diagonal",
+        "vertical": "Vertical",
+        "round": "Round",
         "curve": "Curve",
-        "notch": "Notch"
+        "notch": "Notch",
+        "glow": "Glow"
       },
       "densities": {
         "compact": "Compact",

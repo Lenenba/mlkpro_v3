@@ -1712,8 +1712,11 @@
       },
       "showcase_divider_styles": {
         "diagonal": "Oblique",
+        "vertical": "Verticale",
+        "round": "Arrondie",
         "curve": "Courbe",
-        "notch": "Pointe"
+        "notch": "Pointe",
+        "glow": "Eclairee"
       },
       "densities": {
         "compact": "Compact",

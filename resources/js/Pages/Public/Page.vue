@@ -5,7 +5,7 @@ import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
 import PublicFrontHero from '@/Components/Public/PublicFrontHero.vue';
 import PublicSiteHeader from '@/Components/Public/PublicSiteHeader.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { buildBackgroundStyle } from '@/utils/backgroundPresets';
+import { buildBackgroundStyle, buildBackgroundToneStyle } from '@/utils/backgroundPresets';
 import { useI18n } from 'vue-i18n';
 import { resolveIndustryIconComponent } from '@/utils/industryGrid';
 
@@ -352,14 +352,15 @@ const duoPanelStyle = (section) => {
     return buildBackgroundStyle(section);
 };
 
-const showcaseCopyStyle = (section) => {
-    const style = buildBackgroundStyle(section);
+const showcaseShellStyle = (section) => {
+    return {
+        ...buildBackgroundStyle(section),
+        ...buildBackgroundToneStyle(section),
+    };
+};
 
-    return Object.keys(style).length
-        ? style
-        : {
-            background: 'linear-gradient(135deg, #062f4b 0%, #0c5b72 100%)',
-        };
+const showcaseCopyStyle = () => {
+    return {};
 };
 
 const resolveHref = (href) => {
@@ -785,7 +786,11 @@ const showcaseHasMedia = (section) =>
 const showcaseDividerStyle = (section) => {
     const value = String(section?.showcase_divider_style || '').trim().toLowerCase();
 
-    return ['curve', 'notch'].includes(value) ? value : 'diagonal';
+    if (value === 'curve' || value === 'round') {
+        return 'round';
+    }
+
+    return ['vertical', 'glow', 'notch'].includes(value) ? value : 'diagonal';
 };
 
 const showcaseMainImageUrl = (section) =>
@@ -1515,7 +1520,7 @@ const headerMenuItems = computed(() => ([
                                     `public-showcase-shell--divider-${showcaseDividerStyle(section)}`,
                                     { 'public-showcase-shell--no-media': !showcaseHasMedia(section) },
                                 ]"
-                                :style="showcaseCopyStyle(section)"
+                                :style="showcaseShellStyle(section)"
                             >
                                 <div class="public-showcase-shell__copy" :style="showcaseCopyStyle(section)">
                                     <div class="public-showcase-copy-inner" :class="alignmentClass(section.alignment)">
@@ -3125,7 +3130,7 @@ ul .public-feature-tabs__subitem::before {
 
 .public-showcase-title {
     margin: 0;
-    color: #f8fafc;
+    color: var(--showcase-copy-text, var(--page-text, #0f172a));
     font-family: var(--page-font-heading, var(--front-font-heading));
     font-size: clamp(2.45rem, 2rem + 1.6vw, 4.6rem);
     line-height: 0.98;
@@ -3134,6 +3139,10 @@ ul .public-feature-tabs__subitem::before {
 
 .public-showcase-shell__copy .public-kicker {
     margin-bottom: 1rem;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--showcase-copy-kicker-text, var(--page-primary, #16a34a));
 }
 
 .public-showcase-badge {
@@ -3144,11 +3153,11 @@ ul .public-feature-tabs__subitem::before {
     width: fit-content;
     max-width: 100%;
     margin-bottom: 1.5rem;
-    padding: 0.8rem 1rem;
-    border-radius: var(--page-radius, 4px);
-    background: rgba(248, 250, 252, 0.08);
-    color: #f8fafc;
-    box-shadow: inset 0 0 0 1px rgba(248, 250, 252, 0.08);
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--showcase-copy-text, var(--page-text, #0f172a));
+    box-shadow: none;
 }
 
 .public-showcase-badge__label {
@@ -3156,26 +3165,26 @@ ul .public-feature-tabs__subitem::before {
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(226, 232, 240, 0.82);
+    color: var(--showcase-copy-muted, var(--page-muted, #64748b));
 }
 
 .public-showcase-badge__value {
     font-size: 1rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: var(--showcase-copy-text, var(--page-text, #0f172a));
 }
 
 .public-showcase-badge__note {
     flex-basis: 100%;
     font-size: 0.92rem;
     line-height: 1.5;
-    color: rgba(226, 232, 240, 0.82);
+    color: var(--showcase-copy-muted, var(--page-muted, #64748b));
 }
 
 .public-showcase-body {
     margin-top: 1.75rem;
     max-width: 34rem;
-    color: rgba(255, 255, 255, 0.82);
+    color: var(--showcase-copy-muted, var(--page-muted, #64748b));
     font-size: clamp(1rem, 0.95rem + 0.3vw, 1.28rem);
     line-height: 1.62;
 }
@@ -3197,12 +3206,42 @@ ul .public-feature-tabs__subitem::before {
     margin-top: 2rem;
 }
 
+.public-showcase-actions .public-button {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--showcase-copy-link, var(--page-primary, #16a34a));
+}
+
+.public-showcase-actions .public-button:hover,
+.public-showcase-actions .public-button:focus-visible {
+    background: none;
+    color: var(--showcase-copy-link, var(--page-primary, #16a34a));
+    filter: none;
+    text-decoration: underline;
+}
+
+.public-showcase-actions .public-button:active {
+    transform: none;
+}
+
+.public-showcase-actions .public-button--secondary {
+    color: var(--showcase-copy-text, var(--page-text, #0f172a));
+}
+
+.public-showcase-actions .public-button--secondary:hover,
+.public-showcase-actions .public-button--secondary:focus-visible {
+    color: var(--showcase-copy-text, var(--page-text, #0f172a));
+}
+
 .public-showcase-actions .public-inline-link {
-    color: rgba(248, 250, 252, 0.92);
+    color: var(--showcase-copy-link, var(--page-primary, #16a34a));
 }
 
 .public-showcase-actions .public-inline-link--muted {
-    color: rgba(226, 232, 240, 0.82);
+    color: var(--showcase-copy-link-muted, var(--page-muted, #64748b));
 }
 
 .public-showcase-grid--no-media .public-showcase-copy-inner {
@@ -3352,8 +3391,8 @@ ul .public-feature-tabs__subitem::before {
     min-height: clamp(22rem, 40vw, 32rem);
     overflow: hidden;
     border-radius: var(--page-radius, 4px);
-    background: #082d42;
-    box-shadow: 0 34px 60px -40px rgba(8, 58, 92, 0.5);
+    background: transparent;
+    box-shadow: none;
     isolation: isolate;
 }
 
@@ -3372,57 +3411,16 @@ ul .public-feature-tabs__subitem::before {
 }
 
 .public-showcase-shell__copy::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-        linear-gradient(135deg, rgba(6, 47, 75, 0.34), rgba(12, 91, 114, 0.12)),
-        radial-gradient(circle at top right, rgba(132, 204, 22, 0.18), rgba(132, 204, 22, 0) 36%);
-    pointer-events: none;
-    z-index: 0;
+    display: none;
 }
 
 .public-showcase-shell__copy::after {
-    content: '';
-    position: absolute;
-    top: -12%;
-    right: calc(var(--showcase-divider-size) * -0.52);
-    bottom: -12%;
-    width: var(--showcase-divider-size);
-    background: inherit;
-    pointer-events: none;
-    z-index: 0;
+    display: none;
 }
 
 .public-showcase-shell--media-left .public-showcase-shell__copy::after {
     left: calc(var(--showcase-divider-size) * -0.52);
     right: auto;
-}
-
-.public-showcase-shell--divider-diagonal .public-showcase-shell__copy::after {
-    clip-path: polygon(0 0, 100% 0, 60% 100%, 0 100%);
-}
-
-.public-showcase-shell--media-left.public-showcase-shell--divider-diagonal .public-showcase-shell__copy::after {
-    clip-path: polygon(40% 0, 100% 0, 100% 100%, 0 100%);
-}
-
-.public-showcase-shell--divider-curve .public-showcase-shell__copy::after {
-    border-radius: 0 100% 100% 0;
-    transform: translateX(10%);
-}
-
-.public-showcase-shell--media-left.public-showcase-shell--divider-curve .public-showcase-shell__copy::after {
-    border-radius: 100% 0 0 100%;
-    transform: translateX(-10%);
-}
-
-.public-showcase-shell--divider-notch .public-showcase-shell__copy::after {
-    clip-path: polygon(0 0, 100% 0, 68% 50%, 100% 100%, 0 100%);
-}
-
-.public-showcase-shell--media-left.public-showcase-shell--divider-notch .public-showcase-shell__copy::after {
-    clip-path: polygon(32% 0, 100% 0, 100% 100%, 0 50%);
 }
 
 .public-showcase-copy-inner {
@@ -3451,9 +3449,6 @@ ul .public-feature-tabs__subitem::before {
     position: relative;
     min-height: clamp(22rem, 40vw, 32rem);
     z-index: 1;
-    clip-path: none;
-    -webkit-mask-image: none;
-    mask-image: none;
 }
 
 .public-showcase-visual {
@@ -3461,9 +3456,7 @@ ul .public-feature-tabs__subitem::before {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background:
-        radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 28%),
-        linear-gradient(135deg, rgba(12, 91, 114, 0.8), rgba(8, 58, 92, 0.55));
+    background: transparent;
 }
 
 .public-showcase-visual__image {
@@ -3476,12 +3469,7 @@ ul .public-feature-tabs__subitem::before {
 }
 
 .public-showcase-visual__veil {
-    position: absolute;
-    inset: 0;
-    background:
-        linear-gradient(180deg, rgba(8, 58, 92, 0.08), rgba(8, 58, 92, 0.28)),
-        linear-gradient(135deg, rgba(8, 58, 92, 0.18), rgba(8, 58, 92, 0) 48%);
-    pointer-events: none;
+    display: none;
 }
 
 .public-showcase-media-tag {
@@ -3491,14 +3479,14 @@ ul .public-feature-tabs__subitem::before {
     z-index: 2;
     display: inline-flex;
     align-items: center;
-    padding: 0.55rem 0.9rem;
-    border-radius: var(--page-radius, 4px);
-    background: rgba(248, 250, 252, 0.88);
-    color: #083a5c;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--showcase-media-tag-text, #ffffff);
     font-size: 0.82rem;
     font-weight: 800;
     text-decoration: none;
-    box-shadow: 0 14px 28px -24px rgba(15, 23, 42, 0.38);
+    box-shadow: none;
 }
 
 .public-showcase-floating {
@@ -3740,6 +3728,7 @@ ul .public-feature-tabs__subitem::before {
         clip-path: polygon(0 0, 100% 0, 100% 50%, 88% 100%, 0 100%);
     }
 
+    .public-showcase-shell--media-right.public-showcase-shell--divider-round .public-showcase-shell__media,
     .public-showcase-shell--media-right.public-showcase-shell--divider-curve .public-showcase-shell__media {
         -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M18 0H100V100H18Q2 50 18 0Z'/%3E%3C/svg%3E");
         mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M18 0H100V100H18Q2 50 18 0Z'/%3E%3C/svg%3E");
@@ -3751,6 +3740,7 @@ ul .public-feature-tabs__subitem::before {
         mask-size: 100% 100%;
     }
 
+    .public-showcase-shell--media-left.public-showcase-shell--divider-round .public-showcase-shell__media,
     .public-showcase-shell--media-left.public-showcase-shell--divider-curve .public-showcase-shell__media {
         -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M0 0H82Q98 50 82 100H0V0Z'/%3E%3C/svg%3E");
         mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M0 0H82Q98 50 82 100H0V0Z'/%3E%3C/svg%3E");
@@ -3760,6 +3750,29 @@ ul .public-feature-tabs__subitem::before {
         mask-position: center;
         -webkit-mask-size: 100% 100%;
         mask-size: 100% 100%;
+    }
+
+    .public-showcase-shell--media-right.public-showcase-shell--divider-glow .public-showcase-shell__media::before,
+    .public-showcase-shell--media-left.public-showcase-shell--divider-glow .public-showcase-shell__media::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: clamp(0.9rem, 1.9vw, 1.4rem);
+        pointer-events: none;
+        z-index: 3;
+        filter: blur(10px);
+        opacity: 0.92;
+    }
+
+    .public-showcase-shell--media-right.public-showcase-shell--divider-glow .public-showcase-shell__media::before {
+        left: 0;
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+    }
+
+    .public-showcase-shell--media-left.public-showcase-shell--divider-glow .public-showcase-shell__media::before {
+        right: 0;
+        background: linear-gradient(270deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
     }
 
     .public-showcase-grid--no-media .public-showcase-shell {

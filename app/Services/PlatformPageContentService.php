@@ -43,7 +43,7 @@ class PlatformPageContentService
         'deep-ocean',
     ];
 
-    private const SHOWCASE_DIVIDER_STYLES = ['diagonal', 'curve', 'notch'];
+    private const SHOWCASE_DIVIDER_STYLES = ['diagonal', 'vertical', 'round', 'curve', 'notch', 'glow'];
 
     private const INDUSTRY_CARD_ICONS = [
         'tree-pine',

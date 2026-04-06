@@ -247,8 +247,10 @@ const imagePositionOptions = computed(() => [
 
 const showcaseDividerStyleOptions = computed(() => [
     { value: 'diagonal', label: t('super_admin.pages.showcase_divider_styles.diagonal') },
-    { value: 'curve', label: t('super_admin.pages.showcase_divider_styles.curve') },
+    { value: 'vertical', label: t('super_admin.pages.showcase_divider_styles.vertical') },
+    { value: 'round', label: t('super_admin.pages.showcase_divider_styles.round') },
     { value: 'notch', label: t('super_admin.pages.showcase_divider_styles.notch') },
+    { value: 'glow', label: t('super_admin.pages.showcase_divider_styles.glow') },
 ]);
 
 const headerBackgroundTypeOptions = computed(() => [
