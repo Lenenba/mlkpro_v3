@@ -361,6 +361,7 @@ class PlatformPageContentService
 
         $merged['sections'] = $this->applyLibrarySections($merged['sections'], $locale);
         $merged = $this->normalizeVisualsForLocale($merged, $page, $locale);
+        $merged['sections'] = $this->hydrateContactFormSections($page, $merged['sections'], $locale);
         $merged['theme'] = $this->resolveTheme($page);
 
         return $merged;
@@ -1115,7 +1116,7 @@ class PlatformPageContentService
         }
 
         $identity = $this->normalizeImageIdentity($url);
-        if ($identity === '' || array_key_exists($identity, $used)) {
+        if ($identity === '') {
             $item[$urlKey] = '';
 
             if (array_key_exists($altKey, $item)) {
@@ -1125,7 +1126,10 @@ class PlatformPageContentService
             return $item;
         }
 
-        $used[$identity] = true;
+        if (! array_key_exists($identity, $used)) {
+            $used[$identity] = true;
+        }
+
         $item[$urlKey] = $url;
 
         if (array_key_exists($altKey, $item)) {
@@ -2046,5 +2050,68 @@ class PlatformPageContentService
         $locale = strtolower(trim($locale));
 
         return in_array($locale, $this->locales(), true) ? $locale : $this->locales()[0];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $sections
+     * @return array<int, array<string, mixed>>
+     */
+    private function hydrateContactFormSections(PlatformPage $page, array $sections, string $locale): array
+    {
+        if ($page->slug !== 'contact-us' || $sections === []) {
+            return $sections;
+        }
+
+        $preferredUserId = (int) config('app.lead_intake_user_id');
+        $formUrl = app(PublicLeadFormUrlService::class)->resolve($preferredUserId);
+        $embeddedFormUrl = app(PublicLeadFormUrlService::class)->resolve($preferredUserId, ['embed' => 1]);
+
+        if (! is_string($formUrl) || trim($formUrl) === '' || ! is_string($embeddedFormUrl) || trim($embeddedFormUrl) === '') {
+            return $sections;
+        }
+
+        $isFrench = $this->normalizeLocale($locale) === 'fr';
+        $primaryLabel = $isFrench ? 'Ouvrir le formulaire' : 'Open the form';
+        $embedTitle = $isFrench ? 'Formulaire de demande commerciale' : 'Commercial inquiry form';
+
+        return array_values(array_map(function ($section) use ($formUrl, $embeddedFormUrl, $primaryLabel, $embedTitle) {
+            if (! is_array($section)) {
+                return $section;
+            }
+
+            $id = trim((string) ($section['id'] ?? ''));
+            if ($id === 'contact-overview') {
+                $hadStoredEmbed = trim((string) ($section['embed_url'] ?? '')) !== '';
+                $section['embed_url'] = trim((string) ($section['embed_url'] ?? '')) !== ''
+                    ? $section['embed_url']
+                    : $embeddedFormUrl;
+                $section['embed_title'] = trim((string) ($section['embed_title'] ?? '')) !== ''
+                    ? $section['embed_title']
+                    : $embedTitle;
+                $section['embed_height'] = $hadStoredEmbed && (int) ($section['embed_height'] ?? 0) > 0
+                    ? $section['embed_height']
+                    : 820;
+                $section['primary_label'] = trim((string) ($section['primary_label'] ?? '')) !== ''
+                    ? $section['primary_label']
+                    : $primaryLabel;
+                $section['primary_href'] = trim((string) ($section['primary_href'] ?? '')) !== ''
+                    ? $section['primary_href']
+                    : $formUrl;
+            }
+
+            if ($id === 'contact-details') {
+                $section['primary_label'] = trim((string) ($section['primary_label'] ?? '')) !== ''
+                    ? $section['primary_label']
+                    : $primaryLabel;
+                $section['primary_href'] = trim((string) ($section['primary_href'] ?? '')) !== ''
+                    ? $section['primary_href']
+                    : $formUrl;
+                $section['aside_link_href'] = trim((string) ($section['aside_link_href'] ?? '')) !== ''
+                    ? $section['aside_link_href']
+                    : $formUrl;
+            }
+
+            return $section;
+        }, $sections));
     }
 }

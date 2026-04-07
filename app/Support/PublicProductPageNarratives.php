@@ -70,6 +70,7 @@ class PublicProductPageNarratives
                             : 'We clarified our online presence, automated follow-up, and increased qualified demand without adding friction.',
                         'cta_label' => '',
                         'cta_href' => '/pages/marketing-loyalty',
+                        'image_key' => 'marketing-desk',
                         'avatar_url' => '/images/presets/avatar-1.svg',
                         'avatar_alt' => $isFrench ? 'Portrait equipe croissance' : 'Growth team portrait',
                         'children' => [
@@ -81,6 +82,7 @@ class PublicProductPageNarratives
                                     : 'Trigger review requests at the right moment and make feedback collection easier while the customer experience is still fresh.',
                                 'cta_label' => $isFrench ? 'Voir les avis' : 'See reviews',
                                 'cta_href' => '#',
+                                'image_key' => 'office-collaboration',
                             ],
                             [
                                 'label' => $isFrench ? 'Reponses rapides' : 'Quick responses',
@@ -90,6 +92,7 @@ class PublicProductPageNarratives
                                     : 'Automate greeting messages and keep response times short so your business feels responsive from the first touch.',
                                 'cta_label' => $isFrench ? 'Voir la messagerie' : 'See messaging',
                                 'cta_href' => '#',
+                                'image_key' => 'desk-phone-laptop',
                             ],
                             [
                                 'label' => $isFrench ? 'Marketing automatise' : 'Automated marketing',
@@ -99,6 +102,7 @@ class PublicProductPageNarratives
                                     : 'Schedule simple follow-up, seasonal reminders, and lightweight campaigns so you stay top of mind at the right time.',
                                 'cta_label' => $isFrench ? 'Voir le marketing' : 'See marketing',
                                 'cta_href' => '#',
+                                'image_key' => 'marketing-desk',
                             ],
                             [
                                 'label' => $isFrench ? 'Liens de partage' : 'Shareable links',
@@ -108,6 +112,7 @@ class PublicProductPageNarratives
                                     : 'Share forms, pages, and quotes through clean links that make word of mouth and referrals easier to trigger.',
                                 'cta_label' => $isFrench ? 'Voir les liens' : 'See links',
                                 'cta_href' => '#',
+                                'image_key' => 'salon-front-desk',
                             ],
                         ],
                     ],
@@ -136,6 +141,7 @@ class PublicProductPageNarratives
                                     : 'Add simple request forms, accept online booking, and move new demand directly into your pipeline.',
                                 'cta_label' => $isFrench ? 'Voir la capture de leads' : 'See lead capture',
                                 'cta_href' => '#',
+                                'image_key' => 'salon-front-desk',
                             ],
                             [
                                 'label' => $isFrench ? 'Modeles de devis' : 'Quote templates',
@@ -145,6 +151,7 @@ class PublicProductPageNarratives
                                     : 'Preload services, pricing, and frequent options so office and field teams can send clear quotes without rebuilding them each time.',
                                 'cta_label' => $isFrench ? 'Voir les modeles de devis' : 'See quote templates',
                                 'cta_href' => '#',
+                                'image_key' => 'workflow-plan',
                             ],
                             [
                                 'label' => $isFrench ? 'Lignes optionnelles' : 'Optional line items',
@@ -154,6 +161,7 @@ class PublicProductPageNarratives
                                     : 'Add options, extras, and complementary services quickly so you can propose more value without rebuilding the quote by hand.',
                                 'cta_label' => $isFrench ? 'Voir les options de devis' : 'See quote options',
                                 'cta_href' => '#',
+                                'image_key' => 'service-install',
                             ],
                             [
                                 'label' => $isFrench ? 'Suivis automatiques' : 'Automated follow-ups',
@@ -163,6 +171,7 @@ class PublicProductPageNarratives
                                     : 'Schedule reminders and follow-up sequences so opportunities keep moving without leaving leads untouched.',
                                 'cta_label' => $isFrench ? 'Voir les suivis' : 'See follow-ups',
                                 'cta_href' => '#',
+                                'image_key' => 'office-collaboration',
                             ],
                         ],
                     ],
@@ -191,6 +200,7 @@ class PublicProductPageNarratives
                                     : 'Reschedule in seconds, assign the right team, and keep everyone aligned with instant updates.',
                                 'cta_label' => $isFrench ? 'Voir la planification' : 'See scheduling',
                                 'cta_href' => '#',
+                                'image_key' => 'service-tablet',
                             ],
                             [
                                 'label' => $isFrench ? 'Dispatch d equipe' : 'Team dispatch',
@@ -200,6 +210,7 @@ class PublicProductPageNarratives
                                     : 'See availability, location, and workload so you can send the right people without losing time.',
                                 'cta_label' => $isFrench ? 'Voir le dispatch' : 'See dispatch',
                                 'cta_href' => '#',
+                                'image_key' => 'service-team',
                             ],
                             [
                                 'label' => $isFrench ? 'Checklists terrain' : 'Field checklists',
@@ -209,6 +220,7 @@ class PublicProductPageNarratives
                                     : 'Add steps, forms, and quality checks so the work gets done right the first time.',
                                 'cta_label' => $isFrench ? 'Voir les checklists' : 'See checklists',
                                 'cta_href' => '#',
+                                'image_key' => 'field-checklist',
                             ],
                             [
                                 'label' => $isFrench ? 'Historique client' : 'Customer history',
@@ -218,6 +230,7 @@ class PublicProductPageNarratives
                                     : 'Keep notes, photos, requests, and previous jobs in one place so teams arrive prepared at the customer site.',
                                 'cta_label' => $isFrench ? 'Voir les fiches client' : 'See customer records',
                                 'cta_href' => '#',
+                                'image_key' => 'team-laptop-window',
                             ],
                         ],
                     ],
@@ -246,6 +259,7 @@ class PublicProductPageNarratives
                                     : 'Generate invoices without re-entering job information and send them to the customer immediately.',
                                 'cta_label' => $isFrench ? 'Voir la facturation' : 'See invoicing',
                                 'cta_href' => '#',
+                                'image_key' => 'office-collaboration',
                             ],
                             [
                                 'label' => $isFrench ? 'Paiements sur place' : 'On-site payments',
@@ -255,6 +269,7 @@ class PublicProductPageNarratives
                                     : 'Accept multiple payment methods from mobile devices to reduce delay and shrink accounts receivable.',
                                 'cta_label' => $isFrench ? 'Voir les paiements mobiles' : 'See mobile payments',
                                 'cta_href' => '#',
+                                'image_key' => 'payments-terminal',
                             ],
                             [
                                 'label' => $isFrench ? 'Rappels automatiques' : 'Automated reminders',
@@ -264,6 +279,7 @@ class PublicProductPageNarratives
                                     : 'Automate reminders so overdue payments stay visible without consuming your admin team.',
                                 'cta_label' => $isFrench ? 'Voir les rappels' : 'See reminders',
                                 'cta_href' => '#',
+                                'image_key' => 'desk-phone-laptop',
                             ],
                             [
                                 'label' => $isFrench ? 'Rapports de marge' : 'Margin reporting',
@@ -273,6 +289,7 @@ class PublicProductPageNarratives
                                     : 'Track revenue, profitable services, and performance trends so better decisions are easier to make.',
                                 'cta_label' => $isFrench ? 'Voir les rapports' : 'See reporting',
                                 'cta_href' => '#',
+                                'image_key' => 'warehouse-worker',
                             ],
                         ],
                     ],
@@ -308,12 +325,14 @@ class PublicProductPageNarratives
                         'body' => $isFrench
                             ? 'Notre IA comprend le quotidien des equipes terrain. Elle aide a mieux qualifier, chiffrer et reperer les opportunites sans alourdir les operations.'
                             : 'Our AI understands the day-to-day rhythm of field teams. It helps qualify, price, and spot opportunities without making operations heavier.',
+                        'image_key' => 'service-team',
                     ],
                     [
                         'title' => $isFrench ? 'S adapte a votre facon de travailler' : 'Adapts to how your team already works',
                         'body' => $isFrench
                             ? 'Plus vous l utilisez, plus elle suit votre logique de devis, de planification et de description de service pour garder un rendu naturel.'
                             : 'The more you use it, the more it follows your quoting, scheduling, and service language so the output stays natural.',
+                        'image_key' => 'team-laptop-window',
                     ],
                     [
                         'title' => $isFrench ? 'Intervient au bon moment' : 'Shows up at the right moment',
