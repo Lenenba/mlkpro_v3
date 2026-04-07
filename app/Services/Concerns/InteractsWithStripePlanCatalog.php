@@ -80,22 +80,16 @@ trait InteractsWithStripePlanCatalog
                     continue;
                 }
 
-                if (! is_array($row)) {
-                    continue;
+                foreach ($this->extractPriceDefinitionsForCurrency($row, $planCode, $currencyCode) as $priceDefinition) {
+                    $amount = (float) ($priceDefinition['amount'] ?? 0);
+                    $configuredPriceId = $this->normalizeNullableString($priceDefinition['configured_price_id'] ?? null);
+
+                    if ($amount <= 0 && $configuredPriceId === null) {
+                        continue;
+                    }
+
+                    $prices[] = $priceDefinition;
                 }
-
-                $configuredPriceId = $this->normalizeNullableString($row['stripe_price_id'] ?? null);
-                $amount = (float) ($row['amount'] ?? 0);
-
-                if ($amount <= 0 && $configuredPriceId === null) {
-                    continue;
-                }
-
-                $prices[$currencyCode] = [
-                    'amount' => $amount,
-                    'configured_price_id' => $configuredPriceId,
-                    'env_key' => $this->envKeyFor($planCode, $currencyCode),
-                ];
             }
 
             if ($prices === []) {
@@ -120,18 +114,17 @@ trait InteractsWithStripePlanCatalog
         $catalog = [];
 
         foreach ($definitions as $planCode => $definition) {
-            $basePrice = is_array($definition['prices']['CAD'] ?? null)
-                ? $definition['prices']['CAD']
-                : null;
+            $basePrice = collect($definition['prices'])->first(function (array $row): bool {
+                return $row['currency_code'] === 'CAD'
+                    && $row['billing_period'] === BillingPeriod::MONTHLY->value;
+            });
 
-            $prices = [];
-            foreach ($definition['prices'] as $currencyCode => $row) {
-                if ($currencyCode === 'CAD') {
-                    continue;
-                }
-
-                $prices[$currencyCode] = $row;
-            }
+            $prices = array_values(array_filter($definition['prices'], function (array $row): bool {
+                return ! (
+                    $row['currency_code'] === 'CAD'
+                    && $row['billing_period'] === BillingPeriod::MONTHLY->value
+                );
+            }));
 
             if ($prices === []) {
                 continue;
@@ -151,24 +144,36 @@ trait InteractsWithStripePlanCatalog
         return $catalog;
     }
 
-    protected function envKeyFor(string $planCode, string $currencyCode): string
-    {
-        return 'STRIPE_PRICE_'.strtoupper($planCode).'_'.strtoupper($currencyCode);
+    protected function envKeyFor(
+        string $planCode,
+        string $currencyCode,
+        BillingPeriod|string|null $billingPeriod = null
+    ): string {
+        $prefix = 'STRIPE_PRICE_'.strtoupper($planCode).'_'.strtoupper($currencyCode);
+        $period = $this->normalizeBillingPeriod($billingPeriod);
+
+        return $period === BillingPeriod::YEARLY ? $prefix.'_YEARLY' : $prefix;
     }
 
-    protected function legacyEnvKeyFor(string $planCode): string
+    protected function legacyEnvKeyFor(string $planCode, BillingPeriod|string|null $billingPeriod = null): string
     {
-        return 'STRIPE_PRICE_'.strtoupper($planCode);
+        $prefix = 'STRIPE_PRICE_'.strtoupper($planCode);
+        $period = $this->normalizeBillingPeriod($billingPeriod);
+
+        return $period === BillingPeriod::YEARLY ? $prefix.'_YEARLY' : $prefix;
     }
 
-    protected function amountEnvKeyFor(string $planCode, string $currencyCode): string
-    {
-        return $this->envKeyFor($planCode, $currencyCode).'_AMOUNT';
+    protected function amountEnvKeyFor(
+        string $planCode,
+        string $currencyCode,
+        BillingPeriod|string|null $billingPeriod = null
+    ): string {
+        return $this->envKeyFor($planCode, $currencyCode, $billingPeriod).'_AMOUNT';
     }
 
-    protected function legacyAmountEnvKeyFor(string $planCode): string
+    protected function legacyAmountEnvKeyFor(string $planCode, BillingPeriod|string|null $billingPeriod = null): string
     {
-        return $this->legacyEnvKeyFor($planCode).'_AMOUNT';
+        return $this->legacyEnvKeyFor($planCode, $billingPeriod).'_AMOUNT';
     }
 
     protected function addResolvedEnvValues(
@@ -177,18 +182,20 @@ trait InteractsWithStripePlanCatalog
         string $currencyCode,
         string $priceId,
         float $amount,
+        BillingPeriod|string|null $billingPeriod = null,
     ): void {
+        $period = $this->normalizeBillingPeriod($billingPeriod);
         $formattedAmount = number_format($amount, 2, '.', '');
 
-        $resolved[$this->envKeyFor($planCode, $currencyCode)] = $priceId;
-        $resolved[$this->amountEnvKeyFor($planCode, $currencyCode)] = $formattedAmount;
+        $resolved[$this->envKeyFor($planCode, $currencyCode, $period)] = $priceId;
+        $resolved[$this->amountEnvKeyFor($planCode, $currencyCode, $period)] = $formattedAmount;
 
         if (strtoupper($currencyCode) !== 'CAD') {
             return;
         }
 
-        $resolved[$this->legacyEnvKeyFor($planCode)] = $priceId;
-        $resolved[$this->legacyAmountEnvKeyFor($planCode)] = $formattedAmount;
+        $resolved[$this->legacyEnvKeyFor($planCode, $period)] = $priceId;
+        $resolved[$this->legacyAmountEnvKeyFor($planCode, $period)] = $formattedAmount;
     }
 
     protected function normalizeNullableString(mixed $value): ?string
@@ -200,6 +207,32 @@ trait InteractsWithStripePlanCatalog
         $trimmed = trim($value);
 
         return $trimmed !== '' ? $trimmed : null;
+    }
+
+    protected function normalizeBillingPeriod(BillingPeriod|string|null $billingPeriod = null): BillingPeriod
+    {
+        return $billingPeriod instanceof BillingPeriod
+            ? $billingPeriod
+            : (BillingPeriod::tryFromMixed($billingPeriod) ?? BillingPeriod::default());
+    }
+
+    protected function stripeIntervalFor(BillingPeriod|string|null $billingPeriod = null): string
+    {
+        return $this->normalizeBillingPeriod($billingPeriod) === BillingPeriod::YEARLY ? 'year' : 'month';
+    }
+
+    protected function supportsRecurringInterval(string $interval, int $intervalCount = 1): bool
+    {
+        if ($intervalCount !== 1) {
+            return false;
+        }
+
+        return in_array($interval, ['month', 'year'], true);
+    }
+
+    protected function periodLabel(BillingPeriod|string|null $billingPeriod = null): string
+    {
+        return $this->normalizeBillingPeriod($billingPeriod)->value;
     }
 
     protected function writeEnvValues(string $path, array $values): void
@@ -239,6 +272,7 @@ trait InteractsWithStripePlanCatalog
             $planCode = $row['plan_code'];
             $configuredPlan = $configuredPlans[$planCode] ?? [];
             $configuredDefault = $configuredDefaults[$planCode] ?? [];
+            $billingPeriod = $this->normalizeBillingPeriod($row['billing_period'] ?? null);
 
             $plan = Plan::query()->updateOrCreate(
                 ['code' => $planCode],
@@ -255,7 +289,7 @@ trait InteractsWithStripePlanCatalog
                 [
                     'plan_id' => $plan->id,
                     'currency_code' => $row['currency_code'],
-                    'billing_period' => BillingPeriod::MONTHLY->value,
+                    'billing_period' => $billingPeriod->value,
                 ],
                 [
                     'amount' => number_format((float) $row['amount'], 2, '.', ''),
@@ -264,5 +298,43 @@ trait InteractsWithStripePlanCatalog
                 ]
             );
         }
+    }
+
+    /**
+     * @return array<int, array{currency_code: string, billing_period: string, amount: float, configured_price_id: ?string, env_key: string}>
+     */
+    private function extractPriceDefinitionsForCurrency(mixed $row, string $planCode, string $currencyCode): array
+    {
+        if (! is_array($row)) {
+            return [];
+        }
+
+        if (array_key_exists('amount', $row) || array_key_exists('stripe_price_id', $row)) {
+            return [[
+                'currency_code' => $currencyCode,
+                'billing_period' => BillingPeriod::MONTHLY->value,
+                'amount' => (float) ($row['amount'] ?? 0),
+                'configured_price_id' => $this->normalizeNullableString($row['stripe_price_id'] ?? null),
+                'env_key' => $this->envKeyFor($planCode, $currencyCode, BillingPeriod::MONTHLY),
+            ]];
+        }
+
+        $definitions = [];
+        foreach (BillingPeriod::cases() as $period) {
+            $periodRow = $row[$period->value] ?? null;
+            if (! is_array($periodRow)) {
+                continue;
+            }
+
+            $definitions[] = [
+                'currency_code' => $currencyCode,
+                'billing_period' => $period->value,
+                'amount' => (float) ($periodRow['amount'] ?? 0),
+                'configured_price_id' => $this->normalizeNullableString($periodRow['stripe_price_id'] ?? null),
+                'env_key' => $this->envKeyFor($planCode, $currencyCode, $period),
+            ];
+        }
+
+        return $definitions;
     }
 }

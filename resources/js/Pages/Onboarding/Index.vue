@@ -28,6 +28,10 @@ const props = defineProps({
         type: String,
         default: null,
     },
+    selectedBillingPeriod: {
+        type: String,
+        default: 'monthly',
+    },
 });
 
 const page = usePage();
@@ -113,6 +117,7 @@ const form = useForm({
     company_team_size: preset.value.company_team_size || '',
     invites: [],
     plan_key: props.selectedPlanKey || '',
+    billing_period: props.selectedBillingPeriod || 'monthly',
     two_factor_method: preset.value.two_factor_method || 'email',
     accept_terms: false,
 });
@@ -387,7 +392,7 @@ const selectStep = (item) => {
 };
 
 const selectedCurrencyCode = computed(() => String(form.currency_code || 'CAD').toUpperCase());
-const priceForCurrency = (plan) => plan?.prices_by_currency?.[selectedCurrencyCode.value] || null;
+const priceForCurrency = (plan) => plan?.prices_by_currency?.[selectedCurrencyCode.value]?.[form.billing_period] || null;
 const hasPlanPrice = (plan) => Boolean(plan?.contact_only || priceForCurrency(plan)?.stripe_price_id);
 const visiblePlanOptions = computed(() => {
     const targetAudience = isSoloProfile.value ? 'solo' : 'team';
@@ -454,6 +459,11 @@ const trialEndLabel = computed(() => {
 });
 
 const resolvePlanPrice = (plan) => priceForCurrency(plan)?.display_price || plan?.display_price || plan?.price || '--';
+const resolvePlanIntervalLabel = () => (
+    form.billing_period === 'yearly'
+        ? t('onboarding.plan.interval_year')
+        : t('onboarding.plan.interval_month')
+);
 const isPlanSelected = (plan) => form.plan_key === plan?.key;
 const isPlanRecommended = (plan) => recommendedPlan.value?.key === plan?.key;
 const selectPlan = (plan) => {
@@ -479,7 +489,7 @@ watch(
 );
 
 watch(
-    () => form.currency_code,
+    () => [form.currency_code, form.billing_period],
     () => {
         if (!form.plan_key) {
             return;
@@ -949,6 +959,31 @@ const closeTerms = () => {
                             <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
                                 Charged currency: {{ selectedCurrencyCode }}
                             </p>
+                            <div class="mt-3 inline-flex rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950">
+                                <button
+                                    type="button"
+                                    class="rounded-sm px-3 py-2 text-xs font-semibold transition"
+                                    :class="form.billing_period === 'monthly'
+                                        ? 'bg-green-600 text-white'
+                                        : 'text-stone-600 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800'"
+                                    @click="form.billing_period = 'monthly'"
+                                >
+                                    {{ $t('onboarding.plan.monthly') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-sm px-3 py-2 text-xs font-semibold transition"
+                                    :class="form.billing_period === 'yearly'
+                                        ? 'bg-green-600 text-white'
+                                        : 'text-stone-600 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800'"
+                                    @click="form.billing_period = 'yearly'"
+                                >
+                                    {{ $t('onboarding.plan.yearly') }}
+                                </button>
+                            </div>
+                            <p v-if="form.billing_period === 'yearly'" class="mt-2 text-xs font-semibold text-green-700 dark:text-green-400">
+                                {{ $t('onboarding.plan.yearly_note', { percent: visiblePlanOptions[0]?.annual_discount_percent || 20 }) }}
+                            </p>
                             <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
                                 {{ $t('onboarding.plan.trial_note', { date: trialEndLabel }) }}
                             </p>
@@ -977,6 +1012,9 @@ const closeTerms = () => {
                                         <p class="text-sm font-semibold">{{ plan.name }}</p>
                                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                                             {{ resolvePlanPrice(plan) }}
+                                            <span v-if="!plan.contact_only" class="ml-1">
+                                                {{ resolvePlanIntervalLabel() }}
+                                            </span>
                                         </p>
                                     </div>
                                     <span

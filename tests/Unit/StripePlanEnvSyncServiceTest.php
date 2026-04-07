@@ -43,7 +43,55 @@ function fakeStripeProduct(array $attributes): Product
 it('syncs stripe prices into the env file and plan_prices table from existing stripe catalog data', function () {
     config()->set('services.stripe.secret', 'sk_test_sync_123');
 
-    $service = new class([fakeStripePrice(['id' => 'price_starter_cad', 'currency' => 'cad', 'unit_amount' => 15000, 'product' => 'prod_starter_cad', 'metadata' => ['plan_code' => 'starter']]), fakeStripePrice(['id' => 'price_starter_eur', 'currency' => 'eur', 'unit_amount' => 2100, 'product' => 'prod_starter_shared']), fakeStripePrice(['id' => 'price_starter_usd', 'currency' => 'usd', 'unit_amount' => 2400, 'product' => 'prod_unlabeled_usd']), fakeStripePrice(['id' => 'price_other_usd', 'currency' => 'usd', 'unit_amount' => 9900, 'product' => 'prod_other_usd'])], ['prod_starter_cad' => fakeStripeProduct(['id' => 'prod_starter_cad', 'metadata' => []]), 'prod_starter_shared' => fakeStripeProduct(['id' => 'prod_starter_shared', 'metadata' => ['plan_code' => 'starter']]), 'prod_unlabeled_usd' => fakeStripeProduct(['id' => 'prod_unlabeled_usd', 'metadata' => []]), 'prod_other_usd' => fakeStripeProduct(['id' => 'prod_other_usd', 'metadata' => []])]) extends StripePlanEnvSyncService
+    $service = new class([
+        fakeStripePrice([
+            'id' => 'price_starter_cad',
+            'currency' => 'cad',
+            'unit_amount' => 15000,
+            'product' => 'prod_starter_cad',
+            'metadata' => ['plan_code' => 'starter', 'billing_period' => 'monthly'],
+        ]),
+        fakeStripePrice([
+            'id' => 'price_starter_cad_yearly',
+            'currency' => 'cad',
+            'unit_amount' => 144000,
+            'product' => 'prod_starter_cad',
+            'metadata' => ['plan_code' => 'starter', 'billing_period' => 'yearly'],
+            'recurring' => ['interval' => 'year', 'interval_count' => 1],
+        ]),
+        fakeStripePrice([
+            'id' => 'price_starter_eur',
+            'currency' => 'eur',
+            'unit_amount' => 2100,
+            'product' => 'prod_starter_shared',
+        ]),
+        fakeStripePrice([
+            'id' => 'price_starter_eur_yearly',
+            'currency' => 'eur',
+            'unit_amount' => 20160,
+            'product' => 'prod_starter_shared',
+            'recurring' => ['interval' => 'year', 'interval_count' => 1],
+        ]),
+        fakeStripePrice([
+            'id' => 'price_starter_usd',
+            'currency' => 'usd',
+            'unit_amount' => 2400,
+            'product' => 'prod_unlabeled_usd',
+        ]),
+        fakeStripePrice([
+            'id' => 'price_starter_usd_yearly',
+            'currency' => 'usd',
+            'unit_amount' => 23040,
+            'product' => 'prod_unlabeled_usd',
+            'recurring' => ['interval' => 'year', 'interval_count' => 1],
+        ]),
+        fakeStripePrice(['id' => 'price_other_usd', 'currency' => 'usd', 'unit_amount' => 9900, 'product' => 'prod_other_usd']),
+    ], [
+        'prod_starter_cad' => fakeStripeProduct(['id' => 'prod_starter_cad', 'metadata' => []]),
+        'prod_starter_shared' => fakeStripeProduct(['id' => 'prod_starter_shared', 'metadata' => ['plan_code' => 'starter']]),
+        'prod_unlabeled_usd' => fakeStripeProduct(['id' => 'prod_unlabeled_usd', 'metadata' => []]),
+        'prod_other_usd' => fakeStripeProduct(['id' => 'prod_other_usd', 'metadata' => []]),
+    ]) extends StripePlanEnvSyncService
     {
         public function __construct(
             private array $prices,
@@ -101,7 +149,10 @@ it('syncs stripe prices into the env file and plan_prices table from existing st
 
         expect(array_column($result['items'], 'action'))->toBe([
             'PRICE METADATA',
+            'PRICE METADATA',
             'PRODUCT METADATA',
+            'PRODUCT METADATA',
+            'AMOUNT',
             'AMOUNT',
         ])
             ->and($result['resolved'])->toMatchArray([
@@ -109,10 +160,18 @@ it('syncs stripe prices into the env file and plan_prices table from existing st
                 'STRIPE_PRICE_STARTER_CAD_AMOUNT' => '150.00',
                 'STRIPE_PRICE_STARTER' => 'price_starter_cad',
                 'STRIPE_PRICE_STARTER_AMOUNT' => '150.00',
+                'STRIPE_PRICE_STARTER_CAD_YEARLY' => 'price_starter_cad_yearly',
+                'STRIPE_PRICE_STARTER_CAD_YEARLY_AMOUNT' => '1440.00',
+                'STRIPE_PRICE_STARTER_YEARLY' => 'price_starter_cad_yearly',
+                'STRIPE_PRICE_STARTER_YEARLY_AMOUNT' => '1440.00',
                 'STRIPE_PRICE_STARTER_EUR' => 'price_starter_eur',
                 'STRIPE_PRICE_STARTER_EUR_AMOUNT' => '21.00',
+                'STRIPE_PRICE_STARTER_EUR_YEARLY' => 'price_starter_eur_yearly',
+                'STRIPE_PRICE_STARTER_EUR_YEARLY_AMOUNT' => '201.60',
                 'STRIPE_PRICE_STARTER_USD' => 'price_starter_usd',
                 'STRIPE_PRICE_STARTER_USD_AMOUNT' => '24.00',
+                'STRIPE_PRICE_STARTER_USD_YEARLY' => 'price_starter_usd_yearly',
+                'STRIPE_PRICE_STARTER_USD_YEARLY_AMOUNT' => '230.40',
             ])
             ->and($result['env_updated'])->toBeTrue()
             ->and($result['db_synced'])->toBeTrue();
@@ -120,8 +179,9 @@ it('syncs stripe prices into the env file and plan_prices table from existing st
         $contents = file_get_contents($envPath);
         expect($contents)->toContain('STRIPE_PRICE_STARTER_CAD=price_starter_cad')
             ->toContain('STRIPE_PRICE_STARTER=price_starter_cad')
+            ->toContain('STRIPE_PRICE_STARTER_YEARLY=price_starter_cad_yearly')
             ->toContain('STRIPE_PRICE_STARTER_EUR=price_starter_eur')
-            ->toContain('STRIPE_PRICE_STARTER_USD_AMOUNT=24.00');
+            ->toContain('STRIPE_PRICE_STARTER_USD_YEARLY_AMOUNT=230.40');
 
         $plan = Plan::query()->where('code', 'starter')->first();
         expect($plan)->not->toBeNull();
@@ -138,9 +198,18 @@ it('syncs stripe prices into the env file and plan_prices table from existing st
             ->where('billing_period', BillingPeriod::MONTHLY->value)
             ->first();
 
+        $yearlyCadPrice = PlanPrice::query()
+            ->where('plan_id', $plan->id)
+            ->where('currency_code', 'CAD')
+            ->where('billing_period', BillingPeriod::YEARLY->value)
+            ->first();
+
         expect($cadPrice)->not->toBeNull()
             ->and($cadPrice->amount)->toBe('150.00')
             ->and($cadPrice->stripe_price_id)->toBe('price_starter_cad')
+            ->and($yearlyCadPrice)->not->toBeNull()
+            ->and($yearlyCadPrice->amount)->toBe('1440.00')
+            ->and($yearlyCadPrice->stripe_price_id)->toBe('price_starter_cad_yearly')
             ->and($usdPrice)->not->toBeNull()
             ->and($usdPrice->amount)->toBe('24.00')
             ->and($usdPrice->stripe_price_id)->toBe('price_starter_usd');

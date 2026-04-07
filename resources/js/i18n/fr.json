@@ -2571,6 +2571,11 @@
     "plan": {
       "title": "Choisissez votre forfait",
       "subtitle": "1 mois gratuit, puis facturation automatique selon votre forfait. Carte requise.",
+      "monthly": "Mensuel",
+      "yearly": "Annuel",
+      "interval_month": "/mois",
+      "interval_year": "/an",
+      "yearly_note": "Payez a l annee et economisez {percent}%.",
       "trial_note": "Essai gratuit jusqu'au {date}.",
       "downgrade_note": "Vous pouvez changer de forfait pendant l'essai.",
       "recommended": "Recommande",
@@ -6567,9 +6572,12 @@
       },
       "plan": {
         "monthly": "Plan mensuel",
+        "yearly": "Plan annuel",
         "badge_active": "Actif",
         "badge_popular": "Populaire",
         "interval_month": "/mois",
+        "interval_year": "/an",
+        "yearly_note": "Payez a l annee et economisez {percent}%.",
         "current_plan": "Vous etes sur ce plan.",
         "cta_active": "Plan actif",
         "custom_pricing": "Sur mesure",
@@ -7064,6 +7072,15 @@
     },
     "switch": {
       "label": "Choisissez votre contexte"
+    },
+    "billing_cycle": {
+      "label": "Cycle de facturation",
+      "monthly": "Mensuel",
+      "yearly": "Annuel",
+      "interval_month": "/mois",
+      "interval_year": "/an",
+      "save_badge": "Economisez {percent}% avec la facturation annuelle",
+      "yearly_note": "Facture a l annee avec {percent}% de reduction."
     },
     "audiences": {
       "solo": "Solo",

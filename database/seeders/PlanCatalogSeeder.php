@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\BillingPeriod;
 use App\Models\Plan;
 use App\Models\PlanPrice;
 use App\Support\Billing\DefaultPlanCatalog;
@@ -14,7 +13,7 @@ class PlanCatalogSeeder extends Seeder
     {
         $sortOrder = 0;
 
-        foreach (DefaultPlanCatalog::definitions() as $definition) {
+        foreach (DefaultPlanCatalog::periodicDefinitions() as $definition) {
             $plan = Plan::query()->updateOrCreate(
                 ['code' => $definition['code']],
                 [
@@ -26,19 +25,21 @@ class PlanCatalogSeeder extends Seeder
                 ]
             );
 
-            foreach ($definition['prices'] as $currencyCode => $price) {
-                PlanPrice::query()->updateOrCreate(
-                    [
-                        'plan_id' => $plan->id,
-                        'currency_code' => $currencyCode,
-                        'billing_period' => BillingPeriod::MONTHLY->value,
-                    ],
-                    [
-                        'amount' => $price['amount'],
-                        'stripe_price_id' => $price['stripe_price_id'],
-                        'is_active' => true,
-                    ]
-                );
+            foreach ($definition['prices'] as $currencyCode => $periods) {
+                foreach ($periods as $billingPeriod => $price) {
+                    PlanPrice::query()->updateOrCreate(
+                        [
+                            'plan_id' => $plan->id,
+                            'currency_code' => $currencyCode,
+                            'billing_period' => $billingPeriod,
+                        ],
+                        [
+                            'amount' => $price['amount'],
+                            'stripe_price_id' => $price['stripe_price_id'],
+                            'is_active' => true,
+                        ]
+                    );
+                }
             }
         }
     }

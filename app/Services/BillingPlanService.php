@@ -10,6 +10,7 @@ use App\Models\Plan;
 use App\Models\PlanPrice;
 use App\Models\PlatformSetting;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use App\Support\CurrencyFormatter;
 use App\Support\PlanDisplay;
 
@@ -62,28 +63,24 @@ class BillingPlanService
             ->map(function (array $configuredPlan, string $planCode) use ($currency, $planDisplayOverrides, $plans) {
                 $display = PlanDisplay::merge($configuredPlan, $planCode, $planDisplayOverrides);
                 $plan = $plans->get($planCode);
-                $planPrice = $plan?->prices
-                    ?->first(fn (PlanPrice $price) => $price->currency_code === $currency && $price->billing_period === BillingPeriod::MONTHLY);
+                $pricesByPeriod = $this->periodOptionsForCurrency($plan?->prices, $currency);
+                $monthlyPrice = $pricesByPeriod[BillingPeriod::MONTHLY->value];
                 $metadata = $this->metadataForConfiguredPlan($configuredPlan);
-
-                $amount = $planPrice?->amount !== null
-                    ? number_format((float) $planPrice->amount, 2, '.', '')
-                    : null;
 
                 return [
                     'key' => $planCode,
                     'plan_id' => $plan?->id,
-                    'plan_price_id' => $planPrice?->id,
+                    'plan_price_id' => $monthlyPrice['plan_price_id'],
                     'name' => $display['name'],
                     'badge' => $display['badge'],
                     'features' => $display['features'],
-                    'price_id' => $planPrice?->stripe_price_id,
-                    'price' => $amount ?? ($display['price'] ?? null),
-                    'amount' => $amount,
-                    'currency_code' => $amount !== null ? $currency->value : null,
+                    'price_id' => $monthlyPrice['stripe_price_id'],
+                    'price' => $monthlyPrice['amount'] ?? ($display['price'] ?? null),
+                    'amount' => $monthlyPrice['amount'],
+                    'currency_code' => $monthlyPrice['amount'] !== null ? $currency->value : null,
                     'billing_period' => BillingPeriod::MONTHLY->value,
-                    'display_price' => $amount !== null
-                        ? $this->formatMoney((float) $amount, $currency)
+                    'display_price' => $monthlyPrice['display_price'] !== null
+                        ? $monthlyPrice['display_price']
                         : $this->resolveLegacyDisplayPrice($display['price'] ?? null, $currency),
                     'contact_only' => (bool) ($configuredPlan['contact_only'] ?? $plan?->contact_only ?? false),
                     'team_members_min' => is_numeric($configuredPlan['team_members_min'] ?? null)
@@ -93,6 +90,8 @@ class BillingPlanService
                     'owner_only' => $metadata['owner_only'],
                     'recommended' => $metadata['recommended'],
                     'onboarding_enabled' => $metadata['onboarding_enabled'],
+                    'annual_discount_percent' => $this->annualDiscountPercent(),
+                    'prices_by_period' => $pricesByPeriod,
                     'prices_by_currency' => $this->currencyOptionsForPlan($planCode),
                 ];
             })
@@ -212,6 +211,31 @@ class BillingPlanService
                         'is_active' => array_key_exists('is_active', $row) ? (bool) $row['is_active'] : true,
                     ]
                 );
+
+                if ($period !== BillingPeriod::MONTHLY || (bool) $plan->contact_only) {
+                    continue;
+                }
+
+                $existingYearly = PlanPrice::query()
+                    ->where('plan_id', $plan->id)
+                    ->where('currency_code', $currency->value)
+                    ->where('billing_period', BillingPeriod::YEARLY->value)
+                    ->first();
+                $yearlyAmount = number_format($this->deriveYearlyAmount((float) ($amount ?? 0)), 2, '.', '');
+
+                PlanPrice::query()->updateOrCreate(
+                    [
+                        'plan_id' => $plan->id,
+                        'currency_code' => $currency->value,
+                        'billing_period' => BillingPeriod::YEARLY->value,
+                    ],
+                    [
+                        'amount' => $yearlyAmount,
+                        'stripe_price_id' => $existingYearly?->stripe_price_id
+                            ?? $this->configuredYearlyStripePriceId($planCode, $currency->value),
+                        'is_active' => array_key_exists('is_active', $row) ? (bool) $row['is_active'] : true,
+                    ]
+                );
             }
         }
     }
@@ -227,28 +251,86 @@ class BillingPlanService
             ->select('plan_prices.*')
             ->join('plans', 'plans.id', '=', 'plan_prices.plan_id')
             ->where('plans.code', $planCode)
-            ->where('plan_prices.billing_period', BillingPeriod::MONTHLY->value)
+            ->where('plan_prices.is_active', true)
             ->get()
-            ->keyBy(fn (PlanPrice $price) => (string) $price->currency_code->value);
+            ->groupBy(fn (PlanPrice $price) => (string) $price->currency_code->value);
 
         return collect(CurrencyCode::cases())
             ->mapWithKeys(function (CurrencyCode $currency) use ($prices) {
-                /** @var PlanPrice|null $price */
-                $price = $prices->get($currency->value);
-
                 return [
                     $currency->value => [
                         'currency_code' => $currency->value,
-                        'amount' => $price?->amount !== null ? number_format((float) $price->amount, 2, '.', '') : null,
-                        'stripe_price_id' => $price?->stripe_price_id,
-                        'display_price' => $price?->amount !== null
-                            ? $this->formatMoney((float) $price->amount, $currency)
-                            : null,
-                        'is_active' => $price ? (bool) $price->is_active : false,
+                        ...collect(BillingPeriod::cases())
+                            ->mapWithKeys(function (BillingPeriod $period) use ($prices, $currency) {
+                                /** @var Collection<int, PlanPrice>|null $currencyPrices */
+                                $currencyPrices = $prices->get($currency->value);
+                                /** @var PlanPrice|null $price */
+                                $price = $currencyPrices?->first(
+                                    fn (PlanPrice $candidate) => $candidate->billing_period === $period
+                                );
+
+                                return [
+                                    $period->value => $this->serializePlanPriceOption($price, $currency, $period),
+                                ];
+                            })
+                            ->all(),
                     ],
                 ];
             })
             ->all();
+    }
+
+    private function periodOptionsForCurrency(?Collection $prices, CurrencyCode $currency): array
+    {
+        return collect(BillingPeriod::cases())
+            ->mapWithKeys(function (BillingPeriod $period) use ($prices, $currency) {
+                /** @var PlanPrice|null $price */
+                $price = $prices?->first(
+                    fn (PlanPrice $candidate) => $candidate->currency_code === $currency && $candidate->billing_period === $period
+                );
+
+                return [
+                    $period->value => $this->serializePlanPriceOption($price, $currency, $period),
+                ];
+            })
+            ->all();
+    }
+
+    private function serializePlanPriceOption(?PlanPrice $price, CurrencyCode $currency, BillingPeriod $period): array
+    {
+        $amount = $price?->amount !== null ? number_format((float) $price->amount, 2, '.', '') : null;
+
+        return [
+            'currency_code' => $currency->value,
+            'billing_period' => $period->value,
+            'plan_price_id' => $price?->id,
+            'amount' => $amount,
+            'stripe_price_id' => $price?->stripe_price_id,
+            'display_price' => $amount !== null
+                ? $this->formatMoney((float) $amount, $currency)
+                : null,
+            'is_active' => $price ? (bool) $price->is_active : false,
+        ];
+    }
+
+    private function annualDiscountPercent(): int
+    {
+        return max(0, min(100, (int) round((float) config('billing.annual_discount_percent', 20))));
+    }
+
+    private function deriveYearlyAmount(float $monthlyAmount): float
+    {
+        return round($monthlyAmount * 12 * ((100 - $this->annualDiscountPercent()) / 100), 2);
+    }
+
+    private function configuredYearlyStripePriceId(string $planCode, string $currencyCode): ?string
+    {
+        return $this->normalizeNullableString(
+            data_get(
+                config('billing.catalog_defaults', []),
+                $planCode.'.prices.'.$currencyCode.'.'.BillingPeriod::YEARLY->value.'.stripe_price_id'
+            )
+        );
     }
 
     private function configuredPlans(): array

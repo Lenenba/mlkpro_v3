@@ -131,6 +131,17 @@ it('resolves the active plan price for the tenant currency', function () {
         ->and($planPrice->amount)->toBe($expectedAmount);
 });
 
+it('exposes monthly and yearly price options for billing plan catalogs', function () {
+    $plans = collect(app(BillingPlanService::class)->plansForCurrency('CAD'))->keyBy('key');
+    $starter = $plans->get('starter');
+
+    expect($starter)->not->toBeNull()
+        ->and($starter['prices_by_period']['monthly']['billing_period'])->toBe(BillingPeriod::MONTHLY->value)
+        ->and($starter['prices_by_period']['yearly']['billing_period'])->toBe(BillingPeriod::YEARLY->value)
+        ->and($starter['prices_by_currency']['USD']['yearly']['billing_period'])->toBe(BillingPeriod::YEARLY->value)
+        ->and($starter['annual_discount_percent'])->toBe(20);
+});
+
 it('marks solo plans as owner-only and bills a single seat for them', function () {
     $owner = User::factory()->create([
         'company_team_size' => 4,

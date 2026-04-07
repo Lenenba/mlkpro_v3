@@ -60,6 +60,10 @@ const props = defineProps({
         type: String,
         default: null,
     },
+    checkoutBillingPeriod: {
+        type: String,
+        default: null,
+    },
     activePlanKey: {
         type: String,
         default: null,
@@ -243,7 +247,42 @@ const loyaltyFeatureEnabled = computed(() => {
 
 const isSubscribed = computed(() => Boolean(props.subscription?.active));
 const hasSubscription = computed(() => Boolean(props.subscription?.provider_id));
-const hasPlans = computed(() => props.plans.some((plan) => Boolean(plan.price_id)));
+const currentSubscriptionBillingPeriod = computed(() =>
+    props.subscription?.billing_period === 'yearly' ? 'yearly' : 'monthly'
+);
+const selectedBillingPeriod = ref(
+    props.checkoutBillingPeriod === 'yearly'
+        ? 'yearly'
+        : currentSubscriptionBillingPeriod.value
+);
+const priceForBillingPeriod = (plan, billingPeriod = selectedBillingPeriod.value) => {
+    const explicit = plan?.prices_by_period?.[billingPeriod];
+    if (explicit) {
+        return explicit;
+    }
+
+    if (billingPeriod === 'monthly' && (plan?.price_id || plan?.display_price || plan?.price)) {
+        return {
+            billing_period: 'monthly',
+            stripe_price_id: plan?.price_id || null,
+            display_price: plan?.display_price || plan?.price || null,
+            amount: plan?.amount || null,
+        };
+    }
+
+    return null;
+};
+const displayPriceForBillingPeriod = (plan, billingPeriod = selectedBillingPeriod.value) =>
+    priceForBillingPeriod(plan, billingPeriod)
+    || plan?.prices_by_period?.monthly
+    || null;
+const hasPlans = computed(() => props.plans.some((plan) => {
+    if (plan?.contact_only) {
+        return true;
+    }
+
+    return ['monthly', 'yearly'].some((period) => Boolean(priceForBillingPeriod(plan, period)?.stripe_price_id));
+}));
 const canUsePaddle = computed(() => Boolean(isPaddleProvider.value && props.paddle?.js_enabled && props.paddle?.api_enabled && !props.paddle?.error));
 const activePlanKey = computed(() => props.activePlanKey || null);
 
@@ -351,7 +390,9 @@ const activePlan = computed(() => {
         return null;
     }
 
-    return props.plans.find((plan) => plan.price_id === props.subscription.price_id) || null;
+    return props.plans.find((plan) =>
+        ['monthly', 'yearly'].some((period) => priceForBillingPeriod(plan, period)?.stripe_price_id === props.subscription.price_id)
+    ) || null;
 });
 
 const displayedPlan = computed(() => {
@@ -378,6 +419,8 @@ const planOrder = (planKey) => {
 };
 
 const isCurrentPlan = (plan) => Boolean(plan?.key && activePlan.value?.key === plan.key);
+const isCurrentPlanSelection = (plan, billingPeriod = selectedBillingPeriod.value) =>
+    Boolean(plan?.key && activePlan.value?.key === plan.key && currentSubscriptionBillingPeriod.value === billingPeriod);
 
 const resolveInitialAdvisorBusiness = () => {
     if (activePlan.value?.audience === 'solo') {
@@ -452,7 +495,11 @@ const availablePlanOptions = computed(() =>
             return true;
         }
 
-        return Boolean(plan.price_id || plan.contact_only);
+        if (plan.contact_only) {
+            return true;
+        }
+
+        return Boolean(priceForBillingPeriod(plan)?.stripe_price_id);
     })
 );
 
@@ -601,8 +648,13 @@ const addRecommendationReason = (reasons, key, params = {}) => {
     }
 };
 
-const planDisplayPrice = (plan) => {
-    if (plan?.display_price) {
+const planDisplayPrice = (plan, billingPeriod = selectedBillingPeriod.value) => {
+    const price = displayPriceForBillingPeriod(plan, billingPeriod);
+    if (price?.display_price) {
+        return price.display_price;
+    }
+
+    if (billingPeriod === 'monthly' && plan?.display_price) {
         return plan.display_price;
     }
 
@@ -612,6 +664,18 @@ const planDisplayPrice = (plan) => {
 
     return '--';
 };
+
+const resolveBillingPeriodLabel = (billingPeriod) => (
+    billingPeriod === 'yearly'
+        ? t('settings.billing.plan.yearly')
+        : t('settings.billing.plan.monthly')
+);
+
+const resolveBillingIntervalLabel = (billingPeriod) => (
+    billingPeriod === 'yearly'
+        ? t('settings.billing.plan.interval_year')
+        : t('settings.billing.plan.interval_month')
+);
 
 const previewPlanFeatures = (plan) => {
     if (!Array.isArray(plan?.features)) {
@@ -1177,7 +1241,7 @@ const featureClass = (feature) =>
         : 'plan-card__feature';
 
 const planActionLabel = (plan) => {
-    if (isCurrentPlan(plan)) {
+    if (isCurrentPlanSelection(plan)) {
         return t('settings.billing.plan.cta_active');
     }
 
@@ -1191,7 +1255,7 @@ const planActionLabel = (plan) => {
 };
 
 const openRecommendedPlan = async (plan) => {
-    if (!plan || isCurrentPlan(plan)) {
+    if (!plan || isCurrentPlanSelection(plan)) {
         return;
     }
 
@@ -1213,8 +1277,15 @@ const openRecommendedPlan = async (plan) => {
 
     try {
         if (hasSubscription.value) {
-            await axios.post(route('settings.billing.swap'), { plan_key: plan.key });
-            router.visit(route('settings.billing.edit', { checkout: 'swapped', plan: plan.key }), {
+            await axios.post(route('settings.billing.swap'), {
+                plan_key: plan.key,
+                billing_period: selectedBillingPeriod.value,
+            });
+            router.visit(route('settings.billing.edit', {
+                checkout: 'swapped',
+                plan: plan.key,
+                billing_period: selectedBillingPeriod.value,
+            }), {
                 preserveScroll: true,
             });
             return;
@@ -1230,7 +1301,10 @@ const openRecommendedPlan = async (plan) => {
             return;
         }
 
-        const response = await axios.post(route('settings.billing.checkout'), { plan_key: plan.key });
+        const response = await axios.post(route('settings.billing.checkout'), {
+            plan_key: plan.key,
+            billing_period: selectedBillingPeriod.value,
+        });
         const url = response?.data?.url;
         if (!url) {
             throw new Error(t('settings.billing.errors.stripe_checkout_failed'));
@@ -1387,6 +1461,31 @@ watch(
                             <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
                                 {{ $t('settings.billing.plans.subtitle') }}
                             </p>
+                            <div class="mt-3 inline-flex rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900">
+                                <button
+                                    type="button"
+                                    class="rounded-sm px-3 py-2 text-xs font-semibold transition"
+                                    :class="selectedBillingPeriod === 'monthly'
+                                        ? 'bg-green-600 text-white'
+                                        : 'text-stone-600 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800'"
+                                    @click="selectedBillingPeriod = 'monthly'"
+                                >
+                                    {{ $t('settings.billing.plan.monthly') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-sm px-3 py-2 text-xs font-semibold transition"
+                                    :class="selectedBillingPeriod === 'yearly'
+                                        ? 'bg-green-600 text-white'
+                                        : 'text-stone-600 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800'"
+                                    @click="selectedBillingPeriod = 'yearly'"
+                                >
+                                    {{ $t('settings.billing.plan.yearly') }}
+                                </button>
+                            </div>
+                            <p v-if="selectedBillingPeriod === 'yearly'" class="mt-2 text-xs font-semibold text-green-700 dark:text-green-400">
+                                {{ $t('settings.billing.plan.yearly_note', { percent: billing?.annual_discount_percent || 20 }) }}
+                            </p>
                         </div>
                         <button
                             type="button"
@@ -1459,7 +1558,7 @@ watch(
                                     <div class="plan-card__top">
                                         <div>
                                             <h3 class="plan-card__name">{{ displayedPlan.name }}</h3>
-                                            <p class="plan-card__meta">{{ $t('settings.billing.plan.monthly') }}</p>
+                                            <p class="plan-card__meta">{{ resolveBillingPeriodLabel(currentSubscriptionBillingPeriod) }}</p>
                                         </div>
                                         <span class="plan-card__badge plan-card__badge--active">
                                             {{ $t('settings.billing.plan.badge_active') }}
@@ -1467,10 +1566,10 @@ watch(
                                     </div>
                                     <div class="plan-card__price">
                                         <span class="plan-card__amount" :class="{ 'plan-card__amount--text': displayedPlan.contact_only }">
-                                            {{ planDisplayPrice(displayedPlan) }}
+                                            {{ planDisplayPrice(displayedPlan, currentSubscriptionBillingPeriod) }}
                                         </span>
                                         <span v-if="!displayedPlan.contact_only" class="plan-card__interval">
-                                            {{ $t('settings.billing.plan.interval_month') }}
+                                            {{ resolveBillingIntervalLabel(currentSubscriptionBillingPeriod) }}
                                         </span>
                                     </div>
                                     <p v-if="resolveTeamLimitLabel(displayedPlan)" class="plan-card__limit">
@@ -1660,7 +1759,7 @@ watch(
                                         <div class="plan-card__top">
                                             <div>
                                                 <h3 class="plan-card__name">{{ recommendation.plan.name }}</h3>
-                                                <p class="plan-card__meta">{{ $t('settings.billing.plan.monthly') }}</p>
+                                                <p class="plan-card__meta">{{ resolveBillingPeriodLabel(selectedBillingPeriod) }}</p>
                                             </div>
                                             <div class="plan-card__badges">
                                                 <span
@@ -1673,10 +1772,10 @@ watch(
                                         </div>
                                         <div class="plan-card__price">
                                             <span class="plan-card__amount" :class="{ 'plan-card__amount--text': recommendation.plan.contact_only }">
-                                                {{ planDisplayPrice(recommendation.plan) }}
+                                                {{ planDisplayPrice(recommendation.plan, selectedBillingPeriod) }}
                                             </span>
                                             <span v-if="!recommendation.plan.contact_only" class="plan-card__interval">
-                                                {{ $t('settings.billing.plan.interval_month') }}
+                                                {{ resolveBillingIntervalLabel(selectedBillingPeriod) }}
                                             </span>
                                         </div>
                                         <p v-if="resolveTeamLimitLabel(recommendation.plan)" class="plan-card__limit">
@@ -1703,7 +1802,7 @@ watch(
                                             type="button"
                                             class="plan-card__cta"
                                             :class="{ 'plan-card__cta--contact': recommendation.plan.contact_only }"
-                                            :disabled="planActionLoadingKey !== null || recommendation.isCurrent"
+                                            :disabled="planActionLoadingKey !== null || isCurrentPlanSelection(recommendation.plan)"
                                             @click="openRecommendedPlan(recommendation.plan)"
                                         >
                                             {{

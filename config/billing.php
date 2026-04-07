@@ -42,6 +42,46 @@ if ($billingReminderDays === []) {
 }
 $billingReminderTime = trim((string) env('BILLING_UPCOMING_REMINDERS_TIME', '09:00'));
 $billingReminderTime = preg_match('/^\d{2}:\d{2}$/', $billingReminderTime) ? $billingReminderTime : '09:00';
+$annualDiscountPercent = max(0, min(100, (float) env('BILLING_ANNUAL_DISCOUNT_PERCENT', 20)));
+$annualDiscountMultiplier = (100 - $annualDiscountPercent) / 100;
+$catalogPlanPrices = static function (string $planCode, array $monthlyPrices) use (
+    $annualDiscountMultiplier,
+    $billingEnv,
+): array {
+    $planCode = strtoupper($planCode);
+    $prices = [];
+
+    foreach ($monthlyPrices as $currencyCode => $definition) {
+        $currencyCode = strtoupper((string) $currencyCode);
+        $monthlyAmount = (float) ($definition['amount'] ?? 0);
+        $yearlyDefault = round($monthlyAmount * 12 * $annualDiscountMultiplier, 2);
+        $envPrefix = 'STRIPE_PRICE_'.$planCode.'_'.$currencyCode;
+        $legacyPrefix = 'STRIPE_PRICE_'.$planCode;
+
+        $prices[$currencyCode] = [
+            'monthly' => [
+                'amount' => $monthlyAmount,
+                'stripe_price_id' => $definition['stripe_price_id'] ?? null,
+            ],
+            'yearly' => [
+                'amount' => $billingEnv(
+                    $envPrefix.'_YEARLY_AMOUNT',
+                    $currencyCode === 'CAD'
+                        ? $billingEnv($legacyPrefix.'_YEARLY_AMOUNT', $yearlyDefault)
+                        : $yearlyDefault
+                ),
+                'stripe_price_id' => $billingEnv(
+                    $envPrefix.'_YEARLY',
+                    $currencyCode === 'CAD'
+                        ? $billingEnv($legacyPrefix.'_YEARLY')
+                        : null
+                ),
+            ],
+        ];
+    }
+
+    return $prices;
+};
 
 $pricePrefix = $providerEffective === 'stripe' ? 'STRIPE' : 'PADDLE';
 
@@ -49,6 +89,7 @@ return [
     'provider' => $providerRequested,
     'provider_effective' => $providerEffective,
     'provider_ready' => $providerEffective === 'stripe' ? $stripeReady : true,
+    'annual_discount_percent' => $annualDiscountPercent,
     'upcoming_reminders' => [
         'enabled' => filter_var(env('BILLING_UPCOMING_REMINDERS_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
         'days' => $billingReminderDays,
@@ -58,65 +99,65 @@ return [
         'free' => [
             'description' => 'Free starter access for very small teams.',
             'contact_only' => false,
-            'prices' => [
+            'prices' => $catalogPlanPrices('free', [
                 'CAD' => ['amount' => 0, 'stripe_price_id' => $billingEnv('STRIPE_PRICE_FREE_CAD', $billingEnv('STRIPE_PRICE_FREE'))],
                 'EUR' => ['amount' => 0, 'stripe_price_id' => $billingEnv('STRIPE_PRICE_FREE_EUR')],
                 'USD' => ['amount' => 0, 'stripe_price_id' => $billingEnv('STRIPE_PRICE_FREE_USD')],
-            ],
+            ]),
         ],
         'solo_essential' => [
             'description' => 'Essential solo plan for independent operators.',
             'contact_only' => false,
-            'prices' => [
+            'prices' => $catalogPlanPrices('solo_essential', [
                 'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_AMOUNT', 19)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_CAD', $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL'))],
                 'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_EUR_AMOUNT', 14), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_EUR')],
                 'USD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_USD_AMOUNT', 16), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_USD')],
-            ],
+            ]),
         ],
         'solo_pro' => [
             'description' => 'Structured solo plan for active independent operators.',
             'contact_only' => false,
-            'prices' => [
+            'prices' => $catalogPlanPrices('solo_pro', [
                 'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_PRO_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_SOLO_PRO_AMOUNT', 39)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_PRO_CAD', $billingEnv('STRIPE_PRICE_SOLO_PRO'))],
                 'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_PRO_EUR_AMOUNT', 29), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_PRO_EUR')],
                 'USD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_PRO_USD_AMOUNT', 32), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_PRO_USD')],
-            ],
+            ]),
         ],
         'solo_growth' => [
             'description' => 'Advanced solo plan with automation and richer booking flows.',
             'contact_only' => false,
-            'prices' => [
+            'prices' => $catalogPlanPrices('solo_growth', [
                 'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_SOLO_GROWTH_AMOUNT', 59)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_CAD', $billingEnv('STRIPE_PRICE_SOLO_GROWTH'))],
                 'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_EUR_AMOUNT', 43), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_EUR')],
                 'USD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_USD_AMOUNT', 48), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_USD')],
-            ],
+            ]),
         ],
         'starter' => [
             'description' => 'Starter plan for growing teams.',
             'contact_only' => false,
-            'prices' => [
+            'prices' => $catalogPlanPrices('starter', [
                 'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_STARTER_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_STARTER_AMOUNT', 29)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_STARTER_CAD', $billingEnv('STRIPE_PRICE_STARTER'))],
                 'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_STARTER_EUR_AMOUNT', 21), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_STARTER_EUR')],
                 'USD' => ['amount' => $billingEnv('STRIPE_PRICE_STARTER_USD_AMOUNT', 24), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_STARTER_USD')],
-            ],
+            ]),
         ],
         'growth' => [
             'description' => 'Growth plan for larger teams and automation.',
             'contact_only' => false,
-            'prices' => [
+            'prices' => $catalogPlanPrices('growth', [
                 'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_GROWTH_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_GROWTH_AMOUNT', 79)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_GROWTH_CAD', $billingEnv('STRIPE_PRICE_GROWTH'))],
                 'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_GROWTH_EUR_AMOUNT', 57), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_GROWTH_EUR')],
                 'USD' => ['amount' => $billingEnv('STRIPE_PRICE_GROWTH_USD_AMOUNT', 64), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_GROWTH_USD')],
-            ],
+            ]),
         ],
         'scale' => [
             'description' => 'Scale plan with advanced support and included AI.',
             'contact_only' => false,
-            'prices' => [
+            'prices' => $catalogPlanPrices('scale', [
                 'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_SCALE_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_SCALE_AMOUNT', 149)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SCALE_CAD', $billingEnv('STRIPE_PRICE_SCALE'))],
                 'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_SCALE_EUR_AMOUNT', 109), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SCALE_EUR')],
                 'USD' => ['amount' => $billingEnv('STRIPE_PRICE_SCALE_USD_AMOUNT', 119), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SCALE_USD')],
-            ],
+            ]),
         ],
         'enterprise' => [
             'description' => 'Enterprise plan with custom pricing.',

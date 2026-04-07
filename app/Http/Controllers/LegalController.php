@@ -156,22 +156,80 @@ class LegalController extends Controller
             ->map(function (string $key) use ($rawPlans, $planDisplayOverrides, $catalogDefaults) {
                 $plan = $rawPlans[$key] ?? [];
                 $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
+                $contactOnly = (bool) ($plan['contact_only'] ?? data_get($catalogDefaults, $key.'.contact_only', false));
+                $pricingByPeriod = $this->buildPublicPricingByPeriod($display['price'] ?? null, $contactOnly);
 
                 return [
                     'key' => $key,
                     'name' => $display['name'],
                     'price' => $display['price'],
-                    'display_price' => $this->resolvePlanDisplayPrice($display['price']),
+                    'display_price' => $pricingByPeriod['monthly']['display_price'],
                     'description' => data_get($catalogDefaults, $key.'.description'),
                     'features' => $display['features'],
                     'badge' => $display['badge'],
                     'audience' => (string) ($plan['audience'] ?? 'team'),
-                    'contact_only' => (bool) ($plan['contact_only'] ?? data_get($catalogDefaults, $key.'.contact_only', false)),
+                    'contact_only' => $contactOnly,
                     'onboarding_enabled' => (bool) ($plan['onboarding_enabled'] ?? false),
+                    'annual_discount_percent' => (int) round((float) config('billing.annual_discount_percent', 20)),
+                    'prices_by_period' => $pricingByPeriod,
                 ];
             })
             ->values()
             ->all();
+    }
+
+    private function buildPublicPricingByPeriod(mixed $rawPrice, bool $contactOnly): array
+    {
+        $discountPercent = max(0, min(100, (float) config('billing.annual_discount_percent', 20)));
+        $rawValue = is_string($rawPrice) ? trim($rawPrice) : $rawPrice;
+
+        if ($contactOnly) {
+            return [
+                'monthly' => [
+                    'billing_period' => 'monthly',
+                    'amount' => null,
+                    'display_price' => $this->resolvePlanDisplayPrice($rawPrice),
+                ],
+                'yearly' => [
+                    'billing_period' => 'yearly',
+                    'amount' => null,
+                    'display_price' => $this->resolvePlanDisplayPrice($rawPrice),
+                ],
+            ];
+        }
+
+        if (is_numeric($rawValue)) {
+            $monthlyAmount = (float) $rawValue;
+            $yearlyAmount = round($monthlyAmount * 12 * ((100 - $discountPercent) / 100), 2);
+
+            return [
+                'monthly' => [
+                    'billing_period' => 'monthly',
+                    'amount' => number_format($monthlyAmount, 2, '.', ''),
+                    'display_price' => CurrencyFormatter::format($monthlyAmount, null),
+                ],
+                'yearly' => [
+                    'billing_period' => 'yearly',
+                    'amount' => number_format($yearlyAmount, 2, '.', ''),
+                    'display_price' => CurrencyFormatter::format($yearlyAmount, null),
+                ],
+            ];
+        }
+
+        $displayPrice = $this->resolvePlanDisplayPrice($rawPrice);
+
+        return [
+            'monthly' => [
+                'billing_period' => 'monthly',
+                'amount' => null,
+                'display_price' => $displayPrice,
+            ],
+            'yearly' => [
+                'billing_period' => 'yearly',
+                'amount' => null,
+                'display_price' => $displayPrice,
+            ],
+        ];
     }
 
     private function resolveDefaultPricingAudience(array $catalogs, string $requestedAudience): string

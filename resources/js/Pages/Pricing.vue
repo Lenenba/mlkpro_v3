@@ -72,6 +72,7 @@ const audienceKeys = computed(() => {
     );
 });
 const activeAudience = ref(props.defaultAudience || audienceKeys.value[0] || 'team');
+const activeBillingPeriod = ref('monthly');
 
 watchEffect(() => {
     if (! audienceKeys.value.includes(activeAudience.value)) {
@@ -125,7 +126,20 @@ const headerMenuItems = computed(() => ([
 ]));
 
 const isHighlighted = (plan) => Boolean(plan?.key && plan.key === highlightedKey.value);
-const resolvePrice = (plan) => plan?.display_price || plan?.price || '--';
+const resolvePricingOption = (plan, billingPeriod = activeBillingPeriod.value) =>
+    plan?.prices_by_period?.[billingPeriod]
+    || plan?.prices_by_period?.monthly
+    || null;
+const resolvePrice = (plan) => resolvePricingOption(plan)?.display_price || plan?.display_price || plan?.price || '--';
+const resolvePriceInterval = (plan) => {
+    if (plan?.contact_only) {
+        return null;
+    }
+
+    return activeBillingPeriod.value === 'yearly'
+        ? t('pricing.billing_cycle.interval_year')
+        : t('pricing.billing_cycle.interval_month');
+};
 const resolveFeatures = (plan) => (Array.isArray(plan?.features) ? plan.features.filter((feature) => !!feature) : []);
 const isIncludedCell = (value) => value?.type === 'included';
 const isExcludedCell = (value) => value?.type === 'excluded';
@@ -139,6 +153,8 @@ const resolveTrialHref = (plan) => {
     if ((plan?.audience || activeAudience.value) === 'team') {
         query.team_size = 2;
     }
+
+    query.billing_period = activeBillingPeriod.value;
 
     return route('onboarding.index', query);
 };
@@ -191,6 +207,37 @@ const resolveTrialHref = (plan) => {
                                 </button>
                             </div>
                         </div>
+
+                        <div class="public-pricing-cycle-switch">
+                            <span class="public-pricing-cycle-switch__label">
+                                {{ $t('pricing.billing_cycle.label') }}
+                            </span>
+                            <div class="public-pricing-cycle-switch__buttons">
+                                <button
+                                    type="button"
+                                    :class="[
+                                        'public-pricing-cycle-switch__button',
+                                        activeBillingPeriod === 'monthly' ? 'public-pricing-cycle-switch__button--active' : ''
+                                    ]"
+                                    @click="activeBillingPeriod = 'monthly'"
+                                >
+                                    {{ $t('pricing.billing_cycle.monthly') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    :class="[
+                                        'public-pricing-cycle-switch__button',
+                                        activeBillingPeriod === 'yearly' ? 'public-pricing-cycle-switch__button--active' : ''
+                                    ]"
+                                    @click="activeBillingPeriod = 'yearly'"
+                                >
+                                    {{ $t('pricing.billing_cycle.yearly') }}
+                                </button>
+                            </div>
+                            <p v-if="activeBillingPeriod === 'yearly'" class="public-pricing-cycle-switch__note">
+                                {{ $t('pricing.billing_cycle.save_badge', { percent: plans[0]?.annual_discount_percent || 20 }) }}
+                            </p>
+                        </div>
                     </div>
 
                     <div :class="['mt-10 grid grid-cols-1 gap-4', planGridClass]">
@@ -215,8 +262,16 @@ const resolveTrialHref = (plan) => {
                                     {{ plan.badge || $t('pricing.badges.recommended') }}
                                 </span>
                             </div>
-                            <div class="mt-4 text-2xl font-semibold text-stone-900">
-                                {{ resolvePrice(plan) }}
+                            <div class="mt-4">
+                                <div class="flex items-baseline gap-2 text-2xl font-semibold text-stone-900">
+                                    <span>{{ resolvePrice(plan) }}</span>
+                                    <span v-if="resolvePriceInterval(plan)" class="text-sm font-medium text-stone-500">
+                                        {{ resolvePriceInterval(plan) }}
+                                    </span>
+                                </div>
+                                <p v-if="activeBillingPeriod === 'yearly' && !plan.contact_only" class="mt-1 text-xs font-medium text-emerald-700">
+                                    {{ $t('pricing.billing_cycle.yearly_note', { percent: plan.annual_discount_percent || 20 }) }}
+                                </p>
                             </div>
                             <ul v-if="resolveFeatures(plan).length" class="mt-4 space-y-2 text-sm text-stone-600">
                                 <li v-for="feature in resolveFeatures(plan).slice(0, 4)" :key="feature">
@@ -390,6 +445,13 @@ const resolveTrialHref = (plan) => {
     gap: 0.75rem;
 }
 
+.public-pricing-cycle-switch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
 .public-pricing-audience-switch__label {
     font-size: 0.75rem;
     font-weight: 600;
@@ -422,6 +484,46 @@ const resolveTrialHref = (plan) => {
     background: #16a34a;
     color: #ffffff;
     box-shadow: 0 12px 30px -20px rgba(22, 163, 74, 0.8);
+}
+
+.public-pricing-cycle-switch__label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: #64748b;
+}
+
+.public-pricing-cycle-switch__buttons {
+    display: inline-flex;
+    gap: 0.35rem;
+    padding: 0.3rem;
+    border: 1px solid #dfe7ef;
+    border-radius: 0.125rem;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.public-pricing-cycle-switch__button {
+    border: none;
+    border-radius: 0.125rem;
+    background: transparent;
+    color: #475569;
+    padding: 0.55rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.public-pricing-cycle-switch__button--active {
+    background: #16a34a;
+    color: #ffffff;
+    box-shadow: 0 12px 30px -20px rgba(22, 163, 74, 0.8);
+}
+
+.public-pricing-cycle-switch__note {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #047857;
 }
 
 .public-pricing-card,
