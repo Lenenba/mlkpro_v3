@@ -40,6 +40,13 @@ it('seeds public product pages and links the showcase menu to them', function ()
             ->where('content.sections.2.story_cards.1.image_url', $storyVisualTwo['image_url'])
             ->where('footerMenu.display_location', 'footer')
             ->where('footerSection.layout', 'footer')
+            ->where('footerSection.footer_groups', fn ($groups) => collect($groups)->doesntContain(
+                fn ($group) => ($group['title'] ?? null) === 'Solutions'
+            ) && collect($groups)->every(
+                fn ($group) => ! collect($group['links'] ?? [])->contains(
+                    fn ($link) => str_starts_with((string) ($link['href'] ?? ''), '/pages/solution-')
+                )
+            ))
             ->where('footerMenu.items.0.label', 'Legal')
         );
 });
@@ -1153,6 +1160,53 @@ it('clears public page background presets across locales when set to none', func
     expect($resolvedEn['sections'][0]['background_preset'])->toBe('');
 });
 
+it('shares public page background visuals across locales', function () {
+    $user = User::factory()->create();
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'shared-page-background-visuals',
+        'title' => 'Shared page background visuals',
+        'is_active' => true,
+        'content' => [
+            'locales' => [],
+        ],
+    ]);
+
+    $service = app(PlatformPageContentService::class);
+    $payload = $service->defaultContent('fr', $page);
+    $payload['header']['background_type'] = 'color';
+    $payload['header']['background_color'] = '#0b3b4a';
+    $payload['sections'] = [[
+        'id' => 'background-section-1',
+        'enabled' => true,
+        'layout' => 'split',
+        'title' => 'Background section',
+        'body' => '<p>Shared visual background.</p>',
+        'background_color' => '#f7f2e8',
+        'background_preset' => 'graphite-crimson',
+    ]];
+
+    $service->updateLocale($page, 'fr', $payload, $user->id);
+
+    $resolvedEn = $service->resolveForLocale($page->fresh(), 'en');
+
+    expect($resolvedEn['header']['background_type'])->toBe('color');
+    expect($resolvedEn['header']['background_color'])->toBe('#0b3b4a');
+    expect($resolvedEn['sections'][0]['background_color'])->toBe('#f7f2e8');
+    expect($resolvedEn['sections'][0]['background_preset'])->toBe('graphite-crimson');
+
+    $this->withHeader('Accept-Language', 'en')
+        ->get(route('public.pages.show', ['slug' => $page->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $inertia) => $inertia
+            ->component('Public/Page')
+            ->where('content.header.background_type', 'color')
+            ->where('content.header.background_color', '#0b3b4a')
+            ->where('content.sections.0.background_color', '#f7f2e8')
+            ->where('content.sections.0.background_preset', 'graphite-crimson')
+        );
+});
+
 it('shares public page hero slides across locales without inflating section counts', function () {
     $user = User::factory()->create();
 
@@ -1467,6 +1521,65 @@ it('clears reusable section background presets across locales when set to none',
 
     expect($resolvedFr['background_preset'])->toBe('');
     expect($resolvedEn['background_preset'])->toBe('');
+});
+
+it('shares reusable section background visuals across locales', function () {
+    $user = User::factory()->create();
+    $service = app(\App\Services\PlatformSectionContentService::class);
+
+    $section = PlatformSection::query()->create([
+        'name' => 'Shared background visuals section',
+        'type' => 'feature_pairs',
+        'is_active' => true,
+        'content' => ['locales' => []],
+    ]);
+
+    $service->updateLocale($section, 'fr', [
+        'layout' => 'feature_pairs',
+        'title' => 'Titre FR',
+        'background_color' => '#202322',
+        'background_preset' => 'midnight-cobalt',
+        'secondary_background_color' => '#f7f2e8',
+    ], $user->id);
+
+    $resolvedEn = $service->resolveForLocale($section->fresh(), 'en');
+
+    expect($resolvedEn['background_color'])->toBe('#202322');
+    expect($resolvedEn['background_preset'])->toBe('midnight-cobalt');
+    expect($resolvedEn['secondary_background_color'])->toBe('#f7f2e8');
+});
+
+it('clears reusable section background colors across locales when removed', function () {
+    $user = User::factory()->create();
+    $service = app(\App\Services\PlatformSectionContentService::class);
+
+    $section = PlatformSection::query()->create([
+        'name' => 'Clear shared background colors section',
+        'type' => 'feature_pairs',
+        'is_active' => true,
+        'content' => ['locales' => []],
+    ]);
+
+    $service->updateLocale($section, 'fr', [
+        'layout' => 'feature_pairs',
+        'title' => 'Titre FR',
+        'background_color' => '#202322',
+        'secondary_background_color' => '#f7f2e8',
+    ], $user->id);
+
+    $enPayload = $service->resolveForLocale($section->fresh(), 'en');
+    $enPayload['background_color'] = '';
+    $enPayload['secondary_background_color'] = '';
+
+    $service->updateLocale($section->fresh(), 'en', $enPayload, $user->id);
+
+    $resolvedFr = $service->resolveForLocale($section->fresh(), 'fr');
+    $resolvedEn = $service->resolveForLocale($section->fresh(), 'en');
+
+    expect($resolvedFr['background_color'])->toBe('');
+    expect($resolvedFr['secondary_background_color'])->toBe('');
+    expect($resolvedEn['background_color'])->toBe('');
+    expect($resolvedEn['secondary_background_color'])->toBe('');
 });
 
 it('stores reusable industry grid library sections with card items', function () {

@@ -161,11 +161,7 @@ class PlatformSectionContentService
 
         $merged = $this->mergeContent($default, is_array($stored) ? $stored : []);
         $merged = $this->applySharedMedia($merged, $this->sharedMedia($section));
-        $merged['background_preset'] = $this->resolveBackgroundPresetForLocale(
-            $merged['background_preset'] ?? null,
-            $storedLocales,
-            $locale
-        );
+        $merged = $this->resolveBackgroundVisualsForLocale($merged, $storedLocales, $locale);
 
         return $this->sanitizeSection($merged);
     }
@@ -185,7 +181,7 @@ class PlatformSectionContentService
         );
         $locales[$locale] = $sanitized;
         $locales = $this->syncHeroImagesForOtherLocales($locales, $locale, $section->type);
-        $locales = $this->syncBackgroundPresetForOtherLocales($locales, $locale, $section->type);
+        $locales = $this->syncBackgroundVisualsForOtherLocales($locales, $locale, $section->type);
 
         $sharedMedia = $this->mergeSharedMedia(
             is_array($payload['shared_media'] ?? null) ? $payload['shared_media'] : [],
@@ -600,10 +596,12 @@ class PlatformSectionContentService
         return $this->sanitizeHeroImages($merged);
     }
 
-    private function syncBackgroundPresetForOtherLocales(array $locales, string $sourceLocale, ?string $type = null): array
+    private function syncBackgroundVisualsForOtherLocales(array $locales, string $sourceLocale, ?string $type = null): array
     {
         $source = is_array($locales[$sourceLocale] ?? null) ? $locales[$sourceLocale] : [];
         $sourcePreset = $this->cleanBackgroundPreset($source['background_preset'] ?? null) ?? '';
+        $sourceColor = $this->cleanColor($source['background_color'] ?? null) ?? '';
+        $sourceSecondaryColor = $this->cleanColor($source['secondary_background_color'] ?? null) ?? '';
 
         foreach ($this->locales() as $locale) {
             if ($locale === $sourceLocale) {
@@ -615,17 +613,45 @@ class PlatformSectionContentService
                 : $this->defaultContent($locale, $type);
 
             $target['background_preset'] = $sourcePreset;
+            $target['background_color'] = $sourceColor;
+            $target['secondary_background_color'] = $sourceSecondaryColor;
             $locales[$locale] = $target;
         }
 
         return $locales;
     }
 
-    private function resolveBackgroundPresetForLocale($currentPreset, array $locales, string $locale): string
+    private function resolveBackgroundVisualsForLocale(array $content, array $locales, string $locale): array
     {
-        $preset = $this->cleanBackgroundPreset($currentPreset) ?? '';
-        if ($preset !== '') {
-            return $preset;
+        $stored = is_array($locales[$locale] ?? null) ? $locales[$locale] : [];
+        $content['background_preset'] = $this->resolveBackgroundPresetForLocale(
+            $content['background_preset'] ?? null,
+            $stored,
+            $locales,
+            $locale
+        );
+        $content['background_color'] = $this->resolveBackgroundColorForLocale(
+            $content['background_color'] ?? null,
+            'background_color',
+            $stored,
+            $locales,
+            $locale
+        );
+        $content['secondary_background_color'] = $this->resolveBackgroundColorForLocale(
+            $content['secondary_background_color'] ?? null,
+            'secondary_background_color',
+            $stored,
+            $locales,
+            $locale
+        );
+
+        return $content;
+    }
+
+    private function resolveBackgroundPresetForLocale($currentPreset, array $stored, array $locales, string $locale): string
+    {
+        if (array_key_exists('background_preset', $stored)) {
+            return $this->cleanBackgroundPreset($stored['background_preset'] ?? null) ?? '';
         }
 
         foreach ($this->locales() as $candidateLocale) {
@@ -634,14 +660,32 @@ class PlatformSectionContentService
             }
 
             $candidate = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
-            $candidatePreset = $this->cleanBackgroundPreset($candidate['background_preset'] ?? null) ?? '';
-
-            if ($candidatePreset !== '') {
-                return $candidatePreset;
+            if (array_key_exists('background_preset', $candidate)) {
+                return $this->cleanBackgroundPreset($candidate['background_preset'] ?? null) ?? '';
             }
         }
 
-        return '';
+        return $this->cleanBackgroundPreset($currentPreset) ?? '';
+    }
+
+    private function resolveBackgroundColorForLocale($currentColor, string $key, array $stored, array $locales, string $locale): string
+    {
+        if (array_key_exists($key, $stored)) {
+            return $this->cleanColor($stored[$key] ?? null) ?? '';
+        }
+
+        foreach ($this->locales() as $candidateLocale) {
+            if ($candidateLocale === $locale) {
+                continue;
+            }
+
+            $candidate = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
+            if (array_key_exists($key, $candidate)) {
+                return $this->cleanColor($candidate[$key] ?? null) ?? '';
+            }
+        }
+
+        return $this->cleanColor($currentColor) ?? '';
     }
 
     private function resolveHeroImagesForLocale(array $currentSlides, array $locales, string $locale): array
@@ -777,12 +821,16 @@ class PlatformSectionContentService
             }
 
             $title = $this->cleanText($item['title'] ?? '');
+            $id = $this->cleanText($item['id'] ?? '');
             $links = $this->sanitizeFooterLinks($item['links'] ?? [], 'footer-link');
+            if ($this->isSolutionsFooterGroup($id, $title, $links)) {
+                continue;
+            }
+
             if ($title === '' && $links === []) {
                 continue;
             }
 
-            $id = $this->cleanText($item['id'] ?? '');
             $groups[] = [
                 'id' => $id !== '' ? $id : 'footer-group-'.($index + 1),
                 'title' => $title,
@@ -816,15 +864,41 @@ class PlatformSectionContentService
             }
 
             $id = $this->cleanText($item['id'] ?? '');
+            $href = $this->cleanLinkValue($item['href'] ?? '');
+            if ($this->isSolutionsFooterLink($id, $href)) {
+                continue;
+            }
+
             $links[] = [
                 'id' => $id !== '' ? $id : $prefix.'-'.($index + 1),
                 'label' => $label,
-                'href' => $this->cleanLinkValue($item['href'] ?? ''),
+                'href' => $href,
                 'note' => $this->cleanText($item['note'] ?? ''),
             ];
         }
 
         return array_slice($links, 0, 16);
+    }
+
+    private function isSolutionsFooterGroup(string $id, string $title, array $links): bool
+    {
+        $normalizedId = strtolower(trim($id));
+        $normalizedTitle = strtolower(trim($title));
+
+        if ($normalizedId === 'solutions' || $normalizedTitle === 'solutions') {
+            return true;
+        }
+
+        return $links === [] && str_starts_with($normalizedId, 'solutions');
+    }
+
+    private function isSolutionsFooterLink(string $id, string $href): bool
+    {
+        $normalizedId = strtolower(trim($id));
+        $normalizedHref = strtolower(trim($href));
+
+        return str_starts_with($normalizedId, 'solutions')
+            || str_starts_with($normalizedHref, '/pages/solution-');
     }
 
     private function sanitizeIndustryCards($items): array
@@ -1351,19 +1425,6 @@ class PlatformSectionContentService
                         ['id' => 'ressources-contact', 'label' => 'Contact', 'href' => '/pages/contact-us', 'note' => ''],
                     ],
                 ],
-                [
-                    'id' => 'solutions',
-                    'title' => 'Solutions',
-                    'layout' => 'stack',
-                    'links' => [
-                        ['id' => 'solutions-field', 'label' => 'Services terrain', 'href' => '/pages/solution-field-services', 'note' => ''],
-                        ['id' => 'solutions-queues', 'label' => 'Reservations & files', 'href' => '/pages/solution-reservations-queues', 'note' => ''],
-                        ['id' => 'solutions-sales', 'label' => 'Ventes & devis', 'href' => '/pages/solution-sales-quoting', 'note' => ''],
-                        ['id' => 'solutions-commerce', 'label' => 'Commerce & catalogue', 'href' => '/pages/solution-commerce-catalog', 'note' => ''],
-                        ['id' => 'solutions-marketing', 'label' => 'Marketing & fidelisation', 'href' => '/pages/solution-marketing-loyalty', 'note' => ''],
-                        ['id' => 'solutions-oversight', 'label' => 'Supervision multi-entite', 'href' => '/pages/solution-multi-entity-oversight', 'note' => ''],
-                    ],
-                ],
             ];
         }
 
@@ -1405,19 +1466,6 @@ class PlatformSectionContentService
                     ['id' => 'resources-privacy', 'label' => 'Privacy', 'href' => '/privacy', 'note' => ''],
                     ['id' => 'resources-refund', 'label' => 'Refund', 'href' => '/refund', 'note' => ''],
                     ['id' => 'resources-contact', 'label' => 'Contact us', 'href' => '/pages/contact-us', 'note' => ''],
-                ],
-            ],
-            [
-                'id' => 'solutions',
-                'title' => 'Solutions',
-                'layout' => 'stack',
-                'links' => [
-                    ['id' => 'solutions-field', 'label' => 'Field services', 'href' => '/pages/solution-field-services', 'note' => ''],
-                    ['id' => 'solutions-queues', 'label' => 'Reservations & queues', 'href' => '/pages/solution-reservations-queues', 'note' => ''],
-                    ['id' => 'solutions-sales', 'label' => 'Sales & quoting', 'href' => '/pages/solution-sales-quoting', 'note' => ''],
-                    ['id' => 'solutions-commerce', 'label' => 'Commerce & catalog', 'href' => '/pages/solution-commerce-catalog', 'note' => ''],
-                    ['id' => 'solutions-marketing', 'label' => 'Marketing & loyalty', 'href' => '/pages/solution-marketing-loyalty', 'note' => ''],
-                    ['id' => 'solutions-oversight', 'label' => 'Multi-entity oversight', 'href' => '/pages/solution-multi-entity-oversight', 'note' => ''],
                 ],
             ],
         ];
