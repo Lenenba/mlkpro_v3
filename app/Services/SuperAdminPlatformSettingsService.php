@@ -136,7 +136,8 @@ class SuperAdminPlatformSettingsService
             'plan_prices.*.*.currency_code' => 'nullable|string|size:3',
             'plan_prices.*.*.billing_period' => 'nullable|string|max:20',
             'plan_prices.*.*.is_active' => 'nullable|boolean',
-            'subscription_promotion.enabled' => 'required|boolean',
+            'subscription_promotion' => 'nullable|array',
+            'subscription_promotion.enabled' => 'required_with:subscription_promotion|boolean',
             'subscription_promotion.monthly_discount_percent' => [
                 'nullable',
                 'integer',
@@ -154,6 +155,10 @@ class SuperAdminPlatformSettingsService
 
     public function update(array $validated, bool $isSuperadmin): void
     {
+        if (array_key_exists('plan_modules', $validated) && ! $isSuperadmin) {
+            abort(403);
+        }
+
         PlatformSetting::setValue('maintenance', [
             'enabled' => (bool) $validated['maintenance']['enabled'],
             'message' => $validated['maintenance']['message'] ?? '',
@@ -171,10 +176,6 @@ class SuperAdminPlatformSettingsService
 
         PlatformSetting::setValue('plan_limits', $this->buildLimitPayload($validated['plan_limits'] ?? []));
 
-        if (array_key_exists('plan_modules', $validated) && ! $isSuperadmin) {
-            abort(403);
-        }
-
         if ($isSuperadmin && array_key_exists('plan_modules', $validated)) {
             PlatformSetting::setValue('plan_modules', $this->buildModulePayload($validated['plan_modules'] ?? []));
         }
@@ -182,7 +183,12 @@ class SuperAdminPlatformSettingsService
         PlatformSetting::setValue('plan_display', $this->buildDisplayPayload($validated['plan_display'] ?? []));
 
         app(BillingPlanService::class)->upsertPricing($validated['plan_prices'] ?? []);
-        app(SubscriptionPromotionService::class)->updateFromAdminPayload($validated['subscription_promotion'] ?? []);
+
+        if (request()->exists('subscription_promotion')) {
+            app(SubscriptionPromotionService::class)->updateFromAdminPayload(
+                $validated['subscription_promotion'] ?? []
+            );
+        }
     }
 
     private function promotionNeedsBillingPeriodDiscount(string $otherField): bool
