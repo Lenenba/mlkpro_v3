@@ -15,12 +15,13 @@ class CreateStripeSubscriptionForTenant
         string $successUrl,
         string $cancelUrl,
         int $quantity = 1,
-        ?Carbon $trialEndsAt = null
+        ?Carbon $trialEndsAt = null,
+        BillingPeriod|string|null $billingPeriod = null
     ): array {
         $planPrice = app(ResolvePlanPriceForTenant::class)->execute(
             $tenant,
             $planCode,
-            BillingPeriod::MONTHLY
+            $billingPeriod
         );
 
         return app(StripeBillingService::class)->createCheckoutSessionForPlanPrice(
@@ -33,12 +34,16 @@ class CreateStripeSubscriptionForTenant
         );
     }
 
-    public function swap(User $tenant, string $planCode, int $quantity = 1): ?StripeSubscription
-    {
+    public function swap(
+        User $tenant,
+        string $planCode,
+        int $quantity = 1,
+        BillingPeriod|string|null $billingPeriod = null
+    ): ?StripeSubscription {
         $planPrice = app(ResolvePlanPriceForTenant::class)->execute(
             $tenant,
             $planCode,
-            BillingPeriod::MONTHLY
+            $billingPeriod
         );
 
         return app(StripeBillingService::class)->swapSubscriptionToPlanPrice(
@@ -48,12 +53,17 @@ class CreateStripeSubscriptionForTenant
         );
     }
 
-    public function assign(User $tenant, string $planCode, bool $comped = false, int $quantity = 1): ?StripeSubscription
-    {
+    public function assign(
+        User $tenant,
+        string $planCode,
+        bool $comped = false,
+        int $quantity = 1,
+        BillingPeriod|string|null $billingPeriod = null
+    ): ?StripeSubscription {
         $planPrice = app(ResolvePlanPriceForTenant::class)->execute(
             $tenant,
             $planCode,
-            BillingPeriod::MONTHLY
+            $billingPeriod
         );
 
         return app(StripeBillingService::class)->assignPlanPrice(

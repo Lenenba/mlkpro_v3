@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\BillingPeriod;
 use App\Services\Concerns\InteractsWithStripePlanCatalog;
 use RuntimeException;
 use Stripe\Exception\ApiErrorException;
@@ -53,7 +54,9 @@ class StripePlanEnvSyncService
         foreach ($definitions as $planCode => $definition) {
             $anchor = $this->resolvePlanAnchor($client, $activePrices, $definition, $planCode);
 
-            foreach ($definition['prices'] as $currencyCode => $priceDefinition) {
+            foreach ($definition['prices'] as $priceDefinition) {
+                $currencyCode = $priceDefinition['currency_code'];
+                $billingPeriod = $this->normalizeBillingPeriod($priceDefinition['billing_period'] ?? null);
                 $match = $this->matchPriceForDefinition(
                     $client,
                     $activePrices,
@@ -61,17 +64,24 @@ class StripePlanEnvSyncService
                     $planCode,
                     $anchor['plan_name'],
                     $anchor['product_id'],
-                    $currencyCode,
                     $priceDefinition,
                 );
 
                 $price = $match['price'];
                 $resolvedAmount = $this->normalizeStripeAmount($price);
 
-                $this->addResolvedEnvValues($resolved, $planCode, $currencyCode, $price->id, $resolvedAmount);
+                $this->addResolvedEnvValues(
+                    $resolved,
+                    $planCode,
+                    $currencyCode,
+                    $price->id,
+                    $resolvedAmount,
+                    $billingPeriod
+                );
                 $resolvedPlanPrices[] = [
                     'plan_code' => $planCode,
                     'currency_code' => $currencyCode,
+                    'billing_period' => $billingPeriod->value,
                     'amount' => $resolvedAmount,
                     'stripe_price_id' => $price->id,
                 ];
@@ -79,6 +89,7 @@ class StripePlanEnvSyncService
                 $items[] = [
                     'plan_code' => $planCode,
                     'currency_code' => $currencyCode,
+                    'billing_period' => $billingPeriod->value,
                     'amount' => $resolvedAmount,
                     'stripe_price_id' => $price->id,
                     'env_key' => $priceDefinition['env_key'],
@@ -133,7 +144,7 @@ class StripePlanEnvSyncService
             $page = $client->prices->all($params);
 
             foreach ($page->data as $price) {
-                if (! $price instanceof Price || ! $this->isMonthlyRecurringPrice($price)) {
+                if (! $price instanceof Price || ! $this->isSupportedRecurringPrice($price)) {
                     continue;
                 }
 
@@ -184,15 +195,22 @@ class StripePlanEnvSyncService
         string $planCode,
         ?string $planName,
         ?string $anchorProductId,
-        string $currencyCode,
         array $priceDefinition,
     ): array {
+        $currencyCode = $priceDefinition['currency_code'];
+        $billingPeriod = $this->normalizeBillingPeriod($priceDefinition['billing_period'] ?? null);
         $configuredPriceId = $priceDefinition['configured_price_id'] ?? null;
         $expectedAmount = (float) ($priceDefinition['amount'] ?? 0);
         $expectedUnitAmount = (int) round($expectedAmount * 100);
-        $envKey = (string) ($priceDefinition['env_key'] ?? $this->envKeyFor($planCode, $currencyCode));
+        $envKey = (string) ($priceDefinition['env_key'] ?? $this->envKeyFor($planCode, $currencyCode, $billingPeriod));
 
-        $configured = $this->resolveConfiguredPrice($client, $activePrices, $configuredPriceId, $currencyCode);
+        $configured = $this->resolveConfiguredPrice(
+            $client,
+            $activePrices,
+            $configuredPriceId,
+            $currencyCode,
+            $billingPeriod,
+        );
         if ($configured) {
             return [
                 'price' => $configured,
@@ -200,13 +218,14 @@ class StripePlanEnvSyncService
             ];
         }
 
-        $candidates = $this->filterCandidatePrices($activePrices, $currencyCode);
+        $candidates = $this->filterCandidatePrices($activePrices, $currencyCode, $billingPeriod);
 
         $productMatch = $this->selectByAnchorProduct(
             $candidates,
             $anchorProductId,
             $planCode,
             $currencyCode,
+            $billingPeriod,
             $expectedUnitAmount,
             $envKey,
         );
@@ -214,7 +233,14 @@ class StripePlanEnvSyncService
             return $productMatch;
         }
 
-        $metadataMatch = $this->selectByPriceMetadata($candidates, $planCode, $currencyCode, $expectedUnitAmount, $envKey);
+        $metadataMatch = $this->selectByPriceMetadata(
+            $candidates,
+            $planCode,
+            $currencyCode,
+            $billingPeriod,
+            $expectedUnitAmount,
+            $envKey,
+        );
         if ($metadataMatch) {
             return $metadataMatch;
         }
@@ -225,6 +251,7 @@ class StripePlanEnvSyncService
             $productCache,
             $planCode,
             $currencyCode,
+            $billingPeriod,
             $expectedUnitAmount,
             $envKey,
         );
@@ -239,6 +266,7 @@ class StripePlanEnvSyncService
             $planCode,
             $planName,
             $currencyCode,
+            $billingPeriod,
             $expectedUnitAmount,
             $envKey,
         );
@@ -246,16 +274,25 @@ class StripePlanEnvSyncService
             return $productNameMatch;
         }
 
-        $amountMatch = $this->selectByAmount($candidates, $planCode, $currencyCode, $expectedUnitAmount, $envKey);
+        $amountMatch = $this->selectByAmount(
+            $candidates,
+            $planCode,
+            $currencyCode,
+            $billingPeriod,
+            $expectedUnitAmount,
+            $envKey,
+        );
         if ($amountMatch) {
             return $amountMatch;
         }
 
         throw new RuntimeException(sprintf(
-            'No active monthly Stripe price matched plan [%s] currency [%s]. Configure [%s], add plan_code metadata, or create an active monthly price for %.2f %s.',
+            'No active %s Stripe price matched plan [%s] currency [%s]. Configure [%s], add plan_code metadata, or create an active %s price for %.2f %s.',
+            $this->periodLabel($billingPeriod),
             $planCode,
             $currencyCode,
             $envKey,
+            $this->periodLabel($billingPeriod),
             $expectedAmount,
             $currencyCode,
         ));
@@ -266,6 +303,7 @@ class StripePlanEnvSyncService
         array $activePrices,
         ?string $configuredPriceId,
         string $currencyCode,
+        BillingPeriod|string|null $billingPeriod = null,
     ): ?Price {
         if (! $configuredPriceId) {
             return null;
@@ -276,7 +314,7 @@ class StripePlanEnvSyncService
                 continue;
             }
 
-            if ($this->isEligiblePrice($price, $currencyCode)) {
+            if ($this->isEligiblePrice($price, $currencyCode, $billingPeriod)) {
                 return $price;
             }
 
@@ -285,7 +323,7 @@ class StripePlanEnvSyncService
 
         $price = $this->retrievePrice($client, $configuredPriceId);
 
-        return $price && $this->isEligiblePrice($price, $currencyCode) ? $price : null;
+        return $price && $this->isEligiblePrice($price, $currencyCode, $billingPeriod) ? $price : null;
     }
 
     private function resolvePlanAnchor(
@@ -296,14 +334,26 @@ class StripePlanEnvSyncService
     ): array {
         $planName = data_get(config('billing.plans'), $planCode.'.name');
         $resolvedPlanName = is_string($planName) && trim($planName) !== '' ? trim($planName) : null;
+        $priceDefinitions = collect($definition['prices'] ?? [])
+            ->sortBy(function (array $priceDefinition): int {
+                return (($priceDefinition['billing_period'] ?? BillingPeriod::MONTHLY->value) !== BillingPeriod::MONTHLY->value ? 10 : 0)
+                    + (($priceDefinition['currency_code'] ?? 'CAD') !== 'CAD' ? 1 : 0);
+            })
+            ->values()
+            ->all();
 
-        foreach ($definition['prices'] ?? [] as $currencyCode => $priceDefinition) {
+        foreach ($priceDefinitions as $priceDefinition) {
             $configuredPriceId = $priceDefinition['configured_price_id'] ?? null;
             if (! is_string($configuredPriceId) || trim($configuredPriceId) === '') {
                 continue;
             }
 
-            $price = $this->resolveConfiguredAnchorPrice($client, $activePrices, $configuredPriceId);
+            $price = $this->resolveConfiguredAnchorPrice(
+                $client,
+                $activePrices,
+                $configuredPriceId,
+                $priceDefinition['billing_period'] ?? null,
+            );
             if (! $price) {
                 continue;
             }
@@ -329,29 +379,32 @@ class StripePlanEnvSyncService
         StripeClient $client,
         array $activePrices,
         string $configuredPriceId,
+        BillingPeriod|string|null $billingPeriod = null,
     ): ?Price {
         foreach ($activePrices as $price) {
             if (! $price instanceof Price || $price->id !== $configuredPriceId) {
                 continue;
             }
 
-            return $this->isMonthlyRecurringPrice($price) ? $price : null;
+            return $this->matchesBillingPeriod($price, $billingPeriod) ? $price : null;
         }
 
         $price = $this->retrievePrice($client, $configuredPriceId);
 
-        return $price && $this->isMonthlyRecurringPrice($price) ? $price : null;
+        return $price && $this->matchesBillingPeriod($price, $billingPeriod) ? $price : null;
     }
 
     private function selectByPriceMetadata(
         array $candidates,
         string $planCode,
         string $currencyCode,
+        BillingPeriod|string|null $billingPeriod,
         int $expectedUnitAmount,
         string $envKey,
     ): ?array {
-        $matches = array_values(array_filter($candidates, function (Price $price) use ($planCode): bool {
-            return $this->metadataValue($price->metadata ?? null, 'plan_code') === $planCode;
+        $matches = array_values(array_filter($candidates, function (Price $price) use ($planCode, $billingPeriod): bool {
+            return $this->metadataValue($price->metadata ?? null, 'plan_code') === $planCode
+                && $this->metadataValue($price->metadata ?? null, 'billing_period') === $this->periodLabel($billingPeriod);
         }));
 
         return $this->selectSingleMatch(
@@ -359,6 +412,7 @@ class StripePlanEnvSyncService
             $expectedUnitAmount,
             $planCode,
             $currencyCode,
+            $billingPeriod,
             'price metadata',
             'PRICE METADATA',
             $envKey,
@@ -370,6 +424,7 @@ class StripePlanEnvSyncService
         ?string $anchorProductId,
         string $planCode,
         string $currencyCode,
+        BillingPeriod|string|null $billingPeriod,
         int $expectedUnitAmount,
         string $envKey,
     ): ?array {
@@ -386,6 +441,7 @@ class StripePlanEnvSyncService
             $expectedUnitAmount,
             $planCode,
             $currencyCode,
+            $billingPeriod,
             'the configured Stripe product',
             'PRODUCT',
             $envKey,
@@ -398,6 +454,7 @@ class StripePlanEnvSyncService
         array &$productCache,
         string $planCode,
         string $currencyCode,
+        BillingPeriod|string|null $billingPeriod,
         int $expectedUnitAmount,
         string $envKey,
     ): ?array {
@@ -426,6 +483,7 @@ class StripePlanEnvSyncService
             $expectedUnitAmount,
             $planCode,
             $currencyCode,
+            $billingPeriod,
             'product metadata',
             'PRODUCT METADATA',
             $envKey,
@@ -439,6 +497,7 @@ class StripePlanEnvSyncService
         string $planCode,
         ?string $planName,
         string $currencyCode,
+        BillingPeriod|string|null $billingPeriod,
         int $expectedUnitAmount,
         string $envKey,
     ): ?array {
@@ -473,6 +532,7 @@ class StripePlanEnvSyncService
             $expectedUnitAmount,
             $planCode,
             $currencyCode,
+            $billingPeriod,
             'the Stripe product name',
             'PRODUCT NAME',
             $envKey,
@@ -483,6 +543,7 @@ class StripePlanEnvSyncService
         array $candidates,
         string $planCode,
         string $currencyCode,
+        BillingPeriod|string|null $billingPeriod,
         int $expectedUnitAmount,
         string $envKey,
     ): ?array {
@@ -496,7 +557,8 @@ class StripePlanEnvSyncService
 
         if (count($matches) > 1) {
             throw new RuntimeException(sprintf(
-                'Multiple active monthly Stripe prices matched plan [%s] currency [%s] by amount %.2f. Configure [%s] or add plan_code metadata to disambiguate.',
+                'Multiple active %s Stripe prices matched plan [%s] currency [%s] by amount %.2f. Configure [%s] or add plan_code metadata to disambiguate.',
+                $this->periodLabel($billingPeriod),
                 $planCode,
                 $currencyCode,
                 $expectedUnitAmount / 100,
@@ -515,6 +577,7 @@ class StripePlanEnvSyncService
         int $expectedUnitAmount,
         string $planCode,
         string $currencyCode,
+        BillingPeriod|string|null $billingPeriod,
         string $reason,
         string $action,
         string $envKey,
@@ -542,7 +605,8 @@ class StripePlanEnvSyncService
         }
 
         throw new RuntimeException(sprintf(
-            'Multiple active monthly Stripe prices matched plan [%s] currency [%s] using %s. Configure [%s] or remove duplicate prices in Stripe.',
+            'Multiple active %s Stripe prices matched plan [%s] currency [%s] using %s. Configure [%s] or remove duplicate prices in Stripe.',
+            $this->periodLabel($billingPeriod),
             $planCode,
             $currencyCode,
             $reason,
@@ -550,26 +614,42 @@ class StripePlanEnvSyncService
         ));
     }
 
-    private function filterCandidatePrices(array $activePrices, string $currencyCode): array
-    {
-        return array_values(array_filter($activePrices, function ($price) use ($currencyCode): bool {
-            return $price instanceof Price && $this->isEligiblePrice($price, $currencyCode);
+    private function filterCandidatePrices(
+        array $activePrices,
+        string $currencyCode,
+        BillingPeriod|string|null $billingPeriod,
+    ): array {
+        return array_values(array_filter($activePrices, function ($price) use ($currencyCode, $billingPeriod): bool {
+            return $price instanceof Price && $this->isEligiblePrice($price, $currencyCode, $billingPeriod);
         }));
     }
 
-    private function isEligiblePrice(Price $price, string $currencyCode): bool
-    {
+    private function isEligiblePrice(
+        Price $price,
+        string $currencyCode,
+        BillingPeriod|string|null $billingPeriod,
+    ): bool {
         return strtoupper((string) ($price->currency ?? '')) === $currencyCode
-            && $this->isMonthlyRecurringPrice($price)
+            && $this->matchesBillingPeriod($price, $billingPeriod)
             && (bool) ($price->active ?? false);
     }
 
-    private function isMonthlyRecurringPrice(Price $price): bool
+    private function isSupportedRecurringPrice(Price $price): bool
     {
         $interval = $price->recurring->interval ?? null;
         $intervalCount = (int) ($price->recurring->interval_count ?? 1);
 
-        return $interval === 'month' && $intervalCount === 1;
+        return is_string($interval) && $this->supportsRecurringInterval($interval, $intervalCount);
+    }
+
+    private function matchesBillingPeriod(Price $price, BillingPeriod|string|null $billingPeriod): bool
+    {
+        $interval = $price->recurring->interval ?? null;
+        $intervalCount = (int) ($price->recurring->interval_count ?? 1);
+
+        return is_string($interval)
+            && $this->supportsRecurringInterval($interval, $intervalCount)
+            && $interval === $this->stripeIntervalFor($billingPeriod);
     }
 
     private function productIdFor(Price $price): ?string

@@ -245,6 +245,7 @@ class BillingSettingsController extends Controller
                 'tenant_currency_code' => $user->businessCurrencyCode(),
                 'is_paddle' => $isPaddleProvider,
                 'support_phone' => config('app.support_phone'),
+                'annual_discount_percent' => (int) round((float) config('billing.annual_discount_percent', 20)),
             ],
             'availableMethods' => self::AVAILABLE_METHODS,
             'paymentMethods' => $paymentMethodsResolved['enabled_methods_internal'],
@@ -281,6 +282,7 @@ class BillingSettingsController extends Controller
             ],
             'checkoutStatus' => $checkoutStatus,
             'checkoutPlanKey' => $request->query('plan'),
+            'checkoutBillingPeriod' => $request->query('billing_period'),
             'creditStatus' => $creditStatus,
             'connectStatus' => $connectStatus,
             'paddle' => [

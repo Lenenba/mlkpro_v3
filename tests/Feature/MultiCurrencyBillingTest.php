@@ -177,27 +177,36 @@ it('fails clearly when a plan price is missing for the tenant currency', functio
     'No active plan price exists for plan [starter] in currency [USD] and period [monthly].'
 );
 
-it('uses the tenant currency when building Stripe checkout for subscriptions', function (string $currencyCode, string $stripePriceId) {
+it('uses the tenant currency and billing period when building Stripe checkout for subscriptions', function (
+    string $currencyCode,
+    BillingPeriod $billingPeriod,
+    string $stripePriceId,
+) {
     $tenant = User::factory()->create([
         'currency_code' => $currencyCode,
     ]);
 
     $planId = Plan::query()->where('code', 'starter')->value('id');
-    PlanPrice::query()
-        ->where('plan_id', $planId)
-        ->where('currency_code', $currencyCode)
-        ->where('billing_period', BillingPeriod::MONTHLY->value)
-        ->update([
+    PlanPrice::query()->updateOrCreate(
+        [
+            'plan_id' => $planId,
+            'currency_code' => $currencyCode,
+            'billing_period' => $billingPeriod->value,
+        ],
+        [
             'stripe_price_id' => $stripePriceId,
-        ]);
+            'is_active' => true,
+        ]
+    );
 
     $stripeMock = \Mockery::mock(StripeBillingService::class);
     $stripeMock
         ->shouldReceive('createCheckoutSessionForPlanPrice')
         ->once()
-        ->withArgs(function (User $user, $planPrice, string $successUrl, string $cancelUrl, int $quantity, $trialEndsAt) use ($tenant, $currencyCode, $stripePriceId) {
+        ->withArgs(function (User $user, $planPrice, string $successUrl, string $cancelUrl, int $quantity, $trialEndsAt) use ($tenant, $currencyCode, $billingPeriod, $stripePriceId) {
             expect($user->is($tenant))->toBeTrue();
             expect($planPrice->currencyCode->value)->toBe($currencyCode);
+            expect($planPrice->billingPeriod)->toBe($billingPeriod);
             expect($planPrice->stripePriceId)->toBe($stripePriceId);
             expect($successUrl)->toBe('https://example.test/success');
             expect($cancelUrl)->toBe('https://example.test/cancel');
@@ -218,14 +227,16 @@ it('uses the tenant currency when building Stripe checkout for subscriptions', f
         'starter',
         'https://example.test/success',
         'https://example.test/cancel',
-        3
+        3,
+        null,
+        $billingPeriod
     );
 
     expect($session['id'])->toBe('cs_test_123')
         ->and($session['url'])->toBe('https://checkout.stripe.test/session');
 })->with([
-    ['EUR', 'price_test_starter_eur'],
-    ['USD', 'price_test_starter_usd'],
+    ['EUR', BillingPeriod::MONTHLY, 'price_test_starter_eur'],
+    ['USD', BillingPeriod::YEARLY, 'price_test_starter_usd_yearly'],
 ]);
 
 it('backfills legacy records without currency to CAD when the multi-currency migration runs', function () {

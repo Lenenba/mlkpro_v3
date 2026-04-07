@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\SubscriptionPromotion;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('pricing page exposes all public plans and comparison sections', function () {
@@ -17,6 +18,9 @@ test('pricing page exposes all public plans and comparison sections', function (
             ->where('pricingCatalogs.solo.plans.2.key', 'solo_growth')
             ->where('pricingCatalogs.solo.plans.1.audience', 'solo')
             ->where('pricingCatalogs.solo.plans.1.onboarding_enabled', true)
+            ->where('pricingCatalogs.solo.plans.1.prices_by_period.monthly.billing_period', 'monthly')
+            ->where('pricingCatalogs.solo.plans.1.prices_by_period.yearly.billing_period', 'yearly')
+            ->where('pricingCatalogs.solo.plans.1.annual_discount_percent', 20)
             ->where('pricingCatalogs.solo.highlightedPlanKey', 'solo_pro')
             ->has('pricingCatalogs.solo.comparisonSections', 3)
             ->has('pricingCatalogs.solo.comparisonSections.0.rows', 6)
@@ -36,6 +40,7 @@ test('pricing page exposes all public plans and comparison sections', function (
             ->where('pricingCatalogs.team.plans.3.key', 'enterprise')
             ->where('pricingCatalogs.team.plans.0.onboarding_enabled', true)
             ->where('pricingCatalogs.team.plans.3.contact_only', true)
+            ->where('pricingCatalogs.team.plans.0.prices_by_period.yearly.billing_period', 'yearly')
             ->where('pricingCatalogs.team.highlightedPlanKey', 'growth')
             ->has('pricingCatalogs.team.comparisonSections', 3)
             ->has('pricingCatalogs.team.comparisonSections.0.rows', 8)
@@ -50,5 +55,31 @@ test('pricing page exposes all public plans and comparison sections', function (
             ->where('pricingPlans.0.key', 'solo_essential')
             ->where('highlightedPlanKey', 'solo_pro')
             ->has('comparisonSections', 3)
+        );
+});
+
+test('pricing page exposes discounted subscription pricing when a promotion is active', function () {
+    SubscriptionPromotion::query()->updateOrCreate(
+        ['key' => SubscriptionPromotion::GLOBAL_KEY],
+        [
+            'name' => 'Global subscription promotion',
+            'is_enabled' => true,
+            'monthly_discount_percent' => 25,
+            'yearly_discount_percent' => 35,
+            'monthly_stripe_coupon_id' => 'coupon_promo_25',
+            'yearly_stripe_coupon_id' => 'coupon_promo_35',
+        ]
+    );
+
+    $this->get(route('pricing'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Pricing')
+            ->where('pricingCatalogs.team.plans.0.is_discounted', true)
+            ->where('pricingCatalogs.team.plans.0.promotion.discount_percent', 25)
+            ->where('pricingCatalogs.team.plans.0.prices_by_period.monthly.is_discounted', true)
+            ->where('pricingCatalogs.team.plans.0.prices_by_period.monthly.promotion.discount_percent', 25)
+            ->where('pricingCatalogs.team.plans.0.prices_by_period.yearly.is_discounted', true)
+            ->where('pricingCatalogs.team.plans.0.prices_by_period.yearly.promotion.discount_percent', 35)
         );
 });

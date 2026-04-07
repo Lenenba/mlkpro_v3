@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\BillingPeriod;
 use App\Enums\CurrencyCode;
 use App\Models\PlatformSetting;
 use App\Models\ProductCategory;
@@ -70,6 +71,7 @@ class OnboardingController extends Controller
     public function index(Request $request)
     {
         $selectedPlanKey = $this->requestedOnboardingPlanKey($request);
+        $selectedBillingPeriod = $this->requestedOnboardingBillingPeriod($request);
         $user = $request->user();
         if (! $user) {
             return $this->inertiaOrJson('Onboarding/Index', [
@@ -80,6 +82,7 @@ class OnboardingController extends Controller
                 'planLimits' => $this->planLimits(),
                 'supportedCurrencies' => CurrencyCode::values(),
                 'selectedPlanKey' => $selectedPlanKey,
+                'selectedBillingPeriod' => $selectedBillingPeriod->value,
             ]);
         }
 
@@ -114,6 +117,7 @@ class OnboardingController extends Controller
             'planLimits' => $this->planLimits(),
             'supportedCurrencies' => CurrencyCode::values(),
             'selectedPlanKey' => $selectedPlanKey,
+            'selectedBillingPeriod' => $selectedBillingPeriod->value,
         ]);
     }
 
@@ -169,6 +173,7 @@ class OnboardingController extends Controller
             'invites.*.role' => 'required|string|in:admin,member',
 
             'plan_key' => $planRule,
+            'billing_period' => ['nullable', Rule::in(BillingPeriod::values())],
             'accept_terms' => $termsRule,
             'two_factor_method' => $twoFactorRule,
         ]);
@@ -275,7 +280,9 @@ class OnboardingController extends Controller
             return redirect()->route('dashboard')->with('success', $message);
         }
 
-        return $this->startCheckout($request, $accountOwner, (string) $validated['plan_key']);
+        $billingPeriod = BillingPeriod::tryFromMixed($validated['billing_period'] ?? null) ?? BillingPeriod::default();
+
+        return $this->startCheckout($request, $accountOwner, (string) $validated['plan_key'], $billingPeriod);
     }
 
     public function billing(Request $request)
@@ -427,8 +434,12 @@ class OnboardingController extends Controller
         }
     }
 
-    private function startCheckout(Request $request, User $accountOwner, string $planKey)
-    {
+    private function startCheckout(
+        Request $request,
+        User $accountOwner,
+        string $planKey,
+        BillingPeriod|string|null $billingPeriod = null
+    ) {
         $billingService = app(BillingSubscriptionService::class);
         if (! $billingService->providerReady()) {
             throw ValidationException::withMessages([
@@ -454,7 +465,8 @@ class OnboardingController extends Controller
             $successUrl,
             $cancelUrl,
             $seatQuantity,
-            $trialEndsAt
+            $trialEndsAt,
+            $billingPeriod
         );
 
         $url = $session['url'] ?? null;
@@ -693,6 +705,11 @@ class OnboardingController extends Controller
         }
 
         return in_array($planKey, $this->planKeysForOnboarding(), true) ? $planKey : null;
+    }
+
+    private function requestedOnboardingBillingPeriod(Request $request): BillingPeriod
+    {
+        return BillingPeriod::tryFromMixed($request->query('billing_period')) ?? BillingPeriod::default();
     }
 
     private function resolveInitialTeamSize(mixed $currentTeamSize, ?string $selectedPlanKey): ?int

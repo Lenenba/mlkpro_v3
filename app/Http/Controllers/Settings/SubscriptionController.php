@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Enums\BillingPeriod;
 use App\Http\Controllers\Controller;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
@@ -10,6 +11,7 @@ use App\Services\PlatformAdminNotifier;
 use App\Services\StripeBillingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -133,14 +135,19 @@ class SubscriptionController extends Controller
 
         $plans = $billingService->isStripe()
             ? collect(app(BillingPlanService::class)->plansForTenant($user))
-                ->filter(fn (array $plan) => ! empty($plan['price_id']))
+                ->filter(fn (array $plan) => collect($plan['prices_by_period'] ?? [])
+                    ->pluck('stripe_price_id')
+                    ->filter()
+                    ->isNotEmpty())
                 ->values()
             : collect(config('billing.plans', []))
                 ->map(fn (array $plan, string $key) => array_merge(['key' => $key], $plan))
                 ->filter(fn (array $plan) => ! empty($plan['price_id']))
                 ->values();
 
-        $priceIds = $plans->pluck('price_id')->filter()->values()->all();
+        $priceIds = $billingService->isStripe()
+            ? $this->stripePlanPriceIds($plans)
+            : $plans->pluck('price_id')->filter()->values()->all();
         $planKeys = $plans->pluck('key')->filter()->values()->all();
         if (! $priceIds) {
             if ($this->shouldReturnJson($request)) {
@@ -160,13 +167,28 @@ class SubscriptionController extends Controller
         $validated = $request->validate([
             'plan_key' => ['nullable', Rule::in($planKeys)],
             'price_id' => ['nullable', Rule::in($priceIds)],
+            'billing_period' => ['nullable', Rule::in(BillingPeriod::values())],
         ]);
 
-        $plan = ! empty($validated['plan_key'])
-            ? $plans->firstWhere('key', $validated['plan_key'])
-            : $plans->firstWhere('price_id', $validated['price_id'] ?? null);
-        $selectedPriceId = $plan['price_id'] ?? null;
-        $planKey = $plan['key'] ?? null;
+        $selectedBillingPeriod = BillingPeriod::default();
+        $plan = null;
+        $selectedPriceId = null;
+        $planKey = null;
+
+        if ($billingService->isStripe()) {
+            $selection = $this->resolveStripePlanSelection($plans, $validated);
+            $plan = $selection['plan'];
+            $selectedPriceId = $selection['selected_price_id'];
+            $planKey = $selection['plan_key'];
+            $selectedBillingPeriod = $selection['billing_period'];
+        } else {
+            $plan = ! empty($validated['plan_key'])
+                ? $plans->firstWhere('key', $validated['plan_key'])
+                : $plans->firstWhere('price_id', $validated['price_id'] ?? null);
+            $selectedPriceId = $plan['price_id'] ?? null;
+            $planKey = $plan['key'] ?? null;
+        }
+
         if (! $selectedPriceId || ! $planKey) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
@@ -230,7 +252,12 @@ class SubscriptionController extends Controller
                 }
 
                 $seatQuantity = $billingService->resolveBillableQuantity($user, $planKey);
-                $updated = app(CreateStripeSubscriptionForTenant::class)->swap($user, (string) $planKey, $seatQuantity);
+                $updated = app(CreateStripeSubscriptionForTenant::class)->swap(
+                    $user,
+                    (string) $planKey,
+                    $seatQuantity,
+                    $selectedBillingPeriod
+                );
                 if (! $updated) {
                     throw new \RuntimeException('Stripe subscription update failed.');
                 }
@@ -296,12 +323,14 @@ class SubscriptionController extends Controller
             return response()->json([
                 'message' => 'Plan updated.',
                 'plan_key' => $planKey,
+                'billing_period' => $selectedBillingPeriod->value,
             ]);
         }
 
         return redirect()->route('settings.billing.edit', array_filter([
             'checkout' => 'swapped',
             'plan' => $planKey,
+            'billing_period' => $selectedBillingPeriod->value,
         ], fn ($value) => $value !== null && $value !== ''));
     }
 
@@ -325,21 +354,26 @@ class SubscriptionController extends Controller
         }
 
         $plans = collect(app(BillingPlanService::class)->plansForTenant($user))
-            ->filter(fn (array $plan) => ! empty($plan['price_id']))
+            ->filter(fn (array $plan) => collect($plan['prices_by_period'] ?? [])
+                ->pluck('stripe_price_id')
+                ->filter()
+                ->isNotEmpty())
             ->values();
 
-        $priceIds = $plans->pluck('price_id')->filter()->values()->all();
+        $priceIds = $this->stripePlanPriceIds($plans);
         $planKeys = $plans->pluck('key')->filter()->values()->all();
         $validated = $request->validate([
             'plan_key' => ['nullable', Rule::in($planKeys)],
             'price_id' => ['nullable', Rule::in($priceIds)],
+            'billing_period' => ['nullable', Rule::in(BillingPeriod::values())],
         ]);
 
-        $plan = ! empty($validated['plan_key'])
-            ? $plans->firstWhere('key', $validated['plan_key'])
-            : $plans->firstWhere('price_id', $validated['price_id'] ?? null);
-        $planKey = $plan['key'] ?? null;
-        if (! $planKey) {
+        $selection = $this->resolveStripePlanSelection($plans, $validated);
+        $planKey = $selection['plan_key'];
+        $selectedBillingPeriod = $selection['billing_period'];
+        $selectedPriceId = $selection['selected_price_id'];
+
+        if (! $planKey || ! $selectedPriceId) {
             return response()->json([
                 'message' => 'Please choose a valid subscription plan.',
                 'errors' => [
@@ -363,6 +397,7 @@ class SubscriptionController extends Controller
         $successUrl = route('settings.billing.edit', array_filter([
             'checkout' => 'success',
             'plan' => $planKey,
+            'billing_period' => $selectedBillingPeriod->value,
         ], fn ($value) => $value !== null && $value !== ''));
         $successUrl .= (str_contains($successUrl, '?') ? '&' : '?').'session_id={CHECKOUT_SESSION_ID}';
 
@@ -375,7 +410,9 @@ class SubscriptionController extends Controller
                 (string) $planKey,
                 $successUrl,
                 $cancelUrl,
-                $seatQuantity
+                $seatQuantity,
+                null,
+                $selectedBillingPeriod
             );
         } catch (\Throwable $exception) {
             Log::error('Stripe checkout session creation failed.', [
@@ -421,5 +458,53 @@ class SubscriptionController extends Controller
         $provider = strtolower((string) config('billing.provider_effective', config('billing.provider', 'paddle')));
 
         return $provider === '' || $provider === 'paddle';
+    }
+
+    private function stripePlanPriceIds(Collection $plans): array
+    {
+        return $plans
+            ->flatMap(function (array $plan) {
+                return collect($plan['prices_by_period'] ?? [])
+                    ->pluck('stripe_price_id')
+                    ->filter();
+            })
+            ->values()
+            ->all();
+    }
+
+    private function resolveStripePlanSelection(Collection $plans, array $validated): array
+    {
+        $selectedBillingPeriod = BillingPeriod::tryFromMixed($validated['billing_period'] ?? null) ?? BillingPeriod::default();
+        $plan = null;
+
+        if (! empty($validated['plan_key'])) {
+            $plan = $plans->firstWhere('key', $validated['plan_key']);
+        } elseif (! empty($validated['price_id'])) {
+            $priceId = $validated['price_id'];
+            $plan = $plans->first(function (array $candidate) use ($priceId, &$selectedBillingPeriod): bool {
+                foreach (($candidate['prices_by_period'] ?? []) as $period => $price) {
+                    if (($price['stripe_price_id'] ?? null) !== $priceId) {
+                        continue;
+                    }
+
+                    $selectedBillingPeriod = BillingPeriod::tryFromMixed($period) ?? BillingPeriod::default();
+
+                    return true;
+                }
+
+                return false;
+            });
+        }
+
+        $selectedPrice = is_array($plan['prices_by_period'] ?? null)
+            ? ($plan['prices_by_period'][$selectedBillingPeriod->value] ?? null)
+            : null;
+
+        return [
+            'plan' => $plan,
+            'plan_key' => $plan['key'] ?? null,
+            'billing_period' => $selectedBillingPeriod,
+            'selected_price_id' => $selectedPrice['stripe_price_id'] ?? null,
+        ];
     }
 }

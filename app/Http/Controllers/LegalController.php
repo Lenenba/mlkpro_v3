@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PlatformSetting;
+use App\Enums\CurrencyCode;
+use App\Services\BillingPlanService;
 use App\Services\MegaMenus\MegaMenuRenderer;
 use App\Services\PublicFooterSectionResolver;
-use App\Support\CurrencyFormatter;
-use App\Support\PlanDisplay;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -43,9 +42,10 @@ class LegalController extends Controller
 
     public function pricing(Request $request): Response
     {
-        $rawPlans = config('billing.plans', []);
-        $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
-        $catalogs = $this->resolvePublicPlanCatalogs($rawPlans, $planDisplayOverrides);
+        $plansByKey = collect(app(BillingPlanService::class)->plansForCurrency(CurrencyCode::default()))
+            ->keyBy('key')
+            ->all();
+        $catalogs = $this->resolvePublicPlanCatalogs($plansByKey);
         $defaultAudience = $this->resolveDefaultPricingAudience($catalogs, (string) $request->input('audience', ''));
         $activeCatalog = $catalogs[$defaultAudience] ?? [
             'plans' => [],
@@ -76,43 +76,16 @@ class LegalController extends Controller
         ];
     }
 
-    private function resolvePlanDisplayPrice($raw): ?string
+    private function resolvePublicPlanCatalogs(array $plansByKey): array
     {
-        $rawValue = is_string($raw) ? trim($raw) : $raw;
-
-        if (is_numeric($rawValue)) {
-            return CurrencyFormatter::format((float) $rawValue, null);
-        }
-
-        if (is_string($rawValue) && $rawValue !== '') {
-            return $rawValue;
-        }
-
-        return null;
-    }
-
-    private function resolvePublicPlanOrder(array $rawPlans): array
-    {
-        $configuredOrder = config('billing.public_order', []);
-        $order = collect($configuredOrder)
-            ->filter(fn ($key) => is_string($key) && isset($rawPlans[$key]))
-            ->values()
-            ->all();
-
-        return $order !== [] ? $order : array_keys($rawPlans);
-    }
-
-    private function resolvePublicPlanCatalogs(array $rawPlans, array $planDisplayOverrides): array
-    {
-        $catalogDefaults = config('billing.catalog_defaults', []);
         $configuredCatalogs = config('billing.public_catalogs', []);
 
         if (! is_array($configuredCatalogs) || $configuredCatalogs === []) {
-            $order = $this->resolvePublicPlanOrder($rawPlans);
+            $order = array_keys($plansByKey);
 
             return [
                 'team' => [
-                    'plans' => $this->buildPublicPlans($order, $rawPlans, $planDisplayOverrides, $catalogDefaults),
+                    'plans' => $this->buildPublicPlans($order, $plansByKey),
                     'highlightedPlanKey' => in_array('growth', $order, true) ? 'growth' : ($order[1] ?? ($order[0] ?? null)),
                     'comparisonSections' => $this->resolveComparisonSections($order, 'team'),
                 ],
@@ -120,13 +93,13 @@ class LegalController extends Controller
         }
 
         return collect($configuredCatalogs)
-            ->mapWithKeys(function (mixed $catalogConfig, mixed $audience) use ($rawPlans, $planDisplayOverrides, $catalogDefaults) {
+            ->mapWithKeys(function (mixed $catalogConfig, mixed $audience) use ($plansByKey) {
                 if (! is_string($audience) || ! is_array($catalogConfig)) {
                     return [];
                 }
 
                 $order = collect($catalogConfig['order'] ?? [])
-                    ->filter(fn ($key) => is_string($key) && isset($rawPlans[$key]))
+                    ->filter(fn ($key) => is_string($key) && isset($plansByKey[$key]))
                     ->values()
                     ->all();
 
@@ -141,7 +114,7 @@ class LegalController extends Controller
 
                 return [
                     $audience => [
-                        'plans' => $this->buildPublicPlans($order, $rawPlans, $planDisplayOverrides, $catalogDefaults),
+                        'plans' => $this->buildPublicPlans($order, $plansByKey),
                         'highlightedPlanKey' => $highlightedPlanKey,
                         'comparisonSections' => $this->resolveComparisonSections($order, $audience),
                     ],
@@ -150,26 +123,21 @@ class LegalController extends Controller
             ->all();
     }
 
-    private function buildPublicPlans(array $order, array $rawPlans, array $planDisplayOverrides, array $catalogDefaults): array
+    private function buildPublicPlans(array $order, array $plansByKey): array
     {
         return collect($order)
-            ->map(function (string $key) use ($rawPlans, $planDisplayOverrides, $catalogDefaults) {
-                $plan = $rawPlans[$key] ?? [];
-                $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
+            ->map(function (string $key) use ($plansByKey) {
+                $plan = $plansByKey[$key] ?? null;
 
-                return [
-                    'key' => $key,
-                    'name' => $display['name'],
-                    'price' => $display['price'],
-                    'display_price' => $this->resolvePlanDisplayPrice($display['price']),
-                    'description' => data_get($catalogDefaults, $key.'.description'),
-                    'features' => $display['features'],
-                    'badge' => $display['badge'],
-                    'audience' => (string) ($plan['audience'] ?? 'team'),
-                    'contact_only' => (bool) ($plan['contact_only'] ?? data_get($catalogDefaults, $key.'.contact_only', false)),
-                    'onboarding_enabled' => (bool) ($plan['onboarding_enabled'] ?? false),
-                ];
+                if (! is_array($plan)) {
+                    return null;
+                }
+
+                return array_merge($plan, [
+                    'description' => data_get(config('billing.catalog_defaults', []), $key.'.description'),
+                ]);
             })
+            ->filter()
             ->values()
             ->all();
     }

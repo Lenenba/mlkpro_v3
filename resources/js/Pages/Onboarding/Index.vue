@@ -2,6 +2,12 @@
 import { computed, ref, watch } from 'vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import PlanPriceDisplay from '@/Components/Billing/PlanPriceDisplay.vue';
+import {
+    displayIntervalKeyForBillingPeriod,
+    hasActiveSubscriptionPromotion,
+    planPricingForBillingDisplay,
+} from '@/utils/subscriptionPricing';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -27,6 +33,10 @@ const props = defineProps({
     selectedPlanKey: {
         type: String,
         default: null,
+    },
+    selectedBillingPeriod: {
+        type: String,
+        default: 'monthly',
     },
 });
 
@@ -113,6 +123,7 @@ const form = useForm({
     company_team_size: preset.value.company_team_size || '',
     invites: [],
     plan_key: props.selectedPlanKey || '',
+    billing_period: props.selectedBillingPeriod || 'monthly',
     two_factor_method: preset.value.two_factor_method || 'email',
     accept_terms: false,
 });
@@ -387,7 +398,7 @@ const selectStep = (item) => {
 };
 
 const selectedCurrencyCode = computed(() => String(form.currency_code || 'CAD').toUpperCase());
-const priceForCurrency = (plan) => plan?.prices_by_currency?.[selectedCurrencyCode.value] || null;
+const priceForCurrency = (plan) => plan?.prices_by_currency?.[selectedCurrencyCode.value]?.[form.billing_period] || null;
 const hasPlanPrice = (plan) => Boolean(plan?.contact_only || priceForCurrency(plan)?.stripe_price_id);
 const visiblePlanOptions = computed(() => {
     const targetAudience = isSoloProfile.value ? 'solo' : 'team';
@@ -453,7 +464,26 @@ const trialEndLabel = computed(() => {
     return new Intl.DateTimeFormat(locale.value || undefined, { dateStyle: 'medium' }).format(label);
 });
 
-const resolvePlanPrice = (plan) => priceForCurrency(plan)?.display_price || plan?.display_price || plan?.price || '--';
+const displayedPricingForPlan = (plan) => planPricingForBillingDisplay(
+    plan,
+    form.billing_period,
+    priceForCurrency(plan) || {
+        display_price: plan?.display_price || null,
+        original_display_price: plan?.original_display_price || plan?.display_price || null,
+        discounted_display_price: plan?.discounted_display_price || plan?.display_price || null,
+        is_discounted: Boolean(plan?.is_discounted),
+        promotion: plan?.promotion || { is_active: false, discount_percent: null },
+    }
+);
+const yearlyPromotionActive = computed(() =>
+    visiblePlanOptions.value.some((plan) => hasActiveSubscriptionPromotion(displayedPricingForPlan(plan)))
+);
+const resolvePlanIntervalLabel = () => (
+    t(displayIntervalKeyForBillingPeriod(
+        form.billing_period,
+        'onboarding.plan.interval_month'
+    ))
+);
 const isPlanSelected = (plan) => form.plan_key === plan?.key;
 const isPlanRecommended = (plan) => recommendedPlan.value?.key === plan?.key;
 const selectPlan = (plan) => {
@@ -479,7 +509,7 @@ watch(
 );
 
 watch(
-    () => form.currency_code,
+    () => [form.currency_code, form.billing_period],
     () => {
         if (!form.plan_key) {
             return;
@@ -949,6 +979,33 @@ const closeTerms = () => {
                             <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
                                 Charged currency: {{ selectedCurrencyCode }}
                             </p>
+                            <div class="mt-3 inline-flex rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950">
+                                <button
+                                    type="button"
+                                    class="rounded-sm px-3 py-2 text-xs font-semibold transition"
+                                    :class="form.billing_period === 'monthly'
+                                        ? 'bg-green-600 text-white'
+                                        : 'text-stone-600 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800'"
+                                    @click="form.billing_period = 'monthly'"
+                                >
+                                    {{ $t('onboarding.plan.monthly') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-sm px-3 py-2 text-xs font-semibold transition"
+                                    :class="form.billing_period === 'yearly'
+                                        ? 'bg-green-600 text-white'
+                                        : 'text-stone-600 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800'"
+                                    @click="form.billing_period = 'yearly'"
+                                >
+                                    {{ $t('onboarding.plan.yearly') }}
+                                </button>
+                            </div>
+                            <p v-if="form.billing_period === 'yearly'" class="mt-2 text-xs font-semibold text-green-700 dark:text-green-400">
+                                {{ yearlyPromotionActive
+                                    ? $t('onboarding.plan.billed_yearly')
+                                    : $t('onboarding.plan.yearly_note', { percent: visiblePlanOptions[0]?.annual_discount_percent || 20 }) }}
+                            </p>
                             <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
                                 {{ $t('onboarding.plan.trial_note', { date: trialEndLabel }) }}
                             </p>
@@ -975,8 +1032,19 @@ const closeTerms = () => {
                                 <div class="flex items-start justify-between gap-2">
                                     <div>
                                         <p class="text-sm font-semibold">{{ plan.name }}</p>
-                                        <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ resolvePlanPrice(plan) }}
+                                        <PlanPriceDisplay
+                                            :pricing="displayedPricingForPlan(plan)"
+                                            :contact-only="plan.contact_only"
+                                            :interval-label="resolvePlanIntervalLabel()"
+                                            price-class="text-sm font-semibold text-stone-700 dark:text-neutral-200"
+                                            original-price-class="text-xs font-medium text-stone-400 line-through dark:text-neutral-500"
+                                            interval-class="text-xs font-medium text-stone-500 dark:text-neutral-400"
+                                            badge-class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                                        />
+                                        <p v-if="form.billing_period === 'yearly' && !plan.contact_only" class="mt-2 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                                            {{ hasActiveSubscriptionPromotion(displayedPricingForPlan(plan))
+                                                ? $t('onboarding.plan.billed_yearly')
+                                                : $t('onboarding.plan.yearly_note', { percent: plan.annual_discount_percent || 20 }) }}
                                         </p>
                                     </div>
                                     <span

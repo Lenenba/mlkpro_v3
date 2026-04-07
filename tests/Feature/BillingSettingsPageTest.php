@@ -37,6 +37,7 @@ it('shows the stored stripe plan as the active plan during trial instead of fall
             ->where('auth.account.currency_code', 'CAD')
             ->where('activePlanKey', 'solo_pro')
             ->where('subscription.plan_code', 'solo_pro')
+            ->where('subscription.billing_period', 'monthly')
             ->where('subscription.on_trial', true)
         );
 });
