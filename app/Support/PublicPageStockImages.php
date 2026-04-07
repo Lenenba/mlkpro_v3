@@ -30,6 +30,20 @@ class PublicPageStockImages
         ];
     }
 
+    /**
+     * @return array{image_alt:string,image_url:string}
+     */
+    public static function visual(string $key, ?string $locale = 'fr'): array
+    {
+        $locale = self::normalizeLocale($locale);
+        $visual = self::VISUALS[$key] ?? self::VISUALS['desk-phone-laptop'];
+
+        return [
+            'image_url' => $visual['image_url'],
+            'image_alt' => $locale === 'fr' ? $visual['alt_fr'] : $visual['alt_en'],
+        ];
+    }
+
     public static function normalizeLocale(?string $locale): string
     {
         return str_starts_with(strtolower((string) $locale), 'fr') ? 'fr' : 'en';
@@ -61,6 +75,78 @@ class PublicPageStockImages
             '/images/mega-menu/reservations-suite.svg',
             '/images/mega-menu/sales-crm-suite.svg',
         ];
+    }
+
+    /**
+     * @return array<int, array{id:string,name:string,url:string,alt:string,tags:array<int,string>}>
+     */
+    public static function libraryAssets(?string $locale = 'fr'): array
+    {
+        $locale = self::normalizeLocale($locale);
+        $welcomeUrls = WelcomeStockImages::libraryImageUrls();
+        $assets = [];
+
+        foreach (self::VISUALS as $key => $visual) {
+            $assets[] = [
+                'id' => 'stock-visual-'.$key,
+                'name' => 'Stock · '.self::humanizeKey($key),
+                'url' => $visual['image_url'],
+                'alt' => $locale === 'fr' ? $visual['alt_fr'] : $visual['alt_en'],
+                'tags' => self::assetTags($key, $visual['image_url'], $welcomeUrls),
+            ];
+        }
+
+        foreach (self::legacyIllustrationUrls() as $url) {
+            $key = pathinfo($url, PATHINFO_FILENAME);
+            $assets[] = [
+                'id' => 'stock-legacy-'.$key,
+                'name' => 'Illustration · '.self::humanizeKey($key),
+                'url' => $url,
+                'alt' => self::humanizeKey($key),
+                'tags' => self::assetTags($key, $url, $welcomeUrls, true),
+            ];
+        }
+
+        return $assets;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function assetTags(string $key, string $url, array $welcomeUrls, bool $legacy = false): array
+    {
+        $tags = ['stock', 'image', 'public-pages'];
+
+        if ($legacy) {
+            $tags[] = 'legacy';
+            $tags[] = 'illustration';
+        }
+
+        if (str_contains($url, '/images/mega-menu/')) {
+            $tags[] = 'mega-menu';
+        }
+
+        if (str_contains($url, '/images/landing/stock/')) {
+            $tags[] = 'landing';
+        }
+
+        if (in_array($url, $welcomeUrls, true)) {
+            $tags[] = 'welcome';
+        }
+
+        foreach (preg_split('/[-_]+/', strtolower($key)) ?: [] as $part) {
+            $part = trim($part);
+            if ($part !== '') {
+                $tags[] = $part;
+            }
+        }
+
+        return array_values(array_unique($tags));
+    }
+
+    private static function humanizeKey(string $value): string
+    {
+        return trim(ucwords(str_replace(['-', '_'], ' ', $value)));
     }
 
     private const VISUALS = [

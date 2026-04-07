@@ -149,4 +149,19 @@ class WelcomeStockImages
                 ],
         };
     }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function libraryImageUrls(): array
+    {
+        return array_values(array_unique([
+            self::HERO_TEAM,
+            self::HERO_TABLET,
+            self::WORKFLOW_PLAN,
+            self::FIELD_CHECKLIST,
+            self::MARKETING_DESK,
+            self::PAYMENTS_TERMINAL,
+        ]));
+    }
 }

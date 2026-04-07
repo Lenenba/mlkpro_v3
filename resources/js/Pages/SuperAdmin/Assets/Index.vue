@@ -64,7 +64,7 @@ const submitUpload = () => {
 };
 
 const deleteAsset = (asset) => {
-    if (!asset?.id) return;
+    if (!asset?.id || asset?.is_system) return;
     const ok = window.confirm(t('super_admin.assets.actions.confirm_delete', { name: asset.name }));
     if (!ok) return;
     router.delete(route('superadmin.assets.destroy', asset.id), { preserveScroll: true });
@@ -240,12 +240,15 @@ const isPdf = (asset) => asset?.mime === 'application/pdf';
                                     {{ tag }}
                                 </span>
                             </div>
+                            <div v-if="asset.is_system" class="mt-1 text-[11px] font-semibold text-sky-700 dark:text-sky-300">
+                                Platform stock
+                            </div>
                             <div class="mt-auto flex flex-wrap gap-2 pt-3 text-xs">
                                 <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-stone-600 hover:bg-stone-50"
                                     @click="copyUrl(asset)">
                                     {{ $t('super_admin.assets.actions.copy') }}
                                 </button>
-                                <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
+                                <button v-if="!asset.is_system" type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50"
                                     @click="deleteAsset(asset)">
                                     {{ $t('super_admin.assets.actions.delete') }}
                                 </button>

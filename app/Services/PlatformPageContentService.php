@@ -133,11 +133,26 @@ class PlatformPageContentService
     public function synchronizeResolvedSectionStructure(array $contentByLocale, ?string $sourceLocale = null): array
     {
         $availableLocales = $this->locales();
-        $canonicalLocale = $this->normalizeLocale($sourceLocale ?? $availableLocales[0]);
+        $canonicalLocale = $this->canonicalSectionLocale($contentByLocale, $sourceLocale);
         $canonicalContent = is_array($contentByLocale[$canonicalLocale] ?? null)
             ? $contentByLocale[$canonicalLocale]
             : [];
         $canonicalSections = $this->sanitizeSections($canonicalContent['sections'] ?? []);
+        $sourceIds = collect($canonicalSections)
+            ->filter(fn ($section) => is_array($section) && ! empty($section['use_source']) && ! empty($section['source_id']))
+            ->pluck('source_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $sourceSections = $sourceIds === []
+            ? []
+            : PlatformSection::query()
+                ->whereIn('id', $sourceIds)
+                ->get()
+                ->keyBy('id')
+                ->all();
 
         foreach ($availableLocales as $locale) {
             $localeContent = is_array($contentByLocale[$locale] ?? null)
@@ -154,19 +169,104 @@ class PlatformPageContentService
 
             $contentByLocale[$locale] = [
                 ...$localeContent,
-                'sections' => array_values(array_map(function ($section) use ($existingSectionsById) {
+                'sections' => array_values(array_map(function ($section) use ($existingSectionsById, $locale, $sourceSections) {
                     $id = $this->cleanText($section['id'] ?? '');
 
                     if ($id !== '' && array_key_exists($id, $existingSectionsById)) {
                         return $existingSectionsById[$id];
                     }
 
-                    return $section;
+                    return $this->localizeSynchronizedResolvedSection($section, $locale, $sourceSections);
                 }, $canonicalSections)),
             ];
         }
 
         return $contentByLocale;
+    }
+
+    private function canonicalSectionLocale(array $contentByLocale, ?string $preferredLocale = null): string
+    {
+        $availableLocales = $this->locales();
+        $preferredLocale = $this->normalizeLocale($preferredLocale ?? $availableLocales[0]);
+        $sectionCounts = [];
+
+        foreach ($availableLocales as $locale) {
+            $localeContent = is_array($contentByLocale[$locale] ?? null)
+                ? $contentByLocale[$locale]
+                : [];
+            $sectionCounts[$locale] = count($this->sanitizeSections($localeContent['sections'] ?? []));
+        }
+
+        $maxCount = max($sectionCounts ?: [0]);
+        if (($sectionCounts[$preferredLocale] ?? 0) === $maxCount) {
+            return $preferredLocale;
+        }
+
+        foreach ($availableLocales as $locale) {
+            if (($sectionCounts[$locale] ?? 0) === $maxCount) {
+                return $locale;
+            }
+        }
+
+        return $preferredLocale;
+    }
+
+    private function localizeSynchronizedResolvedSection(array $section, string $locale, array $sourceSections): array
+    {
+        $sourceId = (int) ($section['source_id'] ?? 0);
+        if (empty($section['use_source']) || $sourceId <= 0) {
+            return $section;
+        }
+
+        $source = $sourceSections[$sourceId] ?? null;
+        if (! $source instanceof PlatformSection) {
+            return $section;
+        }
+
+        $contentService = app(PlatformSectionContentService::class);
+
+        return $this->mergeSectionWithSource(
+            $this->resetSourceDrivenFieldsForSynchronization($section),
+            $contentService->resolveForLocale($source, $locale)
+        );
+    }
+
+    private function resetSourceDrivenFieldsForSynchronization(array $section): array
+    {
+        $section['kicker'] = '';
+        $section['title'] = '';
+        $section['body'] = '';
+        $section['note'] = ! empty($section['override_note']) ? ($section['note'] ?? '') : '';
+        $section['industry_cards'] = [];
+        $section['story_cards'] = [];
+        $section['feature_tabs'] = [];
+        $section['testimonial_cards'] = [];
+        $section['stats'] = ! empty($section['override_stats']) ? $this->sanitizeStatItems($section['stats'] ?? []) : [];
+        $section['hero_images'] = [];
+        $section['items'] = ! empty($section['override_items']) ? $this->sanitizeStringList($section['items'] ?? []) : [];
+        $section['testimonial_author'] = '';
+        $section['testimonial_role'] = '';
+        $section['aside_kicker'] = '';
+        $section['aside_title'] = '';
+        $section['aside_body'] = '';
+        $section['aside_items'] = [];
+        $section['aside_link_label'] = '';
+        $section['aside_link_href'] = '';
+        $section['aside_image_url'] = '';
+        $section['aside_image_alt'] = '';
+        $section['image_url'] = '';
+        $section['image_alt'] = '';
+        $section['embed_url'] = '';
+        $section['embed_title'] = '';
+        $section['primary_label'] = '';
+        $section['primary_href'] = '';
+        $section['secondary_label'] = '';
+        $section['secondary_href'] = '';
+        $section['showcase_badge_label'] = '';
+        $section['showcase_badge_value'] = '';
+        $section['showcase_badge_note'] = '';
+
+        return $section;
     }
 
     public function resolveForLocale(PlatformPage $page, string $locale): array
