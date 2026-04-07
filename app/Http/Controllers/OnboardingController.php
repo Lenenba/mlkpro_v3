@@ -439,8 +439,7 @@ class OnboardingController extends Controller
         User $accountOwner,
         string $planKey,
         BillingPeriod|string|null $billingPeriod = null
-    )
-    {
+    ) {
         $billingService = app(BillingSubscriptionService::class);
         if (! $billingService->providerReady()) {
             throw ValidationException::withMessages([
