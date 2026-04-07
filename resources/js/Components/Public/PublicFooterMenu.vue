@@ -232,18 +232,6 @@ const fallbackGroups = computed(() => {
                     toLink('Contact us', '/pages/contact-us'),
                 ],
             },
-            {
-                id: 'solutions',
-                title: 'Solutions',
-                links: [
-                    toLink('Services terrain', '/pages/solution-field-services'),
-                    toLink('Réservations & files', '/pages/solution-reservations-queues'),
-                    toLink('Ventes & devis', '/pages/solution-sales-quoting'),
-                    toLink('Commerce & catalogue', '/pages/solution-commerce-catalog'),
-                    toLink('Marketing & fidélisation', '/pages/solution-marketing-loyalty'),
-                    toLink('Supervision multi-entité', '/pages/solution-multi-entity-oversight'),
-                ],
-            },
         ];
     }
 
@@ -282,18 +270,6 @@ const fallbackGroups = computed(() => {
                 toLink('Privacy', safeRoute('privacy')),
                 toLink('Refund', safeRoute('refund')),
                 toLink('Contact us', '/pages/contact-us'),
-            ],
-        },
-        {
-            id: 'solutions',
-            title: 'Solutions',
-            links: [
-                toLink('Field services', '/pages/solution-field-services'),
-                toLink('Reservations & queues', '/pages/solution-reservations-queues'),
-                toLink('Sales & quoting', '/pages/solution-sales-quoting'),
-                toLink('Commerce & catalog', '/pages/solution-commerce-catalog'),
-                toLink('Marketing & loyalty', '/pages/solution-marketing-loyalty'),
-                toLink('Multi-entity oversight', '/pages/solution-multi-entity-oversight'),
             ],
         },
     ];

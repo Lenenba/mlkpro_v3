@@ -303,19 +303,6 @@ const defaultFooterGroups = (locale) => {
                     createFooterLink('Contact', '/pages/contact-us'),
                 ]),
             },
-            {
-                id: createLocalId('footer-group'),
-                title: 'Solutions',
-                layout: 'stack',
-                links: ensureFooterLinks([
-                    createFooterLink('Services terrain', '/pages/solution-field-services'),
-                    createFooterLink('Reservations & files', '/pages/solution-reservations-queues'),
-                    createFooterLink('Ventes & devis', '/pages/solution-sales-quoting'),
-                    createFooterLink('Commerce & catalogue', '/pages/solution-commerce-catalog'),
-                    createFooterLink('Marketing & fidelisation', '/pages/solution-marketing-loyalty'),
-                    createFooterLink('Supervision multi-entite', '/pages/solution-multi-entity-oversight'),
-                ]),
-            },
         ];
     }
 
@@ -357,19 +344,6 @@ const defaultFooterGroups = (locale) => {
                 createFooterLink('Privacy', '/privacy'),
                 createFooterLink('Refund', '/refund'),
                 createFooterLink('Contact us', '/pages/contact-us'),
-            ]),
-        },
-        {
-            id: createLocalId('footer-group'),
-            title: 'Solutions',
-            layout: 'stack',
-            links: ensureFooterLinks([
-                createFooterLink('Field services', '/pages/solution-field-services'),
-                createFooterLink('Reservations & queues', '/pages/solution-reservations-queues'),
-                createFooterLink('Sales & quoting', '/pages/solution-sales-quoting'),
-                createFooterLink('Commerce & catalog', '/pages/solution-commerce-catalog'),
-                createFooterLink('Marketing & loyalty', '/pages/solution-marketing-loyalty'),
-                createFooterLink('Multi-entity oversight', '/pages/solution-multi-entity-oversight'),
             ]),
         },
     ];

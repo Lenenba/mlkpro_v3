@@ -123,16 +123,8 @@ const contactNavItem = computed(() => {
     };
 });
 
-const industriesNavItem = computed(() => ({
-    id: 'industries',
-    label: 'Industries',
-    href: '/#industries',
-    style: 'ghost',
-}));
-
 const navMenuWithContact = computed(() => {
     const items = [...navMenuItems.value];
-    const industries = industriesNavItem.value;
     const contact = contactNavItem.value;
     const appendIfMissing = (candidate) => {
         if (!candidate) {
@@ -153,7 +145,6 @@ const navMenuWithContact = computed(() => {
     };
 
     appendIfMissing(contact);
-    appendIfMissing(industries);
 
     return items;
 });

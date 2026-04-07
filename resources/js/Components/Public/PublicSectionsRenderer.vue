@@ -625,16 +625,6 @@ const showcaseMainImageAlt = (section) =>
         ? (section?.image_alt || section?.title)
         : (section?.aside_image_alt || section?.image_alt || section?.title);
 
-const showcaseFloatingImageUrl = (section) => {
-    const primary = String(section?.image_url || '').trim();
-    const floating = String(section?.aside_image_url || '').trim();
-
-    return primary && floating ? floating : '';
-};
-
-const showcaseFloatingImageAlt = (section) =>
-    section?.aside_image_alt || section?.image_alt || section?.title;
-
 const showcaseHasBadge = (section) =>
     Boolean(
         String(section?.showcase_badge_label || '').trim() ||
@@ -1378,16 +1368,6 @@ const toneClass = (tone) => {
                                             decoding="async"
                                         />
                                         <div class="public-showcase-visual__veil"></div>
-
-                                        <div v-if="showcaseFloatingImageUrl(section)" class="public-showcase-floating">
-                                            <img
-                                                :src="showcaseFloatingImageUrl(section)"
-                                                :alt="showcaseFloatingImageAlt(section)"
-                                                class="public-showcase-floating__image"
-                                                loading="lazy"
-                                                decoding="async"
-                                            />
-                                        </div>
                                     </div>
                                 </div>
                             </article>
@@ -1703,8 +1683,8 @@ const toneClass = (tone) => {
     align-items: center;
     padding: 0.35rem 0.75rem;
     border-radius: 0.125rem;
-    background: var(--page-primary-soft, rgba(16, 185, 129, 0.12));
-    color: var(--page-primary, #065f46);
+    background: rgba(22, 163, 74, 0.12);
+    color: #15803d;
     font-size: 0.75rem;
     font-weight: 600;
 }
@@ -1753,7 +1733,7 @@ const toneClass = (tone) => {
 }
 
 .public-testimonial-mark {
-    color: #ffcb05;
+    color: var(--page-primary, #16a34a);
 }
 
 .public-testimonial-kicker {
@@ -1849,7 +1829,7 @@ const toneClass = (tone) => {
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    min-height: clamp(20rem, 44vw, 28rem);
+    min-height: clamp(22rem, 48vw, 31rem);
     background: linear-gradient(135deg, rgba(148, 163, 184, 0.18), rgba(226, 232, 240, 0.75));
 }
 
@@ -1865,7 +1845,7 @@ const toneClass = (tone) => {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center;
+    object-position: center top;
     border-radius: inherit;
 }
 
@@ -2106,7 +2086,7 @@ const toneClass = (tone) => {
 
 .public-feature-pairs__kicker {
     margin-bottom: 0.7rem;
-    color: #2563eb;
+    color: #16a34a;
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -2461,26 +2441,10 @@ ul .public-feature-tabs__subitem::before {
 }
 
 .public-industry-grid {
-    position: relative;
     display: flex;
     flex-direction: column;
-    gap: clamp(1.75rem, 4vw, 2.75rem);
+    gap: clamp(1.5rem, 3vw, 2.25rem);
     text-align: center;
-}
-
-.public-industry-grid::before {
-    content: '';
-    position: absolute;
-    inset: -1rem;
-    background-image: radial-gradient(rgba(8, 58, 92, 0.08) 0.7px, transparent 0.7px);
-    background-size: 18px 18px;
-    opacity: 0.32;
-    pointer-events: none;
-}
-
-.public-industry-grid > * {
-    position: relative;
-    z-index: 1;
 }
 
 .public-industry-grid__header {
@@ -2521,7 +2485,7 @@ ul .public-feature-tabs__subitem::before {
 .public-industry-grid__cards {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 0.85rem;
 }
 
 .public-industry-grid__card {
@@ -2529,31 +2493,29 @@ ul .public-feature-tabs__subitem::before {
     flex-direction: column;
     align-items: flex-start;
     justify-content: flex-start;
-    gap: 1rem;
-    min-height: 6.75rem;
-    padding: 1.2rem 1rem 1.1rem;
-    border-radius: 0.9rem;
-    border: 1px solid rgba(8, 58, 92, 0.08);
-    background:
-        linear-gradient(180deg, rgba(255, 252, 247, 0.96) 0%, rgba(248, 242, 232, 0.96) 100%);
+    gap: 0.8rem;
+    min-height: 6.1rem;
+    padding: 1rem 1rem 0.95rem;
+    border-radius: 0.45rem;
+    border: 1px solid rgba(8, 58, 92, 0.12);
+    background: transparent;
     color: #083a5c;
     text-decoration: none;
     text-align: left;
-    box-shadow: 0 18px 45px -42px rgba(15, 23, 42, 0.5);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    box-shadow: none;
+    transition: border-color 0.2s ease, color 0.2s ease;
 }
 
 .public-industry-grid__card:hover,
 .public-industry-grid__card:focus-visible {
-    transform: translateY(-2px);
-    box-shadow: 0 26px 60px -42px rgba(15, 23, 42, 0.52);
-    border-color: rgba(8, 58, 92, 0.18);
+    border-color: rgba(8, 58, 92, 0.22);
+    outline: none;
 }
 
 .public-industry-grid__icon {
     display: inline-flex;
-    width: 1.55rem;
-    height: 1.55rem;
+    width: 1.35rem;
+    height: 1.35rem;
     color: #083a5c;
     transition: color 0.2s ease;
 }
@@ -2566,14 +2528,17 @@ ul .public-feature-tabs__subitem::before {
 .public-industry-grid__label {
     color: #083a5c;
     font-family: var(--page-font-heading, var(--front-font-heading));
-    font-size: 1.12rem;
+    font-size: 1.05rem;
     font-weight: 700;
     line-height: 1.2;
     letter-spacing: -0.02em;
+    transition: color 0.2s ease;
 }
 
 .public-industry-grid__card:hover .public-industry-grid__icon,
-.public-industry-grid__card:focus-visible .public-industry-grid__icon {
+.public-industry-grid__card:focus-visible .public-industry-grid__icon,
+.public-industry-grid__card:hover .public-industry-grid__label,
+.public-industry-grid__card:focus-visible .public-industry-grid__label {
     color: var(--page-primary, #16a34a);
 }
 
@@ -3454,7 +3419,7 @@ ul .public-feature-tabs__subitem::before {
 
     .public-testimonial-card {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        min-height: 24.5rem;
+        min-height: 29.5rem;
     }
 
     .public-testimonial-card--image-left .public-testimonial-media {

@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\MegaMenus\MegaMenuRenderer;
 use App\Services\PlatformPageContentService;
+use App\Support\PublicPageStockImages;
 use Database\Seeders\MegaMenuSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -15,6 +16,10 @@ uses(RefreshDatabase::class);
 
 it('seeds public product pages and links the showcase menu to them', function () {
     $this->seed(MegaMenuSeeder::class);
+    $flowVisual = PublicPageStockImages::visual('marketing-desk', 'en');
+    $flowChildVisual = PublicPageStockImages::visual('office-collaboration', 'en');
+    $storyVisualOne = PublicPageStockImages::visual('service-team', 'en');
+    $storyVisualTwo = PublicPageStockImages::visual('team-laptop-window', 'en');
 
     $menu = app(MegaMenuRenderer::class)->resolveBySlug('main-header-menu');
     $showcaseItem = $menu['items'][0]['columns'][0]['blocks'][0]['payload']['items'][0] ?? null;
@@ -29,8 +34,19 @@ it('seeds public product pages and links the showcase menu to them', function ()
             ->where('page.slug', 'sales-crm')
             ->where('content.page_title', 'Sales & CRM')
             ->has('content.sections', 3)
+            ->where('content.sections.0.feature_tabs.0.image_url', $flowVisual['image_url'])
+            ->where('content.sections.0.feature_tabs.0.children.0.image_url', $flowChildVisual['image_url'])
+            ->where('content.sections.2.story_cards.0.image_url', $storyVisualOne['image_url'])
+            ->where('content.sections.2.story_cards.1.image_url', $storyVisualTwo['image_url'])
             ->where('footerMenu.display_location', 'footer')
             ->where('footerSection.layout', 'footer')
+            ->where('footerSection.footer_groups', fn ($groups) => collect($groups)->doesntContain(
+                fn ($group) => ($group['title'] ?? null) === 'Solutions'
+            ) && collect($groups)->every(
+                fn ($group) => ! collect($group['links'] ?? [])->contains(
+                    fn ($link) => str_starts_with((string) ($link['href'] ?? ''), '/pages/solution-')
+                )
+            ))
             ->where('footerMenu.items.0.label', 'Legal')
         );
 });
@@ -40,6 +56,10 @@ it('seeds the other product module pages with the same narrative section order a
 
     app()->setLocale('en');
 
+    $reservationsWelcomeVisual = PublicPageStockImages::visual('service-tablet', 'en');
+    $reservationsCtaVisual = PublicPageStockImages::visual('marketing-desk', 'en');
+    $reservationsCtaAsideVisual = PublicPageStockImages::visual('service-tablet', 'en');
+
     $this->get(route('public.pages.show', ['slug' => 'reservations']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -48,10 +68,14 @@ it('seeds the other product module pages with the same narrative section order a
             ->has('content.sections', 3)
             ->where('content.sections.0.layout', 'feature_tabs')
             ->where('content.sections.0.title', 'Show booking as a complete journey')
+            ->where('content.sections.0.feature_tabs.2.image_url', $reservationsWelcomeVisual['image_url'])
             ->where('content.sections.1.layout', 'showcase_cta')
             ->where('content.sections.1.title', 'Reservations now follows the same narrative format as the other module pages')
+            ->where('content.sections.1.image_url', $reservationsCtaVisual['image_url'])
+            ->where('content.sections.1.aside_image_url', $reservationsCtaAsideVisual['image_url'])
             ->where('content.sections.2.layout', 'story_grid')
             ->where('content.sections.2.title', 'Reservations becomes easier to understand when its key moments stay distinct')
+            ->where('content.sections.2.story_cards.1.image_url', $reservationsWelcomeVisual['image_url'])
         );
 });
 
@@ -69,21 +93,30 @@ it('seeds industries and contact us in the public header', function () {
 
     $menu = app(MegaMenuRenderer::class)->resolveBySlug('main-header-menu');
     $labels = collect($menu['items'])->pluck('label')->values()->all();
-    $industries = $menu['items'][3] ?? null;
-    $contact = $menu['items'][4] ?? null;
+    $industries = $menu['items'][2] ?? null;
+    $contact = $menu['items'][3] ?? null;
 
     expect($labels)->toBe([
         'Produits & Services',
-        'Solutions',
         'Tarifs',
         'Industries',
         'Contact us',
     ]);
 
     expect($industries)->not->toBeNull();
-    expect($industries['panel_type'])->toBe('link');
-    expect($industries['resolved_href'])->toBe('/#industries');
+    expect($industries['panel_type'])->toBe('classic');
+    expect($industries['resolved_href'])->toBeNull();
     expect($industries['columns'])->toHaveCount(0);
+    expect(collect($industries['children'])->pluck('label')->values()->all())->toBe([
+        'Plomberie',
+        'HVAC',
+        'Electricite',
+        'Nettoyage',
+        'Salon & beaute',
+        'Restaurant',
+    ]);
+    expect($industries['children'][0]['resolved_href'])->toBe('/pages/industry-plumbing');
+    expect($industries['children'][5]['resolved_href'])->toBe('/pages/industry-restaurant');
     expect($contact)->not->toBeNull();
     expect($contact['resolved_href'])->toBe('/pages/contact-us');
 
@@ -110,21 +143,43 @@ it('seeds industries and contact us in the public header', function () {
     $this->get($embedUrl)->assertOk();
 });
 
-it('seeds public solution pages and links the solutions menu to them', function () {
+it('seeds every industry page with the editorial format used on industry plumbing', function () {
+    $this->seed(MegaMenuSeeder::class);
+
+    foreach ([
+        'industry-plumbing',
+        'industry-hvac',
+        'industry-electrical',
+        'industry-cleaning',
+        'industry-salon-beauty',
+        'industry-restaurant',
+    ] as $slug) {
+        $this->get(route('public.pages.show', ['slug' => $slug]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Public/Page')
+                ->where('page.slug', $slug)
+                ->has('content.sections', 3)
+                ->where('content.sections.0.layout', 'feature_tabs')
+                ->where('content.sections.1.layout', 'showcase_cta')
+                ->where('content.sections.2.layout', 'testimonial')
+                ->where('content.sections.0.feature_tabs.0.children.0.image_url', fn ($value) => is_string($value) && $value !== '')
+                ->where('content.sections.0.feature_tabs.3.children.3.image_url', fn ($value) => is_string($value) && $value !== '')
+                ->where('content.sections.1.aside_image_url', fn ($value) => is_string($value) && $value !== '')
+                ->where('content.sections.2.image_url', fn ($value) => is_string($value) && $value !== '')
+                ->where('content.sections.2.testimonial_author', 'Jules BILITIK')
+                ->where('content.sections.2.background_color', '#e5ecef')
+            );
+    }
+});
+
+it('seeds public solution pages without listing solutions in the header menu', function () {
     $this->seed(MegaMenuSeeder::class);
 
     $menu = app(MegaMenuRenderer::class)->resolveBySlug('main-header-menu');
-    $solutions = $menu['items'][1] ?? null;
-    $firstSolution = $solutions['columns'][0]['blocks'][0]['payload']['items'][0] ?? null;
+    $labels = collect($menu['items'])->pluck('label')->values()->all();
 
-    expect($solutions)->not->toBeNull();
-    expect($solutions['label'])->toBe('Solutions');
-    expect($solutions['panel_type'])->toBe('mega');
-    expect($solutions['columns'])->toHaveCount(1);
-    expect($solutions['columns'][0]['blocks'][0]['type'])->toBe('product_showcase');
-    expect($solutions['columns'][0]['blocks'][0]['payload']['items'])->toHaveCount(6);
-    expect($firstSolution)->not->toBeNull();
-    expect($firstSolution['href'])->toBe('/pages/solution-field-services');
+    expect($labels)->not->toContain('Solutions');
 
     $this->get(route('public.pages.show', ['slug' => 'solution-field-services']))
         ->assertOk()
@@ -148,6 +203,88 @@ it('uses the configurable contact form url for the contact us header item', func
 
     expect($contact)->not->toBeNull();
     expect($contact['resolved_href'])->toBe('https://example.com/forms/contact');
+});
+
+it('hydrates the embedded contact form on contact us pages even when the stored page is stale', function () {
+    $ownerRole = Role::query()->firstOrCreate(['name' => 'owner'], ['description' => 'Owner']);
+    $owner = User::query()->create([
+        'name' => 'Owner Services',
+        'email' => 'owner.contact@example.com',
+        'role_id' => $ownerRole->id,
+        'password' => 'password',
+        'company_features' => ['requests' => true],
+    ]);
+
+    PlatformPage::query()->create([
+        'slug' => 'contact-us',
+        'title' => 'Contact us',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'fr' => [
+                    'page_title' => 'Contact us',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'contact-overview',
+                            'enabled' => true,
+                            'layout' => 'split',
+                            'title' => 'Expliquez-nous votre besoin',
+                            'body' => '<p>Bloc stale sans formulaire stocke.</p>',
+                            'embed_url' => '',
+                            'embed_title' => '',
+                            'embed_height' => 0,
+                            'primary_label' => '',
+                            'primary_href' => '',
+                        ],
+                    ],
+                ],
+                'en' => [
+                    'page_title' => 'Contact us',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'contact-overview',
+                            'enabled' => true,
+                            'layout' => 'split',
+                            'title' => 'Tell us what you need',
+                            'body' => '<p>Stale block without a stored form.</p>',
+                            'embed_url' => '',
+                            'embed_title' => '',
+                            'embed_height' => 0,
+                            'primary_label' => '',
+                            'primary_href' => '',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $this->get(route('public.pages.show', ['slug' => 'contact-us']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Public/Page')
+            ->where('page.slug', 'contact-us')
+            ->where('content.sections.0.embed_url', fn ($value) => is_string($value) && str_contains($value, '/public/requests/'.$owner->id) && str_contains($value, 'embed=1'))
+            ->where('content.sections.0.embed_title', fn ($value) => in_array($value, ['Formulaire de demande commerciale', 'Commercial inquiry form'], true))
+            ->where('content.sections.0.embed_height', 820)
+            ->where('content.sections.0.primary_href', fn ($value) => is_string($value) && str_contains($value, '/public/requests/'.$owner->id))
+        );
 });
 
 it('resolves header presentation settings for public pages', function () {
@@ -1023,6 +1160,53 @@ it('clears public page background presets across locales when set to none', func
     expect($resolvedEn['sections'][0]['background_preset'])->toBe('');
 });
 
+it('shares public page background visuals across locales', function () {
+    $user = User::factory()->create();
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'shared-page-background-visuals',
+        'title' => 'Shared page background visuals',
+        'is_active' => true,
+        'content' => [
+            'locales' => [],
+        ],
+    ]);
+
+    $service = app(PlatformPageContentService::class);
+    $payload = $service->defaultContent('fr', $page);
+    $payload['header']['background_type'] = 'color';
+    $payload['header']['background_color'] = '#0b3b4a';
+    $payload['sections'] = [[
+        'id' => 'background-section-1',
+        'enabled' => true,
+        'layout' => 'split',
+        'title' => 'Background section',
+        'body' => '<p>Shared visual background.</p>',
+        'background_color' => '#f7f2e8',
+        'background_preset' => 'graphite-crimson',
+    ]];
+
+    $service->updateLocale($page, 'fr', $payload, $user->id);
+
+    $resolvedEn = $service->resolveForLocale($page->fresh(), 'en');
+
+    expect($resolvedEn['header']['background_type'])->toBe('color');
+    expect($resolvedEn['header']['background_color'])->toBe('#0b3b4a');
+    expect($resolvedEn['sections'][0]['background_color'])->toBe('#f7f2e8');
+    expect($resolvedEn['sections'][0]['background_preset'])->toBe('graphite-crimson');
+
+    $this->withHeader('Accept-Language', 'en')
+        ->get(route('public.pages.show', ['slug' => $page->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $inertia) => $inertia
+            ->component('Public/Page')
+            ->where('content.header.background_type', 'color')
+            ->where('content.header.background_color', '#0b3b4a')
+            ->where('content.sections.0.background_color', '#f7f2e8')
+            ->where('content.sections.0.background_preset', 'graphite-crimson')
+        );
+});
+
 it('shares public page hero slides across locales without inflating section counts', function () {
     $user = User::factory()->create();
 
@@ -1337,6 +1521,65 @@ it('clears reusable section background presets across locales when set to none',
 
     expect($resolvedFr['background_preset'])->toBe('');
     expect($resolvedEn['background_preset'])->toBe('');
+});
+
+it('shares reusable section background visuals across locales', function () {
+    $user = User::factory()->create();
+    $service = app(\App\Services\PlatformSectionContentService::class);
+
+    $section = PlatformSection::query()->create([
+        'name' => 'Shared background visuals section',
+        'type' => 'feature_pairs',
+        'is_active' => true,
+        'content' => ['locales' => []],
+    ]);
+
+    $service->updateLocale($section, 'fr', [
+        'layout' => 'feature_pairs',
+        'title' => 'Titre FR',
+        'background_color' => '#202322',
+        'background_preset' => 'midnight-cobalt',
+        'secondary_background_color' => '#f7f2e8',
+    ], $user->id);
+
+    $resolvedEn = $service->resolveForLocale($section->fresh(), 'en');
+
+    expect($resolvedEn['background_color'])->toBe('#202322');
+    expect($resolvedEn['background_preset'])->toBe('midnight-cobalt');
+    expect($resolvedEn['secondary_background_color'])->toBe('#f7f2e8');
+});
+
+it('clears reusable section background colors across locales when removed', function () {
+    $user = User::factory()->create();
+    $service = app(\App\Services\PlatformSectionContentService::class);
+
+    $section = PlatformSection::query()->create([
+        'name' => 'Clear shared background colors section',
+        'type' => 'feature_pairs',
+        'is_active' => true,
+        'content' => ['locales' => []],
+    ]);
+
+    $service->updateLocale($section, 'fr', [
+        'layout' => 'feature_pairs',
+        'title' => 'Titre FR',
+        'background_color' => '#202322',
+        'secondary_background_color' => '#f7f2e8',
+    ], $user->id);
+
+    $enPayload = $service->resolveForLocale($section->fresh(), 'en');
+    $enPayload['background_color'] = '';
+    $enPayload['secondary_background_color'] = '';
+
+    $service->updateLocale($section->fresh(), 'en', $enPayload, $user->id);
+
+    $resolvedFr = $service->resolveForLocale($section->fresh(), 'fr');
+    $resolvedEn = $service->resolveForLocale($section->fresh(), 'en');
+
+    expect($resolvedFr['background_color'])->toBe('');
+    expect($resolvedFr['secondary_background_color'])->toBe('');
+    expect($resolvedEn['background_color'])->toBe('');
+    expect($resolvedEn['secondary_background_color'])->toBe('');
 });
 
 it('stores reusable industry grid library sections with card items', function () {

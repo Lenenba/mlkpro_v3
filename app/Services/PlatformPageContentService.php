@@ -278,7 +278,7 @@ class PlatformPageContentService
 
         $merged = $this->mergeContent($default, is_array($stored) ? $stored : []);
         $merged = $this->applySharedMedia($merged, $this->sharedMedia($page));
-        $merged = $this->resolveBackgroundPresetsForLocale($merged, $storedLocales, $locale);
+        $merged = $this->resolveBackgroundVisualsForLocale($merged, $storedLocales, $locale);
         $merged['page_title'] = $this->cleanText($merged['page_title'] ?? $page->title);
         $merged['page_subtitle'] = $this->cleanHtml($merged['page_subtitle'] ?? '');
         $merged['header'] = $this->sanitizeHeader($merged['header'] ?? null);
@@ -361,6 +361,7 @@ class PlatformPageContentService
 
         $merged['sections'] = $this->applyLibrarySections($merged['sections'], $locale);
         $merged = $this->normalizeVisualsForLocale($merged, $page, $locale);
+        $merged['sections'] = $this->hydrateContactFormSections($page, $merged['sections'], $locale);
         $merged['theme'] = $this->resolveTheme($page);
 
         return $merged;
@@ -378,7 +379,7 @@ class PlatformPageContentService
         $locales[$locale] = $sanitized;
         $locales = $this->syncSectionStructureForOtherLocales($locales, $locale, $page);
         $locales = $this->syncHeroImagesForOtherLocales($locales, $locale, $page);
-        $locales = $this->syncBackgroundPresetsForOtherLocales($locales, $locale, $page);
+        $locales = $this->syncBackgroundVisualsForOtherLocales($locales, $locale, $page);
         foreach ($this->locales() as $candidateLocale) {
             $localeContent = is_array($locales[$candidateLocale] ?? null)
                 ? $locales[$candidateLocale]
@@ -836,9 +837,10 @@ class PlatformPageContentService
         return $this->sanitizeHeroImages($merged);
     }
 
-    private function syncBackgroundPresetsForOtherLocales(array $locales, string $sourceLocale, PlatformPage $page): array
+    private function syncBackgroundVisualsForOtherLocales(array $locales, string $sourceLocale, PlatformPage $page): array
     {
         $source = is_array($locales[$sourceLocale] ?? null) ? $locales[$sourceLocale] : [];
+        $sourceHeader = $this->sanitizeHeader($source['header'] ?? null);
         $sourceSections = is_array($source['sections'] ?? null) ? $source['sections'] : [];
 
         foreach ($this->locales() as $locale) {
@@ -850,6 +852,11 @@ class PlatformPageContentService
                 ? $locales[$locale]
                 : $this->defaultContent($locale, $page);
 
+            $targetHeader = $this->sanitizeHeader($target['header'] ?? null);
+            $targetHeader['background_type'] = $sourceHeader['background_type'];
+            $targetHeader['background_color'] = $sourceHeader['background_color'];
+            $target['header'] = $targetHeader;
+
             $targetSections = is_array($target['sections'] ?? null) ? $target['sections'] : [];
 
             foreach ($sourceSections as $index => $sourceSection) {
@@ -858,7 +865,9 @@ class PlatformPageContentService
                 }
 
                 $sourcePreset = $this->cleanBackgroundPreset($sourceSection['background_preset'] ?? null) ?? '';
+                $sourceColor = $this->cleanColor($sourceSection['background_color'] ?? null) ?? '';
                 $targetSections[$index]['background_preset'] = $sourcePreset;
+                $targetSections[$index]['background_color'] = $sourceColor;
             }
 
             $target['sections'] = $targetSections;
@@ -868,47 +877,162 @@ class PlatformPageContentService
         return $locales;
     }
 
-    private function resolveBackgroundPresetsForLocale(array $currentContent, array $locales, string $locale): array
+    private function resolveBackgroundVisualsForLocale(array $currentContent, array $locales, string $locale): array
     {
+        $stored = is_array($locales[$locale] ?? null) ? $locales[$locale] : [];
+        $header = $this->sanitizeHeader($currentContent['header'] ?? null);
+        $storedHeader = is_array($stored['header'] ?? null) ? $stored['header'] : [];
+
+        $header['background_type'] = $this->resolveHeaderBackgroundTypeForLocale(
+            $header['background_type'] ?? null,
+            $storedHeader,
+            $locales,
+            $locale
+        );
+        $header['background_color'] = $this->resolveHeaderBackgroundColorForLocale(
+            $header['background_color'] ?? null,
+            $storedHeader,
+            $locales,
+            $locale
+        );
+        $currentContent['header'] = $header;
+
         $sections = is_array($currentContent['sections'] ?? null) ? $currentContent['sections'] : [];
         if ($sections === []) {
             return $currentContent;
         }
+
+        $storedSections = is_array($stored['sections'] ?? null) ? $stored['sections'] : [];
 
         foreach ($sections as $index => $section) {
             if (! is_array($section)) {
                 continue;
             }
 
-            $currentPreset = $this->cleanBackgroundPreset($section['background_preset'] ?? null) ?? '';
-            if ($currentPreset !== '') {
-                $sections[$index]['background_preset'] = $currentPreset;
-
-                continue;
-            }
-
-            foreach ($this->locales() as $candidateLocale) {
-                if ($candidateLocale === $locale) {
-                    continue;
-                }
-
-                $candidateContent = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
-                $candidateSections = is_array($candidateContent['sections'] ?? null) ? $candidateContent['sections'] : [];
-                $candidateSection = is_array($candidateSections[$index] ?? null) ? $candidateSections[$index] : [];
-                $candidatePreset = $this->cleanBackgroundPreset($candidateSection['background_preset'] ?? null) ?? '';
-
-                if ($candidatePreset === '') {
-                    continue;
-                }
-
-                $sections[$index]['background_preset'] = $candidatePreset;
-                break;
-            }
+            $storedSection = is_array($storedSections[$index] ?? null) ? $storedSections[$index] : [];
+            $sections[$index]['background_preset'] = $this->resolveSectionBackgroundPresetForLocale(
+                $section['background_preset'] ?? null,
+                $storedSection,
+                $locales,
+                $locale,
+                $index
+            );
+            $sections[$index]['background_color'] = $this->resolveSectionBackgroundColorForLocale(
+                $section['background_color'] ?? null,
+                $storedSection,
+                $locales,
+                $locale,
+                $index
+            );
         }
 
         $currentContent['sections'] = $sections;
 
         return $currentContent;
+    }
+
+    private function resolveHeaderBackgroundTypeForLocale($currentType, array $storedHeader, array $locales, string $locale): string
+    {
+        $defaultType = $this->defaultHeader()['background_type'];
+
+        if (array_key_exists('background_type', $storedHeader)) {
+            return $this->cleanThemeChoice(
+                $storedHeader['background_type'] ?? null,
+                self::HEADER_BACKGROUND_TYPES,
+                $defaultType
+            );
+        }
+
+        foreach ($this->locales() as $candidateLocale) {
+            if ($candidateLocale === $locale) {
+                continue;
+            }
+
+            $candidateContent = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
+            $candidateHeader = is_array($candidateContent['header'] ?? null) ? $candidateContent['header'] : [];
+            if (! array_key_exists('background_type', $candidateHeader)) {
+                continue;
+            }
+
+            return $this->cleanThemeChoice(
+                $candidateHeader['background_type'] ?? null,
+                self::HEADER_BACKGROUND_TYPES,
+                $defaultType
+            );
+        }
+
+        return $this->cleanThemeChoice($currentType ?? null, self::HEADER_BACKGROUND_TYPES, $defaultType);
+    }
+
+    private function resolveHeaderBackgroundColorForLocale($currentColor, array $storedHeader, array $locales, string $locale): string
+    {
+        if (array_key_exists('background_color', $storedHeader)) {
+            return $this->cleanColor($storedHeader['background_color'] ?? null) ?? '';
+        }
+
+        foreach ($this->locales() as $candidateLocale) {
+            if ($candidateLocale === $locale) {
+                continue;
+            }
+
+            $candidateContent = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
+            $candidateHeader = is_array($candidateContent['header'] ?? null) ? $candidateContent['header'] : [];
+            if (! array_key_exists('background_color', $candidateHeader)) {
+                continue;
+            }
+
+            return $this->cleanColor($candidateHeader['background_color'] ?? null) ?? '';
+        }
+
+        return $this->cleanColor($currentColor) ?? '';
+    }
+
+    private function resolveSectionBackgroundPresetForLocale($currentPreset, array $storedSection, array $locales, string $locale, int $index): string
+    {
+        if (array_key_exists('background_preset', $storedSection)) {
+            return $this->cleanBackgroundPreset($storedSection['background_preset'] ?? null) ?? '';
+        }
+
+        foreach ($this->locales() as $candidateLocale) {
+            if ($candidateLocale === $locale) {
+                continue;
+            }
+
+            $candidateContent = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
+            $candidateSections = is_array($candidateContent['sections'] ?? null) ? $candidateContent['sections'] : [];
+            $candidateSection = is_array($candidateSections[$index] ?? null) ? $candidateSections[$index] : [];
+            if (! array_key_exists('background_preset', $candidateSection)) {
+                continue;
+            }
+
+            return $this->cleanBackgroundPreset($candidateSection['background_preset'] ?? null) ?? '';
+        }
+
+        return $this->cleanBackgroundPreset($currentPreset) ?? '';
+    }
+
+    private function resolveSectionBackgroundColorForLocale($currentColor, array $storedSection, array $locales, string $locale, int $index): string
+    {
+        if (array_key_exists('background_color', $storedSection)) {
+            return $this->cleanColor($storedSection['background_color'] ?? null) ?? '';
+        }
+
+        foreach ($this->locales() as $candidateLocale) {
+            if ($candidateLocale === $locale) {
+                continue;
+            }
+
+            $candidateContent = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
+            $candidateSections = is_array($candidateContent['sections'] ?? null) ? $candidateContent['sections'] : [];
+            $candidateSection = is_array($candidateSections[$index] ?? null) ? $candidateSections[$index] : [];
+            if (! array_key_exists('background_color', $candidateSection)) {
+                continue;
+            }
+
+            return $this->cleanColor($candidateSection['background_color'] ?? null) ?? '';
+        }
+
+        return $this->cleanColor($currentColor) ?? '';
     }
 
     private function resolveHeroImagesForLocale(array $currentContent, array $locales, string $locale): array
@@ -1115,7 +1239,7 @@ class PlatformPageContentService
         }
 
         $identity = $this->normalizeImageIdentity($url);
-        if ($identity === '' || array_key_exists($identity, $used)) {
+        if ($identity === '') {
             $item[$urlKey] = '';
 
             if (array_key_exists($altKey, $item)) {
@@ -1125,7 +1249,10 @@ class PlatformPageContentService
             return $item;
         }
 
-        $used[$identity] = true;
+        if (! array_key_exists($identity, $used)) {
+            $used[$identity] = true;
+        }
+
         $item[$urlKey] = $url;
 
         if (array_key_exists($altKey, $item)) {
@@ -2046,5 +2173,68 @@ class PlatformPageContentService
         $locale = strtolower(trim($locale));
 
         return in_array($locale, $this->locales(), true) ? $locale : $this->locales()[0];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $sections
+     * @return array<int, array<string, mixed>>
+     */
+    private function hydrateContactFormSections(PlatformPage $page, array $sections, string $locale): array
+    {
+        if ($page->slug !== 'contact-us' || $sections === []) {
+            return $sections;
+        }
+
+        $preferredUserId = (int) config('app.lead_intake_user_id');
+        $formUrl = app(PublicLeadFormUrlService::class)->resolve($preferredUserId);
+        $embeddedFormUrl = app(PublicLeadFormUrlService::class)->resolve($preferredUserId, ['embed' => 1]);
+
+        if (! is_string($formUrl) || trim($formUrl) === '' || ! is_string($embeddedFormUrl) || trim($embeddedFormUrl) === '') {
+            return $sections;
+        }
+
+        $isFrench = $this->normalizeLocale($locale) === 'fr';
+        $primaryLabel = $isFrench ? 'Ouvrir le formulaire' : 'Open the form';
+        $embedTitle = $isFrench ? 'Formulaire de demande commerciale' : 'Commercial inquiry form';
+
+        return array_values(array_map(function ($section) use ($formUrl, $embeddedFormUrl, $primaryLabel, $embedTitle) {
+            if (! is_array($section)) {
+                return $section;
+            }
+
+            $id = trim((string) ($section['id'] ?? ''));
+            if ($id === 'contact-overview') {
+                $hadStoredEmbed = trim((string) ($section['embed_url'] ?? '')) !== '';
+                $section['embed_url'] = trim((string) ($section['embed_url'] ?? '')) !== ''
+                    ? $section['embed_url']
+                    : $embeddedFormUrl;
+                $section['embed_title'] = trim((string) ($section['embed_title'] ?? '')) !== ''
+                    ? $section['embed_title']
+                    : $embedTitle;
+                $section['embed_height'] = $hadStoredEmbed && (int) ($section['embed_height'] ?? 0) > 0
+                    ? $section['embed_height']
+                    : 820;
+                $section['primary_label'] = trim((string) ($section['primary_label'] ?? '')) !== ''
+                    ? $section['primary_label']
+                    : $primaryLabel;
+                $section['primary_href'] = trim((string) ($section['primary_href'] ?? '')) !== ''
+                    ? $section['primary_href']
+                    : $formUrl;
+            }
+
+            if ($id === 'contact-details') {
+                $section['primary_label'] = trim((string) ($section['primary_label'] ?? '')) !== ''
+                    ? $section['primary_label']
+                    : $primaryLabel;
+                $section['primary_href'] = trim((string) ($section['primary_href'] ?? '')) !== ''
+                    ? $section['primary_href']
+                    : $formUrl;
+                $section['aside_link_href'] = trim((string) ($section['aside_link_href'] ?? '')) !== ''
+                    ? $section['aside_link_href']
+                    : $formUrl;
+            }
+
+            return $section;
+        }, $sections));
     }
 }

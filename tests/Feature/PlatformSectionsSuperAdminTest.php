@@ -220,6 +220,7 @@ it('exposes platform stock images in the shared assets module', function () {
 
     expect($response)->toBeArray()
         ->and(collect($response)->contains(fn (array $asset) => ($asset['url'] ?? null) === '/images/landing/stock/field-checklist.jpg'))
+        ->and(collect($response)->contains(fn (array $asset) => ($asset['url'] ?? null) === '/images/landing/stock/hvac-maintenance.jpg'))
         ->and(collect($response)->contains(fn (array $asset) => ($asset['url'] ?? null) === '/images/mega-menu/operations-suite.svg'))
         ->and(collect($response)->contains(fn (array $asset) => ($asset['is_system'] ?? false) === true))->toBeTrue();
 

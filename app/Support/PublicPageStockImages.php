@@ -150,6 +150,16 @@ class PublicPageStockImages
     }
 
     private const VISUALS = [
+        'beauty-treatment' => [
+            'image_url' => '/images/landing/stock/beauty-treatment.jpg',
+            'alt_fr' => 'Professionnelle beaute qui prepare un soin en salon',
+            'alt_en' => 'Beauty professional preparing a treatment in a salon',
+        ],
+        'cleaning-team-office' => [
+            'image_url' => '/images/landing/stock/cleaning-team-office.jpg',
+            'alt_fr' => 'Equipe de nettoyage en intervention dans des bureaux',
+            'alt_en' => 'Cleaning team working inside an office space',
+        ],
         'collab-laptop-desk' => [
             'image_url' => '/images/landing/stock/collab-laptop-desk.jpg',
             'alt_fr' => 'Deux collegues collaborent autour d un ordinateur portable',
@@ -165,6 +175,11 @@ class PublicPageStockImages
             'alt_fr' => 'Technicien terrain avec checklist avant intervention',
             'alt_en' => 'Field technician reviewing a checklist before work',
         ],
+        'electrician-panel' => [
+            'image_url' => '/images/landing/stock/electrician-panel.jpg',
+            'alt_fr' => 'Electricien qui intervient sur un panneau electrique',
+            'alt_en' => 'Electrician working on an electrical panel',
+        ],
         'hero-tablet' => [
             'image_url' => '/images/landing/stock/hero-tablet.jpg',
             'alt_fr' => 'Equipe qui consulte une tablette pour organiser la suite',
@@ -174,6 +189,11 @@ class PublicPageStockImages
             'image_url' => '/images/landing/stock/hero-team.jpg',
             'alt_fr' => 'Equipe en coordination pour garder un service fluide',
             'alt_en' => 'Team coordinating to keep service flowing smoothly',
+        ],
+        'hvac-maintenance' => [
+            'image_url' => '/images/landing/stock/hvac-maintenance.jpg',
+            'alt_fr' => 'Technicien HVAC en train de faire une maintenance technique',
+            'alt_en' => 'HVAC technician performing maintenance work',
         ],
         'marketing-desk' => [
             'image_url' => '/images/landing/stock/marketing-desk.jpg',
@@ -185,10 +205,30 @@ class PublicPageStockImages
             'alt_fr' => 'Equipe en reunion autour de plusieurs ordinateurs',
             'alt_en' => 'Team in a meeting around multiple laptops',
         ],
+        'office-collaboration' => [
+            'image_url' => '/images/landing/stock/office-collaboration.jpg',
+            'alt_fr' => 'Equipe qui collabore autour d un ordinateur dans un bureau',
+            'alt_en' => 'Team collaborating around a computer in an office',
+        ],
         'payments-terminal' => [
             'image_url' => '/images/landing/stock/payments-terminal.jpg',
             'alt_fr' => 'Terminal de paiement dans un contexte de vente',
             'alt_en' => 'Payment terminal in a retail context',
+        ],
+        'plumbing-pipe-repair' => [
+            'image_url' => '/images/landing/stock/plumbing-pipe-repair.jpg',
+            'alt_fr' => 'Plombier en train de reparer une canalisation',
+            'alt_en' => 'Plumber repairing a pipe connection',
+        ],
+        'restaurant-service' => [
+            'image_url' => '/images/landing/stock/restaurant-service.jpg',
+            'alt_fr' => 'Service en salle dans un restaurant',
+            'alt_en' => 'Restaurant table service in action',
+        ],
+        'salon-front-desk' => [
+            'image_url' => '/images/landing/stock/salon-front-desk.jpg',
+            'alt_fr' => 'Accueil client a la reception d un salon',
+            'alt_en' => 'Client reception at a salon front desk',
         ],
         'service-install' => [
             'image_url' => '/images/landing/stock/service-install.jpg',

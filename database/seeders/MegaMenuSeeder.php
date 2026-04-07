@@ -8,6 +8,7 @@ use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Services\MegaMenus\MegaMenuManagerService;
 use App\Services\PublicLeadFormUrlService;
+use App\Support\PublicIndustryPageSections;
 use App\Support\PublicPageStockImages;
 use App\Support\PublicProductPageNarratives;
 use Illuminate\Database\Seeder;
@@ -25,7 +26,7 @@ class MegaMenuSeeder extends Seeder
 
         $productPages = $this->syncProductPages($userId);
         $this->syncIndustryPages($userId);
-        $solutionPages = $this->syncSolutionPages($userId);
+        $this->syncSolutionPages($userId);
         $contactPage = $this->upsertPage(
             slug: 'contact-us',
             title: 'Contact us',
@@ -34,7 +35,7 @@ class MegaMenuSeeder extends Seeder
         );
         $manager = app(MegaMenuManagerService::class);
 
-        foreach ($this->menus($productPages, $solutionPages, $contactPage) as $payload) {
+        foreach ($this->menus($productPages, $contactPage) as $payload) {
             $existing = MegaMenu::query()->where('slug', $payload['slug'])->first();
 
             if ($existing) {
@@ -49,23 +50,21 @@ class MegaMenuSeeder extends Seeder
 
     /**
      * @param  array<string, PlatformPage>  $productPages
-     * @param  array<string, PlatformPage>  $solutionPages
      * @return array<int, array<string, mixed>>
      */
-    private function menus(array $productPages, array $solutionPages, PlatformPage $contactPage): array
+    private function menus(array $productPages, PlatformPage $contactPage): array
     {
         return [
-            $this->mainHeaderMenu($productPages, $solutionPages, $contactPage),
+            $this->mainHeaderMenu($productPages, $contactPage),
             $this->footerMenu(),
         ];
     }
 
     /**
      * @param  array<string, PlatformPage>  $productPages
-     * @param  array<string, PlatformPage>  $solutionPages
      * @return array<string, mixed>
      */
-    private function mainHeaderMenu(array $productPages, array $solutionPages, PlatformPage $contactPage): array
+    private function mainHeaderMenu(array $productPages, PlatformPage $contactPage): array
     {
         return [
             'slug' => 'main-header-menu',
@@ -84,7 +83,6 @@ class MegaMenuSeeder extends Seeder
             ],
             'items' => [
                 $this->productsAndServicesItem($productPages),
-                $this->solutionsItem($solutionPages),
                 $this->pricingItem(),
                 $this->industriesItem(),
                 $this->contactItem($contactPage),
@@ -503,82 +501,19 @@ class MegaMenuSeeder extends Seeder
      */
     private function industryPageContent(array $industry): array
     {
-        $industryFrOverview = $this->stockImage($industry['slug'], 'fr', 'overview');
-        $industryFrWorkflow = $this->stockImage($industry['slug'], 'fr', 'workflow');
-        $industryEnOverview = $this->stockImage($industry['slug'], 'en', 'overview');
-        $industryEnWorkflow = $this->stockImage($industry['slug'], 'en', 'workflow');
-
         return [
             'locales' => [
                 'fr' => [
                     'page_title' => $industry['title'],
                     'page_subtitle' => $industry['fr']['subtitle'],
                     'header' => $this->pageHeader($industry['slug'], 'fr'),
-                    'sections' => [
-                        $this->pageSection(
-                            id: 'industry-overview',
-                            kicker: 'Industrie',
-                            title: $industry['fr']['overview_title'],
-                            body: $industry['fr']['overview_body'],
-                            items: $industry['fr']['overview_items'],
-                            imageUrl: $industryFrOverview['image_url'],
-                            imageAlt: $industryFrOverview['image_alt'],
-                            primaryLabel: 'Voir les produits',
-                            primaryHref: '/pricing',
-                            secondaryLabel: 'Contact us',
-                            secondaryHref: '/pages/contact-us',
-                            backgroundColor: ''
-                        ),
-                        $this->pageSection(
-                            id: 'industry-workflow',
-                            kicker: 'Parcours type',
-                            title: $industry['fr']['workflow_title'],
-                            body: $industry['fr']['workflow_body'],
-                            items: $industry['fr']['workflow_items'],
-                            imageUrl: $industryFrWorkflow['image_url'],
-                            imageAlt: $industryFrWorkflow['image_alt'],
-                            primaryLabel: '',
-                            primaryHref: '',
-                            secondaryLabel: '',
-                            secondaryHref: '',
-                            backgroundColor: '#f8fafc'
-                        ),
-                    ],
+                    'sections' => PublicIndustryPageSections::sections($industry['slug'], 'fr'),
                 ],
                 'en' => [
                     'page_title' => $industry['title'],
                     'page_subtitle' => $industry['en']['subtitle'],
                     'header' => $this->pageHeader($industry['slug'], 'en'),
-                    'sections' => [
-                        $this->pageSection(
-                            id: 'industry-overview',
-                            kicker: 'Industry',
-                            title: $industry['en']['overview_title'],
-                            body: $industry['en']['overview_body'],
-                            items: $industry['en']['overview_items'],
-                            imageUrl: $industryEnOverview['image_url'],
-                            imageAlt: $industryEnOverview['image_alt'],
-                            primaryLabel: 'View products',
-                            primaryHref: '/pricing',
-                            secondaryLabel: 'Contact us',
-                            secondaryHref: '/pages/contact-us',
-                            backgroundColor: ''
-                        ),
-                        $this->pageSection(
-                            id: 'industry-workflow',
-                            kicker: 'Typical workflow',
-                            title: $industry['en']['workflow_title'],
-                            body: $industry['en']['workflow_body'],
-                            items: $industry['en']['workflow_items'],
-                            imageUrl: $industryEnWorkflow['image_url'],
-                            imageAlt: $industryEnWorkflow['image_alt'],
-                            primaryLabel: '',
-                            primaryHref: '',
-                            secondaryLabel: '',
-                            secondaryHref: '',
-                            backgroundColor: '#f8fafc'
-                        ),
-                    ],
+                    'sections' => PublicIndustryPageSections::sections($industry['slug'], 'en'),
                 ],
             ],
             'theme' => $this->publicPageTheme(),
@@ -838,104 +773,6 @@ class MegaMenuSeeder extends Seeder
     /**
      * @return array<string, mixed>
      */
-    private function solutionsItem(array $solutionPages): array
-    {
-        return [
-            'label' => 'Solutions',
-            'description' => 'Choisissez un parcours selon le mode operatoire de votre equipe.',
-            'link_type' => 'none',
-            'link_target' => '_self',
-            'panel_type' => 'mega',
-            'icon' => 'blocks',
-            'is_visible' => true,
-            'settings' => [
-                'eyebrow' => 'Parcours',
-                'note' => 'Choisissez un parcours selon le mode operatoire de votre equipe.',
-                'highlight_color' => '#0f766e',
-                'translations' => [
-                    'en' => [
-                        'label' => 'Solutions',
-                        'description' => 'Choose a path based on how your team operates.',
-                        'eyebrow' => 'Journeys',
-                        'note' => 'Choose a path based on how your team operates.',
-                    ],
-                ],
-            ],
-            'columns' => [
-                $this->column('', '1fr', [
-                    $this->productShowcaseBlock(
-                        'Solutions',
-                        'Solutions',
-                        'Survolez une solution pour voir son angle metier puis ouvrez la page correspondante.',
-                        'Hover a solution to preview its business angle and open the matching page.',
-                        [
-                            $this->showcaseProduct(
-                                'Services terrain',
-                                $this->pagePath($solutionPages['field-services']),
-                                'Planification, interventions, preuves et suivi terrain.',
-                                'Structure the full field-service journey from planning to proof of work and operational follow-up.',
-                                $this->stockImage('solution-field-services', 'en')['image_url'],
-                                $this->stockImage('solution-field-services', 'en')['image_alt'],
-                                'Field services',
-                                'Core'
-                            ),
-                            $this->showcaseProduct(
-                                'Reservations & files',
-                                $this->pagePath($solutionPages['reservations-queues']),
-                                'Prise de rendez-vous, disponibilite, kiosque et check-in.',
-                                'Show how booking, availability, kiosk flows, and queue handling fit together in one customer journey.',
-                                $this->stockImage('solution-reservations-queues', 'en')['image_url'],
-                                $this->stockImage('solution-reservations-queues', 'en')['image_alt'],
-                                'Reservations & queues'
-                            ),
-                            $this->showcaseProduct(
-                                'Vente & devis',
-                                $this->pagePath($solutionPages['sales-quoting']),
-                                'Demandes, devis, clients et pipeline commercial.',
-                                'Connect inbound demand, qualification, quotes, and conversion into one sales motion.',
-                                $this->stockImage('solution-sales-quoting', 'en')['image_url'],
-                                $this->stockImage('solution-sales-quoting', 'en')['image_alt'],
-                                'Sales & quoting',
-                                'Popular'
-                            ),
-                            $this->showcaseProduct(
-                                'Commerce & catalogue',
-                                $this->pagePath($solutionPages['commerce-catalog']),
-                                'Produits, services, boutique et commandes.',
-                                'Tie catalog, storefront, ordering, invoicing, and payment collection into one revenue chain.',
-                                $this->stockImage('solution-commerce-catalog', 'en')['image_url'],
-                                $this->stockImage('solution-commerce-catalog', 'en')['image_alt'],
-                                'Commerce & catalog'
-                            ),
-                            $this->showcaseProduct(
-                                'Marketing & fidelisation',
-                                $this->pagePath($solutionPages['marketing-loyalty']),
-                                'Campagnes, segments, VIP et automatisations.',
-                                'Build retention, reactivation, and loyalty journeys from live customer context instead of disconnected campaigns.',
-                                $this->stockImage('solution-marketing-loyalty', 'en')['image_url'],
-                                $this->stockImage('solution-marketing-loyalty', 'en')['image_alt'],
-                                'Marketing & loyalty',
-                                'Growth'
-                            ),
-                            $this->showcaseProduct(
-                                'Pilotage multi-entreprise',
-                                $this->pagePath($solutionPages['multi-entity-oversight']),
-                                'Vue globale sur plusieurs entites et modules.',
-                                'Give leadership one place to compare entities, priorities, and cross-functional signals.',
-                                $this->stockImage('solution-multi-entity-oversight', 'en')['image_url'],
-                                $this->stockImage('solution-multi-entity-oversight', 'en')['image_alt'],
-                                'Multi-entity oversight'
-                            ),
-                        ]
-                    ),
-                ]),
-            ],
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
     private function pricingItem(): array
     {
         return [
@@ -964,26 +801,78 @@ class MegaMenuSeeder extends Seeder
     {
         return [
             'label' => 'Industries',
-            'description' => 'Parcourez les industries desservies.',
-            'link_type' => 'internal_page',
-            'link_value' => '/#industries',
+            'description' => 'Choisissez un secteur pour ouvrir sa page dediee.',
+            'link_type' => 'none',
+            'link_value' => '',
             'link_target' => '_self',
-            'panel_type' => 'link',
+            'panel_type' => 'classic',
             'icon' => 'briefcase-business',
             'is_visible' => true,
+            'children' => $this->industryMenuChildren(),
             'settings' => [
                 'eyebrow' => 'Industries',
-                'note' => 'Parcourez les industries desservies.',
+                'note' => 'Choisissez un secteur pour ouvrir sa page dediee.',
                 'highlight_color' => '#0f766e',
                 'translations' => [
                     'en' => [
                         'label' => 'Industries',
-                        'description' => 'Browse the industries we support.',
+                        'description' => 'Choose an industry to open its dedicated page.',
                         'eyebrow' => 'Industries',
-                        'note' => 'Browse the industries we support.',
+                        'note' => 'Choose an industry to open its dedicated page.',
                     ],
                 ],
             ],
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function industryMenuChildren(): array
+    {
+        return [
+            $this->classicLink(
+                'Plomberie',
+                '/pages/industry-plumbing',
+                'Flux pour equipes plomberie et service.',
+                'Plumbing',
+                'Flows for plumbing and service teams.'
+            ),
+            $this->classicLink(
+                'HVAC',
+                '/pages/industry-hvac',
+                'Operations HVAC, maintenance et interventions.',
+                'HVAC',
+                'HVAC maintenance and service operations.'
+            ),
+            $this->classicLink(
+                'Electricite',
+                '/pages/industry-electrical',
+                'Devis, chantiers et interventions electriques.',
+                'Electrical',
+                'Quotes, projects, and electrical jobs.'
+            ),
+            $this->classicLink(
+                'Nettoyage',
+                '/pages/industry-cleaning',
+                'Sites recurrents, equipes et qualite de service.',
+                'Cleaning',
+                'Recurring sites, teams, and service quality.'
+            ),
+            $this->classicLink(
+                'Salon & beaute',
+                '/pages/industry-salon-beauty',
+                'Reservations, rappels et fidelisation.',
+                'Salon & Beauty',
+                'Bookings, reminders, and retention.'
+            ),
+            $this->classicLink(
+                'Restaurant',
+                '/pages/industry-restaurant',
+                'Reservations, attente et accueil en salle.',
+                'Restaurant',
+                'Bookings, waiting flow, and front-of-house.'
+            ),
         ];
     }
 

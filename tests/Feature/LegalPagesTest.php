@@ -48,24 +48,25 @@ test('welcome page exposes shared footer navigation props', function () {
     expect(PlatformPage::query()->where('slug', 'welcome')->exists())->toBeTrue();
 });
 
-test('welcome page includes the default industries grid section', function () {
+test('welcome page restores the editorial homepage flow by default', function () {
     $this->get(route('welcome'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Welcome')
+            ->where('welcomeContent.workflow.enabled', false)
+            ->where('welcomeContent.field.enabled', false)
+            ->where('welcomeContent.cta.enabled', false)
             ->where('welcomeContent.generic_sections', function ($sections) {
-                $industrySection = collect($sections)->firstWhere('id', 'industries');
+                $ids = collect($sections)
+                    ->pluck('id')
+                    ->values()
+                    ->all();
 
-                return is_array($industrySection)
-                    && ($industrySection['layout'] ?? null) === 'industry_grid'
-                    && in_array(($industrySection['title'] ?? null), [
-                        'Fier partenaire des pros du service dans plus de 50 industries.',
-                        'Proud partner to service pros in over 50 industries.',
-                    ], true)
-                    && count($industrySection['industry_cards'] ?? []) === 12
-                    && collect($industrySection['industry_cards'] ?? [])->contains(function ($card) {
-                        return ($card['href'] ?? null) === '/pages/industry-plumbing';
-                    });
+                return $ids === [
+                    'welcome-proof-feature-pairs',
+                    'welcome-editorial-showcase',
+                    'welcome-industries-grid',
+                ];
             })
         );
 });
