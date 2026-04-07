@@ -1034,8 +1034,7 @@ class MegaMenuSeeder extends Seeder
         string $description,
         string $englishDescription,
         array $items
-    ): array
-    {
+    ): array {
         return [
             'type' => 'product_showcase',
             'title' => $title,
