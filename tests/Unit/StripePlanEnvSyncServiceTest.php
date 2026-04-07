@@ -43,55 +43,7 @@ function fakeStripeProduct(array $attributes): Product
 it('syncs stripe prices into the env file and plan_prices table from existing stripe catalog data', function () {
     config()->set('services.stripe.secret', 'sk_test_sync_123');
 
-    $service = new class([
-        fakeStripePrice([
-            'id' => 'price_starter_cad',
-            'currency' => 'cad',
-            'unit_amount' => 15000,
-            'product' => 'prod_starter_cad',
-            'metadata' => ['plan_code' => 'starter', 'billing_period' => 'monthly'],
-        ]),
-        fakeStripePrice([
-            'id' => 'price_starter_cad_yearly',
-            'currency' => 'cad',
-            'unit_amount' => 144000,
-            'product' => 'prod_starter_cad',
-            'metadata' => ['plan_code' => 'starter', 'billing_period' => 'yearly'],
-            'recurring' => ['interval' => 'year', 'interval_count' => 1],
-        ]),
-        fakeStripePrice([
-            'id' => 'price_starter_eur',
-            'currency' => 'eur',
-            'unit_amount' => 2100,
-            'product' => 'prod_starter_shared',
-        ]),
-        fakeStripePrice([
-            'id' => 'price_starter_eur_yearly',
-            'currency' => 'eur',
-            'unit_amount' => 20160,
-            'product' => 'prod_starter_shared',
-            'recurring' => ['interval' => 'year', 'interval_count' => 1],
-        ]),
-        fakeStripePrice([
-            'id' => 'price_starter_usd',
-            'currency' => 'usd',
-            'unit_amount' => 2400,
-            'product' => 'prod_unlabeled_usd',
-        ]),
-        fakeStripePrice([
-            'id' => 'price_starter_usd_yearly',
-            'currency' => 'usd',
-            'unit_amount' => 23040,
-            'product' => 'prod_unlabeled_usd',
-            'recurring' => ['interval' => 'year', 'interval_count' => 1],
-        ]),
-        fakeStripePrice(['id' => 'price_other_usd', 'currency' => 'usd', 'unit_amount' => 9900, 'product' => 'prod_other_usd']),
-    ], [
-        'prod_starter_cad' => fakeStripeProduct(['id' => 'prod_starter_cad', 'metadata' => []]),
-        'prod_starter_shared' => fakeStripeProduct(['id' => 'prod_starter_shared', 'metadata' => ['plan_code' => 'starter']]),
-        'prod_unlabeled_usd' => fakeStripeProduct(['id' => 'prod_unlabeled_usd', 'metadata' => []]),
-        'prod_other_usd' => fakeStripeProduct(['id' => 'prod_other_usd', 'metadata' => []]),
-    ]) extends StripePlanEnvSyncService
+    $service = new class([fakeStripePrice(['id' => 'price_starter_cad', 'currency' => 'cad', 'unit_amount' => 15000, 'product' => 'prod_starter_cad', 'metadata' => ['plan_code' => 'starter', 'billing_period' => 'monthly']]), fakeStripePrice(['id' => 'price_starter_cad_yearly', 'currency' => 'cad', 'unit_amount' => 144000, 'product' => 'prod_starter_cad', 'metadata' => ['plan_code' => 'starter', 'billing_period' => 'yearly'], 'recurring' => ['interval' => 'year', 'interval_count' => 1]]), fakeStripePrice(['id' => 'price_starter_eur', 'currency' => 'eur', 'unit_amount' => 2100, 'product' => 'prod_starter_shared']), fakeStripePrice(['id' => 'price_starter_eur_yearly', 'currency' => 'eur', 'unit_amount' => 20160, 'product' => 'prod_starter_shared', 'recurring' => ['interval' => 'year', 'interval_count' => 1]]), fakeStripePrice(['id' => 'price_starter_usd', 'currency' => 'usd', 'unit_amount' => 2400, 'product' => 'prod_unlabeled_usd']), fakeStripePrice(['id' => 'price_starter_usd_yearly', 'currency' => 'usd', 'unit_amount' => 23040, 'product' => 'prod_unlabeled_usd', 'recurring' => ['interval' => 'year', 'interval_count' => 1]]), fakeStripePrice(['id' => 'price_other_usd', 'currency' => 'usd', 'unit_amount' => 9900, 'product' => 'prod_other_usd'])], ['prod_starter_cad' => fakeStripeProduct(['id' => 'prod_starter_cad', 'metadata' => []]), 'prod_starter_shared' => fakeStripeProduct(['id' => 'prod_starter_shared', 'metadata' => ['plan_code' => 'starter']]), 'prod_unlabeled_usd' => fakeStripeProduct(['id' => 'prod_unlabeled_usd', 'metadata' => []]), 'prod_other_usd' => fakeStripeProduct(['id' => 'prod_other_usd', 'metadata' => []])]) extends StripePlanEnvSyncService
     {
         public function __construct(
             private array $prices,
