@@ -181,8 +181,11 @@ it('shows the shared footer card in the page editor while keeping it out of body
             ->component('SuperAdmin/Pages/Edit')
             ->where('footer_section.type', 'footer')
             ->where('footer_section.is_active', true)
-            ->where('library_sections.0.type', 'testimonial')
-            ->missing('library_sections.1')
+            ->where('library_sections', fn ($sections) => collect($sections)->contains(
+                fn (array $section) => $section['type'] === 'testimonial'
+            ) && ! collect($sections)->contains(
+                fn (array $section) => $section['type'] === 'footer'
+            ))
         );
 
     expect(PlatformSection::query()->where('type', 'footer')->count())->toBe(1);
