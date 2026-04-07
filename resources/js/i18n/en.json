@@ -2576,6 +2576,7 @@
       "interval_month": "/month",
       "interval_year": "/year",
       "yearly_note": "Pay yearly and save {percent}%.",
+      "billed_yearly": "For 12 months, billed annually.",
       "trial_note": "Free trial until {date}.",
       "downgrade_note": "You can change plans during the trial.",
       "recommended": "Recommended",
@@ -6578,6 +6579,7 @@
         "interval_month": "/month",
         "interval_year": "/year",
         "yearly_note": "Pay yearly and save {percent}%.",
+        "billed_yearly": "For 12 months, billed annually.",
         "current_plan": "You are on this plan.",
         "cta_active": "Active plan",
         "custom_pricing": "Custom pricing",
@@ -7080,7 +7082,8 @@
       "interval_month": "/month",
       "interval_year": "/year",
       "save_badge": "Save {percent}% with annual billing",
-      "yearly_note": "Billed yearly with {percent}% off."
+      "yearly_note": "Billed yearly with {percent}% off.",
+      "billed_yearly": "For 12 months, billed annually."
     },
     "audiences": {
       "solo": "Solo",

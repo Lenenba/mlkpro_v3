@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Data\PlanPriceData;
+use App\Enums\BillingPeriod;
 use App\Exceptions\Billing\StripePriceNotConfiguredException;
 use App\Models\Billing\StripeSubscription;
 use App\Models\User;
@@ -48,6 +49,13 @@ class StripeBillingService
                 'plan_key' => $planKey,
             ]),
         ];
+
+        $promotionDiscounts = $this->promotionDiscountsPayload(
+            $this->resolveBillingPeriodForStripePriceId($priceId)
+        );
+        if ($promotionDiscounts !== null) {
+            $payload['discounts'] = $promotionDiscounts;
+        }
 
         if ($trialEndsAt instanceof Carbon) {
             $payload['subscription_data'] = [
@@ -102,6 +110,11 @@ class StripeBillingService
             ],
         ];
 
+        $promotionDiscounts = $this->promotionDiscountsPayload($planPrice->billingPeriod);
+        if ($promotionDiscounts !== null) {
+            $payload['discounts'] = $promotionDiscounts;
+        }
+
         if ($trialEndsAt instanceof Carbon) {
             $payload['subscription_data']['trial_end'] = $trialEndsAt->getTimestamp();
             $payload['payment_method_collection'] = 'always';
@@ -125,7 +138,7 @@ class StripeBillingService
     {
         $client = $this->client();
         $session = $client->checkout->sessions->retrieve($sessionId, [
-            'expand' => ['subscription', 'subscription.items.data.price'],
+            'expand' => ['subscription', 'subscription.items.data.price', 'subscription.discount.coupon'],
         ]);
 
         if (empty($session->subscription)) {
@@ -133,7 +146,9 @@ class StripeBillingService
         }
 
         $subscription = is_string($session->subscription)
-            ? $client->subscriptions->retrieve($session->subscription)
+            ? $client->subscriptions->retrieve($session->subscription, [
+                'expand' => ['items.data.price', 'discount.coupon'],
+            ])
             : $session->subscription;
 
         return $this->upsertSubscription($user, $subscription, $session->customer ?? null);
@@ -149,7 +164,7 @@ class StripeBillingService
 
         $quantity = $this->normalizeQuantity($quantity);
         $subscription = $client->subscriptions->retrieve($local->stripe_id, [
-            'expand' => ['items.data.price'],
+            'expand' => ['items.data.price', 'discount.coupon'],
         ]);
         $planItem = $this->findPlanItem($subscription);
         $itemId = $planItem?->id ?? null;
@@ -157,7 +172,7 @@ class StripeBillingService
             return null;
         }
 
-        $updated = $client->subscriptions->update($subscription->id, [
+        $payload = [
             'items' => [
                 [
                     'id' => $itemId,
@@ -166,8 +181,18 @@ class StripeBillingService
                 ],
             ],
             'proration_behavior' => 'create_prorations',
-            'expand' => ['items.data.price'],
-        ]);
+            'expand' => ['items.data.price', 'discount.coupon'],
+        ];
+
+        $promotionDiscounts = $this->promotionDiscountsPayloadForSubscription(
+            $local,
+            $this->resolveBillingPeriodForStripePriceId($priceId)
+        );
+        if ($promotionDiscounts !== null) {
+            $payload['discounts'] = $promotionDiscounts;
+        }
+
+        $updated = $client->subscriptions->update($subscription->id, $payload);
 
         return $this->upsertSubscription($user, $updated, $updated->customer ?? null);
     }
@@ -187,7 +212,7 @@ class StripeBillingService
 
         $quantity = $this->normalizeQuantity($quantity);
         $subscription = $client->subscriptions->retrieve($local->stripe_id, [
-            'expand' => ['items.data.price'],
+            'expand' => ['items.data.price', 'discount.coupon'],
         ]);
         $planItem = $this->findPlanItem($subscription);
         $itemId = $planItem?->id ?? null;
@@ -195,7 +220,7 @@ class StripeBillingService
             return null;
         }
 
-        $updated = $client->subscriptions->update($subscription->id, [
+        $payload = [
             'items' => [
                 [
                     'id' => $itemId,
@@ -205,8 +230,15 @@ class StripeBillingService
             ],
             'metadata' => $this->buildPlanMetadata($planPrice),
             'proration_behavior' => 'create_prorations',
-            'expand' => ['items.data.price'],
-        ]);
+            'expand' => ['items.data.price', 'discount.coupon'],
+        ];
+
+        $promotionDiscounts = $this->promotionDiscountsPayloadForSubscription($local, $planPrice->billingPeriod);
+        if ($promotionDiscounts !== null) {
+            $payload['discounts'] = $promotionDiscounts;
+        }
+
+        $updated = $client->subscriptions->update($subscription->id, $payload);
 
         return $this->upsertSubscription($user, $updated, $updated->customer ?? null);
     }
@@ -253,7 +285,19 @@ class StripeBillingService
                 'expand' => ['items.data.price', 'discount.coupon'],
             ];
 
-            $payload['discounts'] = $comped ? [['coupon' => $couponId]] : [];
+            if ($comped) {
+                $payload['discounts'] = [['coupon' => $couponId]];
+            } elseif ($local->is_comped) {
+                $payload['discounts'] = [];
+            } else {
+                $promotionDiscounts = $this->promotionDiscountsPayloadForSubscription(
+                    $local,
+                    $this->resolveBillingPeriodForStripePriceId($priceId)
+                );
+                if ($promotionDiscounts !== null) {
+                    $payload['discounts'] = $promotionDiscounts;
+                }
+            }
 
             $updated = $client->subscriptions->update($subscription->id, $payload);
 
@@ -277,6 +321,13 @@ class StripeBillingService
 
         if ($comped) {
             $payload['discounts'] = [['coupon' => $couponId]];
+        } else {
+            $promotionDiscounts = $this->promotionDiscountsPayload(
+                $this->resolveBillingPeriodForStripePriceId($priceId)
+            );
+            if ($promotionDiscounts !== null) {
+                $payload['discounts'] = $promotionDiscounts;
+            }
         }
 
         $subscription = $client->subscriptions->create($payload);
@@ -329,7 +380,16 @@ class StripeBillingService
                 'expand' => ['items.data.price', 'discount.coupon'],
             ];
 
-            $payload['discounts'] = $comped ? [['coupon' => $couponId]] : [];
+            if ($comped) {
+                $payload['discounts'] = [['coupon' => $couponId]];
+            } elseif ($local->is_comped) {
+                $payload['discounts'] = [];
+            } else {
+                $promotionDiscounts = $this->promotionDiscountsPayloadForSubscription($local, $planPrice->billingPeriod);
+                if ($promotionDiscounts !== null) {
+                    $payload['discounts'] = $promotionDiscounts;
+                }
+            }
 
             $updated = $client->subscriptions->update($subscription->id, $payload);
 
@@ -350,6 +410,11 @@ class StripeBillingService
 
         if ($comped) {
             $payload['discounts'] = [['coupon' => $couponId]];
+        } else {
+            $promotionDiscounts = $this->promotionDiscountsPayload($planPrice->billingPeriod);
+            if ($promotionDiscounts !== null) {
+                $payload['discounts'] = $promotionDiscounts;
+            }
         }
 
         $subscription = $client->subscriptions->create($payload);
@@ -387,7 +452,7 @@ class StripeBillingService
 
         $client = $this->client();
         $subscription = $client->subscriptions->retrieve($local->stripe_id, [
-            'expand' => ['items.data.price'],
+            'expand' => ['items.data.price', 'discount.coupon'],
         ]);
 
         $assistantItem = $this->findAssistantItem($subscription);
@@ -400,7 +465,7 @@ class StripeBillingService
                     ],
                 ],
                 'proration_behavior' => 'create_prorations',
-                'expand' => ['items.data.price'],
+                'expand' => ['items.data.price', 'discount.coupon'],
             ]);
         }
 
@@ -416,7 +481,7 @@ class StripeBillingService
 
         $client = $this->client();
         $subscription = $client->subscriptions->retrieve($local->stripe_id, [
-            'expand' => ['items.data.price'],
+            'expand' => ['items.data.price', 'discount.coupon'],
         ]);
 
         $assistantItem = $this->findAssistantItem($subscription);
@@ -432,7 +497,7 @@ class StripeBillingService
                 ],
             ],
             'proration_behavior' => 'none',
-            'expand' => ['items.data.price'],
+            'expand' => ['items.data.price', 'discount.coupon'],
         ]);
 
         return $this->upsertSubscription($user, $subscription, $subscription->customer ?? null);
@@ -469,7 +534,7 @@ class StripeBillingService
 
         $client = $this->client();
         $subscription = $client->subscriptions->retrieve($local->stripe_id, [
-            'expand' => ['items.data.price'],
+            'expand' => ['items.data.price', 'discount.coupon'],
         ]);
 
         $updated = $this->upsertSubscription($user, $subscription, $subscription->customer ?? null);
@@ -542,6 +607,7 @@ class StripeBillingService
         $priceId = $this->extractPriceId($subscription);
         $assistantAddon = $this->extractAssistantAddon($subscription);
         $compedMeta = $this->extractCompedMeta($subscription);
+        $promotionMeta = $this->extractPromotionMeta($subscription);
         $planContext = $this->resolvePlanContext($priceId, $this->extractMetadata($subscription));
 
         $record = StripeSubscription::updateOrCreate(
@@ -556,6 +622,8 @@ class StripeBillingService
                 'billing_period' => $planContext['billing_period'],
                 'is_comped' => $compedMeta['is_comped'],
                 'comped_coupon_id' => $compedMeta['comped_coupon_id'],
+                'promotion_coupon_id' => $promotionMeta['promotion_coupon_id'],
+                'promotion_discount_percent' => $promotionMeta['promotion_discount_percent'],
                 'assistant_price_id' => $assistantAddon['assistant_price_id'],
                 'assistant_item_id' => $assistantAddon['assistant_item_id'],
                 'assistant_enabled_at' => $assistantAddon['assistant_enabled_at'],
@@ -584,6 +652,7 @@ class StripeBillingService
         $priceId = $this->extractPriceIdFromArray($subscription);
         $assistantAddon = $this->extractAssistantAddonFromArray($subscription);
         $compedMeta = $this->extractCompedMetaFromArray($subscription);
+        $promotionMeta = $this->extractPromotionMetaFromArray($subscription);
         $planContext = $this->resolvePlanContext($priceId, $this->extractMetadataFromArray($subscription));
 
         $record = StripeSubscription::updateOrCreate(
@@ -598,6 +667,8 @@ class StripeBillingService
                 'billing_period' => $planContext['billing_period'],
                 'is_comped' => $compedMeta['is_comped'],
                 'comped_coupon_id' => $compedMeta['comped_coupon_id'],
+                'promotion_coupon_id' => $promotionMeta['promotion_coupon_id'],
+                'promotion_discount_percent' => $promotionMeta['promotion_discount_percent'],
                 'assistant_price_id' => $assistantAddon['assistant_price_id'],
                 'assistant_item_id' => $assistantAddon['assistant_item_id'],
                 'assistant_enabled_at' => $assistantAddon['assistant_enabled_at'],
@@ -784,6 +855,25 @@ class StripeBillingService
         ];
     }
 
+    private function extractPromotionMeta($subscription): array
+    {
+        $discount = $subscription->discount ?? null;
+        $coupon = $discount?->coupon ?? null;
+        $percentOff = $coupon?->percent_off ?? null;
+
+        if (! app(StripePromotionCouponSyncService::class)->isPromotionCoupon($coupon)) {
+            return [
+                'promotion_coupon_id' => null,
+                'promotion_discount_percent' => null,
+            ];
+        }
+
+        return [
+            'promotion_coupon_id' => $coupon?->id ?? null,
+            'promotion_discount_percent' => is_numeric($percentOff) ? (int) round((float) $percentOff) : null,
+        ];
+    }
+
     private function extractCompedMetaFromArray(array $subscription): array
     {
         $discount = $subscription['discount'] ?? null;
@@ -793,6 +883,25 @@ class StripeBillingService
         return [
             'is_comped' => is_numeric($percentOff) && (float) $percentOff >= 100,
             'comped_coupon_id' => is_array($coupon) ? ($coupon['id'] ?? null) : null,
+        ];
+    }
+
+    private function extractPromotionMetaFromArray(array $subscription): array
+    {
+        $discount = $subscription['discount'] ?? null;
+        $coupon = $discount['coupon'] ?? null;
+        $percentOff = is_array($coupon) ? ($coupon['percent_off'] ?? null) : null;
+
+        if (! app(StripePromotionCouponSyncService::class)->isPromotionCoupon($coupon)) {
+            return [
+                'promotion_coupon_id' => null,
+                'promotion_discount_percent' => null,
+            ];
+        }
+
+        return [
+            'promotion_coupon_id' => is_array($coupon) ? ($coupon['id'] ?? null) : null,
+            'promotion_discount_percent' => is_numeric($percentOff) ? (int) round((float) $percentOff) : null,
         ];
     }
 
@@ -842,6 +951,43 @@ class StripeBillingService
         $coupon = config('services.stripe.comped_coupon_id');
 
         return is_string($coupon) && trim($coupon) !== '' ? trim($coupon) : null;
+    }
+
+    private function promotionDiscountsPayload(BillingPeriod|string|null $billingPeriod = null): ?array
+    {
+        $promotionService = app(SubscriptionPromotionService::class);
+        $discountPercent = $promotionService->activeDiscountPercent($billingPeriod);
+        if (! $discountPercent) {
+            return null;
+        }
+
+        $couponId = $promotionService->activeCouponId($billingPeriod)
+            ?: app(StripePromotionCouponSyncService::class)->ensureCouponIdForDiscountPercent($discountPercent);
+
+        return $couponId ? [['coupon' => $couponId]] : null;
+    }
+
+    private function promotionDiscountsPayloadForSubscription(
+        ?StripeSubscription $local,
+        BillingPeriod|string|null $billingPeriod = null
+    ): ?array
+    {
+        $targetBillingPeriod = $billingPeriod ?? $local?->billing_period;
+        $activeDiscounts = $this->promotionDiscountsPayload($targetBillingPeriod);
+        if ($activeDiscounts !== null) {
+            return $activeDiscounts;
+        }
+
+        if (! $local || $local->is_comped || ! $local->promotion_coupon_id) {
+            return null;
+        }
+
+        return [];
+    }
+
+    private function resolveBillingPeriodForStripePriceId(?string $priceId): ?string
+    {
+        return $this->resolvePlanContext($priceId)['billing_period'] ?? null;
     }
 
     public function createAssistantCreditCheckoutSession(User $user, int $packs, string $successUrl, string $cancelUrl): array

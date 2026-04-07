@@ -3,6 +3,12 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import axios from 'axios';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import PlanPriceDisplay from '@/Components/Billing/PlanPriceDisplay.vue';
+import {
+    displayIntervalKeyForBillingPeriod,
+    hasActiveSubscriptionPromotion,
+    planPricingForBillingDisplay,
+} from '@/utils/subscriptionPricing';
 import Modal from '@/Components/Modal.vue';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
@@ -267,15 +273,26 @@ const priceForBillingPeriod = (plan, billingPeriod = selectedBillingPeriod.value
             stripe_price_id: plan?.price_id || null,
             display_price: plan?.display_price || plan?.price || null,
             amount: plan?.amount || null,
+            original_display_price: plan?.original_display_price || plan?.display_price || plan?.price || null,
+            discounted_display_price: plan?.discounted_display_price || plan?.display_price || plan?.price || null,
+            is_discounted: Boolean(plan?.is_discounted),
+            promotion: plan?.promotion || { is_active: false, discount_percent: null },
         };
     }
 
     return null;
 };
 const displayPriceForBillingPeriod = (plan, billingPeriod = selectedBillingPeriod.value) =>
-    priceForBillingPeriod(plan, billingPeriod)
-    || plan?.prices_by_period?.monthly
-    || null;
+    planPricingForBillingDisplay(
+        plan,
+        billingPeriod,
+        priceForBillingPeriod(plan, billingPeriod)
+        || plan?.prices_by_period?.monthly
+        || null
+    );
+const yearlyPromotionActive = computed(() =>
+    availablePlanOptions.value.some((plan) => hasActiveSubscriptionPromotion(displayPriceForBillingPeriod(plan, 'yearly')))
+);
 const hasPlans = computed(() => props.plans.some((plan) => {
     if (plan?.contact_only) {
         return true;
@@ -648,23 +665,6 @@ const addRecommendationReason = (reasons, key, params = {}) => {
     }
 };
 
-const planDisplayPrice = (plan, billingPeriod = selectedBillingPeriod.value) => {
-    const price = displayPriceForBillingPeriod(plan, billingPeriod);
-    if (price?.display_price) {
-        return price.display_price;
-    }
-
-    if (billingPeriod === 'monthly' && plan?.display_price) {
-        return plan.display_price;
-    }
-
-    if (plan?.contact_only) {
-        return t('settings.billing.plan.custom_pricing');
-    }
-
-    return '--';
-};
-
 const resolveBillingPeriodLabel = (billingPeriod) => (
     billingPeriod === 'yearly'
         ? t('settings.billing.plan.yearly')
@@ -672,9 +672,10 @@ const resolveBillingPeriodLabel = (billingPeriod) => (
 );
 
 const resolveBillingIntervalLabel = (billingPeriod) => (
-    billingPeriod === 'yearly'
-        ? t('settings.billing.plan.interval_year')
-        : t('settings.billing.plan.interval_month')
+    t(displayIntervalKeyForBillingPeriod(
+        billingPeriod,
+        'settings.billing.plan.interval_month'
+    ))
 );
 
 const previewPlanFeatures = (plan) => {
@@ -1484,7 +1485,9 @@ watch(
                                 </button>
                             </div>
                             <p v-if="selectedBillingPeriod === 'yearly'" class="mt-2 text-xs font-semibold text-green-700 dark:text-green-400">
-                                {{ $t('settings.billing.plan.yearly_note', { percent: billing?.annual_discount_percent || 20 }) }}
+                                {{ yearlyPromotionActive
+                                    ? $t('settings.billing.plan.billed_yearly')
+                                    : $t('settings.billing.plan.yearly_note', { percent: billing?.annual_discount_percent || 20 }) }}
                             </p>
                         </div>
                         <button
@@ -1565,13 +1568,22 @@ watch(
                                         </span>
                                     </div>
                                     <div class="plan-card__price">
-                                        <span class="plan-card__amount" :class="{ 'plan-card__amount--text': displayedPlan.contact_only }">
-                                            {{ planDisplayPrice(displayedPlan, currentSubscriptionBillingPeriod) }}
-                                        </span>
-                                        <span v-if="!displayedPlan.contact_only" class="plan-card__interval">
-                                            {{ resolveBillingIntervalLabel(currentSubscriptionBillingPeriod) }}
-                                        </span>
+                                        <PlanPriceDisplay
+                                            :pricing="displayPriceForBillingPeriod(displayedPlan, currentSubscriptionBillingPeriod)"
+                                            :contact-only="displayedPlan.contact_only"
+                                            :custom-label="$t('settings.billing.plan.custom_pricing')"
+                                            :interval-label="resolveBillingIntervalLabel(currentSubscriptionBillingPeriod)"
+                                            :price-class="displayedPlan.contact_only ? 'plan-card__amount plan-card__amount--text' : 'plan-card__amount'"
+                                            original-price-class="text-sm font-medium text-stone-400 line-through dark:text-neutral-500"
+                                            interval-class="plan-card__interval"
+                                            badge-class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                                        />
                                     </div>
+                                    <p v-if="currentSubscriptionBillingPeriod === 'yearly' && !displayedPlan.contact_only" class="plan-card__status">
+                                        {{ hasActiveSubscriptionPromotion(displayPriceForBillingPeriod(displayedPlan, currentSubscriptionBillingPeriod))
+                                            ? $t('settings.billing.plan.billed_yearly')
+                                            : $t('settings.billing.plan.yearly_note', { percent: billing?.annual_discount_percent || 20 }) }}
+                                    </p>
                                     <p v-if="resolveTeamLimitLabel(displayedPlan)" class="plan-card__limit">
                                         {{ resolveTeamLimitLabel(displayedPlan) }}
                                     </p>
@@ -1771,13 +1783,22 @@ watch(
                                             </div>
                                         </div>
                                         <div class="plan-card__price">
-                                            <span class="plan-card__amount" :class="{ 'plan-card__amount--text': recommendation.plan.contact_only }">
-                                                {{ planDisplayPrice(recommendation.plan, selectedBillingPeriod) }}
-                                            </span>
-                                            <span v-if="!recommendation.plan.contact_only" class="plan-card__interval">
-                                                {{ resolveBillingIntervalLabel(selectedBillingPeriod) }}
-                                            </span>
+                                            <PlanPriceDisplay
+                                                :pricing="displayPriceForBillingPeriod(recommendation.plan, selectedBillingPeriod)"
+                                                :contact-only="recommendation.plan.contact_only"
+                                                :custom-label="$t('settings.billing.plan.custom_pricing')"
+                                                :interval-label="resolveBillingIntervalLabel(selectedBillingPeriod)"
+                                                :price-class="recommendation.plan.contact_only ? 'plan-card__amount plan-card__amount--text' : 'plan-card__amount'"
+                                                original-price-class="text-sm font-medium text-stone-400 line-through dark:text-neutral-500"
+                                                interval-class="plan-card__interval"
+                                                badge-class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                                            />
                                         </div>
+                                        <p v-if="selectedBillingPeriod === 'yearly' && !recommendation.plan.contact_only" class="plan-card__status">
+                                            {{ hasActiveSubscriptionPromotion(displayPriceForBillingPeriod(recommendation.plan, selectedBillingPeriod))
+                                                ? $t('settings.billing.plan.billed_yearly')
+                                                : $t('settings.billing.plan.yearly_note', { percent: billing?.annual_discount_percent || 20 }) }}
+                                        </p>
                                         <p v-if="resolveTeamLimitLabel(recommendation.plan)" class="plan-card__limit">
                                             {{ resolveTeamLimitLabel(recommendation.plan) }}
                                         </p>

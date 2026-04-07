@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\SubscriptionPromotion;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('pricing page exposes all public plans and comparison sections', function () {
@@ -54,5 +55,31 @@ test('pricing page exposes all public plans and comparison sections', function (
             ->where('pricingPlans.0.key', 'solo_essential')
             ->where('highlightedPlanKey', 'solo_pro')
             ->has('comparisonSections', 3)
+        );
+});
+
+test('pricing page exposes discounted subscription pricing when a promotion is active', function () {
+    SubscriptionPromotion::query()->updateOrCreate(
+        ['key' => SubscriptionPromotion::GLOBAL_KEY],
+        [
+            'name' => 'Global subscription promotion',
+            'is_enabled' => true,
+            'monthly_discount_percent' => 25,
+            'yearly_discount_percent' => 35,
+            'monthly_stripe_coupon_id' => 'coupon_promo_25',
+            'yearly_stripe_coupon_id' => 'coupon_promo_35',
+        ]
+    );
+
+    $this->get(route('pricing'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Pricing')
+            ->where('pricingCatalogs.team.plans.0.is_discounted', true)
+            ->where('pricingCatalogs.team.plans.0.promotion.discount_percent', 25)
+            ->where('pricingCatalogs.team.plans.0.prices_by_period.monthly.is_discounted', true)
+            ->where('pricingCatalogs.team.plans.0.prices_by_period.monthly.promotion.discount_percent', 25)
+            ->where('pricingCatalogs.team.plans.0.prices_by_period.yearly.is_discounted', true)
+            ->where('pricingCatalogs.team.plans.0.prices_by_period.yearly.promotion.discount_percent', 35)
         );
 });

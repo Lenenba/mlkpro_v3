@@ -1,5 +1,11 @@
 <script setup>
 import { computed, ref, watchEffect } from 'vue';
+import PlanPriceDisplay from '@/Components/Billing/PlanPriceDisplay.vue';
+import {
+    displayIntervalKeyForBillingPeriod,
+    hasActiveSubscriptionPromotion,
+    planPricingForBillingDisplay,
+} from '@/utils/subscriptionPricing';
 import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
 import PublicSiteHeader from '@/Components/Public/PublicSiteHeader.vue';
 import { Head, Link } from '@inertiajs/vue3';
@@ -130,15 +136,29 @@ const resolvePricingOption = (plan, billingPeriod = activeBillingPeriod.value) =
     plan?.prices_by_period?.[billingPeriod]
     || plan?.prices_by_period?.monthly
     || null;
-const resolvePrice = (plan) => resolvePricingOption(plan)?.display_price || plan?.display_price || plan?.price || '--';
+const displayedPricing = (plan, billingPeriod = activeBillingPeriod.value) => planPricingForBillingDisplay(
+    plan,
+    billingPeriod,
+    resolvePricingOption(plan, billingPeriod) || {
+        display_price: plan?.display_price || null,
+        original_display_price: plan?.original_display_price || plan?.display_price || null,
+        discounted_display_price: plan?.discounted_display_price || plan?.display_price || null,
+        is_discounted: Boolean(plan?.is_discounted),
+        promotion: plan?.promotion || { is_active: false, discount_percent: null },
+    }
+);
+const yearlyPromotionActive = computed(() =>
+    plans.value.some((plan) => hasActiveSubscriptionPromotion(displayedPricing(plan, 'yearly')))
+);
 const resolvePriceInterval = (plan) => {
     if (plan?.contact_only) {
         return null;
     }
 
-    return activeBillingPeriod.value === 'yearly'
-        ? t('pricing.billing_cycle.interval_year')
-        : t('pricing.billing_cycle.interval_month');
+    return t(displayIntervalKeyForBillingPeriod(
+        activeBillingPeriod.value,
+        'pricing.billing_cycle.interval_month'
+    ));
 };
 const resolveFeatures = (plan) => (Array.isArray(plan?.features) ? plan.features.filter((feature) => !!feature) : []);
 const isIncludedCell = (value) => value?.type === 'included';
@@ -235,7 +255,9 @@ const resolveTrialHref = (plan) => {
                                 </button>
                             </div>
                             <p v-if="activeBillingPeriod === 'yearly'" class="public-pricing-cycle-switch__note">
-                                {{ $t('pricing.billing_cycle.save_badge', { percent: plans[0]?.annual_discount_percent || 20 }) }}
+                                {{ yearlyPromotionActive
+                                    ? $t('pricing.billing_cycle.billed_yearly')
+                                    : $t('pricing.billing_cycle.save_badge', { percent: plans[0]?.annual_discount_percent || 20 }) }}
                             </p>
                         </div>
                     </div>
@@ -263,14 +285,19 @@ const resolveTrialHref = (plan) => {
                                 </span>
                             </div>
                             <div class="mt-4">
-                                <div class="flex items-baseline gap-2 text-2xl font-semibold text-stone-900">
-                                    <span>{{ resolvePrice(plan) }}</span>
-                                    <span v-if="resolvePriceInterval(plan)" class="text-sm font-medium text-stone-500">
-                                        {{ resolvePriceInterval(plan) }}
-                                    </span>
-                                </div>
+                                <PlanPriceDisplay
+                                    :pricing="displayedPricing(plan)"
+                                    :contact-only="plan.contact_only"
+                                    :interval-label="resolvePriceInterval(plan)"
+                                    price-class="text-2xl font-semibold text-stone-900"
+                                    original-price-class="text-sm font-medium text-stone-400 line-through"
+                                    interval-class="text-sm font-medium text-stone-500"
+                                    badge-class="rounded-sm bg-emerald-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700"
+                                />
                                 <p v-if="activeBillingPeriod === 'yearly' && !plan.contact_only" class="mt-1 text-xs font-medium text-emerald-700">
-                                    {{ $t('pricing.billing_cycle.yearly_note', { percent: plan.annual_discount_percent || 20 }) }}
+                                    {{ hasActiveSubscriptionPromotion(displayedPricing(plan))
+                                        ? $t('pricing.billing_cycle.billed_yearly')
+                                        : $t('pricing.billing_cycle.yearly_note', { percent: plan.annual_discount_percent || 20 }) }}
                                 </p>
                             </div>
                             <ul v-if="resolveFeatures(plan).length" class="mt-4 space-y-2 text-sm text-stone-600">

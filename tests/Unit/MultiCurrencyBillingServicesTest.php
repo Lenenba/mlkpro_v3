@@ -7,6 +7,8 @@ use App\Exceptions\Billing\TenantCurrencyChangeNotAllowedException;
 use App\Models\Plan;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\SubscriptionPromotion;
+use App\Models\SubscriptionPromotionCoupon;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\BillingPlanService;
@@ -194,6 +196,30 @@ it('builds a tenant-aware stripe checkout payload from a resolved plan price', f
         BillingPeriod::MONTHLY
     );
 
+    SubscriptionPromotion::query()->updateOrCreate(
+        ['key' => SubscriptionPromotion::GLOBAL_KEY],
+        [
+            'name' => 'Global subscription promotion',
+            'is_enabled' => true,
+            'monthly_discount_percent' => 25,
+            'yearly_discount_percent' => 35,
+            'monthly_stripe_coupon_id' => 'coupon_promo_25',
+            'yearly_stripe_coupon_id' => 'coupon_promo_35',
+        ]
+    );
+    SubscriptionPromotionCoupon::query()->updateOrCreate(
+        ['discount_percent' => 25],
+        [
+            'stripe_coupon_id' => 'coupon_promo_25',
+            'name' => 'Subscription promotion 25% off',
+            'metadata' => [
+                'source' => 'subscription_promotion',
+                'discount_percent' => '25',
+            ],
+            'synced_at' => now(),
+        ]
+    );
+
     $checkoutSessions = new class
     {
         public array $payloads = [];
@@ -258,7 +284,112 @@ it('builds a tenant-aware stripe checkout payload from a resolved plan price', f
         ->and($payload['metadata']['plan_price_id'])->toBe((string) $planPrice->planPriceId)
         ->and($payload['subscription_data']['metadata'])->toBe($payload['metadata'])
         ->and($payload['subscription_data']['trial_end'])->toBe($trialEndsAt->getTimestamp())
-        ->and($payload['payment_method_collection'])->toBe('always');
+        ->and($payload['payment_method_collection'])->toBe('always')
+        ->and($payload['discounts'][0]['coupon'])->toBe('coupon_promo_25');
+});
+
+it('uses the yearly promotion coupon for yearly stripe checkout sessions', function () {
+    $tenant = User::factory()->create([
+        'currency_code' => 'EUR',
+        'email' => 'eur-yearly-billing@example.test',
+    ]);
+    $planId = Plan::query()->where('code', 'starter')->value('id');
+
+    DB::table('plan_prices')
+        ->where('plan_id', $planId)
+        ->where('plan_prices.currency_code', 'EUR')
+        ->where('plan_prices.billing_period', BillingPeriod::YEARLY->value)
+        ->update([
+            'stripe_price_id' => 'price_unit_starter_eur_yearly',
+        ]);
+
+    $planPrice = app(ResolvePlanPriceForTenant::class)->execute(
+        $tenant,
+        'starter',
+        BillingPeriod::YEARLY
+    );
+
+    SubscriptionPromotion::query()->updateOrCreate(
+        ['key' => SubscriptionPromotion::GLOBAL_KEY],
+        [
+            'name' => 'Global subscription promotion',
+            'is_enabled' => true,
+            'monthly_discount_percent' => 20,
+            'yearly_discount_percent' => 35,
+            'monthly_stripe_coupon_id' => 'coupon_promo_20',
+            'yearly_stripe_coupon_id' => 'coupon_promo_35',
+        ]
+    );
+    SubscriptionPromotionCoupon::query()->updateOrCreate(
+        ['discount_percent' => 20],
+        [
+            'stripe_coupon_id' => 'coupon_promo_20',
+            'name' => 'Subscription promotion 20% off',
+            'metadata' => [
+                'source' => 'subscription_promotion',
+                'discount_percent' => '20',
+            ],
+            'synced_at' => now(),
+        ]
+    );
+    SubscriptionPromotionCoupon::query()->updateOrCreate(
+        ['discount_percent' => 35],
+        [
+            'stripe_coupon_id' => 'coupon_promo_35',
+            'name' => 'Subscription promotion 35% off',
+            'metadata' => [
+                'source' => 'subscription_promotion',
+                'discount_percent' => '35',
+            ],
+            'synced_at' => now(),
+        ]
+    );
+
+    $checkoutSessions = new class
+    {
+        public array $payloads = [];
+
+        public function create(array $payload): object
+        {
+            $this->payloads[] = $payload;
+
+            return (object) [
+                'id' => 'cs_test_unit_yearly_123',
+                'url' => 'https://checkout.stripe.test/yearly-session',
+            ];
+        }
+    };
+
+    $fakeClient = new class($checkoutSessions) extends StripeClient
+    {
+        public function __construct(private object $checkoutSessions)
+        {
+            parent::__construct('sk_test_123');
+        }
+
+        public function getService($name)
+        {
+            return match ($name) {
+                'checkout' => (object) ['sessions' => $this->checkoutSessions],
+                default => throw new RuntimeException("Unexpected Stripe service [{$name}] in test."),
+            };
+        }
+    };
+
+    $service = app(StripeBillingService::class);
+    injectStripeClient($service, $fakeClient);
+
+    $service->createCheckoutSessionForPlanPrice(
+        $tenant,
+        $planPrice,
+        'https://example.test/success',
+        'https://example.test/cancel'
+    );
+
+    $payload = $checkoutSessions->payloads[0];
+
+    expect($payload['metadata']['billing_period'])->toBe(BillingPeriod::YEARLY->value)
+        ->and($payload['discounts'][0]['coupon'])->toBe('coupon_promo_35');
 });
 
 it('fails clearly when a resolved plan price has no stripe price id', function () {
@@ -306,6 +437,19 @@ it('syncs stripe subscription plan context from the resolved stripe price id', f
             'stripe_price_id' => 'price_sync_starter_eur',
         ]);
 
+    SubscriptionPromotionCoupon::query()->updateOrCreate(
+        ['discount_percent' => 25],
+        [
+            'stripe_coupon_id' => 'coupon_promo_25',
+            'name' => 'Subscription promotion 25% off',
+            'metadata' => [
+                'source' => 'subscription_promotion',
+                'discount_percent' => '25',
+            ],
+            'synced_at' => now(),
+        ]
+    );
+
     $record = app(StripeBillingService::class)->syncFromStripeSubscription([
         'id' => 'sub_test_sync_123',
         'customer' => 'cus_test_sync_123',
@@ -321,6 +465,16 @@ it('syncs stripe subscription plan context from the resolved stripe price id', f
                 ],
             ],
         ],
+        'discount' => [
+            'coupon' => [
+                'id' => 'coupon_promo_25',
+                'percent_off' => 25,
+                'metadata' => [
+                    'source' => 'subscription_promotion',
+                    'discount_percent' => '25',
+                ],
+            ],
+        ],
     ], $tenant);
 
     expect($record)->not->toBeNull()
@@ -330,5 +484,7 @@ it('syncs stripe subscription plan context from the resolved stripe price id', f
         ->and($record->currency_code)->toBe('EUR')
         ->and($record->plan_code)->toBe('starter')
         ->and($record->billing_period)->toBe(BillingPeriod::MONTHLY->value)
+        ->and($record->promotion_coupon_id)->toBe('coupon_promo_25')
+        ->and($record->promotion_discount_percent)->toBe(25)
         ->and($tenant->fresh()->stripe_customer_id)->toBe('cus_test_sync_123');
 });

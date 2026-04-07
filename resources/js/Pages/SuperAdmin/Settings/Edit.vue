@@ -3,6 +3,8 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import PlanPriceDisplay from '@/Components/Billing/PlanPriceDisplay.vue';
+import { planPricingForBillingDisplay } from '@/utils/subscriptionPricing';
 import Checkbox from '@/Components/Checkbox.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
@@ -40,6 +42,25 @@ const props = defineProps({
     plan_prices: {
         type: Object,
         default: () => ({}),
+    },
+    subscription_promotion: {
+        type: Object,
+        default: () => ({
+            enabled: false,
+            monthly_discount_percent: null,
+            yearly_discount_percent: null,
+            monthly_stripe_coupon_id: null,
+            yearly_stripe_coupon_id: null,
+            last_synced_at: null,
+        }),
+    },
+    promotion_discount_options: {
+        type: Array,
+        default: () => [20, 25, 30, 35, 40, 45, 50],
+    },
+    annual_discount_percent: {
+        type: Number,
+        default: 20,
     },
 });
 
@@ -91,6 +112,11 @@ const form = useForm({
     },
     public_navigation: {
         contact_form_url: props.public_navigation?.contact_form_url ?? '',
+    },
+    subscription_promotion: {
+        enabled: props.subscription_promotion?.enabled ?? false,
+        monthly_discount_percent: props.subscription_promotion?.monthly_discount_percent ?? null,
+        yearly_discount_percent: props.subscription_promotion?.yearly_discount_percent ?? null,
     },
     plan_limits: props.plans.reduce((acc, plan) => {
         const existing = props.plan_limits?.[plan.key] || {};
@@ -229,6 +255,146 @@ const priceSummary = (planKey, currency) => {
         : `${amount} ${currency}`;
 };
 
+const normalizePromotionDiscount = (value) => {
+    const raw = Number(value ?? 0);
+
+    return Number.isFinite(raw) && raw > 0 ? raw : null;
+};
+
+const monthlyPromotionDiscountPercent = computed(() =>
+    normalizePromotionDiscount(form.subscription_promotion?.monthly_discount_percent)
+);
+
+const yearlyPromotionDiscountPercent = computed(() =>
+    normalizePromotionDiscount(form.subscription_promotion?.yearly_discount_percent)
+);
+
+const billingPeriodPromotionPercent = (billingPeriod = 'monthly') => (
+    billingPeriod === 'yearly'
+        ? yearlyPromotionDiscountPercent.value
+        : monthlyPromotionDiscountPercent.value
+);
+
+const subscriptionPromotionEnabled = computed(() =>
+    Boolean(
+        form.subscription_promotion?.enabled
+        && (monthlyPromotionDiscountPercent.value || yearlyPromotionDiscountPercent.value)
+    )
+);
+
+const formatMoney = (amount, currency) => {
+    const numericAmount = Number(amount);
+
+    if (!Number.isFinite(numericAmount)) {
+        return null;
+    }
+
+    try {
+        return new Intl.NumberFormat(undefined, {
+            style: 'currency',
+            currency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(numericAmount);
+    } catch (error) {
+        return `${numericAmount.toFixed(2)} ${currency}`;
+    }
+};
+
+const emptyPromotionPreviewPricing = (billingPeriod, currency) => ({
+    billing_period: billingPeriod,
+    currency_code: currency,
+    amount: null,
+    original_amount: null,
+    discounted_amount: null,
+    display_price: null,
+    original_display_price: null,
+    discounted_display_price: null,
+    is_discounted: false,
+    promotion: {
+        is_active: false,
+        discount_percent: billingPeriodPromotionPercent(billingPeriod),
+    },
+});
+
+const deriveYearlyAmount = (monthlyAmount) => (
+    monthlyAmount * 12 * ((100 - Number(props.annual_discount_percent || 0)) / 100)
+);
+
+const buildPromotionPreviewPricing = (amount, currency, billingPeriod = 'monthly') => {
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount)) {
+        return emptyPromotionPreviewPricing(billingPeriod, currency);
+    }
+
+    const originalAmount = numericAmount.toFixed(2);
+    const discountPercent = billingPeriodPromotionPercent(billingPeriod);
+    const isPromotionActive = Boolean(form.subscription_promotion?.enabled && discountPercent);
+    const discountedAmount = isPromotionActive
+        ? (numericAmount * (1 - (discountPercent / 100))).toFixed(2)
+        : originalAmount;
+    const isDiscounted = isPromotionActive && originalAmount !== discountedAmount;
+
+    return {
+        billing_period: billingPeriod,
+        currency_code: currency,
+        amount: originalAmount,
+        original_amount: originalAmount,
+        discounted_amount: discountedAmount,
+        display_price: formatMoney(discountedAmount, currency),
+        original_display_price: formatMoney(originalAmount, currency),
+        discounted_display_price: formatMoney(discountedAmount, currency),
+        is_discounted: isDiscounted,
+        promotion: {
+            is_active: isDiscounted,
+            discount_percent: discountPercent,
+        },
+    };
+};
+
+const promotionPreviewPricing = (planKey, currency, billingPeriod = 'monthly') => {
+    const row = form.plan_prices?.[planKey]?.[currency];
+    const amount = row?.amount;
+
+    if (row?.is_active === false || amount === '' || amount === null || typeof amount === 'undefined') {
+        return emptyPromotionPreviewPricing(billingPeriod, currency);
+    }
+
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount)) {
+        return emptyPromotionPreviewPricing(billingPeriod, currency);
+    }
+
+    const previewPlan = {
+        prices_by_period: {
+            monthly: buildPromotionPreviewPricing(numericAmount, currency, 'monthly'),
+            yearly: buildPromotionPreviewPricing(deriveYearlyAmount(numericAmount), currency, 'yearly'),
+        },
+    };
+
+    return planPricingForBillingDisplay(
+        previewPlan,
+        billingPeriod,
+        previewPlan.prices_by_period[billingPeriod]
+    );
+};
+
+const promotionStatusLabel = computed(() => {
+    if (!props.subscription_promotion?.last_synced_at) {
+        return 'Not synced to Stripe yet';
+    }
+
+    const parsed = new Date(props.subscription_promotion.last_synced_at);
+    if (Number.isNaN(parsed.getTime())) {
+        return String(props.subscription_promotion.last_synced_at);
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(parsed);
+});
+
 const putSettings = (options = {}) => {
     form.transform((data) => {
         const payload = { ...data };
@@ -271,6 +437,10 @@ const submitPlanPricing = () => {
     putSettings({
         onSuccess: () => closePricingPlan(),
     });
+};
+
+const submitPromotion = () => {
+    putSettings();
 };
 </script>
 
@@ -372,6 +542,182 @@ const submitPlanPricing = () => {
                         <button type="submit" :disabled="form.processing"
                             class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 disabled:pointer-events-none">
                             Save public navigation
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="rounded-sm border border-stone-200 border-t-4 border-t-rose-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    Subscription promotion
+                </h2>
+                <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                    Turn the global subscription promotion on or off, choose different discount percentages for monthly and yearly billing, and preview the final customer-facing prices before saving.
+                </p>
+                <form class="mt-4 space-y-4" @submit.prevent="submitPromotion">
+                    <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
+                        <div class="space-y-4">
+                            <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
+                                <Checkbox v-model:checked="form.subscription_promotion.enabled" :value="true" />
+                                <span>Enable promotion</span>
+                            </label>
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <div class="max-w-xs">
+                                    <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                        Monthly discount percent
+                                    </label>
+                                    <select
+                                        v-model="form.subscription_promotion.monthly_discount_percent"
+                                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-rose-600 focus:ring-rose-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                    >
+                                        <option :value="null">No discount</option>
+                                        <option
+                                            v-for="discount in promotion_discount_options"
+                                            :key="`promotion-monthly-discount-${discount}`"
+                                            :value="discount"
+                                        >
+                                            {{ discount }}%
+                                        </option>
+                                    </select>
+                                    <InputError class="mt-1" :message="form.errors['subscription_promotion.monthly_discount_percent']" />
+                                </div>
+                                <div class="max-w-xs">
+                                    <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                        Yearly discount percent
+                                    </label>
+                                    <select
+                                        v-model="form.subscription_promotion.yearly_discount_percent"
+                                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-rose-600 focus:ring-rose-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                    >
+                                        <option :value="null">No discount</option>
+                                        <option
+                                            v-for="discount in promotion_discount_options"
+                                            :key="`promotion-yearly-discount-${discount}`"
+                                            :value="discount"
+                                        >
+                                            {{ discount }}%
+                                        </option>
+                                    </select>
+                                    <InputError class="mt-1" :message="form.errors['subscription_promotion.yearly_discount_percent']" />
+                                </div>
+                            </div>
+                            <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                <p>
+                                    Available discounts: {{ promotion_discount_options.map((discount) => `${discount}%`).join(', ') }}
+                                </p>
+                                <p class="mt-2">
+                                    Stripe sync status: {{ promotionStatusLabel }}
+                                </p>
+                                <p v-if="props.subscription_promotion?.monthly_stripe_coupon_id" class="mt-2">
+                                    Current monthly Stripe coupon:
+                                    <span class="font-semibold">{{ props.subscription_promotion.monthly_stripe_coupon_id }}</span>
+                                </p>
+                                <p v-if="props.subscription_promotion?.yearly_stripe_coupon_id" class="mt-2">
+                                    Current yearly Stripe coupon:
+                                    <span class="font-semibold">{{ props.subscription_promotion.yearly_stripe_coupon_id }}</span>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                Live preview summary
+                            </div>
+                            <div class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
+                                <p>
+                                    Promotion status:
+                                    <span class="font-semibold">{{ subscriptionPromotionEnabled ? 'Active' : 'Disabled' }}</span>
+                                </p>
+                                <p>
+                                    Monthly discount:
+                                    <span class="font-semibold">{{ monthlyPromotionDiscountPercent ? `${monthlyPromotionDiscountPercent}%` : 'None' }}</span>
+                                </p>
+                                <p>
+                                    Yearly discount:
+                                    <span class="font-semibold">{{ yearlyPromotionDiscountPercent ? `${yearlyPromotionDiscountPercent}%` : 'None' }}</span>
+                                </p>
+                                <p>
+                                    Base yearly billing reduction:
+                                    <span class="font-semibold">{{ props.annual_discount_percent }}%</span>
+                                </p>
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                    Stripe coupons are created or reused automatically when you save.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-if="plans.length > 0" class="space-y-3">
+                        <div class="flex items-center justify-between gap-3">
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                Final billing preview
+                            </h3>
+                            <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                Inactive prices show as unavailable.
+                            </span>
+                        </div>
+                        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                            <div
+                                v-for="plan in plans"
+                                :key="`promotion-preview-${plan.key}`"
+                                class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/40"
+                            >
+                                <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ form.plan_display?.[plan.key]?.name || plan.name }}
+                                </div>
+                                <div class="mt-3 space-y-3">
+                                    <div
+                                        v-for="currency in supportedCurrencies"
+                                        :key="`promotion-preview-${plan.key}-${currency}`"
+                                        class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-900"
+                                    >
+                                        <div class="flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                            <span>{{ currency }}</span>
+                                            <span v-if="form.plan_prices?.[plan.key]?.[currency]?.is_active === false">Inactive</span>
+                                        </div>
+                                        <div class="mt-3 grid gap-3">
+                                            <div>
+                                                <div class="text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                                    Monthly
+                                                </div>
+                                                <PlanPriceDisplay
+                                                    :pricing="promotionPreviewPricing(plan.key, currency, 'monthly')"
+                                                    interval-label="/month"
+                                                    empty-label="Not set"
+                                                    container-class="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1"
+                                                    price-class="text-lg font-semibold text-stone-900 dark:text-neutral-100"
+                                                    original-price-class="text-xs font-medium text-stone-400 line-through dark:text-neutral-500"
+                                                    interval-class="text-xs font-medium text-stone-500 dark:text-neutral-400"
+                                                />
+                                            </div>
+                                            <div>
+                                                <div class="text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                                    Yearly
+                                                </div>
+                                                <PlanPriceDisplay
+                                                    :pricing="promotionPreviewPricing(plan.key, currency, 'yearly')"
+                                                    interval-label="/month"
+                                                    empty-label="Not set"
+                                                    container-class="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1"
+                                                    price-class="text-lg font-semibold text-stone-900 dark:text-neutral-100"
+                                                    original-price-class="text-xs font-medium text-stone-400 line-through dark:text-neutral-500"
+                                                    interval-class="text-xs font-medium text-stone-500 dark:text-neutral-400"
+                                                />
+                                                <p class="mt-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                                                    For 12 months, billed annually.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button
+                            type="submit"
+                            :disabled="form.processing"
+                            class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                            Save promotion
                         </button>
                     </div>
                 </form>

@@ -2576,6 +2576,7 @@
       "interval_month": "/mois",
       "interval_year": "/an",
       "yearly_note": "Payez a l annee et economisez {percent}%.",
+      "billed_yearly": "Pour 12 mois, facture annuellement.",
       "trial_note": "Essai gratuit jusqu'au {date}.",
       "downgrade_note": "Vous pouvez changer de forfait pendant l'essai.",
       "recommended": "Recommande",
@@ -6578,6 +6579,7 @@
         "interval_month": "/mois",
         "interval_year": "/an",
         "yearly_note": "Payez a l annee et economisez {percent}%.",
+        "billed_yearly": "Pour 12 mois, facture annuellement.",
         "current_plan": "Vous etes sur ce plan.",
         "cta_active": "Plan actif",
         "custom_pricing": "Sur mesure",
@@ -7080,7 +7082,8 @@
       "interval_month": "/mois",
       "interval_year": "/an",
       "save_badge": "Economisez {percent}% avec la facturation annuelle",
-      "yearly_note": "Facture a l annee avec {percent}% de reduction."
+      "yearly_note": "Facture a l annee avec {percent}% de reduction.",
+      "billed_yearly": "Pour 12 mois, facture annuellement."
     },
     "audiences": {
       "solo": "Solo",

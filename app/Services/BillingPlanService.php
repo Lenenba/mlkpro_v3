@@ -64,7 +64,16 @@ class BillingPlanService
                 $display = PlanDisplay::merge($configuredPlan, $planCode, $planDisplayOverrides);
                 $plan = $plans->get($planCode);
                 $pricesByPeriod = $this->periodOptionsForCurrency($plan?->prices, $currency);
-                $monthlyPrice = $pricesByPeriod[BillingPeriod::MONTHLY->value];
+                $contactOnly = (bool) ($configuredPlan['contact_only'] ?? $plan?->contact_only ?? false);
+                $legacyPricing = app(SubscriptionPromotionService::class)->decorateDisplayPrice(
+                    $display['price'] ?? null,
+                    $currency,
+                    $contactOnly
+                );
+                $monthlyPrice = $this->fallbackPriceOption(
+                    $pricesByPeriod[BillingPeriod::MONTHLY->value],
+                    $legacyPricing
+                );
                 $metadata = $this->metadataForConfiguredPlan($configuredPlan);
 
                 return [
@@ -75,14 +84,18 @@ class BillingPlanService
                     'badge' => $display['badge'],
                     'features' => $display['features'],
                     'price_id' => $monthlyPrice['stripe_price_id'],
-                    'price' => $monthlyPrice['amount'] ?? ($display['price'] ?? null),
+                    'price' => $monthlyPrice['discounted_amount'] ?? ($monthlyPrice['amount'] ?? ($display['price'] ?? null)),
                     'amount' => $monthlyPrice['amount'],
+                    'original_amount' => $monthlyPrice['original_amount'] ?? $monthlyPrice['amount'],
+                    'discounted_amount' => $monthlyPrice['discounted_amount'] ?? $monthlyPrice['amount'],
                     'currency_code' => $monthlyPrice['amount'] !== null ? $currency->value : null,
                     'billing_period' => BillingPeriod::MONTHLY->value,
-                    'display_price' => $monthlyPrice['display_price'] !== null
-                        ? $monthlyPrice['display_price']
-                        : $this->resolveLegacyDisplayPrice($display['price'] ?? null, $currency),
-                    'contact_only' => (bool) ($configuredPlan['contact_only'] ?? $plan?->contact_only ?? false),
+                    'display_price' => $monthlyPrice['display_price'],
+                    'original_display_price' => $monthlyPrice['original_display_price'] ?? $monthlyPrice['display_price'],
+                    'discounted_display_price' => $monthlyPrice['discounted_display_price'] ?? $monthlyPrice['display_price'],
+                    'promotion' => $monthlyPrice['promotion'] ?? ['is_active' => false, 'discount_percent' => null],
+                    'is_discounted' => (bool) ($monthlyPrice['is_discounted'] ?? false),
+                    'contact_only' => $contactOnly,
                     'team_members_min' => is_numeric($configuredPlan['team_members_min'] ?? null)
                         ? (int) $configuredPlan['team_members_min']
                         : null,
@@ -300,20 +313,17 @@ class BillingPlanService
     {
         $amount = $price?->amount !== null ? number_format((float) $price->amount, 2, '.', '') : null;
 
-        return [
+        return app(SubscriptionPromotionService::class)->decoratePriceOption([
             'currency_code' => $currency->value,
             'billing_period' => $period->value,
             'plan_price_id' => $price?->id,
             'amount' => $amount,
             'stripe_price_id' => $price?->stripe_price_id,
-            'display_price' => $amount !== null
-                ? $this->formatMoney((float) $amount, $currency)
-                : null,
             'is_active' => $price ? (bool) $price->is_active : false,
-        ];
+        ], $currency);
     }
 
-    private function annualDiscountPercent(): int
+    public function annualDiscountPercent(): int
     {
         return max(0, min(100, (int) round((float) config('billing.annual_discount_percent', 20))));
     }
@@ -402,5 +412,14 @@ class BillingPlanService
         $trimmed = trim($value);
 
         return $trimmed !== '' ? $trimmed : null;
+    }
+
+    private function fallbackPriceOption(array $priceOption, array $fallback): array
+    {
+        if (($priceOption['amount'] ?? null) !== null || ($priceOption['display_price'] ?? null) !== null) {
+            return $priceOption;
+        }
+
+        return array_merge($priceOption, $fallback);
     }
 }
