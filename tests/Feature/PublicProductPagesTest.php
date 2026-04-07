@@ -35,6 +35,26 @@ it('seeds public product pages and links the showcase menu to them', function ()
         );
 });
 
+it('seeds the other product module pages with the same narrative section order as sales crm', function () {
+    $this->seed(MegaMenuSeeder::class);
+
+    app()->setLocale('en');
+
+    $this->get(route('public.pages.show', ['slug' => 'reservations']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Public/Page')
+            ->where('page.slug', 'reservations')
+            ->has('content.sections', 3)
+            ->where('content.sections.0.layout', 'feature_tabs')
+            ->where('content.sections.0.title', 'Show booking as a complete journey')
+            ->where('content.sections.1.layout', 'showcase_cta')
+            ->where('content.sections.1.title', 'Reservations now follows the same narrative format as the other module pages')
+            ->where('content.sections.2.layout', 'story_grid')
+            ->where('content.sections.2.title', 'Reservations becomes easier to understand when its key moments stay distinct')
+        );
+});
+
 it('seeds industries and contact us in the public header', function () {
     $ownerRole = Role::query()->firstOrCreate(['name' => 'owner'], ['description' => 'Owner']);
     User::query()->create([
@@ -61,8 +81,9 @@ it('seeds industries and contact us in the public header', function () {
     ]);
 
     expect($industries)->not->toBeNull();
-    expect($industries['panel_type'])->toBe('classic');
-    expect($industries['children'])->toHaveCount(6);
+    expect($industries['panel_type'])->toBe('link');
+    expect($industries['resolved_href'])->toBe('/#industries');
+    expect($industries['columns'])->toHaveCount(0);
     expect($contact)->not->toBeNull();
     expect($contact['resolved_href'])->toBe('/pages/contact-us');
 
@@ -94,13 +115,16 @@ it('seeds public solution pages and links the solutions menu to them', function 
 
     $menu = app(MegaMenuRenderer::class)->resolveBySlug('main-header-menu');
     $solutions = $menu['items'][1] ?? null;
-    $firstSolution = $solutions['children'][0] ?? null;
+    $firstSolution = $solutions['columns'][0]['blocks'][0]['payload']['items'][0] ?? null;
 
     expect($solutions)->not->toBeNull();
     expect($solutions['label'])->toBe('Solutions');
-    expect($solutions['children'])->toHaveCount(6);
+    expect($solutions['panel_type'])->toBe('mega');
+    expect($solutions['columns'])->toHaveCount(1);
+    expect($solutions['columns'][0]['blocks'][0]['type'])->toBe('product_showcase');
+    expect($solutions['columns'][0]['blocks'][0]['payload']['items'])->toHaveCount(6);
     expect($firstSolution)->not->toBeNull();
-    expect($firstSolution['resolved_href'])->toBe('/pages/solution-field-services');
+    expect($firstSolution['href'])->toBe('/pages/solution-field-services');
 
     $this->get(route('public.pages.show', ['slug' => 'solution-field-services']))
         ->assertOk()

@@ -2,6 +2,8 @@
 
 use App\Models\PlatformPage;
 use App\Models\PlatformSection;
+use App\Services\PlatformWelcomePageService;
+use App\Services\WelcomePageContentResolver;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('legal pages expose shared public chrome props', function () {
@@ -44,6 +46,28 @@ test('welcome page exposes shared footer navigation props', function () {
         );
 
     expect(PlatformPage::query()->where('slug', 'welcome')->exists())->toBeTrue();
+});
+
+test('welcome page includes the default industries grid section', function () {
+    $this->get(route('welcome'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Welcome')
+            ->where('welcomeContent.generic_sections', function ($sections) {
+                $industrySection = collect($sections)->firstWhere('id', 'industries');
+
+                return is_array($industrySection)
+                    && ($industrySection['layout'] ?? null) === 'industry_grid'
+                    && in_array(($industrySection['title'] ?? null), [
+                        'Fier partenaire des pros du service dans plus de 50 industries.',
+                        'Proud partner to service pros in over 50 industries.',
+                    ], true)
+                    && count($industrySection['industry_cards'] ?? []) === 12
+                    && collect($industrySection['industry_cards'] ?? [])->contains(function ($card) {
+                        return ($card['href'] ?? null) === '/pages/industry-plumbing';
+                    });
+            })
+        );
 });
 
 test('welcome page resolves reusable welcome sections from the page library', function () {
@@ -526,4 +550,191 @@ test('welcome page preserves reusable generic section layouts for rendering', fu
                 'Get started',
             ], true))
         );
+});
+
+test('welcome page keeps section structure synchronized across locales for public rendering', function () {
+    $heroSection = PlatformSection::query()->create([
+        'name' => 'Welcome Hero',
+        'type' => 'welcome_hero',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'en' => [
+                    'layout' => 'split',
+                    'title' => 'Welcome',
+                    'body' => '<p>Hero body</p>',
+                ],
+                'fr' => [
+                    'layout' => 'split',
+                    'title' => 'Accueil',
+                    'body' => '<p>Corps hero</p>',
+                ],
+            ],
+        ],
+    ]);
+
+    $showcaseSection = PlatformSection::query()->create([
+        'name' => 'Welcome Showcase',
+        'type' => 'showcase_cta',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'en' => [
+                    'layout' => 'showcase_cta',
+                    'title' => 'A reusable section',
+                    'body' => '<p>Reusable body.</p>',
+                    'primary_label' => 'Get started',
+                    'primary_href' => '/onboarding',
+                ],
+                'fr' => [
+                    'layout' => 'showcase_cta',
+                    'title' => 'Une section reutilisable',
+                    'body' => '<p>Contenu reutilisable.</p>',
+                    'primary_label' => 'Commencer',
+                    'primary_href' => '/onboarding',
+                ],
+            ],
+        ],
+    ]);
+
+    $page = PlatformPage::query()->create([
+        'slug' => 'welcome',
+        'title' => 'Welcome',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'en' => [
+                    'page_title' => '',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'section-hero',
+                            'enabled' => true,
+                            'source_id' => $heroSection->id,
+                            'use_source' => true,
+                            'layout' => 'split',
+                        ],
+                        [
+                            'id' => 'section-showcase',
+                            'enabled' => true,
+                            'source_id' => $showcaseSection->id,
+                            'use_source' => true,
+                            'layout' => 'showcase_cta',
+                        ],
+                    ],
+                ],
+                'fr' => [
+                    'page_title' => '',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'section-hero',
+                            'enabled' => true,
+                            'source_id' => $heroSection->id,
+                            'use_source' => true,
+                            'layout' => 'split',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $resolved = app(WelcomePageContentResolver::class)->resolve($page->fresh(), 'fr');
+
+    expect($resolved['hero']['title'])->toBe('Accueil')
+        ->and($resolved['generic_sections'])->toHaveCount(1)
+        ->and($resolved['generic_sections'][0]['id'])->toBe('section-showcase')
+        ->and($resolved['generic_sections'][0]['layout'])->toBe('showcase_cta')
+        ->and($resolved['generic_sections'][0]['title'])->toBe('Une section reutilisable')
+        ->and($resolved['generic_sections'][0]['primary_label'])->toBe('Commencer');
+});
+
+test('welcome page stored locales are synchronized and localized when loaded', function () {
+    PlatformPage::query()->create([
+        'slug' => 'welcome',
+        'title' => 'Welcome',
+        'is_active' => true,
+        'content' => [
+            'locales' => [
+                'fr' => [
+                    'page_title' => '',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'welcome-section-1',
+                            'enabled' => true,
+                            'layout' => 'split',
+                            'use_source' => false,
+                            'title' => 'Bloc hero',
+                        ],
+                    ],
+                ],
+                'en' => [
+                    'page_title' => '',
+                    'page_subtitle' => '',
+                    'header' => [
+                        'background_type' => 'none',
+                        'background_color' => '',
+                        'background_image_url' => '',
+                        'background_image_alt' => '',
+                        'alignment' => 'center',
+                    ],
+                    'sections' => [
+                        [
+                            'id' => 'welcome-section-1',
+                            'enabled' => true,
+                            'layout' => 'split',
+                            'use_source' => false,
+                            'title' => 'Hero block',
+                        ],
+                        [
+                            'id' => 'welcome-proof-feature-pairs',
+                            'enabled' => true,
+                            'layout' => 'feature_pairs',
+                            'use_source' => false,
+                            'title' => 'Put concrete business situations in front of visitors before they ever reach pricing',
+                            'body' => '<p>The homepage now shows office, coordination, and field moments that fit the platform story better than another abstract card stack.</p>',
+                            'kicker' => 'Visible proof',
+                            'primary_label' => 'See solutions',
+                            'secondary_label' => 'See modules',
+                            'aside_link_label' => 'See Command Center',
+                            'image_url' => '/images/landing/stock/collab-laptop-desk.jpg',
+                            'aside_image_url' => '/images/landing/stock/warehouse-worker.jpg',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $page = app(PlatformWelcomePageService::class)->ensurePageExists();
+    $storedLocales = $page->fresh()->content['locales'];
+
+    expect($storedLocales['fr']['sections'])->toHaveCount(2)
+        ->and($storedLocales['en']['sections'])->toHaveCount(2)
+        ->and($storedLocales['fr']['sections'][1]['id'])->toBe('welcome-proof-feature-pairs')
+        ->and($storedLocales['fr']['sections'][1]['title'])->toBe('Montrez des situations metier concretes avant meme d arriver aux tarifs')
+        ->and($storedLocales['fr']['sections'][1]['primary_label'])->toBe('Voir les solutions');
 });

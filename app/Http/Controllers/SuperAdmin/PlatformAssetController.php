@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Models\PlatformAsset;
+use App\Services\PlatformStockAssetCatalog;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,24 +25,11 @@ class PlatformAssetController extends BaseSuperAdminController
             'tag' => ['nullable', 'string', 'max:80'],
         ]);
 
-        $query = PlatformAsset::query()->latest();
-        if (! empty($filters['search'])) {
-            $search = $filters['search'];
-            $query->where(function ($builder) use ($search) {
-                $builder->where('name', 'like', "%{$search}%")
-                    ->orWhere('mime', 'like', "%{$search}%");
-            });
-        }
-
-        if (! empty($filters['tag'])) {
-            $tag = $filters['tag'];
-            $query->whereJsonContains('tags', $tag);
-        }
-
-        $assets = $query
-            ->paginate(24)
-            ->through(fn (PlatformAsset $asset) => $this->mapAsset($asset))
-            ->withQueryString();
+        $assets = $this->paginateAssets(
+            $this->filteredAssets($filters, app()->getLocale()),
+            24,
+            $request
+        );
 
         return Inertia::render('SuperAdmin/Assets/Index', [
             'assets' => $assets,
@@ -103,6 +93,10 @@ class PlatformAssetController extends BaseSuperAdminController
     {
         $this->authorizeAnyPermission($request, [PlatformPermissions::PAGES_MANAGE, PlatformPermissions::WELCOME_MANAGE]);
 
+        if ($this->isSystemAssetPath($asset->path)) {
+            return redirect()->back()->withErrors(['asset' => 'Platform stock images cannot be deleted.']);
+        }
+
         if ($asset->path) {
             Storage::disk('public')->delete($asset->path);
         }
@@ -121,19 +115,9 @@ class PlatformAssetController extends BaseSuperAdminController
             'tag' => ['nullable', 'string', 'max:80'],
         ]);
 
-        $query = PlatformAsset::query()->latest();
-        if (! empty($filters['search'])) {
-            $search = $filters['search'];
-            $query->where(function ($builder) use ($search) {
-                $builder->where('name', 'like', "%{$search}%")
-                    ->orWhere('mime', 'like', "%{$search}%");
-            });
-        }
-        if (! empty($filters['tag'])) {
-            $query->whereJsonContains('tags', $filters['tag']);
-        }
-
-        $assets = $query->limit(120)->get()->map(fn (PlatformAsset $asset) => $this->mapAsset($asset));
+        $assets = $this->filteredAssets($filters, app()->getLocale())
+            ->take(120)
+            ->values();
 
         return response()->json([
             'assets' => $assets,
@@ -168,6 +152,80 @@ class PlatformAssetController extends BaseSuperAdminController
             'alt' => $asset->alt,
             'is_image' => str_starts_with((string) $asset->mime, 'image/'),
             'created_at' => $asset->created_at?->toIso8601String(),
+            'is_system' => $this->isSystemAssetPath($asset->path),
         ];
+    }
+
+    private function filteredAssets(array $filters, ?string $locale = null): Collection
+    {
+        $search = trim(mb_strtolower((string) ($filters['search'] ?? '')));
+        $tag = trim(mb_strtolower((string) ($filters['tag'] ?? '')));
+
+        $uploadedAssets = PlatformAsset::query()
+            ->latest()
+            ->get()
+            ->map(fn (PlatformAsset $asset) => $this->mapAsset($asset));
+
+        $systemAssets = app(PlatformStockAssetCatalog::class)->all($locale);
+
+        return collect($uploadedAssets->all())
+            ->merge($systemAssets)
+            ->filter(function (array $asset) use ($search, $tag) {
+                if ($search !== '') {
+                    $haystack = mb_strtolower(implode(' ', array_filter([
+                        (string) ($asset['name'] ?? ''),
+                        (string) ($asset['mime'] ?? ''),
+                        (string) ($asset['alt'] ?? ''),
+                        (string) ($asset['url'] ?? ''),
+                    ])));
+
+                    if (! str_contains($haystack, $search)) {
+                        return false;
+                    }
+                }
+
+                if ($tag !== '') {
+                    $tags = array_map(
+                        fn ($value) => trim(mb_strtolower((string) $value)),
+                        is_array($asset['tags'] ?? null) ? $asset['tags'] : []
+                    );
+
+                    if (! in_array($tag, $tags, true)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            })
+            ->sortBy([
+                ['is_system', 'asc'],
+                ['created_at', 'desc'],
+                ['name', 'asc'],
+            ])
+            ->values();
+    }
+
+    private function paginateAssets(Collection $assets, int $perPage, Request $request): LengthAwarePaginator
+    {
+        $page = max(1, (int) $request->query('page', 1));
+        $items = $assets->forPage($page, $perPage)->values();
+
+        return new LengthAwarePaginator(
+            $items,
+            $assets->count(),
+            $perPage,
+            $page,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+    }
+
+    private function isSystemAssetPath(?string $path): bool
+    {
+        $path = trim((string) $path);
+
+        return str_starts_with($path, '/images/');
     }
 }

@@ -181,8 +181,11 @@ it('shows the shared footer card in the page editor while keeping it out of body
             ->component('SuperAdmin/Pages/Edit')
             ->where('footer_section.type', 'footer')
             ->where('footer_section.is_active', true)
-            ->where('library_sections.0.type', 'testimonial')
-            ->missing('library_sections.1')
+            ->where('library_sections', fn ($sections) => collect($sections)->contains(
+                fn (array $section) => $section['type'] === 'testimonial'
+            ) && ! collect($sections)->contains(
+                fn (array $section) => $section['type'] === 'footer'
+            ))
         );
 
     expect(PlatformSection::query()->where('type', 'footer')->count())->toBe(1);
@@ -204,9 +207,30 @@ it('allows welcome-only admins to use the unified pages, sections, and assets mo
     $this->actingAs($admin)
         ->getJson(route('superadmin.assets.list'))
         ->assertOk()
-        ->assertJson([
-            'assets' => [],
-        ]);
+        ->assertJsonPath('assets.0.is_image', true);
+});
+
+it('exposes platform stock images in the shared assets module', function () {
+    $admin = platformSectionAdmin([PlatformPermissions::WELCOME_MANAGE]);
+
+    $response = $this->actingAs($admin)
+        ->getJson(route('superadmin.assets.list'))
+        ->assertOk()
+        ->json('assets');
+
+    expect($response)->toBeArray()
+        ->and(collect($response)->contains(fn (array $asset) => ($asset['url'] ?? null) === '/images/landing/stock/field-checklist.jpg'))
+        ->and(collect($response)->contains(fn (array $asset) => ($asset['url'] ?? null) === '/images/mega-menu/operations-suite.svg'))
+        ->and(collect($response)->contains(fn (array $asset) => ($asset['is_system'] ?? false) === true))->toBeTrue();
+
+    $welcomeAssets = $this->actingAs($admin)
+        ->getJson(route('superadmin.assets.list', ['tag' => 'welcome']))
+        ->assertOk()
+        ->json('assets');
+
+    expect($welcomeAssets)->toBeArray()
+        ->and(collect($welcomeAssets)->contains(fn (array $asset) => ($asset['url'] ?? null) === '/images/landing/stock/field-checklist.jpg'))
+        ->and(collect($welcomeAssets)->every(fn (array $asset) => in_array('welcome', $asset['tags'] ?? [], true)))->toBeTrue();
 });
 
 it('keeps an empty sections payload empty when saving a page from the admin', function () {

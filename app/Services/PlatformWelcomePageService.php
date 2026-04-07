@@ -17,7 +17,7 @@ class PlatformWelcomePageService
             ->first();
 
         if ($page) {
-            return $page;
+            return $this->synchronizeExistingPageLocales($page, $userId);
         }
 
         return $this->createFromLegacy($userId);
@@ -38,6 +38,167 @@ class PlatformWelcomePageService
     public function displayPath(PlatformPage $page): string
     {
         return $this->isWelcomePage($page) ? '/' : '/pages/'.$page->slug;
+    }
+
+    private function synchronizeExistingPageLocales(PlatformPage $page, ?int $userId = null): PlatformPage
+    {
+        $payload = is_array($page->content) ? $page->content : [];
+        $locales = is_array($payload['locales'] ?? null) ? $payload['locales'] : [];
+        if ($locales === []) {
+            return $page;
+        }
+
+        $canonicalLocale = $this->canonicalLocaleForExistingSections($locales);
+        $canonicalSections = $this->sanitizeSectionList($locales[$canonicalLocale]['sections'] ?? []);
+        if ($canonicalSections === []) {
+            return $page;
+        }
+
+        $changed = false;
+
+        foreach (['fr', 'en'] as $locale) {
+            $localeContent = is_array($locales[$locale] ?? null) ? $locales[$locale] : [];
+            $existingSections = $this->sanitizeSectionList($localeContent['sections'] ?? []);
+            $existingById = collect($existingSections)
+                ->filter(fn ($section) => is_array($section))
+                ->mapWithKeys(function ($section) {
+                    $id = trim((string) ($section['id'] ?? ''));
+
+                    return $id !== '' ? [$id => $section] : [];
+                })
+                ->all();
+
+            $rebuiltSections = array_values(array_map(function ($section) use ($existingById, $locale) {
+                $id = trim((string) ($section['id'] ?? ''));
+
+                if ($id !== '' && array_key_exists($id, $existingById)) {
+                    return $existingById[$id];
+                }
+
+                return $this->localizeMissingSectionForLocale($section, $locale);
+            }, $canonicalSections));
+
+            if (($localeContent['sections'] ?? []) !== $rebuiltSections) {
+                $changed = true;
+            }
+
+            $localeContent['sections'] = $rebuiltSections;
+            $locales[$locale] = $localeContent;
+        }
+
+        if (! $changed) {
+            return $page;
+        }
+
+        $payload['locales'] = $locales;
+        $payload['updated_at'] = now()->toIso8601String();
+        $payload['updated_by'] = $userId ?? ($payload['updated_by'] ?? $page->updated_by);
+        $page->content = $payload;
+
+        if ($userId !== null) {
+            $page->updated_by = $userId;
+        }
+
+        $page->save();
+
+        return $page->fresh();
+    }
+
+    private function canonicalLocaleForExistingSections(array $locales): string
+    {
+        $bestLocale = 'fr';
+        $bestCount = -1;
+
+        foreach (['fr', 'en'] as $locale) {
+            $count = count($this->sanitizeSectionList($locales[$locale]['sections'] ?? []));
+            if ($count > $bestCount) {
+                $bestLocale = $locale;
+                $bestCount = $count;
+            }
+        }
+
+        return $bestLocale;
+    }
+
+    private function sanitizeSectionList($sections): array
+    {
+        if (! is_array($sections)) {
+            return [];
+        }
+
+        return array_values(array_filter($sections, fn ($section) => is_array($section)));
+    }
+
+    private function localizeMissingSectionForLocale(array $section, string $locale): array
+    {
+        if (! empty($section['use_source']) && ! empty($section['source_id'])) {
+            return $this->resetSourceDrivenFields($section);
+        }
+
+        return match (trim((string) ($section['id'] ?? ''))) {
+            'welcome-proof-feature-pairs' => $this->translateWelcomeProofFeaturePairs($section, $locale),
+            default => $section,
+        };
+    }
+
+    private function resetSourceDrivenFields(array $section): array
+    {
+        $section['kicker'] = '';
+        $section['title'] = '';
+        $section['body'] = '';
+        $section['image_alt'] = '';
+        $section['note'] = ! empty($section['override_note']) ? ($section['note'] ?? '') : '';
+        $section['items'] = ! empty($section['override_items']) ? ($section['items'] ?? []) : [];
+        $section['stats'] = ! empty($section['override_stats']) ? ($section['stats'] ?? []) : [];
+        $section['hero_images'] = [];
+        $section['testimonial_author'] = '';
+        $section['testimonial_role'] = '';
+        $section['aside_kicker'] = '';
+        $section['aside_title'] = '';
+        $section['aside_body'] = '';
+        $section['aside_items'] = [];
+        $section['aside_link_label'] = '';
+        $section['aside_link_href'] = '';
+        $section['aside_image_alt'] = '';
+        $section['primary_label'] = '';
+        $section['primary_href'] = '';
+        $section['secondary_label'] = '';
+        $section['secondary_href'] = '';
+        $section['showcase_badge_label'] = '';
+        $section['showcase_badge_value'] = '';
+        $section['showcase_badge_note'] = '';
+
+        return $section;
+    }
+
+    private function translateWelcomeProofFeaturePairs(array $section, string $locale): array
+    {
+        if ($locale !== 'fr') {
+            return $section;
+        }
+
+        return [
+            ...$section,
+            'kicker' => 'Preuves concretes',
+            'title' => 'Montrez des situations metier concretes avant meme d arriver aux tarifs',
+            'body' => '<p>La page d accueil montre maintenant des moments de bureau, de coordination et de terrain qui racontent mieux la plateforme qu une pile de cartes abstraites.</p>',
+            'items' => [
+                'Les pages modules, solutions et industries apparaissent plus tot dans le parcours.',
+                'Chaque bloc pousse vers une prochaine etape claire au lieu de repeter la meme promesse.',
+                'Des images distinctes rendent les cas d usage plus faciles a parcourir sans surcharger la page.',
+            ],
+            'aside_kicker' => 'Un contexte plus clair',
+            'aside_title' => 'L histoire de la plateforme passe mieux quand chaque image porte une etape differente',
+            'aside_body' => '<p>Les visiteurs voient maintenant la presence commerciale, la coordination interne et l execution terrain dans des blocs distincts, ce qui rend le prochain clic plus evident.</p>',
+            'aside_items' => [
+                'Le commerce et la monetisation apparaissent avec un vrai contexte d usage.',
+                'Les modules ne donnent plus l impression d une liste uniforme.',
+                'Le lien entre equipes, planning et supervision devient plus facile a comprendre.',
+            ],
+            'primary_label' => 'Voir les solutions',
+            'secondary_label' => 'Voir les modules',
+            'aside_link_label' => 'Voir Command Center',
+        ];
     }
 
     private function createFromLegacy(?int $userId = null): PlatformPage
@@ -70,6 +231,15 @@ class PlatformWelcomePageService
             [
                 'fr' => $this->defaultShowcaseSection('fr'),
                 'en' => $this->defaultShowcaseSection('en'),
+            ],
+            $userId
+        );
+        $orderedSections[] = $this->createSection(
+            'Welcome Industries',
+            'industry_grid',
+            [
+                'fr' => $this->defaultIndustryGridSection('fr'),
+                'en' => $this->defaultIndustryGridSection('en'),
             ],
             $userId
         );
@@ -149,7 +319,7 @@ class PlatformWelcomePageService
                     $content = $sectionContentService->resolveForLocale($section, $locale);
 
                     return [
-                        'id' => 'welcome-section-'.($index + 1),
+                        'id' => $this->pageSectionIdForSource($section, $index),
                         'enabled' => $section->is_active,
                         'source_id' => $section->id,
                         'use_source' => true,
@@ -182,6 +352,15 @@ class PlatformWelcomePageService
             ],
             'updated_by' => $userId,
         ]);
+    }
+
+    private function pageSectionIdForSource(PlatformSection $section, int $index): string
+    {
+        if ($section->type === 'industry_grid' && $section->name === 'Welcome Industries') {
+            return 'industries';
+        }
+
+        return 'welcome-section-'.($index + 1);
     }
 
     private function mapHeroSection(array $legacy): array
@@ -483,6 +662,57 @@ class PlatformWelcomePageService
                     'image_url' => $boostProfitsImage['image_url'],
                     'image_alt' => $boostProfitsImage['image_alt'],
                 ],
+            ],
+        ];
+    }
+
+    private function defaultIndustryGridSection(string $locale): array
+    {
+        if ($locale === 'fr') {
+            return [
+                'layout' => 'industry_grid',
+                'background_color' => '#f7f2e8',
+                'alignment' => 'center',
+                'density' => 'normal',
+                'tone' => 'default',
+                'title' => 'Fier partenaire des pros du service dans plus de 50 industries.',
+                'industry_cards' => [
+                    ['id' => 'industry-arborists', 'label' => 'Arboristes', 'href' => '', 'icon' => 'tree-pine'],
+                    ['id' => 'industry-commercial-cleaning', 'label' => 'Nettoyage commercial', 'href' => '/pages/industry-cleaning', 'icon' => 'brush-cleaning'],
+                    ['id' => 'industry-construction', 'label' => 'Construction & entrepreneurs', 'href' => '', 'icon' => 'construction'],
+                    ['id' => 'industry-electrical', 'label' => 'Entrepreneur electrique', 'href' => '/pages/industry-electrical', 'icon' => 'plug-zap'],
+                    ['id' => 'industry-hvac', 'label' => 'HVAC', 'href' => '/pages/industry-hvac', 'icon' => 'fan'],
+                    ['id' => 'industry-handyman', 'label' => 'Homme a tout faire', 'href' => '', 'icon' => 'wrench'],
+                    ['id' => 'industry-landscaping', 'label' => 'Amenagement paysager', 'href' => '', 'icon' => 'shovel'],
+                    ['id' => 'industry-lawn-care', 'label' => 'Entretien de pelouse', 'href' => '', 'icon' => 'leaf'],
+                    ['id' => 'industry-painting', 'label' => 'Peinture', 'href' => '', 'icon' => 'paint-roller'],
+                    ['id' => 'industry-plumbing', 'label' => 'Plomberie', 'href' => '/pages/industry-plumbing', 'icon' => 'shower-head'],
+                    ['id' => 'industry-residential-cleaning', 'label' => 'Nettoyage residentiel', 'href' => '/pages/industry-cleaning', 'icon' => 'sparkles'],
+                    ['id' => 'industry-roofing', 'label' => 'Toiture', 'href' => '', 'icon' => 'house'],
+                ],
+            ];
+        }
+
+        return [
+            'layout' => 'industry_grid',
+            'background_color' => '#f7f2e8',
+            'alignment' => 'center',
+            'density' => 'normal',
+            'tone' => 'default',
+            'title' => 'Proud partner to service pros in over 50 industries.',
+            'industry_cards' => [
+                ['id' => 'industry-arborists', 'label' => 'Arborists', 'href' => '', 'icon' => 'tree-pine'],
+                ['id' => 'industry-commercial-cleaning', 'label' => 'Commercial Cleaning', 'href' => '/pages/industry-cleaning', 'icon' => 'brush-cleaning'],
+                ['id' => 'industry-construction', 'label' => 'Construction & Contractors', 'href' => '', 'icon' => 'construction'],
+                ['id' => 'industry-electrical', 'label' => 'Electrical Contractor', 'href' => '/pages/industry-electrical', 'icon' => 'plug-zap'],
+                ['id' => 'industry-hvac', 'label' => 'HVAC', 'href' => '/pages/industry-hvac', 'icon' => 'fan'],
+                ['id' => 'industry-handyman', 'label' => 'Handyman', 'href' => '', 'icon' => 'wrench'],
+                ['id' => 'industry-landscaping', 'label' => 'Landscaping', 'href' => '', 'icon' => 'shovel'],
+                ['id' => 'industry-lawn-care', 'label' => 'Lawn Care', 'href' => '', 'icon' => 'leaf'],
+                ['id' => 'industry-painting', 'label' => 'Painting', 'href' => '', 'icon' => 'paint-roller'],
+                ['id' => 'industry-plumbing', 'label' => 'Plumbing', 'href' => '/pages/industry-plumbing', 'icon' => 'shower-head'],
+                ['id' => 'industry-residential-cleaning', 'label' => 'Residential Cleaning', 'href' => '/pages/industry-cleaning', 'icon' => 'sparkles'],
+                ['id' => 'industry-roofing', 'label' => 'Roofing', 'href' => '', 'icon' => 'house'],
             ],
         ];
     }
