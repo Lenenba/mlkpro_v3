@@ -10,9 +10,9 @@ use App\Models\Plan;
 use App\Models\PlanPrice;
 use App\Models\PlatformSetting;
 use App\Models\User;
-use Illuminate\Support\Collection;
 use App\Support\CurrencyFormatter;
 use App\Support\PlanDisplay;
+use Illuminate\Support\Collection;
 
 class BillingPlanService
 {

@@ -39,8 +39,7 @@ class CreateStripeSubscriptionForTenant
         string $planCode,
         int $quantity = 1,
         BillingPeriod|string|null $billingPeriod = null
-    ): ?StripeSubscription
-    {
+    ): ?StripeSubscription {
         $planPrice = app(ResolvePlanPriceForTenant::class)->execute(
             $tenant,
             $planCode,
@@ -60,8 +59,7 @@ class CreateStripeSubscriptionForTenant
         bool $comped = false,
         int $quantity = 1,
         BillingPeriod|string|null $billingPeriod = null
-    ): ?StripeSubscription
-    {
+    ): ?StripeSubscription {
         $planPrice = app(ResolvePlanPriceForTenant::class)->execute(
             $tenant,
             $planCode,

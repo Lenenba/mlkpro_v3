@@ -970,8 +970,7 @@ class StripeBillingService
     private function promotionDiscountsPayloadForSubscription(
         ?StripeSubscription $local,
         BillingPeriod|string|null $billingPeriod = null
-    ): ?array
-    {
+    ): ?array {
         $targetBillingPeriod = $billingPeriod ?? $local?->billing_period;
         $activeDiscounts = $this->promotionDiscountsPayload($targetBillingPeriod);
         if ($activeDiscounts !== null) {

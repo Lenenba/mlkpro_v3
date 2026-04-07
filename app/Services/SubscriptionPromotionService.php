@@ -281,8 +281,7 @@ class SubscriptionPromotionService
         ?SubscriptionPromotion $promotion,
         bool $isDiscounted,
         BillingPeriod|string|null $billingPeriod = null
-    ): array
-    {
+    ): array {
         return [
             'is_active' => $promotion !== null && $isDiscounted,
             'discount_percent' => $promotion ? $this->discountPercentForPromotion($promotion, $billingPeriod) : null,
