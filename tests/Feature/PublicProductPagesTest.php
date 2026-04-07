@@ -80,15 +80,10 @@ it('seeds industries and contact us in the public header', function () {
         'Contact us',
     ]);
 
-    $industryShowcase = $industries['columns'][0]['blocks'][0]['payload']['items'][0] ?? null;
-
     expect($industries)->not->toBeNull();
-    expect($industries['panel_type'])->toBe('mega');
-    expect($industries['columns'])->toHaveCount(1);
-    expect($industries['columns'][0]['blocks'][0]['type'])->toBe('product_showcase');
-    expect($industries['columns'][0]['blocks'][0]['payload']['items'])->toHaveCount(6);
-    expect($industryShowcase)->not->toBeNull();
-    expect($industryShowcase['href'])->toBe('/pages/industry-plumbing');
+    expect($industries['panel_type'])->toBe('link');
+    expect($industries['resolved_href'])->toBe('/#industries');
+    expect($industries['columns'])->toHaveCount(0);
     expect($contact)->not->toBeNull();
     expect($contact['resolved_href'])->toBe('/pages/contact-us');
 

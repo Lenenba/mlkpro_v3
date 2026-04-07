@@ -500,3 +500,96 @@ it('renders translated mega menu fields for the active locale', function () {
     expect($menu['items'][0]['columns'][0]['blocks'][0]['payload']['links'][0]['label'])->toBe('Pricing');
     expect($menu['items'][0]['columns'][0]['blocks'][0]['payload']['links'][0]['badge'])->toBe('Popular');
 });
+
+it('preserves canonical product showcase links when localized payload snapshots are stale', function () {
+    $user = megaMenuTestUser();
+    $service = app(MegaMenuManagerService::class);
+
+    $service->create(megaMenuPayload([
+        'slug' => 'stale-showcase-header',
+        'status' => 'active',
+        'items' => [
+            [
+                'label' => 'Produits & Services',
+                'description' => 'Catalogue complet',
+                'link_type' => 'none',
+                'link_target' => '_self',
+                'panel_type' => 'mega',
+                'icon' => 'grid',
+                'is_visible' => true,
+                'settings' => [
+                    'translations' => [
+                        'en' => [
+                            'label' => 'Products & Services',
+                        ],
+                    ],
+                ],
+                'columns' => [
+                    [
+                        'title' => 'Primaire',
+                        'width' => '1fr',
+                        'settings' => [
+                            'alignment' => 'start',
+                            'background_color' => '',
+                        ],
+                        'blocks' => [
+                            [
+                                'type' => 'product_showcase',
+                                'title' => 'Produits & Services',
+                                'settings' => [
+                                    'tone' => 'default',
+                                    'show_border' => false,
+                                ],
+                                'payload' => [
+                                    'title' => 'Produits & Services',
+                                    'description' => 'Survolez un produit pour voir l interface.',
+                                    'items' => [
+                                        [
+                                            'label' => 'Sales & CRM',
+                                            'href' => '/pages/sales-crm',
+                                            'note' => 'Requests, quotes, customers, and pipelines.',
+                                            'badge' => 'Popular',
+                                            'summary' => 'Capture demand, qualify opportunities, and move faster from first request to approved quote.',
+                                            'target' => '_self',
+                                            'image_url' => '/images/landing/stock/desk-phone-laptop.jpg',
+                                            'image_alt' => 'Sales lead working from a desk with phone and laptop',
+                                            'image_title' => 'Sales and CRM',
+                                        ],
+                                    ],
+                                    'translations' => [
+                                        'en' => [
+                                            'title' => 'Products & Services',
+                                            'description' => 'Hover a product to preview the interface.',
+                                            'items' => [
+                                                [
+                                                    'label' => 'Sales & CRM',
+                                                    'href' => '/pricing#sales-crm',
+                                                    'note' => 'Requests, quotes, customers, and pipelines.',
+                                                    'badge' => 'Popular',
+                                                    'summary' => 'Capture demand, qualify opportunities, and convert faster from one workspace.',
+                                                    'target' => '_self',
+                                                    'image_url' => '',
+                                                    'image_alt' => '',
+                                                    'image_title' => '',
+                                                ],
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]), $user->id);
+
+    app()->setLocale('en');
+
+    $menu = app(MegaMenuRenderer::class)->resolveBySlug('stale-showcase-header');
+    $item = $menu['items'][0]['columns'][0]['blocks'][0]['payload']['items'][0];
+
+    expect($item['href'])->toBe('/pages/sales-crm');
+    expect($item['image_url'])->toBe('/images/landing/stock/desk-phone-laptop.jpg');
+    expect($item['summary'])->toBe('Capture demand, qualify opportunities, and convert faster from one workspace.');
+});

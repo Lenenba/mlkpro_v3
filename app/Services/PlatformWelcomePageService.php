@@ -235,6 +235,15 @@ class PlatformWelcomePageService
             $userId
         );
         $orderedSections[] = $this->createSection(
+            'Welcome Industries',
+            'industry_grid',
+            [
+                'fr' => $this->defaultIndustryGridSection('fr'),
+                'en' => $this->defaultIndustryGridSection('en'),
+            ],
+            $userId
+        );
+        $orderedSections[] = $this->createSection(
             'Welcome Features',
             'welcome_features',
             [
@@ -310,7 +319,7 @@ class PlatformWelcomePageService
                     $content = $sectionContentService->resolveForLocale($section, $locale);
 
                     return [
-                        'id' => 'welcome-section-'.($index + 1),
+                        'id' => $this->pageSectionIdForSource($section, $index),
                         'enabled' => $section->is_active,
                         'source_id' => $section->id,
                         'use_source' => true,
@@ -343,6 +352,15 @@ class PlatformWelcomePageService
             ],
             'updated_by' => $userId,
         ]);
+    }
+
+    private function pageSectionIdForSource(PlatformSection $section, int $index): string
+    {
+        if ($section->type === 'industry_grid' && $section->name === 'Welcome Industries') {
+            return 'industries';
+        }
+
+        return 'welcome-section-'.($index + 1);
     }
 
     private function mapHeroSection(array $legacy): array
@@ -644,6 +662,57 @@ class PlatformWelcomePageService
                     'image_url' => $boostProfitsImage['image_url'],
                     'image_alt' => $boostProfitsImage['image_alt'],
                 ],
+            ],
+        ];
+    }
+
+    private function defaultIndustryGridSection(string $locale): array
+    {
+        if ($locale === 'fr') {
+            return [
+                'layout' => 'industry_grid',
+                'background_color' => '#f7f2e8',
+                'alignment' => 'center',
+                'density' => 'normal',
+                'tone' => 'default',
+                'title' => 'Fier partenaire des pros du service dans plus de 50 industries.',
+                'industry_cards' => [
+                    ['id' => 'industry-arborists', 'label' => 'Arboristes', 'href' => '', 'icon' => 'tree-pine'],
+                    ['id' => 'industry-commercial-cleaning', 'label' => 'Nettoyage commercial', 'href' => '/pages/industry-cleaning', 'icon' => 'brush-cleaning'],
+                    ['id' => 'industry-construction', 'label' => 'Construction & entrepreneurs', 'href' => '', 'icon' => 'construction'],
+                    ['id' => 'industry-electrical', 'label' => 'Entrepreneur electrique', 'href' => '/pages/industry-electrical', 'icon' => 'plug-zap'],
+                    ['id' => 'industry-hvac', 'label' => 'HVAC', 'href' => '/pages/industry-hvac', 'icon' => 'fan'],
+                    ['id' => 'industry-handyman', 'label' => 'Homme a tout faire', 'href' => '', 'icon' => 'wrench'],
+                    ['id' => 'industry-landscaping', 'label' => 'Amenagement paysager', 'href' => '', 'icon' => 'shovel'],
+                    ['id' => 'industry-lawn-care', 'label' => 'Entretien de pelouse', 'href' => '', 'icon' => 'leaf'],
+                    ['id' => 'industry-painting', 'label' => 'Peinture', 'href' => '', 'icon' => 'paint-roller'],
+                    ['id' => 'industry-plumbing', 'label' => 'Plomberie', 'href' => '/pages/industry-plumbing', 'icon' => 'shower-head'],
+                    ['id' => 'industry-residential-cleaning', 'label' => 'Nettoyage residentiel', 'href' => '/pages/industry-cleaning', 'icon' => 'sparkles'],
+                    ['id' => 'industry-roofing', 'label' => 'Toiture', 'href' => '', 'icon' => 'house'],
+                ],
+            ];
+        }
+
+        return [
+            'layout' => 'industry_grid',
+            'background_color' => '#f7f2e8',
+            'alignment' => 'center',
+            'density' => 'normal',
+            'tone' => 'default',
+            'title' => 'Proud partner to service pros in over 50 industries.',
+            'industry_cards' => [
+                ['id' => 'industry-arborists', 'label' => 'Arborists', 'href' => '', 'icon' => 'tree-pine'],
+                ['id' => 'industry-commercial-cleaning', 'label' => 'Commercial Cleaning', 'href' => '/pages/industry-cleaning', 'icon' => 'brush-cleaning'],
+                ['id' => 'industry-construction', 'label' => 'Construction & Contractors', 'href' => '', 'icon' => 'construction'],
+                ['id' => 'industry-electrical', 'label' => 'Electrical Contractor', 'href' => '/pages/industry-electrical', 'icon' => 'plug-zap'],
+                ['id' => 'industry-hvac', 'label' => 'HVAC', 'href' => '/pages/industry-hvac', 'icon' => 'fan'],
+                ['id' => 'industry-handyman', 'label' => 'Handyman', 'href' => '', 'icon' => 'wrench'],
+                ['id' => 'industry-landscaping', 'label' => 'Landscaping', 'href' => '', 'icon' => 'shovel'],
+                ['id' => 'industry-lawn-care', 'label' => 'Lawn Care', 'href' => '', 'icon' => 'leaf'],
+                ['id' => 'industry-painting', 'label' => 'Painting', 'href' => '', 'icon' => 'paint-roller'],
+                ['id' => 'industry-plumbing', 'label' => 'Plumbing', 'href' => '/pages/industry-plumbing', 'icon' => 'shower-head'],
+                ['id' => 'industry-residential-cleaning', 'label' => 'Residential Cleaning', 'href' => '/pages/industry-cleaning', 'icon' => 'sparkles'],
+                ['id' => 'industry-roofing', 'label' => 'Roofing', 'href' => '', 'icon' => 'house'],
             ],
         ];
     }

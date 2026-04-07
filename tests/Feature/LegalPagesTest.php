@@ -48,6 +48,28 @@ test('welcome page exposes shared footer navigation props', function () {
     expect(PlatformPage::query()->where('slug', 'welcome')->exists())->toBeTrue();
 });
 
+test('welcome page includes the default industries grid section', function () {
+    $this->get(route('welcome'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Welcome')
+            ->where('welcomeContent.generic_sections', function ($sections) {
+                $industrySection = collect($sections)->firstWhere('id', 'industries');
+
+                return is_array($industrySection)
+                    && ($industrySection['layout'] ?? null) === 'industry_grid'
+                    && in_array(($industrySection['title'] ?? null), [
+                        'Fier partenaire des pros du service dans plus de 50 industries.',
+                        'Proud partner to service pros in over 50 industries.',
+                    ], true)
+                    && count($industrySection['industry_cards'] ?? []) === 12
+                    && collect($industrySection['industry_cards'] ?? [])->contains(function ($card) {
+                        return ($card['href'] ?? null) === '/pages/industry-plumbing';
+                    });
+            })
+        );
+});
+
 test('welcome page resolves reusable welcome sections from the page library', function () {
     $heroSection = PlatformSection::query()->create([
         'name' => 'Welcome Hero',

@@ -24,7 +24,7 @@ class MegaMenuSeeder extends Seeder
         );
 
         $productPages = $this->syncProductPages($userId);
-        $industryPages = $this->syncIndustryPages($userId);
+        $this->syncIndustryPages($userId);
         $solutionPages = $this->syncSolutionPages($userId);
         $contactPage = $this->upsertPage(
             slug: 'contact-us',
@@ -34,7 +34,7 @@ class MegaMenuSeeder extends Seeder
         );
         $manager = app(MegaMenuManagerService::class);
 
-        foreach ($this->menus($productPages, $industryPages, $solutionPages, $contactPage) as $payload) {
+        foreach ($this->menus($productPages, $solutionPages, $contactPage) as $payload) {
             $existing = MegaMenu::query()->where('slug', $payload['slug'])->first();
 
             if ($existing) {
@@ -49,25 +49,23 @@ class MegaMenuSeeder extends Seeder
 
     /**
      * @param  array<string, PlatformPage>  $productPages
-     * @param  array<string, PlatformPage>  $industryPages
      * @param  array<string, PlatformPage>  $solutionPages
      * @return array<int, array<string, mixed>>
      */
-    private function menus(array $productPages, array $industryPages, array $solutionPages, PlatformPage $contactPage): array
+    private function menus(array $productPages, array $solutionPages, PlatformPage $contactPage): array
     {
         return [
-            $this->mainHeaderMenu($productPages, $industryPages, $solutionPages, $contactPage),
+            $this->mainHeaderMenu($productPages, $solutionPages, $contactPage),
             $this->footerMenu(),
         ];
     }
 
     /**
      * @param  array<string, PlatformPage>  $productPages
-     * @param  array<string, PlatformPage>  $industryPages
      * @param  array<string, PlatformPage>  $solutionPages
      * @return array<string, mixed>
      */
-    private function mainHeaderMenu(array $productPages, array $industryPages, array $solutionPages, PlatformPage $contactPage): array
+    private function mainHeaderMenu(array $productPages, array $solutionPages, PlatformPage $contactPage): array
     {
         return [
             'slug' => 'main-header-menu',
@@ -88,7 +86,7 @@ class MegaMenuSeeder extends Seeder
                 $this->productsAndServicesItem($productPages),
                 $this->solutionsItem($solutionPages),
                 $this->pricingItem(),
-                $this->industriesItem($industryPages),
+                $this->industriesItem(),
                 $this->contactItem($contactPage),
             ],
         ];
@@ -962,96 +960,29 @@ class MegaMenuSeeder extends Seeder
     /**
      * @return array<string, mixed>
      */
-    private function industriesItem(array $industryPages): array
+    private function industriesItem(): array
     {
         return [
             'label' => 'Industries',
-            'description' => 'Decouvrez des parcours adaptes a chaque metier.',
-            'link_type' => 'none',
+            'description' => 'Parcourez les industries desservies.',
+            'link_type' => 'internal_page',
+            'link_value' => '/#industries',
             'link_target' => '_self',
-            'panel_type' => 'mega',
+            'panel_type' => 'link',
             'icon' => 'briefcase-business',
             'is_visible' => true,
             'settings' => [
-                'eyebrow' => 'Metiers',
-                'note' => 'Decouvrez des parcours adaptes a chaque metier.',
+                'eyebrow' => 'Industries',
+                'note' => 'Parcourez les industries desservies.',
                 'highlight_color' => '#0f766e',
                 'translations' => [
                     'en' => [
                         'label' => 'Industries',
-                        'description' => 'Explore workflows tailored to each trade.',
+                        'description' => 'Browse the industries we support.',
                         'eyebrow' => 'Industries',
-                        'note' => 'Explore workflows tailored to each trade.',
+                        'note' => 'Browse the industries we support.',
                     ],
                 ],
-            ],
-            'columns' => [
-                $this->column('', '1fr', [
-                    $this->productShowcaseBlock(
-                        'Industries',
-                        'Industries',
-                        'Survolez un metier pour voir le parcours type avant d ouvrir sa page dediee.',
-                        'Hover an industry to preview the typical workflow before opening its dedicated page.',
-                        [
-                            $this->showcaseProduct(
-                                'Plomberie',
-                                $this->pagePath($industryPages['plumbing']),
-                                'De la demande au paiement pour les equipes de plomberie.',
-                                'Show how plumbing teams can move from request intake to field work and payment with one connected operating system.',
-                                $this->stockImage('industry-plumbing', 'en')['image_url'],
-                                $this->stockImage('industry-plumbing', 'en')['image_alt'],
-                                'Plumbing',
-                                'Trades'
-                            ),
-                            $this->showcaseProduct(
-                                'HVAC / Climatisation',
-                                $this->pagePath($industryPages['hvac']),
-                                'Planning, jobs terrain et facturation pour les equipes HVAC.',
-                                'Give HVAC teams one clearer flow for urgent calls, scheduled maintenance, field execution, and billing.',
-                                $this->stockImage('industry-hvac', 'en')['image_url'],
-                                $this->stockImage('industry-hvac', 'en')['image_alt'],
-                                'HVAC / Cooling'
-                            ),
-                            $this->showcaseProduct(
-                                'Electricite',
-                                $this->pagePath($industryPages['electrical']),
-                                'Interventions, devis et preuve de travail pour les electriciens.',
-                                'Frame quoting, field interventions, and proof of work around the real day-to-day needs of electrical teams.',
-                                $this->stockImage('industry-electrical', 'en')['image_url'],
-                                $this->stockImage('industry-electrical', 'en')['image_alt'],
-                                'Electrical'
-                            ),
-                            $this->showcaseProduct(
-                                'Nettoyage',
-                                $this->pagePath($industryPages['cleaning']),
-                                'Tournees recurrents, equipe et satisfaction client.',
-                                'Organize recurring routes, team coordination, and quality follow-up in a workflow built for cleaning businesses.',
-                                $this->stockImage('industry-cleaning', 'en')['image_url'],
-                                $this->stockImage('industry-cleaning', 'en')['image_alt'],
-                                'Cleaning'
-                            ),
-                            $this->showcaseProduct(
-                                'Salon & beaute',
-                                $this->pagePath($industryPages['salon-beauty']),
-                                'Reservations, no-show fees, fidelite et experience VIP.',
-                                'Connect appointments, no-show protection, loyalty, and premium customer experience for salon teams.',
-                                $this->stockImage('industry-salon-beauty', 'en')['image_url'],
-                                $this->stockImage('industry-salon-beauty', 'en')['image_alt'],
-                                'Salon & beauty',
-                                'Hospitality'
-                            ),
-                            $this->showcaseProduct(
-                                'Restaurant',
-                                $this->pagePath($industryPages['restaurant']),
-                                'Reservations, file d\'attente, check-in et experience salle.',
-                                'Clarify how reservations, waitlist flow, check-in, and front-of-house coordination fit together for restaurants.',
-                                $this->stockImage('industry-restaurant', 'en')['image_url'],
-                                $this->stockImage('industry-restaurant', 'en')['image_alt'],
-                                'Restaurant'
-                            ),
-                        ]
-                    ),
-                ]),
             ],
         ];
     }

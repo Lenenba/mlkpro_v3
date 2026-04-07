@@ -175,7 +175,7 @@ class MegaMenuRenderer
      */
     private function mapBlock(MegaMenuBlock $block): array
     {
-        $payload = $this->resolveLocalizedPayload(is_array($block->payload) ? $block->payload : []);
+        $payload = $this->resolveLocalizedPayload($block->type, is_array($block->payload) ? $block->payload : []);
         $settings = is_array($block->settings) ? $block->settings : [];
         $translations = $this->translationBuckets($settings);
 
@@ -378,7 +378,7 @@ class MegaMenuRenderer
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
-    private function resolveLocalizedPayload(array $payload): array
+    private function resolveLocalizedPayload(string $type, array $payload): array
     {
         $translations = is_array($payload['translations'] ?? null) ? $payload['translations'] : [];
         unset($payload['translations']);
@@ -387,7 +387,82 @@ class MegaMenuRenderer
             ?? $this->resolvePayloadTranslation($translations, self::DEFAULT_LOCALE)
             ?? [];
 
+        if ($localized === []) {
+            return $payload;
+        }
+
+        if ($type === 'product_showcase') {
+            return $this->mergeProductShowcasePayload($payload, $localized);
+        }
+
         return array_replace_recursive($payload, $localized);
+    }
+
+    /**
+     * @param  array<string, mixed>  $basePayload
+     * @param  array<string, mixed>  $localizedPayload
+     * @return array<string, mixed>
+     */
+    private function mergeProductShowcasePayload(array $basePayload, array $localizedPayload): array
+    {
+        $merged = array_replace_recursive($basePayload, $localizedPayload);
+        $baseItems = array_values(array_filter($basePayload['items'] ?? [], fn ($item) => is_array($item)));
+        $localizedItems = array_values(array_filter($localizedPayload['items'] ?? [], fn ($item) => is_array($item)));
+
+        if ($baseItems === []) {
+            return $merged;
+        }
+
+        $resolvedItems = [];
+
+        foreach ($baseItems as $index => $baseItem) {
+            $localizedItem = $localizedItems[$index] ?? [];
+            $resolvedItem = array_replace($baseItem, $localizedItem);
+
+            foreach (['href', 'target', 'image_url'] as $field) {
+                $resolvedItem[$field] = $this->preferBasePayloadValue(
+                    $baseItem[$field] ?? null,
+                    $localizedItem[$field] ?? null
+                );
+            }
+
+            foreach (['label', 'note', 'badge', 'summary', 'image_alt', 'image_title'] as $field) {
+                $resolvedItem[$field] = $this->preferLocalizedPayloadValue(
+                    $localizedItem[$field] ?? null,
+                    $baseItem[$field] ?? null
+                );
+            }
+
+            $resolvedItems[] = $resolvedItem;
+        }
+
+        if (count($localizedItems) > count($baseItems)) {
+            foreach (array_slice($localizedItems, count($baseItems)) as $localizedItem) {
+                $resolvedItems[] = $localizedItem;
+            }
+        }
+
+        $merged['items'] = $resolvedItems;
+
+        return $merged;
+    }
+
+    private function preferBasePayloadValue(mixed $baseValue, mixed $localizedValue): mixed
+    {
+        if (is_string($baseValue) && trim($baseValue) !== '') {
+            return $baseValue;
+        }
+
+        return $localizedValue;
+    }
+
+    private function preferLocalizedPayloadValue(mixed $localizedValue, mixed $baseValue): mixed
+    {
+        if (is_string($localizedValue) && trim($localizedValue) !== '') {
+            return $localizedValue;
+        }
+
+        return $baseValue;
     }
 
     /**

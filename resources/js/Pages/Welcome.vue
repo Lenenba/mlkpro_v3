@@ -123,25 +123,39 @@ const contactNavItem = computed(() => {
     };
 });
 
+const industriesNavItem = computed(() => ({
+    id: 'industries',
+    label: 'Industries',
+    href: '/#industries',
+    style: 'ghost',
+}));
+
 const navMenuWithContact = computed(() => {
     const items = [...navMenuItems.value];
+    const industries = industriesNavItem.value;
     const contact = contactNavItem.value;
-    if (!contact) {
-        return items;
-    }
-    const alreadyExists = items.some((item) => {
-        if (!item) {
-            return false;
+    const appendIfMissing = (candidate) => {
+        if (!candidate) {
+            return;
         }
-        if (item.id === contact.id) {
-            return true;
+        const alreadyExists = items.some((item) => {
+            if (!item) {
+                return false;
+            }
+            if (item.id === candidate.id) {
+                return true;
+            }
+            return resolveHref(item.href) === candidate.href;
+        });
+        if (!alreadyExists) {
+            items.unshift(candidate);
         }
-        return resolveHref(item.href) === contact.href;
-    });
-    if (alreadyExists) {
-        return items;
-    }
-    return [contact, ...items];
+    };
+
+    appendIfMissing(contact);
+    appendIfMissing(industries);
+
+    return items;
 });
 
 const headerMenuItems = computed(() =>
