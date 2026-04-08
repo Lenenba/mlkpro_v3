@@ -325,7 +325,7 @@ class BillingPlanService
 
     public function annualDiscountPercent(): int
     {
-        return max(0, min(100, (int) round((float) config('billing.annual_discount_percent', 20))));
+        return max(0, min(100, (int) round((float) config('billing.annual_discount_percent', 0))));
     }
 
     private function deriveYearlyAmount(float $monthlyAmount): float

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Enums\BillingMutationErrorCode;
 use App\Enums\BillingPeriod;
+use App\Http\Controllers\Concerns\InteractsWithBillingMutationResponses;
 use App\Http\Controllers\Controller;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
@@ -19,6 +21,8 @@ use Laravel\Paddle\Subscription;
 
 class SubscriptionController extends Controller
 {
+    use InteractsWithBillingMutationResponses;
+
     public function portal(Request $request)
     {
         $user = $request->user();
@@ -30,16 +34,17 @@ class SubscriptionController extends Controller
             $portalUrl = app(StripeBillingService::class)->createPortalSession($user, route('settings.billing.edit'));
             if (! $portalUrl) {
                 if ($this->shouldReturnJson($request)) {
-                    return response()->json([
-                        'message' => 'Unable to open Stripe customer portal.',
-                    ], 422);
+                    return $this->billingErrorResponse(
+                        'Unable to open Stripe customer portal.',
+                        BillingMutationErrorCode::PortalUnavailable
+                    );
                 }
 
                 return redirect()->back()->with('error', 'Unable to open Stripe customer portal.');
             }
 
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
+                return $this->billingActionResponse('requires_redirect', 'open_customer_portal', [
                     'url' => $portalUrl,
                 ]);
             }
@@ -58,9 +63,10 @@ class SubscriptionController extends Controller
         $subscription = $user->subscription(Subscription::DEFAULT_TYPE);
         if (! $subscription) {
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'No active subscription found.',
-                ], 422);
+                return $this->billingErrorResponse(
+                    'No active subscription found.',
+                    BillingMutationErrorCode::SubscriptionRequired
+                );
             }
 
             return redirect()->back()->with('error', 'No active subscription found.');
@@ -69,7 +75,7 @@ class SubscriptionController extends Controller
         $updateUrl = $subscription->paymentMethodUpdateUrl();
 
         if ($this->shouldReturnJson($request)) {
-            return response()->json([
+            return $this->billingActionResponse('requires_redirect', 'open_payment_method_update', [
                 'url' => $updateUrl,
             ]);
         }
@@ -88,16 +94,18 @@ class SubscriptionController extends Controller
             abort(403);
         }
         if (! $this->isPaddleProvider()) {
-            return response()->json([
-                'message' => 'Billing provider is not Paddle.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Billing provider is not Paddle.',
+                BillingMutationErrorCode::ProviderNotPaddle
+            );
         }
 
         $subscription = $user->subscription(Subscription::DEFAULT_TYPE);
         if (! $subscription) {
-            return response()->json([
-                'message' => 'No subscription found.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'No subscription found.',
+                BillingMutationErrorCode::SubscriptionRequired
+            );
         }
 
         try {
@@ -108,19 +116,23 @@ class SubscriptionController extends Controller
                 'exception' => $exception->getMessage(),
             ]);
 
-            return response()->json([
-                'message' => 'Unable to start payment method update.',
-            ], 500);
+            return $this->billingErrorResponse(
+                'Unable to start payment method update.',
+                BillingMutationErrorCode::PaymentMethodUpdateFailed,
+                500
+            );
         }
 
         $transactionId = $transaction['id'] ?? $transaction['transaction_id'] ?? null;
         if (! $transactionId) {
-            return response()->json([
-                'message' => 'Invalid Paddle transaction response.',
-            ], 500);
+            return $this->billingErrorResponse(
+                'Invalid Paddle transaction response.',
+                BillingMutationErrorCode::InvalidProviderResponse,
+                500
+            );
         }
 
-        return response()->json([
+        return $this->billingActionResponse('ready', 'present_payment_method_update', [
             'transaction_id' => $transactionId,
         ]);
     }
@@ -151,12 +163,16 @@ class SubscriptionController extends Controller
         $planKeys = $plans->pluck('key')->filter()->values()->all();
         if (! $priceIds) {
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'No subscription plans are configured.',
-                    'errors' => [
-                        'price_id' => ['No subscription plans are configured.'],
-                    ],
-                ], 422);
+                return $this->billingErrorResponse(
+                    'No subscription plans are configured.',
+                    BillingMutationErrorCode::PlansNotConfigured,
+                    422,
+                    [
+                        'errors' => [
+                            'price_id' => ['No subscription plans are configured.'],
+                        ],
+                    ]
+                );
             }
 
             return redirect()->back()->withErrors([
@@ -168,6 +184,8 @@ class SubscriptionController extends Controller
             'plan_key' => ['nullable', Rule::in($planKeys)],
             'price_id' => ['nullable', Rule::in($priceIds)],
             'billing_period' => ['nullable', Rule::in(BillingPeriod::values())],
+            'success_url' => 'nullable|string|max:2048',
+            'cancel_url' => 'nullable|string|max:2048',
         ]);
 
         $selectedBillingPeriod = BillingPeriod::default();
@@ -191,12 +209,16 @@ class SubscriptionController extends Controller
 
         if (! $selectedPriceId || ! $planKey) {
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Please choose a valid subscription plan.',
-                    'errors' => [
-                        'plan_key' => ['Please choose a valid subscription plan.'],
-                    ],
-                ], 422);
+                return $this->billingErrorResponse(
+                    'Please choose a valid subscription plan.',
+                    BillingMutationErrorCode::InvalidPlanSelection,
+                    422,
+                    [
+                        'errors' => [
+                            'plan_key' => ['Please choose a valid subscription plan.'],
+                        ],
+                    ]
+                );
             }
 
             return redirect()->back()->withErrors([
@@ -207,9 +229,10 @@ class SubscriptionController extends Controller
 
         if ($selectedPriceId && $currentPriceId === $selectedPriceId) {
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'You are already on this plan.',
-                ]);
+                return $this->billingNoopResponse(
+                    'You are already on this plan.',
+                    BillingMutationErrorCode::PlanUnchanged
+                );
             }
 
             return redirect()->back()->with('info', 'You are already on this plan.');
@@ -219,12 +242,16 @@ class SubscriptionController extends Controller
             $summary = $billingService->subscriptionSummary($user);
             if (! $summary['active']) {
                 if ($this->shouldReturnJson($request)) {
-                    return response()->json([
-                        'message' => 'You do not have an active subscription.',
-                        'errors' => [
-                            'price_id' => ['You do not have an active subscription.'],
-                        ],
-                    ], 422);
+                    return $this->billingErrorResponse(
+                        'You do not have an active subscription.',
+                        BillingMutationErrorCode::SubscriptionRequired,
+                        422,
+                        [
+                            'errors' => [
+                                'price_id' => ['You do not have an active subscription.'],
+                            ],
+                        ]
+                    );
                 }
 
                 return redirect()->back()->withErrors([
@@ -238,12 +265,16 @@ class SubscriptionController extends Controller
                     : [];
                 if ($eligibilityErrors !== []) {
                     if ($this->shouldReturnJson($request)) {
-                        return response()->json([
-                            'message' => $eligibilityErrors[0],
-                            'errors' => [
-                                'plan_key' => $eligibilityErrors,
-                            ],
-                        ], 422);
+                        return $this->billingErrorResponse(
+                            $eligibilityErrors[0],
+                            BillingMutationErrorCode::PlanRestricted,
+                            422,
+                            [
+                                'errors' => [
+                                    'plan_key' => $eligibilityErrors,
+                                ],
+                            ]
+                        );
                     }
 
                     return redirect()->back()->withErrors([
@@ -263,9 +294,11 @@ class SubscriptionController extends Controller
                 }
             } catch (\Throwable $exception) {
                 if ($this->shouldReturnJson($request)) {
-                    return response()->json([
-                        'message' => 'Unable to change plans right now.',
-                    ], 500);
+                    return $this->billingErrorResponse(
+                        'Unable to change plans right now.',
+                        BillingMutationErrorCode::MutationFailed,
+                        500
+                    );
                 }
 
                 return redirect()->back()->with('error', 'Unable to change plans right now.');
@@ -278,12 +311,16 @@ class SubscriptionController extends Controller
             $subscription = $user->subscription(Subscription::DEFAULT_TYPE);
             if (! $subscription || ! $subscription->active()) {
                 if ($this->shouldReturnJson($request)) {
-                    return response()->json([
-                        'message' => 'You do not have an active subscription.',
-                        'errors' => [
-                            'price_id' => ['You do not have an active subscription.'],
-                        ],
-                    ], 422);
+                    return $this->billingErrorResponse(
+                        'You do not have an active subscription.',
+                        BillingMutationErrorCode::SubscriptionRequired,
+                        422,
+                        [
+                            'errors' => [
+                                'price_id' => ['You do not have an active subscription.'],
+                            ],
+                        ]
+                    );
                 }
 
                 return redirect()->back()->withErrors([
@@ -295,9 +332,11 @@ class SubscriptionController extends Controller
                 $subscription->swap((string) $selectedPriceId);
             } catch (\Throwable $exception) {
                 if ($this->shouldReturnJson($request)) {
-                    return response()->json([
-                        'message' => 'Unable to change plans right now.',
-                    ], 500);
+                    return $this->billingErrorResponse(
+                        'Unable to change plans right now.',
+                        BillingMutationErrorCode::MutationFailed,
+                        500
+                    );
                 }
 
                 return redirect()->back()->with('error', 'Unable to change plans right now.');
@@ -320,10 +359,11 @@ class SubscriptionController extends Controller
         ]);
 
         if ($this->shouldReturnJson($request)) {
-            return response()->json([
+            return $this->billingActionResponse('success', 'subscription_updated', [
                 'message' => 'Plan updated.',
                 'plan_key' => $planKey,
                 'billing_period' => $selectedBillingPeriod->value,
+                'resolved_plan' => $this->buildResolvedPlanPayload($plan, $selectedBillingPeriod),
             ]);
         }
 
@@ -343,14 +383,16 @@ class SubscriptionController extends Controller
 
         $billingService = app(BillingSubscriptionService::class);
         if (! $billingService->isStripe()) {
-            return response()->json([
-                'message' => 'Billing provider is not Stripe.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Billing provider is not Stripe.',
+                BillingMutationErrorCode::ProviderNotStripe
+            );
         }
         if (! $billingService->providerReady()) {
-            return response()->json([
-                'message' => 'Stripe is not configured.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Stripe is not configured.',
+                BillingMutationErrorCode::ProviderNotConfigured
+            );
         }
 
         $plans = collect(app(BillingPlanService::class)->plansForTenant($user))
@@ -366,6 +408,8 @@ class SubscriptionController extends Controller
             'plan_key' => ['nullable', Rule::in($planKeys)],
             'price_id' => ['nullable', Rule::in($priceIds)],
             'billing_period' => ['nullable', Rule::in(BillingPeriod::values())],
+            'success_url' => 'nullable|string|max:2048',
+            'cancel_url' => 'nullable|string|max:2048',
         ]);
 
         $selection = $this->resolveStripePlanSelection($plans, $validated);
@@ -374,34 +418,48 @@ class SubscriptionController extends Controller
         $selectedPriceId = $selection['selected_price_id'];
 
         if (! $planKey || ! $selectedPriceId) {
-            return response()->json([
-                'message' => 'Please choose a valid subscription plan.',
-                'errors' => [
-                    'plan_key' => ['Please choose a valid subscription plan.'],
-                ],
-            ], 422);
+            return $this->billingErrorResponse(
+                'Please choose a valid subscription plan.',
+                BillingMutationErrorCode::InvalidPlanSelection,
+                422,
+                [
+                    'errors' => [
+                        'plan_key' => ['Please choose a valid subscription plan.'],
+                    ],
+                ]
+            );
         }
         $eligibilityErrors = $planKey
             ? $billingService->ownerOnlyPlanSelectionErrors($user, $planKey, (int) ($user->company_team_size ?? 0))
             : [];
 
         if ($eligibilityErrors !== []) {
-            return response()->json([
-                'message' => $eligibilityErrors[0],
-                'errors' => [
-                    'plan_key' => $eligibilityErrors,
-                ],
-            ], 422);
+            return $this->billingErrorResponse(
+                $eligibilityErrors[0],
+                BillingMutationErrorCode::PlanRestricted,
+                422,
+                [
+                    'errors' => [
+                        'plan_key' => $eligibilityErrors,
+                    ],
+                ]
+            );
         }
 
-        $successUrl = route('settings.billing.edit', array_filter([
-            'checkout' => 'success',
-            'plan' => $planKey,
-            'billing_period' => $selectedBillingPeriod->value,
-        ], fn ($value) => $value !== null && $value !== ''));
-        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?').'session_id={CHECKOUT_SESSION_ID}';
+        $successUrl = $this->resolveRequestedReturnUrl(
+            $validated['success_url'] ?? null,
+            route('settings.billing.edit', array_filter([
+                'checkout' => 'success',
+                'plan' => $planKey,
+                'billing_period' => $selectedBillingPeriod->value,
+            ], fn ($value) => $value !== null && $value !== ''))
+        );
+        $successUrl = $this->appendQueryParameterIfMissing($successUrl, 'session_id', '{CHECKOUT_SESSION_ID}');
 
-        $cancelUrl = route('settings.billing.edit', ['checkout' => 'cancel']);
+        $cancelUrl = $this->resolveRequestedReturnUrl(
+            $validated['cancel_url'] ?? null,
+            route('settings.billing.edit', ['checkout' => 'cancel'])
+        );
 
         try {
             $seatQuantity = $billingService->resolveBillableQuantity($user, $planKey);
@@ -421,19 +479,28 @@ class SubscriptionController extends Controller
                 'message' => $exception->getMessage(),
             ]);
 
-            return response()->json([
-                'message' => $exception->getMessage() ?: 'Unable to start Stripe checkout.',
-            ], 500);
+            return $this->billingErrorResponse(
+                $exception->getMessage() ?: 'Unable to start Stripe checkout.',
+                BillingMutationErrorCode::MutationFailed,
+                500
+            );
         }
 
         if (empty($session['url'])) {
-            return response()->json([
-                'message' => 'Stripe checkout did not return a URL.',
-            ], 500);
+            return $this->billingErrorResponse(
+                'Stripe checkout did not return a URL.',
+                BillingMutationErrorCode::InvalidProviderResponse,
+                500
+            );
         }
 
-        return response()->json([
+        return $this->billingActionResponse('requires_redirect', 'open_checkout', [
             'url' => $session['url'],
+            'resolved_plan' => $this->buildResolvedPlanPayload($selection['plan'], $selectedBillingPeriod),
+            'return_urls' => [
+                'success_url' => $successUrl,
+                'cancel_url' => $cancelUrl,
+            ],
         ]);
     }
 
@@ -445,9 +512,10 @@ class SubscriptionController extends Controller
 
         $message = 'Billing provider is not Paddle.';
         if ($this->shouldReturnJson($request)) {
-            return response()->json([
-                'message' => $message,
-            ], 422);
+            return $this->billingErrorResponse(
+                $message,
+                BillingMutationErrorCode::ProviderNotPaddle
+            );
         }
 
         return redirect()->back()->with('error', $message);
@@ -505,6 +573,48 @@ class SubscriptionController extends Controller
             'plan_key' => $plan['key'] ?? null,
             'billing_period' => $selectedBillingPeriod,
             'selected_price_id' => $selectedPrice['stripe_price_id'] ?? null,
+            'selected_price' => $selectedPrice,
         ];
+    }
+
+    private function buildResolvedPlanPayload(?array $plan, BillingPeriod $billingPeriod): array
+    {
+        if (! is_array($plan)) {
+            return [
+                'plan_key' => null,
+                'billing_period' => $billingPeriod->value,
+                'currency_code' => null,
+                'promotion_discount_percent' => null,
+            ];
+        }
+
+        $selectedPrice = $plan['prices_by_period'][$billingPeriod->value] ?? null;
+        $promotionDiscountPercent = data_get($selectedPrice, 'promotion.discount_percent')
+            ?? data_get($plan, 'promotion.discount_percent');
+
+        return [
+            'plan_key' => $plan['key'] ?? null,
+            'billing_period' => $billingPeriod->value,
+            'currency_code' => data_get($selectedPrice, 'currency_code') ?? ($plan['currency_code'] ?? null),
+            'promotion_discount_percent' => is_numeric($promotionDiscountPercent)
+                ? (int) $promotionDiscountPercent
+                : null,
+        ];
+    }
+
+    private function resolveRequestedReturnUrl(?string $requestedUrl, string $fallbackUrl): string
+    {
+        $normalized = is_string($requestedUrl) ? trim($requestedUrl) : '';
+
+        return $normalized !== '' ? $normalized : $fallbackUrl;
+    }
+
+    private function appendQueryParameterIfMissing(string $url, string $key, string $value): string
+    {
+        if (str_contains($url, $key.'=')) {
+            return $url;
+        }
+
+        return $url.(str_contains($url, '?') ? '&' : '?').$key.'='.$value;
     }
 }

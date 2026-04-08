@@ -20,7 +20,7 @@ test('pricing page exposes all public plans and comparison sections', function (
             ->where('pricingCatalogs.solo.plans.1.onboarding_enabled', true)
             ->where('pricingCatalogs.solo.plans.1.prices_by_period.monthly.billing_period', 'monthly')
             ->where('pricingCatalogs.solo.plans.1.prices_by_period.yearly.billing_period', 'yearly')
-            ->where('pricingCatalogs.solo.plans.1.annual_discount_percent', 20)
+            ->where('pricingCatalogs.solo.plans.1.annual_discount_percent', 0)
             ->where('pricingCatalogs.solo.highlightedPlanKey', 'solo_pro')
             ->has('pricingCatalogs.solo.comparisonSections', 3)
             ->has('pricingCatalogs.solo.comparisonSections.0.rows', 6)

@@ -478,6 +478,7 @@ const displayedPricingForPlan = (plan) => planPricingForBillingDisplay(
 const yearlyPromotionActive = computed(() =>
     visiblePlanOptions.value.some((plan) => hasActiveSubscriptionPromotion(displayedPricingForPlan(plan)))
 );
+const hasCatalogYearlyDiscount = (plan) => Number(plan?.annual_discount_percent ?? 0) > 0;
 const resolvePlanIntervalLabel = () => (
     t(displayIntervalKeyForBillingPeriod(
         form.billing_period,
@@ -1004,7 +1005,9 @@ const closeTerms = () => {
                             <p v-if="form.billing_period === 'yearly'" class="mt-2 text-xs font-semibold text-green-700 dark:text-green-400">
                                 {{ yearlyPromotionActive
                                     ? $t('onboarding.plan.billed_yearly')
-                                    : $t('onboarding.plan.yearly_note', { percent: visiblePlanOptions[0]?.annual_discount_percent || 20 }) }}
+                                    : (hasCatalogYearlyDiscount(visiblePlanOptions[0])
+                                        ? $t('onboarding.plan.yearly_note', { percent: visiblePlanOptions[0]?.annual_discount_percent ?? 0 })
+                                        : $t('onboarding.plan.billed_yearly')) }}
                             </p>
                             <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
                                 {{ $t('onboarding.plan.trial_note', { date: trialEndLabel }) }}
@@ -1044,7 +1047,9 @@ const closeTerms = () => {
                                         <p v-if="form.billing_period === 'yearly' && !plan.contact_only" class="mt-2 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
                                             {{ hasActiveSubscriptionPromotion(displayedPricingForPlan(plan))
                                                 ? $t('onboarding.plan.billed_yearly')
-                                                : $t('onboarding.plan.yearly_note', { percent: plan.annual_discount_percent || 20 }) }}
+                                                : (hasCatalogYearlyDiscount(plan)
+                                                    ? $t('onboarding.plan.yearly_note', { percent: plan.annual_discount_percent ?? 0 })
+                                                    : $t('onboarding.plan.billed_yearly')) }}
                                         </p>
                                     </div>
                                     <span

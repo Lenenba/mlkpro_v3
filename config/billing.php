@@ -42,7 +42,7 @@ if ($billingReminderDays === []) {
 }
 $billingReminderTime = trim((string) env('BILLING_UPCOMING_REMINDERS_TIME', '09:00'));
 $billingReminderTime = preg_match('/^\d{2}:\d{2}$/', $billingReminderTime) ? $billingReminderTime : '09:00';
-$annualDiscountPercent = max(0, min(100, (float) env('BILLING_ANNUAL_DISCOUNT_PERCENT', 20)));
+$annualDiscountPercent = 0.0;
 $annualDiscountMultiplier = (100 - $annualDiscountPercent) / 100;
 $catalogPlanPrices = static function (string $planCode, array $monthlyPrices) use (
     $annualDiscountMultiplier,

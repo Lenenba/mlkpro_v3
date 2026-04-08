@@ -73,6 +73,11 @@ class OnboardingController extends Controller
         $selectedPlanKey = $this->requestedOnboardingPlanKey($request);
         $selectedBillingPeriod = $this->requestedOnboardingBillingPeriod($request);
         $user = $request->user();
+
+        if ($this->shouldReturnJson($request)) {
+            return $this->onboardingIndexJsonResponse($user, $selectedPlanKey, $selectedBillingPeriod);
+        }
+
         if (! $user) {
             return $this->inertiaOrJson('Onboarding/Index', [
                 'preset' => [
@@ -90,29 +95,8 @@ class OnboardingController extends Controller
             return $this->inertiaOrJson('Onboarding/PendingOwner', []);
         }
 
-        $companyLogo = null;
-        if ($user->company_logo) {
-            $path = $user->company_logo;
-            $companyLogo = str_starts_with($path, 'http://') || str_starts_with($path, 'https://')
-                ? $path
-                : Storage::disk('public')->url($path);
-        }
-
         return $this->inertiaOrJson('Onboarding/Index', [
-            'preset' => [
-                'company_name' => $user->company_name,
-                'company_logo' => $companyLogo,
-                'company_description' => $user->company_description,
-                'company_country' => $user->company_country,
-                'company_province' => $user->company_province,
-                'company_city' => $user->company_city,
-                'currency_code' => $user->businessCurrencyCode(),
-                'company_type' => $user->company_type,
-                'company_sector' => $user->company_sector,
-                'company_team_size' => $this->resolveInitialTeamSize($user->company_team_size, $selectedPlanKey),
-                'two_factor_method' => $user->two_factor_method,
-                'onboarding_completed_at' => $user->onboarding_completed_at,
-            ],
+            'preset' => $this->onboardingPresetForOwner($user, $selectedPlanKey),
             'plans' => $this->planOptions($user),
             'planLimits' => $this->planLimits(),
             'supportedCurrencies' => CurrencyCode::values(),
@@ -253,7 +237,9 @@ class OnboardingController extends Controller
         }
 
         if ($wasOnboarded) {
-            $request->session()->forget('onboarding_invites');
+            if ($request->hasSession()) {
+                $request->session()->forget('onboarding_invites');
+            }
             $messageParts = ['Onboarding completed.'];
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
@@ -265,7 +251,9 @@ class OnboardingController extends Controller
             return redirect()->route('dashboard')->with('success', implode(' ', $messageParts));
         }
 
-        $request->session()->put('onboarding_invites', $invites);
+        if ($request->hasSession()) {
+            $request->session()->put('onboarding_invites', $invites);
+        }
 
         if (! $requiresCheckout) {
             $message = $this->completeOnboarding($request, $accountOwner);
@@ -294,9 +282,12 @@ class OnboardingController extends Controller
 
         if (! $user->isAccountOwner()) {
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Only the account owner can complete onboarding.',
-                ], 403);
+                return $this->onboardingBillingErrorResponse(
+                    $user,
+                    'Only the account owner can complete onboarding.',
+                    403,
+                    'forbidden'
+                );
             }
 
             return redirect()->route('dashboard')->with('error', 'Only the account owner can complete onboarding.');
@@ -305,9 +296,12 @@ class OnboardingController extends Controller
         $status = (string) $request->query('status');
         if ($status !== 'success') {
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Checkout canceled.',
-                ], 409);
+                return $this->onboardingBillingErrorResponse(
+                    $user,
+                    'Checkout canceled.',
+                    409,
+                    'canceled'
+                );
             }
 
             return redirect()->route('onboarding.index')->with('error', 'Checkout canceled.');
@@ -318,9 +312,11 @@ class OnboardingController extends Controller
             $sessionId = (string) $request->query('session_id');
             if ($sessionId === '') {
                 if ($this->shouldReturnJson($request)) {
-                    return response()->json([
-                        'message' => 'Checkout session is missing.',
-                    ], 422);
+                    return $this->onboardingBillingErrorResponse(
+                        $user,
+                        'Checkout session is missing.',
+                        422
+                    );
                 }
 
                 return redirect()->route('onboarding.index')->with('error', 'Checkout session is missing.');
@@ -331,9 +327,11 @@ class OnboardingController extends Controller
             } catch (\Throwable $exception) {
                 report($exception);
                 if ($this->shouldReturnJson($request)) {
-                    return response()->json([
-                        'message' => 'Unable to sync subscription.',
-                    ], 422);
+                    return $this->onboardingBillingErrorResponse(
+                        $user,
+                        'Unable to sync subscription.',
+                        422
+                    );
                 }
 
                 return redirect()->route('onboarding.index')->with('error', 'Unable to sync subscription.');
@@ -349,13 +347,118 @@ class OnboardingController extends Controller
         $message = $this->completeOnboarding($request, $user);
 
         if ($this->shouldReturnJson($request)) {
-            return response()->json([
-                'message' => $message,
-                'user' => $user->fresh(),
-            ]);
+            return $this->onboardingBillingSuccessResponse($user, $message);
         }
 
         return redirect()->route('dashboard')->with('success', $message);
+    }
+
+    private function onboardingIndexJsonResponse(?User $user, ?string $selectedPlanKey, BillingPeriod $selectedBillingPeriod)
+    {
+        $state = $this->onboardingApiState($user);
+        $canComplete = $user?->isAccountOwner() ?? false;
+        $requiresCheckout = $canComplete && ! (bool) $user?->onboarding_completed_at
+            ? $this->requiresCheckoutForOnboarding()
+            : false;
+
+        $baseResponse = [
+            'status' => $state,
+            'message' => $state === 'pending_owner'
+                ? 'Only the account owner can complete onboarding.'
+                : null,
+            'account' => [
+                'is_authenticated' => (bool) $user,
+                'is_owner' => $canComplete,
+                'onboarding_completed' => (bool) $user?->onboarding_completed_at,
+                'onboarding_completed_at' => $user?->onboarding_completed_at?->toIso8601String(),
+            ],
+            'onboarding' => [
+                'state' => $state,
+                'can_complete' => $canComplete,
+                'requires_checkout' => $requiresCheckout,
+                'selected_plan_key' => $selectedPlanKey,
+                'selected_billing_period' => $selectedBillingPeriod->value,
+                'supported_currencies' => CurrencyCode::values(),
+            ],
+        ];
+
+        if (! $canComplete) {
+            return response()->json(array_merge($baseResponse, [
+                'preset' => [],
+                'plans' => [],
+                'plan_limits' => [],
+            ]));
+        }
+
+        return response()->json(array_merge($baseResponse, [
+            'preset' => $this->onboardingPresetForOwner($user, $selectedPlanKey),
+            'plans' => $this->planOptions($user),
+            'plan_limits' => $this->planLimits(),
+        ]));
+    }
+
+    private function onboardingBillingSuccessResponse(User $user, string $message)
+    {
+        $freshUser = $user->fresh();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $message,
+            'onboarding_completed' => (bool) $freshUser?->onboarding_completed_at,
+            'user' => $freshUser,
+        ]);
+    }
+
+    private function onboardingBillingErrorResponse(
+        User $user,
+        string $message,
+        int $statusCode,
+        string $status = 'error'
+    ) {
+        return response()->json([
+            'status' => $status,
+            'message' => $message,
+            'onboarding_completed' => (bool) $user->onboarding_completed_at,
+        ], $statusCode);
+    }
+
+    private function onboardingApiState(?User $user): string
+    {
+        if (! $user) {
+            return 'guest';
+        }
+
+        if (! $user->isAccountOwner()) {
+            return 'pending_owner';
+        }
+
+        return $user->onboarding_completed_at ? 'completed' : 'ready';
+    }
+
+    private function onboardingPresetForOwner(User $user, ?string $selectedPlanKey): array
+    {
+        $companyLogo = null;
+        if ($user->company_logo) {
+            $path = $user->company_logo;
+            $companyLogo = str_starts_with($path, 'http://') || str_starts_with($path, 'https://')
+                ? $path
+                : Storage::disk('public')->url($path);
+        }
+
+        return [
+            'company_name' => $user->company_name,
+            'company_logo' => $companyLogo,
+            'company_description' => $user->company_description,
+            'company_country' => $user->company_country,
+            'company_province' => $user->company_province,
+            'company_city' => $user->company_city,
+            'currency_code' => $user->businessCurrencyCode(),
+            'company_type' => $user->company_type,
+            'company_sector' => $user->company_sector,
+            'company_team_size' => $this->resolveInitialTeamSize($user->company_team_size, $selectedPlanKey),
+            'two_factor_method' => $user->two_factor_method,
+            'onboarding_completed_at' => $user->onboarding_completed_at,
+        ];
     }
 
     private function seedSectorCategories(User $accountOwner, User $creator, ?string $sector): void
@@ -551,6 +654,13 @@ class OnboardingController extends Controller
 
     private function applyInvitesFromSession(Request $request, User $accountOwner): array
     {
+        if (! $request->hasSession()) {
+            return [
+                'passwords' => [],
+                'count' => 0,
+            ];
+        }
+
         $invites = $request->session()->pull('onboarding_invites', []);
         if (! is_array($invites) || $invites === []) {
             return [

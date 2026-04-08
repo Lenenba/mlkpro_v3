@@ -48,7 +48,7 @@ it('shows subscription promotion settings in the super admin settings form', fun
             ->where('subscription_promotion.monthly_stripe_coupon_id', 'coupon_promo_30')
             ->where('subscription_promotion.yearly_stripe_coupon_id', 'coupon_promo_45')
             ->where('promotion_discount_options', [20, 25, 30, 35, 40, 45, 50])
-            ->where('annual_discount_percent', 20)
+            ->where('annual_discount_percent', 0)
         );
 });
 

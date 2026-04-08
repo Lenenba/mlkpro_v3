@@ -637,7 +637,7 @@ const submitPromotion = () => {
                                 </p>
                                 <p>
                                     Base yearly billing reduction:
-                                    <span class="font-semibold">{{ props.annual_discount_percent }}%</span>
+                                    <span class="font-semibold">{{ props.annual_discount_percent > 0 ? `${props.annual_discount_percent}%` : 'None' }}</span>
                                 </p>
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
                                     Stripe coupons are created or reused automatically when you save.
