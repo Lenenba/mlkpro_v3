@@ -1,6 +1,9 @@
 <?php
 
+use App\Enums\BillingPeriod;
 use App\Models\Billing\StripeSubscription;
+use App\Models\Plan;
+use App\Models\PlanPrice;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,6 +26,21 @@ test('billing api returns a normalized mobile billing payload with stable sectio
             'assistant' => true,
         ],
     ]);
+    $soloProPlanId = Plan::query()->where('code', 'solo_pro')->value('id');
+    expect($soloProPlanId)->not->toBeNull();
+
+    PlanPrice::query()->updateOrCreate(
+        [
+            'plan_id' => $soloProPlanId,
+            'currency_code' => 'CAD',
+            'billing_period' => BillingPeriod::YEARLY->value,
+        ],
+        [
+            'amount' => '720.00',
+            'stripe_price_id' => 'price_billing_api_123',
+            'is_active' => true,
+        ]
+    );
 
     StripeSubscription::query()->create([
         'user_id' => $owner->id,
