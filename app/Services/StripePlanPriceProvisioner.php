@@ -100,6 +100,10 @@ class StripePlanPriceProvisioner
                 'action' => 'BASE',
             ];
 
+            $monthlyAmountsByCurrency = [
+                'CAD' => $baseAmount,
+            ];
+
             $existingPrices = array_values(array_filter($activePrices, function ($price) use ($productId): bool {
                 return $price instanceof Price && $this->productIdFor($price) === $productId;
             }));
@@ -108,16 +112,24 @@ class StripePlanPriceProvisioner
                 $currencyCode = $priceDefinition['currency_code'];
                 $billingPeriod = $this->normalizeBillingPeriod($priceDefinition['billing_period'] ?? null);
                 $envKey = $priceDefinition['env_key'];
-                $amount = (float) $priceDefinition['amount'];
+                $amount = $this->targetAmountForDefinition(
+                    $priceDefinition,
+                    $currencyCode,
+                    $billingPeriod,
+                    $monthlyAmountsByCurrency,
+                );
                 $unitAmount = (int) round($amount * 100);
                 $configuredPriceId = $priceDefinition['configured_price_id'];
+
+                if ($billingPeriod === BillingPeriod::MONTHLY) {
+                    $monthlyAmountsByCurrency[$currencyCode] = $amount;
+                }
 
                 $price = $this->resolveExistingConfiguredPrice(
                     $client,
                     $configuredPriceId,
                     $productId,
                     $currencyCode,
-                    $unitAmount,
                     $billingPeriod,
                 );
 
@@ -185,6 +197,11 @@ class StripePlanPriceProvisioner
                 }
 
                 $resolvedAmount = $this->normalizeStripeAmount($price);
+
+                if ($billingPeriod === BillingPeriod::MONTHLY) {
+                    $monthlyAmountsByCurrency[$currencyCode] = $resolvedAmount;
+                }
+
                 $this->addResolvedEnvValues(
                     $resolved,
                     $planCode,
@@ -285,6 +302,26 @@ class StripePlanPriceProvisioner
         return $price instanceof Price ? $price : null;
     }
 
+    private function targetAmountForDefinition(
+        array $priceDefinition,
+        string $currencyCode,
+        BillingPeriod $billingPeriod,
+        array $monthlyAmountsByCurrency,
+    ): float {
+        $configuredAmount = round((float) ($priceDefinition['amount'] ?? 0), 2);
+
+        if ($billingPeriod !== BillingPeriod::YEARLY) {
+            return $configuredAmount;
+        }
+
+        $monthlyAmount = $monthlyAmountsByCurrency[$currencyCode] ?? null;
+        if (! is_numeric($monthlyAmount)) {
+            return $configuredAmount;
+        }
+
+        return round(((float) $monthlyAmount) * 12, 2);
+    }
+
     protected function loadProduct(StripeClient $client, string $productId): Product
     {
         try {
@@ -314,7 +351,6 @@ class StripePlanPriceProvisioner
         ?string $configuredPriceId,
         string $productId,
         string $currencyCode,
-        int $unitAmount,
         BillingPeriod|string|null $billingPeriod = null,
     ): ?Price {
         if (! $configuredPriceId) {
@@ -330,13 +366,11 @@ class StripePlanPriceProvisioner
         $priceProductId = is_string($price->product) ? $price->product : ($price->product->id ?? null);
         $priceCurrency = strtoupper((string) ($price->currency ?? ''));
         $priceInterval = $price->recurring->interval ?? null;
-        $priceUnitAmount = (int) ($price->unit_amount ?? -1);
 
         if (
             $priceProductId !== $productId ||
             $priceCurrency !== $currencyCode ||
-            $priceInterval !== $this->stripeIntervalFor($billingPeriod) ||
-            $priceUnitAmount !== $unitAmount
+            $priceInterval !== $this->stripeIntervalFor($billingPeriod)
         ) {
             return null;
         }
@@ -359,7 +393,6 @@ class StripePlanPriceProvisioner
         foreach ($prices as $price) {
             $priceCurrency = strtoupper((string) ($price->currency ?? ''));
             $priceInterval = $price->recurring->interval ?? null;
-            $priceUnitAmount = (int) ($price->unit_amount ?? -1);
 
             if ($priceCurrency !== $currencyCode) {
                 continue;
@@ -369,30 +402,18 @@ class StripePlanPriceProvisioner
                 continue;
             }
 
-            if ($priceUnitAmount !== $unitAmount) {
-                continue;
-            }
-
             $matches[] = $price;
         }
 
-        if ($matches === []) {
-            return null;
-        }
-
-        if (count($matches) > 1) {
-            throw new RuntimeException(sprintf(
-                'Multiple active %s Stripe prices matched plan [%s] currency [%s] on Stripe product [%s] for %.2f. Configure [%s] or remove duplicate prices in Stripe.',
-                $this->periodLabel($billingPeriod),
-                $planCode,
-                $currencyCode,
-                $productId,
-                $unitAmount / 100,
-                $envKey,
-            ));
-        }
-
-        return $matches[0];
+        return $this->selectCatalogMatch(
+            $matches,
+            $planCode,
+            $currencyCode,
+            $billingPeriod,
+            $unitAmount,
+            sprintf('the Stripe product [%s]', $productId),
+            $envKey,
+        );
     }
 
     private function findMatchingCatalogPrice(
@@ -488,6 +509,10 @@ class StripePlanPriceProvisioner
             return null;
         }
 
+        if (count($matches) === 1) {
+            return $matches[0];
+        }
+
         $amountMatches = array_values(array_filter($matches, function (Price $price) use ($unitAmount): bool {
             return (int) ($price->unit_amount ?? -1) === $unitAmount;
         }));
@@ -508,29 +533,12 @@ class StripePlanPriceProvisioner
             ));
         }
 
-        if (count($matches) === 1) {
-            $existing = $matches[0];
-
-            throw new RuntimeException(sprintf(
-                'Found an active %s Stripe price [%s] for plan [%s] currency [%s] using %s, but its amount is %.2f instead of %.2f. Refusing to create a duplicate. Update [%s] or run billing:stripe-sync-env to adopt the existing Stripe catalog.',
-                $this->periodLabel($billingPeriod),
-                $existing->id,
-                $planCode,
-                $currencyCode,
-                $reason,
-                $this->normalizeStripeAmount($existing),
-                $unitAmount / 100,
-                $envKey,
-            ));
-        }
-
         throw new RuntimeException(sprintf(
-            'Multiple active %s Stripe prices matched plan [%s] currency [%s] using %s, but none matched %.2f. Refusing to create a duplicate. Configure [%s] or clean up the Stripe catalog first.',
+            'Multiple active %s Stripe prices matched plan [%s] currency [%s] using %s. Configure [%s] or clean up the Stripe catalog first.',
             $this->periodLabel($billingPeriod),
             $planCode,
             $currencyCode,
             $reason,
-            $unitAmount / 100,
             $envKey,
         ));
     }

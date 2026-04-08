@@ -149,7 +149,7 @@ it('reuses an identifiable yearly plan price from the existing Stripe catalog be
             provisionerFakePrice([
                 'id' => 'price_solo_essential_cad_yearly_existing',
                 'currency' => 'cad',
-                'unit_amount' => 28800,
+                'unit_amount' => 36000,
                 'product' => 'prod_solo_yearly',
                 'recurring' => [
                     'interval' => 'year',
@@ -185,7 +185,7 @@ it('reuses an identifiable yearly plan price from the existing Stripe catalog be
         ->and($service->createdPayloads)->toBe([]);
 });
 
-it('fails clearly when an identifiable existing plan price has a different amount instead of creating a duplicate', function () {
+it('adopts an identifiable existing Stripe price even when its amount differs from local config', function () {
     config()->set('services.stripe.secret', 'sk_test_sync_123');
     config()->set('billing.plans', [
         'solo_essential' => [
@@ -243,13 +243,76 @@ it('fails clearly when an identifiable existing plan price has a different amoun
         ],
     );
 
-    $run = fn () => $service->execute([
+    $result = $service->execute([
         'plans' => ['solo_essential'],
     ]);
 
-    expect($run)->toThrow(
-        RuntimeException::class,
-        'Refusing to create a duplicate'
+    expect(array_column($result['items'], 'action'))->toBe([
+        'BASE',
+        'REUSED',
+    ])
+        ->and($result['items'][1]['stripe_price_id'])->toBe('price_solo_essential_cad_yearly_existing')
+        ->and($result['items'][1]['amount'])->toBe(234.0)
+        ->and($result['resolved'])->toMatchArray([
+            'STRIPE_PRICE_SOLO_ESSENTIAL_CAD_YEARLY' => 'price_solo_essential_cad_yearly_existing',
+            'STRIPE_PRICE_SOLO_ESSENTIAL_CAD_YEARLY_AMOUNT' => '234.00',
+        ])
+        ->and($service->createdPayloads)->toBe([]);
+});
+
+it('derives yearly target amounts from the resolved monthly Stripe amount before creating new prices', function () {
+    config()->set('services.stripe.secret', 'sk_test_sync_123');
+    config()->set('billing.plans', [
+        'solo_essential' => [
+            'name' => 'Solo Essential',
+            'audience' => 'solo',
+        ],
+    ]);
+    config()->set('billing.catalog_defaults', [
+        'solo_essential' => [
+            'contact_only' => false,
+            'prices' => [
+                'CAD' => [
+                    'monthly' => [
+                        'amount' => 19,
+                        'stripe_price_id' => 'price_solo_essential_cad_monthly',
+                    ],
+                    'yearly' => [
+                        'amount' => 182.40,
+                        'stripe_price_id' => null,
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $service = new FakeStripePlanPriceProvisionerForTest(
+        [
+            provisionerFakePrice([
+                'id' => 'price_solo_essential_cad_monthly',
+                'currency' => 'cad',
+                'unit_amount' => 4000,
+                'product' => 'prod_solo_monthly',
+            ]),
+        ],
+        [
+            'prod_solo_monthly' => provisionerFakeProduct([
+                'id' => 'prod_solo_monthly',
+                'name' => 'Solo Essential',
+            ]),
+        ],
     );
-    expect($service->createdPayloads)->toBe([]);
+
+    $result = $service->execute([
+        'plans' => ['solo_essential'],
+        'dry_run' => true,
+    ]);
+
+    expect($result['items'])->toHaveCount(2)
+        ->and($result['items'][0]['action'])->toBe('BASE')
+        ->and($result['items'][0]['amount'])->toBe(40.0)
+        ->and($result['items'][1]['action'])->toBe('WOULD CREATE')
+        ->and($result['items'][1]['billing_period'])->toBe('yearly')
+        ->and($result['items'][1]['amount'])->toBe(480.0)
+        ->and($service->createdPayloads)->toBe([]);
 });
