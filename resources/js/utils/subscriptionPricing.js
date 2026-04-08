@@ -78,16 +78,24 @@ export const planPricingForBillingDisplay = (plan, billingPeriod = 'monthly', fa
         monthlyReferencePricing?.original_amount
         ?? monthlyReferencePricing?.amount
     );
+    const yearlyBaseOriginalAmount = toNumeric(
+        yearlyDisplayPricing?.original_amount
+        ?? yearlyDisplayPricing?.amount
+    );
+    const promotionActive = hasActiveSubscriptionPromotion(yearlyDisplayPricing);
 
-    if (monthlyReferenceOriginalAmount === null) {
+    if (monthlyReferenceOriginalAmount === null && yearlyBaseOriginalAmount === null) {
         return yearlyDisplayPricing;
     }
 
     const currencyCode = yearlyDisplayPricing?.currency_code
         || monthlyReferencePricing?.currency_code
         || null;
+    const referenceOriginalAmount = promotionActive
+        ? (yearlyBaseOriginalAmount ?? monthlyReferenceOriginalAmount)
+        : (monthlyReferenceOriginalAmount ?? yearlyBaseOriginalAmount);
     const originalDisplayPrice = formatDisplayPrice(
-        monthlyReferenceOriginalAmount,
+        referenceOriginalAmount,
         currencyCode,
         monthlyReferencePricing?.original_display_price
             || monthlyReferencePricing?.display_price
@@ -99,7 +107,7 @@ export const planPricingForBillingDisplay = (plan, billingPeriod = 'monthly', fa
 
     return {
         ...yearlyDisplayPricing,
-        original_amount: toFixedAmount(monthlyReferenceOriginalAmount),
+        original_amount: toFixedAmount(referenceOriginalAmount),
         original_display_price: originalDisplayPrice,
         is_discounted: Boolean(
             originalDisplayPrice

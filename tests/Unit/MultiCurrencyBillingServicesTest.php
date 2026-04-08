@@ -136,12 +136,15 @@ it('resolves the active plan price for the tenant currency', function () {
 it('exposes monthly and yearly price options for billing plan catalogs', function () {
     $plans = collect(app(BillingPlanService::class)->plansForCurrency('CAD'))->keyBy('key');
     $starter = $plans->get('starter');
+    $monthlyAmount = (float) ($starter['prices_by_period']['monthly']['amount'] ?? 0);
+    $yearlyAmount = (float) ($starter['prices_by_period']['yearly']['amount'] ?? 0);
 
     expect($starter)->not->toBeNull()
         ->and($starter['prices_by_period']['monthly']['billing_period'])->toBe(BillingPeriod::MONTHLY->value)
         ->and($starter['prices_by_period']['yearly']['billing_period'])->toBe(BillingPeriod::YEARLY->value)
         ->and($starter['prices_by_currency']['USD']['yearly']['billing_period'])->toBe(BillingPeriod::YEARLY->value)
-        ->and($starter['annual_discount_percent'])->toBe(20);
+        ->and($starter['annual_discount_percent'])->toBe(0)
+        ->and($yearlyAmount)->toBe(round($monthlyAmount * 12, 2));
 });
 
 it('marks solo plans as owner-only and bills a single seat for them', function () {

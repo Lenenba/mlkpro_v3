@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Enums\BillingMutationErrorCode;
+use App\Http\Controllers\Concerns\InteractsWithBillingMutationResponses;
 use App\Http\Controllers\Controller;
 use App\Models\AssistantUsage;
 use App\Models\LoyaltyProgram;
 use App\Models\PlatformSetting;
+use App\Models\User;
 use App\Services\AssistantCreditService;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
@@ -26,6 +29,8 @@ use Stripe\Exception\ApiErrorException;
 
 class BillingSettingsController extends Controller
 {
+    use InteractsWithBillingMutationResponses;
+
     private const AVAILABLE_METHODS = [
         ['id' => 'cash', 'name' => 'Cash'],
         ['id' => 'card', 'name' => 'Card'],
@@ -236,7 +241,7 @@ class BillingSettingsController extends Controller
             );
         }
 
-        return $this->inertiaOrJson('Settings/Billing', [
+        $pageProps = [
             'billing' => [
                 'provider' => $providerRequested,
                 'provider_effective' => $providerEffective,
@@ -245,7 +250,7 @@ class BillingSettingsController extends Controller
                 'tenant_currency_code' => $user->businessCurrencyCode(),
                 'is_paddle' => $isPaddleProvider,
                 'support_phone' => config('app.support_phone'),
-                'annual_discount_percent' => (int) round((float) config('billing.annual_discount_percent', 20)),
+                'annual_discount_percent' => (int) round((float) config('billing.annual_discount_percent', 0)),
             ],
             'availableMethods' => self::AVAILABLE_METHODS,
             'paymentMethods' => $paymentMethodsResolved['enabled_methods_internal'],
@@ -304,7 +309,13 @@ class BillingSettingsController extends Controller
                 'requirements' => $user->stripe_connect_requirements ?? [],
                 'fee_percent' => (float) config('services.stripe.connect_fee_percent', 1.5),
             ],
-        ]);
+        ];
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json($this->buildApiBillingPayload($pageProps, $user));
+        }
+
+        return inertia('Settings/Billing', $pageProps);
     }
 
     public function updateAssistantAddon(Request $request)
@@ -320,41 +331,46 @@ class BillingSettingsController extends Controller
 
         $billingService = app(BillingSubscriptionService::class);
         if (! $billingService->isStripe()) {
-            return response()->json([
-                'message' => 'Assistant IA indisponible pour ce fournisseur.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Assistant IA indisponible pour ce fournisseur.',
+                BillingMutationErrorCode::AssistantUnavailableForProvider
+            );
         }
 
         $planModules = app(CompanyFeatureService::class)->resolvePlanModules();
         $planKey = $billingService->resolvePlanKey($user, $planModules);
         $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
         if ($assistantIncluded) {
-            return response()->json([
-                'message' => 'Assistant IA deja inclus dans votre plan.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Assistant IA deja inclus dans votre plan.',
+                BillingMutationErrorCode::AssistantAlreadyIncluded
+            );
         }
 
         $creditPack = (int) config('services.stripe.ai_credit_pack', 0);
         $creditConfigured = (bool) config('services.stripe.ai_credit_price') && $creditPack > 0;
         $usageConfigured = (bool) config('services.stripe.ai_usage_price');
         if (! $creditConfigured && ! $usageConfigured) {
-            return response()->json([
-                'message' => 'Assistant IA non configure.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Assistant IA non configure.',
+                BillingMutationErrorCode::AssistantNotConfigured
+            );
         }
 
         $subscriptionSummary = $billingService->subscriptionSummary($user);
         if (empty($subscriptionSummary['price_id'])) {
-            return response()->json([
-                'message' => 'Aucun abonnement actif.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Aucun abonnement actif.',
+                BillingMutationErrorCode::SubscriptionRequired
+            );
         }
 
         $stripeBilling = app(StripeBillingService::class);
         if (! $stripeBilling->isConfigured()) {
-            return response()->json([
-                'message' => 'Stripe n\'est pas configure.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Stripe n\'est pas configure.',
+                BillingMutationErrorCode::StripeNotConfigured
+            );
         }
 
         $features = (array) ($user->company_features ?? []);
@@ -363,9 +379,10 @@ class BillingSettingsController extends Controller
             if ($useUsageAddon) {
                 $subscription = $stripeBilling->enableAssistantAddon($user);
                 if (! $subscription) {
-                    return response()->json([
-                        'message' => 'Impossible d\'activer l\'Assistant IA.',
-                    ], 422);
+                    return $this->billingErrorResponse(
+                        'Impossible d\'activer l\'Assistant IA.',
+                        BillingMutationErrorCode::AssistantAddonUpdateFailed
+                    );
                 }
             }
             $features['assistant'] = true;
@@ -381,7 +398,7 @@ class BillingSettingsController extends Controller
         ]);
 
         if ($this->shouldReturnJson($request)) {
-            return response()->json([
+            return $this->billingActionResponse('success', 'assistant_addon_updated', [
                 'message' => 'Assistant IA mis a jour.',
                 'enabled' => (bool) $features['assistant'],
             ]);
@@ -399,70 +416,97 @@ class BillingSettingsController extends Controller
 
         $validated = $request->validate([
             'packs' => 'nullable|integer|min:1|max:50',
+            'success_url' => 'nullable|string|max:2048',
+            'cancel_url' => 'nullable|string|max:2048',
         ]);
 
         $billingService = app(BillingSubscriptionService::class);
         if (! $billingService->isStripe()) {
-            return response()->json([
-                'message' => 'Assistant IA indisponible pour ce fournisseur.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Assistant IA indisponible pour ce fournisseur.',
+                BillingMutationErrorCode::AssistantUnavailableForProvider
+            );
         }
 
         $planModules = app(CompanyFeatureService::class)->resolvePlanModules();
         $planKey = $billingService->resolvePlanKey($user, $planModules);
         $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
         if ($assistantIncluded) {
-            return response()->json([
-                'message' => 'Assistant IA deja inclus dans votre plan.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Assistant IA deja inclus dans votre plan.',
+                BillingMutationErrorCode::AssistantAlreadyIncluded
+            );
         }
 
         if (! $user->hasCompanyFeature('assistant')) {
-            return response()->json([
-                'message' => 'Activez l option IA avant d acheter des credits.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Activez l option IA avant d acheter des credits.',
+                BillingMutationErrorCode::AssistantActivationRequired
+            );
         }
 
         if (! config('services.stripe.ai_credit_price')) {
-            return response()->json([
-                'message' => 'Prix de credits IA manquant.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Prix de credits IA manquant.',
+                BillingMutationErrorCode::AssistantCreditPriceMissing
+            );
         }
 
         $packSize = (int) config('services.stripe.ai_credit_pack', 0);
         if ($packSize <= 0) {
-            return response()->json([
-                'message' => 'Pack de credits IA non configure.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Pack de credits IA non configure.',
+                BillingMutationErrorCode::AssistantCreditPackMissing
+            );
         }
 
         $subscriptionSummary = $billingService->subscriptionSummary($user);
         if (empty($subscriptionSummary['price_id'])) {
-            return response()->json([
-                'message' => 'Aucun abonnement actif.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Aucun abonnement actif.',
+                BillingMutationErrorCode::SubscriptionRequired
+            );
         }
 
         $stripeBilling = app(StripeBillingService::class);
         if (! $stripeBilling->isConfigured()) {
-            return response()->json([
-                'message' => 'Stripe n\'est pas configure.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Stripe n\'est pas configure.',
+                BillingMutationErrorCode::StripeNotConfigured
+            );
         }
 
         $packs = (int) ($validated['packs'] ?? 1);
-        $successUrl = route('settings.billing.edit', ['credits' => 'success']);
-        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?').'session_id={CHECKOUT_SESSION_ID}';
-        $cancelUrl = route('settings.billing.edit', ['credits' => 'cancel']);
+        $successUrl = $this->resolveRequestedReturnUrl(
+            $validated['success_url'] ?? null,
+            route('settings.billing.edit', ['credits' => 'success'])
+        );
+        $successUrl = $this->appendQueryParameterIfMissing($successUrl, 'session_id', '{CHECKOUT_SESSION_ID}');
+        $cancelUrl = $this->resolveRequestedReturnUrl(
+            $validated['cancel_url'] ?? null,
+            route('settings.billing.edit', ['credits' => 'cancel'])
+        );
 
         $session = $stripeBilling->createAssistantCreditCheckoutSession($user, $packs, $successUrl, $cancelUrl);
         if (empty($session['url'])) {
-            return response()->json([
-                'message' => 'Impossible de demarrer le checkout credits.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Impossible de demarrer le checkout credits.',
+                BillingMutationErrorCode::AssistantCheckoutFailed
+            );
         }
 
-        return response()->json(['url' => $session['url']]);
+        return $this->billingActionResponse('requires_redirect', 'open_checkout', [
+            'url' => $session['url'],
+            'credits' => [
+                'pack_count' => $packs,
+                'pack_size' => $packSize,
+                'total_credits' => $packs * $packSize,
+            ],
+            'return_urls' => [
+                'success_url' => $successUrl,
+                'cancel_url' => $cancelUrl,
+            ],
+        ]);
     }
 
     public function connectStripe(Request $request)
@@ -474,9 +518,11 @@ class BillingSettingsController extends Controller
 
         $connectService = app(StripeConnectService::class);
         if (! $connectService->isEnabled()) {
-            return response()->json([
-                'message' => 'Stripe Connect is not configured.',
-            ], 400);
+            return $this->billingErrorResponse(
+                'Stripe Connect is not configured.',
+                BillingMutationErrorCode::StripeConnectNotConfigured,
+                400
+            );
         }
 
         $refreshUrl = route('settings.billing.edit', ['connect' => 'refresh']);
@@ -494,28 +540,36 @@ class BillingSettingsController extends Controller
                 'stripe_error_message' => $stripeError?->message,
             ]);
 
-            return response()->json([
-                'message' => $stripeError?->message ?: 'Unable to start Stripe Connect onboarding.',
-                'request_id' => $exception->getRequestId(),
-            ], 422);
+            return $this->billingErrorResponse(
+                $stripeError?->message ?: 'Unable to start Stripe Connect onboarding.',
+                BillingMutationErrorCode::StripeConnectOnboardingFailed,
+                422,
+                [
+                    'request_id' => $exception->getRequestId(),
+                ]
+            );
         } catch (\Throwable $exception) {
             Log::warning('Unable to start Stripe Connect onboarding.', [
                 'user_id' => $user->id,
                 'exception' => $exception->getMessage(),
             ]);
 
-            return response()->json([
-                'message' => $exception->getMessage() ?: 'Unable to start Stripe Connect onboarding.',
-            ], 422);
+            return $this->billingErrorResponse(
+                $exception->getMessage() ?: 'Unable to start Stripe Connect onboarding.',
+                BillingMutationErrorCode::StripeConnectOnboardingFailed
+            );
         }
 
         if (! $url) {
-            return response()->json([
-                'message' => 'Unable to start Stripe Connect onboarding.',
-            ], 422);
+            return $this->billingErrorResponse(
+                'Unable to start Stripe Connect onboarding.',
+                BillingMutationErrorCode::StripeConnectOnboardingFailed
+            );
         }
 
-        return response()->json(['url' => $url]);
+        return $this->billingActionResponse('requires_redirect', 'open_connect_onboarding', [
+            'url' => $url,
+        ]);
     }
 
     public function update(Request $request)
@@ -663,6 +717,148 @@ class BillingSettingsController extends Controller
         }
 
         return redirect()->back()->with('success', 'Payment settings updated.');
+    }
+
+    private function buildApiBillingPayload(array $pageProps, User $user): array
+    {
+        $subscription = is_array($pageProps['subscription'] ?? null) ? $pageProps['subscription'] : [];
+        $activePlanKey = is_string($pageProps['activePlanKey'] ?? null) ? $pageProps['activePlanKey'] : null;
+
+        return [
+            'status' => 'ok',
+            'billing' => $pageProps['billing'] ?? [],
+            'subscription' => $this->buildApiSubscriptionPayload($subscription, $activePlanKey),
+            'plan_catalog' => [
+                'plans' => $pageProps['plans'] ?? [],
+                'active_plan_key' => $activePlanKey,
+                'seat_quantity' => (int) ($pageProps['seatQuantity'] ?? 1),
+            ],
+            'capabilities' => $this->buildApiCapabilities($pageProps, $user),
+            'assistant' => $pageProps['assistantAddon'] ?? [],
+            'provider_details' => [
+                'paddle' => $pageProps['paddle'] ?? [],
+                'stripe_connect' => $pageProps['stripeConnect'] ?? [],
+            ],
+            'payment_methods' => $this->buildApiPaymentMethodsPayload($pageProps),
+            'loyalty' => $pageProps['loyaltyProgram'] ?? [],
+            'flow_state' => [
+                'checkout' => [
+                    'status' => $pageProps['checkoutStatus'] ?? null,
+                    'plan_key' => $pageProps['checkoutPlanKey'] ?? null,
+                    'billing_period' => $pageProps['checkoutBillingPeriod'] ?? null,
+                ],
+                'assistant_credits' => [
+                    'status' => $pageProps['creditStatus'] ?? null,
+                ],
+                'stripe_connect' => [
+                    'status' => $pageProps['connectStatus'] ?? null,
+                ],
+            ],
+        ];
+    }
+
+    private function buildApiSubscriptionPayload(array $subscription, ?string $activePlanKey): array
+    {
+        return array_merge($subscription, [
+            'plan_key' => $activePlanKey ?: ($subscription['plan_code'] ?? null),
+        ]);
+    }
+
+    private function buildApiPaymentMethodsPayload(array $pageProps): array
+    {
+        return [
+            'available_methods' => $pageProps['availableMethods'] ?? [],
+            'enabled_methods' => $pageProps['paymentMethods'] ?? [],
+            'default_method' => $pageProps['defaultPaymentMethod'] ?? null,
+            'cash_allowed_contexts' => $pageProps['cashAllowedContexts'] ?? [],
+            'settings' => $pageProps['paymentMethodSettings'] ?? [],
+            'tip_settings' => $pageProps['tipSettings'] ?? [],
+        ];
+    }
+
+    private function buildApiCapabilities(array $pageProps, User $user): array
+    {
+        $billing = is_array($pageProps['billing'] ?? null) ? $pageProps['billing'] : [];
+        $subscription = is_array($pageProps['subscription'] ?? null) ? $pageProps['subscription'] : [];
+        $assistant = is_array($pageProps['assistantAddon'] ?? null) ? $pageProps['assistantAddon'] : [];
+        $loyalty = is_array($pageProps['loyaltyProgram'] ?? null) ? $pageProps['loyaltyProgram'] : [];
+        $isStripe = ($billing['provider_effective'] ?? null) === 'stripe';
+        $providerReady = (bool) ($billing['provider_ready'] ?? false);
+        $hasActiveSubscription = (bool) ($subscription['active'] ?? false);
+        $hasCheckoutPlans = $this->hasCheckoutPlans($pageProps['plans'] ?? [], $isStripe);
+        $paddleApiEnabled = (bool) data_get($pageProps, 'paddle.api_enabled', false);
+        $canOpenPortal = $isStripe
+            ? ($providerReady && app(StripeBillingService::class)->isConfigured())
+            : ($paddleApiEnabled && $hasActiveSubscription);
+        $canUpdateBillingPaymentMethod = $canOpenPortal;
+        $assistantAddonAvailable = (bool) ($assistant['available'] ?? false);
+        $assistantIncluded = (bool) ($assistant['included'] ?? false);
+        $assistantCreditsEnabled = (bool) data_get($assistant, 'credits.enabled', false);
+        $assistantAddonEnabled = (bool) ($assistant['enabled'] ?? false);
+
+        return [
+            'can_checkout' => $isStripe && $providerReady && $hasCheckoutPlans,
+            'can_swap' => $hasActiveSubscription
+                && $hasCheckoutPlans
+                && (($isStripe && $providerReady) || (! $isStripe && $paddleApiEnabled)),
+            'can_open_portal' => $canOpenPortal,
+            'can_manage_payment_methods' => $canUpdateBillingPaymentMethod,
+            'can_update_store_payment_settings' => true,
+            'can_update_billing_payment_method' => $canUpdateBillingPaymentMethod,
+            'can_connect_stripe' => (bool) data_get($pageProps, 'stripeConnect.enabled', false),
+            'can_manage_assistant_addon' => $isStripe
+                && $providerReady
+                && $hasActiveSubscription
+                && $assistantAddonAvailable
+                && ! $assistantIncluded,
+            'can_buy_assistant_credits' => $assistantCreditsEnabled
+                && $assistantAddonEnabled
+                && $this->hasAssistantCreditCheckoutApiRoute(),
+            'can_configure_loyalty' => (bool) ($loyalty['feature_enabled'] ?? false),
+            'is_owner' => $user->isAccountOwner(),
+        ];
+    }
+
+    private function hasCheckoutPlans(array $plans, bool $isStripe): bool
+    {
+        return collect($plans)->contains(function (array $plan) use ($isStripe): bool {
+            if ((bool) ($plan['contact_only'] ?? false)) {
+                return false;
+            }
+
+            if ($isStripe) {
+                return collect($plan['prices_by_period'] ?? [])
+                    ->pluck('stripe_price_id')
+                    ->filter()
+                    ->isNotEmpty();
+            }
+
+            return ! empty($plan['price_id']);
+        });
+    }
+
+    private function hasAssistantCreditCheckoutApiRoute(): bool
+    {
+        return collect(app('router')->getRoutes())->contains(function ($route): bool {
+            return $route->uri() === 'api/v1/settings/billing/assistant-credits'
+                && in_array('POST', $route->methods(), true);
+        });
+    }
+
+    private function resolveRequestedReturnUrl(?string $requestedUrl, string $fallbackUrl): string
+    {
+        $normalized = is_string($requestedUrl) ? trim($requestedUrl) : '';
+
+        return $normalized !== '' ? $normalized : $fallbackUrl;
+    }
+
+    private function appendQueryParameterIfMissing(string $url, string $key, string $value): string
+    {
+        if (str_contains($url, $key.'=')) {
+            return $url;
+        }
+
+        return $url.(str_contains($url, '?') ? '&' : '?').$key.'='.$value;
     }
 
     private function resolvePlanDisplayPrice(array $plan, ?string $currencyCode = null): ?string

@@ -293,6 +293,11 @@ const displayPriceForBillingPeriod = (plan, billingPeriod = selectedBillingPerio
 const yearlyPromotionActive = computed(() =>
     availablePlanOptions.value.some((plan) => hasActiveSubscriptionPromotion(displayPriceForBillingPeriod(plan, 'yearly')))
 );
+const hasCatalogYearlyDiscount = (plan = null) => Number(
+    plan?.annual_discount_percent
+    ?? props.billing?.annual_discount_percent
+    ?? 0
+) > 0;
 const hasPlans = computed(() => props.plans.some((plan) => {
     if (plan?.contact_only) {
         return true;
@@ -1487,7 +1492,9 @@ watch(
                             <p v-if="selectedBillingPeriod === 'yearly'" class="mt-2 text-xs font-semibold text-green-700 dark:text-green-400">
                                 {{ yearlyPromotionActive
                                     ? $t('settings.billing.plan.billed_yearly')
-                                    : $t('settings.billing.plan.yearly_note', { percent: billing?.annual_discount_percent || 20 }) }}
+                                    : (hasCatalogYearlyDiscount()
+                                        ? $t('settings.billing.plan.yearly_note', { percent: props.billing?.annual_discount_percent ?? 0 })
+                                        : $t('settings.billing.plan.billed_yearly')) }}
                             </p>
                         </div>
                         <button
@@ -1582,7 +1589,9 @@ watch(
                                     <p v-if="currentSubscriptionBillingPeriod === 'yearly' && !displayedPlan.contact_only" class="plan-card__status">
                                         {{ hasActiveSubscriptionPromotion(displayPriceForBillingPeriod(displayedPlan, currentSubscriptionBillingPeriod))
                                             ? $t('settings.billing.plan.billed_yearly')
-                                            : $t('settings.billing.plan.yearly_note', { percent: billing?.annual_discount_percent || 20 }) }}
+                                            : (hasCatalogYearlyDiscount(displayedPlan)
+                                                ? $t('settings.billing.plan.yearly_note', { percent: displayedPlan?.annual_discount_percent ?? props.billing?.annual_discount_percent ?? 0 })
+                                                : $t('settings.billing.plan.billed_yearly')) }}
                                     </p>
                                     <p v-if="resolveTeamLimitLabel(displayedPlan)" class="plan-card__limit">
                                         {{ resolveTeamLimitLabel(displayedPlan) }}
@@ -1797,7 +1806,9 @@ watch(
                                         <p v-if="selectedBillingPeriod === 'yearly' && !recommendation.plan.contact_only" class="plan-card__status">
                                             {{ hasActiveSubscriptionPromotion(displayPriceForBillingPeriod(recommendation.plan, selectedBillingPeriod))
                                                 ? $t('settings.billing.plan.billed_yearly')
-                                                : $t('settings.billing.plan.yearly_note', { percent: billing?.annual_discount_percent || 20 }) }}
+                                                : (hasCatalogYearlyDiscount(recommendation.plan)
+                                                    ? $t('settings.billing.plan.yearly_note', { percent: recommendation.plan?.annual_discount_percent ?? props.billing?.annual_discount_percent ?? 0 })
+                                                    : $t('settings.billing.plan.billed_yearly')) }}
                                         </p>
                                         <p v-if="resolveTeamLimitLabel(recommendation.plan)" class="plan-card__limit">
                                             {{ resolveTeamLimitLabel(recommendation.plan) }}

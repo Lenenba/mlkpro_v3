@@ -150,6 +150,7 @@ const displayedPricing = (plan, billingPeriod = activeBillingPeriod.value) => pl
 const yearlyPromotionActive = computed(() =>
     plans.value.some((plan) => hasActiveSubscriptionPromotion(displayedPricing(plan, 'yearly')))
 );
+const hasCatalogYearlyDiscount = (plan) => Number(plan?.annual_discount_percent ?? 0) > 0;
 const resolvePriceInterval = (plan) => {
     if (plan?.contact_only) {
         return null;
@@ -257,7 +258,9 @@ const resolveTrialHref = (plan) => {
                             <p v-if="activeBillingPeriod === 'yearly'" class="public-pricing-cycle-switch__note">
                                 {{ yearlyPromotionActive
                                     ? $t('pricing.billing_cycle.billed_yearly')
-                                    : $t('pricing.billing_cycle.save_badge', { percent: plans[0]?.annual_discount_percent || 20 }) }}
+                                    : (hasCatalogYearlyDiscount(plans[0])
+                                        ? $t('pricing.billing_cycle.save_badge', { percent: plans[0]?.annual_discount_percent ?? 0 })
+                                        : $t('pricing.billing_cycle.billed_yearly')) }}
                             </p>
                         </div>
                     </div>
@@ -297,7 +300,9 @@ const resolveTrialHref = (plan) => {
                                 <p v-if="activeBillingPeriod === 'yearly' && !plan.contact_only" class="mt-1 text-xs font-medium text-emerald-700">
                                     {{ hasActiveSubscriptionPromotion(displayedPricing(plan))
                                         ? $t('pricing.billing_cycle.billed_yearly')
-                                        : $t('pricing.billing_cycle.yearly_note', { percent: plan.annual_discount_percent || 20 }) }}
+                                        : (hasCatalogYearlyDiscount(plan)
+                                            ? $t('pricing.billing_cycle.yearly_note', { percent: plan.annual_discount_percent ?? 0 })
+                                            : $t('pricing.billing_cycle.billed_yearly')) }}
                                 </p>
                             </div>
                             <ul v-if="resolveFeatures(plan).length" class="mt-4 space-y-2 text-sm text-stone-600">

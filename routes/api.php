@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Integration\InventoryController as IntegrationInventoryController;
 use App\Http\Controllers\Api\Integration\RequestController as IntegrationRequestController;
 use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
+use App\Http\Controllers\Api\PublicPricingController;
 use App\Http\Controllers\Api\PushTokenController;
 use App\Http\Controllers\Api\SuperAdmin\AdminController as SuperAdminAdminController;
 use App\Http\Controllers\Api\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
@@ -87,6 +88,7 @@ Route::name('api.')->group(function () {
     Route::post('stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
     Route::post('webhooks/campaigns/sms', [CampaignTrackingController::class, 'smsWebhook']);
     Route::post('webhooks/campaigns/email', [CampaignTrackingController::class, 'emailWebhook']);
+    Route::get('public/pricing', [PublicPricingController::class, 'index'])->name('public.pricing');
 
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
@@ -152,6 +154,7 @@ Route::name('api.')->group(function () {
 
         Route::get('onboarding', [OnboardingController::class, 'index']);
         Route::post('onboarding', [OnboardingController::class, 'store']);
+        Route::get('onboarding/billing', [OnboardingController::class, 'billing']);
 
         Route::middleware(EnsureOnboardingIsComplete::class)->group(function () {
             Route::get('dashboard', [DashboardController::class, 'index']);
@@ -180,6 +183,7 @@ Route::name('api.')->group(function () {
                 Route::post('billing/checkout', [SubscriptionController::class, 'checkout']);
                 Route::post('billing/connect', [BillingSettingsController::class, 'connectStripe']);
                 Route::post('billing/assistant-addon', [BillingSettingsController::class, 'updateAssistantAddon']);
+                Route::post('billing/assistant-credits', [BillingSettingsController::class, 'createAssistantCreditCheckout']);
                 Route::post('billing/swap', [SubscriptionController::class, 'swap']);
                 Route::post('billing/portal', [SubscriptionController::class, 'portal']);
                 Route::post('billing/payment-method', [SubscriptionController::class, 'paymentMethodTransaction']);
