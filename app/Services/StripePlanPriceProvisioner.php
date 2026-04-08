@@ -309,6 +309,22 @@ class StripePlanPriceProvisioner
         array $monthlyAmountsByCurrency,
     ): float {
         $configuredAmount = round((float) ($priceDefinition['amount'] ?? 0), 2);
+        $baseCurrency = strtoupper((string) config('billing.currency_conversion.base_currency', 'CAD'));
+
+        if ($billingPeriod === BillingPeriod::MONTHLY) {
+            if ($currencyCode === $baseCurrency) {
+                return $configuredAmount;
+            }
+
+            $baseAmount = $monthlyAmountsByCurrency[$baseCurrency] ?? null;
+            if (! is_numeric($baseAmount)) {
+                return $configuredAmount;
+            }
+
+            $convertedAmount = $this->convertBaseCurrencyAmount((float) $baseAmount, $currencyCode, $baseCurrency);
+
+            return $convertedAmount ?? $configuredAmount;
+        }
 
         if ($billingPeriod !== BillingPeriod::YEARLY) {
             return $configuredAmount;
@@ -320,6 +336,29 @@ class StripePlanPriceProvisioner
         }
 
         return round(((float) $monthlyAmount) * 12, 2);
+    }
+
+    private function convertBaseCurrencyAmount(
+        float $baseAmount,
+        string $currencyCode,
+        string $baseCurrency = 'CAD',
+    ): ?float {
+        $currencyCode = strtoupper(trim($currencyCode));
+        $baseCurrency = strtoupper(trim($baseCurrency));
+
+        if ($currencyCode === $baseCurrency) {
+            return round($baseAmount, 2);
+        }
+
+        $rate = config('billing.currency_conversion.rates.'.$currencyCode);
+        if (! is_numeric($rate) || (float) $rate <= 0) {
+            return null;
+        }
+
+        $increment = config('billing.currency_conversion.rounding_increments.'.$currencyCode, 0.01);
+        $increment = is_numeric($increment) && (float) $increment > 0 ? (float) $increment : 0.01;
+
+        return round(round(($baseAmount * (float) $rate) / $increment) * $increment, 2);
     }
 
     protected function loadProduct(StripeClient $client, string $productId): Product

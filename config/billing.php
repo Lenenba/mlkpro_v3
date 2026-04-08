@@ -44,19 +44,90 @@ $billingReminderTime = trim((string) env('BILLING_UPCOMING_REMINDERS_TIME', '09:
 $billingReminderTime = preg_match('/^\d{2}:\d{2}$/', $billingReminderTime) ? $billingReminderTime : '09:00';
 $annualDiscountPercent = 0.0;
 $annualDiscountMultiplier = (100 - $annualDiscountPercent) / 100;
+$billingBaseCurrency = strtoupper((string) $billingEnv('BILLING_BASE_CURRENCY', 'CAD'));
+if ($billingBaseCurrency === '') {
+    $billingBaseCurrency = 'CAD';
+}
+$currencyConversionRates = [
+    'CAD' => 1.0,
+    'EUR' => (float) $billingEnv('BILLING_CAD_TO_EUR_RATE', 0.6333333333),
+    'USD' => (float) $billingEnv('BILLING_CAD_TO_USD_RATE', 0.7333333333),
+];
+$currencyRoundingIncrements = [
+    'CAD' => (float) $billingEnv('BILLING_CURRENCY_INCREMENT_CAD', 0.01),
+    'EUR' => (float) $billingEnv('BILLING_CURRENCY_INCREMENT_EUR', 1.00),
+    'USD' => (float) $billingEnv('BILLING_CURRENCY_INCREMENT_USD', 1.00),
+];
+$roundBillingAmount = static function (float $amount, float $increment): float {
+    if ($increment <= 0) {
+        return round($amount, 2);
+    }
+
+    return round(round($amount / $increment) * $increment, 2);
+};
+$convertFromBaseCurrency = static function (float $baseAmount, string $currencyCode) use (
+    $billingBaseCurrency,
+    $currencyConversionRates,
+    $currencyRoundingIncrements,
+    $roundBillingAmount,
+): ?float {
+    $currencyCode = strtoupper(trim($currencyCode));
+
+    if ($currencyCode === $billingBaseCurrency) {
+        return round($baseAmount, 2);
+    }
+
+    $rate = $currencyConversionRates[$currencyCode] ?? null;
+    if (! is_numeric($rate) || (float) $rate <= 0) {
+        return null;
+    }
+
+    $increment = (float) ($currencyRoundingIncrements[$currencyCode] ?? 0.01);
+
+    return $roundBillingAmount($baseAmount * (float) $rate, $increment);
+};
 $catalogPlanPrices = static function (string $planCode, array $monthlyPrices) use (
+    $billingBaseCurrency,
     $annualDiscountMultiplier,
     $billingEnv,
+    $convertFromBaseCurrency,
 ): array {
     $planCode = strtoupper($planCode);
     $prices = [];
+    $baseDefinition = is_array($monthlyPrices[$billingBaseCurrency] ?? null) ? $monthlyPrices[$billingBaseCurrency] : [];
+    $baseEnvPrefix = 'STRIPE_PRICE_'.$planCode.'_'.$billingBaseCurrency;
+    $legacyPrefix = 'STRIPE_PRICE_'.$planCode;
+    $baseDefaultAmount = is_numeric($baseDefinition['amount'] ?? null)
+        ? (float) $baseDefinition['amount']
+        : 0.0;
+    $baseCurrencyAmount = (float) $billingEnv(
+        $baseEnvPrefix.'_AMOUNT',
+        $billingBaseCurrency === 'CAD'
+            ? $billingEnv($legacyPrefix.'_AMOUNT', $baseDefaultAmount)
+            : $baseDefaultAmount
+    );
 
     foreach ($monthlyPrices as $currencyCode => $definition) {
         $currencyCode = strtoupper((string) $currencyCode);
-        $monthlyAmount = (float) ($definition['amount'] ?? 0);
-        $yearlyDefault = round($monthlyAmount * 12 * $annualDiscountMultiplier, 2);
         $envPrefix = 'STRIPE_PRICE_'.$planCode.'_'.$currencyCode;
-        $legacyPrefix = 'STRIPE_PRICE_'.$planCode;
+        $defaultAmount = is_numeric($definition['amount'] ?? null)
+            ? (float) $definition['amount']
+            : null;
+        $resolvedMonthlyAmount = $billingEnv(
+            $envPrefix.'_AMOUNT',
+            $currencyCode === $billingBaseCurrency
+                ? ($billingBaseCurrency === 'CAD'
+                    ? $billingEnv($legacyPrefix.'_AMOUNT', $defaultAmount)
+                    : $defaultAmount)
+                : $defaultAmount
+        );
+
+        if ((! is_numeric($resolvedMonthlyAmount) || (float) $resolvedMonthlyAmount <= 0) && $baseCurrencyAmount > 0) {
+            $resolvedMonthlyAmount = $convertFromBaseCurrency($baseCurrencyAmount, $currencyCode);
+        }
+
+        $monthlyAmount = is_numeric($resolvedMonthlyAmount) ? (float) $resolvedMonthlyAmount : 0.0;
+        $yearlyDefault = round($monthlyAmount * 12 * $annualDiscountMultiplier, 2);
 
         $prices[$currencyCode] = [
             'monthly' => [
@@ -90,6 +161,11 @@ return [
     'provider_effective' => $providerEffective,
     'provider_ready' => $providerEffective === 'stripe' ? $stripeReady : true,
     'annual_discount_percent' => $annualDiscountPercent,
+    'currency_conversion' => [
+        'base_currency' => $billingBaseCurrency,
+        'rates' => $currencyConversionRates,
+        'rounding_increments' => $currencyRoundingIncrements,
+    ],
     'upcoming_reminders' => [
         'enabled' => filter_var(env('BILLING_UPCOMING_REMINDERS_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
         'days' => $billingReminderDays,
@@ -110,8 +186,8 @@ return [
             'contact_only' => false,
             'prices' => $catalogPlanPrices('solo_essential', [
                 'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_AMOUNT', 19)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_CAD', $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL'))],
-                'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_EUR_AMOUNT', 14), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_EUR')],
-                'USD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_USD_AMOUNT', 16), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_USD')],
+                'EUR' => ['stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_EUR')],
+                'USD' => ['stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_ESSENTIAL_USD')],
             ]),
         ],
         'solo_pro' => [
@@ -119,8 +195,8 @@ return [
             'contact_only' => false,
             'prices' => $catalogPlanPrices('solo_pro', [
                 'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_PRO_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_SOLO_PRO_AMOUNT', 39)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_PRO_CAD', $billingEnv('STRIPE_PRICE_SOLO_PRO'))],
-                'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_PRO_EUR_AMOUNT', 29), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_PRO_EUR')],
-                'USD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_PRO_USD_AMOUNT', 32), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_PRO_USD')],
+                'EUR' => ['stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_PRO_EUR')],
+                'USD' => ['stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_PRO_USD')],
             ]),
         ],
         'solo_growth' => [
@@ -128,8 +204,8 @@ return [
             'contact_only' => false,
             'prices' => $catalogPlanPrices('solo_growth', [
                 'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_SOLO_GROWTH_AMOUNT', 59)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_CAD', $billingEnv('STRIPE_PRICE_SOLO_GROWTH'))],
-                'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_EUR_AMOUNT', 43), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_EUR')],
-                'USD' => ['amount' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_USD_AMOUNT', 48), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_USD')],
+                'EUR' => ['stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_EUR')],
+                'USD' => ['stripe_price_id' => $billingEnv('STRIPE_PRICE_SOLO_GROWTH_USD')],
             ]),
         ],
         'starter' => [
@@ -137,8 +213,8 @@ return [
             'contact_only' => false,
             'prices' => $catalogPlanPrices('starter', [
                 'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_STARTER_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_STARTER_AMOUNT', 29)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_STARTER_CAD', $billingEnv('STRIPE_PRICE_STARTER'))],
-                'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_STARTER_EUR_AMOUNT', 21), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_STARTER_EUR')],
-                'USD' => ['amount' => $billingEnv('STRIPE_PRICE_STARTER_USD_AMOUNT', 24), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_STARTER_USD')],
+                'EUR' => ['stripe_price_id' => $billingEnv('STRIPE_PRICE_STARTER_EUR')],
+                'USD' => ['stripe_price_id' => $billingEnv('STRIPE_PRICE_STARTER_USD')],
             ]),
         ],
         'growth' => [
@@ -146,8 +222,8 @@ return [
             'contact_only' => false,
             'prices' => $catalogPlanPrices('growth', [
                 'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_GROWTH_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_GROWTH_AMOUNT', 79)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_GROWTH_CAD', $billingEnv('STRIPE_PRICE_GROWTH'))],
-                'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_GROWTH_EUR_AMOUNT', 57), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_GROWTH_EUR')],
-                'USD' => ['amount' => $billingEnv('STRIPE_PRICE_GROWTH_USD_AMOUNT', 64), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_GROWTH_USD')],
+                'EUR' => ['stripe_price_id' => $billingEnv('STRIPE_PRICE_GROWTH_EUR')],
+                'USD' => ['stripe_price_id' => $billingEnv('STRIPE_PRICE_GROWTH_USD')],
             ]),
         ],
         'scale' => [
@@ -155,8 +231,8 @@ return [
             'contact_only' => false,
             'prices' => $catalogPlanPrices('scale', [
                 'CAD' => ['amount' => $billingEnv('STRIPE_PRICE_SCALE_CAD_AMOUNT', $billingEnv('STRIPE_PRICE_SCALE_AMOUNT', 149)), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SCALE_CAD', $billingEnv('STRIPE_PRICE_SCALE'))],
-                'EUR' => ['amount' => $billingEnv('STRIPE_PRICE_SCALE_EUR_AMOUNT', 109), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SCALE_EUR')],
-                'USD' => ['amount' => $billingEnv('STRIPE_PRICE_SCALE_USD_AMOUNT', 119), 'stripe_price_id' => $billingEnv('STRIPE_PRICE_SCALE_USD')],
+                'EUR' => ['stripe_price_id' => $billingEnv('STRIPE_PRICE_SCALE_EUR')],
+                'USD' => ['stripe_price_id' => $billingEnv('STRIPE_PRICE_SCALE_USD')],
             ]),
         ],
         'enterprise' => [
