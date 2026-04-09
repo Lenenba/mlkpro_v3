@@ -54,62 +54,67 @@ class PublicProductPageNarratives
         return [
             self::featureTabsSection('sales-crm-flow', $locale, [
                 'background_color' => '#ffffff',
-                'kicker' => $isFrench ? 'Un systeme qui couvre tout le cycle client' : 'One system across the full customer journey',
-                'title' => $isFrench ? 'La solution tout-en-un pour les pros du service a domicile' : 'The all-in-one platform for home service teams',
+                'kicker' => $isFrench ? 'Un système sur tout le cycle commercial' : 'One system across the full sales workflow',
+                'title' => $isFrench ? 'Transformez la demande entrante en travail approuvé avec moins de friction' : 'Turn inbound demand into approved work with less friction',
                 'body' => $isFrench
-                    ? 'De la visibilite locale jusqu au paiement final, chaque etape reste dans un meme flux plutot que dans quatre outils separes.'
-                    : 'From local visibility to final payment, each step stays in one operating flow instead of being split across separate tools.',
+                    ? 'Sales & CRM garde la capture de demande, la qualification, le devis, le contexte client et le suivi commercial dans un même flux pour que l’équipe avance plus vite sans perdre la prochaine action.'
+                    : 'Sales & CRM keeps request capture, qualification, quoting, customer context, and follow-up connected so your team can move faster without losing track of the next step.',
                 'tabs' => [
                     [
-                        'label' => $isFrench ? 'Se faire remarquer' : 'Get Noticed',
+                        'label' => $isFrench ? 'Capter la demande' : 'Capture Demand',
                         'icon' => 'clipboard-check',
-                        'title' => '',
-                        'body' => '<p>&nbsp;</p>',
+                        'role' => $isFrench ? 'Acquisition et premier contact' : 'Acquisition and first response',
+                        'title' => $isFrench ? 'Facilitez l’entrée des bonnes demandes dans votre pipeline' : 'Make it easier for the right prospects to reach you',
+                        'body' => $isFrench
+                            ? 'Rassemblez formulaires, demandes web, avis et premiers messages dans une même couche d’acquisition pour que la demande arrive plus proprement et reste visible.'
+                            : 'Bring inbound forms, online requests, reviews, and first-response workflows into one connected intake layer so demand starts clean and visible.',
                         'story' => $isFrench
-                            ? 'Nous avons clarifie notre presence en ligne, automatise les suivis et augmente le volume de demandes qualifiees sans ajouter de friction.'
-                            : 'We clarified our online presence, automated follow-up, and increased qualified demand without adding friction.',
-                        'cta_label' => '',
+                            ? 'Les premiers échanges restent plus propres dès l’arrivée de la demande, ce qui facilite la qualification commerciale et réduit les pertes de contexte.'
+                            : 'The first interactions stay cleaner from the moment demand enters, which makes qualification easier and reduces context loss.',
+                        'metric' => $isFrench ? 'Une entrée plus claire dans le pipeline' : 'A cleaner entry into the pipeline',
+                        'person' => $isFrench ? 'Équipe acquisition' : 'Acquisition team',
+                        'cta_label' => $isFrench ? 'Explorer Marketing & Loyalty' : 'Explore Marketing & Loyalty',
                         'cta_href' => '/pages/marketing-loyalty',
                         'image_key' => 'marketing-desk',
                         'avatar_url' => '/images/presets/avatar-1.svg',
-                        'avatar_alt' => $isFrench ? 'Portrait equipe croissance' : 'Growth team portrait',
+                        'avatar_alt' => $isFrench ? 'Portrait équipe croissance' : 'Growth team portrait',
                         'children' => [
                             [
-                                'label' => $isFrench ? 'Demandes d avis' : 'Review requests',
-                                'title' => $isFrench ? 'Obtenez plus d avis sans relances manuelles' : 'Win more reviews without manual chasing',
+                                'label' => $isFrench ? 'Formulaires entrants' : 'Inbound forms',
+                                'title' => $isFrench ? 'Faites entrer la demande avec un meilleur niveau de détail' : 'Bring demand in with the right level of detail',
                                 'body' => $isFrench
-                                    ? 'Declenchez des demandes au bon moment et facilitez la collecte d avis pendant que l experience client est encore fraiche.'
-                                    : 'Trigger review requests at the right moment and make feedback collection easier while the customer experience is still fresh.',
-                                'cta_label' => $isFrench ? 'Voir les avis' : 'See reviews',
+                                    ? 'Centralisez les formulaires et demandes web pour éviter les pertes d’information dès le premier contact.'
+                                    : 'Centralize forms and web requests so less information gets lost from the first touch.',
+                                'cta_label' => $isFrench ? 'Voir la capture de demande' : 'See request capture',
                                 'cta_href' => '#',
                                 'image_key' => 'office-collaboration',
                             ],
                             [
-                                'label' => $isFrench ? 'Reponses rapides' : 'Quick responses',
-                                'title' => $isFrench ? 'Repondez plus vite aux nouvelles demandes' : 'Reply faster to new requests',
+                                'label' => $isFrench ? 'Premières réponses' : 'First responses',
+                                'title' => $isFrench ? 'Répondez plus vite aux nouvelles demandes' : 'Respond faster to new requests',
                                 'body' => $isFrench
-                                    ? 'Automatisez les messages d accueil et gardez un delai de reponse court pour montrer que votre entreprise est reactive.'
-                                    : 'Automate greeting messages and keep response times short so your business feels responsive from the first touch.',
-                                'cta_label' => $isFrench ? 'Voir la messagerie' : 'See messaging',
+                                    ? 'Gardez un premier délai de réponse court pour montrer une entreprise réactive dès les premiers échanges.'
+                                    : 'Keep first-response times short so your business feels responsive from the first interaction.',
+                                'cta_label' => $isFrench ? 'Voir la réponse rapide' : 'See fast response',
                                 'cta_href' => '#',
                                 'image_key' => 'desk-phone-laptop',
                             ],
                             [
-                                'label' => $isFrench ? 'Marketing automatise' : 'Automated marketing',
-                                'title' => $isFrench ? 'Restez visible sans campagnes compliquees' : 'Stay visible without complicated campaigns',
+                                'label' => $isFrench ? 'Avis et réputation' : 'Reviews and reputation',
+                                'title' => $isFrench ? 'Renforcez la confiance avant même le devis' : 'Build trust before the quote is even sent',
                                 'body' => $isFrench
-                                    ? 'Programmez des suivis clients, des rappels saisonniers et des campagnes simples pour revenir en tete au bon moment.'
-                                    : 'Schedule simple follow-up, seasonal reminders, and lightweight campaigns so you stay top of mind at the right time.',
-                                'cta_label' => $isFrench ? 'Voir le marketing' : 'See marketing',
+                                    ? 'Utilisez les avis et signaux de réputation pour mieux convertir la demande déjà qualifiée.'
+                                    : 'Use reviews and reputation signals to convert qualified demand more effectively.',
+                                'cta_label' => $isFrench ? 'Voir la réputation' : 'See reputation',
                                 'cta_href' => '#',
                                 'image_key' => 'marketing-desk',
                             ],
                             [
                                 'label' => $isFrench ? 'Liens de partage' : 'Shareable links',
-                                'title' => $isFrench ? 'Diffusez plus facilement votre offre' : 'Make your offer easier to share',
+                                'title' => $isFrench ? 'Diffusez plus facilement votre offre et vos points d’entrée' : 'Make your offer and entry points easier to share',
                                 'body' => $isFrench
-                                    ? 'Partagez vos formulaires, pages et devis avec des liens propres pour accelerer le bouche-a-oreille et les recommandations.'
-                                    : 'Share forms, pages, and quotes through clean links that make word of mouth and referrals easier to trigger.',
+                                    ? 'Partagez formulaires, pages et liens utiles avec une présentation plus claire pour accélérer recommandations et bouche-à-oreille.'
+                                    : 'Share forms, pages, and useful links more cleanly so referrals and word of mouth are easier to trigger.',
                                 'cta_label' => $isFrench ? 'Voir les liens' : 'See links',
                                 'cta_href' => '#',
                                 'image_key' => 'salon-front-desk',
@@ -117,58 +122,58 @@ class PublicProductPageNarratives
                         ],
                     ],
                     [
-                        'label' => $isFrench ? 'Gagner des jobs' : 'Win Jobs',
+                        'label' => $isFrench ? 'Devis et relance' : 'Quote and Follow Up',
                         'icon' => 'file-text',
-                        'role' => $isFrench ? 'Vente et qualification' : 'Sales and qualification',
-                        'title' => $isFrench ? 'Transformez plus vite une demande entrante en devis signe' : 'Turn inbound demand into approved quotes faster',
+                        'role' => $isFrench ? 'Qualification, devis et suivi' : 'Qualification, quoting, and follow-up',
+                        'title' => $isFrench ? 'Passez plus vite de la demande au devis sans perdre le contexte client' : 'Move faster from request to quote without losing the customer context',
                         'body' => $isFrench
-                            ? 'Qualification, devis, relances et historique client sont relies pour faire avancer chaque opportunite sans perte de contexte.'
-                            : 'Qualification, quotes, follow-ups, and customer history stay connected so every opportunity moves forward without losing context.',
+                            ? 'Qualifiez la demande, préparez le devis, ajoutez des options, et faites avancer le suivi depuis un même espace commercial au lieu de disperser l’information entre notes et boîtes mail.'
+                            : 'Qualify the request, build the quote, add options, and keep follow-up moving from one commercial workspace instead of scattered notes and inboxes.',
                         'story' => $isFrench
-                            ? 'Les modeles, les options et les relances automatiques nous ont aide a envoyer des propositions propres plus tot dans la journee.'
-                            : 'Templates, options, and automated follow-up helped our team send cleaner proposals earlier in the day.',
-                        'metric' => $isFrench ? 'Des devis plus rapides, mieux suivis' : 'Faster quotes with clearer follow-up',
-                        'person' => $isFrench ? 'Equipe commerciale' : 'Sales team',
-                        'cta_label' => $isFrench ? 'Voir Sales & CRM' : 'See Sales & CRM',
+                            ? 'Les devis sortent plus vite, les options restent cohérentes, et les relances ne dépendent plus d’un suivi manuel dispersé.'
+                            : 'Quotes go out faster, options stay consistent, and follow-up no longer depends on scattered manual reminders.',
+                        'metric' => $isFrench ? 'Des devis plus propres, mieux suivis' : 'Cleaner quotes with clearer follow-up',
+                        'person' => $isFrench ? 'Équipe commerciale' : 'Sales team',
+                        'cta_label' => $isFrench ? 'Explorer Sales & CRM' : 'Explore Sales & CRM',
                         'cta_href' => '/pages/sales-crm',
                         'image_key' => 'workflow-plan',
                         'children' => [
                             [
-                                'label' => $isFrench ? 'Reservations en ligne et formulaires' : 'Booking forms and intake',
-                                'title' => $isFrench ? 'Capturez plus de demandes sans friction' : 'Capture more demand without friction',
+                                'label' => $isFrench ? 'Capture et qualification' : 'Capture and qualification',
+                                'title' => $isFrench ? 'Faites entrer la demande avec le bon niveau de détail' : 'Bring demand in with the right level of detail',
                                 'body' => $isFrench
-                                    ? 'Ajoutez des formulaires de demande simples, acceptez les reservations en ligne et faites entrer les leads directement dans votre pipeline.'
-                                    : 'Add simple request forms, accept online booking, and move new demand directly into your pipeline.',
+                                    ? 'Ajoutez des points d’entrée simples qui aident l’équipe à qualifier le besoin plus tôt et à orienter plus vite la suite.'
+                                    : 'Add simple intake points that help the team qualify the need earlier and route the next step faster.',
                                 'cta_label' => $isFrench ? 'Voir la capture de leads' : 'See lead capture',
                                 'cta_href' => '#',
                                 'image_key' => 'salon-front-desk',
                             ],
                             [
-                                'label' => $isFrench ? 'Modeles de devis' : 'Quote templates',
-                                'title' => $isFrench ? 'Envoyez des devis coherents en moins de temps' : 'Send consistent quotes in less time',
+                                'label' => $isFrench ? 'Modèles de devis' : 'Quote templates',
+                                'title' => $isFrench ? 'Envoyez des devis cohérents en moins de temps' : 'Send consistent quotes in less time',
                                 'body' => $isFrench
-                                    ? 'Prechargez vos services, prix et options frequentes pour sortir des devis clairs et uniformes depuis le bureau ou le terrain.'
-                                    : 'Preload services, pricing, and frequent options so office and field teams can send clear quotes without rebuilding them each time.',
-                                'cta_label' => $isFrench ? 'Voir les modeles de devis' : 'See quote templates',
+                                    ? 'Préchargez services, prix et options fréquentes pour sortir des propositions claires sans repartir de zéro.'
+                                    : 'Preload services, pricing, and common options so teams can send clear proposals without rebuilding them every time.',
+                                'cta_label' => $isFrench ? 'Voir les modèles de devis' : 'See quote templates',
                                 'cta_href' => '#',
                                 'image_key' => 'workflow-plan',
                             ],
                             [
-                                'label' => $isFrench ? 'Lignes optionnelles' : 'Optional line items',
-                                'title' => $isFrench ? 'Augmentez la valeur moyenne de chaque devis' : 'Increase the average value of every quote',
+                                'label' => $isFrench ? 'Options et extras' : 'Options and extras',
+                                'title' => $isFrench ? 'Ajoutez plus de valeur sans alourdir le devis' : 'Add more value without making the quote heavier',
                                 'body' => $isFrench
-                                    ? 'Ajoutez facilement des options, des extras et des services complementaires pour proposer plus de valeur sans refaire vos devis a la main.'
-                                    : 'Add options, extras, and complementary services quickly so you can propose more value without rebuilding the quote by hand.',
+                                    ? 'Ajoutez des options, des extras, et des services complémentaires pour mieux structurer la proposition commerciale.'
+                                    : 'Add options, extras, and complementary services to strengthen the commercial proposal without manual rework.',
                                 'cta_label' => $isFrench ? 'Voir les options de devis' : 'See quote options',
                                 'cta_href' => '#',
                                 'image_key' => 'service-install',
                             ],
                             [
-                                'label' => $isFrench ? 'Suivis automatiques' : 'Automated follow-ups',
-                                'title' => $isFrench ? 'Relancez au bon moment sans suivi manuel' : 'Follow up at the right moment without manual chasing',
+                                'label' => $isFrench ? 'Relances visibles' : 'Visible follow-ups',
+                                'title' => $isFrench ? 'Relancez au bon moment sans perdre d’opportunité' : 'Follow up at the right time without losing opportunities',
                                 'body' => $isFrench
-                                    ? 'Programmez des rappels et des suivis automatiques pour faire avancer vos opportunites sans laisser de leads en attente.'
-                                    : 'Schedule reminders and follow-up sequences so opportunities keep moving without leaving leads untouched.',
+                                    ? 'Gardez les rappels et relances liés à la même opportunité pour que le prochain geste commercial reste évident.'
+                                    : 'Keep reminders and follow-up tied to the same opportunity so the next commercial action stays obvious.',
                                 'cta_label' => $isFrench ? 'Voir les suivis' : 'See follow-ups',
                                 'cta_href' => '#',
                                 'image_key' => 'office-collaboration',
@@ -176,49 +181,49 @@ class PublicProductPageNarratives
                         ],
                     ],
                     [
-                        'label' => $isFrench ? 'Travailler mieux' : 'Work Smarter',
+                        'label' => $isFrench ? 'Coordonner l’exécution' : 'Coordinate Delivery',
                         'icon' => 'calendar-days',
-                        'role' => $isFrench ? 'Dispatch et execution' : 'Dispatch and execution',
-                        'title' => $isFrench ? 'Passez du bureau au terrain avec le meme niveau de clarte' : 'Move from office to field with the same level of clarity',
+                        'role' => $isFrench ? 'Passage vers les opérations' : 'Handoff to operations',
+                        'title' => $isFrench ? 'Transmettez le travail approuvé aux opérations avec moins de confusion' : 'Hand off approved work to operations with less confusion',
                         'body' => $isFrench
-                            ? 'Planning, dispatch, fiches job, checklists et historique client restent visibles pour que les equipes interviennent avec le bon contexte.'
-                            : 'Scheduling, dispatch, job records, checklists, and customer history stay visible so crews always arrive with the right context.',
+                            ? 'Une fois l’opportunité approuvée, le planning, les détails du job, les affectations, et l’exécution terrain peuvent continuer depuis le même contexte opérationnel.'
+                            : 'Once the opportunity is approved, scheduling, job details, assignments, and field execution can continue from the same operating context.',
                         'story' => $isFrench
-                            ? 'Le planning et les details d intervention sont enfin partages dans le meme outil, ce qui reduit les appels de clarification pendant la journee.'
-                            : 'Scheduling and job details are finally shared inside one tool, which cuts down on clarification calls during the day.',
-                        'metric' => $isFrench ? 'Moins d aller-retour entre le bureau et le terrain' : 'Less back and forth between office and field',
-                        'person' => $isFrench ? 'Equipe terrain' : 'Field team',
-                        'cta_label' => $isFrench ? 'Voir Operations' : 'See Operations',
+                            ? 'Le passage du bureau au terrain reste plus propre parce que le contexte client, les détails du job, et les prochaines actions voyagent ensemble.'
+                            : 'The handoff from office to field stays cleaner because customer context, job details, and next steps travel together.',
+                        'metric' => $isFrench ? 'Un meilleur passage du commercial à l’exécution' : 'A cleaner handoff from sales to delivery',
+                        'person' => $isFrench ? 'Équipe opérations' : 'Operations team',
+                        'cta_label' => $isFrench ? 'Explorer Operations' : 'Explore Operations',
                         'cta_href' => '/pages/operations',
                         'image_key' => 'field-checklist',
                         'children' => [
                             [
-                                'label' => $isFrench ? 'Calendrier glisser-deposer' : 'Drag-and-drop schedule',
-                                'title' => $isFrench ? 'Deplacez vos horaires sans rebatir la journee' : 'Move schedules without rebuilding the whole day',
+                                'label' => $isFrench ? 'Planning' : 'Scheduling',
+                                'title' => $isFrench ? 'Gardez le bon contexte quand le travail entre au planning' : 'Keep the right context when work enters the schedule',
                                 'body' => $isFrench
-                                    ? 'Replanifiez en quelques secondes, assignez les bonnes equipes et gardez tout le monde aligne avec des mises a jour instantanees.'
-                                    : 'Reschedule in seconds, assign the right team, and keep everyone aligned with instant updates.',
+                                    ? 'Faites passer le travail approuvé vers le planning sans perdre les détails qui comptent pour la suite.'
+                                    : 'Move approved work into the schedule without losing the details that matter for execution.',
                                 'cta_label' => $isFrench ? 'Voir la planification' : 'See scheduling',
                                 'cta_href' => '#',
                                 'image_key' => 'service-tablet',
                             ],
                             [
-                                'label' => $isFrench ? 'Dispatch d equipe' : 'Team dispatch',
-                                'title' => $isFrench ? 'Affectez la bonne equipe au bon job' : 'Assign the right team to the right job',
+                                'label' => $isFrench ? 'Affectation d équipe' : 'Team assignment',
+                                'title' => $isFrench ? 'Affectez le bon job à la bonne équipe' : 'Assign the right job to the right team',
                                 'body' => $isFrench
-                                    ? 'Visualisez la disponibilite, l emplacement et la charge de travail pour envoyer les bonnes personnes sans perdre de temps.'
-                                    : 'See availability, location, and workload so you can send the right people without losing time.',
+                                    ? 'Gardez les bonnes informations visibles pour affecter plus vite et avec moins d’allers-retours.'
+                                    : 'Keep the right information visible so assignments happen faster and with less back and forth.',
                                 'cta_label' => $isFrench ? 'Voir le dispatch' : 'See dispatch',
                                 'cta_href' => '#',
                                 'image_key' => 'service-team',
                             ],
                             [
-                                'label' => $isFrench ? 'Checklists terrain' : 'Field checklists',
-                                'title' => $isFrench ? 'Standardisez l execution de chaque intervention' : 'Standardize how every intervention gets executed',
+                                'label' => $isFrench ? 'Exécution terrain' : 'Field execution',
+                                'title' => $isFrench ? 'Arrivez sur site avec une lecture plus nette du job' : 'Arrive on site with a clearer read of the job',
                                 'body' => $isFrench
-                                    ? 'Ajoutez des etapes, des formulaires et des controles de qualite pour que le travail soit bien fait du premier coup.'
-                                    : 'Add steps, forms, and quality checks so the work gets done right the first time.',
-                                'cta_label' => $isFrench ? 'Voir les checklists' : 'See checklists',
+                                    ? 'Gardez statuts, contexte client et points d’attention reliés au même flux une fois l’équipe sur place.'
+                                    : 'Keep status, customer context, and key attention points tied to the same flow once the team is on site.',
+                                'cta_label' => $isFrench ? 'Voir l’exécution terrain' : 'See field execution',
                                 'cta_href' => '#',
                                 'image_key' => 'field-checklist',
                             ],
@@ -226,7 +231,7 @@ class PublicProductPageNarratives
                                 'label' => $isFrench ? 'Historique client' : 'Customer history',
                                 'title' => $isFrench ? 'Retrouvez le contexte complet avant chaque visite' : 'Recover the full context before every visit',
                                 'body' => $isFrench
-                                    ? 'Gardez les notes, photos, demandes et anciens jobs au meme endroit pour que vos equipes arrivent preparees chez le client.'
+                                    ? 'Gardez notes, photos, demandes, et anciens jobs au même endroit pour que les équipes arrivent préparées chez le client.'
                                     : 'Keep notes, photos, requests, and previous jobs in one place so teams arrive prepared at the customer site.',
                                 'cta_label' => $isFrench ? 'Voir les fiches client' : 'See customer records',
                                 'cta_href' => '#',
@@ -235,59 +240,59 @@ class PublicProductPageNarratives
                         ],
                     ],
                     [
-                        'label' => $isFrench ? 'Booster les profits' : 'Boost Profits',
+                        'label' => $isFrench ? 'Protéger le revenu' : 'Protect Revenue',
                         'icon' => 'circle-dollar-sign',
-                        'role' => $isFrench ? 'Facturation et paiements' : 'Invoicing and payments',
-                        'title' => $isFrench ? 'Facturez plus vite et raccourcissez le cycle d encaissement' : 'Invoice faster and shorten the time between work and cash',
+                        'role' => $isFrench ? 'Facturation, paiements, et revenu' : 'Billing, payments, and revenue',
+                        'title' => $isFrench ? 'Transformez le travail approuvé en facturation et paiements avec plus de visibilité' : 'Turn approved work into invoicing and payments with better visibility',
                         'body' => $isFrench
-                            ? 'Factures, paiements sur place, rappels et suivi de marge restent connectes au travail realise pour proteger vos revenus.'
-                            : 'Invoices, on-site payments, reminders, and margin follow-up stay tied to completed work so revenue is easier to protect.',
+                            ? 'Gardez la facturation, les rappels, l’encaissement, et le suivi du revenu reliés à la demande d’origine pour que le cycle commercial se termine proprement.'
+                            : 'Keep billing, reminders, payment collection, and revenue tracking connected to the original request so the commercial cycle ends cleanly.',
                         'story' => $isFrench
-                            ? 'Nos equipes cloturent plus vite les jobs et les rappels partent automatiquement, donc le cash rentre plus tot.'
-                            : 'Teams close jobs faster and reminders go out automatically, so cash comes in sooner.',
-                        'metric' => $isFrench ? 'Une meilleure visibilite sur la marge et la tresorerie' : 'Clearer visibility into margin and cash',
-                        'person' => $isFrench ? 'Equipe finance' : 'Finance team',
-                        'cta_label' => $isFrench ? 'Voir Commerce' : 'See Commerce',
+                            ? 'La fin du cycle reste plus propre quand factures, rappels et paiements restent liés au même travail approuvé.'
+                            : 'The end of the cycle stays cleaner when invoices, reminders, and payments remain tied to the same approved work.',
+                        'metric' => $isFrench ? 'Une meilleure visibilité sur le revenu' : 'Better revenue visibility',
+                        'person' => $isFrench ? 'Équipe finance' : 'Finance team',
+                        'cta_label' => $isFrench ? 'Explorer Commerce' : 'Explore Commerce',
                         'cta_href' => '/pages/commerce',
                         'image_key' => 'payments-terminal',
                         'children' => [
                             [
-                                'label' => $isFrench ? 'Factures rapides' : 'Fast invoicing',
-                                'title' => $isFrench ? 'Transformez un job termine en facture en quelques clics' : 'Turn a completed job into an invoice in a few clicks',
+                                'label' => $isFrench ? 'Facturation' : 'Invoicing',
+                                'title' => $isFrench ? 'Faites sortir la facture plus vite après validation' : 'Get the invoice out faster after approval',
                                 'body' => $isFrench
-                                    ? 'Generez vos factures sans refaire les informations du job, puis envoyez-les immediatement au client.'
-                                    : 'Generate invoices without re-entering job information and send them to the customer immediately.',
+                                    ? 'Générez la facture sans ressaisir les informations déjà présentes dans le flux commercial et opérationnel.'
+                                    : 'Generate the invoice without re-entering information already present in the sales and operations flow.',
                                 'cta_label' => $isFrench ? 'Voir la facturation' : 'See invoicing',
                                 'cta_href' => '#',
                                 'image_key' => 'office-collaboration',
                             ],
                             [
-                                'label' => $isFrench ? 'Paiements sur place' : 'On-site payments',
-                                'title' => $isFrench ? 'Encaissez pendant que l equipe est encore chez le client' : 'Collect payment while the team is still on site',
+                                'label' => $isFrench ? 'Paiements' : 'Payments',
+                                'title' => $isFrench ? 'Raccourcissez le délai entre travail et encaissement' : 'Shorten the time between completed work and cash collection',
                                 'body' => $isFrench
-                                    ? 'Acceptez plusieurs moyens de paiement sur mobile pour reduire les delais et limiter les comptes a recevoir.'
-                                    : 'Accept multiple payment methods from mobile devices to reduce delay and shrink accounts receivable.',
-                                'cta_label' => $isFrench ? 'Voir les paiements mobiles' : 'See mobile payments',
+                                    ? 'Gardez l’encaissement relié au travail approuvé pour réduire les délais et limiter les oublis.'
+                                    : 'Keep payment collection tied to approved work so delays and missed steps are reduced.',
+                                'cta_label' => $isFrench ? 'Voir les paiements' : 'See payments',
                                 'cta_href' => '#',
                                 'image_key' => 'payments-terminal',
                             ],
                             [
-                                'label' => $isFrench ? 'Rappels automatiques' : 'Automated reminders',
-                                'title' => $isFrench ? 'Relancez sans courir apres chaque facture' : 'Follow up without chasing every invoice by hand',
+                                'label' => $isFrench ? 'Rappels' : 'Reminders',
+                                'title' => $isFrench ? 'Relancez sans disperser le suivi' : 'Follow up without scattering the process',
                                 'body' => $isFrench
-                                    ? 'Automatisez vos rappels pour garder le cap sur les paiements en retard sans monopoliser votre equipe admin.'
-                                    : 'Automate reminders so overdue payments stay visible without consuming your admin team.',
+                                    ? 'Gardez les rappels de paiement visibles dans le même flux pour que la suite reste claire.'
+                                    : 'Keep payment reminders visible in the same flow so the next step stays clear.',
                                 'cta_label' => $isFrench ? 'Voir les rappels' : 'See reminders',
                                 'cta_href' => '#',
                                 'image_key' => 'desk-phone-laptop',
                             ],
                             [
-                                'label' => $isFrench ? 'Rapports de marge' : 'Margin reporting',
-                                'title' => $isFrench ? 'Voyez ou vous gagnez et ou vous perdez' : 'See where you win and where you lose',
+                                'label' => $isFrench ? 'Lecture du revenu' : 'Revenue visibility',
+                                'title' => $isFrench ? 'Gardez une lecture plus claire de ce qui a été gagné' : 'Keep a clearer view of what was earned',
                                 'body' => $isFrench
-                                    ? 'Suivez vos revenus, vos services les plus profitables et vos tendances de performance pour prendre de meilleures decisions.'
-                                    : 'Track revenue, profitable services, and performance trends so better decisions are easier to make.',
-                                'cta_label' => $isFrench ? 'Voir les rapports' : 'See reporting',
+                                    ? 'Reliez les revenus et la clôture du travail pour mieux comprendre ce qui avance proprement dans l’activité.'
+                                    : 'Connect revenue and work closure so it is easier to understand what is moving cleanly through the business.',
+                                'cta_label' => $isFrench ? 'Voir la lecture du revenu' : 'See revenue visibility',
                                 'cta_href' => '#',
                                 'image_key' => 'warehouse-worker',
                             ],
@@ -296,13 +301,13 @@ class PublicProductPageNarratives
                 ],
             ]),
             self::showcaseSection('sales-crm-cta', $locale, [
-                'kicker' => $isFrench ? 'Pret a structurer la conversion' : 'Ready to structure conversion',
+                'kicker' => $isFrench ? 'Prêt à structurer la conversion' : 'Ready to structure conversion',
                 'title' => $isFrench
-                    ? 'Sales & CRM suit maintenant le meme format narratif que les autres pages modules'
-                    : 'Sales & CRM now follows the same narrative format as the other module pages',
+                    ? 'Convertissez davantage la demande que vous générez déjà'
+                    : 'Start converting more of the demand you already generate',
                 'body' => $isFrench
-                    ? 'Promesse, workflow, preuves courtes puis CTA: la page raconte mieux le role du module dans le parcours public.'
-                    : 'Promise, workflow, short proof, then CTA: the page explains the role of the module much more clearly in the public journey.',
+                    ? 'Remplacez une capture de demande, des devis, et des relances fragmentées par un même espace commercial qui aide votre équipe à aller plus vite, à rester plus cohérente, et à mieux piloter le passage du premier contact au travail approuvé.'
+                    : 'Replace fragmented intake, quoting, and follow-up with one commercial workspace that helps your team stay faster, more consistent, and easier to manage from first contact to approved work.',
                 'primary_label' => $isFrench ? 'Voir la solution Vente & devis' : 'See the Sales & Quoting solution',
                 'primary_href' => '/pages/solution-sales-quoting',
                 'secondary_label' => $isFrench ? 'Voir les tarifs' : 'View pricing',
@@ -314,31 +319,31 @@ class PublicProductPageNarratives
                 'badge_label' => 'Module',
                 'badge_value' => 'Sales & CRM',
                 'badge_note' => $isFrench
-                    ? 'Qualification, devis et relance dans un meme flux'
-                    : 'Qualification, quoting, and follow-up inside one shared flow',
+                    ? 'Capture, devis, et relance dans un même flux connecté'
+                    : 'Intake, quoting, and follow-up in one connected flow',
             ]),
             self::storyGridSection('sales-crm-proof', $locale, [
-                'title' => $isFrench ? 'Une IA pensee pour les entreprises de terrain.' : 'AI designed for field businesses.',
+                'title' => $isFrench ? 'Un pipeline plus clair et des devis plus rapides à faire avancer' : 'Built for clearer pipelines and faster quote turnaround',
                 'cards' => [
                     [
-                        'title' => $isFrench ? 'Concue pour le terrain' : 'Built for field reality',
+                        'title' => $isFrench ? 'Gardez chaque opportunité visible' : 'Keep every opportunity visible',
                         'body' => $isFrench
-                            ? 'Notre IA comprend le quotidien des equipes terrain. Elle aide a mieux qualifier, chiffrer et reperer les opportunites sans alourdir les operations.'
-                            : 'Our AI understands the day-to-day rhythm of field teams. It helps qualify, price, and spot opportunities without making operations heavier.',
+                            ? 'Donnez à l’équipe une vue partagée des demandes entrantes, des changements de statut, des prochaines actions, et de l’avancement du pipeline pour laisser moins d’opportunités se refroidir.'
+                            : 'Give the team one shared view of incoming requests, status changes, next actions, and deal movement so fewer opportunities go cold.',
                         'image_key' => 'service-team',
                     ],
                     [
-                        'title' => $isFrench ? 'S adapte a votre facon de travailler' : 'Adapts to how your team already works',
+                        'title' => $isFrench ? 'Devis plus cohérents, plus faciles à envoyer' : 'Quote with more consistency',
                         'body' => $isFrench
-                            ? 'Plus vous l utilisez, plus elle suit votre logique de devis, de planification et de description de service pour garder un rendu naturel.'
-                            : 'The more you use it, the more it follows your quoting, scheduling, and service language so the output stays natural.',
+                            ? 'Réutilisez le contexte client, les services, les options, et la logique commerciale pour envoyer des propositions plus propres sans refaire le même travail à chaque fois.'
+                            : 'Reuse customer context, services, options, and sales logic to send cleaner proposals without rebuilding the same work every time.',
                         'image_key' => 'team-laptop-window',
                     ],
                     [
-                        'title' => $isFrench ? 'Intervient au bon moment' : 'Shows up at the right moment',
+                        'title' => $isFrench ? 'Relancez sans perdre l’élan commercial' : 'Follow up without losing momentum',
                         'body' => $isFrench
-                            ? 'Elle apparait quand il faut: pour completer un devis, suggerer un ajout utile ou relancer une etape importante sans casser le rythme.'
-                            : 'It appears when it matters most: to complete a quote, suggest a useful add-on, or restart an important step without breaking momentum.',
+                            ? 'Gardez rappels, messages, et handoffs reliés à la même fiche client pour que la prochaine action reste évidente jusqu’à l’approbation du travail.'
+                            : 'Keep reminders, messages, and handoffs tied to the same customer record so the next step stays obvious until the work is approved.',
                         'image_key' => 'collab-laptop-desk',
                     ],
                 ],
@@ -356,21 +361,21 @@ class PublicProductPageNarratives
         return [
             self::featureTabsSection('reservations-flow', $locale, [
                 'background_color' => '#ffffff',
-                'kicker' => $isFrench ? 'Workflow du module' : 'Module workflow',
-                'title' => $isFrench ? 'Montrez la reservation comme un parcours complet' : 'Show booking as a complete journey',
+                'kicker' => $isFrench ? 'Un parcours de réservation de la disponibilité au suivi' : 'One booking workflow from availability to follow-up',
+                'title' => $isFrench ? 'Faites de la réservation un parcours client complet' : 'Turn booking into a complete customer journey',
                 'body' => $isFrench
-                    ? 'La page ne s arrete plus au calendrier et montre aussi confirmation, file et prolongement de la relation.'
-                    : 'The page no longer stops at the calendar and now shows confirmation, queue handling, and the next step in the relationship.',
+                    ? 'Reservations relie le choix du créneau, la confirmation, l’accueil, la gestion de file, et le suivi après visite pour que l’expérience reste claire du premier rendez-vous jusqu’au prochain.'
+                    : 'Reservations connects slot selection, confirmation, arrival handling, queue flow, and post-visit follow-up so the experience stays clear from first booking to the next visit.',
                 'primary_label' => $isFrench ? 'Voir la solution Reservations & files' : 'See the Reservations & Queues solution',
                 'primary_href' => '/pages/solution-reservations-queues',
                 'tabs' => [
                     [
                         'label' => $isFrench ? 'Proposer' : 'Offer',
                         'icon' => 'calendar-days',
-                        'title' => $isFrench ? 'Rendre les creneaux plus lisibles' : 'Make slots easier to understand',
+                        'title' => $isFrench ? 'Rendez les disponibilités plus faciles à comprendre et à réserver' : 'Make availability easier to understand and easier to book',
                         'body' => $isFrench
-                            ? 'La disponibilite devient une vraie porte d entree commerciale dans le parcours.'
-                            : 'Availability becomes a real acquisition entry point instead of just a passive schedule.',
+                            ? 'Transformez la disponibilité en un point d’entrée plus clair pour que le client puisse choisir le bon créneau sans friction.'
+                            : 'Turn live availability into a clearer entry point so customers can choose the right slot without friction.',
                         'cta_label' => $isFrench ? 'Voir la solution' : 'See the solution',
                         'cta_href' => '/pages/solution-reservations-queues',
                         'image_key' => 'marketing-desk',
@@ -378,10 +383,10 @@ class PublicProductPageNarratives
                     [
                         'label' => $isFrench ? 'Confirmer' : 'Confirm',
                         'icon' => 'clipboard-check',
-                        'title' => $isFrench ? 'Stabiliser la visite avant l arrivee' : 'Stabilize the visit before arrival',
+                        'title' => $isFrench ? 'Stabilisez la visite avant l’arrivée du client' : 'Stabilize the visit before the customer arrives',
                         'body' => $isFrench
-                            ? 'Rappels, recapitulatif et preparation restent visibles avant le rendez-vous.'
-                            : 'Reminders, recap, and preparation stay visible before the appointment actually starts.',
+                            ? 'Gardez rappels, récapitulatif, et préparation visibles avant le rendez-vous pour que moins de visites glissent dans l’incertitude.'
+                            : 'Keep reminders, recap, and preparation visible before the appointment so fewer visits drift into uncertainty.',
                         'cta_label' => $isFrench ? 'Voir Marketing & Loyalty' : 'See Marketing & Loyalty',
                         'cta_href' => '/pages/marketing-loyalty',
                         'image_key' => 'desk-phone-laptop',
@@ -389,10 +394,10 @@ class PublicProductPageNarratives
                     [
                         'label' => $isFrench ? 'Accueillir' : 'Welcome',
                         'icon' => 'clipboard-list',
-                        'title' => $isFrench ? 'Absorber l arrivee et la file plus proprement' : 'Handle arrivals and queue activity more cleanly',
+                        'title' => $isFrench ? 'Absorbez les arrivées et la file plus fluidement sur place' : 'Absorb arrivals and queues more smoothly on site',
                         'body' => $isFrench
-                            ? 'La page montre mieux comment accueil, attente et passage vers le service restent relies.'
-                            : 'The page shows more clearly how reception, waiting, and handoff into service still belong to one connected moment.',
+                            ? 'Gardez l’accueil, la gestion de file, et le passage vers le service reliés pour que le flux sur place reste plus maîtrisé.'
+                            : 'Keep reception, queue handling, and handoff into service connected so on-site flow feels more controlled.',
                         'cta_label' => $isFrench ? 'Voir Command Center' : 'See Command Center',
                         'cta_href' => '/pages/command-center',
                         'image_key' => 'service-tablet',
@@ -400,10 +405,10 @@ class PublicProductPageNarratives
                     [
                         'label' => $isFrench ? 'Suivre' : 'Follow Up',
                         'icon' => 'file-text',
-                        'title' => $isFrench ? 'Prolonger la relation apres visite' : 'Extend the relationship after the visit',
+                        'title' => $isFrench ? 'Prolongez la relation après la visite' : 'Extend the relationship after the visit',
                         'body' => $isFrench
-                            ? 'La reservation garde une suite logique vers avis, relance ou prochain rendez-vous.'
-                            : 'Booking naturally leads into reviews, reactivation, or the next appointment instead of ending at confirmation.',
+                            ? 'Gardez la réservation reliée aux avis, rappels, offres, et prochains rendez-vous pour que la visite ne s’arrête pas à la simple confirmation.'
+                            : 'Keep the booking connected to reviews, reminders, offers, and the next appointment so the visit does not end at confirmation alone.',
                         'cta_label' => $isFrench ? 'Voir la solution marketing' : 'See the marketing solution',
                         'cta_href' => '/pages/solution-marketing-loyalty',
                         'image_key' => 'meeting-room-laptops',
@@ -411,13 +416,13 @@ class PublicProductPageNarratives
                 ],
             ]),
             self::showcaseSection('reservations-cta', $locale, [
-                'kicker' => $isFrench ? 'Pret a fluidifier la visite' : 'Ready to smooth the visit',
+                'kicker' => $isFrench ? 'Prêt à fluidifier la visite' : 'Ready to smooth the visit',
                 'title' => $isFrench
-                    ? 'Reservations suit maintenant le meme format narratif que les autres pages modules'
-                    : 'Reservations now follows the same narrative format as the other module pages',
+                    ? 'Offrez une réservation plus pratique sans perdre le contrôle opérationnel'
+                    : 'Offer convenient booking without losing operational control',
                 'body' => $isFrench
-                    ? 'La page guide mieux vers la solution, les tarifs ou le module utile suivant.'
-                    : 'The page now guides visitors more clearly toward the solution, pricing, or the next useful module.',
+                    ? 'Remplacez une prise de rendez-vous, des confirmations, et un accueil déconnectés par un même parcours qui aide les clients à réserver plus facilement et aide l’équipe à rester alignée avant, pendant, et après la visite.'
+                    : 'Replace disconnected scheduling, confirmations, and arrival handling with one workflow that helps customers book more easily and helps teams stay aligned before, during, and after the visit.',
                 'primary_label' => $isFrench ? 'Voir la solution Reservations & files' : 'See the Reservations & Queues solution',
                 'primary_href' => '/pages/solution-reservations-queues',
                 'secondary_label' => $isFrench ? 'Voir les tarifs' : 'View pricing',
@@ -429,39 +434,39 @@ class PublicProductPageNarratives
                 'badge_label' => 'Module',
                 'badge_value' => 'Reservations',
                 'badge_note' => $isFrench
-                    ? 'Disponibilite, confirmation et accueil dans un meme flux'
-                    : 'Availability, confirmation, and reception in one shared flow',
+                    ? 'Disponibilité, confirmation, et accueil dans un même flux connecté'
+                    : 'Availability, confirmation, and reception in one connected flow',
             ]),
             self::storyGridSection('reservations-proof', $locale, [
-                'kicker' => $isFrench ? 'Moments visibles' : 'Visible moments',
+                'kicker' => $isFrench ? 'Moments clairs autour de la visite' : 'Clear moments across the visit',
                 'title' => $isFrench
-                    ? 'Le module Reservations devient plus lisible quand ses moments clefs restent distincts'
-                    : 'Reservations becomes easier to understand when its key moments stay distinct',
+                    ? 'Conçu pour rendre la réservation, l’arrivée, et le suivi plus fluides'
+                    : 'Built to make booking, arrival, and follow-up feel smoother',
                 'body' => $isFrench
-                    ? 'Le visiteur voit mieux ce qui se passe avant, pendant et apres la visite.'
-                    : 'Visitors can now see more clearly what happens before, during, and after the visit.',
+                    ? 'Gardez les moments clés avant, pendant, et après la visite visibles comme une même expérience pour que le client se sente guidé et que l’équipe reste en contrôle.'
+                    : 'Keep the key moments before, during, and after the visit visible as part of the same experience so customers feel guided and teams stay in control.',
                 'primary_label' => $isFrench ? 'Voir la solution Reservations & files' : 'See the Reservations & Queues solution',
                 'primary_href' => '/pages/solution-reservations-queues',
                 'cards' => [
                     [
-                        'title' => $isFrench ? 'Un choix plus simple' : 'An easier choice',
+                        'title' => $isFrench ? 'Un choix plus simple au moment de réserver' : 'A simpler choice at booking time',
                         'body' => $isFrench
-                            ? 'Le visiteur comprend vite comment choisir le bon moment.'
-                            : 'Visitors quickly understand how to choose the right moment.',
+                            ? 'Aidez le client à comprendre comment choisir le bon moment sans friction ni hésitation.'
+                            : 'Help the customer understand how to choose the right moment without friction or uncertainty.',
                         'image_key' => 'marketing-desk',
                     ],
                     [
-                        'title' => $isFrench ? 'Une arrivee plus fluide' : 'A smoother arrival',
+                        'title' => $isFrench ? 'Une arrivée plus fluide sur place' : 'A smoother arrival on site',
                         'body' => $isFrench
-                            ? 'La file et l accueil ont maintenant une vraie place dans le recit.'
-                            : 'Queue handling and reception now have a clear place in the story instead of feeling hidden.',
+                            ? 'Donnez à l’accueil, à la file, et au passage vers le service une place plus claire dans l’expérience opérationnelle.'
+                            : 'Give reception, queue flow, and handoff a clearer place in the operating experience.',
                         'image_key' => 'service-tablet',
                     ],
                     [
-                        'title' => $isFrench ? 'Un vrai suivi de visite' : 'A real post-visit follow-up',
+                        'title' => $isFrench ? 'Un vrai suivi après la visite' : 'A real follow-up after the visit',
                         'body' => $isFrench
-                            ? 'Le rendez-vous ne s arrete plus a la simple confirmation.'
-                            : 'The appointment no longer stops at confirmation alone.',
+                            ? 'Gardez la visite reliée au prochain message, au prochain rappel, ou au prochain rendez-vous au lieu d’arrêter le parcours trop tôt.'
+                            : 'Keep the visit connected to the next message, the next reminder, or the next appointment instead of ending the journey too early.',
                         'image_key' => 'desk-phone-laptop',
                     ],
                 ],
@@ -479,21 +484,21 @@ class PublicProductPageNarratives
         return [
             self::featureTabsSection('operations-flow', $locale, [
                 'background_color' => '#ffffff',
-                'kicker' => $isFrench ? 'Workflow du module' : 'Module workflow',
-                'title' => $isFrench ? 'Suivez le module du plan de charge jusqu a la preuve terrain' : 'Follow the module from workload planning to field proof',
+                'kicker' => $isFrench ? 'Un flux opérationnel du plan à la preuve' : 'One operating workflow from plan to proof',
+                'title' => $isFrench ? 'Planifiez, affectez, exécutez, et clôturez le travail depuis une même vue opérationnelle' : 'Plan, assign, execute, and close work from one shared operational view',
                 'body' => $isFrench
-                    ? 'Chaque onglet rend visible un moment metier concret entre bureau, coordination et terrain.'
-                    : 'Each tab makes one concrete business moment visible between office planning, coordination, and field execution.',
+                    ? 'Operations garde le plan de charge, le dispatch, les détails du job, l’exécution terrain, et la preuve de complétion alignés pour que le bureau et le terrain ne travaillent pas avec deux versions différentes de la réalité.'
+                    : 'Operations keeps workload planning, dispatch, job details, field execution, and proof of completion aligned so the office and the field are not working from different versions of reality.',
                 'primary_label' => $isFrench ? 'Voir la solution Services terrain' : 'See the Field Services solution',
                 'primary_href' => '/pages/solution-field-services',
                 'tabs' => [
                     [
                         'label' => $isFrench ? 'Planifier' : 'Plan',
                         'icon' => 'calendar-days',
-                        'title' => $isFrench ? 'Lire la charge avant de partir' : 'Read the workload before crews leave',
+                        'title' => $isFrench ? 'Lisez la charge et les priorités avant le début de la journée' : 'Read workload and priorities before the day starts',
                         'body' => $isFrench
-                            ? 'Le bureau voit priorites, ressources et points de tension avant la journee.'
-                            : 'The office sees priorities, resources, and pressure points before the day starts.',
+                            ? 'Donnez aux planificateurs une meilleure lecture de la capacité, de l’urgence, et de la pression de planning avant d’engager les ressources.'
+                            : 'Give planners a clearer view of capacity, urgency, and scheduling pressure before resources are committed.',
                         'cta_label' => $isFrench ? 'Voir la solution' : 'See the solution',
                         'cta_href' => '/pages/solution-field-services',
                         'image_key' => 'workflow-plan',
@@ -501,10 +506,10 @@ class PublicProductPageNarratives
                     [
                         'label' => $isFrench ? 'Dispatcher' : 'Dispatch',
                         'icon' => 'clipboard-list',
-                        'title' => $isFrench ? 'Donner le bon contexte a la bonne equipe' : 'Give the right context to the right team',
+                        'title' => $isFrench ? 'Donnez le bon contexte à la bonne équipe avant le départ' : 'Give the right team the right context before they leave',
                         'body' => $isFrench
-                            ? 'Affectation et preparation restent visibles dans un meme moment de coordination.'
-                            : 'Assignment and preparation stay visible inside one coordination moment instead of scattered updates.',
+                            ? 'Gardez les affectations, la préparation, et les détails du job visibles dans un même moment de coordination pour améliorer la qualité du handoff.'
+                            : 'Keep assignments, preparation, and job details visible in the same coordination moment so handoff quality improves.',
                         'cta_label' => $isFrench ? 'Voir Command Center' : 'See Command Center',
                         'cta_href' => '/pages/command-center',
                         'image_key' => 'service-tablet',
@@ -512,21 +517,21 @@ class PublicProductPageNarratives
                     [
                         'label' => $isFrench ? 'Intervenir' : 'Execute',
                         'icon' => 'wrench',
-                        'title' => $isFrench ? 'Executer avec une lecture plus nette du job' : 'Execute with a clearer read of the job',
+                        'title' => $isFrench ? 'Aidez le terrain à travailler avec une lecture plus nette du job' : 'Help field teams work with a clearer read of the job',
                         'body' => $isFrench
-                            ? 'Le terrain voit mieux les statuts, le contexte client et les preuves a reunir.'
-                            : 'Field teams can see status, customer context, and the proof they need to collect with less ambiguity.',
+                            ? 'Rendez le statut, le contexte client, les checklists, et les preuves attendues plus faciles à suivre une fois l’équipe sur place.'
+                            : 'Make status, customer context, checklists, and required proof easier to follow once the team is on site.',
                         'cta_label' => $isFrench ? 'Voir les services terrain' : 'See field services',
                         'cta_href' => '/pages/solution-field-services',
                         'image_key' => 'service-install',
                     ],
                     [
-                        'label' => $isFrench ? 'Cloturer' : 'Close',
+                        'label' => $isFrench ? 'Clôturer' : 'Close',
                         'icon' => 'file-text',
-                        'title' => $isFrench ? 'Fermer la boucle avec un suivi plus propre' : 'Close the loop with cleaner follow-up',
+                        'title' => $isFrench ? 'Fermez la boucle avec une clôture plus propre et un meilleur suivi' : 'Close the loop with cleaner completion and better follow-through',
                         'body' => $isFrench
-                            ? 'Validation, lecture du revenu et prochaine action restent dans le meme flux.'
-                            : 'Validation, revenue visibility, and the next action stay inside the same operating flow.',
+                            ? 'Gardez la validation, la preuve de travail, la lecture du revenu, et les prochaines actions connectées pour que le travail se termine de façon maîtrisée plutôt que précipitée.'
+                            : 'Keep validation, proof of work, revenue visibility, and next steps connected so work ends in a controlled way instead of a rushed one.',
                         'cta_label' => $isFrench ? 'Voir Commerce' : 'See Commerce',
                         'cta_href' => '/pages/commerce',
                         'image_key' => 'field-checklist',
@@ -534,13 +539,13 @@ class PublicProductPageNarratives
                 ],
             ]),
             self::showcaseSection('operations-cta', $locale, [
-                'kicker' => $isFrench ? 'Pret a structurer l execution' : 'Ready to structure execution',
+                'kicker' => $isFrench ? 'Prêt à structurer l’exécution' : 'Ready to structure execution',
                 'title' => $isFrench
-                    ? 'Operations suit maintenant le meme format narratif que les autres pages modules'
-                    : 'Operations now follows the same narrative format as the other module pages',
+                    ? 'Donnez à chaque équipe la même source de vérité opérationnelle'
+                    : 'Give every team the same source of operational truth',
                 'body' => $isFrench
-                    ? 'La page donne une impression de profondeur produit sans devenir une doc interne.'
-                    : 'The page gives a deeper product impression without turning into internal documentation.',
+                    ? 'Remplacez un planning fragmenté, un dispatch éclaté, et un suivi terrain déconnecté par un même espace qui aide planificateurs, coordinateurs, et équipes terrain à rester alignés de l’affectation à la complétion.'
+                    : 'Replace fragmented planning, side-channel dispatch, and disconnected field follow-up with one workspace that helps planners, dispatchers, and field teams stay aligned from assignment to completion.',
                 'primary_label' => $isFrench ? 'Voir la solution Services terrain' : 'See the Field Services solution',
                 'primary_href' => '/pages/solution-field-services',
                 'secondary_label' => $isFrench ? 'Voir les tarifs' : 'View pricing',
@@ -552,39 +557,39 @@ class PublicProductPageNarratives
                 'badge_label' => 'Module',
                 'badge_value' => 'Operations',
                 'badge_note' => $isFrench
-                    ? 'Planning, dispatch et preuve terrain dans un meme rythme'
-                    : 'Planning, dispatch, and field proof in one rhythm',
+                    ? 'Planning, dispatch, et preuve terrain dans un même rythme connecté'
+                    : 'Planning, dispatch, and field proof in one connected rhythm',
             ]),
             self::storyGridSection('operations-proof', $locale, [
-                'kicker' => $isFrench ? 'Moments visibles' : 'Visible moments',
+                'kicker' => $isFrench ? 'Moments opérationnels visibles' : 'Clear operational moments',
                 'title' => $isFrench
-                    ? 'Le module Operations devient plus lisible quand ses moments clefs restent distincts'
-                    : 'Operations becomes easier to read when its key moments stay distinct',
+                    ? 'Conçu pour une exécution plus propre dans le réel'
+                    : 'Built for cleaner execution in the real world',
                 'body' => $isFrench
-                    ? 'Le module se lit mieux quand bureau, dispatch et terrain restent dans la meme histoire.'
-                    : 'The module reads better when office planning, dispatch, and field work stay inside the same story.',
+                    ? 'Gardez la planification, le handoff, et la complétion visibles comme des moments distincts pour que les équipes se préparent mieux, interviennent avec plus de contexte, et clôturent le travail avec moins de manques.'
+                    : 'Keep planning, handoff, and completion visible as distinct moments so teams can prepare better, execute with more context, and close work with fewer gaps.',
                 'primary_label' => $isFrench ? 'Voir la solution Services terrain' : 'See the Field Services solution',
                 'primary_href' => '/pages/solution-field-services',
                 'cards' => [
                     [
-                        'title' => $isFrench ? 'Une meilleure lecture du plan de charge' : 'A clearer view of the workload',
+                        'title' => $isFrench ? 'Une lecture plus claire du plan de charge avant engagement' : 'A clearer read of workload before commitment',
                         'body' => $isFrench
-                            ? 'Le bureau garde une vision plus nette avant d engager les ressources.'
-                            : 'The office keeps a cleaner view before committing people and resources.',
+                            ? 'Donnez au bureau une meilleure vue de la charge et des points de tension avant de verrouiller les ressources sur la journée.'
+                            : 'Give the office a stronger view of workload and pressure points before resources are locked into the day.',
                         'image_key' => 'workflow-plan',
                     ],
                     [
-                        'title' => $isFrench ? 'Un vrai temps de dispatch' : 'A real dispatch moment',
+                        'title' => $isFrench ? 'Un vrai moment de dispatch avant le départ' : 'A real dispatch moment before the team leaves',
                         'body' => $isFrench
-                            ? 'Les informations utiles arrivent plus clairement avant le depart.'
-                            : 'Useful information reaches the team more clearly before departure.',
+                            ? 'Faites remonter les détails utiles avant le départ pour que l’équipe parte avec un meilleur contexte et moins de surprises.'
+                            : 'Surface the details that matter before departure so the team leaves with better context and fewer surprises.',
                         'image_key' => 'service-tablet',
                     ],
                     [
-                        'title' => $isFrench ? 'La preuve reste dans le meme flux' : 'Proof stays in the same flow',
+                        'title' => $isFrench ? 'La preuve reste reliée au même flux' : 'Proof stays connected to the same workflow',
                         'body' => $isFrench
-                            ? 'La page raconte mieux la fin de l intervention et la fermeture du job.'
-                            : 'The page explains the end of the intervention and job closure far more clearly.',
+                            ? 'Gardez notes, checklists, photos, et preuves de complétion reliés au même job pour une clôture plus propre et plus facile à vérifier.'
+                            : 'Keep notes, checklists, photos, and completion proof tied to the same job so closure is cleaner and easier to review.',
                         'image_key' => 'field-checklist',
                     ],
                 ],
@@ -602,32 +607,32 @@ class PublicProductPageNarratives
         return [
             self::featureTabsSection('commerce-flow', $locale, [
                 'background_color' => '#ffffff',
-                'kicker' => $isFrench ? 'Workflow du module' : 'Module workflow',
-                'title' => $isFrench ? 'Suivez le module par etapes visibles plutot que par menu' : 'Follow the module through visible stages instead of menu labels',
+                'kicker' => $isFrench ? 'Un parcours commerce du catalogue à l’encaissement' : 'One commerce workflow from catalog to collection',
+                'title' => $isFrench ? 'Transformez votre catalogue en revenu sans fragmenter l’expérience' : 'Turn your catalog into revenue without fragmenting the experience',
                 'body' => $isFrench
-                    ? 'Chaque onglet replace le module dans un moment de vente concret: rendre l offre visible, guider la commande, sortir la facture et securiser l encaissement.'
-                    : 'Each tab puts the module back into a concrete selling moment: make the offer visible, guide the order, issue the invoice, and secure collection.',
+                    ? 'Commerce relie la visibilité de l’offre, la commande guidée, la facturation et l’encaissement pour que la vente reste cohérente du premier clic jusqu’au revenu collecté.'
+                    : 'Commerce connects offer visibility, guided ordering, invoicing, and payment collection so the sale stays coherent from first click to collected revenue.',
                 'primary_label' => $isFrench ? 'Voir la solution commerce & catalogue' : 'See the Commerce & Catalog solution',
                 'primary_href' => '/pages/solution-commerce-catalog',
                 'tabs' => [
                     [
                         'label' => $isFrench ? 'Catalogue visible' : 'Visible catalog',
                         'icon' => 'clipboard-check',
-                        'title' => $isFrench ? 'Le catalogue devient une entree claire plutot qu une simple base de donnees' : 'The catalog becomes a clear entry point instead of a passive database',
+                        'title' => $isFrench ? 'Rendez l’offre plus simple à parcourir et plus facile à comprendre' : 'Make the offer easier to browse and easier to trust',
                         'body' => $isFrench
-                            ? 'Produits, services et categories se presentent dans un ordre plus rassurant pour lancer la vente avec de vrais reperes.'
-                            : 'Products, services, and categories appear in a more reassuring order so the sale can start with real context.',
+                            ? 'Présentez produits, services et catégories dans une structure plus claire pour que le client comprenne ce qui est disponible avant même de commander.'
+                            : 'Present products, services, and categories in a clearer structure so the customer understands what is available before the order starts.',
                         'cta_label' => $isFrench ? 'Voir la solution commerce' : 'See the commerce solution',
                         'cta_href' => '/pages/solution-commerce-catalog',
                         'image_key' => 'store-worker',
                     ],
                     [
-                        'label' => $isFrench ? 'Commande guidee' : 'Guided order',
+                        'label' => $isFrench ? 'Commande guidée' : 'Guided order',
                         'icon' => 'clipboard-list',
-                        'title' => $isFrench ? 'La vente garde une progression lisible du choix jusqu au recapitulatif' : 'The sale keeps a readable progression from choice to recap',
+                        'title' => $isFrench ? 'Gardez la commande lisible du choix jusqu’au récapitulatif' : 'Keep the order readable from selection to recap',
                         'body' => $isFrench
-                            ? 'Le panier, les quantites et les meilleures ventes restent dans le meme recit visuel pour limiter les allers-retours.'
-                            : 'Cart, quantities, and best-selling items stay in the same visual story so customers and teams make fewer back-and-forth moves.',
+                            ? 'Aidez le client comme l’équipe à avancer dans le panier, les quantités et les choix produits sans casser le flux commercial.'
+                            : 'Help the customer and the team move through cart, quantities, and product choices without breaking the commercial flow.',
                         'cta_label' => $isFrench ? 'Voir la boutique' : 'See the storefront',
                         'cta_href' => '/pages/solution-commerce-catalog',
                         'image_key' => 'store-boxes',
@@ -635,21 +640,21 @@ class PublicProductPageNarratives
                     [
                         'label' => $isFrench ? 'Facture sans rupture' : 'Invoice without friction',
                         'icon' => 'file-text',
-                        'title' => $isFrench ? 'La facturation reprend le bon contexte au lieu de repartir de zero' : 'Invoicing keeps the right context instead of starting from zero',
+                        'title' => $isFrench ? 'Laissez la facturation repartir du bon contexte au lieu de repartir de zéro' : 'Let invoicing pick up the right context instead of starting over',
                         'body' => $isFrench
-                            ? 'Le module garde la logique commerciale, les lignes utiles et la validation interne dans un meme fil.'
-                            : 'The module keeps the commercial logic, useful line items, and internal validation inside one continuous thread.',
+                            ? 'Gardez la logique commerciale, les lignes utiles et la validation interne dans le même fil pour que la facture ressemble à la suite naturelle de la vente.'
+                            : 'Keep the commercial logic, useful line items, and internal validation tied to the same thread so billing feels like the continuation of the sale.',
                         'cta_label' => $isFrench ? 'Voir Command Center' : 'See Command Center',
                         'cta_href' => '/pages/command-center',
                         'image_key' => 'team-laptop-window',
                     ],
                     [
-                        'label' => $isFrench ? 'Encaissement protege' : 'Protected collection',
+                        'label' => $isFrench ? 'Encaissement protégé' : 'Protected collection',
                         'icon' => 'circle-dollar-sign',
-                        'title' => $isFrench ? 'Le paiement et le suivi de revenu restent connectes a la transaction' : 'Payment and revenue follow-up stay tied to the transaction',
+                        'title' => $isFrench ? 'Gardez paiement et lecture du revenu reliés à la transaction' : 'Keep payment and revenue visibility tied to the transaction',
                         'body' => $isFrench
-                            ? 'Encaissement, rappel et lecture du revenu s enchainent sans casser le flux de vente initial.'
-                            : 'Collection, reminders, and revenue visibility follow naturally without breaking the original selling flow.',
+                            ? 'Reliez l’encaissement, les rappels et le suivi du revenu à la vente d’origine pour que la facturation et le paiement ne dérivent pas dans des flux séparés.'
+                            : 'Connect collection, reminders, and revenue tracking to the original sale so invoicing and payment do not drift into separate workflows.',
                         'cta_label' => $isFrench ? 'Voir Commerce' : 'See Commerce',
                         'cta_href' => '/pages/commerce',
                         'image_key' => 'warehouse-worker',
@@ -657,13 +662,13 @@ class PublicProductPageNarratives
                 ],
             ]),
             self::showcaseSection('commerce-cta', $locale, [
-                'kicker' => $isFrench ? 'Pret a monetiser' : 'Ready to monetize',
+                'kicker' => $isFrench ? 'Prêt à monétiser' : 'Ready to monetize',
                 'title' => $isFrench
-                    ? 'Le module Commerce cadre la vente, puis laisse l execution prendre le relai'
-                    : 'Commerce frames the sale, then lets execution take over',
+                    ? 'Vendez, facturez et encaissez depuis une même plateforme'
+                    : 'Sell, invoice, and collect from one platform',
                 'body' => $isFrench
-                    ? 'Cette version suit maintenant le meme format que la refonte publique: une promesse, un workflow, des preuves courtes, puis un CTA logique vers pricing ou solution.'
-                    : 'This version now follows the same public redesign format: one promise, one workflow, short proof, then a logical CTA toward pricing or the connected solution.',
+                    ? 'Remplacez une boutique, une administration et des parcours de paiement déconnectés par un système qui rend le parcours commercial plus simple à piloter, plus rassurant et plus lisible du catalogue jusqu’au paiement collecté.'
+                    : 'Replace disconnected storefront, admin, and payment workflows with a system that keeps the commercial journey easier to manage, easier to trust, and easier to monitor from catalog to collected payment.',
                 'primary_label' => $isFrench ? 'Voir les tarifs' : 'View pricing',
                 'primary_href' => '/pricing#commerce',
                 'secondary_label' => $isFrench ? 'Voir la solution commerce & catalogue' : 'See the Commerce & Catalog solution',
@@ -675,39 +680,39 @@ class PublicProductPageNarratives
                 'badge_label' => 'Module',
                 'badge_value' => 'Commerce',
                 'badge_note' => $isFrench
-                    ? 'Catalogue, commande, facture et paiement dans un meme flux'
-                    : 'Catalog, order, invoice, and payment in one shared flow',
+                    ? 'Catalogue, commande, facture et paiement dans un même flux connecté'
+                    : 'Catalog, order, invoice, and payment in one connected flow',
             ]),
             self::storyGridSection('commerce-proof', $locale, [
-                'kicker' => $isFrench ? 'Ce que la nouvelle page clarifie' : 'What the new page clarifies',
+                'kicker' => $isFrench ? 'Continuité commerciale' : 'Commercial continuity',
                 'title' => $isFrench
-                    ? 'Un module plus lisible pour la direction, l equipe et le client final'
-                    : 'A module that reads more clearly for leadership, teams, and end customers',
+                    ? 'Conçu pour les entreprises qui veulent une chaîne commerciale plus propre'
+                    : 'Built for businesses that want better commercial continuity',
                 'body' => $isFrench
-                    ? 'Le module gagne en profondeur sans se transformer en documentation produit. Chaque carte explique un moment utile de la chaine commerce.'
-                    : 'The module gains depth without becoming product documentation. Each card explains one useful moment inside the commerce chain.',
+                    ? 'Gardez la vente reliée du premier clic jusqu’au paiement collecté pour que catalogue, commande, facture et revenu ressemblent à un même système commercial plutôt qu’à des outils déconnectés.'
+                    : 'Keep the sale connected from first click to collected payment so the catalog, the order, the invoice, and the revenue feel like one commercial system instead of disconnected tools.',
                 'primary_label' => $isFrench ? 'Voir la solution commerce & catalogue' : 'See the Commerce & Catalog solution',
                 'primary_href' => '/pages/solution-commerce-catalog',
                 'cards' => [
                     [
-                        'title' => $isFrench ? 'Le catalogue redevient un point d entree' : 'The catalog becomes an entry point again',
+                        'title' => $isFrench ? 'Le catalogue redevient une vraie porte d’entrée commerciale' : 'The catalog becomes a clearer commercial entry point',
                         'body' => $isFrench
-                            ? 'La page montre mieux comment l offre s organise avant meme la premiere commande.'
-                            : 'The page shows more clearly how the offer gets organized before the first order even exists.',
+                            ? 'Structurez l’offre pour que le client comprenne plus vite ce qu’il peut acheter, réserver ou ajouter avant même que la transaction commence.'
+                            : 'Structure the offer so the customer understands faster what can be bought, booked, or added before the transaction starts.',
                         'image_key' => 'store-worker',
                     ],
                     [
-                        'title' => $isFrench ? 'La logistique reste visible dans le recit' : 'Logistics stays visible in the story',
+                        'title' => $isFrench ? 'La logistique reste reliée à la vente' : 'Logistics stays connected to the sale',
                         'body' => $isFrench
-                            ? 'Le visiteur comprend plus vite que stock, preparation et livraison font partie du meme module.'
-                            : 'Visitors understand faster that stock, preparation, and delivery all belong to the same module.',
+                            ? 'Gardez stock, préparation et exécution visibles dans la même histoire pour que l’équipe ne pilote pas le revenu à part de la livraison.'
+                            : 'Keep stock, preparation, and fulfillment visible in the same story so the team does not manage revenue separately from delivery.',
                         'image_key' => 'warehouse-worker',
                     ],
                     [
-                        'title' => $isFrench ? 'Le revenu apparait comme la suite naturelle de la vente' : 'Revenue feels like the natural continuation of the sale',
+                        'title' => $isFrench ? 'Le revenu devient la suite naturelle de la commande' : 'Revenue feels like the natural continuation of the order',
                         'body' => $isFrench
-                            ? 'Facture et encaissement ferment la boucle au lieu de sembler deconnectes du catalogue et de la commande.'
-                            : 'Invoicing and collection close the loop instead of feeling disconnected from catalog and ordering.',
+                            ? 'Laissez facture et encaissement fermer la boucle pour que le paiement ne paraisse pas déconnecté de l’achat d’origine.'
+                            : 'Let invoicing and collection close the loop so payment does not feel disconnected from the original purchase.',
                         'image_key' => 'store-payment',
                     ],
                 ],
@@ -725,21 +730,21 @@ class PublicProductPageNarratives
         return [
             self::featureTabsSection('marketing-loyalty-flow', $locale, [
                 'background_color' => '#ffffff',
-                'kicker' => $isFrench ? 'Workflow du module' : 'Module workflow',
-                'title' => $isFrench ? 'Suivez le module du signal client jusqu au retour en revenu' : 'Follow the module from customer signal to returning revenue',
+                'kicker' => $isFrench ? 'Un flux de rétention du signal client au retour en revenu' : 'One retention workflow from customer signal to returning revenue',
+                'title' => $isFrench ? 'Transformez l’activité client en actions de rétention qui font vraiment revenir' : 'Turn customer activity into retention actions that actually bring people back',
                 'body' => $isFrench
-                    ? 'La page montre comment le module ecoute, cible, active puis ramene le client vers la bonne suite.'
-                    : 'The page shows how the module listens, segments, activates, and then brings the customer back toward the right next step.',
-                'primary_label' => $isFrench ? 'Voir la solution Marketing & fidelisation' : 'See the Marketing & Loyalty solution',
+                    ? 'Marketing & Loyalty relie signaux, segmentation, campagnes, et parcours de fidélisation pour aider les équipes à agir au bon moment et à protéger le revenu futur.'
+                    : 'Marketing & Loyalty connects signals, segmentation, campaigns, and loyalty journeys so teams can respond at the right moment and protect future revenue.',
+                'primary_label' => $isFrench ? 'Voir la solution Marketing & fidélisation' : 'See the Marketing & Loyalty solution',
                 'primary_href' => '/pages/solution-marketing-loyalty',
                 'tabs' => [
                     [
-                        'label' => $isFrench ? 'Ecouter' : 'Listen',
+                        'label' => $isFrench ? 'Écouter' : 'Listen',
                         'icon' => 'clipboard-check',
-                        'title' => $isFrench ? 'Faire remonter les signaux utiles' : 'Surface the signals that matter',
+                        'title' => $isFrench ? 'Faites remonter les signaux client qui méritent une action' : 'Surface the customer signals that deserve action',
                         'body' => $isFrench
-                            ? 'Avis, historique et retours concrets nourrissent mieux la prochaine action.'
-                            : 'Reviews, history, and concrete feedback feed the next action much more effectively.',
+                            ? 'Appuyez-vous sur les avis, l’historique de visites, l’inactivité, et les changements de comportement pour savoir quand il faut relancer.'
+                            : 'Use reviews, visit history, inactivity, and behavioral changes to decide when a customer should hear from you again.',
                         'cta_label' => $isFrench ? 'Voir Sales & CRM' : 'See Sales & CRM',
                         'cta_href' => '/pages/sales-crm',
                         'image_key' => 'desk-phone-laptop',
@@ -747,10 +752,10 @@ class PublicProductPageNarratives
                     [
                         'label' => $isFrench ? 'Segmenter' : 'Segment',
                         'icon' => 'clipboard-list',
-                        'title' => $isFrench ? 'Cibler a partir d un contexte plus reel' : 'Target from a more concrete context',
+                        'title' => $isFrench ? 'Construisez les segments à partir du vrai comportement, pas d’hypothèses' : 'Build segments from real behavior instead of guesswork',
                         'body' => $isFrench
-                            ? 'La segmentation se comprend mieux quand elle part d une vraie situation client.'
-                            : 'Segmentation makes more sense when it starts from a real customer situation instead of abstract tags alone.',
+                            ? 'Regroupez les clients selon leur valeur, leur rythme, leur historique, ou leur activité récente pour que le ciblage soit précis avant même le lancement d’une campagne.'
+                            : 'Group customers by value, rhythm, visit history, or recent activity so targeting feels specific before a campaign is ever launched.',
                         'cta_label' => $isFrench ? 'Voir Command Center' : 'See Command Center',
                         'cta_href' => '/pages/command-center',
                         'image_key' => 'team-laptop-window',
@@ -758,21 +763,21 @@ class PublicProductPageNarratives
                     [
                         'label' => $isFrench ? 'Activer' : 'Activate',
                         'icon' => 'file-text',
-                        'title' => $isFrench ? 'Lancer des campagnes plus credibles' : 'Launch campaigns that feel more credible',
+                        'title' => $isFrench ? 'Lancez des campagnes qui arrivent au bon moment et avec le bon message' : 'Launch follow-up campaigns that feel timely and relevant',
                         'body' => $isFrench
-                            ? 'Relance, campagne et prochaine action restent lisibles et connectees a la promesse produit.'
-                            : 'Follow-up, campaigns, and next actions stay readable and tied back to the product promise.',
+                            ? 'Reliez la bonne audience, le bon message, et la bonne offre pour que la campagne ressemble à une relance utile plutôt qu’à un bruit générique.'
+                            : 'Connect the right audience, message, and offer so campaigns feel like useful follow-up instead of generic noise.',
                         'cta_label' => $isFrench ? 'Voir la solution' : 'See the solution',
                         'cta_href' => '/pages/solution-marketing-loyalty',
                         'image_key' => 'marketing-desk',
                     ],
                     [
-                        'label' => $isFrench ? 'Fideliser' : 'Retain',
+                        'label' => $isFrench ? 'Fidéliser' : 'Retain',
                         'icon' => 'calendar-days',
-                        'title' => $isFrench ? 'Fermer la boucle avec un retour utile' : 'Close the loop with a useful return',
+                        'title' => $isFrench ? 'Transformez la fidélisation en prochaine visite, prochain achat, ou renouvellement' : 'Turn loyalty into the next visit, order, or renewal',
                         'body' => $isFrench
-                            ? 'La page relie mieux reactivation, panier et prochaine visite ou prochain achat.'
-                            : 'The page ties reactivation, basket value, and the next visit or order together more clearly.',
+                            ? 'Gardez réactivation, avantages, et prochaine transaction dans la même histoire pour que la fidélisation se voie dans le revenu récurrent, pas seulement dans les taux d’ouverture.'
+                            : 'Keep reactivation, rewards, and the next transaction in the same story so retention can be felt in repeat business, not just in open rates.',
                         'cta_label' => $isFrench ? 'Voir Commerce' : 'See Commerce',
                         'cta_href' => '/pages/commerce',
                         'image_key' => 'meeting-room-laptops',
@@ -780,14 +785,14 @@ class PublicProductPageNarratives
                 ],
             ]),
             self::showcaseSection('marketing-loyalty-cta', $locale, [
-                'kicker' => $isFrench ? 'Pret a relancer plus finement' : 'Ready to reactivate with more precision',
+                'kicker' => $isFrench ? 'Prêt à faire revenir les clients plus régulièrement' : 'Ready to bring customers back with more consistency',
                 'title' => $isFrench
-                    ? 'Marketing & Loyalty suit maintenant le meme format narratif que les autres pages modules'
-                    : 'Marketing & Loyalty now follows the same narrative format as the other module pages',
+                    ? 'Transformez l’activité client en campagnes et fidélisation qui génèrent du revenu récurrent'
+                    : 'Turn customer activity into campaigns and loyalty that drive repeat revenue',
                 'body' => $isFrench
-                    ? 'La page raconte mieux comment la retention reste branchee sur la plateforme et pas a cote.'
-                    : 'The page now explains more clearly how retention stays connected to the platform instead of living beside it.',
-                'primary_label' => $isFrench ? 'Voir la solution Marketing & fidelisation' : 'See the Marketing & Loyalty solution',
+                    ? 'Remplacez des outils de mailing déconnectés et un ciblage au hasard par un système où signaux, audience, campagnes, et résultats de fidélisation restent reliés à la fiche client.'
+                    : 'Replace disconnected mailing tools and guesswork with a system where signals, audience, campaigns, and loyalty outcomes stay tied to the customer record.',
+                'primary_label' => $isFrench ? 'Voir la solution Marketing & fidélisation' : 'See the Marketing & Loyalty solution',
                 'primary_href' => '/pages/solution-marketing-loyalty',
                 'secondary_label' => $isFrench ? 'Voir les tarifs' : 'View pricing',
                 'secondary_href' => '/pricing',
@@ -798,39 +803,39 @@ class PublicProductPageNarratives
                 'badge_label' => 'Module',
                 'badge_value' => 'Marketing & Loyalty',
                 'badge_note' => $isFrench
-                    ? 'Signaux, campagnes et retour en revenu dans un meme flux'
+                    ? 'Signaux, campagnes, fidélisation, et retour en revenu dans un même flux connecté'
                     : 'Signals, campaigns, and returning revenue in one connected flow',
             ]),
             self::storyGridSection('marketing-loyalty-proof', $locale, [
-                'kicker' => $isFrench ? 'Moments visibles' : 'Visible moments',
+                'kicker' => $isFrench ? 'Une rétention ancrée dans l’activité réelle' : 'Retention that stays grounded in real activity',
                 'title' => $isFrench
-                    ? 'Le module Marketing & Loyalty devient plus lisible quand ses moments clefs restent distincts'
-                    : 'Marketing & Loyalty becomes easier to read when its key moments stay distinct',
+                    ? 'Conçu pour les équipes qui veulent un marketing client utile, opportun, et mesurable'
+                    : 'Built for teams that want customer marketing to feel timely, useful, and measurable',
                 'body' => $isFrench
-                    ? 'Les cartes montrent des moments distincts de retention au lieu de repeter une promesse generique.'
-                    : 'The cards show distinct retention moments instead of repeating one generic promise.',
-                'primary_label' => $isFrench ? 'Voir la solution Marketing & fidelisation' : 'See the Marketing & Loyalty solution',
+                    ? 'Gardez les campagnes reliées au vrai parcours client pour que la relance soit plus pertinente, que la fidélisation paraisse plus naturelle, et que le revenu récurrent soit plus facile à comprendre.'
+                    : 'Keep campaigns tied to the real customer journey so follow-up feels more relevant, loyalty feels more earned, and repeat revenue becomes easier to understand.',
+                'primary_label' => $isFrench ? 'Voir la solution Marketing & fidélisation' : 'See the Marketing & Loyalty solution',
                 'primary_href' => '/pages/solution-marketing-loyalty',
                 'cards' => [
                     [
-                        'title' => $isFrench ? 'Les signaux remontent mieux' : 'Signals come up more clearly',
+                        'title' => $isFrench ? 'Les signaux deviennent plus faciles à exploiter' : 'Signals become easier to act on',
                         'body' => $isFrench
-                            ? 'Le module reste branche sur les retours reels au lieu de travailler a vide.'
-                            : 'The module stays tied to real feedback instead of working in a vacuum.',
+                            ? 'Donnez à l’équipe une façon plus claire de voir les avis, les périodes d’absence, les changements de comportement, et les retours qui méritent la prochaine action.'
+                            : 'Give teams a clearer way to spot the reviews, lapses, behavior shifts, and return patterns that deserve the next message.',
                         'image_key' => 'desk-phone-laptop',
                     ],
                     [
-                        'title' => $isFrench ? 'Les campagnes ont plus de contexte' : 'Campaigns carry more context',
+                        'title' => $isFrench ? 'Les campagnes partent d’un vrai contexte' : 'Campaigns start from real context',
                         'body' => $isFrench
-                            ? 'Une campagne prend plus de sens quand elle suit une vraie situation client.'
-                            : 'A campaign makes more sense when it follows a real customer situation.',
+                            ? 'Lancez les campagnes à partir de l’historique, de la valeur, et de l’activité du client pour que le message paraisse relié à ce qui s’est réellement passé.'
+                            : 'Launch campaigns from customer history, value, and activity so the message feels connected to what actually happened.',
                         'image_key' => 'marketing-desk',
                     ],
                     [
-                        'title' => $isFrench ? 'Le retour en revenu est plus lisible' : 'The revenue return becomes easier to read',
+                        'title' => $isFrench ? 'La fidélisation se traduit en revenu récurrent visible' : 'Loyalty turns into visible repeat revenue',
                         'body' => $isFrench
-                            ? 'La page montre mieux le lien entre fidelisation et prochaine transaction.'
-                            : 'The page makes the link between loyalty and the next transaction much easier to understand.',
+                            ? 'Gardez le lien entre les actions de rétention et la prochaine visite, le prochain achat, ou la prochaine montée en gamme assez lisible pour savoir ce qui fait revenir.'
+                            : 'Keep the link between retention actions and the next visit, order, or upgrade clear enough to measure what brings people back.',
                         'image_key' => 'meeting-room-laptops',
                     ],
                 ],
@@ -848,32 +853,32 @@ class PublicProductPageNarratives
         return [
             self::featureTabsSection('ai-automation-flow', $locale, [
                 'background_color' => '#ffffff',
-                'kicker' => $isFrench ? 'Workflow du module' : 'Module workflow',
-                'title' => $isFrench ? 'Montrez l IA comme un cycle de travail utile et verifiable' : 'Show AI as a useful and verifiable work cycle',
+                'kicker' => $isFrench ? 'Un parcours IA du signal jusqu’à l’exécution assistée' : 'One AI workflow from signal to assisted execution',
+                'title' => $isFrench ? 'Mettez l’IA là où les équipes ont déjà besoin d’aide, de vitesse, et de contexte' : 'Put AI to work where teams already need help, speed, and context',
                 'body' => $isFrench
-                    ? 'Les onglets replacent l IA dans des gestes concrets au lieu d une promesse vague.'
-                    : 'The tabs put AI back into concrete operating gestures instead of a vague technology promise.',
+                    ? 'AI & Automation relie détection de signaux, suggestions, automatisation du travail, et revue humaine pour aider les équipes à aller plus vite sans perdre la visibilité ni le jugement.'
+                    : 'AI & Automation connects pattern detection, suggestions, workflow automation, and human review so teams can move faster without losing visibility or judgment.',
                 'primary_label' => $isFrench ? 'Voir Command Center' : 'See Command Center',
                 'primary_href' => '/pages/command-center',
                 'tabs' => [
                     [
-                        'label' => $isFrench ? 'Reperer' : 'Spot',
+                        'label' => $isFrench ? 'Repérer' : 'Spot',
                         'icon' => 'clipboard-check',
-                        'title' => $isFrench ? 'Faire remonter les patterns utiles' : 'Surface the patterns that matter',
+                        'title' => $isFrench ? 'Faites remonter les signaux et répétitions qui méritent l’attention' : 'Surface the signals and repetitions that deserve attention',
                         'body' => $isFrench
-                            ? 'Le module aide d abord a voir des repetitions et signaux faibles plus utiles.'
-                            : 'The module first helps teams notice recurring patterns and weak signals that actually matter.',
+                            ? 'Aidez les équipes à voir plus tôt les patterns, signaux faibles, et frictions récurrentes pour que la prochaine action devienne plus claire avant de perdre du temps.'
+                            : 'Help teams notice patterns, weak signals, and recurring friction earlier so the next action becomes clearer before time is wasted.',
                         'cta_label' => $isFrench ? 'Voir Operations' : 'See Operations',
                         'cta_href' => '/pages/operations',
                         'image_key' => 'team-laptop-window',
                     ],
                     [
-                        'label' => $isFrench ? 'Suggester' : 'Suggest',
+                        'label' => $isFrench ? 'Suggérer' : 'Suggest',
                         'icon' => 'file-text',
-                        'title' => $isFrench ? 'Aider sans casser le contexte source' : 'Help without breaking the source context',
+                        'title' => $isFrench ? 'Suggérez des brouillons et actions utiles sans perdre le contexte source' : 'Suggest useful drafts and actions without losing source context',
                         'body' => $isFrench
-                            ? 'Les suggestions restent plus credibles quand elles se branchent sur un workflow compris par l equipe.'
-                            : 'Suggestions feel more credible when they plug into a workflow the team already understands.',
+                            ? 'Gardez résumés, brouillons, et recommandations reliés au client, au job, à la demande, ou au dossier dont ils partent pour que l’aide reste crédible.'
+                            : 'Keep summaries, drafts, and recommendations tied to the customer, job, request, or record they came from so assistance stays credible.',
                         'cta_label' => $isFrench ? 'Voir Sales & CRM' : 'See Sales & CRM',
                         'cta_href' => '/pages/sales-crm',
                         'image_key' => 'collab-laptop-desk',
@@ -881,21 +886,21 @@ class PublicProductPageNarratives
                     [
                         'label' => $isFrench ? 'Automatiser' : 'Automate',
                         'icon' => 'calendar-days',
-                        'title' => $isFrench ? 'Fluidifier certaines transitions utiles' : 'Smooth useful transitions',
+                        'title' => $isFrench ? 'Retirez des étapes utiles du travail répétitif sans casser le flux' : 'Remove useful steps from repeat work without breaking the workflow',
                         'body' => $isFrench
-                            ? 'La page raconte mieux comment routage, relance ou preparation peuvent gagner du temps.'
-                            : 'The page explains more clearly how routing, follow-up, and preparation can save time in real workflows.',
+                            ? 'Automatisez routage, relance, préparation, et transitions répétitives là où l’équipe gagne en vitesse, en cohérence, et en charge manuelle réduite.'
+                            : 'Automate routing, follow-up, preparation, and repetitive transitions where teams gain speed, consistency, and less manual overhead.',
                         'cta_label' => $isFrench ? 'Voir la plateforme' : 'See the platform',
                         'cta_href' => '/pages/command-center',
                         'image_key' => 'workflow-plan',
                     ],
                     [
-                        'label' => $isFrench ? 'Garder le controle' : 'Keep control',
+                        'label' => $isFrench ? 'Garder le contrôle' : 'Keep control',
                         'icon' => 'clipboard-list',
-                        'title' => $isFrench ? 'Laisser la validation humaine au bon endroit' : 'Leave human validation in the right place',
+                        'title' => $isFrench ? 'Laissez la revue humaine là où le jugement compte encore' : 'Leave human review where judgment still matters',
                         'body' => $isFrench
-                            ? 'Le module garde un espace visible pour l exception, la revue et les decisions sensibles.'
-                            : 'The module keeps visible space for exceptions, review, and sensitive decisions.',
+                            ? 'Gardez validations, exceptions, et décisions sensibles visibles pour que l’automatisation soutienne l’équipe au lieu de prendre silencieusement la mauvaise place.'
+                            : 'Keep approval, exceptions, and sensitive decisions visible so automation supports the team instead of quietly taking over the wrong step.',
                         'cta_label' => $isFrench ? 'Voir Command Center' : 'See Command Center',
                         'cta_href' => '/pages/command-center',
                         'image_key' => 'meeting-room-laptops',
@@ -903,13 +908,13 @@ class PublicProductPageNarratives
                 ],
             ]),
             self::showcaseSection('ai-automation-cta', $locale, [
-                'kicker' => $isFrench ? 'Pret a gagner du temps sans perdre la main' : 'Ready to save time without losing control',
+                'kicker' => $isFrench ? 'Prêt à gagner du temps sans abandonner le contrôle' : 'Ready to save time without giving up control',
                 'title' => $isFrench
-                    ? 'AI & Automation suit maintenant le meme format narratif que les autres pages modules'
-                    : 'AI & Automation now follows the same narrative format as the other module pages',
+                    ? 'Utilisez l’IA et l’automatisation pour faire avancer le travail avec moins de friction'
+                    : 'Use AI and automation to move work forward with less friction',
                 'body' => $isFrench
-                    ? 'Le module se lit maintenant comme une aide situee dans les workflows plutot qu un bloc technologique isole.'
-                    : 'The module now reads like help embedded in real workflows instead of an isolated technology block.',
+                    ? 'Remplacez des assistants déconnectés et des promesses d’automatisation floues par un système où suggestions, résumés, étapes du parcours, et revue humaine restent reliés au travail lui-même.'
+                    : 'Replace disconnected assistants and vague automation promises with a system where suggestions, summaries, workflow steps, and human review stay connected to the work itself.',
                 'primary_label' => $isFrench ? 'Voir Command Center' : 'See Command Center',
                 'primary_href' => '/pages/command-center',
                 'secondary_label' => $isFrench ? 'Voir les tarifs' : 'View pricing',
@@ -921,39 +926,39 @@ class PublicProductPageNarratives
                 'badge_label' => 'Module',
                 'badge_value' => 'AI & Automation',
                 'badge_note' => $isFrench
-                    ? 'Suggestions, automatisation et validation dans un meme flux'
-                    : 'Suggestions, automation, and validation in one shared flow',
+                    ? 'Suggestions, automatisation, et revue humaine dans un même flux connecté'
+                    : 'Suggestions, automation, and human review in one connected flow',
             ]),
             self::storyGridSection('ai-automation-proof', $locale, [
-                'kicker' => $isFrench ? 'Moments visibles' : 'Visible moments',
+                'kicker' => $isFrench ? 'Une IA qui reste branchée sur le vrai travail' : 'AI that stays tied to real work',
                 'title' => $isFrench
-                    ? 'Le module AI & Automation devient plus lisible quand ses moments clefs restent distincts'
-                    : 'AI & Automation becomes easier to read when its key moments stay distinct',
+                    ? 'Conçu pour les équipes qui veulent une aide utile, crédible, et contrôlable'
+                    : 'Built for teams that want assistance to feel useful, credible, and controllable',
                 'body' => $isFrench
-                    ? 'La page montre des moments de suggestion, de revue et de gain de temps plus credibles.'
-                    : 'The page now shows suggestion, review, and time-saving moments that feel more credible.',
+                    ? 'Gardez l’IA reliée au bon contexte, aux bons moments de revue, et aux bons parcours pour que le gain de temps soit réel sans transformer les décisions en approximation.'
+                    : 'Keep AI tied to the right context, the right review moments, and the right workflows so time savings feel real without turning decisions into guesswork.',
                 'primary_label' => $isFrench ? 'Voir Command Center' : 'See Command Center',
                 'primary_href' => '/pages/command-center',
                 'cards' => [
                     [
-                        'title' => $isFrench ? 'Reperer plus vite' : 'Spot useful patterns faster',
+                        'title' => $isFrench ? 'Les patterns utiles deviennent plus faciles à repérer' : 'Useful patterns become easier to spot',
                         'body' => $isFrench
-                            ? 'Le module aide d abord a lire les bons signaux.'
-                            : 'The module first helps teams read the right signals instead of drowning in noise.',
+                            ? 'Aidez les équipes à voir les signaux répétés, les blocages, et les schémas faibles qui méritent une action avant qu’ils se perdent dans le bruit du quotidien.'
+                            : 'Help teams see the repeated signals, blockers, and weak patterns worth acting on before they disappear into day-to-day noise.',
                         'image_key' => 'team-laptop-window',
                     ],
                     [
-                        'title' => $isFrench ? 'Suggester sans perdre le contexte' : 'Suggest without losing context',
+                        'title' => $isFrench ? 'Les suggestions restent ancrées dans le contexte' : 'Suggestions stay grounded in context',
                         'body' => $isFrench
-                            ? 'Les suggestions restent branchees sur un workflow reel.'
-                            : 'Suggestions stay attached to a real workflow instead of floating as generic ideas.',
+                            ? 'Générez brouillons, résumés, et actions proposées à partir du dossier déjà ouvert devant l’équipe pour que le résultat paraisse pertinent plutôt que générique.'
+                            : 'Generate drafts, summaries, and proposed actions from the record already in front of the team so the output feels relevant instead of generic.',
                         'image_key' => 'collab-laptop-desk',
                     ],
                     [
-                        'title' => $isFrench ? 'Garder une vraie validation humaine' : 'Keep real human validation',
+                        'title' => $isFrench ? 'La revue humaine reste visible là où elle compte' : 'Human review stays visible where it matters',
                         'body' => $isFrench
-                            ? 'La page montre mieux ou la decision doit rester partagee.'
-                            : 'The page makes it clearer where the decision still needs to stay shared and human.',
+                            ? 'Laissez validations, exceptions, et étapes sensibles bien visibles pour que l’équipe sache exactement où l’automatisation aide et où le jugement doit encore mener.'
+                            : 'Leave approvals, exceptions, and sensitive steps in clear view so the team knows exactly where automation helps and where judgment still leads.',
                         'image_key' => 'meeting-room-laptops',
                     ],
                 ],
@@ -971,21 +976,21 @@ class PublicProductPageNarratives
         return [
             self::featureTabsSection('command-center-flow', $locale, [
                 'background_color' => '#ffffff',
-                'kicker' => $isFrench ? 'Workflow du module' : 'Module workflow',
-                'title' => $isFrench ? 'Suivez le pilotage comme une boucle entre signal, priorite et decision' : 'Follow leadership as a loop between signal, priority, and decision',
+                'kicker' => $isFrench ? 'Un pilotage du signal à la décision' : 'One leadership workflow from signal to decision',
+                'title' => $isFrench ? 'Transformez la visibilité transversale en priorités plus claires et en action plus rapide' : 'Turn cross-functional visibility into clearer priorities and faster action',
                 'body' => $isFrench
-                    ? 'Les onglets montrent comment le module remonte un signal, compare, priorise puis redescend vers les bonnes equipes.'
-                    : 'The tabs show how the module raises a signal, compares, prioritizes, and then sends the next move back toward the right teams.',
+                    ? 'Command Center relie signaux, comparaisons, priorisation, et suivi dirigeant pour aider les équipes à agir à partir d’une lecture commune plutôt que de vues fragmentées.'
+                    : 'Command Center connects signals, comparisons, priority setting, and executive follow-through so teams can act from a shared reading instead of fragmented views.',
                 'primary_label' => $isFrench ? 'Voir la solution Pilotage multi-entreprise' : 'See the Multi-Entity Oversight solution',
                 'primary_href' => '/pages/solution-multi-entity-oversight',
                 'tabs' => [
                     [
                         'label' => $isFrench ? 'Remonter' : 'Raise',
                         'icon' => 'clipboard-check',
-                        'title' => $isFrench ? 'Faire emerger les signaux importants' : 'Bring important signals to the surface',
+                        'title' => $isFrench ? 'Faites remonter plus vite les signaux qui comptent' : 'Bring the signals that matter to the surface faster',
                         'body' => $isFrench
-                            ? 'Le module agrandit les signaux utiles pour aider la direction a voir ce qui doit remonter en premier.'
-                            : 'The module amplifies useful signals so leadership can see what needs attention first.',
+                            ? 'Aidez les responsables à voir les indicateurs, variations, et alertes qui méritent l’attention avant qu’ils se perdent dans le bruit opérationnel.'
+                            : 'Help leadership see the indicators, shifts, and warnings worth attention before they disappear into operational noise.',
                         'cta_label' => $isFrench ? 'Voir Operations' : 'See Operations',
                         'cta_href' => '/pages/operations',
                         'image_key' => 'team-laptop-window',
@@ -993,10 +998,10 @@ class PublicProductPageNarratives
                     [
                         'label' => $isFrench ? 'Comparer' : 'Compare',
                         'icon' => 'clipboard-list',
-                        'title' => $isFrench ? 'Lire les ecarts sans casser la vue commune' : 'Read gaps without breaking the shared view',
+                        'title' => $isFrench ? 'Comparez équipes, entités, et performance sans perdre la vue d’ensemble' : 'Compare teams, entities, and performance without losing the shared picture',
                         'body' => $isFrench
-                            ? 'Le module montre mieux ou se trouvent les goulets, charges et variations importantes.'
-                            : 'The module shows more clearly where the bottlenecks, pressure, and important variations live.',
+                            ? 'Lisez écarts, points de tension, et performances inégales au même endroit pour que la comparaison mène à la compréhension plutôt qu’à la fragmentation.'
+                            : 'Read gaps, pressure points, and uneven performance in one place so comparison leads to understanding instead of fragmentation.',
                         'cta_label' => $isFrench ? 'Voir la solution' : 'See the solution',
                         'cta_href' => '/pages/solution-multi-entity-oversight',
                         'image_key' => 'meeting-room-laptops',
@@ -1004,10 +1009,10 @@ class PublicProductPageNarratives
                     [
                         'label' => $isFrench ? 'Prioriser' : 'Prioritize',
                         'icon' => 'calendar-days',
-                        'title' => $isFrench ? 'Redonner un cap commun aux equipes' : 'Give teams a shared direction again',
+                        'title' => $isFrench ? 'Transformez la lecture en priorités que les équipes peuvent vraiment suivre' : 'Turn the reading into priorities people can actually follow',
                         'body' => $isFrench
-                            ? 'Une fois la lecture faite, la page montre mieux comment la priorite redescend vers les bonnes personnes.'
-                            : 'Once the reading is clear, the page shows better how priority flows back toward the right people.',
+                            ? 'Traduisez ce que voient les responsables en direction plus claire pour les bonnes équipes afin que le cap soit partagé au lieu de rester implicite.'
+                            : 'Translate what leadership sees into clearer direction for the right teams so focus becomes shared instead of implied.',
                         'cta_label' => $isFrench ? 'Voir Sales & CRM' : 'See Sales & CRM',
                         'cta_href' => '/pages/sales-crm',
                         'image_key' => 'workflow-plan',
@@ -1015,10 +1020,10 @@ class PublicProductPageNarratives
                     [
                         'label' => $isFrench ? 'Arbitrer' : 'Arbitrate',
                         'icon' => 'file-text',
-                        'title' => $isFrench ? 'Fermer la boucle sur une decision exploitable' : 'Close the loop with a usable decision',
+                        'title' => $isFrench ? 'Fermez la boucle avec une décision qui fait avancer l’exécution' : 'Close the loop with a decision that moves execution forward',
                         'body' => $isFrench
-                            ? 'Le pilotage se lit maintenant comme un poste de commande transversal avec une suite plus nette.'
-                            : 'Leadership now reads like a cross-functional command space with a much clearer follow-through.',
+                            ? 'Gardez arbitrages, décisions, et prochaines actions visibles pour que le pilotage ne s’arrête pas à l’insight mais arrive là où l’équipe doit agir.'
+                            : 'Keep trade-offs, decisions, and next moves visible so executive direction does not stop at insight but lands where action needs to happen.',
                         'cta_label' => $isFrench ? 'Voir Commerce' : 'See Commerce',
                         'cta_href' => '/pages/commerce',
                         'image_key' => 'warehouse-worker',
@@ -1026,13 +1031,13 @@ class PublicProductPageNarratives
                 ],
             ]),
             self::showcaseSection('command-center-cta', $locale, [
-                'kicker' => $isFrench ? 'Pret a piloter plus lucidement' : 'Ready to lead with more clarity',
+                'kicker' => $isFrench ? 'Prêt à piloter avec plus de clarté' : 'Ready to lead with more clarity',
                 'title' => $isFrench
-                    ? 'Command Center suit maintenant le meme format narratif que les autres pages modules'
-                    : 'Command Center now follows the same narrative format as the other module pages',
+                    ? 'Utilisez une même couche de pilotage pour aligner signaux, priorités, et prochaines actions dans toute l’activité'
+                    : 'Use one command layer to align signals, priorities, and next actions across the business',
                 'body' => $isFrench
-                    ? 'La page montre mieux pourquoi ce module existe et comment il relie les autres blocs de la plateforme.'
-                    : 'The page explains more clearly why this module exists and how it connects the rest of the platform.',
+                    ? 'Remplacez des dashboards déconnectés et des mises à jour dispersées par un espace de commandement partagé où revenu, opérations, et activité client peuvent être lus, priorisés, et transformés en action.'
+                    : 'Replace disconnected dashboards and scattered updates with a shared command space where revenue, operations, and customer activity can be read, prioritized, and turned into action.',
                 'primary_label' => $isFrench ? 'Voir la solution Pilotage multi-entreprise' : 'See the Multi-Entity Oversight solution',
                 'primary_href' => '/pages/solution-multi-entity-oversight',
                 'secondary_label' => $isFrench ? 'Voir les tarifs' : 'View pricing',
@@ -1044,39 +1049,39 @@ class PublicProductPageNarratives
                 'badge_label' => 'Module',
                 'badge_value' => 'Command Center',
                 'badge_note' => $isFrench
-                    ? 'Signal, priorite et decision dans un meme poste de pilotage'
-                    : 'Signal, priority, and decision inside one shared command view',
+                    ? 'Signaux, priorités, et décisions dans une même couche de pilotage'
+                    : 'Signals, priorities, and decisions in one shared control layer',
             ]),
             self::storyGridSection('command-center-proof', $locale, [
-                'kicker' => $isFrench ? 'Moments visibles' : 'Visible moments',
+                'kicker' => $isFrench ? 'Une visibilité dirigeant qui débouche sur l’action' : 'Executive visibility that leads to action',
                 'title' => $isFrench
-                    ? 'Le module Command Center devient plus lisible quand ses moments clefs restent distincts'
-                    : 'Command Center becomes easier to read when its key moments stay distinct',
+                    ? 'Conçu pour les équipes qui doivent voir plus vite, comparer plus proprement, et diriger l’action plus clairement'
+                    : 'Built for teams that need to see faster, compare better, and direct action more clearly',
                 'body' => $isFrench
-                    ? 'Les cartes montrent des usages differents du pilotage au lieu de le reduire a un simple dashboard.'
-                    : 'The cards show different leadership uses instead of reducing the module to a simple dashboard.',
+                    ? 'Gardez les signaux transversaux assez lisibles pour que les responsables puissent agir, comparer entités ou équipes avec plus de confiance, et renvoyer des priorités plus nettes vers l’exécution.'
+                    : 'Keep cross-functional signals readable enough for leadership to act on them, compare entities or teams with more confidence, and send clearer priorities back into execution.',
                 'primary_label' => $isFrench ? 'Voir la solution Pilotage multi-entreprise' : 'See the Multi-Entity Oversight solution',
                 'primary_href' => '/pages/solution-multi-entity-oversight',
                 'cards' => [
                     [
-                        'title' => $isFrench ? 'Voir plus vite ce qui compte' : 'See what matters faster',
+                        'title' => $isFrench ? 'Les bons signaux remontent plus vite' : 'The right signals rise faster',
                         'body' => $isFrench
-                            ? 'Le module aide a faire remonter les signaux utiles au bon niveau.'
-                            : 'The module helps the most useful signals rise to the right level more quickly.',
+                            ? 'Faites remonter les indicateurs et alertes qui méritent l’attention pour que la direction se concentre plus tôt sur ce qui change réellement la performance.'
+                            : 'Surface the indicators and warnings worth attention so leadership can focus sooner on what changes performance.',
                         'image_key' => 'team-laptop-window',
                     ],
                     [
-                        'title' => $isFrench ? 'Comparer sans casser la lecture' : 'Compare without breaking the reading flow',
+                        'title' => $isFrench ? 'Les comparaisons restent utiles au lieu de devenir bruyantes' : 'Comparisons stay useful instead of noisy',
                         'body' => $isFrench
-                            ? 'La comparaison reste dans une vue plus simple a comprendre.'
-                            : 'Comparison stays inside a view that is much easier to understand.',
+                            ? 'Gardez les écarts entre équipes, entités, et périodes dans une vue lisible pour que la comparaison aide la décision au lieu d’ajouter de la confusion.'
+                            : 'Keep differences between teams, entities, and periods inside one readable view so comparison helps decision-making instead of multiplying confusion.',
                         'image_key' => 'meeting-room-laptops',
                     ],
                     [
-                        'title' => $isFrench ? 'Rendre la prochaine action plus nette' : 'Make the next action clearer',
+                        'title' => $isFrench ? 'Les décisions deviennent plus faciles à traduire en action' : 'Decisions become easier to translate into action',
                         'body' => $isFrench
-                            ? 'La page montre mieux comment une decision revient vers les equipes.'
-                            : 'The page shows more clearly how a decision flows back toward the teams who need to act on it.',
+                            ? 'Laissez la prochaine action redescendre vers les bonnes équipes avec assez de clarté pour que les priorités puissent réellement être exécutées.'
+                            : 'Let the next move flow back toward the right teams with enough clarity that priorities can actually be executed.',
                         'image_key' => 'workflow-plan',
                     ],
                 ],

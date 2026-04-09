@@ -6836,21 +6836,21 @@
       "contact": "Contact us"
     },
     "hero": {
-      "eyebrow": "Built for field teams",
-      "title": "Run the entire job cycle in one clean workspace.",
-      "subtitle": "Malikia pro connects quotes, plan scans, catalog, jobs, tasks, and invoices with live insight.",
-      "primary_cta": "Start onboarding",
-      "secondary_cta": "Sign in",
-      "note": "Switch between service and product workflows without losing data.",
+      "eyebrow": "Built for service businesses that need more control",
+      "title": "Run quotes, scheduling, jobs, and invoicing from one connected platform.",
+      "subtitle": "Malikia Pro helps service businesses manage the full workflow from first request to final payment with more visibility, less friction, and better follow-through.",
+      "primary_cta": "Start free",
+      "secondary_cta": "View pricing",
+      "note": "One platform to manage customers, quotes, jobs, reservations, billing, and day-to-day coordination.",
       "highlights": {
         "one": "Smart quotes with margin control",
         "two": "Plan scan to pricing in minutes",
         "three": "Client portal for approvals"
       },
       "stats": {
-        "one_label": "Core modules",
-        "two_label": "Workflow modes",
-        "three_label": "Live boards"
+        "one_label": "for the full workflow",
+        "two_label": "from request to payment",
+        "three_label": "across teams and revenue"
       },
       "preview": {
         "one": "Quote readiness",
@@ -6860,110 +6860,110 @@
       }
     },
     "trust": {
-      "title": "Trusted by teams across Canada",
+      "title": "Built for service businesses with real day-to-day complexity",
       "items": {
         "one": "Plumbing",
         "two": "Electrical",
-        "three": "Carpentry",
+        "three": "HVAC",
         "four": "Cleaning",
-        "five": "HVAC",
-        "six": "General contractors"
+        "five": "Salons & Beauty",
+        "six": "Restaurants"
       }
     },
     "features": {
       "kicker": "Platform",
-      "title": "Everything to sell, schedule, and deliver",
-      "subtitle": "Quote faster, track jobs, and keep every team aligned.",
+      "title": "Everything you need to manage customers, work, and revenue in one place",
+      "subtitle": "From quoting and scheduling to reservations, billing, and team coordination, Malikia Pro helps the business run with less friction.",
       "items": {
         "quotes": {
-          "title": "Smart quotes",
-          "desc": "Mix services and products, control margins, and save sources."
+          "title": "Customers & requests",
+          "desc": "Keep customer history, incoming requests, and follow-up visible from the first interaction."
         },
         "plans": {
-          "title": "Plan scanner",
-          "desc": "Turn plans into line items with pricing benchmarks."
+          "title": "Quotes & approvals",
+          "desc": "Build cleaner quotes, manage options, and move approvals forward with more structure."
         },
         "catalog": {
-          "title": "Unified catalog",
-          "desc": "One source of truth for products, services, and pricing."
+          "title": "Scheduling & jobs",
+          "desc": "Plan work, assign teams, and track execution without losing context between office and field."
         },
         "ops": {
-          "title": "Team operations",
-          "desc": "Assign tasks, track jobs, and collect proof in the field."
+          "title": "Reservations & customer flow",
+          "desc": "Offer booking convenience while keeping arrivals, availability, and queue flow under control."
         },
         "portal": {
-          "title": "Client portal",
-          "desc": "Clients accept, schedule, and pay with confidence."
+          "title": "Invoices & payments",
+          "desc": "Convert approved work into billing, reminders, and payments with a smoother revenue flow."
         },
         "multi": {
-          "title": "Multi-company",
-          "desc": "Run multiple businesses from a single workspace."
+          "title": "Management & visibility",
+          "desc": "Give owners and managers a clearer view of activity, priorities, and revenue across the operation."
         }
       }
     },
     "new_features": {
-      "kicker": "New",
-      "title": "What's new on the platform",
-      "subtitle": "Fresh additions to speed up sales and payments.",
+      "kicker": "Built to move faster",
+      "title": "Add automation, connected payments, and smarter selling to the workflow",
+      "subtitle": "These additions help teams save time, remove admin friction, and make the platform more useful in day-to-day operations.",
       "badge": "New",
       "items": {
         "assistant": {
           "title": "AI Assistant",
-          "desc": "Create quotes, jobs, and invoices in seconds."
+          "desc": "Speed up quote, job, and admin creation with faster first drafts and less manual repetition."
         },
         "connect": {
-          "title": "Connect payouts",
-          "desc": "Get paid directly to your account with Stripe Connect."
+          "title": "Connected payments",
+          "desc": "Collect payments with a cleaner flow tied directly to invoices and customer activity."
         },
         "store": {
           "title": "Product storefront",
-          "desc": "Let clients order and track products in one place."
+          "desc": "Sell products or mixed offers inside the same experience your team already uses to manage the work."
         }
       }
     },
     "workflow": {
       "kicker": "Workflow",
-      "title": "From request to payment",
-      "subtitle": "A simple flow that keeps every team aligned.",
+      "title": "From request to payment, without switching systems",
+      "subtitle": "A cleaner operating flow helps every team move faster with fewer handoff errors.",
       "steps": {
         "one": {
-          "title": "Set up your company",
-          "desc": "Add your logo, roles, permissions, and defaults."
+          "title": "Capture the request",
+          "desc": "Start with the customer need, the context, and the work to be priced or scheduled."
         },
         "two": {
-          "title": "Build your catalog",
-          "desc": "Create services and products in minutes."
+          "title": "Build the quote",
+          "desc": "Prepare the offer, manage options, and move approvals forward with more control."
         },
         "three": {
-          "title": "Send fast quotes",
-          "desc": "Share estimates and track approvals."
+          "title": "Schedule and coordinate",
+          "desc": "Plan the work, assign the team, and keep details visible before execution starts."
         },
         "four": {
-          "title": "Schedule jobs",
-          "desc": "Track status, checklists, and on-site proof."
+          "title": "Deliver the work",
+          "desc": "Track progress, checklists, notes, proof, and customer context while the job or service is happening."
         },
         "five": {
           "title": "Invoice and collect",
-          "desc": "Convert approved work into invoices and payments."
+          "desc": "Turn completed work into billing, reminders, and payments without rebuilding the file from scratch."
         }
       }
     },
     "field": {
-      "kicker": "Field ops",
-      "title": "Field ready mobile flow",
-      "subtitle": "Keep crews focused with simple daily tools.",
+      "kicker": "Execution",
+      "title": "Keep teams aligned in the office, in the field, and on the floor",
+      "subtitle": "Malikia Pro gives staff the context they need to move work forward without guesswork, scattered notes, or constant back-and-forth.",
       "items": {
-        "one": "Daily job list with priorities",
-        "two": "Task checklists and proof",
-        "three": "Photos and documents on site",
-        "four": "Client approvals and signatures"
+        "one": "Daily work views with priorities and status",
+        "two": "Checklists, notes, and proof linked to the job",
+        "three": "Customer history and instructions in context",
+        "four": "Approvals, signatures, and billing handoff with less friction"
       }
     },
     "cta": {
-      "title": "Ready to build your workspace?",
-      "subtitle": "Create your workspace in minutes and invite your team.",
-      "primary": "Create workspace",
-      "secondary": "Sign in"
+      "title": "Start with a cleaner workflow today",
+      "subtitle": "Create your workspace, explore the platform, and grow into deeper coordination as your operation becomes more complex.",
+      "primary": "Start free trial",
+      "secondary": "View pricing"
     },
     "images": {
       "hero_alt": "Field crew coordinating on site",
@@ -7070,10 +7070,10 @@
       "title": "Pricing"
     },
     "badges": {
-      "recommended": "Most popular"
+      "recommended": "Recommended"
     },
     "switch": {
-      "label": "Choose your setup"
+      "label": "Choose your operating context"
     },
     "billing_cycle": {
       "label": "Billing cycle",
@@ -7091,66 +7091,124 @@
     },
     "hero": {
       "solo": {
-        "eyebrow": "Solo pricing",
-        "title": "Plans built for independent operators",
-        "subtitle": "Start with a simple setup that keeps quotes, invoicing, and customer follow-up in one place.",
-        "note": "Upgrade to a team plan later without rebuilding your workspace."
+        "eyebrow": "Pricing for independent operators",
+        "title": "Start with the setup that matches how you work today",
+        "subtitle": "Choose a solo plan that keeps quotes, invoicing, jobs, and growth tools aligned without adding unnecessary complexity.",
+        "note": "Start with a simple operating setup now, then move into broader coordination only when your business needs it."
       },
       "team": {
-        "eyebrow": "Team pricing",
-        "title": "Plans built for field teams",
-        "subtitle": "Choose a plan that fits your workflow, crew size, and operational complexity.",
-        "note": "Need enterprise or custom limits? Request the pricing sheet."
+        "eyebrow": "Pricing for teams that need coordination",
+        "title": "Choose the plan that fits your team, workflow, and growth stage",
+        "subtitle": "From core operations to deeper automation and oversight, each plan adds the level of structure your team actually needs.",
+        "note": "You can start with the right level for today and move up as volume, staffing, and workflow complexity grow."
+      }
+    },
+    "plan_cards": {
+      "solo_essential": {
+        "features": {
+          "one": "A clean starting point for quotes, invoicing, and customer follow-up.",
+          "two": "Keep requests and essential client history visible in one place.",
+          "three": "Present services clearly with a catalog and public page.",
+          "four": "Built for solo operators who want structure without extra overhead."
+        }
+      },
+      "solo_pro": {
+        "features": {
+          "one": "Everything in Solo Essential.",
+          "two": "Add jobs and tasks to track execution more seriously.",
+          "three": "More day-to-day control without team complexity.",
+          "four": "The best fit for active solo operators."
+        }
+      },
+      "solo_growth": {
+        "features": {
+          "one": "Everything in Solo Pro.",
+          "two": "Add planning and limited reservations to manage more flow.",
+          "three": "Use AI, campaigns, and loyalty tools in the same system.",
+          "four": "Built for solo businesses with more volume and growth needs."
+        }
+      },
+      "starter": {
+        "features": {
+          "one": "A solid base for quotes, jobs, planning, and invoicing.",
+          "two": "Built for small teams that need a shared workflow.",
+          "three": "Keep the office and the field aligned in one system.",
+          "four": "A practical starting point for team coordination."
+        }
+      },
+      "growth": {
+        "features": {
+          "one": "Everything in Starter.",
+          "two": "Add stronger permissions and deeper operational control.",
+          "three": "Built for growing teams that need more structure and visibility.",
+          "four": "The best balance for scaling without enterprise overhead."
+        }
+      },
+      "scale": {
+        "features": {
+          "one": "Everything in Growth.",
+          "two": "Advanced reporting and broader operational depth for mature teams.",
+          "three": "Dedicated onboarding and stronger support as complexity increases.",
+          "four": "Built for teams that need more depth across the business."
+        }
+      },
+      "enterprise": {
+        "features": {
+          "one": "Custom rollout for larger or more complex organizations.",
+          "two": "Support tailored limits, advanced controls, and guided implementation.",
+          "three": "Built for multi-entity, security, or SLA-driven requirements.",
+          "four": "Contact us for a more tailored setup."
+        }
       }
     },
     "plans": {
       "starter": {
         "label": "Starter",
         "price": "Contact us",
-        "desc": "For small teams (up to 10 employees) starting with quotes and jobs."
+        "desc": "For small teams building a more structured operating workflow."
       },
       "pro": {
         "label": "Pro",
         "badge": "Recommended",
         "price": "Contact us",
-        "desc": "For growing teams (up to 25 employees) managing services and products."
+        "desc": "For growing teams that need more control and operational depth."
       },
       "enterprise": {
         "label": "Enterprise",
         "price": "Custom",
-        "desc": "50+ employees with advanced controls, multi-entity support, and SLA options."
+        "desc": "For organizations with advanced, multi-entity, or SLA-driven needs."
       }
     },
     "features": {
       "solo": {
-        "title": "Built for solo workdays",
+        "title": "Built for solo operators who want control without overhead",
         "items": {
-          "one": "Quotes, invoices, and customer requests from one workspace",
-          "two": "Catalog and public page to present services clearly",
-          "three": "Solo Pro adds jobs and tasks without team overhead",
-          "four": "Solo Growth unlocks planning, limited reservations, and AI tools",
-          "five": "Upgrade path to team plans when you start hiring"
+          "one": "Keep quotes, invoices, and customer requests in one place from day one.",
+          "two": "Present services clearly with a catalog and public page that still feels professional.",
+          "three": "Move into jobs and task tracking when execution starts to get more demanding.",
+          "four": "Unlock planning, reservations, AI, and growth tools only when your workflow needs them.",
+          "five": "Move into team pricing later without rebuilding the way you work."
         }
       },
       "team": {
         "title": "Included with every team plan",
         "items": {
-          "one": "Quotes, jobs, tasks, and invoices",
-          "two": "Unified catalog for services and products",
-          "three": "Plan scan pricing signals and sources",
-          "four": "Client portal with approvals",
-          "five": "Team roles and permissions"
+          "one": "Quotes, jobs, tasks, and invoicing in one shared workflow.",
+          "two": "One catalog for services and products across the business.",
+          "three": "Better operational signals, including plan scan pricing context where relevant.",
+          "four": "Client approvals and visibility through the portal.",
+          "five": "Team roles and permissions that support cleaner execution."
         }
       }
     },
     "enterprise": {
       "solo": {
-        "title": "Starting alone, scaling later",
-        "body": "Begin with a solo plan now, then move to team pricing when you hire or need collaborative workflows."
+        "title": "Start simple now, grow into more structure later",
+        "body": "Begin with a solo plan that fits the way you operate today, then move into team coordination only when hiring, volume, or workflow complexity make it necessary."
       },
       "team": {
-        "title": "Enterprise pricing sheet",
-        "body": "Request the enterprise sheet for custom limits, security review, and onboarding support."
+        "title": "Need a more tailored rollout?",
+        "body": "If your team needs custom limits, a security review, dedicated onboarding, or a more guided implementation path, we can help you map the right setup."
       }
     },
     "actions": {
@@ -7160,8 +7218,8 @@
       "secondary": "Sign in"
     },
     "comparison": {
-      "title": "Compare plans",
-      "subtitle": "Review the main limits and capabilities included with each offer.",
+      "title": "Compare what matters most before you choose",
+      "subtitle": "Review the key capabilities, limits, and workflow depth included in each plan.",
       "columns": {
         "feature": "Features"
       },
