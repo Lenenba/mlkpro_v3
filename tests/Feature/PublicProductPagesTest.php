@@ -67,14 +67,14 @@ it('seeds the other product module pages with the same narrative section order a
             ->where('page.slug', 'reservations')
             ->has('content.sections', 3)
             ->where('content.sections.0.layout', 'feature_tabs')
-            ->where('content.sections.0.title', 'Show booking as a complete journey')
+            ->where('content.sections.0.title', 'Turn booking into a complete customer journey')
             ->where('content.sections.0.feature_tabs.2.image_url', $reservationsWelcomeVisual['image_url'])
             ->where('content.sections.1.layout', 'showcase_cta')
-            ->where('content.sections.1.title', 'Reservations now follows the same narrative format as the other module pages')
+            ->where('content.sections.1.title', 'Offer convenient booking without losing operational control')
             ->where('content.sections.1.image_url', $reservationsCtaVisual['image_url'])
             ->where('content.sections.1.aside_image_url', $reservationsCtaAsideVisual['image_url'])
             ->where('content.sections.2.layout', 'story_grid')
-            ->where('content.sections.2.title', 'Reservations becomes easier to understand when its key moments stay distinct')
+            ->where('content.sections.2.title', 'Built to make booking, arrival, and follow-up feel smoother')
             ->where('content.sections.2.story_cards.1.image_url', $reservationsWelcomeVisual['image_url'])
         );
 });
@@ -100,7 +100,7 @@ it('seeds industries and contact us in the public header', function () {
         'Produits & Services',
         'Tarifs',
         'Industries',
-        'Contact us',
+        'Nous contacter',
     ]);
 
     expect($industries)->not->toBeNull();
@@ -110,9 +110,9 @@ it('seeds industries and contact us in the public header', function () {
     expect(collect($industries['children'])->pluck('label')->values()->all())->toBe([
         'Plomberie',
         'HVAC',
-        'Electricite',
+        'Électricité',
         'Nettoyage',
-        'Salon & beaute',
+        'Salon & beauté',
         'Restaurant',
     ]);
     expect($industries['children'][0]['resolved_href'])->toBe('/pages/industry-plumbing');
@@ -199,7 +199,7 @@ it('uses the configurable contact form url for the contact us header item', func
     ]);
 
     $menu = app(MegaMenuRenderer::class)->resolveBySlug('main-header-menu');
-    $contact = collect($menu['items'])->firstWhere('label', 'Contact us');
+    $contact = collect($menu['items'])->firstWhere('label', 'Nous contacter');
 
     expect($contact)->not->toBeNull();
     expect($contact['resolved_href'])->toBe('https://example.com/forms/contact');

@@ -736,6 +736,6 @@ test('welcome page stored locales are synchronized and localized when loaded', f
     expect($storedLocales['fr']['sections'])->toHaveCount(2)
         ->and($storedLocales['en']['sections'])->toHaveCount(2)
         ->and($storedLocales['fr']['sections'][1]['id'])->toBe('welcome-proof-feature-pairs')
-        ->and($storedLocales['fr']['sections'][1]['title'])->toBe('Montrez des situations metier concretes avant meme d arriver aux tarifs')
-        ->and($storedLocales['fr']['sections'][1]['primary_label'])->toBe('Voir les solutions');
+        ->and($storedLocales['fr']['sections'][1]['title'])->toBe('La plateforme se comprend mieux quand on voit comment le travail avance vraiment')
+        ->and($storedLocales['fr']['sections'][1]['primary_label'])->toBe('Voir la solution terrain');
 });
