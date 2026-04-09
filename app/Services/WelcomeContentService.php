@@ -140,15 +140,15 @@ class WelcomeContentService
             $fieldImage = WelcomeStockImages::fieldImage($locale);
             $heroStats = [
                 [
-                    'value' => '8',
+                    'value' => '1',
                     'label' => (string) trans('welcome.hero.stats.one_label'),
                 ],
                 [
-                    'value' => '2',
+                    'value' => 'End-to-end',
                     'label' => (string) trans('welcome.hero.stats.two_label'),
                 ],
                 [
-                    'value' => '24/7',
+                    'value' => 'Live visibility',
                     'label' => (string) trans('welcome.hero.stats.three_label'),
                 ],
             ];
@@ -265,9 +265,9 @@ class WelcomeContentService
                     'tagline' => (string) trans('welcome.nav.tagline'),
                     'menu' => [
                         [
-                            'id' => 'login',
+                            'id' => 'pricing',
                             'label' => (string) trans('welcome.hero.secondary_cta'),
-                            'href' => 'login',
+                            'href' => '/pricing',
                             'style' => 'outline',
                             'enabled' => true,
                         ],
@@ -289,7 +289,7 @@ class WelcomeContentService
                     'primary_cta' => (string) trans('welcome.hero.primary_cta'),
                     'primary_href' => 'onboarding.index',
                     'secondary_cta' => (string) trans('welcome.hero.secondary_cta'),
-                    'secondary_href' => 'login',
+                    'secondary_href' => '/pricing',
                     'note' => (string) trans('welcome.hero.note'),
                     'stats' => $heroStats,
                     'highlights' => $heroHighlights,
@@ -809,7 +809,7 @@ class WelcomeContentService
 
         $previous = libxml_use_internal_errors(true);
         $doc = new \DOMDocument('1.0', 'UTF-8');
-        $doc->loadHTML('<div>'.$html.'</div>', \LIBXML_HTML_NOIMPLIED | \LIBXML_HTML_NODEFDTD);
+        $doc->loadHTML('<?xml encoding="UTF-8"><div>'.$html.'</div>', \LIBXML_HTML_NOIMPLIED | \LIBXML_HTML_NODEFDTD);
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
 

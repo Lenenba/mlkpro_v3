@@ -6836,21 +6836,21 @@
       "contact": "Nous contacter"
     },
     "hero": {
-      "eyebrow": "Conçu pour les équipes terrain",
-      "title": "Gérez tout le cycle d’un chantier dans un espace clair.",
-      "subtitle": "Malikia pro relie devis, scan de plans, catalogue, chantiers, tâches et factures, avec une vision simple et structurée.",
-      "primary_cta": "Démarrer l’onboarding",
-      "secondary_cta": "Se connecter",
-      "note": "Passez du mode Services au mode Produits sans perte de données.",
+      "eyebrow": "Conçu pour les entreprises de services qui veulent plus de contrôle",
+      "title": "Gérez devis, planning, jobs et facturation dans une plateforme connectée.",
+      "subtitle": "Malikia Pro aide les entreprises de services à piloter tout le flux, de la première demande au paiement final, avec plus de visibilité, moins de friction et un meilleur suivi.",
+      "primary_cta": "Commencer gratuitement",
+      "secondary_cta": "Voir les tarifs",
+      "note": "Une seule plateforme pour gérer clients, devis, interventions, réservations, facturation et coordination quotidienne.",
       "highlights": {
         "one": "Devis rapides avec marges",
-        "two": "Scan de plan → prix en quelques minutes",
+        "two": "Scan de plan vers prix en quelques minutes",
         "three": "Portail client pour validation"
       },
       "stats": {
-        "one_label": "Modules clés",
-        "two_label": "Modes de travail",
-        "three_label": "Tableaux en direct"
+        "one_label": "pour gérer tout le flux",
+        "two_label": "de la demande au paiement",
+        "three_label": "sur les équipes et les revenus"
       },
       "preview": {
         "one": "Devis prêts",
@@ -6860,110 +6860,110 @@
       }
     },
     "trust": {
-      "title": "Équipes au Canada",
+      "title": "Conçu pour des entreprises de services qui gèrent de vraies opérations au quotidien",
       "items": {
         "one": "Plomberie",
         "two": "Électricité",
-        "three": "Menuiserie",
+        "three": "HVAC",
         "four": "Nettoyage",
-        "five": "CVC (HVAC)",
-        "six": "Entrepreneurs généraux"
+        "five": "Salons & beauté",
+        "six": "Restaurants"
       }
     },
     "features": {
       "kicker": "Plateforme",
-      "title": "Tout pour vendre, planifier et livrer",
-      "subtitle": "Devis rapides, suivi des chantiers, équipe alignée.",
+      "title": "Tout ce qu'il faut pour gérer clients, travail et revenus au même endroit",
+      "subtitle": "Des devis et du planning jusqu'aux réservations, à la facturation et à la coordination d'équipe, Malikia Pro aide l'activité à tourner avec moins de friction.",
       "items": {
         "quotes": {
-          "title": "Devis intelligents",
-          "desc": "Mixez services et produits, et suivez marges et sources."
+          "title": "Clients et demandes",
+          "desc": "Gardez l'historique client, les demandes entrantes et le suivi visibles dès le premier contact."
         },
         "plans": {
-          "title": "Scan de plan",
-          "desc": "Transformez un plan en lignes de devis avec benchmarks."
+          "title": "Devis et validations",
+          "desc": "Préparez des devis plus propres, gérez les options et faites avancer les validations avec plus de structure."
         },
         "catalog": {
-          "title": "Catalogue unique",
-          "desc": "Une base commune pour produits, services et prix."
+          "title": "Planning et jobs",
+          "desc": "Planifiez le travail, assignez les équipes et suivez l'exécution sans perdre le contexte entre bureau et terrain."
         },
         "ops": {
-          "title": "Opérations terrain",
-          "desc": "Assignez, suivez les chantiers et collectez la preuve terrain."
+          "title": "Réservations et flux client",
+          "desc": "Offrez une expérience de réservation plus simple tout en gardant la maîtrise sur les arrivées, les disponibilités et la file."
         },
         "portal": {
-          "title": "Portail client",
-          "desc": "Les clients acceptent, planifient et paient en quelques clics."
+          "title": "Facturation et paiements",
+          "desc": "Transformez le travail approuvé en facturation, rappels et paiements avec un flux de revenus plus propre."
         },
         "multi": {
-          "title": "Multi-entreprises",
-          "desc": "Gérez plusieurs sociétés depuis un seul compte."
+          "title": "Pilotage et visibilité",
+          "desc": "Donnez aux dirigeants et responsables une vue plus claire sur l'activité, les priorités et les revenus."
         }
       }
     },
     "new_features": {
-      "kicker": "Nouveautés",
-      "title": "Les nouvelles fonctionnalités de la plateforme",
-      "subtitle": "Des ajouts pensés pour accélérer vos ventes et vos paiements.",
+      "kicker": "Conçu pour aller plus vite",
+      "title": "Ajoutez automatisation, paiements connectés et vente plus intelligente à votre flux",
+      "subtitle": "Ces ajouts aident l'équipe à gagner du temps, à réduire l'administration et à rendre la plateforme encore plus utile au quotidien.",
       "badge": "Nouveau",
       "items": {
         "assistant": {
           "title": "Assistant IA",
-          "desc": "Créez des devis, chantiers et factures en quelques secondes."
+          "desc": "Accélérez la création de devis, de jobs et d'actions administratives avec moins de répétition manuelle."
         },
         "connect": {
-          "title": "Paiements Connect",
-          "desc": "Encaissez directement sur votre compte avec Stripe Connect."
+          "title": "Paiements connectés",
+          "desc": "Encaissez avec un flux plus propre, directement relié aux factures et à l'activité client."
         },
         "store": {
-          "title": "Boutique produits",
-          "desc": "Activez un espace de commande et de suivi pour vos clients."
+          "title": "Vitrine produits",
+          "desc": "Vendez des produits ou des offres mixtes dans la même expérience que celle utilisée pour gérer le travail."
         }
       }
     },
     "workflow": {
       "kicker": "Flux de travail",
-      "title": "De la demande au paiement",
-      "subtitle": "Un flux simple pour garder l’équipe alignée.",
+      "title": "De la demande au paiement, sans changer de système",
+      "subtitle": "Un flux plus propre aide chaque équipe à avancer plus vite avec moins d'erreurs de transmission.",
       "steps": {
         "one": {
-          "title": "Créez l’entreprise",
-          "desc": "Logo, rôles, permissions et paramètres."
+          "title": "Capturer la demande",
+          "desc": "Partez du besoin client, du contexte et du travail à chiffrer ou à planifier."
         },
         "two": {
-          "title": "Construisez le catalogue",
-          "desc": "Services et produits en quelques minutes."
+          "title": "Construire le devis",
+          "desc": "Préparez l'offre, gérez les options et faites avancer les validations avec plus de contrôle."
         },
         "three": {
-          "title": "Envoyez les devis",
-          "desc": "Partagez les estimations et suivez la validation."
+          "title": "Planifier et coordonner",
+          "desc": "Organisez le travail, assignez l'équipe et gardez les détails visibles avant l'exécution."
         },
         "four": {
-          "title": "Planifiez les chantiers",
-          "desc": "Suivi des statuts, checklists et preuves."
+          "title": "Réaliser le travail",
+          "desc": "Suivez l'avancement, les checklists, les notes, les preuves et le contexte client pendant l'intervention ou le service."
         },
         "five": {
           "title": "Facturez et encaissez",
-          "desc": "Convertissez le travail approuvé en factures."
+          "desc": "Transformez le travail terminé en facturation, rappels et paiements sans reconstruire le dossier à la main."
         }
       }
     },
     "field": {
-      "kicker": "Ops terrain",
-      "title": "Flux mobile terrain",
-      "subtitle": "Des outils simples pour les équipes sur place.",
+      "kicker": "Exécution",
+      "title": "Gardez les équipes alignées au bureau, sur le terrain et au point de service",
+      "subtitle": "Malikia Pro donne à chacun le contexte nécessaire pour faire avancer le travail sans supposition, sans notes dispersées et avec moins d'aller-retour.",
       "items": {
-        "one": "Liste quotidienne avec priorités",
-        "two": "Checklists et preuves",
-        "three": "Photos et documents sur site",
-        "four": "Validations et signatures client"
+        "one": "Vues quotidiennes du travail avec priorités et statuts",
+        "two": "Checklists, notes et preuves liées au job",
+        "three": "Historique client et consignes visibles dans le bon contexte",
+        "four": "Validations, signatures et passage à la facturation avec moins de friction"
       }
     },
     "cta": {
-      "title": "Prêt à créer votre espace ?",
-      "subtitle": "Créez votre espace en quelques minutes et invitez votre équipe.",
-      "primary": "Créer un espace",
-      "secondary": "Se connecter"
+      "title": "Commencez aujourd'hui avec un flux plus clair",
+      "subtitle": "Créez votre espace, explorez la plateforme, puis évoluez vers une coordination plus poussée à mesure que l'activité se complexifie.",
+      "primary": "Démarrer l'essai gratuit",
+      "secondary": "Voir les tarifs"
     },
     "images": {
       "hero_alt": "Équipe de chantier en coordination sur site",
@@ -7070,10 +7070,10 @@
       "title": "Tarification"
     },
     "badges": {
-      "recommended": "Le plus populaire"
+      "recommended": "Recommandé"
     },
     "switch": {
-      "label": "Choisissez votre contexte"
+      "label": "Choisissez votre contexte d'exploitation"
     },
     "billing_cycle": {
       "label": "Cycle de facturation",
@@ -7081,98 +7081,156 @@
       "yearly": "Annuel",
       "interval_month": "/mois",
       "interval_year": "/an",
-      "save_badge": "Economisez {percent}% avec la facturation annuelle",
-      "yearly_note": "Facture a l annee avec {percent}% de reduction.",
-      "billed_yearly": "Pour 12 mois, facture annuellement."
+      "save_badge": "Économisez {percent}% avec la facturation annuelle",
+      "yearly_note": "Facturé annuellement avec {percent}% de réduction.",
+      "billed_yearly": "Pour 12 mois, facturé annuellement."
     },
     "audiences": {
       "solo": "Solo",
-      "team": "Equipe"
+      "team": "Équipe"
     },
     "hero": {
       "solo": {
-        "eyebrow": "Tarification solo",
-        "title": "Des forfaits concus pour les travailleurs autonomes",
-        "subtitle": "Commencez avec une configuration simple pour gerer devis, factures et suivi client au meme endroit.",
-        "note": "Passez plus tard vers une offre equipe sans reconstruire votre espace."
+        "eyebrow": "Tarification pour les opérateurs indépendants",
+        "title": "Commencez avec la configuration qui correspond à votre façon de travailler aujourd'hui",
+        "subtitle": "Choisissez un forfait solo qui garde devis, facturation, jobs et outils de croissance alignés, sans ajouter de complexité inutile.",
+        "note": "Démarrez avec une base simple maintenant, puis évoluez seulement quand votre activité demande plus de coordination."
       },
       "team": {
-        "eyebrow": "Tarification equipe",
-        "title": "Plans pour equipes terrain",
-        "subtitle": "Choisissez un plan adapte a votre workflow, a la taille de votre equipe et a votre niveau d operations.",
-        "note": "Besoin d un plan entreprise ou sur mesure? Demandez la fiche."
+        "eyebrow": "Tarification pour les équipes qui ont besoin de coordination",
+        "title": "Choisissez le forfait qui correspond à votre équipe, à votre façon de travailler et à votre stade de croissance",
+        "subtitle": "Des opérations de base jusqu'à une organisation plus avancée, chaque plan apporte le niveau de structure dont votre équipe a vraiment besoin.",
+        "note": "Vous pouvez commencer avec le bon niveau aujourd'hui, puis monter progressivement quand le volume, l'équipe et la complexité augmentent."
+      }
+    },
+    "plan_cards": {
+      "solo_essential": {
+        "features": {
+          "one": "Base propre pour devis, facturation et suivi client.",
+          "two": "Gardez demandes et historique client essentiels au même endroit.",
+          "three": "Présentez vos services clairement avec catalogue et page publique.",
+          "four": "Pensé pour les indépendants qui veulent de la structure sans surcharge."
+        }
+      },
+      "solo_pro": {
+        "features": {
+          "one": "Tout Solo Essential.",
+          "two": "Ajoutez jobs et tâches pour mieux suivre l'exécution.",
+          "three": "Plus de contrôle au quotidien sans complexité d'équipe.",
+          "four": "Le meilleur choix pour les opérateurs solo actifs."
+        }
+      },
+      "solo_growth": {
+        "features": {
+          "one": "Tout Solo Pro.",
+          "two": "Ajoutez planning et réservations limitées pour gérer plus de flux.",
+          "three": "Utilisez IA, campagnes et fidélité dans le même système.",
+          "four": "Conçu pour les activités solo avec plus de volume et d'ambition."
+        }
+      },
+      "starter": {
+        "features": {
+          "one": "Base solide pour devis, jobs, planning et facturation.",
+          "two": "Pensé pour les petites équipes qui ont besoin d'un cadre partagé.",
+          "three": "Gardez bureau et terrain alignés dans un seul système.",
+          "four": "Un point de départ pratique pour coordonner l'équipe."
+        }
+      },
+      "growth": {
+        "features": {
+          "one": "Tout Starter.",
+          "two": "Ajoutez plus de permissions et de profondeur opérationnelle.",
+          "three": "Pensé pour les équipes en croissance qui ont besoin de structure.",
+          "four": "Le meilleur équilibre pour grandir sans lourdeur inutile."
+        }
+      },
+      "scale": {
+        "features": {
+          "one": "Tout Growth.",
+          "two": "Rapports avancés et pilotage plus large pour les équipes matures.",
+          "three": "Onboarding dédié et support renforcé quand la complexité augmente.",
+          "four": "Conçu pour les équipes qui ont besoin de plus de profondeur métier."
+        }
+      },
+      "enterprise": {
+        "features": {
+          "one": "Déploiement sur mesure pour les organisations plus grandes ou plus complexes.",
+          "two": "Limites adaptées, contrôles avancés et implémentation guidée.",
+          "three": "Pensé pour les besoins multi-entités, sécurité ou SLA.",
+          "four": "Contactez-nous pour une configuration plus personnalisée."
+        }
       }
     },
     "plans": {
       "starter": {
         "label": "Essentiel",
         "price": "Contactez-nous",
-        "desc": "Pour les petites equipes (jusqu a 10 employes) qui demarrent."
+        "desc": "Pour les petites équipes qui mettent en place une organisation plus structurée."
       },
       "pro": {
         "label": "Professionnel",
-        "badge": "Recommande",
+        "badge": "Recommandé",
         "price": "Contactez-nous",
-        "desc": "Pour les equipes en croissance (jusqu a 25 employes)."
+        "desc": "Pour les équipes en croissance qui ont besoin de plus de pilotage."
       },
       "enterprise": {
         "label": "Entreprise",
         "price": "Sur mesure",
-        "desc": "50+ employes avec controles avances et options SLA."
+        "desc": "Pour les organisations avec besoins avancés, multi-entités ou SLA."
       }
     },
     "features": {
       "solo": {
-        "title": "Pense pour les journees en solo",
+        "title": "Pensé pour les opérateurs solo qui veulent du contrôle sans surcharge",
         "items": {
-          "one": "Devis, factures et demandes clients dans un seul espace",
-          "two": "Catalogue et page publique pour presenter vos services clairement",
-          "three": "Solo Pro ajoute jobs et taches sans complexite equipe",
-          "four": "Solo Growth debloque planning, reservations limitees et outils IA",
-          "five": "Passerelle vers les forfaits equipe quand vous commencez a embaucher"
+          "one": "Gardez devis, factures et demandes clients dans un seul espace dès le premier jour.",
+          "two": "Présentez vos services clairement avec un catalogue et une page publique qui restent professionnels.",
+          "three": "Passez aux jobs et au suivi des tâches quand l'exécution devient plus exigeante.",
+          "four": "Débloquez planning, réservations, IA et outils de croissance seulement quand votre activité en a besoin.",
+          "five": "Passez plus tard vers une offre équipe sans reconstruire votre façon de travailler."
         }
       },
       "team": {
-        "title": "Inclus dans chaque plan equipe",
+        "title": "Inclus dans chaque plan équipe",
         "items": {
-          "one": "Devis, jobs, taches et factures",
-          "two": "Catalogue unique services et produits",
-          "three": "Signaux de prix et sources plan scan",
-          "four": "Portail client et validations",
-          "five": "Roles et permissions equipe"
+          "one": "Devis, jobs, tâches et facturation dans un cadre partagé.",
+          "two": "Un seul catalogue pour les services et les produits.",
+          "three": "De meilleurs signaux opérationnels, y compris le contexte issu du scan de plan quand il est pertinent.",
+          "four": "Des validations et plus de visibilité client via le portail.",
+          "five": "Des rôles et permissions qui rendent l'exécution plus propre."
         }
       }
     },
     "enterprise": {
       "solo": {
-        "title": "Commencer seul, evoluer ensuite",
-        "body": "Demarrez avec un forfait solo, puis passez vers une offre equipe quand vous embauchez ou avez besoin de workflows collaboratifs."
+        "title": "Commencez simple aujourd'hui, passez à plus de structure plus tard",
+        "body": "Démarrez avec un forfait solo adapté à votre réalité actuelle, puis évoluez vers plus de coordination seulement quand les embauches, le volume ou la complexité de l'organisation le rendent nécessaire."
       },
       "team": {
-        "title": "Fiche tarif entreprise",
-        "body": "Demandez la fiche entreprise pour limites sur mesure, revue securite et onboarding."
+        "title": "Besoin d'un déploiement plus adapté ?",
+        "body": "Si votre équipe a besoin de limites sur mesure, d'une revue sécurité, d'un onboarding dédié ou d'un accompagnement plus guidé, nous pouvons vous aider à cadrer la bonne configuration."
       }
     },
     "actions": {
-      "plan_trial": "Demarrer l essai gratuit",
-      "plan_trial_note": "Inclut 1 mois gratuit pendant l onboarding.",
-      "primary": "Demarrer l onboarding",
+      "plan_trial": "Démarrer l'essai gratuit",
+      "plan_trial_note": "Inclut 1 mois gratuit pendant l'onboarding.",
+      "primary": "Démarrer l'onboarding",
       "secondary": "Se connecter"
     },
     "comparison": {
-      "title": "Comparer les forfaits",
-      "subtitle": "Retrouvez les limites et capacites principales de chaque offre.",
+      "title": "Comparez ce qui compte vraiment avant de choisir",
+      "subtitle": "Retrouvez les capacités, limites et niveaux de profondeur opérationnelle inclus dans chaque forfait.",
       "columns": {
-        "feature": "Fonctionnalites"
+        "feature": "Fonctionnalités"
       },
       "sections": {
         "fundamentals": "Fondamentaux",
-        "operations": "Operations terrain",
+        "operations": "Opérations terrain",
         "growth": "Croissance et automatisation"
       },
       "rows": {
-        "team_members": "Employes inclus",
-        "account_access": "Acces compte",
+        "team_members": "Employés inclus",
+        "account_access": "Accès compte",
         "clients": "Clients",
         "requests": "Demandes / leads",
         "estimates": "Devis",
@@ -7181,27 +7239,27 @@
         "catalog_items": "Articles au catalogue",
         "client_portal": "Portail client",
         "jobs": "Jobs",
-        "tasks": "Taches",
+        "tasks": "Tâches",
         "planning": "Planning",
-        "team_planning": "Planning d equipe",
-        "time_tracking": "Presence et pointage",
-        "reservations": "Reservations et check-in",
-        "recurring_jobs": "Jobs recurrents",
-        "reports": "Rapports integres",
-        "permissions": "Equipe et permissions",
-        "automations": "Automatisations avancees",
+        "team_planning": "Planning d'équipe",
+        "time_tracking": "Présence et pointage",
+        "reservations": "Réservations et check-in",
+        "recurring_jobs": "Jobs récurrents",
+        "reports": "Rapports intégrés",
+        "permissions": "Équipe et permissions",
+        "automations": "Automatisations avancées",
         "plan_scan": "Scan de plan et devis IA",
         "ai_assistant": "Assistant IA",
         "campaigns": "Campagnes",
-        "loyalty": "Fidelite",
-        "onboarding": "Onboarding dedie",
-        "custom_integrations": "Integrations et SLA sur mesure"
+        "loyalty": "Fidélité",
+        "onboarding": "Onboarding dédié",
+        "custom_integrations": "Intégrations et SLA sur mesure"
       },
       "values": {
-        "unlimited": "Illimite",
+        "unlimited": "Illimité",
         "optional": "Option",
-        "owner_only": "1 owner",
-        "limited": "Mode limite",
+        "owner_only": "1 propriétaire",
+        "limited": "Mode limité",
         "contact": "Contactez-nous"
       }
     }

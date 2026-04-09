@@ -49,52 +49,52 @@ class WelcomeEditorialSections
             'alignment' => 'left',
             'density' => 'normal',
             'tone' => 'default',
-            'kicker' => $isFrench ? 'Preuves concretes' : 'Visible proof',
+            'kicker' => $isFrench ? 'Des moments opérationnels concrets' : 'Real operating moments',
             'title' => $isFrench
-                ? 'Montrez des situations metier concretes avant meme d arriver aux tarifs'
-                : 'Put concrete business situations in front of visitors before they ever reach pricing',
+                ? 'La plateforme se comprend mieux quand on voit comment le travail avance vraiment'
+                : 'The platform makes more sense when people can see how work actually moves',
             'body' => $isFrench
-                ? '<p>La page d accueil montre des moments de bureau, de coordination et de terrain qui racontent mieux la plateforme qu une pile de cartes abstraites.</p>'
-                : '<p>The homepage now shows office, coordination, and field moments that fit the platform story better than another abstract card stack.</p>',
+                ? '<p>Malikia Pro est pensé pour les moments qui comptent dans l’expérience client: suivi commercial, coordination, planning, exécution et paiement.</p>'
+                : '<p>Malikia Pro is built for the moments that shape the customer experience: follow-up, coordination, scheduling, execution, and payment.</p>',
             'items' => $isFrench
                 ? [
-                    'Les modules arrivent avec un vrai contexte d usage.',
-                    'Chaque bloc pousse vers une prochaine etape claire.',
-                    'Les images aident a comprendre le parcours sans surcharger la page.',
+                    'Gardez ventes, opérations et facturation connectées.',
+                    'Donnez à chaque équipe une prochaine étape plus claire.',
+                    'Réduisez la friction entre les passages de relais.',
                 ]
                 : [
-                    'Modules land with real operating context instead of abstract copy.',
-                    'Each block pushes toward a clear next step.',
-                    'Distinct images make the journey easier to scan without clutter.',
+                    'Keep sales, operations, and billing connected.',
+                    'Give every team a clearer next step.',
+                    'Reduce handoff friction across the workflow.',
                 ],
             'image_url' => $image['image_url'],
             'image_alt' => $image['image_alt'],
-            'aside_kicker' => $isFrench ? 'Un contexte plus clair' : 'Clearer context',
+            'aside_kicker' => $isFrench ? "Pourquoi c'est important" : 'Why it matters',
             'aside_title' => $isFrench
-                ? 'L histoire de la plateforme passe mieux quand chaque image porte une etape differente'
-                : 'The platform story lands better when each image carries a different step',
+                ? 'Un vrai contexte opérationnel inspire plus vite confiance qu’une promesse abstraite'
+                : 'Operational context builds trust faster than abstract feature claims',
             'aside_body' => $isFrench
-                ? '<p>Les visiteurs voient la presence commerciale, la coordination interne et l execution terrain dans des blocs distincts, ce qui rend le prochain clic plus evident.</p>'
-                : '<p>Visitors see sales presence, internal coordination, and field execution in separate moments, which makes the next click feel more obvious.</p>',
+                ? '<p>Quand la page montre de vraies situations métier, les visiteurs comprennent plus vite comment la plateforme peut s’intégrer à leur équipe avant même de comparer les logiciels.</p>'
+                : '<p>When the page shows real business situations, prospects can picture how the platform fits their team before they ever compare software.</p>',
             'aside_items' => $isFrench
                 ? [
-                    'Le commerce et la monetisation apparaissent avec un vrai contexte.',
-                    'Les modules ne donnent plus l impression d une liste uniforme.',
-                    'Le lien entre equipes, planning et supervision devient plus clair.',
+                    'Plus facile de comprendre ce qui se passe après le devis.',
+                    'Plus facile de voir le lien entre bureau et exécution.',
+                    'Plus facile de faire confiance à la plateforme comme système de pilotage.',
                 ]
                 : [
-                    'Commerce and monetization appear inside a real business moment.',
-                    'Modules no longer feel like one uniform list.',
-                    'The link between teams, scheduling, and oversight becomes easier to read.',
+                    'Easier to understand what happens after the quote.',
+                    'Easier to see the link between office and execution.',
+                    'Easier to trust the product as a serious operating system.',
                 ],
-            'aside_link_label' => $isFrench ? 'Voir Command Center' : 'See Command Center',
-            'aside_link_href' => '/pages/command-center',
+            'aside_link_label' => $isFrench ? 'Voir les tarifs' : 'View pricing',
+            'aside_link_href' => '/pricing',
             'aside_image_url' => $asideImage['image_url'],
             'aside_image_alt' => $asideImage['image_alt'],
-            'primary_label' => $isFrench ? 'Voir les solutions' : 'See solutions',
+            'primary_label' => $isFrench ? 'Voir la solution terrain' : 'See Field Services',
             'primary_href' => '/pages/solution-field-services',
-            'secondary_label' => $isFrench ? 'Voir les modules' : 'See modules',
-            'secondary_href' => '/pricing',
+            'secondary_label' => $isFrench ? 'Voir Command Center' : 'See Command Center',
+            'secondary_href' => '/pages/command-center',
         ];
     }
 
@@ -118,18 +118,18 @@ class WelcomeEditorialSections
             'density' => 'normal',
             'tone' => 'contrast',
             'title' => $isFrench
-                ? 'Essayez gratuitement. Voyez comment ca s adapte a votre operation.'
-                : 'Try it free. See how it fits your operation.',
+                ? "Commencez simplement aujourd'hui, puis évoluez à mesure que l'activité grandit"
+                : 'Start simple now, then expand as your operation grows',
             'body' => $isFrench
-                ? '<p>Decouvrez la plateforme, les modules et le parcours public dans un bloc simple qui pousse vers une prochaine action claire.</p>'
-                : '<p>Explore the platform, the modules, and the public journey inside one simple block that drives toward a clear next action.</p>',
+                ? '<p>Explorez la plateforme avec une prochaine étape claire, que vous vouliez commencer gratuitement, comparer les offres ou demander une démonstration.</p>'
+                : '<p>Explore the platform with a clearer next step, whether you want to start free, compare plans, or book a closer walkthrough.</p>',
             'image_url' => $image['image_url'],
             'image_alt' => $image['image_alt'],
-            'primary_label' => $isFrench ? 'Creer un compte' : 'Get started free',
+            'primary_label' => $isFrench ? 'Commencer gratuitement' : 'Start free',
             'primary_href' => '/onboarding',
-            'secondary_label' => $isFrench ? 'Voir les modules' : 'Watch product tour',
+            'secondary_label' => $isFrench ? 'Voir les tarifs' : 'View pricing',
             'secondary_href' => '/pricing',
-            'aside_link_label' => $isFrench ? 'Voir la demo' : 'See the demo',
+            'aside_link_label' => $isFrench ? 'Demander une démo' : 'Book a demo',
             'aside_link_href' => '/demo',
             'showcase_divider_style' => 'notch',
         ];
@@ -153,21 +153,21 @@ class WelcomeEditorialSections
             'density' => 'normal',
             'tone' => 'default',
             'title' => $isFrench
-                ? 'Fier partenaire des pros du service dans plus de 50 industries.'
-                : 'Proud partner to service pros in over 50 industries.',
+                ? 'Conçu pour des entreprises de services avec des réalités opérationnelles variées.'
+                : 'Designed for service businesses with different operating realities.',
             'industry_cards' => $isFrench
                 ? [
                     ['id' => 'industry-arborists', 'label' => 'Arboristes', 'href' => '', 'icon' => 'tree-pine'],
                     ['id' => 'industry-commercial-cleaning', 'label' => 'Nettoyage commercial', 'href' => '/pages/industry-cleaning', 'icon' => 'brush-cleaning'],
                     ['id' => 'industry-construction', 'label' => 'Construction & entrepreneurs', 'href' => '', 'icon' => 'construction'],
-                    ['id' => 'industry-electrical', 'label' => 'Entrepreneur electrique', 'href' => '/pages/industry-electrical', 'icon' => 'plug-zap'],
+                    ['id' => 'industry-electrical', 'label' => 'Entrepreneur électrique', 'href' => '/pages/industry-electrical', 'icon' => 'plug-zap'],
                     ['id' => 'industry-hvac', 'label' => 'HVAC', 'href' => '/pages/industry-hvac', 'icon' => 'fan'],
-                    ['id' => 'industry-handyman', 'label' => 'Homme a tout faire', 'href' => '', 'icon' => 'wrench'],
-                    ['id' => 'industry-landscaping', 'label' => 'Amenagement paysager', 'href' => '', 'icon' => 'shovel'],
+                    ['id' => 'industry-handyman', 'label' => 'Homme à tout faire', 'href' => '', 'icon' => 'wrench'],
+                    ['id' => 'industry-landscaping', 'label' => 'Aménagement paysager', 'href' => '', 'icon' => 'shovel'],
                     ['id' => 'industry-lawn-care', 'label' => 'Entretien de pelouse', 'href' => '', 'icon' => 'leaf'],
                     ['id' => 'industry-painting', 'label' => 'Peinture', 'href' => '', 'icon' => 'paint-roller'],
                     ['id' => 'industry-plumbing', 'label' => 'Plomberie', 'href' => '/pages/industry-plumbing', 'icon' => 'shower-head'],
-                    ['id' => 'industry-residential-cleaning', 'label' => 'Nettoyage residentiel', 'href' => '/pages/industry-cleaning', 'icon' => 'sparkles'],
+                    ['id' => 'industry-residential-cleaning', 'label' => 'Nettoyage résidentiel', 'href' => '/pages/industry-cleaning', 'icon' => 'sparkles'],
                     ['id' => 'industry-roofing', 'label' => 'Toiture', 'href' => '', 'icon' => 'house'],
                 ]
                 : [

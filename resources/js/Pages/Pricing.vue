@@ -305,8 +305,8 @@ const resolveTrialHref = (plan) => {
                                             : $t('pricing.billing_cycle.billed_yearly')) }}
                                 </p>
                             </div>
-                            <ul v-if="resolveFeatures(plan).length" class="mt-4 space-y-2 text-sm text-stone-600">
-                                <li v-for="feature in resolveFeatures(plan).slice(0, 4)" :key="feature">
+                            <ul v-if="resolveFeatures(plan).length" class="mt-4 list-disc space-y-2 pl-5 text-sm text-stone-600 marker:text-emerald-600">
+                                <li v-for="feature in resolveFeatures(plan).slice(0, 4)" :key="feature" class="pl-1">
                                     {{ feature }}
                                 </li>
                             </ul>
