@@ -63,30 +63,30 @@
     "empty": "Aucune notification."
   },
   "two_factor": {
-    "title": "Verification en deux etapes",
-    "sent": "Nous avons envoye un code a {email}.",
-    "sms_sent": "Nous avons envoye un code a {phone}.",
+    "title": "Vérification en deux étapes",
+    "sent": "Nous avons envoyé un code à {email}.",
+    "sms_sent": "Nous avons envoyé un code à {phone}.",
     "app_prompt": "Entrez le code de votre application d'authentification.",
     "expires": "Ce code expire dans {minutes} minutes.",
-    "code_label": "Code de verification",
-    "code_placeholder": "Entrez le code a 6 chiffres",
-    "submit": "Verifier",
+    "code_label": "Code de vérification",
+    "code_placeholder": "Entrez le code à 6 chiffres",
+    "submit": "Vérifier",
     "resend": "Renvoyer le code"
   },
   "global_search": {
     "open": "Recherche globale",
-    "placeholder": "Rechercher clients, taches, devis, employes...",
-    "placeholder_solo": "Rechercher clients, taches, devis...",
+    "placeholder": "Rechercher clients, tâches, devis, employés...",
+    "placeholder_solo": "Rechercher clients, tâches, devis...",
     "quick_actions": "Actions rapides",
-    "results": "Resultats",
+    "results": "Résultats",
     "loading": "Recherche...",
     "no_results": "Aucun resultat.",
     "hint": "Ctrl + K",
     "groups": {
       "customers": "Clients",
-      "tasks": "Taches",
+      "tasks": "Tâches",
       "quotes": "Devis",
-      "employees": "Employes"
+      "employees": "Employés"
     }
   },
   "alerts": {
@@ -108,9 +108,9 @@
       "title": "Attention"
     },
     "validation_toast": {
-      "single": "1 erreur dans le formulaire. Verifiez le champ surligne.",
-      "plural": "{count} erreurs dans le formulaire. Verifiez les champs surlignes.",
-      "generic": "Le formulaire contient des erreurs. Verifiez les champs surlignes."
+      "single": "1 erreur dans le formulaire. Vérifiez le champ surligné.",
+      "plural": "{count} erreurs dans le formulaire. Vérifiez les champs surlignés.",
+      "generic": "Le formulaire contient des erreurs. Vérifiez les champs surlignés."
     }
   },
   "actions": {
@@ -118,18 +118,18 @@
   },
   "dashboard": {
     "title": "Tableau de bord",
-    "welcome_named": "Bon retour, {name}. Voici votre activite recente.",
-    "welcome_generic": "Bon retour. Voici votre activite recente.",
+    "welcome_named": "Bon retour, {name}. Voici votre activité récente.",
+    "welcome_generic": "Bon retour. Voici votre activité récente.",
     "meta": {
       "quotes_month": "{count} devis ce mois-ci",
-      "payments_month": "{amount} encaisses ce mois-ci"
+      "payments_month": "{amount} encaissés ce mois-ci"
     },
     "usage": {
       "title": "Alertes d'utilisation",
       "description": "Certains modules approchent leurs limites{planSuffix}.",
       "plan_suffix": " pour le forfait {plan}",
       "view_limits": "Voir les limites",
-      "unlimited": "Illimite",
+      "unlimited": "Illimité",
       "not_available": "Non disponible"
     },
     "limits": {
@@ -139,8 +139,8 @@
       "jobs": "Chantiers",
       "products": "Produits",
       "services": "Services",
-      "tasks": "Taches",
-      "team_members": "Membres d'equipe"
+      "tasks": "Tâches",
+      "team_members": "Membres d'équipe"
     },
     "time": {
       "any": "N'importe quand"
@@ -151,47 +151,47 @@
       "low": "Basse"
     },
     "auto": {
-      "started": "Auto demarre",
-      "completed": "Auto termine"
+      "started": "Auto démarré",
+      "completed": "Auto terminé"
     },
     "agenda": {
-      "task": "tache",
-      "tasks": "taches",
+      "task": "tâche",
+      "tasks": "tâches",
       "job": "chantier",
       "jobs": "chantiers",
-      "auto_started": "{count} demarre auto",
-      "auto_completed": "{count} termine auto",
-      "auto_completed_at": "{count} termine auto a {time}"
+      "auto_started": "{count} démarré auto",
+      "auto_completed": "{count} terminé auto",
+      "auto_completed_at": "{count} terminé auto à {time}"
     },
     "labels": {
       "unknown_customer": "Client inconnu",
       "job": "Chantier",
-      "task": "Tache",
-      "assignee": "Assigne: {name}",
+      "task": "Tâche",
+      "assignee": "Assigné : {name}",
       "quote_fallback": "Devis",
       "invoice_fallback": "Facture"
     },
     "timeline": {
       "title": "Planning du jour",
-      "subtitle": "Chantiers et taches prevus aujourd'hui.",
+      "subtitle": "Chantiers et tâches prévus aujourd'hui.",
       "sync_calendar": "Synchroniser le calendrier",
-      "view_tasks": "Voir les taches",
+      "view_tasks": "Voir les tâches",
       "auto_alerts": "Alertes auto",
-      "empty": "Aucune tache ni chantier prevu aujourd'hui."
+      "empty": "Aucune tâche ni aucun chantier prévu aujourd'hui."
     },
     "revenue": {
       "title": "Tendance des revenus",
-      "subtitle": "Activite de facturation des 30 derniers jours.",
+      "subtitle": "Activité de facturation des 30 derniers jours.",
       "view_invoices": "Voir les factures",
-      "paid_to_date": "Paye a ce jour",
+      "paid_to_date": "Payé à ce jour",
       "outstanding": "A recevoir",
       "overdue": "En retard"
     },
     "sections": {
-      "recent_quotes": "Devis recents",
-      "upcoming_jobs": "Chantiers a venir",
+      "recent_quotes": "Devis récents",
+      "upcoming_jobs": "Chantiers à venir",
       "outstanding_invoices": "Factures en attente",
-      "recent_activity": "Activite recente"
+      "recent_activity": "Activité récente"
     },
     "actions": {
       "view_all": "Voir tout"
@@ -201,63 +201,63 @@
       "customer": "Client",
       "status": "Statut",
       "total": "Total",
-      "created": "Cree"
+      "created": "Créé"
     },
     "empty": {
       "quotes": "Aucun devis pour le moment.",
-      "jobs": "Aucun chantier planifie.",
-      "invoices": "Toutes les factures sont reglees.",
-      "activity": "Aucune activite recente."
+      "jobs": "Aucun chantier planifié.",
+      "invoices": "Toutes les factures sont réglées.",
+      "activity": "Aucune activité récente."
     },
     "quick_actions": {
       "title": "Actions rapides",
-      "create": "Creer",
+      "create": "Créer",
       "suggested": "Suggestion : {label}",
       "suggested_next": "Suggestions suivantes"
     },
     "kpi": {
-      "revenue_paid": "Revenu encaisse",
-      "revenue_billed": "Facture {amount}",
+      "revenue_paid": "Revenu encaissé",
+      "revenue_billed": "Facturé {amount}",
       "outstanding_balance": "Solde en attente",
       "partial_invoices": "{count} factures partielles",
       "open_quotes": "Devis ouverts",
-      "accepted_quotes": "{count} devis acceptes",
+      "accepted_quotes": "{count} devis acceptés",
       "jobs_in_progress": "Chantiers en cours",
-      "jobs_scheduled": "{count} planifies",
+      "jobs_scheduled": "{count} planifiés",
       "customers": "Clients",
       "customers_new": "{count} nouveaux clients",
       "low_stock": "Stock faible",
       "out_of_stock": "{count} en rupture",
-      "invoices_paid": "Factures payees",
+      "invoices_paid": "Factures payées",
       "invoices_total": "{count} au total",
       "inventory_value": "Valeur du stock",
       "products_total": "{count} produits"
     },
     "announcements": {
       "title": "Annonces",
-      "subtitle": "Dernieres nouvelles de Malikia pro.",
+      "subtitle": "Dernières nouvelles de Malikia Pro.",
       "quick_title": "Infos rapides",
-      "quick_subtitle": "Derniers points pour votre equipe.",
-      "updates_title": "Mises a jour",
-      "updates_subtitle": "Quoi de neuf sur Malikia pro.",
+      "quick_subtitle": "Derniers points pour votre équipe.",
+      "updates_title": "Mises à jour",
+      "updates_subtitle": "Quoi de neuf sur Malikia Pro.",
       "valid_until": "Valide jusqu'au {date}",
       "from": "Depuis le {date}",
       "learn_more": "En savoir plus"
     },
     "checklist": {
       "title": "Prise en main",
-      "subtitle": "Terminez ces etapes pour configurer votre espace.",
+      "subtitle": "Terminez ces étapes pour configurer votre espace.",
       "done": "Fait",
       "plan_scans_title": "Scan de plans",
       "plan_scans_empty": "Aucun scan pour le moment.",
-      "plan_scans_count": "{count} scans importes",
+      "plan_scans_count": "{count} scans importés",
       "plan_scans_cta": "Importer un scan"
     },
     "onboarding": {
-      "add_first_service": "Ajouter votre premiere prestation",
+      "add_first_service": "Ajouter votre première prestation",
       "add_first_product": "Ajouter votre premier produit",
       "add_first_customer": "Ajouter votre premier client",
-      "create_first_quote": "Creer votre premier devis"
+      "create_first_quote": "Créer votre premier devis"
     },
     "suggestions": {
       "create_customer": "Creer un client",
@@ -574,13 +574,13 @@
       "clocking_out": "Sortie..."
     },
     "help": {
-      "manual_disabled": "Le pointage manuel est desactive par le owner."
+      "manual_disabled": "Le pointage manuel est désactivé par le propriétaire."
     },
     "errors": {
       "clock_in": "Impossible de pointer.",
       "clock_out": "Impossible de sortir."
     },
-    "empty": "Aucun membre a afficher."
+    "empty": "Aucun membre à afficher."
   },
   "planning": {
     "absence_overview": {
@@ -593,30 +593,30 @@
       "more_week": "+{count} autres"
     },
     "title": "Planning",
-    "subtitle": "Planifier les shifts et recurrences pour l equipe de vente.",
-    "subtitle_services": "Planifier les interventions et taches de l equipe.",
+    "subtitle": "Planifier les shifts et récurrences pour l'équipe de vente.",
+    "subtitle_services": "Planifier les interventions et tâches de l'équipe.",
     "subtitle_owner_only": "Consulter votre calendrier dans une vue solo.",
-    "subtitle_owner_only_services": "Suivre vos jobs et taches dans une vue planning solo.",
+    "subtitle_owner_only_services": "Suivre vos jobs et tâches dans une vue planning solo.",
     "calendar": {
-      "title": "Planning equipe",
-      "today": "Aujourd hui",
+      "title": "Planning équipe",
+      "today": "Aujourd'hui",
       "month": "Mois",
       "week": "Semaine",
       "day": "Jour",
-      "year": "Annee"
+      "year": "Année"
     },
     "preview": {
       "empty": "Aucun shift",
       "empty_services": "Aucun evenement",
       "count": "{count} shifts",
-      "count_services": "{count} evenements",
+      "count_services": "{count} événements",
       "more": "{count} de plus"
     },
     "filters": {
       "title": "Calendriers",
-      "member": "Employe",
-      "all_members": "Toute l equipe",
-      "range": "Periode",
+      "member": "Employé",
+      "all_members": "Toute l'équipe",
+      "range": "Période",
       "loading": "Chargement des shifts...",
       "loading_services": "Chargement du planning...",
       "empty": "Aucun shift sur cette periode.",
@@ -625,19 +625,19 @@
     "kinds": {
       "shift": "Shift",
       "absence": "Absence",
-      "leave": "Conge"
+      "leave": "Congé"
     },
     "form": {
       "title": "Ajouter un shift",
       "title_absence": "Signaler une absence",
       "title_leave": "Signaler un conge",
       "kind": "Type",
-      "member": "Employe",
+      "member": "Employé",
       "date": "Date du shift",
-      "start_date": "Date de debut",
+      "start_date": "Date de début",
       "end_date": "Date de fin",
-      "duration": "Duree",
-      "full_day": "Journee entiere",
+      "duration": "Durée",
+      "full_day": "Journée entière",
       "hours": "Quelques heures",
       "start_time": "Heure de debut",
       "end_time": "Heure de fin",
@@ -682,14 +682,14 @@
       "conflict": "Conflit de planning detecte."
     },
     "notices": {
-      "created": "{count} shift(s) cree(s).",
-      "absence_created": "Absence enregistree.",
-      "absence_created_many": "{count} jours d'absence enregistres.",
-      "leave_created": "Conge enregistre.",
-      "leave_created_many": "{count} jours de conge enregistres.",
-      "absence_deleted": "Absence supprimee.",
-      "leave_deleted": "Conge supprime.",
-      "updated": "Shift mis a jour.",
+      "created": "{count} shift(s) créé(s).",
+      "absence_created": "Absence enregistrée.",
+      "absence_created_many": "{count} jours d'absence enregistrés.",
+      "leave_created": "Congé enregistré.",
+      "leave_created_many": "{count} jours de congé enregistrés.",
+      "absence_deleted": "Absence supprimée.",
+      "leave_deleted": "Congé supprimé.",
+      "updated": "Shift mis à jour.",
       "approved": "Demande approuvée.",
       "rejected": "Demande refusée.",
       "deleted": "Shift supprime."
@@ -697,8 +697,8 @@
     "status": {
       "label": "Statut",
       "pending": "En attente",
-      "approved": "Approuve",
-      "rejected": "Refuse",
+      "approved": "Approuvé",
+      "rejected": "Refusé",
       "approve": "Approuver",
       "approving": "Approbation...",
       "reject": "Refuser",
@@ -711,25 +711,25 @@
       "more": "+{count} autres demandes"
     },
     "empty": {
-      "title": "Planning verrouille",
-      "description": "Seuls les managers peuvent creer des shifts."
+      "title": "Planning verrouillé",
+      "description": "Seuls les managers peuvent créer des shifts."
     },
     "empty_services": {
       "title": "Vue planning",
-      "description": "Les evenements viennent des interventions et taches."
+      "description": "Les événements viennent des interventions et tâches."
     },
     "empty_owner_only": {
       "title": "Planning en lecture seule",
-      "description": "La creation de shifts reste desactivee en mode solo tant qu un planning owner-only complet n existe pas."
+      "description": "La création de shifts reste désactivée en mode solo tant qu'un planning propriétaire uniquement complet n'existe pas."
     },
     "empty_owner_only_services": {
-      "title": "Vue operations solo",
-      "description": "Les jobs et taches restent visibles ici, mais la planification equipe reste desactivee en mode solo."
+      "title": "Vue opérations solo",
+      "description": "Les jobs et tâches restent visibles ici, mais la planification équipe reste désactivée en mode solo."
     },
     "owner_only": {
       "badge": "Vue owner-only",
       "panel_title": "Planning solo",
-      "panel_description": "Ce forfait solo garde le planning en lecture seule tant que les membres d equipe restent desactives."
+      "panel_description": "Ce forfait solo garde le planning en lecture seule tant que les membres d'équipe restent désactivés."
     },
     "delete": {
       "title": "Supprimer le shift",
@@ -2402,37 +2402,37 @@
     "status": {
       "draft": "Brouillon",
       "pending": "En attente",
-      "unpaid": "Non payee",
+      "unpaid": "Non payée",
       "deposit_required": "Acompte requis",
       "partial": "Partiel",
-      "paid": "Payee",
-      "canceled": "Annulee"
+      "paid": "Payée",
+      "canceled": "Annulée"
     },
     "fulfillment": {
-      "pending": "Commande recue",
-      "preparing": "Preparation",
+      "pending": "Commande reçue",
+      "preparing": "Préparation",
       "out_for_delivery": "En cours de livraison",
-      "ready_for_pickup": "Pret a retirer",
-      "completed": "Livree",
-      "confirmed": "Confirmee",
-      "completed_unconfirmed": "Livree - a confirmer"
+      "ready_for_pickup": "Prête à retirer",
+      "completed": "Livrée",
+      "confirmed": "Confirmée",
+      "completed_unconfirmed": "Livrée - à confirmer"
     }
   },
   "onboarding": {
     "title": "Onboarding",
     "header": {
-      "title": "Creez votre espace",
-      "subtitle": "Terminez la configuration en {count} etapes.",
-      "step": "Etape {current} / {total}"
+      "title": "Créez votre espace",
+      "subtitle": "Terminez la configuration en {count} étapes.",
+      "step": "Étape {current} / {total}"
     },
     "progress": {
       "title": "Progression",
-      "note": "Gardez ces infos a jour pour debloquer toutes les fonctions du tableau de bord."
+      "note": "Gardez ces infos à jour pour débloquer toutes les fonctions du tableau de bord."
     },
     "steps": {
       "account": {
         "title": "Compte",
-        "description": "Identifiants et securite."
+        "description": "Identifiants et sécurité."
       },
       "company": {
         "title": "Entreprise",
@@ -2444,11 +2444,11 @@
       },
       "sector": {
         "title": "Secteur",
-        "description": "Votre activite principale."
+        "description": "Votre activité principale."
       },
       "team": {
-        "title": "Equipe",
-        "description": "Invitez votre equipe."
+        "title": "Équipe",
+        "description": "Invitez votre équipe."
       },
       "team_solo": {
         "title": "Configuration",
@@ -2459,28 +2459,28 @@
         "description": "Choisissez votre plan."
       },
       "security": {
-        "title": "Securite",
-        "description": "Choisissez votre methode 2FA."
+        "title": "Sécurité",
+        "description": "Choisissez votre méthode 2FA."
       }
     },
     "account": {
-      "owner_notice": "Ce compte deviendra le proprietaire de l'entreprise.",
+      "owner_notice": "Ce compte deviendra le propriétaire de l'entreprise.",
       "full_name": "Nom complet",
       "email": "Email",
       "password": "Mot de passe",
       "confirm_password": "Confirmer le mot de passe",
-      "have_account": "Deja un compte ? Se connecter",
-      "create_account": "Creer mon compte"
+      "have_account": "Déjà un compte ? Se connecter",
+      "create_account": "Créer mon compte"
     },
     "company": {
       "name": "Nom de l'entreprise",
       "logo_optional": "Logo (optionnel)",
-      "logo_upload": "Televerser votre logo",
+      "logo_upload": "Téléverser votre logo",
       "description_optional": "Description (optionnel)",
       "address": "Adresse de l'entreprise",
       "address_search_placeholder": "Rechercher une adresse",
       "address_searching": "Recherche...",
-      "address_validated": "Adresse validee",
+      "address_validated": "Adresse validée",
       "address_label": "Adresse",
       "street": "Rue",
       "city": "Ville",
@@ -2491,8 +2491,8 @@
       "address_manual": "Adresse manuelle",
       "address_hide": "Masquer",
       "address_show": "Saisir manuellement",
-      "address_error_key": "Configuration Geoapify manquante. Verifiez la configuration de l application.",
-      "address_error_failed": "Echec de recherche. Verifiez la cle Geoapify ou utilisez la saisie manuelle."
+      "address_error_key": "Configuration Geoapify manquante. Vérifiez la configuration de l'application.",
+      "address_error_failed": "Échec de recherche. Vérifiez la clé Geoapify ou utilisez la saisie manuelle."
     },
     "type": {
       "services": "Entreprise de services",
@@ -2500,68 +2500,68 @@
       "modules_active": "Modules actifs : {label}"
     },
     "sector": {
-      "label_products": "Type d'activite",
-      "label_services": "Secteur d'activite",
+      "label_products": "Type d'activité",
+      "label_services": "Secteur d'activité",
       "other_label": "Autre",
       "other_input": "Secteur (autre)",
-      "hint": "Si votre secteur n'est pas liste, choisissez Autre pour le creer.",
-      "products_note": "Le module Ventes sera active pour vendre vos produits via la plateforme.",
-      "services_note": "Les categories de services seront creees automatiquement, y compris pour un secteur personnalise."
+      "hint": "Si votre secteur n'est pas listé, choisissez Autre pour le créer.",
+      "products_note": "Le module Ventes sera activé pour vendre vos produits via la plateforme.",
+      "services_note": "Les catégories de services seront créées automatiquement, y compris pour un secteur personnalisé."
     },
     "sectors": {
       "service": {
         "placeholder": "Choisir un secteur",
-        "salon": "Salon de coiffure / beaute",
+        "salon": "Salon de coiffure / beauté",
         "restaurant": "Restaurant",
-        "service_general": "Services general",
+        "service_general": "Services généraux",
         "menuiserie": "Menuiserie",
         "plomberie": "Plomberie",
-        "electricite": "Electricite",
+        "electricite": "Électricité",
         "peinture": "Peinture",
         "toiture": "Toiture",
-        "renovation": "Renovation",
+        "renovation": "Rénovation",
         "paysagisme": "Paysagisme",
         "climatisation": "Climatisation",
         "nettoyage": "Nettoyage"
       },
       "product": {
-        "placeholder": "Choisir un type d'activite",
-        "retail": "Detail",
+        "placeholder": "Choisir un type d'activité",
+        "retail": "Détail",
         "wholesale": "Grossiste",
-        "grocery": "Epicerie",
-        "convenience": "Depanneur",
-        "specialty": "Boutique specialisee",
+        "grocery": "Épicerie",
+        "convenience": "Dépanneur",
+        "specialty": "Boutique spécialisée",
         "pharmacy": "Pharmacie / parapharmacie",
-        "electronics": "Electronique",
+        "electronics": "Électronique",
         "home_hardware": "Maison et quincaillerie"
       },
       "other": "Autre..."
     },
     "team": {
-      "title": "Inviter l'equipe (optionnel)",
+      "title": "Inviter l'équipe (optionnel)",
       "subtitle": "Ajoutez des membres maintenant ou plus tard.",
-      "size_title": "Taille de l'equipe",
+      "size_title": "Taille de l'équipe",
       "size_hint": "Indiquez combien de personnes utiliseront la plateforme.",
       "size_label": "Nombre de membres",
       "size_title_solo": "Profil de l'espace",
-      "size_hint_solo": "Laissez 1 pour un espace solo. Augmentez seulement si vous prevoyez passer a un mode equipe.",
-      "size_label_solo": "Taille prevue de l'espace",
-      "recommendation_title": "Forfait recommande",
-      "recommendation_subtitle": "Base sur {count} membres",
-      "recommendation_solo_subtitle": "Recommande pour un acces proprietaire uniquement",
-      "recommendation_limit": "Jusqu'a {count} membres",
-      "recommendation_unlimited": "Membres illimites",
-      "recommendation_owner_only": "Proprietaire uniquement",
+      "size_hint_solo": "Laissez 1 pour un espace solo. Augmentez seulement si vous prévoyez passer à un mode équipe.",
+      "size_label_solo": "Taille prévue de l'espace",
+      "recommendation_title": "Forfait recommandé",
+      "recommendation_subtitle": "Basé sur {count} membres",
+      "recommendation_solo_subtitle": "Recommandé pour un accès propriétaire uniquement",
+      "recommendation_limit": "Jusqu'à {count} membres",
+      "recommendation_unlimited": "Membres illimités",
+      "recommendation_owner_only": "Propriétaire uniquement",
       "solo_title": "Espace solo",
-      "solo_subtitle": "Vous demarrez seul. Les invitations d equipe restent desactivees tant que vous restez sur un forfait solo.",
+      "solo_subtitle": "Vous démarrez seul. Les invitations d'équipe restent désactivées tant que vous restez sur un forfait solo.",
       "add": "+ Ajouter",
-      "empty": "Aucune invitation ajoutee.",
+      "empty": "Aucune invitation ajoutée.",
       "name": "Nom",
       "email": "Email",
       "role_admin": "Admin",
       "role_member": "Membre",
       "remove": "Supprimer",
-      "summary": "Resume",
+      "summary": "Résumé",
       "summary_company": "Entreprise",
       "summary_type": "Type",
       "summary_sector": "Secteur",
@@ -2575,18 +2575,18 @@
       "yearly": "Annuel",
       "interval_month": "/mois",
       "interval_year": "/an",
-      "yearly_note": "Payez a l annee et economisez {percent}%.",
-      "billed_yearly": "Pour 12 mois, facture annuellement.",
+      "yearly_note": "Payez à l'année et économisez {percent}%.",
+      "billed_yearly": "Pour 12 mois, facturé annuellement.",
       "trial_note": "Essai gratuit jusqu'au {date}.",
       "downgrade_note": "Vous pouvez changer de forfait pendant l'essai.",
-      "recommended": "Recommande",
+      "recommended": "Recommandé",
       "unavailable": "Forfait indisponible"
     },
     "security": {
-      "title": "Choisissez votre methode 2FA",
-      "subtitle": "Ajoutez une protection supplementaire pour le compte owner.",
+      "title": "Choisissez votre méthode 2FA",
+      "subtitle": "Ajoutez une protection supplémentaire pour le compte propriétaire.",
       "method_email": "Code par email",
-      "method_email_hint": "Nous enverrons un code a usage unique a {email}.",
+      "method_email_hint": "Nous enverrons un code à usage unique à {email}.",
       "method_app": "Application d'authentification",
       "method_app_hint": "Google Authenticator, Authy ou 1Password.",
       "change_later": "Vous pourrez changer plus tard dans les parametres de securite.",
@@ -2972,62 +2972,62 @@
     "stats": {
       "total": "Total ventes",
       "revenue": "Chiffre d'affaires",
-      "collected": "Encaisse",
+      "collected": "Encaissé",
       "pending": "En attente",
       "draft": "Brouillons",
-      "canceled": "Annulees"
+      "canceled": "Annulées"
     },
     "status": {
       "draft": "Brouillon",
       "pending": "En attente",
-      "paid": "Payee",
-      "canceled": "Annulee"
+      "paid": "Payée",
+      "canceled": "Annulée"
     },
     "payment": {
-      "unpaid": "Non payee",
+      "unpaid": "Non payée",
       "deposit_required": "Acompte requis",
       "partial": "Partiel",
-      "paid": "Payee"
+      "paid": "Payée"
     },
     "payments": {
       "title": "Paiements",
       "history_title": "Historique des paiements",
       "deposit_required": "Acompte requis",
-      "paid": "Paye",
-      "balance_due": "Solde a payer",
+      "paid": "Payé",
+      "balance_due": "Solde à payer",
       "amount_label": "Montant",
-      "method_label": "Methode",
+      "method_label": "Méthode",
       "cash": "Cash",
       "card": "Carte",
       "record": "Enregistrer le paiement",
       "recording": "Enregistrement...",
-      "mark_paid": "Marquer comme paye",
-      "marking_paid": "Mise a jour...",
+      "mark_paid": "Marquer comme payé",
+      "marking_paid": "Mise à jour...",
       "pending_cash": "Paiement en attente (cash)",
-      "empty": "Aucun paiement enregistre.",
+      "empty": "Aucun paiement enregistré.",
       "status": {
         "pending": "En attente",
-        "completed": "Paye",
-        "paid": "Paye",
-        "failed": "Echoue",
-        "refunded": "Rembourse",
-        "reversed": "Inverse"
+        "completed": "Payé",
+        "paid": "Payé",
+        "failed": "Échoué",
+        "refunded": "Remboursé",
+        "reversed": "Inversé"
       },
       "timeline": {
         "deposit": "Acompte",
         "balance": "Solde",
         "payment": "Paiement",
         "deposit_balance": "Acompte + solde",
-        "pending": "A encaisser"
+        "pending": "À encaisser"
       }
     },
     "fulfillment": {
-      "pending": "Commande recue",
-      "preparing": "Preparation",
+      "pending": "Commande reçue",
+      "preparing": "Préparation",
       "out_for_delivery": "En cours de livraison",
-      "ready_for_pickup": "Pret a retirer",
-      "completed": "Livree",
-      "confirmed": "Confirmee",
+      "ready_for_pickup": "Prête à retirer",
+      "completed": "Livrée",
+      "confirmed": "Confirmée",
       "method": {
         "delivery": "Livraison",
         "pickup": "Retrait",
@@ -3146,54 +3146,54 @@
       "actions": {
         "view": "Voir",
         "edit": "Modifier",
-        "mark_paid": "Payee",
+        "mark_paid": "Payée",
         "cancel": "Annuler"
       },
       "empty": {
         "orders": {
           "title": "Aucune commande",
-          "description": "Les commandes clients apparaitront ici."
+          "description": "Les commandes clients apparaîtront ici."
         },
         "sales": {
           "title": "Aucune vente",
-          "description": "Creez une vente ou passez par le POS pour demarrer."
+          "description": "Créez une vente ou passez par le POS pour démarrer."
         }
       },
       "pagination": {
         "label": "Pagination",
-        "results": "resultats",
-        "previous": "Precedent",
+        "results": "résultats",
+        "previous": "Précédent",
         "next": "Suivant",
         "of": "sur"
       }
     },
     "create": {
       "title": "Nouvelle vente",
-      "subtitle": "Selectionnez des produits pour generer la facture.",
-      "flash_saved": "Vente enregistree.",
+      "subtitle": "Sélectionnez des produits pour générer la facture.",
+      "flash_saved": "Vente enregistrée.",
       "flash_view": "Voir et imprimer",
       "save_sale": "Enregistrer la vente",
       "save_order": "Enregistrer la commande",
       "status": {
         "pending": {
           "label": "Commande",
-          "description": "A payer plus tard ou en preparation"
+          "description": "À payer plus tard ou en préparation"
         },
         "paid": {
-          "label": "Vente payee",
-          "description": "Paiement immediat termine"
+          "label": "Vente payée",
+          "description": "Paiement immédiat terminé"
         }
       }
     },
     "edit": {
       "meta_title": "Modifier vente",
       "title": "Modifier {number}",
-      "subtitle": "Mettez a jour la vente et son statut.",
+      "subtitle": "Mettez à jour la vente et son statut.",
       "view_sale": "Voir la vente",
       "fulfillment_status_label": "Statut {method}",
       "fulfillment_placeholder": "Selectionner",
-      "schedule_label": "Horaire souhaite (ETA)",
-      "update": "Mettre a jour"
+      "schedule_label": "Horaire souhaité (ETA)",
+      "update": "Mettre à jour"
     },
     "show": {
       "meta_title": "Vente",
@@ -3203,14 +3203,14 @@
       "seller_label": "Vendeur",
       "order_label": "Commande: {status}",
       "payment_label": "Statut de paiement: {status}",
-      "created_on": "Cree le {date}",
-      "paid_on": "Payee le {date}",
+      "created_on": "Créée le {date}",
+      "paid_on": "Payée le {date}",
       "products_title": "Produits",
       "table": {
         "product": "Produit",
         "sku": "SKU",
-        "unit": "Unite",
-        "quantity": "Quantite",
+        "unit": "Unité",
+        "quantity": "Quantité",
         "price": "Prix",
         "total": "Total"
       },
@@ -4402,47 +4402,47 @@
       "country": "Pays",
       "address_search_placeholder": "Rechercher une adresse",
       "address_searching": "Recherche...",
-      "address_validated": "Adresse validee",
+      "address_validated": "Adresse validée",
       "address_label": "Adresse",
-      "address_error_key": "Configuration Geoapify manquante. Verifiez la configuration de l application.",
-      "address_error_failed": "Echec de recherche. Verifiez la cle Geoapify ou utilisez la saisie manuelle.",
+      "address_error_key": "Configuration Geoapify manquante. Vérifiez la configuration de l'application.",
+      "address_error_failed": "Échec de recherche. Vérifiez la clé Geoapify ou utilisez la saisie manuelle.",
       "submit": "Envoyer la demande",
-      "success": "Merci ! Nous vous contacterons bientot."
+      "success": "Merci ! Nous vous contacterons bientôt."
     },
     "analytics": {
       "title": "Indicateurs (derniers {days} jours)",
       "subtitle": "Indicateurs glissants pour suivre la performance des leads.",
-      "first_response": "Delai moyen 1ere reponse",
-      "first_response_note": "Base sur la premiere action apres creation du lead.",
+      "first_response": "Délai moyen 1re réponse",
+      "first_response_note": "Basé sur la première action après création du lead.",
       "conversion_rate": "Taux de conversion",
-      "conversion_note": "Leads gagnes vs total cree.",
+      "conversion_note": "Leads gagnés vs total créés.",
       "total_leads": "Nouveaux leads",
-      "total_note": "Crees sur les {days} derniers jours.",
+      "total_note": "Créés sur les {days} derniers jours.",
       "form": {
         "title": "Performance du formulaire",
         "window": "Derniers {days} jours",
         "views": "Vues formulaire",
         "unique": "{count} visiteurs uniques",
         "submits": "Soumissions",
-        "submits_note": "Leads crees depuis le formulaire public.",
+        "submits_note": "Leads créés depuis le formulaire public.",
         "conversion": "Conversion formulaire",
         "conversion_note": "Soumissions ÷ vues.",
-        "last_view": "Derniere vue",
-        "last_submit": "Derniere soumission",
+        "last_view": "Dernière vue",
+        "last_submit": "Dernière soumission",
         "empty": "Aucune activite sur le formulaire.",
-        "referrers_title": "Top referents",
-        "no_referrers": "Aucune donnee de referent.",
+        "referrers_title": "Top référents",
+        "no_referrers": "Aucune donnée de référent.",
         "utm_title": "Top UTM",
         "utm_sources": "Sources",
         "utm_mediums": "Canaux",
         "utm_campaigns": "Campagnes",
-        "no_utm": "Aucune donnee UTM"
+        "no_utm": "Aucune donnée UTM"
       },
       "by_source": "Conversion par source",
-      "no_data": "Aucune donnee pour l'instant.",
-      "risk_title": "Leads a risque",
-      "no_risk": "Aucun lead a risque pour l'instant.",
-      "last_activity": "Derniere activite",
+      "no_data": "Aucune donnée pour l'instant.",
+      "risk_title": "Leads à risque",
+      "no_risk": "Aucun lead à risque pour l'instant.",
+      "last_activity": "Dernière activité",
       "follow_up": "Relance",
       "risk_7": "7+ jours sans action",
       "risk_14": "14+ jours sans action"
@@ -4628,24 +4628,24 @@
     "subtitle": "Suivez, confirmez ou refusez les reservations assignees a votre equipe.",
     "empty": "Aucune reservation.",
     "owner_only": {
-      "staff_notice": "Solo growth garde les reservations en mode limite: consultation de l historique, gestion de la liste d attente et reglages globaux, mais la reservation par membre reste desactivee.",
-      "client_notice": "Cet espace solo ne propose pas encore de creneaux en direct. Rejoignez plutot la liste d attente pour un suivi manuel.",
-      "client_waitlist_hint": "Les creneaux de reservation et les replanifications restent desactives en mode solo owner-only."
+      "staff_notice": "Solo growth garde les réservations en mode limité : consultation de l'historique, gestion de la liste d'attente et réglages globaux, mais la réservation par membre reste désactivée.",
+      "client_notice": "Cet espace solo ne propose pas encore de créneaux en direct. Rejoignez plutôt la liste d'attente pour un suivi manuel.",
+      "client_waitlist_hint": "Les créneaux de réservation et les replanifications restent désactivés en mode solo propriétaire uniquement."
     },
     "stats": {
       "total": "Total",
       "pending": "En attente",
-      "confirmed": "Confirmees",
-      "completed": "Terminees",
+      "confirmed": "Confirmées",
+      "completed": "Terminées",
       "today": "Aujourd'hui",
-      "upcoming": "A venir"
+      "upcoming": "À venir"
     },
     "performance": {
       "title": "Performance ({days} derniers jours)",
       "occupancy_rate": "Taux d'occupation",
       "no_show_rate": "Taux d'absence",
       "reschedule_rate": "Taux de replanification",
-      "completion_rate": "Taux de completion",
+      "completion_rate": "Taux de complétion",
       "avg_service_value": "Panier moyen service",
       "tip_rate": "Taux de pourboire",
       "resource_reservation_rate": "Utilisation des ressources",
@@ -4662,54 +4662,54 @@
       "date_to": "Au"
     },
     "scope": {
-      "mine": "Mes reservations",
-      "all": "Toutes les reservations"
+      "mine": "Mes réservations",
+      "all": "Toutes les réservations"
     },
     "quick": {
       "pending": "En attente",
       "today": "Aujourd'hui",
-      "upcoming": "A venir",
-      "past": "Passees"
+      "upcoming": "À venir",
+      "past": "Passées"
     },
     "sort": {
       "date_asc": "Date (plus anciennes d'abord)",
-      "date_desc": "Date (plus recentes d'abord)",
+      "date_desc": "Date (plus récentes d'abord)",
       "status": "Statut"
     },
     "actions": {
-      "new": "Nouvelle reservation",
-      "create": "Creer",
-      "update": "Mettre a jour",
+      "new": "Nouvelle réservation",
+      "create": "Créer",
+      "update": "Mettre à jour",
       "edit": "Modifier",
       "delete": "Supprimer",
       "cancel": "Annuler",
       "decline": "Refuser",
       "confirm": "Confirmer",
-      "complete": "Marquer terminee",
+      "complete": "Marquer terminée",
       "no_show": "Marquer absent",
       "set_pending": "Mettre en attente",
-      "already_confirmed": "Deja confirmee",
+      "already_confirmed": "Déjà confirmée",
       "view": "Voir",
       "reschedule": "Replanifier",
       "filters": "Filtres",
-      "clear_filters": "Reinitialiser",
-      "delete_confirm": "Supprimer cette reservation ?"
+      "clear_filters": "Réinitialiser",
+      "delete_confirm": "Supprimer cette réservation ?"
     },
     "form": {
-      "create_title": "Creer une reservation",
-      "edit_title": "Modifier la reservation",
+      "create_title": "Créer une réservation",
+      "edit_title": "Modifier la réservation",
       "customer": "Client",
       "item": "Produit ou service",
       "status": "Statut",
       "title": "Titre",
-      "starts_at": "Debut",
+      "starts_at": "Début",
       "ends_at": "Fin",
       "party_size": "Nombre de personnes",
-      "quantity": "Quantite",
+      "quantity": "Quantité",
       "channel": "Canal",
       "contact_name": "Nom du contact",
       "contact_email": "Email",
-      "contact_phone": "Telephone",
+      "contact_phone": "Téléphone",
       "notes": "Notes",
       "internal_notes": "Notes internes",
       "none": "Aucun"
@@ -4723,38 +4723,38 @@
       "contact": "Contact",
       "actions": "Actions",
       "party_size_value": "Personnes: {value}",
-      "quantity_value": "Quantite: {value}"
+      "quantity_value": "Quantité: {value}"
     },
     "waitlist": {
-      "title": "Liste d attente",
-      "subtitle": "Suivez la demande en attente et liberez des creneaux rapidement.",
-      "empty": "Aucune entree en liste d attente.",
+      "title": "Liste d'attente",
+      "subtitle": "Suivez la demande en attente et libérez des créneaux rapidement.",
+      "empty": "Aucune entrée en liste d'attente.",
       "cards": {
         "pending": "En attente",
-        "released": "Diffuse",
-        "booked": "Reserve"
+        "released": "Diffusé",
+        "booked": "Réservé"
       },
       "status": {
         "pending": "En attente",
-        "released": "Diffuse",
-        "booked": "Reserve",
-        "cancelled": "Annule",
-        "expired": "Expire"
+        "released": "Diffusé",
+        "booked": "Réservé",
+        "cancelled": "Annulé",
+        "expired": "Expiré"
       },
       "actions": {
-        "release": "Liberer le creneau",
-        "booked": "Marquer reserve",
-        "updated": "Entree de liste d attente mise a jour.",
-        "update_error": "Impossible de mettre a jour l entree de liste d attente."
+        "release": "Libérer le créneau",
+        "booked": "Marquer réservé",
+        "updated": "Entrée de liste d'attente mise à jour.",
+        "update_error": "Impossible de mettre à jour l'entrée de liste d'attente."
       }
     },
     "queue": {
       "title": "File hybride",
       "subtitle": "Pilotez les walk-ins et rendez-vous dans une file unique.",
-      "empty": "Aucun element dans la file pour le moment.",
+      "empty": "Aucun élément dans la file pour le moment.",
       "cards": {
         "waiting": "En attente",
-        "called": "Appeles",
+        "called": "Appelés",
         "in_service": "En service"
       },
       "columns": {
@@ -5873,44 +5873,44 @@
       }
     },
     "reservations": {
-      "meta_title": "Reservations",
-      "title": "Parametres reservations",
-      "subtitle": "Gerez les regles de reservation, les disponibilites d equipe et les exceptions.",
+      "meta_title": "Réservations",
+      "title": "Paramètres réservations",
+      "subtitle": "Gérez les règles de réservation, les disponibilités d'équipe et les exceptions.",
       "owner_only": {
-        "notice": "Le mode solo owner-only conserve seulement les reglages globaux et les ressources utiles a la liste d attente. Les horaires par membre, surcharges par membre et la file hybride restent desactives tant que les membres d equipe ne sont pas disponibles."
+        "notice": "Le mode solo propriétaire uniquement conserve seulement les réglages globaux et les ressources utiles à la liste d'attente. Les horaires par membre, surcharges par membre et la file hybride restent désactivés tant que les membres d'équipe ne sont pas disponibles."
       },
       "summary": {
         "timezone": "Fuseau horaire",
-        "team_members": "Membres d equipe",
-        "weekly_rules": "Regles hebdomadaires",
+        "team_members": "Membres d'équipe",
+        "weekly_rules": "Règles hebdomadaires",
         "exceptions": "Exceptions",
         "resources": "Ressources"
       },
       "company_rules": {
-        "title": "Regles de reservation entreprise",
-        "description": "Regles par defaut appliquees a tous les membres."
+        "title": "Règles de réservation entreprise",
+        "description": "Règles par défaut appliquées à tous les membres."
       },
       "presets": {
-        "service_general": "Services general",
-        "salon": "Salon de coiffure / beaute",
+        "service_general": "Services généraux",
+        "salon": "Salon de coiffure / beauté",
         "restaurant": "Restaurant"
       },
       "team_settings": {
         "title": "Surcharges par membre",
-        "description": "Parametres specifiques pour certains membres.",
-        "select_member": "Membre d equipe",
+        "description": "Paramètres spécifiques pour certains membres.",
+        "select_member": "Membre d'équipe",
         "add": "Ajouter une surcharge",
-        "empty": "Aucune surcharge specifique."
+        "empty": "Aucune surcharge spécifique."
       },
       "weekly": {
-        "title": "Disponibilites hebdomadaires",
-        "description": "Definissez les horaires recurrents par membre."
+        "title": "Disponibilités hebdomadaires",
+        "description": "Définissez les horaires récurrents par membre."
       },
       "exceptions": {
-        "title": "Exceptions de disponibilite",
-        "description": "Definissez des fermetures ponctuelles ou ouvertures speciales.",
+        "title": "Exceptions de disponibilité",
+        "description": "Définissez des fermetures ponctuelles ou ouvertures spéciales.",
         "all_members": "Tous les membres",
-        "all_day": "(toute la journee)",
+        "all_day": "(toute la journée)",
         "types": {
           "closed": "Ferme",
           "open": "Ouvert"
@@ -6485,31 +6485,31 @@
             "results": "Suggestions"
           },
           "questions": {
-            "business": "Quelle est votre taille d organisation ?",
+            "business": "Quelle est votre taille d'organisation ?",
             "focus": "Quel est votre besoin principal ?",
-            "ai": "Quelle place doit prendre l IA ?"
+            "ai": "Quelle place doit prendre l'IA ?"
           },
           "options": {
             "business": {
               "solo": {
                 "label": "Solo",
-                "description": "Je travaille seul et je veux un forfait pense pour un independant."
+                "description": "Je travaille seul et je veux un forfait pensé pour un indépendant."
               },
               "small_team": {
-                "label": "Petite equipe",
-                "description": "Nous sommes une petite equipe avec un besoin simple de coordination."
+                "label": "Petite équipe",
+                "description": "Nous sommes une petite équipe avec un besoin simple de coordination."
               },
               "growing_team": {
-                "label": "Equipe en croissance",
-                "description": "Nous avons deja une vraie equipe et le besoin de mieux structurer nos operations."
+                "label": "Équipe en croissance",
+                "description": "Nous avons déjà une vraie équipe et le besoin de mieux structurer nos opérations."
               },
               "large_team": {
-                "label": "Equipe structuree",
-                "description": "Nous gerons un volume plus important avec davantage de coordination et de support."
+                "label": "Équipe structurée",
+                "description": "Nous gérons un volume plus important avec davantage de coordination et de support."
               },
               "custom_scale": {
                 "label": "Sur mesure",
-                "description": "Nous avons 50+ utilisateurs ou des besoins d accompagnement plus specifiques."
+                "description": "Nous avons 50+ utilisateurs ou des besoins d'accompagnement plus spécifiques."
               }
             },
             "focus": {
@@ -6518,47 +6518,47 @@
                 "description": "Je veux surtout aller vite sur les devis, factures et le suivi client."
               },
               "operations": {
-                "label": "Operations terrain",
-                "description": "Je veux mieux gerer jobs, taches, planning et coordination quotidienne."
+                "label": "Opérations terrain",
+                "description": "Je veux mieux gérer jobs, tâches, planning et coordination quotidienne."
               },
               "automation": {
                 "label": "Automatisation et IA",
-                "description": "Je cherche plus d automatisations, de performance, de scan et d IA."
+                "description": "Je cherche plus d'automatisations, de performance, de scan et d'IA."
               }
             },
             "ai": {
               "none": {
                 "label": "Pas prioritaire",
-                "description": "L IA n est pas un critere important pour l instant."
+                "description": "L'IA n'est pas un critère important pour l'instant."
               },
               "optional": {
                 "label": "Option payante OK",
-                "description": "Je veux garder l IA disponible si besoin, sans l inclure forcement."
+                "description": "Je veux garder l'IA disponible si besoin, sans l'inclure forcément."
               },
               "included": {
-                "label": "Incluse de preference",
-                "description": "Je prefere un forfait ou l IA fait deja partie de la proposition."
+                "label": "Incluse de préférence",
+                "description": "Je préfère un forfait où l'IA fait déjà partie de la proposition."
               }
             }
           },
           "reasons": {
-            "solo": "Adapte a une activite solo.",
-            "small_team": "Bon fit pour une petite equipe.",
-            "growing_team": "Concu pour une equipe en croissance.",
-            "large_team": "Mieux calibre pour une structure plus large.",
-            "custom_scale": "Plus adapte a un besoin sur mesure.",
+            "solo": "Adapté à une activité solo.",
+            "small_team": "Bon fit pour une petite équipe.",
+            "growing_team": "Conçu pour une équipe en croissance.",
+            "large_team": "Mieux calibré pour une structure plus large.",
+            "custom_scale": "Plus adapté à un besoin sur mesure.",
             "room_to_grow": "Laisse de la marge pour grandir sans changer trop vite.",
-            "quotes": "Garde une experience simple pour devis et factures.",
-            "operations": "Renforce jobs, taches et planning au quotidien.",
-            "automation": "Ouvre plus d automatisations, de performance et de workflows avances.",
+            "quotes": "Garde une expérience simple pour devis et factures.",
+            "operations": "Renforce jobs, tâches et planning au quotidien.",
+            "automation": "Ouvre plus d'automatisations, de performance et de workflows avancés.",
             "ai_optional": "Assistant IA disponible en option.",
-            "ai_included": "Assistant IA deja inclus dans la proposition.",
-            "custom_support": "Permet un accompagnement et un cadrage plus personnalises."
+            "ai_included": "Assistant IA déjà inclus dans la proposition.",
+            "custom_support": "Permet un accompagnement et un cadrage plus personnalisés."
           }
         }
       },
       "checkout": {
-        "success_title": "Abonnement active. Merci !",
+        "success_title": "Abonnement activé. Merci !",
         "success_subtitle": "Vous etes maintenant sur {plan}.",
         "swapped": "Plan mis a jour vers {plan}.",
         "payment_method": "Carte mise a jour. Merci !",
@@ -6989,65 +6989,65 @@
     "intro": {
       "eyebrow": "Conditions d utilisation",
       "title": "Conditions d utilisation pour Malikia pro",
-      "updated": "Derniere mise a jour: {date}. Cette page est un modele et doit etre relue avant publication.",
-      "legal": "Nom legal: Malikia Pro."
+      "updated": "Dernière mise à jour : {date}. Cette page est un modèle et doit être relue avant publication.",
+      "legal": "Nom légal : Malikia Pro."
     },
     "sections": {
       "scope": {
-        "title": "1. Portee",
-        "body": "Ces conditions regissent l acces a Malikia pro, une plateforme qui aide les entreprises a gerer clients, devis, jobs, taches, factures, produits et scans de plan."
+        "title": "1. Portée",
+        "body": "Ces conditions régissent l'accès à Malikia Pro, une plateforme qui aide les entreprises à gérer clients, devis, jobs, tâches, factures, produits et scans de plan."
       },
       "accounts": {
         "title": "2. Comptes",
         "bullets": {
-          "one": "Les comptes sont crees et geres par un proprietaire ou un admin.",
-          "two": "Vous etes responsable de la securite des identifiants.",
-          "three": "Les roles et permissions limitent l acces aux donnees et actions."
+          "one": "Les comptes sont créés et gérés par un propriétaire ou un admin.",
+          "two": "Vous êtes responsable de la sécurité des identifiants.",
+          "three": "Les rôles et permissions limitent l'accès aux données et actions."
         }
       },
       "data": {
-        "title": "3. Propriete des donnees",
-        "body": "Votre entreprise garde la propriete de ses donnees. En utilisant Malikia pro, vous autorisez la plateforme a stocker, traiter et afficher vos donnees pour fournir le service."
+        "title": "3. Propriété des données",
+        "body": "Votre entreprise garde la propriété de ses données. En utilisant Malikia Pro, vous autorisez la plateforme à stocker, traiter et afficher vos données pour fournir le service."
       },
       "pricing": {
-        "title": "4. Devis et donnees de prix",
+        "title": "4. Devis et données de prix",
         "bullets": {
-          "one": "Les devis sont des estimations et peuvent varier selon le site et le perimetre.",
-          "two": "Les recherches de prix utilisent des sources tierces et la precision n est pas garantie.",
-          "three": "Vous devez valider les prix fournisseur avant d accepter ou d envoyer un devis."
+          "one": "Les devis sont des estimations et peuvent varier selon le site et le périmètre.",
+          "two": "Les recherches de prix utilisent des sources tierces et la précision n'est pas garantie.",
+          "three": "Vous devez valider les prix fournisseur avant d'accepter ou d'envoyer un devis."
         }
       },
       "billing": {
         "title": "5. Facturation et paiements",
-        "body": "Les frais d abonnement, taxes et conditions de paiement sont visibles dans la facturation. Les impayes peuvent limiter l acces."
+        "body": "Les frais d'abonnement, taxes et conditions de paiement sont visibles dans la facturation. Les impayés peuvent limiter l'accès."
       },
       "acceptable": {
         "title": "6. Usage acceptable",
         "bullets": {
-          "one": "Ne televersez pas de contenu illegal et ne detournez pas les donnees client.",
+          "one": "Ne téléversez pas de contenu illégal et ne détournez pas les données client.",
           "two": "Ne tentez pas de perturber ou d analyser le service.",
           "three": "Respectez les lois applicables et les accords client."
         }
       },
       "availability": {
-        "title": "7. Disponibilite",
-        "body": "La plateforme est fournie en l etat. Nous pouvons faire de la maintenance ou des mises a jour qui impactent temporairement la disponibilite."
+        "title": "7. Disponibilité",
+        "body": "La plateforme est fournie en l'état. Nous pouvons faire de la maintenance ou des mises à jour qui impactent temporairement la disponibilité."
       },
       "liability": {
-        "title": "8. Limitation de responsabilite",
-        "body": "Malikia pro n est pas responsable des dommages indirects, pertes de profits ou pertes de donnees au dela des limites legales. Utilisez le service a vos risques."
+        "title": "8. Limitation de responsabilité",
+        "body": "Malikia Pro n'est pas responsable des dommages indirects, pertes de profits ou pertes de données au-delà des limites légales. Utilisez le service à vos risques."
       },
       "termination": {
-        "title": "9. Resiliation",
-        "body": "Vous pouvez resilier votre abonnement a tout moment. Nous pouvons suspendre l acces en cas de violation ou d impaye."
+        "title": "9. Résiliation",
+        "body": "Vous pouvez résilier votre abonnement à tout moment. Nous pouvons suspendre l'accès en cas de violation ou d'impayé."
       },
       "changes": {
         "title": "10. Modifications",
-        "body": "Nous pouvons mettre a jour ces conditions. L utilisation continue vaut acceptation des mises a jour."
+        "body": "Nous pouvons mettre à jour ces conditions. L'utilisation continue vaut acceptation des mises à jour."
       }
     },
-    "note": "Questions? Contactez le proprietaire du compte ou utilisez le support dans l application.",
-    "footer": "Malikia Pro. Tous droits reserves. {year}"
+    "note": "Questions ? Contactez le propriétaire du compte ou utilisez le support dans l'application.",
+    "footer": "Malikia Pro. Tous droits réservés. {year}"
   },
   "legal": {
     "header": {
@@ -7055,15 +7055,15 @@
     },
     "actions": {
       "sign_in": "Se connecter",
-      "create_account": "Creer un compte"
+      "create_account": "Créer un compte"
     },
     "links": {
-      "terms": "Conditions d utilisation",
-      "privacy": "Politique de confidentialite",
+      "terms": "Conditions d'utilisation",
+      "privacy": "Politique de confidentialité",
       "refund": "Politique de remboursement",
       "pricing": "Tarification"
     },
-    "footer": "Malikia Pro. Tous droits reserves. {year}"
+    "footer": "Malikia Pro. Tous droits réservés. {year}"
   },
   "pricing": {
     "meta": {
@@ -7266,49 +7266,49 @@
   },
   "privacy": {
     "meta": {
-      "title": "Politique de confidentialite"
+      "title": "Politique de confidentialité"
     },
     "intro": {
-      "eyebrow": "Politique de confidentialite",
-      "title": "Politique de confidentialite pour Malikia pro",
-      "updated": "Derniere mise a jour: {date}.",
-      "summary": "Cette politique explique comment Malikia Pro collecte, utilise et protege les donnees sur Malikia pro."
+      "eyebrow": "Politique de confidentialité",
+      "title": "Politique de confidentialité pour Malikia Pro",
+      "updated": "Dernière mise à jour : {date}.",
+      "summary": "Cette politique explique comment Malikia Pro collecte, utilise et protège les données sur Malikia Pro."
     },
     "sections": {
       "scope": {
-        "title": "1. Portee",
-        "body": "Cette politique s applique a la plateforme Malikia pro et services associes."
+        "title": "1. Portée",
+        "body": "Cette politique s'applique à la plateforme Malikia Pro et aux services associés."
       },
       "data": {
-        "title": "2. Donnees collectees",
-        "body": "Nous collectons informations de compte, informations entreprise, donnees d usage et fichiers envoyes."
+        "title": "2. Données collectées",
+        "body": "Nous collectons les informations de compte, les informations entreprise, les données d'usage et les fichiers envoyés."
       },
       "usage": {
-        "title": "3. Utilisation des donnees",
-        "body": "Nous utilisons les donnees pour fournir le service, ameliorer les fonctionnalites et aider votre equipe."
+        "title": "3. Utilisation des données",
+        "body": "Nous utilisons les données pour fournir le service, améliorer les fonctionnalités et aider votre équipe."
       },
       "sharing": {
-        "title": "4. Partage des donnees",
-        "body": "Nous partageons les donnees avec des prestataires uniquement pour faire fonctionner la plateforme. Nous ne vendons pas les donnees personnelles."
+        "title": "4. Partage des données",
+        "body": "Nous partageons les données avec des prestataires uniquement pour faire fonctionner la plateforme. Nous ne vendons pas les données personnelles."
       },
       "security": {
-        "title": "5. Securite",
-        "body": "Nous utilisons des mesures raisonnables, controles d acces et journalisation."
+        "title": "5. Sécurité",
+        "body": "Nous utilisons des mesures raisonnables, des contrôles d'accès et de la journalisation."
       },
       "retention": {
         "title": "6. Conservation",
-        "body": "Nous conservons les donnees tant que le compte est actif ou selon la loi."
+        "body": "Nous conservons les données tant que le compte est actif ou selon la loi."
       },
       "rights": {
         "title": "7. Vos droits",
-        "body": "Vous pouvez demander acces, correction ou suppression via le proprietaire du compte."
+        "body": "Vous pouvez demander accès, correction ou suppression via le propriétaire du compte."
       },
       "contact": {
         "title": "8. Contactez-nous",
-        "body": "Pour les questions de confidentialite, contactez le support dans l application."
+        "body": "Pour les questions de confidentialité, contactez le support dans l'application."
       }
     },
-    "note": "Si vous avez des questions, contactez le support dans l application."
+    "note": "Si vous avez des questions, contactez le support dans l'application."
   },
   "refund": {
     "meta": {

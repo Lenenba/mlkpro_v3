@@ -51,7 +51,7 @@ return [
             ],
             'plans' => [
                 'title' => 'Devis et validations',
-                'desc' => "Préparez des devis plus propres, gérez les options et faites avancer les validations avec plus de structure.",
+                'desc' => 'Préparez des devis plus propres, gérez les options et faites avancer les validations avec plus de structure.',
             ],
             'catalog' => [
                 'title' => 'Planning et jobs',
@@ -59,7 +59,7 @@ return [
             ],
             'ops' => [
                 'title' => 'Réservations et flux client',
-                'desc' => "Offrez une expérience de réservation plus simple tout en gardant la maîtrise sur les arrivées, les disponibilités et la file.",
+                'desc' => 'Offrez une expérience de réservation plus simple tout en gardant la maîtrise sur les arrivées, les disponibilités et la file.',
             ],
             'portal' => [
                 'title' => 'Facturation et paiements',

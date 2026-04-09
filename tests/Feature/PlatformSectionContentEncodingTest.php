@@ -22,7 +22,7 @@ it('preserves utf 8 characters in html based section copy', function () {
             [
                 'key' => 'reservations',
                 'title' => 'Réservations et flux client',
-                'desc' => "<p>Offrez une expérience de réservation plus simple tout en gardant la maîtrise sur les arrivées, les disponibilités et la file.</p>",
+                'desc' => '<p>Offrez une expérience de réservation plus simple tout en gardant la maîtrise sur les arrivées, les disponibilités et la file.</p>',
             ],
         ],
         'secondary_enabled' => true,
