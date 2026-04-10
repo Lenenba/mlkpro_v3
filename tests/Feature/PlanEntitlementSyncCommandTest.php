@@ -62,18 +62,20 @@ it('syncs the redesigned core and growth entitlements from billing config', func
     $limits = PlatformSetting::getValue('plan_limits', []);
 
     expect($modules['solo_essential']['jobs'] ?? null)->toBeTrue()
-        ->and($modules['solo_essential']['assistant'] ?? null)->toBeTrue()
+        ->and($modules['solo_essential']['assistant'] ?? null)->toBeFalse()
         ->and($modules['solo_essential']['campaigns'] ?? null)->toBeFalse()
         ->and($modules['starter']['jobs'] ?? null)->toBeTrue()
         ->and($modules['starter']['assistant'] ?? null)->toBeTrue()
         ->and($modules['starter']['team_members'] ?? null)->toBeTrue()
-        ->and($modules['solo_pro']['campaigns'] ?? null)->toBeTrue()
+        ->and($modules['solo_pro']['campaigns'] ?? null)->toBeFalse()
+        ->and($modules['solo_growth']['assistant'] ?? null)->toBeTrue()
+        ->and($modules['solo_growth']['reservations'] ?? null)->toBeTrue()
         ->and($modules['growth']['loyalty'] ?? null)->toBeTrue()
         ->and($limits['solo_essential']['jobs'] ?? null)->toBe(300)
-        ->and($limits['solo_essential']['assistant_requests'] ?? null)->toBe(150)
+        ->and($limits['solo_essential']['assistant_requests'] ?? null)->toBe(0)
         ->and($limits['starter']['jobs'] ?? null)->toBe(1000)
         ->and($limits['starter']['team_members'] ?? null)->toBe(5)
-        ->and($limits['solo_pro']['plan_scan_quotes'] ?? null)->toBe(150)
+        ->and($limits['solo_pro']['plan_scan_quotes'] ?? null)->toBe(0)
         ->and($limits['growth']['assistant_requests'] ?? null)->toBe(2500)
         ->and($limits['scale']['tasks'] ?? null)->toBe(75000);
 });

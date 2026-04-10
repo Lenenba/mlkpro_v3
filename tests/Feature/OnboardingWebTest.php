@@ -174,10 +174,10 @@ test('onboarding stores the selected plan context when checkout is skipped so en
         ->and($user->fresh()->selected_billing_period)->toBe('yearly')
         ->and($user->fresh()->hasCompanyFeature('jobs'))->toBeTrue()
         ->and($user->fresh()->hasCompanyFeature('tasks'))->toBeTrue()
-        ->and($user->fresh()->hasCompanyFeature('assistant'))->toBeTrue()
-        ->and($user->fresh()->hasCompanyFeature('plan_scans'))->toBeTrue()
-        ->and($user->fresh()->hasCompanyFeature('campaigns'))->toBeTrue()
-        ->and($user->fresh()->hasCompanyFeature('loyalty'))->toBeTrue()
+        ->and($user->fresh()->hasCompanyFeature('assistant'))->toBeFalse()
+        ->and($user->fresh()->hasCompanyFeature('plan_scans'))->toBeFalse()
+        ->and($user->fresh()->hasCompanyFeature('campaigns'))->toBeFalse()
+        ->and($user->fresh()->hasCompanyFeature('loyalty'))->toBeFalse()
         ->and($user->fresh()->hasCompanyFeature('team_members'))->toBeFalse();
 
     $this->actingAs($user->fresh())
