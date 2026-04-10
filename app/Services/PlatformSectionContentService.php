@@ -1339,18 +1339,18 @@ class PlatformSectionContentService
                 'brand_logo_alt' => 'Malikia Pro',
                 'brand_href' => '/',
                 'kicker' => 'Accompagnement',
-                'title' => 'Parlez a notre equipe',
-                'body' => '<p>Besoin d un parcours produit plus precis ou d une page publique sur mesure ? On peut vous guider.</p>',
+                'title' => 'Parlez à notre équipe',
+                'body' => '<p>Besoin d’un parcours produit plus précis ou d’une page publique sur mesure ? On peut vous guider.</p>',
                 'items' => [
-                    'Parcours public et modules metier',
+                    'Parcours public et modules métier',
                     'Support produit et accompagnement',
-                    'Disponible en francais et en anglais',
+                    'Disponible en français et en anglais',
                 ],
                 'primary_label' => 'Nous contacter',
                 'primary_href' => '/pages/contact-us',
                 'secondary_label' => 'Voir les tarifs',
                 'secondary_href' => '/pricing',
-                'copy' => 'Tous droits reserves.',
+                'copy' => 'Tous droits réservés.',
                 'contact_phone' => (string) (config('app.support_phone') ?? ''),
                 'contact_email' => $this->defaultFooterEmail(),
                 'footer_groups' => $this->defaultFooterGroups('fr'),
@@ -1393,9 +1393,9 @@ class PlatformSectionContentService
                     'links' => [
                         ['id' => 'industries-plomberie', 'label' => 'Plomberie', 'href' => '/pages/industry-plumbing', 'note' => ''],
                         ['id' => 'industries-hvac', 'label' => 'HVAC', 'href' => '/pages/industry-hvac', 'note' => ''],
-                        ['id' => 'industries-electricite', 'label' => 'Electricite', 'href' => '/pages/industry-electrical', 'note' => ''],
-                        ['id' => 'industries-entretien', 'label' => 'Entretien menager', 'href' => '/pages/industry-cleaning', 'note' => ''],
-                        ['id' => 'industries-salon', 'label' => 'Salon & beaute', 'href' => '/pages/industry-salon-beauty', 'note' => ''],
+                        ['id' => 'industries-electricite', 'label' => 'Électricité', 'href' => '/pages/industry-electrical', 'note' => ''],
+                        ['id' => 'industries-entretien', 'label' => 'Entretien ménager', 'href' => '/pages/industry-cleaning', 'note' => ''],
+                        ['id' => 'industries-salon', 'label' => 'Salon & beauté', 'href' => '/pages/industry-salon-beauty', 'note' => ''],
                         ['id' => 'industries-restaurant', 'label' => 'Restaurant', 'href' => '/pages/industry-restaurant', 'note' => ''],
                     ],
                 ],
@@ -1405,8 +1405,8 @@ class PlatformSectionContentService
                     'layout' => 'stack',
                     'links' => [
                         ['id' => 'produits-sales-crm', 'label' => 'Sales & CRM', 'href' => '/pages/sales-crm', 'note' => ''],
-                        ['id' => 'produits-reservations', 'label' => 'Reservations', 'href' => '/pages/reservations', 'note' => ''],
-                        ['id' => 'produits-operations', 'label' => 'Operations', 'href' => '/pages/operations', 'note' => ''],
+                        ['id' => 'produits-reservations', 'label' => 'Réservations', 'href' => '/pages/reservations', 'note' => ''],
+                        ['id' => 'produits-operations', 'label' => 'Opérations', 'href' => '/pages/operations', 'note' => ''],
                         ['id' => 'produits-commerce', 'label' => 'Commerce', 'href' => '/pages/commerce', 'note' => ''],
                         ['id' => 'produits-marketing', 'label' => 'Marketing & Loyalty', 'href' => '/pages/marketing-loyalty', 'note' => ''],
                         ['id' => 'produits-ai', 'label' => 'AI & Automation', 'href' => '/pages/ai-automation', 'note' => ''],
@@ -1420,7 +1420,7 @@ class PlatformSectionContentService
                     'links' => [
                         ['id' => 'ressources-pricing', 'label' => 'Tarification', 'href' => '/pricing', 'note' => ''],
                         ['id' => 'ressources-terms', 'label' => 'Conditions', 'href' => '/terms', 'note' => ''],
-                        ['id' => 'ressources-privacy', 'label' => 'Confidentialite', 'href' => '/privacy', 'note' => ''],
+                        ['id' => 'ressources-privacy', 'label' => 'Confidentialité', 'href' => '/privacy', 'note' => ''],
                         ['id' => 'ressources-refund', 'label' => 'Remboursement', 'href' => '/refund', 'note' => ''],
                         ['id' => 'ressources-contact', 'label' => 'Contact', 'href' => '/pages/contact-us', 'note' => ''],
                     ],
@@ -1474,7 +1474,7 @@ class PlatformSectionContentService
     private function defaultSharedFooterName(): string
     {
         return $this->normalizeLocale(app()->getLocale()) === 'fr'
-            ? 'Footer partage'
+            ? 'Footer partagé'
             : 'Shared footer';
     }
 
@@ -1484,7 +1484,7 @@ class PlatformSectionContentService
             return [
                 ['id' => 'legal-pricing', 'label' => 'Tarification', 'href' => '/pricing', 'note' => ''],
                 ['id' => 'legal-terms', 'label' => 'Conditions', 'href' => '/terms', 'note' => ''],
-                ['id' => 'legal-privacy', 'label' => 'Confidentialite', 'href' => '/privacy', 'note' => ''],
+                ['id' => 'legal-privacy', 'label' => 'Confidentialité', 'href' => '/privacy', 'note' => ''],
                 ['id' => 'legal-refund', 'label' => 'Remboursement', 'href' => '/refund', 'note' => ''],
             ];
         }
