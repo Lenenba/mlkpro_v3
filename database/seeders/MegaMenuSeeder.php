@@ -17,7 +17,15 @@ class MegaMenuSeeder extends Seeder
 {
     public function run(): void
     {
-        $userId = User::query()->where('email', 'superadmin@example.com')->value('id');
+        $this->sync();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function sync(?int $userId = null): array
+    {
+        $userId = $userId ?? User::query()->where('email', 'superadmin@example.com')->value('id');
 
         PlatformSetting::query()->firstOrCreate(
             ['key' => 'public_navigation'],
@@ -46,6 +54,14 @@ class MegaMenuSeeder extends Seeder
 
             $manager->create($payload, $userId);
         }
+
+        return [
+            'product_pages' => count($productPages),
+            'industry_pages' => count($this->industryCatalog()),
+            'solution_pages' => count($this->solutionCatalog()),
+            'menus' => 2,
+            'contact_page' => $contactPage->slug,
+        ];
     }
 
     /**

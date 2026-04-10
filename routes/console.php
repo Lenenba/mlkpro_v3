@@ -37,6 +37,7 @@ use App\Services\DailyAgendaService;
 use App\Services\Demo\DemoWorkspacePurgeService;
 use App\Services\Observability\ObservabilityReportService;
 use App\Services\PlatformAdminNotifier;
+use App\Services\PublicCopySyncService;
 use App\Services\QueueHealthService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
@@ -1933,6 +1934,62 @@ Artisan::command('schema:audit-selects {--json}', function (ManualSelectContract
 
     return 1;
 })->purpose('Verify curated manual select contracts against the live database schema');
+
+Artisan::command('public-copy:sync {--only=* : Targets to sync (pages, welcome, footer, all)} {--user= : Optional user id used for updated_by metadata}', function (PublicCopySyncService $service): int {
+    $userOption = $this->option('user');
+    $userId = null;
+
+    if ($userOption !== null && $userOption !== '') {
+        if (! is_numeric($userOption)) {
+            $this->error('The --user option must be a numeric user id.');
+
+            return 1;
+        }
+
+        $userId = (int) $userOption;
+    }
+
+    try {
+        $summary = $service->sync((array) $this->option('only'), $userId);
+    } catch (\Throwable $e) {
+        $this->error($e->getMessage());
+
+        return 1;
+    }
+
+    $this->info('Public copy synchronized from repo source files.');
+    $this->line('Targets: '.implode(', ', $summary['targets'] ?? []));
+    $this->line('User id: '.(($summary['user_id'] ?? null) !== null ? (string) $summary['user_id'] : 'none'));
+
+    if (is_array($summary['pages'] ?? null)) {
+        $this->line(sprintf(
+            'Pages: %d product, %d industry, %d solution, %d menus, contact page "%s".',
+            (int) ($summary['pages']['product_pages'] ?? 0),
+            (int) ($summary['pages']['industry_pages'] ?? 0),
+            (int) ($summary['pages']['solution_pages'] ?? 0),
+            (int) ($summary['pages']['menus'] ?? 0),
+            (string) ($summary['pages']['contact_page'] ?? '')
+        ));
+    }
+
+    if (is_array($summary['welcome'] ?? null)) {
+        $this->line(sprintf(
+            'Welcome: page #%d, source sections [%s].',
+            (int) ($summary['welcome']['page_id'] ?? 0),
+            implode(', ', array_map('strval', $summary['welcome']['source_section_ids'] ?? []))
+        ));
+    }
+
+    if (is_array($summary['footer'] ?? null)) {
+        $this->line(sprintf(
+            'Footer: section #%d for locales [%s].',
+            (int) ($summary['footer']['section_id'] ?? 0),
+            implode(', ', $summary['footer']['locales'] ?? [])
+        ));
+    }
+
+    return 0;
+})->purpose('Rewrite public-facing database copy from the repository source content');
 
 Schedule::command('platform:notifications-digest --frequency=daily')->dailyAt('08:00');
 Schedule::command('platform:notifications-digest --frequency=weekly')->weeklyOn(1, '08:00');
