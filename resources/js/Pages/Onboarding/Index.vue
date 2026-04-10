@@ -449,6 +449,35 @@ const recommendedPlanSubtitle = computed(() => (
         ? t('onboarding.team.recommendation_solo_subtitle')
         : t('onboarding.team.recommendation_subtitle', { count: teamSizeValue.value })
 ));
+const visiblePlanAudience = computed(() => visiblePlanOptions.value[0]?.audience || (isSoloProfile.value ? 'solo' : 'team'));
+const visiblePlanAudienceDescription = computed(() => (
+    visiblePlanAudience.value === 'solo'
+        ? t('onboarding.plan.audiences.solo.description')
+        : t('onboarding.plan.audiences.team.description', { count: teamSizeValue.value })
+));
+const selectedPlan = computed(() =>
+    visiblePlanOptions.value.find((plan) => plan?.key === form.plan_key) || null
+);
+const resolvePlanCapacityLabel = (plan) => {
+    if (!plan) {
+        return '';
+    }
+
+    if (plan.owner_only) {
+        return t('onboarding.team.recommendation_owner_only');
+    }
+
+    const limit = Number(planLimits.value?.[plan.key]?.team_members);
+    if (Number.isFinite(limit) && limit > 0) {
+        return t('onboarding.team.recommendation_limit', { count: limit });
+    }
+
+    if (plan.contact_only) {
+        return t('onboarding.team.recommendation_unlimited');
+    }
+
+    return '';
+};
 
 const addMonthNoOverflow = (date) => {
     const base = new Date(date);
@@ -1015,6 +1044,17 @@ const closeTerms = () => {
                             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                 {{ $t('onboarding.plan.downgrade_note') }}
                             </p>
+                            <div class="mt-3 rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-950">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('onboarding.plan.audience_label') }}
+                                </p>
+                                <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t(`onboarding.plan.audiences.${visiblePlanAudience}.title`) }}
+                                </p>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ visiblePlanAudienceDescription }}
+                                </p>
+                            </div>
                         </div>
 
                         <div class="grid gap-3 md:grid-cols-3">
@@ -1035,6 +1075,9 @@ const closeTerms = () => {
                                 <div class="flex items-start justify-between gap-2">
                                     <div>
                                         <p class="text-sm font-semibold">{{ plan.name }}</p>
+                                        <p v-if="plan.description" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ plan.description }}
+                                        </p>
                                         <PlanPriceDisplay
                                             :pricing="displayedPricingForPlan(plan)"
                                             :contact-only="plan.contact_only"
@@ -1070,6 +1113,37 @@ const closeTerms = () => {
                                     {{ $t('onboarding.plan.unavailable') }}
                                 </p>
                             </button>
+                        </div>
+
+                        <div
+                            v-if="selectedPlan"
+                            class="rounded-sm border border-stone-200 bg-white p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                        >
+                            <div class="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ $t('onboarding.plan.selection_title') }}
+                                    </p>
+                                    <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ selectedPlan.name }}
+                                    </p>
+                                    <p v-if="selectedPlan.description" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ selectedPlan.description }}
+                                    </p>
+                                </div>
+                                <span
+                                    v-if="isPlanRecommended(selectedPlan)"
+                                    class="rounded-full bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-600 dark:bg-neutral-800 dark:text-neutral-200"
+                                >
+                                    {{ $t('onboarding.plan.recommended') }}
+                                </span>
+                            </div>
+                            <p
+                                v-if="resolvePlanCapacityLabel(selectedPlan)"
+                                class="mt-2 text-xs font-medium text-stone-600 dark:text-neutral-300"
+                            >
+                                {{ resolvePlanCapacityLabel(selectedPlan) }}
+                            </p>
                         </div>
 
                         <InputError class="mt-1" :message="form.errors.plan_key" />

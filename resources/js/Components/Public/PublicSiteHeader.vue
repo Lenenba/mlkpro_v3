@@ -25,11 +25,29 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    availableCurrencies: {
+        type: Array,
+        default: () => [],
+    },
+    selectedCurrencyCode: {
+        type: String,
+        default: null,
+    },
+    currencyRouteName: {
+        type: String,
+        default: null,
+    },
+    currencyQuery: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const page = usePage();
 const langMenuOpen = ref(false);
 const langMenuRef = ref(null);
+const currencyMenuOpen = ref(false);
+const currencyMenuRef = ref(null);
 const headerRef = ref(null);
 const isScrolled = ref(false);
 const headerHeight = ref(null);
@@ -50,6 +68,27 @@ const availableLocales = computed(() => (
         ? page.props.locales
         : ['fr', 'en']
 ));
+const availableCurrencies = computed(() => {
+    const currencies = Array.isArray(props.availableCurrencies) ? props.availableCurrencies : [];
+
+    return Array.from(new Set(
+        currencies
+            .map((currency) => String(currency || '').trim().toUpperCase())
+            .filter((currency) => currency !== '')
+    ));
+});
+const currentCurrencyCode = computed(() => {
+    const selected = String(props.selectedCurrencyCode || '').trim().toUpperCase();
+
+    if (selected !== '') {
+        return selected;
+    }
+
+    return availableCurrencies.value[0] || '';
+});
+const showCurrencySwitcher = computed(() =>
+    Boolean(props.currencyRouteName && currentCurrencyCode.value && availableCurrencies.value.length > 1)
+);
 
 const showLogin = computed(() => !props.isAuthenticated && props.canLogin);
 const showRegister = computed(() => !props.isAuthenticated && props.canRegister);
@@ -64,6 +103,7 @@ const setLocale = (locale) => {
 };
 
 const toggleLangMenu = () => {
+    currencyMenuOpen.value = false;
     langMenuOpen.value = !langMenuOpen.value;
 };
 
@@ -71,13 +111,45 @@ const closeLangMenu = () => {
     langMenuOpen.value = false;
 };
 
-const handleLangOutsideClick = (event) => {
-    if (!langMenuRef.value) {
+const setCurrency = (currency) => {
+    const normalizedCurrency = String(currency || '').trim().toUpperCase();
+
+    if (!normalizedCurrency || normalizedCurrency === currentCurrencyCode.value || !props.currencyRouteName) {
         return;
     }
 
-    if (!langMenuRef.value.contains(event.target)) {
+    currencyMenuOpen.value = false;
+
+    const query = Object.fromEntries(
+        Object.entries({
+            ...props.currencyQuery,
+            currency: normalizedCurrency,
+        }).filter(([, value]) => value !== null && value !== undefined && value !== '')
+    );
+
+    router.get(route(props.currencyRouteName), query, {
+        preserveScroll: true,
+        preserveState: true,
+        replace: true,
+    });
+};
+
+const toggleCurrencyMenu = () => {
+    langMenuOpen.value = false;
+    currencyMenuOpen.value = !currencyMenuOpen.value;
+};
+
+const closeCurrencyMenu = () => {
+    currencyMenuOpen.value = false;
+};
+
+const handleOutsideClick = (event) => {
+    if (langMenuRef.value && !langMenuRef.value.contains(event.target)) {
         langMenuOpen.value = false;
+    }
+
+    if (currencyMenuRef.value && !currencyMenuRef.value.contains(event.target)) {
+        currencyMenuOpen.value = false;
     }
 };
 
@@ -108,7 +180,7 @@ const headerShellStyle = computed(() => ({
 }));
 
 onMounted(() => {
-    document.addEventListener('click', handleLangOutsideClick);
+    document.addEventListener('click', handleOutsideClick);
     window.addEventListener('scroll', syncScrollState, { passive: true });
     syncScrollState();
     syncHeaderHeight();
@@ -122,7 +194,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-    document.removeEventListener('click', handleLangOutsideClick);
+    document.removeEventListener('click', handleOutsideClick);
     window.removeEventListener('scroll', syncScrollState);
 
     if (headerResizeObserver) {
@@ -164,6 +236,60 @@ onBeforeUnmount(() => {
                     >
                         {{ $t('legal.actions.create_account') }}
                     </Link>
+
+                    <div
+                        v-if="showCurrencySwitcher"
+                        ref="currencyMenuRef"
+                        class="public-site-header__locale"
+                    >
+                        <button
+                            type="button"
+                            class="public-site-header__locale-toggle"
+                            aria-haspopup="listbox"
+                            :aria-label="$t('pricing.currency.label')"
+                            :aria-expanded="currencyMenuOpen"
+                            @click="toggleCurrencyMenu"
+                            @keydown.escape="closeCurrencyMenu"
+                        >
+                            <span>{{ currentCurrencyCode }}</span>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                class="public-site-header__locale-chevron"
+                            >
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+
+                        <div
+                            v-if="currencyMenuOpen"
+                            class="public-site-header__locale-menu"
+                            role="listbox"
+                            :aria-activedescendant="`currency-${currentCurrencyCode}`"
+                            @keydown.escape="closeCurrencyMenu"
+                        >
+                            <button
+                                v-for="currencyCode in availableCurrencies"
+                                :id="`currency-${currencyCode}`"
+                                :key="currencyCode"
+                                type="button"
+                                role="option"
+                                class="public-site-header__locale-item"
+                                :class="{ 'is-active': currentCurrencyCode === currencyCode }"
+                                :aria-selected="currentCurrencyCode === currencyCode"
+                                @click="setCurrency(currencyCode)"
+                            >
+                                {{ currencyCode }}
+                            </button>
+                        </div>
+                    </div>
 
                     <div ref="langMenuRef" class="public-site-header__locale">
                         <button

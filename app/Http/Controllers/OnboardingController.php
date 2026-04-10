@@ -79,11 +79,13 @@ class OnboardingController extends Controller
         }
 
         if (! $user) {
+            $requestedCurrency = $this->requestedOnboardingCurrency($request);
+
             return $this->inertiaOrJson('Onboarding/Index', [
                 'preset' => [
                     'company_team_size' => $this->resolveInitialTeamSize(null, $selectedPlanKey),
                 ],
-                'plans' => $this->planOptions(),
+                'plans' => $this->planOptions(currencyCode: $requestedCurrency),
                 'planLimits' => $this->planLimits(),
                 'supportedCurrencies' => CurrencyCode::values(),
                 'selectedPlanKey' => $selectedPlanKey,
@@ -234,6 +236,12 @@ class OnboardingController extends Controller
                 $invites,
                 isset($validated['company_team_size']) ? (int) $validated['company_team_size'] : null
             );
+
+            $accountOwner->forceFill([
+                'selected_plan_key' => (string) $validated['plan_key'],
+                'selected_billing_period' => BillingPeriod::tryFromMixed($validated['billing_period'] ?? null)?->value
+                    ?? BillingPeriod::default()->value,
+            ])->save();
         }
 
         if ($wasOnboarded) {
@@ -791,11 +799,12 @@ class OnboardingController extends Controller
         }));
     }
 
-    private function planOptions(?User $user = null): array
+    private function planOptions(?User $user = null, CurrencyCode|string|null $currencyCode = null): array
     {
-        $currencyCode = $user?->businessCurrencyCode() ?? CurrencyCode::default()->value;
+        $resolvedCurrencyCode = $user?->businessCurrencyCode()
+            ?? (CurrencyCode::tryFromMixed($currencyCode)?->value ?? CurrencyCode::default()->value);
 
-        return collect(app(BillingPlanService::class)->plansForCurrency($currencyCode))
+        return collect(app(BillingPlanService::class)->plansForCurrency($resolvedCurrencyCode))
             ->whereIn('key', $this->planKeysForOnboarding())
             ->values()
             ->all();
@@ -820,6 +829,11 @@ class OnboardingController extends Controller
     private function requestedOnboardingBillingPeriod(Request $request): BillingPeriod
     {
         return BillingPeriod::tryFromMixed($request->query('billing_period')) ?? BillingPeriod::default();
+    }
+
+    private function requestedOnboardingCurrency(Request $request): CurrencyCode
+    {
+        return CurrencyCode::tryFromMixed($request->query('currency_code')) ?? CurrencyCode::default();
     }
 
     private function resolveInitialTeamSize(mixed $currentTeamSize, ?string $selectedPlanKey): ?int

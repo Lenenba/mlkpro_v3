@@ -71,7 +71,7 @@ class PublicIndustryPageSections
             'image_alt' => $visual['image_alt'],
             'aside_image_url' => $asideVisual['image_url'],
             'aside_image_alt' => $asideVisual['image_alt'],
-            'primary_label' => $locale === 'fr' ? 'Commencer gratuitement' : 'Start for free',
+            'primary_label' => $locale === 'fr' ? 'Nous contacter' : 'Talk to us',
             'primary_href' => '/pages/contact-us',
             'aside_link_label' => $locale === 'fr' ? 'Voir la visite produit' : 'See the product tour',
             'aside_link_href' => '/demo',

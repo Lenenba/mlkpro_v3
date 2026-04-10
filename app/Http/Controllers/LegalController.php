@@ -13,6 +13,8 @@ use Inertia\Response;
 
 class LegalController extends Controller
 {
+    private const PUBLIC_PRICING_CURRENCY_SESSION_KEY = 'public_pricing_currency';
+
     public function terms(): Response
     {
         return Inertia::render('Terms', [
@@ -42,8 +44,9 @@ class LegalController extends Controller
 
     public function pricing(Request $request): Response
     {
+        $currency = $this->resolvePublicPricingCurrency($request);
         $pricingPayload = app(PublicPricingCatalogService::class)->webPayload(
-            CurrencyCode::default(),
+            $currency,
             (string) $request->input('audience', '')
         );
 
@@ -51,6 +54,8 @@ class LegalController extends Controller
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('onboarding.index'),
             ...$pricingPayload,
+            'supportedCurrencies' => CurrencyCode::values(),
+            'selectedCurrencyCode' => $currency->value,
             'megaMenu' => app(MegaMenuRenderer::class)->resolveForLocation('header', 'pricing'),
             'footerMenu' => app(MegaMenuRenderer::class)->resolveForLocation('footer', 'pricing'),
             'footerSection' => app(PublicFooterSectionResolver::class)->resolve(app()->getLocale()),
@@ -64,5 +69,24 @@ class LegalController extends Controller
             'footerMenu' => app(MegaMenuRenderer::class)->resolveForLocation('footer', $zone),
             'footerSection' => app(PublicFooterSectionResolver::class)->resolve(app()->getLocale()),
         ];
+    }
+
+    private function resolvePublicPricingCurrency(Request $request): CurrencyCode
+    {
+        $requestedCurrency = CurrencyCode::tryFromMixed($request->query('currency'));
+
+        if ($requestedCurrency instanceof CurrencyCode) {
+            if ($request->hasSession()) {
+                $request->session()->put(self::PUBLIC_PRICING_CURRENCY_SESSION_KEY, $requestedCurrency->value);
+            }
+
+            return $requestedCurrency;
+        }
+
+        $sessionCurrency = $request->hasSession()
+            ? CurrencyCode::tryFromMixed($request->session()->get(self::PUBLIC_PRICING_CURRENCY_SESSION_KEY))
+            : null;
+
+        return $sessionCurrency ?? CurrencyCode::default();
     }
 }

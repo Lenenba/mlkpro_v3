@@ -430,8 +430,9 @@ class SuperAdminDashboardService
             }
         }
 
-        if (array_key_exists('free', $planLimits)) {
-            return 'free';
+        $legacyPlanKey = app(BillingPlanService::class)->legacyFallbackPlanKey();
+        if ($legacyPlanKey && array_key_exists($legacyPlanKey, $planLimits)) {
+            return $legacyPlanKey;
         }
 
         return null;

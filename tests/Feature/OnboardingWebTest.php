@@ -106,6 +106,13 @@ test('onboarding preselects the requested pricing plan from the pricing page', f
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Onboarding/Index')
+            ->has('plans', 6)
+            ->where('plans.0.name', 'Solo Core')
+            ->where('plans.0.description', 'Core plan for solo operators who need a clear operating foundation.')
+            ->where('plans.0.audience', 'solo')
+            ->where('plans.3.name', 'Team Core')
+            ->where('plans.3.description', 'Core team plan for shared execution and collaboration.')
+            ->where('plans.3.audience', 'team')
             ->where('selectedPlanKey', 'starter')
             ->where('preset.company_team_size', 2)
         );
@@ -115,6 +122,71 @@ test('onboarding preselects the requested pricing plan from the pricing page', f
         ->assertInertia(fn (Assert $page) => $page
             ->component('Onboarding/Index')
             ->where('selectedPlanKey', 'solo_pro')
+            ->where('plans.1.name', 'Solo Growth')
+            ->where('plans.1.description', 'Growth plan for solo operators who need more structure and execution capacity.')
             ->where('preset.company_team_size', 1)
+        );
+});
+
+test('onboarding keeps the requested pricing currency from the pricing page', function () {
+    $this->get(route('onboarding.index', ['plan' => 'starter', 'currency_code' => 'USD']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Onboarding/Index')
+            ->where('selectedPlanKey', 'starter')
+            ->has('plans', 6)
+            ->where('plans.0.prices_by_period.monthly.currency_code', 'USD')
+            ->where('plans.0.prices_by_period.yearly.currency_code', 'USD')
+            ->where('plans.3.key', 'starter')
+            ->where('plans.3.name', 'Team Core')
+            ->where('plans.3.prices_by_period.monthly.currency_code', 'USD')
+            ->where('plans.3.prices_by_period.yearly.currency_code', 'USD')
+        );
+});
+
+test('onboarding stores the selected plan context when checkout is skipped so entitlements match the chosen plan', function () {
+    config()->set('billing.provider', 'stripe');
+    config()->set('billing.provider_effective', 'stripe');
+    config()->set('billing.provider_ready', false);
+
+    $user = User::factory()->create([
+        'company_name' => null,
+        'company_type' => 'services',
+        'company_sector' => null,
+        'onboarding_completed_at' => null,
+        'company_features' => [],
+    ]);
+
+    $payload = [
+        'company_name' => 'Acme Services',
+        'company_type' => 'services',
+        'company_sector' => 'nettoyage',
+        'plan_key' => 'solo_pro',
+        'billing_period' => 'yearly',
+        'accept_terms' => true,
+    ];
+
+    $this->actingAs($user)
+        ->post(route('onboarding.store'), $payload)
+        ->assertRedirect(route('dashboard'));
+
+    expect($user->fresh()->selected_plan_key)->toBe('solo_pro')
+        ->and($user->fresh()->selected_billing_period)->toBe('yearly')
+        ->and($user->fresh()->hasCompanyFeature('jobs'))->toBeTrue()
+        ->and($user->fresh()->hasCompanyFeature('tasks'))->toBeTrue()
+        ->and($user->fresh()->hasCompanyFeature('assistant'))->toBeTrue()
+        ->and($user->fresh()->hasCompanyFeature('plan_scans'))->toBeTrue()
+        ->and($user->fresh()->hasCompanyFeature('campaigns'))->toBeTrue()
+        ->and($user->fresh()->hasCompanyFeature('loyalty'))->toBeTrue()
+        ->and($user->fresh()->hasCompanyFeature('team_members'))->toBeFalse();
+
+    $this->actingAs($user->fresh())
+        ->get(route('settings.billing.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Settings/Billing')
+            ->where('activePlanKey', 'solo_pro')
+            ->where('subscription.plan_code', 'solo_pro')
+            ->where('subscription.billing_period', 'yearly')
         );
 });

@@ -2570,15 +2570,27 @@
     },
     "plan": {
       "title": "Choose your plan",
-      "subtitle": "1 month free, then automatic billing based on your plan. Card required.",
+      "subtitle": "1 month trial, then automatic billing based on your plan. Card required.",
+      "audience_label": "Plan context",
       "monthly": "Monthly",
       "yearly": "Yearly",
       "interval_month": "/month",
       "interval_year": "/year",
       "yearly_note": "Pay yearly and save {percent}%.",
       "billed_yearly": "For 12 months, billed annually.",
-      "trial_note": "Free trial until {date}.",
+      "trial_note": "Trial until {date}.",
       "downgrade_note": "You can change plans during the trial.",
+      "selection_title": "Selected plan",
+      "audiences": {
+        "solo": {
+          "title": "Solo plans",
+          "description": "We are showing solo plans because your workspace is owner-only today. You can move to Team later without rebuilding your setup."
+        },
+        "team": {
+          "title": "Team plans",
+          "description": "We are showing team plans because your workspace includes {count} people. Team adds collaboration, permissions, and higher limits."
+        }
+      },
       "recommended": "Recommended",
       "unavailable": "Plan unavailable"
     },
@@ -2595,7 +2607,7 @@
     "actions": {
       "back": "Back",
       "continue": "Continue",
-      "finish": "Start free trial",
+      "finish": "Start trial",
       "close": "Close"
     }
   },
@@ -5522,6 +5534,9 @@
     "actions": {
       "filters": "Filters",
       "clear": "Clear",
+      "send_invoice": "Send invoice",
+      "resend_invoice": "Resend invoice",
+      "sending_invoice": "Sending...",
       "view_invoice": "View invoice",
       "view_job": "View job",
       "view_customer": "View customer"
@@ -6465,6 +6480,9 @@
       "plans": {
         "title": "Platform subscription",
         "subtitle": "Review your active plan, adjust your subscription, and manage related AI usage.",
+        "catalog_title": "{audience} plans",
+        "catalog_subtitle_solo": "Same operating core for independent work, with room to move into Team later.",
+        "catalog_subtitle_team": "Same operating core with collaboration, permissions, and higher limits for shared execution.",
         "advisor": {
           "title": "Change plan",
           "dialog_title": "Plan advisor",
@@ -6527,17 +6545,17 @@
               }
             },
             "ai": {
-              "none": {
-                "label": "Not a priority",
-                "description": "AI is not an important criterion right now."
+              "light": {
+                "label": "Light usage",
+                "description": "I only need occasional AI help and a few scans each month."
               },
-              "optional": {
-                "label": "Paid add-on is fine",
-                "description": "I want AI available when needed without requiring it in the base package."
+              "regular": {
+                "label": "Regular usage",
+                "description": "I want AI to support day-to-day execution without going into the highest volumes."
               },
-              "included": {
-                "label": "Prefer included",
-                "description": "I would rather choose a plan where AI is already part of the offer."
+              "advanced": {
+                "label": "Advanced usage",
+                "description": "I expect heavier AI, scan, and automation usage as part of the plan."
               }
             }
           },
@@ -6551,8 +6569,9 @@
             "quotes": "Keeps the experience simple for quotes and invoicing.",
             "operations": "Strengthens jobs, tasks, and scheduling day to day.",
             "automation": "Unlocks more automation, performance tools, and advanced workflows.",
-            "ai_optional": "AI assistant is available as an add-on.",
-            "ai_included": "AI assistant is already included in the package.",
+            "ai_light": "Keeps AI access light and easy to control.",
+            "ai_growth": "Provides more AI and scan capacity for regular use.",
+            "ai_advanced": "Includes higher AI and scan headroom for advanced usage.",
             "custom_support": "Allows for more tailored rollout, support, and commercial framing."
           }
         }
@@ -6839,7 +6858,7 @@
       "eyebrow": "Built for service businesses that need more control",
       "title": "Run quotes, scheduling, jobs, and invoicing from one connected platform.",
       "subtitle": "Malikia Pro helps service businesses manage the full workflow from first request to final payment with more visibility, less friction, and better follow-through.",
-      "primary_cta": "Start free",
+      "primary_cta": "Start trial",
       "secondary_cta": "View pricing",
       "note": "One platform to manage customers, quotes, jobs, reservations, billing, and day-to-day coordination.",
       "highlights": {
@@ -6962,7 +6981,7 @@
     "cta": {
       "title": "Start with a cleaner workflow today",
       "subtitle": "Create your workspace, explore the platform, and grow into deeper coordination as your operation becomes more complex.",
-      "primary": "Start free trial",
+      "primary": "Start trial",
       "secondary": "View pricing"
     },
     "images": {
@@ -7075,6 +7094,9 @@
     "switch": {
       "label": "Choose your operating context"
     },
+    "currency": {
+      "label": "Currency"
+    },
     "billing_cycle": {
       "label": "Billing cycle",
       "monthly": "Monthly",
@@ -7114,7 +7136,7 @@
       },
       "solo_pro": {
         "features": {
-          "one": "Everything in Solo Essential.",
+          "one": "Everything in Solo Core.",
           "two": "Add jobs and tasks to track execution more seriously.",
           "three": "More day-to-day control without team complexity.",
           "four": "The best fit for active solo operators."
@@ -7122,7 +7144,7 @@
       },
       "solo_growth": {
         "features": {
-          "one": "Everything in Solo Pro.",
+          "one": "Everything in Solo Growth.",
           "two": "Add planning and limited reservations to manage more flow.",
           "three": "Use AI, campaigns, and loyalty tools in the same system.",
           "four": "Built for solo businesses with more volume and growth needs."
@@ -7138,7 +7160,7 @@
       },
       "growth": {
         "features": {
-          "one": "Everything in Starter.",
+          "one": "Everything in Team Core.",
           "two": "Add stronger permissions and deeper operational control.",
           "three": "Built for growing teams that need more structure and visibility.",
           "four": "The best balance for scaling without enterprise overhead."
@@ -7146,7 +7168,7 @@
       },
       "scale": {
         "features": {
-          "one": "Everything in Growth.",
+          "one": "Everything in Team Growth.",
           "two": "Advanced reporting and broader operational depth for mature teams.",
           "three": "Dedicated onboarding and stronger support as complexity increases.",
           "four": "Built for teams that need more depth across the business."
@@ -7163,12 +7185,12 @@
     },
     "plans": {
       "starter": {
-        "label": "Starter",
+        "label": "Team Core",
         "price": "Contact us",
         "desc": "For small teams building a more structured operating workflow."
       },
       "pro": {
-        "label": "Pro",
+        "label": "Team Growth",
         "badge": "Recommended",
         "price": "Contact us",
         "desc": "For growing teams that need more control and operational depth."
@@ -7212,8 +7234,8 @@
       }
     },
     "actions": {
-      "plan_trial": "Start free trial",
-      "plan_trial_note": "Includes 1 month free during onboarding.",
+      "plan_trial": "Start trial",
+      "plan_trial_note": "Includes a 1 month trial during onboarding.",
       "primary": "Start onboarding",
       "secondary": "Sign in"
     },

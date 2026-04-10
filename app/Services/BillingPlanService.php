@@ -81,6 +81,7 @@ class BillingPlanService
                     'plan_id' => $plan?->id,
                     'plan_price_id' => $monthlyPrice['plan_price_id'],
                     'name' => $display['name'],
+                    'description' => data_get(config('billing.catalog_defaults', []), $planCode.'.description'),
                     'badge' => $display['badge'],
                     'features' => $display['features'],
                     'price_id' => $monthlyPrice['stripe_price_id'],
@@ -103,6 +104,8 @@ class BillingPlanService
                     'owner_only' => $metadata['owner_only'],
                     'recommended' => $metadata['recommended'],
                     'onboarding_enabled' => $metadata['onboarding_enabled'],
+                    'deprecated' => $metadata['deprecated'],
+                    'legacy_only' => $metadata['legacy_only'],
                     'annual_discount_percent' => $this->annualDiscountPercent(),
                     'prices_by_period' => $pricesByPeriod,
                     'prices_by_currency' => $this->currencyOptionsForPlan($planCode),
@@ -358,6 +361,27 @@ class BillingPlanService
         return (bool) ($this->configuredPlan($planCode)['owner_only'] ?? false);
     }
 
+    public function isDeprecatedPlan(string $planCode): bool
+    {
+        return (bool) ($this->configuredPlan($planCode)['deprecated'] ?? false);
+    }
+
+    public function isLegacyOnlyPlan(string $planCode): bool
+    {
+        return (bool) ($this->configuredPlan($planCode)['legacy_only'] ?? false);
+    }
+
+    public function legacyFallbackPlanKey(): ?string
+    {
+        foreach ($this->configuredPlans() as $planCode => $plan) {
+            if (($plan['legacy_only'] ?? false) || ($plan['deprecated'] ?? false)) {
+                return (string) $planCode;
+            }
+        }
+
+        return null;
+    }
+
     public function onboardingPlanKeys(array $preferred = []): array
     {
         $plans = $this->configuredPlans();
@@ -386,6 +410,8 @@ class BillingPlanService
             'owner_only' => (bool) ($configuredPlan['owner_only'] ?? false),
             'recommended' => (bool) ($configuredPlan['recommended'] ?? false),
             'onboarding_enabled' => (bool) ($configuredPlan['onboarding_enabled'] ?? false),
+            'deprecated' => (bool) ($configuredPlan['deprecated'] ?? false),
+            'legacy_only' => (bool) ($configuredPlan['legacy_only'] ?? false),
         ];
     }
 

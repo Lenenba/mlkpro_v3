@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Work;
-use App\Models\Invoice;
+use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Payment;
-use App\Services\WorkBillingService;
+use App\Models\Work;
 use App\Services\UsageLimitService;
+use App\Services\WorkBillingService;
 use App\Support\TenantPaymentMethodsResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -48,7 +49,7 @@ class InvoiceController extends Controller
                 'customer',
                 'work' => fn ($query) => $query->withAvg('ratings', 'rating')->withCount('ratings'),
             ])
-            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
+            ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
             ->orderBy($sort, $direction)
             ->simplePaginate(10)
             ->withQueryString();
@@ -184,7 +185,7 @@ class InvoiceController extends Controller
         ])->setOption('isRemoteEnabled', true);
 
         $label = $invoice->number ?: $invoice->id;
-        $filename = 'invoice-' . $label . '.pdf';
+        $filename = 'invoice-'.$label.'.pdf';
 
         return $pdf->download($filename);
     }
@@ -220,5 +221,83 @@ class InvoiceController extends Controller
         }
 
         return redirect()->route('invoice.show', $invoice)->with('success', 'Invoice created successfully.');
+    }
+
+    public function sendEmail(Request $request, Invoice $invoice, WorkBillingService $billingService)
+    {
+        if ($invoice->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $invoice->loadMissing(['customer', 'work']);
+
+        if (! $invoice->customer || ! $invoice->customer->email) {
+            $message = 'Customer email address is not available.';
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => [
+                        'customer' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return redirect()->back()->with('warning', $message);
+        }
+
+        if ($invoice->status === 'void') {
+            $message = 'Void invoices cannot be sent.';
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => [
+                        'status' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return redirect()->back()->with('warning', $message);
+        }
+
+        $emailQueued = $billingService->sendInvoiceAvailableNotification($invoice, [
+            'source' => 'invoice_manual_send',
+        ]);
+
+        if ($emailQueued) {
+            ActivityLog::record($request->user(), $invoice, 'email_sent', [
+                'email' => $invoice->customer->email,
+            ], 'Invoice email sent');
+        } else {
+            ActivityLog::record($request->user(), $invoice, 'email_failed', [
+                'email' => $invoice->customer->email,
+            ], 'Invoice email failed');
+        }
+
+        if ($emailQueued && $invoice->status === 'draft') {
+            $invoice->update(['status' => 'sent']);
+
+            ActivityLog::record($request->user(), $invoice, 'status_changed', [
+                'from' => 'draft',
+                'to' => 'sent',
+            ], 'Invoice status updated');
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => $emailQueued
+                    ? 'Invoice sent successfully to '.$invoice->customer->email
+                    : 'Invoice email could not be sent right now.',
+                'warning' => ! $emailQueued,
+                'invoice' => $invoice->fresh()->load(['customer', 'work']),
+            ], $emailQueued ? 200 : 202);
+        }
+
+        if (! $emailQueued) {
+            return redirect()->back()->with('warning', 'Invoice email could not be sent right now.');
+        }
+
+        return redirect()->back()->with('success', 'Invoice sent successfully to '.$invoice->customer->email);
     }
 }

@@ -233,45 +233,65 @@ class WorkBillingService
             ], 'Invoice created from job');
         }
 
-        $customer = $work->customer;
-        if ($customer && $customer->email) {
-            $accountOwner = User::find($work->user_id);
-            $locale = LocalePreference::forCustomer($customer, $accountOwner);
-            $isFr = str_starts_with($locale, 'fr');
-            $note = $accountOwner
-                ? app(TemplateService::class)->resolveInvoiceNote($accountOwner)
-                : null;
-            $usePublicLink = ! (bool) ($customer->portal_access ?? true) || ! $customer->portal_user_id;
-            $actionUrl = route('dashboard');
-            $actionLabel = $isFr ? 'Ouvrir le tableau de bord' : 'Open dashboard';
-            if ($usePublicLink) {
-                $expiresAt = now()->addDays(7);
-                $actionUrl = URL::temporarySignedRoute(
-                    'public.invoices.show',
-                    $expiresAt,
-                    ['invoice' => $invoice->id]
-                );
-                $actionLabel = $isFr ? 'Payer la facture' : 'Pay invoice';
-            }
-            NotificationDispatcher::send($customer, new ActionEmailNotification(
-                $isFr ? 'Nouvelle facture disponible' : 'New invoice available',
-                $isFr ? 'Une nouvelle facture a ete generee pour votre intervention.' : 'A new invoice has been generated for your job.',
-                [
-                    ['label' => $isFr ? 'Facture' : 'Invoice', 'value' => $invoice->number ?? $invoice->id],
-                    ['label' => $isFr ? 'Intervention' : 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
-                    ['label' => 'Total', 'value' => '$'.number_format((float) $invoice->total, 2)],
-                ],
-                $actionUrl,
-                $actionLabel,
-                $isFr ? 'Nouvelle facture disponible' : 'New invoice available',
-                $note
-            ), [
-                'invoice_id' => $invoice->id,
-                'work_id' => $work->id,
-            ]);
-        }
+        $this->sendInvoiceAvailableNotification($invoice, [
+            'work_id' => $work->id,
+        ]);
 
         return $invoice;
+    }
+
+    public function sendInvoiceAvailableNotification(Invoice $invoice, array $context = []): bool
+    {
+        $invoice->loadMissing(['customer', 'work']);
+
+        $customer = $invoice->customer;
+        if (! $customer || ! $customer->email) {
+            return false;
+        }
+
+        $accountOwner = User::find($invoice->user_id);
+        $locale = LocalePreference::forCustomer($customer, $accountOwner);
+        $isFr = str_starts_with($locale, 'fr');
+        $note = $accountOwner
+            ? app(TemplateService::class)->resolveInvoiceNote($accountOwner)
+            : null;
+
+        $usePublicLink = ! (bool) ($customer->portal_access ?? true) || ! $customer->portal_user_id;
+        $actionUrl = route('dashboard');
+        $actionLabel = $isFr ? 'Ouvrir le tableau de bord' : 'Open dashboard';
+        if ($usePublicLink) {
+            $expiresAt = now()->addDays(7);
+            $actionUrl = URL::temporarySignedRoute(
+                'public.invoices.show',
+                $expiresAt,
+                ['invoice' => $invoice->id]
+            );
+            $actionLabel = $isFr ? 'Payer la facture' : 'Pay invoice';
+        }
+
+        $details = [
+            ['label' => $isFr ? 'Facture' : 'Invoice', 'value' => $invoice->number ?? $invoice->id],
+            ['label' => 'Total', 'value' => '$'.number_format((float) $invoice->total, 2)],
+        ];
+
+        if ($invoice->work) {
+            $details[] = [
+                'label' => $isFr ? 'Intervention' : 'Job',
+                'value' => $invoice->work->job_title ?? $invoice->work->number ?? $invoice->work->id,
+            ];
+        }
+
+        return NotificationDispatcher::send($customer, new ActionEmailNotification(
+            $isFr ? 'Nouvelle facture disponible' : 'New invoice available',
+            $isFr ? 'Une nouvelle facture est disponible.' : 'A new invoice is available.',
+            $details,
+            $actionUrl,
+            $actionLabel,
+            $isFr ? 'Nouvelle facture disponible' : 'New invoice available',
+            $note
+        ), array_merge($context, [
+            'invoice_id' => $invoice->id,
+        ]));
     }
 
     private function resolveTaskUnitPrice(Work $work, int $taskCount): float

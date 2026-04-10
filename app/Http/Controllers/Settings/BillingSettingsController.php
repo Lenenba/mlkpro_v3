@@ -174,6 +174,7 @@ class BillingSettingsController extends Controller
                     return [
                         'key' => $key,
                         'name' => $display['name'],
+                        'description' => data_get(config('billing.catalog_defaults', []), $key.'.description'),
                         'price_id' => $plan['price_id'] ?? null,
                         'price' => $display['price'],
                         'display_price' => $displayPrice,
@@ -185,6 +186,8 @@ class BillingSettingsController extends Controller
                         'audience' => $plan['audience'] ?? 'team',
                         'owner_only' => $isOwnerOnly,
                         'recommended' => (bool) ($plan['recommended'] ?? false),
+                        'deprecated' => (bool) ($plan['deprecated'] ?? false),
+                        'legacy_only' => (bool) ($plan['legacy_only'] ?? false),
                         'cta_url' => $contactOnly ? route('settings.support.index') : null,
                     ];
                 })
@@ -194,6 +197,10 @@ class BillingSettingsController extends Controller
         $subscriptionSummary = $billingService->subscriptionSummary($user);
         $planModules = app(CompanyFeatureService::class)->resolvePlanModules();
         $planKey = $billingService->resolvePlanKey($user, $planModules);
+        $plans = collect($plans)
+            ->filter(fn (array $plan): bool => ! ($plan['deprecated'] ?? false) || $plan['key'] === $planKey)
+            ->values()
+            ->all();
         $seatQuantity = $billingService->resolveBillableQuantity($user, $planKey);
         $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
         $assistantEnabled = $user->hasCompanyFeature('assistant');

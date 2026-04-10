@@ -37,6 +37,7 @@ const filterForm = useForm({
 const showAdvanced = ref(false);
 const isLoading = ref(false);
 const isViewSwitching = ref(false);
+const sendingInvoiceId = ref(null);
 const allowedViews = ['table', 'cards'];
 const viewMode = ref('table');
 const isBusy = computed(() => isLoading.value || isViewSwitching.value);
@@ -223,6 +224,30 @@ const statusMeta = computed(() => ({
 }));
 
 const getStatusMeta = (invoice) => statusMeta.value[invoice?.status] || statusMeta.value.draft;
+
+const canSendInvoice = (invoice) => Boolean(invoice?.customer?.email) && invoice?.status !== 'void';
+
+const invoiceActionLabel = (invoice) => (
+    invoice?.status === 'draft'
+        ? t('invoices.actions.send_invoice')
+        : t('invoices.actions.resend_invoice')
+);
+
+const sendInvoice = (invoice) => {
+    if (!invoice?.id || !canSendInvoice(invoice) || sendingInvoiceId.value !== null) {
+        return;
+    }
+
+    sendingInvoiceId.value = invoice.id;
+
+    router.post(route('invoice.send.email', invoice.id), {}, {
+        preserveState: true,
+        preserveScroll: true,
+        onFinish: () => {
+            sendingInvoiceId.value = null;
+        },
+    });
+};
 </script>
 
 <template>
@@ -503,6 +528,15 @@ const getStatusMeta = (invoice) => statusMeta.value[invoice?.status] || statusMe
                                     <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
                                         role="menu" aria-orientation="vertical">
                                         <div class="p-1">
+                                            <button
+                                                v-if="canSendInvoice(invoice)"
+                                                type="button"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                                :disabled="sendingInvoiceId === invoice.id"
+                                                @click="sendInvoice(invoice)"
+                                            >
+                                                {{ sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice) }}
+                                            </button>
                                             <Link :href="route('invoice.show', invoice.id)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 {{ $t('invoices.actions.view_invoice') }}
@@ -632,6 +666,15 @@ const getStatusMeta = (invoice) => statusMeta.value[invoice?.status] || statusMe
                                 <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
                                     role="menu" aria-orientation="vertical">
                                         <div class="p-1">
+                                            <button
+                                                v-if="canSendInvoice(invoice)"
+                                                type="button"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                                :disabled="sendingInvoiceId === invoice.id"
+                                                @click="sendInvoice(invoice)"
+                                            >
+                                                {{ sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice) }}
+                                            </button>
                                             <Link :href="route('invoice.show', invoice.id)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 {{ $t('invoices.actions.view_invoice') }}

@@ -48,6 +48,9 @@ class BillingSubscriptionService
 
     public function subscriptionSummary(User $user): array
     {
+        $selectedPlanKey = $this->resolveSelectedPlanKey($user);
+        $selectedBillingPeriod = $this->resolveSelectedBillingPeriod($user);
+
         if ($this->isStripe()) {
             $subscription = StripeSubscription::query()
                 ->where('user_id', $user->id)
@@ -63,8 +66,8 @@ class BillingSubscriptionService
                 'on_trial' => $this->isStripeOnTrial($status, $trialEndsAt),
                 'status' => $status,
                 'price_id' => $subscription?->price_id,
-                'plan_code' => $subscription?->plan_code,
-                'billing_period' => $subscription?->billing_period,
+                'plan_code' => $subscription?->plan_code ?: $selectedPlanKey,
+                'billing_period' => $subscription?->billing_period ?: $selectedBillingPeriod,
                 'ends_at' => $subscription?->ends_at,
                 'trial_ends_at' => $trialEndsAt,
                 'provider_id' => $subscription?->stripe_id,
@@ -78,8 +81,8 @@ class BillingSubscriptionService
             'on_trial' => $user->onTrial(PaddleSubscription::DEFAULT_TYPE),
             'status' => $subscription?->status,
             'price_id' => $subscription?->items()->value('price_id'),
-            'plan_code' => null,
-            'billing_period' => null,
+            'plan_code' => $selectedPlanKey,
+            'billing_period' => $selectedBillingPeriod,
             'ends_at' => $subscription?->ends_at,
             'trial_ends_at' => $subscription?->trial_ends_at,
             'provider_id' => $subscription?->paddle_id,
@@ -101,14 +104,21 @@ class BillingSubscriptionService
             }
         }
 
-        if ($this->isTrialActive($accountOwner)) {
-            if (array_key_exists('free', $planConfig)) {
-                return 'free';
-            }
+        $selectedPlanKey = $this->resolveSelectedPlanKey($accountOwner);
+        if ($selectedPlanKey && (
+            array_key_exists($selectedPlanKey, $planConfig)
+            || array_key_exists($selectedPlanKey, config('billing.plans', []))
+        )) {
+            return $selectedPlanKey;
+        }
 
-            $plans = config('billing.plans', []);
-            if (array_key_exists('free', $plans)) {
-                return 'free';
+        if ($this->isTrialActive($accountOwner)) {
+            $legacyPlanKey = app(BillingPlanService::class)->legacyFallbackPlanKey();
+            if ($legacyPlanKey && (
+                array_key_exists($legacyPlanKey, $planConfig)
+                || array_key_exists($legacyPlanKey, config('billing.plans', []))
+            )) {
+                return $legacyPlanKey;
             }
         }
 
@@ -227,5 +237,19 @@ class BillingSubscriptionService
         $normalized = trim($planCode);
 
         return $normalized !== '' ? $normalized : null;
+    }
+
+    private function resolveSelectedPlanKey(User $accountOwner): ?string
+    {
+        $planKey = trim((string) ($accountOwner->selected_plan_key ?? ''));
+
+        return $planKey !== '' ? $planKey : null;
+    }
+
+    private function resolveSelectedBillingPeriod(User $accountOwner): ?string
+    {
+        $billingPeriod = trim((string) ($accountOwner->selected_billing_period ?? ''));
+
+        return $billingPeriod !== '' ? $billingPeriod : null;
     }
 }

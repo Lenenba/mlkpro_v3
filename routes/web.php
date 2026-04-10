@@ -670,6 +670,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoice.index');
         Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoice.show');
         Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoice.pdf');
+        Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail'])->name('invoice.send.email');
         Route::post('/work/{work}/invoice', [InvoiceController::class, 'storeFromWork'])->name('invoice.store-from-work');
         Route::get('/payments/tips', [TipReportController::class, 'ownerIndex'])->name('payments.tips.index');
         Route::get('/payments/tips/export', [TipReportController::class, 'ownerExport'])->name('payments.tips.export');
