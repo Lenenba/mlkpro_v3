@@ -75,7 +75,7 @@ class SecuritySettingsController extends Controller
         $secret = null;
         if ($this->shouldReturnJson($request)) {
             $appSetup = $this->resolveApiAppSetup($user, (string) $validated['setup_token']);
-            if (!$appSetup) {
+            if (! $appSetup) {
                 return $this->securityValidationErrorResponse(
                     $request,
                     'setup_token',
@@ -86,7 +86,7 @@ class SecuritySettingsController extends Controller
             $secret = (string) $appSetup['secret'];
         } else {
             $secret = $request->session()->get('two_factor_app_setup_secret');
-            if (!$secret) {
+            if (! $secret) {
                 return $this->securityValidationErrorResponse(
                     $request,
                     'code',
@@ -96,7 +96,7 @@ class SecuritySettingsController extends Controller
         }
 
         $verified = app(TotpService::class)->verifyCode($secret, $validated['code']);
-        if (!$verified) {
+        if (! $verified) {
             return $this->securityValidationErrorResponse($request, 'code', 'Code invalide.');
         }
 
@@ -211,7 +211,7 @@ class SecuritySettingsController extends Controller
             ->get(['id', 'name', 'email', 'profile_picture'])
             ->keyBy('id');
 
-        $userMorph = (new User())->getMorphClass();
+        $userMorph = (new User)->getMorphClass();
 
         return ActivityLog::query()
             ->where('subject_type', $userMorph)
@@ -244,7 +244,7 @@ class SecuritySettingsController extends Controller
 
     private function buildActivityUserPayload(?User $user): ?array
     {
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -265,8 +265,8 @@ class SecuritySettingsController extends Controller
             'required' => $user->requiresTwoFactor(),
             'enabled' => (bool) $user->two_factor_enabled,
             'method' => $user->twoFactorMethod(),
-            'has_app' => !empty($user->two_factor_secret),
-            'can_configure' => $user->isAccountOwner() && !$user->isSuperadmin() && !$user->isPlatformAdmin(),
+            'has_app' => ! empty($user->two_factor_secret),
+            'can_configure' => $user->isAccountOwner() && ! $user->isSuperadmin() && ! $user->isPlatformAdmin(),
             'app_setup' => $appSetup,
             'email' => $user->email,
             'phone_hint' => $smsCapability['phone_hint'] ?? null,
@@ -282,7 +282,7 @@ class SecuritySettingsController extends Controller
         }
 
         $setupSecret = $request->session()->get('two_factor_app_setup_secret');
-        if (!$setupSecret) {
+        if (! $setupSecret) {
             return null;
         }
 
@@ -314,7 +314,7 @@ class SecuritySettingsController extends Controller
     private function resolveActiveApiAppSetup(User $user): ?array
     {
         $setupToken = Cache::get($this->appSetupUserCacheKey($user));
-        if (!is_string($setupToken) || $setupToken === '') {
+        if (! is_string($setupToken) || $setupToken === '') {
             return null;
         }
 
@@ -324,12 +324,12 @@ class SecuritySettingsController extends Controller
     private function resolveApiAppSetup(User $user, string $setupToken): ?array
     {
         $activeToken = Cache::get($this->appSetupUserCacheKey($user));
-        if (!is_string($activeToken) || $activeToken !== $setupToken) {
+        if (! is_string($activeToken) || $activeToken !== $setupToken) {
             return null;
         }
 
         $data = Cache::get($this->appSetupCacheKey($setupToken));
-        if (!is_array($data) || (int) ($data['user_id'] ?? 0) !== $user->id) {
+        if (! is_array($data) || (int) ($data['user_id'] ?? 0) !== $user->id) {
             $this->forgetApiAppSetup($user);
 
             return null;
@@ -409,7 +409,7 @@ class SecuritySettingsController extends Controller
     private function resolveSecurityViewer(Request $request): User
     {
         $user = $request->user();
-        if (!$user || $user->isClient() || $user->isSuperadmin()) {
+        if (! $user || $user->isClient() || $user->isSuperadmin()) {
             abort(403);
         }
 
@@ -420,7 +420,7 @@ class SecuritySettingsController extends Controller
     {
         $user = $this->resolveSecurityViewer($request);
 
-        if (!$user->isAccountOwner() || $user->isPlatformAdmin()) {
+        if (! $user->isAccountOwner() || $user->isPlatformAdmin()) {
             abort(403);
         }
 
