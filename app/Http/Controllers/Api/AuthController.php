@@ -35,9 +35,7 @@ class AuthController extends Controller
 
         $owner = $ownerId === $user->id
             ? $user
-            : User::query()
-                ->select(['id', 'company_name', 'company_type', 'company_logo', 'onboarding_completed_at'])
-                ->find($ownerId);
+            : User::query()->find($ownerId);
 
         $features = $owner ? app(CompanyFeatureService::class)->resolveEnabledFeatures($owner) : [];
 

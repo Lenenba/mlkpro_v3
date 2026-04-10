@@ -75,7 +75,9 @@ class AiImageUsageService
     {
         $owner = $this->resolveOwner($user);
 
-        return (int) ($owner->assistant_credit_balance ?? 0);
+        return (int) (User::query()
+            ->whereKey($owner->id)
+            ->value('assistant_credit_balance') ?? 0);
     }
 
     public function consumeCredit(User $user, string $context, int $credits = 1): bool

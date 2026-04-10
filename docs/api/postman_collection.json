@@ -26,6 +26,44 @@
   },
   "item": [
     {
+      "name": "ai",
+      "item": [
+        {
+          "name": "POST /api/v1/ai/images",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "images"
+              ]
+            },
+            "description": "Generate a store or product image through the mobile AI image workflow with the same free-usage and credit-consumption rules as the web app.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Generate a polished storefront hero image with plants and warm daylight.\",\n  \"context\": \"store\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "assistant",
       "item": [
         {
@@ -193,7 +231,7 @@
                 "me"
               ]
             },
-            "description": "Action: App\\Http\\Controllers\\Api\\AuthController@me"
+            "description": "Lean mobile bootstrap contract for identity, owner context, broad feature visibility, and platform or team membership metadata."
           }
         },
         {
@@ -823,6 +861,32 @@
           }
         },
         {
+          "name": "GET /api/v1/campaigns/{campaign}/lead-options",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/lead-options",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "lead-options"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignProspectingController@leadOptions"
+          }
+        },
+        {
           "name": "POST /api/v1/campaigns/{campaign}/preview",
           "request": {
             "method": "POST",
@@ -850,6 +914,396 @@
               ]
             },
             "description": "Action: App\\Http\\Controllers\\CampaignRunController@preview",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/campaigns/{campaign}/prospect-batches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/prospect-batches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "prospect-batches"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignProspectingController@batches"
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns/{campaign}/prospect-batches/import",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/prospect-batches/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "prospect-batches",
+                "import"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignProspectingController@import",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/campaigns/{campaign}/prospect-batches/{batch}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/prospect-batches/{batch}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "prospect-batches",
+                "{batch}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignProspectingController@showBatch"
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns/{campaign}/prospect-batches/{batch}/approve",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/prospect-batches/{batch}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "prospect-batches",
+                "{batch}",
+                "approve"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignProspectingController@approveBatch",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns/{campaign}/prospect-batches/{batch}/reject",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/prospect-batches/{batch}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "prospect-batches",
+                "{batch}",
+                "reject"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignProspectingController@rejectBatch",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns/{campaign}/prospect-provider-preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/prospect-provider-preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "prospect-provider-preview"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignProspectingController@providerPreview",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/campaigns/{campaign}/prospects",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/prospects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "prospects"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignProspectingController@prospects"
+          }
+        },
+        {
+          "name": "PATCH /api/v1/campaigns/{campaign}/prospects/bulk-status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/prospects/bulk-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "prospects",
+                "bulk-status"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignProspectingController@bulkUpdateProspects",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/campaigns/{campaign}/prospects/{prospect}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/prospects/{prospect}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "prospects",
+                "{prospect}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignProspectingController@showProspect"
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns/{campaign}/prospects/{prospect}/convert-to-lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/prospects/{prospect}/convert-to-lead",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "prospects",
+                "{prospect}",
+                "convert-to-lead"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignProspectingController@convertProspectToLead",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns/{campaign}/prospects/{prospect}/link-to-lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/prospects/{prospect}/link-to-lead",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "prospects",
+                "{prospect}",
+                "link-to-lead"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignProspectingController@linkProspectToLead",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /api/v1/campaigns/{campaign}/prospects/{prospect}/status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/prospects/{prospect}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "prospects",
+                "{prospect}",
+                "status"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignProspectingController@updateProspectStatus",
             "body": {
               "mode": "raw",
               "raw": "{}"
@@ -1643,6 +2097,41 @@
       ]
     },
     {
+      "name": "global-search",
+      "item": [
+        {
+          "name": "GET /api/v1/global-search",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/global-search?q=Search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "global-search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Search"
+                }
+              ]
+            },
+            "description": "Grouped global search contract for customers, tasks, quotes, and employee directory results inside the current workspace."
+          }
+        }
+      ]
+    },
+    {
       "name": "integrations",
       "item": [
         {
@@ -2027,6 +2516,1106 @@
       ]
     },
     {
+      "name": "marketing",
+      "item": [
+        {
+          "name": "PATCH /api/v1/marketing/customers/{customer}/vip",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/customers/{customer}/vip",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "customers",
+                "{customer}",
+                "vip"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingVipController@updateCustomer",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/marketing/dashboard/kpis",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/dashboard/kpis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "dashboard",
+                "kpis"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingDashboardKpiController"
+          }
+        },
+        {
+          "name": "GET /api/v1/marketing/mailing-lists",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/mailing-lists",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "mailing-lists"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingMailingListController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/mailing-lists",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/mailing-lists",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "mailing-lists"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingMailingListController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/marketing/mailing-lists/{mailingList}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/mailing-lists/{mailingList}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "mailing-lists",
+                "{mailingList}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingMailingListController@show"
+          }
+        },
+        {
+          "name": "PUT /api/v1/marketing/mailing-lists/{mailingList}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/mailing-lists/{mailingList}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "mailing-lists",
+                "{mailingList}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingMailingListController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/marketing/mailing-lists/{mailingList}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/mailing-lists/{mailingList}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "mailing-lists",
+                "{mailingList}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingMailingListController@destroy"
+          }
+        },
+        {
+          "name": "GET /api/v1/marketing/mailing-lists/{mailingList}/count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/mailing-lists/{mailingList}/count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "mailing-lists",
+                "{mailingList}",
+                "count"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingMailingListController@count"
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/mailing-lists/{mailingList}/import",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/mailing-lists/{mailingList}/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "mailing-lists",
+                "{mailingList}",
+                "import"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingMailingListController@import",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/mailing-lists/{mailingList}/remove-customers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/mailing-lists/{mailingList}/remove-customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "mailing-lists",
+                "{mailingList}",
+                "remove-customers"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingMailingListController@removeCustomers",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/mailing-lists/{mailingList}/sync-customers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/mailing-lists/{mailingList}/sync-customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "mailing-lists",
+                "{mailingList}",
+                "sync-customers"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingMailingListController@syncCustomers",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/marketing/meta",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/meta",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "meta"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingMetaController"
+          }
+        },
+        {
+          "name": "GET /api/v1/marketing/prospect-providers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/prospect-providers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "prospect-providers"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingProspectProviderConnectionController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/prospect-providers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/prospect-providers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "prospect-providers"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingProspectProviderConnectionController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PUT /api/v1/marketing/prospect-providers/{connection}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/prospect-providers/{connection}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "prospect-providers",
+                "{connection}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingProspectProviderConnectionController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/prospect-providers/{connection}/disconnect",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/prospect-providers/{connection}/disconnect",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "prospect-providers",
+                "{connection}",
+                "disconnect"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingProspectProviderConnectionController@disconnect",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/prospect-providers/{connection}/validate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/prospect-providers/{connection}/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "prospect-providers",
+                "{connection}",
+                "validate"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingProspectProviderConnectionController@validateConnection",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/marketing/segments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/segments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "segments"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingSegmentController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/segments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/segments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "segments"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingSegmentController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/segments/preview-count",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/segments/preview-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "segments",
+                "preview-count"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingSegmentController@previewCount",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/marketing/segments/{segment}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/segments/{segment}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "segments",
+                "{segment}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingSegmentController@show"
+          }
+        },
+        {
+          "name": "PUT /api/v1/marketing/segments/{segment}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/segments/{segment}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "segments",
+                "{segment}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingSegmentController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/marketing/segments/{segment}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/segments/{segment}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "segments",
+                "{segment}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingSegmentController@destroy"
+          }
+        },
+        {
+          "name": "GET /api/v1/marketing/segments/{segment}/count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/segments/{segment}/count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "segments",
+                "{segment}",
+                "count"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingSegmentController@count"
+          }
+        },
+        {
+          "name": "GET /api/v1/marketing/templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "templates"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingTemplateController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/templates",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "templates"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingTemplateController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/templates/preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/templates/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "templates",
+                "preview"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingTemplateController@preview",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/marketing/templates/{template}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/templates/{template}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "templates",
+                "{template}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingTemplateController@show"
+          }
+        },
+        {
+          "name": "PUT /api/v1/marketing/templates/{template}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/templates/{template}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "templates",
+                "{template}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingTemplateController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/marketing/templates/{template}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/templates/{template}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "templates",
+                "{template}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingTemplateController@destroy"
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/templates/{template}/duplicate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/templates/{template}/duplicate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "templates",
+                "{template}",
+                "duplicate"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingTemplateController@duplicate",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/templates/{template}/preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/templates/{template}/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "templates",
+                "{template}",
+                "preview"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingTemplateController@previewTemplate",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/marketing/vip-tiers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/vip-tiers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "vip-tiers"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingVipController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/marketing/vip-tiers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/vip-tiers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "vip-tiers"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingVipController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PUT /api/v1/marketing/vip-tiers/{vipTier}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/vip-tiers/{vipTier}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "vip-tiers",
+                "{vipTier}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingVipController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/marketing/vip-tiers/{vipTier}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/marketing/vip-tiers/{vipTier}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "marketing",
+                "vip-tiers",
+                "{vipTier}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\MarketingVipController@destroy"
+          }
+        }
+      ]
+    },
+    {
       "name": "notifications",
       "item": [
         {
@@ -2181,6 +3770,36 @@
       ]
     },
     {
+      "name": "offers",
+      "item": [
+        {
+          "name": "GET /api/v1/offers/search",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/offers/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "offers",
+                "search"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\OfferSearchController@search"
+          }
+        }
+      ]
+    },
+    {
       "name": "onboarding",
       "item": [
         {
@@ -2194,7 +3813,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/onboarding",
+              "raw": "{{baseUrl}}/api/v1/onboarding?plan=solo_pro&billing_period=yearly",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2202,9 +3821,19 @@
                 "api",
                 "v1",
                 "onboarding"
+              ],
+              "query": [
+                {
+                  "key": "plan",
+                  "value": "solo_pro"
+                },
+                {
+                  "key": "billing_period",
+                  "value": "yearly"
+                }
               ]
             },
-            "description": "Action: App\\Http\\Controllers\\OnboardingController@index"
+            "description": "Normalized onboarding bootstrap contract for mobile."
           }
         },
         {
@@ -2232,11 +3861,46 @@
                 "onboarding"
               ]
             },
-            "description": "Action: App\\Http\\Controllers\\OnboardingController@store",
+            "description": "Submit onboarding details or start onboarding checkout.",
             "body": {
               "mode": "raw",
-              "raw": "{}"
+              "raw": "{\n  \"company_name\": \"Acme Studio\",\n  \"company_type\": \"services\",\n  \"company_sector\": \"salon\",\n  \"currency_code\": \"CAD\",\n  \"company_team_size\": 1,\n  \"plan_key\": \"solo_pro\",\n  \"billing_period\": \"yearly\",\n  \"accept_terms\": true,\n  \"two_factor_method\": \"email\",\n  \"invites\": []\n}"
             }
+          }
+        },
+        {
+          "name": "GET /api/v1/onboarding/billing",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/onboarding/billing?status=success&session_id={CHECKOUT_SESSION_ID}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "onboarding",
+                "billing"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "success"
+                },
+                {
+                  "key": "session_id",
+                  "value": "{CHECKOUT_SESSION_ID}"
+                }
+              ]
+            },
+            "description": "Refresh onboarding status after an external Stripe checkout return."
           }
         }
       ]
@@ -2339,7 +4003,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/pipeline",
+              "raw": "{{baseUrl}}/api/v1/pipeline?entityType=task&entityId=202",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2347,9 +4011,19 @@
                 "api",
                 "v1",
                 "pipeline"
+              ],
+              "query": [
+                {
+                  "key": "entityType",
+                  "value": "task"
+                },
+                {
+                  "key": "entityId",
+                  "value": "202"
+                }
               ]
             },
-            "description": "Action: App\\Http\\Controllers\\PipelineController@data"
+            "description": "Canonical mobile pipeline contract for request, quote, job, task, and invoice timeline flows. Use this JSON route instead of the web-only Inertia timeline wrapper."
           }
         }
       ]
@@ -2464,6 +4138,31 @@
           }
         },
         {
+          "name": "DELETE /api/v1/plan-scans/{planScan}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/plan-scans/{planScan}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "plan-scans",
+                "{planScan}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PlanScanController@destroy"
+          }
+        },
+        {
           "name": "POST /api/v1/plan-scans/{planScan}/convert",
           "request": {
             "method": "POST",
@@ -2491,6 +4190,74 @@
               ]
             },
             "description": "Action: App\\Http\\Controllers\\PlanScanController@convert",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/plan-scans/{planScan}/reanalyze",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/plan-scans/{planScan}/reanalyze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "plan-scans",
+                "{planScan}",
+                "reanalyze"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PlanScanController@reanalyze",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /api/v1/plan-scans/{planScan}/review",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/plan-scans/{planScan}/review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "plan-scans",
+                "{planScan}",
+                "review"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PlanScanController@review",
             "body": {
               "mode": "raw",
               "raw": "{}"
@@ -4428,6 +6195,53 @@
       ]
     },
     {
+      "name": "public",
+      "item": [
+        {
+          "name": "GET /api/v1/public/pricing",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/public/pricing?audience=team&currency=USD&include=comparison_sections",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "public",
+                "pricing"
+              ],
+              "query": [
+                {
+                  "key": "audience",
+                  "value": "team"
+                },
+                {
+                  "key": "currency",
+                  "value": "USD"
+                },
+                {
+                  "key": "include",
+                  "value": "comparison_sections"
+                }
+              ]
+            },
+            "description": "Public pricing catalog used by mobile pricing and upsell surfaces.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "push-tokens",
       "item": [
         {
@@ -5593,6 +7407,209 @@
       "name": "settings",
       "item": [
         {
+          "name": "GET /api/v1/settings/security",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/security",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "security"
+              ]
+            },
+            "description": "Normalized security payload for mobile two-factor management and recent security activity."
+          }
+        },
+        {
+          "name": "POST /api/v1/settings/security/2fa/app/start",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/security/2fa/app/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "security",
+                "2fa",
+                "app",
+                "start"
+              ]
+            },
+            "description": "Start or replace the current pending authenticator app setup and receive the stateless setup token plus secret.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/settings/security/2fa/app/confirm",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/security/2fa/app/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "security",
+                "2fa",
+                "app",
+                "confirm"
+              ]
+            },
+            "description": "Confirm the pending authenticator app setup using the setup token and a valid TOTP code.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"setup_token\": \"setup_token_123\",\n  \"code\": \"123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/settings/security/2fa/app/cancel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/security/2fa/app/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "security",
+                "2fa",
+                "app",
+                "cancel"
+              ]
+            },
+            "description": "Cancel the current pending authenticator app setup for the authenticated owner.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/settings/security/2fa/email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/security/2fa/email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "security",
+                "2fa",
+                "email"
+              ]
+            },
+            "description": "Switch the current owner back to email-based two-factor authentication.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/settings/security/2fa/sms",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/security/2fa/sms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "security",
+                "2fa",
+                "sms"
+              ]
+            },
+            "description": "Switch the current owner to SMS-based two-factor authentication when the tenant configuration allows it.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
           "name": "GET /api/v1/settings/billing",
           "request": {
             "method": "GET",
@@ -5603,7 +7620,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/settings/billing",
+              "raw": "{{baseUrl}}/api/v1/settings/billing?checkout=success&plan=solo_pro&billing_period=yearly&credits=cancel&connect=refresh",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -5612,9 +7629,31 @@
                 "v1",
                 "settings",
                 "billing"
+              ],
+              "query": [
+                {
+                  "key": "checkout",
+                  "value": "success"
+                },
+                {
+                  "key": "plan",
+                  "value": "solo_pro"
+                },
+                {
+                  "key": "billing_period",
+                  "value": "yearly"
+                },
+                {
+                  "key": "credits",
+                  "value": "cancel"
+                },
+                {
+                  "key": "connect",
+                  "value": "refresh"
+                }
               ]
             },
-            "description": "Action: App\\Http\\Controllers\\Settings\\BillingSettingsController@edit"
+            "description": "Normalized mobile billing summary contract."
           }
         },
         {
@@ -5643,10 +7682,10 @@
                 "billing"
               ]
             },
-            "description": "Action: App\\Http\\Controllers\\Settings\\BillingSettingsController@update",
+            "description": "Update store payment, tips, and loyalty settings from mobile.",
             "body": {
               "mode": "raw",
-              "raw": "{}"
+              "raw": "{\n  \"payment_methods\": [\n    \"cash\",\n    \"card\"\n  ],\n  \"default_payment_method\": \"card\",\n  \"cash_allowed_contexts\": [\n    \"pos\",\n    \"invoice\"\n  ],\n  \"tips\": {\n    \"max_percent\": 20,\n    \"default_percent\": 15,\n    \"allocation_strategy\": \"primary\"\n  },\n  \"loyalty\": {\n    \"is_enabled\": true,\n    \"points_per_currency_unit\": 1,\n    \"rounding_mode\": \"floor\",\n    \"points_label\": \"points\"\n  }\n}"
             }
           }
         },
@@ -5677,10 +7716,44 @@
                 "assistant-addon"
               ]
             },
-            "description": "Action: App\\Http\\Controllers\\Settings\\BillingSettingsController@updateAssistantAddon",
+            "description": "Enable or disable the assistant addon when the plan and provider allow it.",
             "body": {
               "mode": "raw",
-              "raw": "{}"
+              "raw": "{\n  \"enabled\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/settings/billing/assistant-credits",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/billing/assistant-credits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "billing",
+                "assistant-credits"
+              ]
+            },
+            "description": "Buy assistant credits and receive a redirect contract with mobile return URLs.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packs\": 3,\n  \"success_url\": \"mlkpro://billing/assistant-success\",\n  \"cancel_url\": \"mlkpro://billing/assistant-cancel\"\n}"
             }
           }
         },
@@ -5711,10 +7784,10 @@
                 "checkout"
               ]
             },
-            "description": "Action: App\\Http\\Controllers\\Settings\\SubscriptionController@checkout",
+            "description": "Start a billing checkout flow and receive a mobile redirect contract.",
             "body": {
               "mode": "raw",
-              "raw": "{}"
+              "raw": "{\n  \"plan_key\": \"starter\",\n  \"billing_period\": \"monthly\",\n  \"success_url\": \"mlkpro://billing/subscription-success\",\n  \"cancel_url\": \"mlkpro://billing/subscription-cancel\"\n}"
             }
           }
         },
@@ -5745,7 +7818,7 @@
                 "connect"
               ]
             },
-            "description": "Action: App\\Http\\Controllers\\Settings\\BillingSettingsController@connectStripe",
+            "description": "Start Stripe Connect onboarding for the current owner account.",
             "body": {
               "mode": "raw",
               "raw": "{}"
@@ -5779,7 +7852,7 @@
                 "payment-method"
               ]
             },
-            "description": "Action: App\\Http\\Controllers\\Settings\\SubscriptionController@paymentMethodTransaction",
+            "description": "Create a provider-specific payment method update transaction contract.",
             "body": {
               "mode": "raw",
               "raw": "{}"
@@ -5813,7 +7886,7 @@
                 "portal"
               ]
             },
-            "description": "Action: App\\Http\\Controllers\\Settings\\SubscriptionController@portal",
+            "description": "Open the provider customer portal or provider-managed payment update flow.",
             "body": {
               "mode": "raw",
               "raw": "{}"
@@ -5847,10 +7920,10 @@
                 "swap"
               ]
             },
-            "description": "Action: App\\Http\\Controllers\\Settings\\SubscriptionController@swap",
+            "description": "Swap the active plan using the same backend plan resolution as the web.",
             "body": {
               "mode": "raw",
-              "raw": "{}"
+              "raw": "{\n  \"plan_key\": \"solo_pro\",\n  \"billing_period\": \"yearly\"\n}"
             }
           }
         },
@@ -6043,6 +8116,64 @@
               ]
             },
             "description": "Action: App\\Http\\Controllers\\Settings\\CompanySettingsController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/settings/marketing",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/marketing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "marketing"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Settings\\MarketingSettingsController@edit"
+          }
+        },
+        {
+          "name": "PUT /api/v1/settings/marketing",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/marketing",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "marketing"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Settings\\MarketingSettingsController@update",
             "body": {
               "mode": "raw",
               "raw": "{}"
