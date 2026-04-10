@@ -9,7 +9,7 @@ return [
         'eyebrow' => 'Built for service businesses that need more control',
         'title' => 'Run quotes, scheduling, jobs, and invoicing from one connected platform.',
         'subtitle' => 'Malikia Pro helps service businesses manage the full workflow from first request to final payment with more visibility, less friction, and better follow-through.',
-        'primary_cta' => 'Start free',
+        'primary_cta' => 'Start trial',
         'secondary_cta' => 'View pricing',
         'note' => 'One platform to manage customers, quotes, jobs, reservations, billing, and day-to-day coordination.',
         'highlights' => [
@@ -132,7 +132,7 @@ return [
     'cta' => [
         'title' => 'Start with a cleaner workflow today',
         'subtitle' => 'Create your workspace, explore the platform, and grow into deeper coordination as your operation becomes more complex.',
-        'primary' => 'Start free trial',
+        'primary' => 'Start trial',
         'secondary' => 'View pricing',
     ],
     'images' => [

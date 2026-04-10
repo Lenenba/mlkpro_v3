@@ -440,6 +440,25 @@ const planOrder = (planKey) => {
     return index === -1 ? PLAN_RECOMMENDATION_ORDER.length : index;
 };
 
+const planLevel = (plan) => {
+    switch (plan?.key) {
+    case 'solo_essential':
+    case 'starter':
+        return 'core';
+    case 'solo_pro':
+    case 'growth':
+        return 'growth';
+    case 'solo_growth':
+    case 'scale':
+        return 'scale';
+    case 'enterprise':
+        return 'enterprise';
+    default:
+        return 'core';
+    }
+};
+
+const normalizePlanAudience = (plan) => (plan?.audience === 'solo' ? 'solo' : 'team');
 const isCurrentPlan = (plan) => Boolean(plan?.key && activePlan.value?.key === plan.key);
 const isCurrentPlanSelection = (plan, billingPeriod = selectedBillingPeriod.value) =>
     Boolean(plan?.key && activePlan.value?.key === plan.key && currentSubscriptionBillingPeriod.value === billingPeriod);
@@ -468,14 +487,11 @@ const resolveInitialAdvisorBusiness = () => {
 };
 
 const resolveInitialAdvisorFocus = () => {
-    switch (activePlan.value?.key) {
-    case 'solo_essential':
+    switch (planLevel(activePlan.value)) {
+    case 'core':
         return 'quotes';
-    case 'solo_pro':
-    case 'starter':
-        return 'operations';
-    case 'solo_growth':
     case 'growth':
+        return 'operations';
     case 'scale':
     case 'enterprise':
         return 'automation';
@@ -485,15 +501,17 @@ const resolveInitialAdvisorFocus = () => {
 };
 
 const resolveInitialAdvisorAi = () => {
-    if (assistantIncluded.value || ['solo_growth', 'scale', 'enterprise'].includes(activePlan.value?.key || '')) {
-        return 'included';
+    switch (planLevel(activePlan.value)) {
+    case 'core':
+        return 'light';
+    case 'growth':
+        return 'regular';
+    case 'scale':
+    case 'enterprise':
+        return 'advanced';
+    default:
+        return assistantIncluded.value ? 'regular' : 'light';
     }
-
-    if (assistantAddonEnabled.value || ['starter', 'growth'].includes(activePlan.value?.key || '')) {
-        return 'optional';
-    }
-
-    return 'none';
 };
 
 const planAdvisor = reactive({
@@ -524,6 +542,73 @@ const availablePlanOptions = computed(() =>
         return Boolean(priceForBillingPeriod(plan)?.stripe_price_id);
     })
 );
+const planAudienceCatalogs = computed(() =>
+    availablePlanOptions.value.reduce((catalogs, plan) => {
+        const audience = normalizePlanAudience(plan);
+        if (!Array.isArray(catalogs[audience])) {
+            catalogs[audience] = [];
+        }
+
+        catalogs[audience].push(plan);
+        catalogs[audience].sort((left, right) => planOrder(left.key) - planOrder(right.key));
+
+        return catalogs;
+    }, {})
+);
+const planAudienceKeys = computed(() => {
+    const keys = Object.keys(planAudienceCatalogs.value);
+
+    return ['solo', 'team'].filter((key) => keys.includes(key)).concat(
+        keys.filter((key) => !['solo', 'team'].includes(key))
+    );
+});
+const selectedPlanAudiencePreference = ref(null);
+const fallbackPlanAudience = computed(() => {
+    const currentAudience = displayedPlan.value ? normalizePlanAudience(displayedPlan.value) : null;
+    if (currentAudience && planAudienceKeys.value.includes(currentAudience)) {
+        return currentAudience;
+    }
+
+    if (Number(props.seatQuantity || 1) <= 1 && planAudienceKeys.value.includes('solo')) {
+        return 'solo';
+    }
+
+    if (planAudienceKeys.value.includes('team')) {
+        return 'team';
+    }
+
+    return planAudienceKeys.value[0] || 'team';
+});
+const selectedPlanAudience = computed({
+    get() {
+        if (
+            selectedPlanAudiencePreference.value
+            && planAudienceKeys.value.includes(selectedPlanAudiencePreference.value)
+        ) {
+            return selectedPlanAudiencePreference.value;
+        }
+
+        return fallbackPlanAudience.value;
+    },
+    set(value) {
+        if (planAudienceKeys.value.includes(value)) {
+            selectedPlanAudiencePreference.value = value;
+        }
+    },
+});
+const selectedAudiencePlans = computed(() => planAudienceCatalogs.value[selectedPlanAudience.value] || []);
+const selectedAudiencePlanGridClass = computed(() => {
+    if (selectedAudiencePlans.value.length <= 3) {
+        return 'lg:grid-cols-3';
+    }
+
+    return 'md:grid-cols-2 xl:grid-cols-4';
+});
+const selectedAudienceCatalogSubtitle = computed(() => (
+    selectedPlanAudience.value === 'solo'
+        ? t('settings.billing.plans.catalog_subtitle_solo')
+        : t('settings.billing.plans.catalog_subtitle_team')
+));
 
 const planAdvisorQuestions = computed(() => [
     {
@@ -583,19 +668,19 @@ const planAdvisorQuestions = computed(() => [
         label: t('settings.billing.plans.advisor.questions.ai'),
         options: [
             {
-                value: 'none',
-                label: t('settings.billing.plans.advisor.options.ai.none.label'),
-                description: t('settings.billing.plans.advisor.options.ai.none.description'),
+                value: 'light',
+                label: t('settings.billing.plans.advisor.options.ai.light.label'),
+                description: t('settings.billing.plans.advisor.options.ai.light.description'),
             },
             {
-                value: 'optional',
-                label: t('settings.billing.plans.advisor.options.ai.optional.label'),
-                description: t('settings.billing.plans.advisor.options.ai.optional.description'),
+                value: 'regular',
+                label: t('settings.billing.plans.advisor.options.ai.regular.label'),
+                description: t('settings.billing.plans.advisor.options.ai.regular.description'),
             },
             {
-                value: 'included',
-                label: t('settings.billing.plans.advisor.options.ai.included.label'),
-                description: t('settings.billing.plans.advisor.options.ai.included.description'),
+                value: 'advanced',
+                label: t('settings.billing.plans.advisor.options.ai.advanced.label'),
+                description: t('settings.billing.plans.advisor.options.ai.advanced.description'),
             },
         ],
     },
@@ -704,6 +789,7 @@ const recommendationBadgeLabel = (recommendation, index) => {
 const recommendationScore = (plan) => {
     let score = 0;
     const reasons = [];
+    const level = planLevel(plan);
 
     switch (planAdvisor.business) {
     case 'solo':
@@ -776,28 +862,35 @@ const recommendationScore = (plan) => {
 
     switch (planAdvisor.focus) {
     case 'quotes':
-        if (['solo_essential', 'starter'].includes(plan.key)) {
+        if (level === 'core') {
             score += 5;
             addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.quotes');
-        } else if (['solo_pro', 'growth'].includes(plan.key)) {
+        } else if (level === 'growth') {
             score += 2;
         }
         break;
     case 'operations':
-        if (['solo_pro', 'starter', 'growth'].includes(plan.key)) {
+        if (level === 'growth') {
             score += 5;
             addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.operations');
-        } else if (['solo_growth', 'scale'].includes(plan.key)) {
+        } else if (level === 'scale') {
             score += 3;
             addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.automation');
+        } else if (plan.key === 'enterprise') {
+            score += 2;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.custom_support');
         }
         break;
     case 'automation':
-        if (['solo_growth', 'growth', 'scale', 'enterprise'].includes(plan.key)) {
+        if (level === 'scale') {
             score += 6;
             addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.automation');
-        } else if (['solo_pro', 'starter'].includes(plan.key)) {
-            score += 1;
+        } else if (plan.key === 'enterprise') {
+            score += 6;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.custom_support');
+        } else if (level === 'growth') {
+            score += 3;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.operations');
         }
         break;
     default:
@@ -805,32 +898,40 @@ const recommendationScore = (plan) => {
     }
 
     switch (planAdvisor.ai) {
-    case 'none':
-        if (['solo_essential', 'solo_pro', 'starter'].includes(plan.key)) {
-            score += 2;
-        } else if (plan.key === 'enterprise') {
-            score -= 1;
-        }
-        break;
-    case 'optional':
-        if (['starter', 'growth'].includes(plan.key)) {
+    case 'light':
+        if (level === 'core') {
             score += 4;
-            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_optional');
-        } else if (['solo_growth', 'scale'].includes(plan.key)) {
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_light');
+        } else if (level === 'growth') {
             score += 2;
-            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_included');
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_growth');
         }
         break;
-    case 'included':
-        if (['solo_growth', 'scale'].includes(plan.key)) {
-            score += 7;
-            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_included');
+    case 'regular':
+        if (level === 'growth') {
+            score += 5;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_growth');
+        } else if (level === 'scale') {
+            score += 3;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_advanced');
+        } else if (plan.key === 'enterprise') {
+            score += 2;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.custom_support');
+        } else if (level === 'core') {
+            score += 1;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_light');
+        }
+        break;
+    case 'advanced':
+        if (level === 'scale') {
+            score += 6;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_advanced');
         } else if (plan.key === 'enterprise') {
             score += 4;
             addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.custom_support');
-        } else if (['starter', 'growth'].includes(plan.key)) {
-            score += 1;
-            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_optional');
+        } else if (level === 'growth') {
+            score += 2;
+            addRecommendationReason(reasons, 'settings.billing.plans.advisor.reasons.ai_growth');
         }
         break;
     default:

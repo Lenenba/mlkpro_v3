@@ -5,6 +5,7 @@ use App\Enums\BillingPeriod;
 use App\Models\Billing\StripeSubscription;
 use App\Models\Plan;
 use App\Models\PlanPrice;
+use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Services\CreateStripeSubscriptionForTenant;
 use App\Services\StripeBillingService;
@@ -108,12 +109,16 @@ test('billing assistant credits api returns a mobile redirect contract', functio
         ],
     ]);
 
+    $planModules = \App\Services\CompanyFeatureService::defaultPlanModules();
+    $planModules['starter']['assistant'] = false;
+    PlatformSetting::setValue('plan_modules', $planModules);
+
     StripeSubscription::query()->create([
         'user_id' => $owner->id,
         'stripe_id' => 'sub_assistant_credits_123',
         'stripe_customer_id' => 'cus_assistant_credits_123',
         'price_id' => 'price_plan_credits_123',
-        'plan_code' => 'solo_pro',
+        'plan_code' => 'starter',
         'currency_code' => 'CAD',
         'billing_period' => 'monthly',
         'status' => 'active',
@@ -249,12 +254,16 @@ test('billing assistant addon api returns a success action contract', function (
         ],
     ]);
 
+    $planModules = \App\Services\CompanyFeatureService::defaultPlanModules();
+    $planModules['starter']['assistant'] = false;
+    PlatformSetting::setValue('plan_modules', $planModules);
+
     StripeSubscription::query()->create([
         'user_id' => $owner->id,
         'stripe_id' => 'sub_assistant_addon_123',
         'stripe_customer_id' => 'cus_assistant_addon_123',
         'price_id' => 'price_plan_assistant_addon_123',
-        'plan_code' => 'solo_pro',
+        'plan_code' => 'starter',
         'currency_code' => 'CAD',
         'billing_period' => 'monthly',
         'status' => 'active',
@@ -296,12 +305,16 @@ test('billing assistant credits api returns a stable error code when assistant i
         ],
     ]);
 
+    $planModules = \App\Services\CompanyFeatureService::defaultPlanModules();
+    $planModules['starter']['assistant'] = false;
+    PlatformSetting::setValue('plan_modules', $planModules);
+
     StripeSubscription::query()->create([
         'user_id' => $owner->id,
         'stripe_id' => 'sub_assistant_activation_123',
         'stripe_customer_id' => 'cus_assistant_activation_123',
         'price_id' => 'price_plan_activation_123',
-        'plan_code' => 'solo_pro',
+        'plan_code' => 'starter',
         'currency_code' => 'CAD',
         'billing_period' => 'monthly',
         'status' => 'active',
@@ -353,12 +366,16 @@ test('billing summary enables assistant credit capability when stripe assistant 
         ],
     ]);
 
+    $planModules = \App\Services\CompanyFeatureService::defaultPlanModules();
+    $planModules['starter']['assistant'] = false;
+    PlatformSetting::setValue('plan_modules', $planModules);
+
     StripeSubscription::query()->create([
         'user_id' => $owner->id,
         'stripe_id' => 'sub_assistant_capability_123',
         'stripe_customer_id' => 'cus_assistant_capability_123',
         'price_id' => 'price_plan_capability_123',
-        'plan_code' => 'solo_pro',
+        'plan_code' => 'starter',
         'currency_code' => 'CAD',
         'billing_period' => 'monthly',
         'status' => 'active',

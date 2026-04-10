@@ -9,7 +9,7 @@ return [
         'eyebrow' => 'Conçu pour les entreprises de services qui veulent plus de contrôle',
         'title' => 'Gérez devis, planning, jobs et facturation dans une plateforme connectée.',
         'subtitle' => 'Malikia Pro aide les entreprises de services à piloter tout le flux, de la première demande au paiement final, avec plus de visibilité, moins de friction et un meilleur suivi.',
-        'primary_cta' => 'Commencer gratuitement',
+        'primary_cta' => "Démarrer l'essai",
         'secondary_cta' => 'Voir les tarifs',
         'note' => 'Une seule plateforme pour gérer clients, devis, interventions, réservations, facturation et coordination quotidienne.',
         'highlights' => [
@@ -132,7 +132,7 @@ return [
     'cta' => [
         'title' => "Commencez aujourd'hui avec un flux plus clair",
         'subtitle' => "Créez votre espace, explorez la plateforme, puis évoluez vers une coordination plus poussée à mesure que l'activité se complexifie.",
-        'primary' => "Démarrer l'essai gratuit",
+        'primary' => "Démarrer l'essai",
         'secondary' => 'Voir les tarifs',
     ],
     'images' => [

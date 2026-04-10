@@ -72,6 +72,8 @@ class User extends Authenticatable implements HasLocalePreferenceContract
         'stripe_connect_requirements',
         'stripe_connect_onboarded_at',
         'trial_ends_at',
+        'selected_plan_key',
+        'selected_billing_period',
         'is_demo',
         'demo_type',
         'is_demo_user',
@@ -135,6 +137,8 @@ class User extends Authenticatable implements HasLocalePreferenceContract
             'stripe_connect_requirements' => 'array',
             'stripe_connect_onboarded_at' => 'datetime',
             'currency_code' => 'string',
+            'selected_plan_key' => 'string',
+            'selected_billing_period' => 'string',
         ];
     }
 

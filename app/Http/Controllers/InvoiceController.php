@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Work;
-use App\Models\Invoice;
+use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Payment;
-use App\Services\WorkBillingService;
+use App\Models\Work;
+use App\Services\InvoiceDocumentService;
 use App\Services\UsageLimitService;
+use App\Services\WorkBillingService;
 use App\Support\TenantPaymentMethodsResolver;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
@@ -48,7 +49,7 @@ class InvoiceController extends Controller
                 'customer',
                 'work' => fn ($query) => $query->withAvg('ratings', 'rating')->withCount('ratings'),
             ])
-            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
+            ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
             ->orderBy($sort, $direction)
             ->simplePaginate(10)
             ->withQueryString();
@@ -118,75 +119,15 @@ class InvoiceController extends Controller
         return $this->inertiaOrJson('Invoice/Show', $payload);
     }
 
-    public function pdf(Request $request, Invoice $invoice)
+    public function pdf(Request $request, Invoice $invoice, InvoiceDocumentService $invoiceDocumentService)
     {
         if ($invoice->user_id !== Auth::id()) {
             abort(403);
         }
 
-        $invoice->load([
-            'customer.properties',
-            'items',
-            'work.products',
-            'work.ratings',
-            'work.quote.property',
-            'payments.tipAssignee:id,name',
-        ]);
-
-        $isTaskBased = $invoice->items->isNotEmpty();
-        $taskItems = collect();
-        $productItems = collect();
-
-        if ($isTaskBased) {
-            $taskItems = $invoice->items->map(function ($item) {
-                return [
-                    'title' => $item->title ?: 'Line item',
-                    'scheduled_date' => $item->scheduled_date,
-                    'start_time' => $item->start_time,
-                    'end_time' => $item->end_time,
-                    'assignee_name' => $item->assignee_name,
-                    'total' => (float) ($item->total ?? 0),
-                ];
-            });
-        } elseif ($invoice->work && $invoice->work->products->isNotEmpty()) {
-            $productItems = $invoice->work->products->map(function ($product) {
-                $quantity = (float) ($product->pivot?->quantity ?? 0);
-                $unitPrice = (float) ($product->pivot?->price ?? $product->price ?? 0);
-                $total = (float) ($product->pivot?->total ?? round($quantity * $unitPrice, 2));
-
-                return [
-                    'title' => $product->name ?: 'Line item',
-                    'description' => $product->pivot?->description ?: $product->description,
-                    'quantity' => $quantity,
-                    'unit_price' => $unitPrice,
-                    'total' => $total,
-                ];
-            });
-        }
-
-        $subtotal = $isTaskBased
-            ? round($taskItems->sum('total'), 2)
-            : round($productItems->sum('total'), 2);
-        $totalPaid = round((float) $invoice->payments
-            ->whereIn('status', Payment::settledStatuses())
-            ->sum('amount'), 2);
-
-        $pdf = Pdf::loadView('pdf.invoice', [
-            'invoice' => $invoice,
-            'customer' => $invoice->customer,
-            'company' => $request->user(),
-            'work' => $invoice->work,
-            'isTaskBased' => $isTaskBased,
-            'taskItems' => $taskItems,
-            'productItems' => $productItems,
-            'subtotal' => $subtotal,
-            'totalPaid' => $totalPaid,
-        ])->setOption('isRemoteEnabled', true);
-
-        $label = $invoice->number ?: $invoice->id;
-        $filename = 'invoice-' . $label . '.pdf';
-
-        return $pdf->download($filename);
+        return $invoiceDocumentService
+            ->buildPdf($invoice, $request->user())
+            ->download($invoiceDocumentService->filename($invoice));
     }
 
     /**
@@ -220,5 +161,83 @@ class InvoiceController extends Controller
         }
 
         return redirect()->route('invoice.show', $invoice)->with('success', 'Invoice created successfully.');
+    }
+
+    public function sendEmail(Request $request, Invoice $invoice, WorkBillingService $billingService)
+    {
+        if ($invoice->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $invoice->loadMissing(['customer', 'work']);
+
+        if (! $invoice->customer || ! $invoice->customer->email) {
+            $message = 'Customer email address is not available.';
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => [
+                        'customer' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return redirect()->back()->with('warning', $message);
+        }
+
+        if ($invoice->status === 'void') {
+            $message = 'Void invoices cannot be sent.';
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => [
+                        'status' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return redirect()->back()->with('warning', $message);
+        }
+
+        $emailQueued = $billingService->sendInvoiceAvailableNotification($invoice, [
+            'source' => 'invoice_manual_send',
+        ]);
+
+        if ($emailQueued) {
+            ActivityLog::record($request->user(), $invoice, 'email_sent', [
+                'email' => $invoice->customer->email,
+            ], 'Invoice email sent');
+        } else {
+            ActivityLog::record($request->user(), $invoice, 'email_failed', [
+                'email' => $invoice->customer->email,
+            ], 'Invoice email failed');
+        }
+
+        if ($emailQueued && $invoice->status === 'draft') {
+            $invoice->update(['status' => 'sent']);
+
+            ActivityLog::record($request->user(), $invoice, 'status_changed', [
+                'from' => 'draft',
+                'to' => 'sent',
+            ], 'Invoice status updated');
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => $emailQueued
+                    ? 'Invoice sent successfully to '.$invoice->customer->email
+                    : 'Invoice email could not be sent right now.',
+                'warning' => ! $emailQueued,
+                'invoice' => $invoice->fresh()->load(['customer', 'work']),
+            ], $emailQueued ? 200 : 202);
+        }
+
+        if (! $emailQueued) {
+            return redirect()->back()->with('warning', 'Invoice email could not be sent right now.');
+        }
+
+        return redirect()->back()->with('success', 'Invoice sent successfully to '.$invoice->customer->email);
     }
 }

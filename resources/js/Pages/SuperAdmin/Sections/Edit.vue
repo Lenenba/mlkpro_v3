@@ -429,12 +429,12 @@ const sectionTypePreset = (type) => {
             density: 'normal',
             tone: 'contrast',
             title: currentLocale.value === 'fr'
-                ? 'Essayez-le gratuitement. Voyez si ca colle a votre operation.'
-                : 'Try it free. See how it fits your operation.',
+                ? 'Demarrez un essai. Voyez si cela colle a votre operation.'
+                : 'Start a trial. See how it fits your operation.',
             body: currentLocale.value === 'fr'
                 ? '<p>Presentez votre plateforme, votre visite produit ou votre experience mobile avec un bloc plus editorial et plus vendeur.</p>'
                 : '<p>Showcase your platform, product tour, or mobile experience with a more editorial conversion block.</p>',
-            primary_label: currentLocale.value === 'fr' ? 'Commencer gratuitement' : 'Get started free',
+            primary_label: currentLocale.value === 'fr' ? "Demarrer l'essai" : 'Start trial',
             aside_link_label: currentLocale.value === 'fr' ? 'Voir la visite produit' : 'Watch product tour',
         };
     }

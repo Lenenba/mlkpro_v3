@@ -2,15 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\ActivityLog;
 use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Work;
-use App\Models\ActivityLog;
-use App\Services\UsageLimitService;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class TaskBillingService
@@ -45,18 +43,19 @@ class TaskBillingService
 
     public function handleTaskCompleted(Task $task, ?User $actor = null): void
     {
-        if (!$task->billable) {
+        if (! $task->billable) {
             return;
         }
 
         $task->loadMissing(['work.customer', 'assignee.user', 'invoiceItem', 'materials']);
         $work = $task->work;
-        if (!$work) {
+        if (! $work) {
             return;
         }
 
         if ($task->invoiceItem) {
             $this->markWorkCompleteIfReady($work, $actor);
+
             return;
         }
 
@@ -64,7 +63,7 @@ class TaskBillingService
         $mode = $settings['billing_mode'] ?? 'end_of_job';
 
         if ($mode === 'per_task') {
-            $this->billTasks($work, collect([$task]), $settings, $actor);
+            $this->billTasks($work, new EloquentCollection([$task]), $settings, $actor);
         } elseif ($mode === 'end_of_job') {
             $this->billIfWorkComplete($work, $settings, $actor);
         }
@@ -96,14 +95,14 @@ class TaskBillingService
         $this->billTasks($work, $tasks, $settings, $actor);
     }
 
-    private function billTasks(Work $work, Collection $tasks, array $settings, ?User $actor = null): void
+    private function billTasks(Work $work, EloquentCollection $tasks, array $settings, ?User $actor = null): void
     {
         if ($tasks->isEmpty()) {
             return;
         }
 
         $tasks->loadMissing(['invoiceItem', 'materials']);
-        $tasks = $tasks->filter(fn($task) => $task->billable && !$task->invoiceItem);
+        $tasks = $tasks->filter(fn ($task) => $task->billable && ! $task->invoiceItem);
         if ($tasks->isEmpty()) {
             return;
         }
@@ -111,7 +110,7 @@ class TaskBillingService
         $grouping = $settings['billing_grouping'] ?? 'single';
         $status = $grouping === 'periodic' ? 'draft' : 'sent';
 
-        DB::transaction(function () use ($work, $tasks, $settings, $status, $grouping, $actor) {
+        $invoice = DB::transaction(function () use ($work, $tasks, $settings, $status, $grouping, $actor) {
             $firstTask = $tasks->first();
             $periodDate = $this->resolveTaskDate($firstTask, $work);
 
@@ -119,7 +118,7 @@ class TaskBillingService
                 ? $this->findOpenInvoiceForPeriod($work, $periodDate, $settings)
                 : null;
 
-            if (!$invoice) {
+            if (! $invoice) {
                 $limitUser = $actor ?: User::find($work->user_id);
                 if ($limitUser) {
                     app(UsageLimitService::class)->enforceLimit($limitUser, 'invoices');
@@ -173,7 +172,7 @@ class TaskBillingService
                 $scheduledDate = $task->due_date ?: $work->start_date;
 
                 return $task->materials
-                    ->filter(fn($material) => $material->billable && (float) $material->quantity > 0)
+                    ->filter(fn ($material) => $material->billable && (float) $material->quantity > 0)
                     ->map(function ($material) use ($task, $assigneeName, $scheduledDate, $work) {
                         $quantity = max(0, (float) $material->quantity);
                         $unitPrice = max(0, (float) $material->unit_price);
@@ -183,7 +182,7 @@ class TaskBillingService
                             'task_id' => null,
                             'work_id' => $work->id,
                             'assigned_team_member_id' => $task->assigned_team_member_id,
-                            'title' => 'Material - ' . $material->label,
+                            'title' => 'Material - '.$material->label,
                             'description' => $material->description,
                             'scheduled_date' => $scheduledDate,
                             'start_time' => $task->start_time,
@@ -209,13 +208,22 @@ class TaskBillingService
 
             $invoice->total = $invoice->items()->sum('total');
             $invoice->save();
+
+            return $invoice;
         });
+
+        if ($invoice->status === 'sent') {
+            app(WorkBillingService::class)->sendInvoiceAvailableNotification($invoice, [
+                'work_id' => $work->id,
+                'source' => 'task_billing',
+            ]);
+        }
     }
 
     private function findOpenInvoiceForPeriod(Work $work, Carbon $date, array $settings): ?Invoice
     {
         $cycle = $settings['billing_cycle'] ?? null;
-        if (!$cycle) {
+        if (! $cycle) {
             return null;
         }
 
@@ -237,6 +245,7 @@ class TaskBillingService
             case 'weekly':
                 $start = $date->copy()->startOfWeek();
                 $end = $date->copy()->endOfWeek();
+
                 return [$start, $end];
             case 'biweekly':
                 $weekNumber = (int) $date->format('W');
@@ -246,10 +255,12 @@ class TaskBillingService
                     $start->subWeek();
                 }
                 $end = $start->copy()->addWeeks(2)->subDay()->endOfDay();
+
                 return [$start, $end];
             case 'monthly':
                 $start = $date->copy()->startOfMonth();
                 $end = $date->copy()->endOfMonth();
+
                 return [$start, $end];
             default:
                 return [null, null];

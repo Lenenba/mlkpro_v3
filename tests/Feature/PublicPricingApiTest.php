@@ -12,7 +12,9 @@ test('public pricing api exposes the default audience without comparison section
         ->assertJsonPath('available_audiences.1', 'team')
         ->assertJsonPath('highlighted_plan_key', 'solo_pro')
         ->assertJsonPath('plans.0.key', 'solo_essential')
+        ->assertJsonPath('plans.0.name', 'Solo Core')
         ->assertJsonPath('plans.1.key', 'solo_pro')
+        ->assertJsonPath('plans.1.name', 'Solo Growth')
         ->assertJsonPath('plans.1.audience', 'solo')
         ->assertJsonPath('plans.1.onboarding_enabled', true)
         ->assertJsonPath('plans.1.prices_by_period.monthly.billing_period', 'monthly')
@@ -42,6 +44,7 @@ test('public pricing api can return comparison sections and promotion aware pric
         ->assertJsonPath('audience', 'team')
         ->assertJsonPath('highlighted_plan_key', 'growth')
         ->assertJsonPath('plans.0.key', 'starter')
+        ->assertJsonPath('plans.0.name', 'Team Core')
         ->assertJsonPath('plans.0.prices_by_period.monthly.currency_code', 'USD')
         ->assertJsonPath('plans.0.prices_by_period.monthly.is_discounted', true)
         ->assertJsonPath('plans.0.prices_by_period.monthly.promotion.discount_percent', 25)
@@ -49,7 +52,10 @@ test('public pricing api can return comparison sections and promotion aware pric
         ->assertJsonPath('plans.0.prices_by_period.yearly.promotion.discount_percent', 35)
         ->assertJsonPath('plans.0.promotion.discount_percent', 25)
         ->assertJsonCount(4, 'plans')
-        ->assertJsonCount(3, 'comparison_sections');
+        ->assertJsonCount(3, 'comparison_sections')
+        ->assertJsonPath('comparison_sections.0.rows.0.values.0.text', '5')
+        ->assertJsonPath('comparison_sections.2.rows.2.values.0.text', '25')
+        ->assertJsonPath('comparison_sections.2.rows.3.values.1.text', '2500/mo');
 });
 
 test('public pricing api validates unknown currencies and audiences', function () {

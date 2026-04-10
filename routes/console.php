@@ -36,6 +36,7 @@ use App\Services\Capacity\CapacityReportService;
 use App\Services\DailyAgendaService;
 use App\Services\Demo\DemoWorkspacePurgeService;
 use App\Services\Observability\ObservabilityReportService;
+use App\Services\PlanEntitlementSyncService;
 use App\Services\PlatformAdminNotifier;
 use App\Services\PublicCopySyncService;
 use App\Services\QueueHealthService;
@@ -532,7 +533,7 @@ Artisan::command('mail:preview-pack {to}
                 'billingDate' => now()->addDays(3)->toDateString(),
                 'billingDateLabel' => now()->addDays(3)->format('d/m/Y'),
                 'daysUntilBilling' => 3,
-                'planName' => 'Growth',
+                'planName' => 'Team Growth',
                 'billingPeriod' => 'monthly',
                 'seatQuantity' => 5,
                 'currencyCode' => 'USD',
@@ -540,7 +541,7 @@ Artisan::command('mail:preview-pack {to}
                 'formattedSubtotal' => '$69.00',
                 'formattedTax' => '$10.00',
                 'lineItems' => [
-                    ['label' => 'Growth plan', 'quantity' => 1, 'formatted_amount' => '$64.00'],
+                    ['label' => 'Team Growth plan', 'quantity' => 1, 'formatted_amount' => '$64.00'],
                     ['label' => '5 active seats', 'quantity' => 5, 'formatted_amount' => '$15.00'],
                 ],
                 'lineItemCount' => 2,
@@ -1106,6 +1107,89 @@ Artisan::command('billing:stripe-sync-env
 
     return 0;
 })->purpose('Read existing Stripe plan prices and sync .env and plan_prices without creating new Stripe prices');
+
+Artisan::command('billing:sync-plan-entitlements
+    {--plans= : Optional comma-separated list of plan keys}
+    {--reset-tenant-overrides : Clear company feature and limit overrides for tenants on the selected plans}
+    {--dry-run : Preview the synchronized payload without writing it}', function (
+    PlanEntitlementSyncService $service
+): int {
+    $parseCsv = static function (?string $value): array {
+        if (! is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        return collect(explode(',', $value))
+            ->map(fn ($part) => trim((string) $part))
+            ->filter(fn ($part) => $part !== '')
+            ->values()
+            ->all();
+    };
+
+    try {
+        $summary = $service->sync([
+            'plans' => $parseCsv((string) $this->option('plans')),
+            'dry_run' => (bool) $this->option('dry-run'),
+            'reset_tenant_overrides' => (bool) $this->option('reset-tenant-overrides'),
+        ]);
+    } catch (\Throwable $exception) {
+        $this->error($exception->getMessage());
+
+        return 1;
+    }
+
+    $plans = $summary['plans'] ?? [];
+    $limitPayload = is_array($summary['plan_limits'] ?? null) ? $summary['plan_limits'] : [];
+    $modulePayload = is_array($summary['plan_modules'] ?? null) ? $summary['plan_modules'] : [];
+
+    $rows = collect($plans)
+        ->map(function (string $planKey) use ($limitPayload, $modulePayload): array {
+            $limits = array_filter(
+                $limitPayload[$planKey] ?? [],
+                static fn ($value): bool => is_numeric($value)
+            );
+            $modules = array_filter(
+                $modulePayload[$planKey] ?? [],
+                static fn ($enabled): bool => (bool) $enabled
+            );
+
+            return [
+                $planKey,
+                (string) (config('billing.plans.'.$planKey.'.name') ?? $planKey),
+                (string) count($modules),
+                (string) count($limits),
+            ];
+        })
+        ->all();
+
+    if ($rows !== []) {
+        $this->table(['Plan', 'Name', 'Enabled modules', 'Numeric limits'], $rows);
+    }
+
+    if ($summary['dry_run'] ?? false) {
+        $this->warn('Dry run: plan_modules and plan_limits were not written.');
+    } else {
+        $this->info(sprintf(
+            'Synchronized %d plan(s) into plan_modules and plan_limits.',
+            count($plans)
+        ));
+    }
+
+    if ($summary['reset_tenant_overrides'] ?? false) {
+        $tenantSummary = is_array($summary['tenant_overrides'] ?? null) ? $summary['tenant_overrides'] : [];
+
+        $this->newLine();
+        $this->line(sprintf(
+            'Tenant overrides: %d matched, %d updated, %d feature override(s) cleared, %d limit override(s) cleared.',
+            (int) ($tenantSummary['matched'] ?? 0),
+            (int) ($tenantSummary['updated'] ?? 0),
+            (int) ($tenantSummary['feature_overrides_cleared'] ?? 0),
+            (int) ($tenantSummary['limit_overrides_cleared'] ?? 0),
+        ));
+    }
+
+    return 0;
+})->purpose('Sync plan modules and usage limits from config billing definitions');
 
 Artisan::command('platform:notifications-digest {--frequency=daily}', function (PlatformAdminNotifier $notifier): int {
     $frequency = (string) $this->option('frequency');

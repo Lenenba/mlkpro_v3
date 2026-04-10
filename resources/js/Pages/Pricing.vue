@@ -40,6 +40,14 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    supportedCurrencies: {
+        type: Array,
+        default: () => [],
+    },
+    selectedCurrencyCode: {
+        type: String,
+        default: null,
+    },
     megaMenu: {
         type: Object,
         default: () => ({}),
@@ -70,6 +78,22 @@ const pricingCatalogs = computed(() => {
     return fallbackCatalog.value;
 });
 const audienceOrder = ['solo', 'team'];
+const availableCurrencies = computed(() => {
+    const currencies = Array.isArray(props.supportedCurrencies) ? props.supportedCurrencies : [];
+
+    return currencies
+        .map((currency) => String(currency || '').trim().toUpperCase())
+        .filter((currency, index, source) => currency !== '' && source.indexOf(currency) === index);
+});
+const activeCurrencyCode = computed(() => {
+    const selected = String(props.selectedCurrencyCode || '').trim().toUpperCase();
+
+    if (selected !== '') {
+        return selected;
+    }
+
+    return availableCurrencies.value[0] || 'CAD';
+});
 const audienceKeys = computed(() => {
     const keys = Object.keys(pricingCatalogs.value);
 
@@ -176,6 +200,7 @@ const resolveTrialHref = (plan) => {
     }
 
     query.billing_period = activeBillingPeriod.value;
+    query.currency_code = activeCurrencyCode.value;
 
     return route('onboarding.index', query);
 };
@@ -190,6 +215,10 @@ const resolveTrialHref = (plan) => {
             :fallback-items="headerMenuItems"
             :can-login="canLogin"
             :can-register="canRegister"
+            :available-currencies="availableCurrencies"
+            :selected-currency-code="activeCurrencyCode"
+            currency-route-name="pricing"
+            :currency-query="{ audience: activeAudience }"
         />
 
         <main>

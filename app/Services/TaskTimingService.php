@@ -4,13 +4,17 @@ namespace App\Services;
 
 use App\Models\Task;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
 class TaskTimingService
 {
     public const STATUS_EARLY = 'early';
+
     public const STATUS_LATE = 'late';
+
     public const STATUS_ON_TIME = 'on_time';
+
     public const STATUS_UNSCHEDULED = 'unscheduled';
 
     private const COMPLETION_REASONS = [
@@ -33,20 +37,20 @@ class TaskTimingService
         return $reason !== null && in_array($reason, self::COMPLETION_REASONS, true);
     }
 
-    public static function resolveTimingStatus(Task $task, ?Carbon $now = null): ?string
+    public static function resolveTimingStatus(Task $task, ?CarbonInterface $now = null): ?string
     {
         $timezone = self::resolveTimezoneForTask($task);
         $now = $now ? $now->copy()->setTimezone($timezone) : Carbon::now($timezone);
 
         $dueDate = self::resolveDueDate($task, $timezone);
-        if (!$dueDate) {
+        if (! $dueDate) {
             return null;
         }
 
         $completedAt = self::resolveCompletedAt($task, $timezone);
 
         if ($task->status === 'done' || $completedAt) {
-            if (!$completedAt) {
+            if (! $completedAt) {
                 return self::STATUS_ON_TIME;
             }
 
@@ -69,18 +73,18 @@ class TaskTimingService
         return self::STATUS_ON_TIME;
     }
 
-    public static function shouldRequireCompletionReason(?Carbon $dueDate, ?Carbon $completedAt): bool
+    public static function shouldRequireCompletionReason(?CarbonInterface $dueDate, ?CarbonInterface $completedAt): bool
     {
-        if (!$dueDate || !$completedAt) {
+        if (! $dueDate || ! $completedAt) {
             return false;
         }
 
         return $completedAt->copy()->startOfDay()->ne($dueDate->copy()->startOfDay());
     }
 
-    public static function isDueDateInFuture(?Carbon $dueDate, ?Carbon $now = null): bool
+    public static function isDueDateInFuture(?CarbonInterface $dueDate, ?CarbonInterface $now = null): bool
     {
-        if (!$dueDate) {
+        if (! $dueDate) {
             return false;
         }
 
@@ -96,7 +100,7 @@ class TaskTimingService
         }
 
         $accountId = $task->account_id;
-        if (!$accountId) {
+        if (! $accountId) {
             return config('app.timezone', 'UTC');
         }
 
@@ -105,7 +109,7 @@ class TaskTimingService
 
     public static function resolveTimezoneForAccountId(int $accountId): string
     {
-        if (!array_key_exists($accountId, self::$timezoneCache)) {
+        if (! array_key_exists($accountId, self::$timezoneCache)) {
             $timezone = User::query()->whereKey($accountId)->value('company_timezone');
             self::$timezoneCache[$accountId] = $timezone ?: config('app.timezone', 'UTC');
         }
@@ -115,7 +119,7 @@ class TaskTimingService
 
     public static function resolveTimezoneForAccount(?User $user): string
     {
-        if (!$user) {
+        if (! $user) {
             return config('app.timezone', 'UTC');
         }
 
@@ -125,12 +129,13 @@ class TaskTimingService
     public static function todayForAccountId(int $accountId): string
     {
         $timezone = self::resolveTimezoneForAccountId($accountId);
+
         return Carbon::now($timezone)->toDateString();
     }
 
     public static function normalizeCompletedAt($value, string $timezone): ?Carbon
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 
@@ -143,7 +148,7 @@ class TaskTimingService
 
     public static function resolveDueDate(Task $task, string $timezone): ?Carbon
     {
-        if (!$task->due_date) {
+        if (! $task->due_date) {
             return null;
         }
 
@@ -152,7 +157,7 @@ class TaskTimingService
 
     public static function resolveCompletedAt(Task $task, string $timezone): ?Carbon
     {
-        if (!$task->completed_at) {
+        if (! $task->completed_at) {
             return null;
         }
 

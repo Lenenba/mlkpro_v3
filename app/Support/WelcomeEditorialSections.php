@@ -121,11 +121,11 @@ class WelcomeEditorialSections
                 ? "Commencez simplement aujourd'hui, puis évoluez à mesure que l'activité grandit"
                 : 'Start simple now, then expand as your operation grows',
             'body' => $isFrench
-                ? '<p>Explorez la plateforme avec une prochaine étape claire, que vous vouliez commencer gratuitement, comparer les offres ou demander une démonstration.</p>'
-                : '<p>Explore the platform with a clearer next step, whether you want to start free, compare plans, or book a closer walkthrough.</p>',
+                ? '<p>Explorez la plateforme avec une prochaine étape claire, que vous vouliez demarrer un essai, comparer les offres ou demander une demonstration.</p>'
+                : '<p>Explore the platform with a clearer next step, whether you want to start a trial, compare plans, or book a closer walkthrough.</p>',
             'image_url' => $image['image_url'],
             'image_alt' => $image['image_alt'],
-            'primary_label' => $isFrench ? 'Commencer gratuitement' : 'Start free',
+            'primary_label' => $isFrench ? "Demarrer l'essai" : 'Start trial',
             'primary_href' => '/onboarding',
             'secondary_label' => $isFrench ? 'Voir les tarifs' : 'View pricing',
             'secondary_href' => '/pricing',

@@ -2570,15 +2570,27 @@
     },
     "plan": {
       "title": "Choisissez votre forfait",
-      "subtitle": "1 mois gratuit, puis facturation automatique selon votre forfait. Carte requise.",
+      "subtitle": "1 mois d'essai, puis facturation automatique selon votre forfait. Carte requise.",
+      "audience_label": "Contexte du forfait",
       "monthly": "Mensuel",
       "yearly": "Annuel",
       "interval_month": "/mois",
       "interval_year": "/an",
       "yearly_note": "Payez à l'année et économisez {percent}%.",
       "billed_yearly": "Pour 12 mois, facturé annuellement.",
-      "trial_note": "Essai gratuit jusqu'au {date}.",
+      "trial_note": "Essai jusqu'au {date}.",
       "downgrade_note": "Vous pouvez changer de forfait pendant l'essai.",
+      "selection_title": "Forfait selectionne",
+      "audiences": {
+        "solo": {
+          "title": "Forfaits Solo",
+          "description": "Nous affichons les forfaits Solo parce que votre espace est proprietaire uniquement pour l instant. Vous pourrez passer sur Team plus tard sans tout reconstruire."
+        },
+        "team": {
+          "title": "Forfaits Team",
+          "description": "Nous affichons les forfaits Team parce que votre espace inclut {count} personnes. Team ajoute collaboration, permissions et limites plus elevees."
+        }
+      },
       "recommended": "Recommandé",
       "unavailable": "Forfait indisponible"
     },
@@ -2595,7 +2607,7 @@
     "actions": {
       "back": "Retour",
       "continue": "Continuer",
-      "finish": "Demarrer l'essai gratuit",
+      "finish": "Demarrer l'essai",
       "close": "Fermer"
     }
   },
@@ -5522,6 +5534,9 @@
     "actions": {
       "filters": "Filtres",
       "clear": "Effacer",
+      "send_invoice": "Envoyer la facture",
+      "resend_invoice": "Renvoyer la facture",
+      "sending_invoice": "Envoi...",
       "view_invoice": "Voir la facture",
       "view_job": "Voir le chantier",
       "view_customer": "Voir le client"
@@ -6465,6 +6480,9 @@
       "plans": {
         "title": "Abonnement plateforme",
         "subtitle": "Consultez votre plan actif, ajustez votre forfait et gerez l usage IA associe.",
+        "catalog_title": "Forfaits {audience}",
+        "catalog_subtitle_solo": "Le meme coeur produit pour travailler seul, avec une evolution simple vers Team plus tard.",
+        "catalog_subtitle_team": "Le meme coeur produit avec collaboration, permissions et limites plus hautes pour travailler a plusieurs.",
         "advisor": {
           "title": "Changer de forfait",
           "dialog_title": "Assistant de choix de forfait",
@@ -6527,17 +6545,17 @@
               }
             },
             "ai": {
-              "none": {
-                "label": "Pas prioritaire",
-                "description": "L'IA n'est pas un critère important pour l'instant."
+              "light": {
+                "label": "Usage léger",
+                "description": "J ai seulement besoin d un peu d aide IA et de quelques scans chaque mois."
               },
-              "optional": {
-                "label": "Option payante OK",
-                "description": "Je veux garder l'IA disponible si besoin, sans l'inclure forcément."
+              "regular": {
+                "label": "Usage régulier",
+                "description": "Je veux que l IA soutienne l exécution au quotidien sans viser les plus gros volumes."
               },
-              "included": {
-                "label": "Incluse de préférence",
-                "description": "Je préfère un forfait où l'IA fait déjà partie de la proposition."
+              "advanced": {
+                "label": "Usage avancé",
+                "description": "Je prevois un usage plus soutenu de l IA, du scan et de l automatisation."
               }
             }
           },
@@ -6551,8 +6569,9 @@
             "quotes": "Garde une expérience simple pour devis et factures.",
             "operations": "Renforce jobs, tâches et planning au quotidien.",
             "automation": "Ouvre plus d'automatisations, de performance et de workflows avancés.",
-            "ai_optional": "Assistant IA disponible en option.",
-            "ai_included": "Assistant IA déjà inclus dans la proposition.",
+            "ai_light": "Garde un acces IA leger et facile a piloter.",
+            "ai_growth": "Apporte plus de capacite IA et scan pour un usage regulier.",
+            "ai_advanced": "Ajoute plus de marge sur l IA et le scan pour un usage avance.",
             "custom_support": "Permet un accompagnement et un cadrage plus personnalisés."
           }
         }
@@ -6839,7 +6858,7 @@
       "eyebrow": "Conçu pour les entreprises de services qui veulent plus de contrôle",
       "title": "Gérez devis, planning, jobs et facturation dans une plateforme connectée.",
       "subtitle": "Malikia Pro aide les entreprises de services à piloter tout le flux, de la première demande au paiement final, avec plus de visibilité, moins de friction et un meilleur suivi.",
-      "primary_cta": "Commencer gratuitement",
+      "primary_cta": "Demarrer l'essai",
       "secondary_cta": "Voir les tarifs",
       "note": "Une seule plateforme pour gérer clients, devis, interventions, réservations, facturation et coordination quotidienne.",
       "highlights": {
@@ -6962,7 +6981,7 @@
     "cta": {
       "title": "Commencez aujourd'hui avec un flux plus clair",
       "subtitle": "Créez votre espace, explorez la plateforme, puis évoluez vers une coordination plus poussée à mesure que l'activité se complexifie.",
-      "primary": "Démarrer l'essai gratuit",
+      "primary": "Demarrer l'essai",
       "secondary": "Voir les tarifs"
     },
     "images": {
@@ -7075,6 +7094,9 @@
     "switch": {
       "label": "Choisissez votre contexte d'exploitation"
     },
+    "currency": {
+      "label": "Devise"
+    },
     "billing_cycle": {
       "label": "Cycle de facturation",
       "monthly": "Mensuel",
@@ -7114,7 +7136,7 @@
       },
       "solo_pro": {
         "features": {
-          "one": "Tout Solo Essential.",
+          "one": "Tout Solo Core.",
           "two": "Ajoutez jobs et tâches pour mieux suivre l'exécution.",
           "three": "Plus de contrôle au quotidien sans complexité d'équipe.",
           "four": "Le meilleur choix pour les opérateurs solo actifs."
@@ -7122,7 +7144,7 @@
       },
       "solo_growth": {
         "features": {
-          "one": "Tout Solo Pro.",
+          "one": "Tout Solo Growth.",
           "two": "Ajoutez planning et réservations limitées pour gérer plus de flux.",
           "three": "Utilisez IA, campagnes et fidélité dans le même système.",
           "four": "Conçu pour les activités solo avec plus de volume et d'ambition."
@@ -7138,7 +7160,7 @@
       },
       "growth": {
         "features": {
-          "one": "Tout Starter.",
+          "one": "Tout Team Core.",
           "two": "Ajoutez plus de permissions et de profondeur opérationnelle.",
           "three": "Pensé pour les équipes en croissance qui ont besoin de structure.",
           "four": "Le meilleur équilibre pour grandir sans lourdeur inutile."
@@ -7146,7 +7168,7 @@
       },
       "scale": {
         "features": {
-          "one": "Tout Growth.",
+          "one": "Tout Team Growth.",
           "two": "Rapports avancés et pilotage plus large pour les équipes matures.",
           "three": "Onboarding dédié et support renforcé quand la complexité augmente.",
           "four": "Conçu pour les équipes qui ont besoin de plus de profondeur métier."
@@ -7163,12 +7185,12 @@
     },
     "plans": {
       "starter": {
-        "label": "Essentiel",
+        "label": "Team Core",
         "price": "Contactez-nous",
         "desc": "Pour les petites équipes qui mettent en place une organisation plus structurée."
       },
       "pro": {
-        "label": "Professionnel",
+        "label": "Team Growth",
         "badge": "Recommandé",
         "price": "Contactez-nous",
         "desc": "Pour les équipes en croissance qui ont besoin de plus de pilotage."
@@ -7212,8 +7234,8 @@
       }
     },
     "actions": {
-      "plan_trial": "Démarrer l'essai gratuit",
-      "plan_trial_note": "Inclut 1 mois gratuit pendant l'onboarding.",
+      "plan_trial": "Demarrer l'essai",
+      "plan_trial_note": "Inclut 1 mois d'essai pendant l'onboarding.",
       "primary": "Démarrer l'onboarding",
       "secondary": "Se connecter"
     },

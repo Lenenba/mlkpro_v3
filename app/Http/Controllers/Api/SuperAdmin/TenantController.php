@@ -540,19 +540,20 @@ class TenantController extends BaseController
             }
         }
 
+        $legacyPlanKey = app(BillingPlanService::class)->legacyFallbackPlanKey();
         $planModules = PlatformSetting::getValue('plan_modules', []);
-        if (array_key_exists('free', $planModules)) {
-            return 'free';
+        if ($legacyPlanKey && array_key_exists($legacyPlanKey, $planModules)) {
+            return $legacyPlanKey;
         }
 
         $planLimits = PlatformSetting::getValue('plan_limits', []);
-        if (array_key_exists('free', $planLimits)) {
-            return 'free';
+        if ($legacyPlanKey && array_key_exists($legacyPlanKey, $planLimits)) {
+            return $legacyPlanKey;
         }
 
         $plans = config('billing.plans', []);
-        if (array_key_exists('free', $plans)) {
-            return 'free';
+        if ($legacyPlanKey && array_key_exists($legacyPlanKey, $plans)) {
+            return $legacyPlanKey;
         }
 
         return null;
