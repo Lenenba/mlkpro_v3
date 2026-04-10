@@ -9,7 +9,9 @@ use Illuminate\Support\Carbon;
 class AiImageUsageService
 {
     public const CONTEXT_STORE = 'store';
+
     public const CONTEXT_PRODUCT = 'product';
+
     public const FREE_DAILY_LIMIT = 1;
 
     public function contexts(): array
@@ -32,7 +34,7 @@ class AiImageUsageService
 
     public function sourceForContext(string $context): string
     {
-        return 'ai_image_' . $context;
+        return 'ai_image_'.$context;
     }
 
     public function freeUsed(User $user, string $context, ?Carbon $date = null): int
@@ -75,7 +77,9 @@ class AiImageUsageService
     {
         $owner = $this->resolveOwner($user);
 
-        return (int) ($owner->assistant_credit_balance ?? 0);
+        return (int) (User::query()
+            ->whereKey($owner->id)
+            ->value('assistant_credit_balance') ?? 0);
     }
 
     public function consumeCredit(User $user, string $context, int $credits = 1): bool

@@ -13,6 +13,9 @@
   ],
   "tags": [
     {
+      "name": "ai"
+    },
+    {
       "name": "assistant"
     },
     {
@@ -37,6 +40,9 @@
       "name": "dashboard"
     },
     {
+      "name": "global-search"
+    },
+    {
       "name": "integrations"
     },
     {
@@ -52,7 +58,13 @@
       "name": "locale"
     },
     {
+      "name": "marketing"
+    },
+    {
       "name": "notifications"
+    },
+    {
+      "name": "offers"
     },
     {
       "name": "onboarding"
@@ -86,6 +98,9 @@
     },
     {
       "name": "profile"
+    },
+    {
+      "name": "public"
     },
     {
       "name": "push-tokens"
@@ -246,7 +261,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "api.",
+        "summary": "Get authenticated session bootstrap",
         "operationId": "api__get",
         "parameters": [],
         "security": [
@@ -256,7 +271,64 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Authenticated session bootstrap returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "user",
+                    "meta"
+                  ]
+                },
+                "example": {
+                  "user": {
+                    "id": 42,
+                    "name": "Jules Roger",
+                    "email": "owner@example.com",
+                    "company_name": "Acme Studio"
+                  },
+                  "meta": {
+                    "role_name": "owner",
+                    "owner_id": 42,
+                    "is_owner": true,
+                    "is_client": false,
+                    "is_superadmin": false,
+                    "is_platform_admin": false,
+                    "company": {
+                      "name": "Acme Studio",
+                      "type": "services",
+                      "onboarded": true,
+                      "logo_url": "https://example.com/logo.png"
+                    },
+                    "features": {
+                      "assistant": true,
+                      "reservations": true
+                    },
+                    "platform": null,
+                    "team": null
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required to restore the mobile session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message"
+                  ]
+                },
+                "example": {
+                  "message": "Unauthenticated."
+                }
+              }
+            }
           }
         },
         "x-action": "App\\Http\\Controllers\\Api\\AuthController@me",
@@ -264,7 +336,8 @@
           "api",
           "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
           "App\\Http\\Middleware\\EnsureNotSuspended"
-        ]
+        ],
+        "description": "Returns the lean mobile bootstrap contract for the authenticated user. This route is intended for identity, owner context, broad feature visibility, and platform or team membership metadata. It is not the full billing summary contract."
       }
     },
     "/api/v1/auth/register": {
@@ -879,6 +952,44 @@
         ]
       }
     },
+    "/api/v1/campaigns/{campaign}/lead-options": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_8",
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CampaignProspectingController@leadOptions",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
     "/api/v1/campaigns/{campaign}/preview": {
       "post": {
         "tags": [
@@ -917,13 +1028,525 @@
         ]
       }
     },
-    "/api/v1/campaigns/{campaign}/schedule": {
+    "/api/v1/campaigns/{campaign}/prospect-batches": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_9",
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CampaignProspectingController@batches",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{campaign}/prospect-batches/import": {
       "post": {
         "tags": [
           "campaigns"
         ],
         "summary": "api.",
         "operationId": "api__post_16",
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CampaignProspectingController@import",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{campaign}/prospect-batches/{batch}": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_10",
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "batch",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CampaignProspectingController@showBatch",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{campaign}/prospect-batches/{batch}/approve": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_17",
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "batch",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CampaignProspectingController@approveBatch",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{campaign}/prospect-batches/{batch}/reject": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_18",
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "batch",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CampaignProspectingController@rejectBatch",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{campaign}/prospect-provider-preview": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_19",
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CampaignProspectingController@providerPreview",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{campaign}/prospects": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_11",
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CampaignProspectingController@prospects",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{campaign}/prospects/bulk-status": {
+      "patch": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "api.",
+        "operationId": "api__patch",
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CampaignProspectingController@bulkUpdateProspects",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{campaign}/prospects/{prospect}": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_12",
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "prospect",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CampaignProspectingController@showProspect",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{campaign}/prospects/{prospect}/convert-to-lead": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_20",
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "prospect",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CampaignProspectingController@convertProspectToLead",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{campaign}/prospects/{prospect}/link-to-lead": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_21",
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "prospect",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CampaignProspectingController@linkProspectToLead",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{campaign}/prospects/{prospect}/status": {
+      "patch": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "api.",
+        "operationId": "api__patch_2",
+        "parameters": [
+          {
+            "name": "campaign",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "prospect",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CampaignProspectingController@updateProspectStatus",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{campaign}/schedule": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_22",
         "parameters": [
           {
             "name": "campaign",
@@ -961,7 +1584,7 @@
           "campaigns"
         ],
         "summary": "api.",
-        "operationId": "api__post_17",
+        "operationId": "api__post_23",
         "parameters": [
           {
             "name": "campaign",
@@ -999,7 +1622,7 @@
           "campaigns"
         ],
         "summary": "api.",
-        "operationId": "api__post_18",
+        "operationId": "api__post_24",
         "parameters": [
           {
             "name": "campaign",
@@ -1091,7 +1714,7 @@
           "customer"
         ],
         "summary": "api.",
-        "operationId": "api__post_19",
+        "operationId": "api__post_25",
         "parameters": [],
         "security": [
           {
@@ -1158,7 +1781,7 @@
           "customer"
         ],
         "summary": "api.",
-        "operationId": "api__get_8",
+        "operationId": "api__get_13",
         "parameters": [
           {
             "name": "quote",
@@ -1196,7 +1819,7 @@
           "customer"
         ],
         "summary": "api.",
-        "operationId": "api__post_20",
+        "operationId": "api__post_26",
         "parameters": [
           {
             "name": "quote",
@@ -1234,7 +1857,7 @@
           "customer"
         ],
         "summary": "api.",
-        "operationId": "api__get_9",
+        "operationId": "api__get_14",
         "parameters": [
           {
             "name": "quote",
@@ -1452,7 +2075,7 @@
           "customer"
         ],
         "summary": "api.",
-        "operationId": "api__patch",
+        "operationId": "api__patch_3",
         "parameters": [
           {
             "name": "customer",
@@ -1489,7 +2112,7 @@
           "customer"
         ],
         "summary": "api.",
-        "operationId": "api__patch_2",
+        "operationId": "api__patch_4",
         "parameters": [
           {
             "name": "customer",
@@ -1526,7 +2149,7 @@
           "customer"
         ],
         "summary": "api.",
-        "operationId": "api__post_21",
+        "operationId": "api__post_27",
         "parameters": [
           {
             "name": "customer",
@@ -1696,7 +2319,7 @@
           "customer"
         ],
         "summary": "api.",
-        "operationId": "api__get_10",
+        "operationId": "api__get_15",
         "parameters": [
           {
             "name": "customer",
@@ -1734,7 +2357,7 @@
           "customer"
         ],
         "summary": "api.",
-        "operationId": "api__patch_3",
+        "operationId": "api__patch_5",
         "parameters": [
           {
             "name": "customer",
@@ -1771,7 +2394,7 @@
           "customers"
         ],
         "summary": "api.",
-        "operationId": "api__get_11",
+        "operationId": "api__get_16",
         "parameters": [],
         "security": [
           {
@@ -1799,7 +2422,7 @@
           "customers"
         ],
         "summary": "api.",
-        "operationId": "api__post_22",
+        "operationId": "api__post_28",
         "parameters": [],
         "security": [
           {
@@ -1827,7 +2450,7 @@
           "dashboard"
         ],
         "summary": "api.",
-        "operationId": "api__get_12",
+        "operationId": "api__get_17",
         "parameters": [],
         "security": [
           {
@@ -1855,7 +2478,7 @@
           "integrations"
         ],
         "summary": "api.",
-        "operationId": "api__get_13",
+        "operationId": "api__get_18",
         "parameters": [],
         "security": [
           {
@@ -1883,7 +2506,7 @@
           "integrations"
         ],
         "summary": "api.",
-        "operationId": "api__get_14",
+        "operationId": "api__get_19",
         "parameters": [],
         "security": [
           {
@@ -1911,7 +2534,7 @@
           "integrations"
         ],
         "summary": "api.",
-        "operationId": "api__get_15",
+        "operationId": "api__get_20",
         "parameters": [],
         "security": [
           {
@@ -1939,7 +2562,7 @@
           "integrations"
         ],
         "summary": "api.",
-        "operationId": "api__get_16",
+        "operationId": "api__get_21",
         "parameters": [
           {
             "name": "product",
@@ -1976,7 +2599,7 @@
           "integrations"
         ],
         "summary": "api.",
-        "operationId": "api__post_23",
+        "operationId": "api__post_29",
         "parameters": [
           {
             "name": "product",
@@ -2041,7 +2664,7 @@
           "integrations"
         ],
         "summary": "api.",
-        "operationId": "api__get_17",
+        "operationId": "api__get_22",
         "parameters": [],
         "security": [
           {
@@ -2069,7 +2692,7 @@
           "invoice"
         ],
         "summary": "api.",
-        "operationId": "api__post_24",
+        "operationId": "api__post_30",
         "parameters": [
           {
             "name": "invoice",
@@ -2106,7 +2729,7 @@
           "invoices"
         ],
         "summary": "api.",
-        "operationId": "api__get_18",
+        "operationId": "api__get_23",
         "parameters": [],
         "security": [
           {
@@ -2135,7 +2758,7 @@
           "invoices"
         ],
         "summary": "api.",
-        "operationId": "api__get_19",
+        "operationId": "api__get_24",
         "parameters": [
           {
             "name": "invoice",
@@ -2173,7 +2796,7 @@
           "invoices"
         ],
         "summary": "api.",
-        "operationId": "api__get_20",
+        "operationId": "api__get_25",
         "parameters": [
           {
             "name": "invoice",
@@ -2211,7 +2834,7 @@
           "jobs"
         ],
         "summary": "api.",
-        "operationId": "api__get_21",
+        "operationId": "api__get_26",
         "parameters": [],
         "security": [
           {
@@ -2240,7 +2863,7 @@
           "locale"
         ],
         "summary": "api.",
-        "operationId": "api__post_25",
+        "operationId": "api__post_31",
         "parameters": [],
         "security": [
           {
@@ -2262,13 +2885,1231 @@
         ]
       }
     },
+    "/api/v1/marketing/customers/{customer}/vip": {
+      "patch": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__patch_6",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingVipController@updateCustomer",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/dashboard/kpis": {
+      "get": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_27",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingDashboardKpiController",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/mailing-lists": {
+      "get": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_28",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingMailingListController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      },
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_32",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingMailingListController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/mailing-lists/{mailingList}": {
+      "get": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_29",
+        "parameters": [
+          {
+            "name": "mailingList",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingMailingListController@show",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      },
+      "put": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__put_6",
+        "parameters": [
+          {
+            "name": "mailingList",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingMailingListController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__delete_5",
+        "parameters": [
+          {
+            "name": "mailingList",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingMailingListController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/mailing-lists/{mailingList}/count": {
+      "get": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_30",
+        "parameters": [
+          {
+            "name": "mailingList",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingMailingListController@count",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/mailing-lists/{mailingList}/import": {
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_33",
+        "parameters": [
+          {
+            "name": "mailingList",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingMailingListController@import",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/mailing-lists/{mailingList}/remove-customers": {
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_34",
+        "parameters": [
+          {
+            "name": "mailingList",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingMailingListController@removeCustomers",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/mailing-lists/{mailingList}/sync-customers": {
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_35",
+        "parameters": [
+          {
+            "name": "mailingList",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingMailingListController@syncCustomers",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/meta": {
+      "get": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_31",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingMetaController",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/prospect-providers": {
+      "get": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_32",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingProspectProviderConnectionController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      },
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_36",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingProspectProviderConnectionController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/prospect-providers/{connection}": {
+      "put": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__put_7",
+        "parameters": [
+          {
+            "name": "connection",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingProspectProviderConnectionController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/prospect-providers/{connection}/disconnect": {
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_37",
+        "parameters": [
+          {
+            "name": "connection",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingProspectProviderConnectionController@disconnect",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/prospect-providers/{connection}/validate": {
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_38",
+        "parameters": [
+          {
+            "name": "connection",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingProspectProviderConnectionController@validateConnection",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/segments": {
+      "get": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_33",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingSegmentController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      },
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_39",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingSegmentController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/segments/preview-count": {
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_40",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingSegmentController@previewCount",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/segments/{segment}": {
+      "get": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_34",
+        "parameters": [
+          {
+            "name": "segment",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingSegmentController@show",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      },
+      "put": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__put_8",
+        "parameters": [
+          {
+            "name": "segment",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingSegmentController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__delete_6",
+        "parameters": [
+          {
+            "name": "segment",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingSegmentController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/segments/{segment}/count": {
+      "get": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_35",
+        "parameters": [
+          {
+            "name": "segment",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingSegmentController@count",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/templates": {
+      "get": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_36",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingTemplateController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      },
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_41",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingTemplateController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/templates/preview": {
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_42",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingTemplateController@preview",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/templates/{template}": {
+      "get": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_37",
+        "parameters": [
+          {
+            "name": "template",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingTemplateController@show",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      },
+      "put": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__put_9",
+        "parameters": [
+          {
+            "name": "template",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingTemplateController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__delete_7",
+        "parameters": [
+          {
+            "name": "template",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingTemplateController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/templates/{template}/duplicate": {
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_43",
+        "parameters": [
+          {
+            "name": "template",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingTemplateController@duplicate",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/templates/{template}/preview": {
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_44",
+        "parameters": [
+          {
+            "name": "template",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingTemplateController@previewTemplate",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/vip-tiers": {
+      "get": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_38",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingVipController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      },
+      "post": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_45",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingVipController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/marketing/vip-tiers/{vipTier}": {
+      "put": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__put_10",
+        "parameters": [
+          {
+            "name": "vipTier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingVipController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "marketing"
+        ],
+        "summary": "api.",
+        "operationId": "api__delete_8",
+        "parameters": [
+          {
+            "name": "vipTier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\MarketingVipController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
     "/api/v1/notifications": {
       "get": {
         "tags": [
           "notifications"
         ],
         "summary": "api.",
-        "operationId": "api__get_22",
+        "operationId": "api__get_39",
         "parameters": [],
         "security": [
           {
@@ -2296,7 +4137,7 @@
           "notifications"
         ],
         "summary": "api.",
-        "operationId": "api__post_26",
+        "operationId": "api__post_46",
         "parameters": [],
         "security": [
           {
@@ -2324,7 +4165,7 @@
           "notifications"
         ],
         "summary": "api.",
-        "operationId": "api__get_23",
+        "operationId": "api__get_40",
         "parameters": [],
         "security": [
           {
@@ -2350,7 +4191,7 @@
           "notifications"
         ],
         "summary": "api.",
-        "operationId": "api__put_6",
+        "operationId": "api__put_11",
         "parameters": [],
         "security": [
           {
@@ -2378,7 +4219,7 @@
           "notifications"
         ],
         "summary": "api.",
-        "operationId": "api__post_27",
+        "operationId": "api__post_47",
         "parameters": [
           {
             "name": "notification",
@@ -2409,13 +4250,13 @@
         ]
       }
     },
-    "/api/v1/onboarding": {
+    "/api/v1/offers/search": {
       "get": {
         "tags": [
-          "onboarding"
+          "offers"
         ],
         "summary": "api.",
-        "operationId": "api__get_24",
+        "operationId": "api__get_41",
         "parameters": [],
         "security": [
           {
@@ -2427,20 +4268,132 @@
             "description": "Success"
           }
         },
+        "x-action": "App\\Http\\Controllers\\OfferSearchController@search",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
+    "/api/v1/onboarding": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Get onboarding state",
+        "operationId": "api__get_42",
+        "parameters": [
+          {
+            "name": "plan",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional preselected plan key.",
+            "example": "solo_pro"
+          },
+          {
+            "name": "billing_period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "monthly",
+                "yearly"
+              ]
+            },
+            "description": "Optional preselected billing period.",
+            "example": "yearly"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Normalized onboarding payload returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "message",
+                    "account",
+                    "onboarding",
+                    "preset",
+                    "plans",
+                    "plan_limits"
+                  ]
+                },
+                "example": {
+                  "status": "ready",
+                  "message": null,
+                  "account": {
+                    "is_authenticated": true,
+                    "is_owner": true,
+                    "onboarding_completed": false,
+                    "onboarding_completed_at": null
+                  },
+                  "onboarding": {
+                    "state": "ready",
+                    "can_complete": true,
+                    "requires_checkout": true,
+                    "selected_plan_key": "solo_pro",
+                    "selected_billing_period": "yearly",
+                    "supported_currencies": [
+                      "CAD",
+                      "USD"
+                    ]
+                  },
+                  "preset": {
+                    "company_name": "Acme Studio",
+                    "currency_code": "CAD",
+                    "company_type": "services",
+                    "company_sector": "salon",
+                    "company_team_size": 1
+                  },
+                  "plans": [
+                    {
+                      "key": "solo_pro",
+                      "audience": "solo"
+                    }
+                  ],
+                  "plan_limits": {
+                    "solo_pro": {
+                      "team_members_min": 1,
+                      "team_members_max": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         "x-action": "App\\Http\\Controllers\\OnboardingController@index",
         "x-middleware": [
           "api",
           "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
           "App\\Http\\Middleware\\EnsureInternalUser",
           "App\\Http\\Middleware\\EnsureNotSuspended"
-        ]
+        ],
+        "description": "Returns the normalized onboarding bootstrap payload used by mobile onboarding flows."
       },
       "post": {
         "tags": [
           "onboarding"
         ],
-        "summary": "api.",
-        "operationId": "api__post_28",
+        "summary": "Submit onboarding",
+        "operationId": "api__post_48",
         "parameters": [],
         "security": [
           {
@@ -2448,8 +4401,62 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "Onboarding completed immediately or a checkout URL was generated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                },
+                "example": {
+                  "checkout_url": "https://checkout.stripe.test/onboarding-session"
+                }
+              }
+            }
+          },
           "201": {
             "description": "Success"
+          },
+          "403": {
+            "description": "Only the account owner can complete onboarding.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message"
+                  ]
+                },
+                "example": {
+                  "message": "Only the account owner can complete onboarding."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error while submitting onboarding.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "errors"
+                  ]
+                },
+                "example": {
+                  "message": "The given data was invalid.",
+                  "errors": {
+                    "plan_key": [
+                      "Billing is not configured yet."
+                    ]
+                  }
+                }
+              }
+            }
           }
         },
         "x-action": "App\\Http\\Controllers\\OnboardingController@store",
@@ -2458,7 +4465,242 @@
           "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
           "App\\Http\\Middleware\\EnsureInternalUser",
           "App\\Http\\Middleware\\EnsureNotSuspended"
-        ]
+        ],
+        "description": "Completes onboarding directly or starts a Stripe checkout flow depending on the current billing configuration.",
+        "requestBody": {
+          "required": true,
+          "description": "Onboarding company, plan, and invite data.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "company_name": {
+                    "type": "string"
+                  },
+                  "company_type": {
+                    "type": "string",
+                    "enum": [
+                      "services",
+                      "products"
+                    ]
+                  },
+                  "company_sector": {
+                    "type": "string"
+                  },
+                  "currency_code": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "company_team_size": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "plan_key": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "billing_period": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "accept_terms": {
+                    "type": "boolean"
+                  },
+                  "two_factor_method": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "invites": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "admin",
+                            "member"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "email",
+                        "role"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "company_name",
+                  "company_type",
+                  "company_sector"
+                ]
+              },
+              "example": {
+                "company_name": "Acme Studio",
+                "company_type": "services",
+                "company_sector": "salon",
+                "currency_code": "CAD",
+                "company_team_size": 1,
+                "plan_key": "solo_pro",
+                "billing_period": "yearly",
+                "accept_terms": true,
+                "two_factor_method": "email",
+                "invites": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/onboarding/billing": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Finalize onboarding billing callback",
+        "operationId": "api__get_43",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "success",
+                "cancel"
+              ]
+            },
+            "description": "Checkout callback status.",
+            "example": "success"
+          },
+          {
+            "name": "session_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stripe checkout session id required for success.",
+            "example": "{CHECKOUT_SESSION_ID}"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Onboarding checkout completed successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "message",
+                    "onboarding_completed",
+                    "user"
+                  ]
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Onboarding completed.",
+                  "onboarding_completed": true,
+                  "user": {
+                    "id": 42,
+                    "company_name": "Acme Studio"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only the account owner can complete onboarding.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "message",
+                    "onboarding_completed"
+                  ]
+                },
+                "example": {
+                  "status": "forbidden",
+                  "message": "Only the account owner can complete onboarding.",
+                  "onboarding_completed": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Checkout was canceled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "message",
+                    "onboarding_completed"
+                  ]
+                },
+                "example": {
+                  "status": "canceled",
+                  "message": "Checkout canceled.",
+                  "onboarding_completed": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Checkout callback could not be completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "message",
+                    "onboarding_completed"
+                  ]
+                },
+                "example": {
+                  "status": "error",
+                  "message": "Checkout session is missing.",
+                  "onboarding_completed": false
+                }
+              }
+            }
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\OnboardingController@billing",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended"
+        ],
+        "description": "Refreshes onboarding state after the external Stripe checkout returns to the app."
       }
     },
     "/api/v1/orders": {
@@ -2467,7 +4709,7 @@
           "orders"
         ],
         "summary": "api.",
-        "operationId": "api__get_25",
+        "operationId": "api__get_44",
         "parameters": [],
         "security": [
           {
@@ -2496,7 +4738,7 @@
           "performance"
         ],
         "summary": "api.",
-        "operationId": "api__get_26",
+        "operationId": "api__get_45",
         "parameters": [],
         "security": [
           {
@@ -2525,7 +4767,7 @@
           "performance"
         ],
         "summary": "api.",
-        "operationId": "api__get_27",
+        "operationId": "api__get_46",
         "parameters": [
           {
             "name": "employee",
@@ -2562,9 +4804,37 @@
         "tags": [
           "pipeline"
         ],
-        "summary": "api.",
-        "operationId": "api__get_28",
-        "parameters": [],
+        "summary": "Get canonical pipeline timeline data",
+        "operationId": "api__get_47",
+        "parameters": [
+          {
+            "name": "entityType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "request",
+                "quote",
+                "job",
+                "task",
+                "invoice"
+              ]
+            },
+            "description": "Pipeline source entity type.",
+            "example": "task"
+          },
+          {
+            "name": "entityId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Identifier of the source entity inside the current owner workspace.",
+            "example": "202"
+          }
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -2572,7 +4842,189 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Canonical pipeline payload returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "source",
+                    "request",
+                    "quote",
+                    "job",
+                    "tasks",
+                    "invoice",
+                    "billing",
+                    "derived"
+                  ]
+                },
+                "example": {
+                  "source": {
+                    "type": "task",
+                    "id": "202"
+                  },
+                  "request": {
+                    "id": 101,
+                    "title": "Pipeline Request",
+                    "service_type": "Landscaping",
+                    "status": "REQ_QUOTE_SENT",
+                    "created_at": "2026-04-10T14:00:00Z",
+                    "converted_at": null,
+                    "customer": {
+                      "id": 88,
+                      "name": "Pipeline Client",
+                      "email": "pipeline-client@example.test",
+                      "phone": "+15555550100"
+                    }
+                  },
+                  "quote": {
+                    "id": 303,
+                    "number": "Q-0001",
+                    "status": "accepted",
+                    "job_title": "Pipeline Quote",
+                    "total": 1200,
+                    "subtotal": 1000,
+                    "created_at": "2026-04-10T14:15:00Z",
+                    "accepted_at": "2026-04-10T14:20:00Z",
+                    "customer": {
+                      "id": 88,
+                      "name": "Pipeline Client",
+                      "email": "pipeline-client@example.test",
+                      "phone": "+15555550100"
+                    }
+                  },
+                  "job": {
+                    "id": 404,
+                    "number": "W-0001",
+                    "job_title": "Pipeline Job",
+                    "status": "in_progress",
+                    "start_date": "2026-04-10",
+                    "end_date": "2026-04-11",
+                    "total": 1200,
+                    "subtotal": 1000,
+                    "customer": {
+                      "id": 88,
+                      "name": "Pipeline Client",
+                      "email": "pipeline-client@example.test",
+                      "phone": "+15555550100"
+                    }
+                  },
+                  "tasks": [
+                    {
+                      "id": 202,
+                      "title": "Completed billed task",
+                      "status": "done",
+                      "due_date": "2026-04-10",
+                      "completed_at": "2026-04-10T16:00:00Z",
+                      "assignee": "Pipeline Worker",
+                      "billable": true,
+                      "billing_status": "partial",
+                      "invoice_id": 505
+                    },
+                    {
+                      "id": 203,
+                      "title": "Pending unbilled task",
+                      "status": "todo",
+                      "due_date": "2026-04-11",
+                      "completed_at": null,
+                      "assignee": null,
+                      "billable": true,
+                      "billing_status": "unbilled",
+                      "invoice_id": null
+                    }
+                  ],
+                  "invoice": {
+                    "id": 505,
+                    "number": "I-0001",
+                    "status": "partial",
+                    "total": 800,
+                    "amount_paid": 300,
+                    "balance_due": 500,
+                    "created_at": "2026-04-10T16:30:00Z",
+                    "customer": {
+                      "id": 88,
+                      "name": "Pipeline Client",
+                      "email": "pipeline-client@example.test",
+                      "phone": "+15555550100"
+                    }
+                  },
+                  "billing": {
+                    "quote_total": 1200,
+                    "invoice_total": 800,
+                    "remaining_to_bill": 400,
+                    "amount_paid": 300,
+                    "balance_due": 500
+                  },
+                  "derived": {
+                    "completeness": 100,
+                    "globalStatus": "partial",
+                    "alerts": [
+                      "Tasks pending."
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only the account owner can inspect the full owner pipeline contract.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message"
+                  ]
+                },
+                "example": {
+                  "message": "This action is unauthorized."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Owners must complete onboarding before loading pipeline data.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "onboarding_required"
+                  ]
+                },
+                "example": {
+                  "message": "Onboarding required.",
+                  "onboarding_required": true
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The entity type or entity id is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "errors"
+                  ]
+                },
+                "example": {
+                  "message": "The given data was invalid.",
+                  "errors": {
+                    "entityType": [
+                      "The selected entity type is invalid."
+                    ]
+                  }
+                }
+              }
+            }
           }
         },
         "x-action": "App\\Http\\Controllers\\PipelineController@data",
@@ -2582,7 +5034,8 @@
           "App\\Http\\Middleware\\EnsureInternalUser",
           "App\\Http\\Middleware\\EnsureNotSuspended",
           "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
-        ]
+        ],
+        "description": "Returns the canonical mobile pipeline contract for request, quote, job, task, and invoice timeline flows. This is the JSON route mobile should call. The web-only `/pipeline/timeline/{entityType}/{entityId}` route remains an Inertia wrapper and is not the canonical API entry point."
       }
     },
     "/api/v1/plan-scans": {
@@ -2591,7 +5044,7 @@
           "plan-scans"
         ],
         "summary": "api.",
-        "operationId": "api__get_29",
+        "operationId": "api__get_48",
         "parameters": [],
         "security": [
           {
@@ -2619,7 +5072,7 @@
           "plan-scans"
         ],
         "summary": "api.",
-        "operationId": "api__post_29",
+        "operationId": "api__post_49",
         "parameters": [],
         "security": [
           {
@@ -2649,7 +5102,7 @@
           "plan-scans"
         ],
         "summary": "api.",
-        "operationId": "api__get_30",
+        "operationId": "api__get_49",
         "parameters": [],
         "security": [
           {
@@ -2679,7 +5132,7 @@
           "plan-scans"
         ],
         "summary": "api.",
-        "operationId": "api__get_31",
+        "operationId": "api__get_50",
         "parameters": [
           {
             "name": "planScan",
@@ -2710,6 +5163,43 @@
           "App\\Http\\Middleware\\EnsureCompanyFeature:quotes",
           "App\\Http\\Middleware\\EnsureCompanyFeature:plan_scans"
         ]
+      },
+      "delete": {
+        "tags": [
+          "plan-scans"
+        ],
+        "summary": "api.",
+        "operationId": "api__delete_9",
+        "parameters": [
+          {
+            "name": "planScan",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\PlanScanController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:plan_scans"
+        ]
       }
     },
     "/api/v1/plan-scans/{planScan}/convert": {
@@ -2718,7 +5208,7 @@
           "plan-scans"
         ],
         "summary": "api.",
-        "operationId": "api__post_30",
+        "operationId": "api__post_50",
         "parameters": [
           {
             "name": "planScan",
@@ -2751,13 +5241,91 @@
         ]
       }
     },
+    "/api/v1/plan-scans/{planScan}/reanalyze": {
+      "post": {
+        "tags": [
+          "plan-scans"
+        ],
+        "summary": "api.",
+        "operationId": "api__post_51",
+        "parameters": [
+          {
+            "name": "planScan",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\PlanScanController@reanalyze",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:plan_scans"
+        ]
+      }
+    },
+    "/api/v1/plan-scans/{planScan}/review": {
+      "patch": {
+        "tags": [
+          "plan-scans"
+        ],
+        "summary": "api.",
+        "operationId": "api__patch_7",
+        "parameters": [
+          {
+            "name": "planScan",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\PlanScanController@review",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:plan_scans"
+        ]
+      }
+    },
     "/api/v1/planning": {
       "get": {
         "tags": [
           "planning"
         ],
         "summary": "api.",
-        "operationId": "api__get_32",
+        "operationId": "api__get_51",
         "parameters": [],
         "security": [
           {
@@ -2786,7 +5354,7 @@
           "planning"
         ],
         "summary": "api.",
-        "operationId": "api__get_33",
+        "operationId": "api__get_52",
         "parameters": [],
         "security": [
           {
@@ -2815,7 +5383,7 @@
           "planning"
         ],
         "summary": "api.",
-        "operationId": "api__post_31",
+        "operationId": "api__post_52",
         "parameters": [],
         "security": [
           {
@@ -2844,7 +5412,7 @@
           "planning"
         ],
         "summary": "api.",
-        "operationId": "api__patch_4",
+        "operationId": "api__patch_8",
         "parameters": [
           {
             "name": "shift",
@@ -2880,7 +5448,7 @@
           "planning"
         ],
         "summary": "api.",
-        "operationId": "api__delete_5",
+        "operationId": "api__delete_10",
         "parameters": [
           {
             "name": "shift",
@@ -2918,7 +5486,7 @@
           "planning"
         ],
         "summary": "api.",
-        "operationId": "api__patch_5",
+        "operationId": "api__patch_9",
         "parameters": [
           {
             "name": "shift",
@@ -2956,7 +5524,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__get_34",
+        "operationId": "api__get_53",
         "parameters": [],
         "security": [
           {
@@ -2983,7 +5551,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_32",
+        "operationId": "api__post_53",
         "parameters": [
           {
             "name": "invoice",
@@ -3019,7 +5587,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__get_35",
+        "operationId": "api__get_54",
         "parameters": [],
         "security": [
           {
@@ -3046,7 +5614,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_33",
+        "operationId": "api__post_54",
         "parameters": [],
         "security": [
           {
@@ -3073,7 +5641,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_34",
+        "operationId": "api__post_55",
         "parameters": [
           {
             "name": "notification",
@@ -3109,7 +5677,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__get_36",
+        "operationId": "api__get_55",
         "parameters": [],
         "security": [
           {
@@ -3134,7 +5702,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_35",
+        "operationId": "api__post_56",
         "parameters": [],
         "security": [
           {
@@ -3161,7 +5729,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__get_37",
+        "operationId": "api__get_56",
         "parameters": [],
         "security": [
           {
@@ -3188,7 +5756,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__get_38",
+        "operationId": "api__get_57",
         "parameters": [
           {
             "name": "sale",
@@ -3222,7 +5790,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__put_7",
+        "operationId": "api__put_12",
         "parameters": [
           {
             "name": "sale",
@@ -3256,7 +5824,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__delete_6",
+        "operationId": "api__delete_11",
         "parameters": [
           {
             "name": "sale",
@@ -3292,7 +5860,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_36",
+        "operationId": "api__post_57",
         "parameters": [
           {
             "name": "sale",
@@ -3328,7 +5896,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__get_39",
+        "operationId": "api__get_58",
         "parameters": [
           {
             "name": "sale",
@@ -3364,7 +5932,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_37",
+        "operationId": "api__post_58",
         "parameters": [
           {
             "name": "sale",
@@ -3400,7 +5968,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_38",
+        "operationId": "api__post_59",
         "parameters": [
           {
             "name": "sale",
@@ -3436,7 +6004,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_39",
+        "operationId": "api__post_60",
         "parameters": [
           {
             "name": "quote",
@@ -3472,7 +6040,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_40",
+        "operationId": "api__post_61",
         "parameters": [
           {
             "name": "quote",
@@ -3508,7 +6076,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_41",
+        "operationId": "api__post_62",
         "parameters": [
           {
             "name": "quote",
@@ -3544,7 +6112,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__get_40",
+        "operationId": "api__get_59",
         "parameters": [],
         "security": [
           {
@@ -3572,7 +6140,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__get_41",
+        "operationId": "api__get_60",
         "parameters": [],
         "security": [
           {
@@ -3598,7 +6166,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_42",
+        "operationId": "api__post_63",
         "parameters": [],
         "security": [
           {
@@ -3626,7 +6194,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__get_42",
+        "operationId": "api__get_61",
         "parameters": [],
         "security": [
           {
@@ -3654,7 +6222,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__get_43",
+        "operationId": "api__get_62",
         "parameters": [],
         "security": [
           {
@@ -3682,7 +6250,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__patch_6",
+        "operationId": "api__patch_10",
         "parameters": [
           {
             "name": "reservation",
@@ -3719,7 +6287,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__patch_7",
+        "operationId": "api__patch_11",
         "parameters": [
           {
             "name": "reservation",
@@ -3756,7 +6324,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_43",
+        "operationId": "api__post_64",
         "parameters": [
           {
             "name": "reservation",
@@ -3793,7 +6361,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_44",
+        "operationId": "api__post_65",
         "parameters": [
           {
             "name": "task",
@@ -3829,7 +6397,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_45",
+        "operationId": "api__post_66",
         "parameters": [
           {
             "name": "work",
@@ -3865,7 +6433,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__get_44",
+        "operationId": "api__get_63",
         "parameters": [
           {
             "name": "work",
@@ -3901,7 +6469,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_46",
+        "operationId": "api__post_67",
         "parameters": [
           {
             "name": "work",
@@ -3937,7 +6505,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_47",
+        "operationId": "api__post_68",
         "parameters": [
           {
             "name": "work",
@@ -3973,7 +6541,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_48",
+        "operationId": "api__post_69",
         "parameters": [
           {
             "name": "work",
@@ -4009,7 +6577,7 @@
           "portal"
         ],
         "summary": "api.",
-        "operationId": "api__post_49",
+        "operationId": "api__post_70",
         "parameters": [
           {
             "name": "work",
@@ -4045,7 +6613,7 @@
           "presence"
         ],
         "summary": "api.",
-        "operationId": "api__get_45",
+        "operationId": "api__get_64",
         "parameters": [],
         "security": [
           {
@@ -4074,7 +6642,7 @@
           "presence"
         ],
         "summary": "api.",
-        "operationId": "api__post_50",
+        "operationId": "api__post_71",
         "parameters": [],
         "security": [
           {
@@ -4103,7 +6671,7 @@
           "presence"
         ],
         "summary": "api.",
-        "operationId": "api__post_51",
+        "operationId": "api__post_72",
         "parameters": [],
         "security": [
           {
@@ -4188,7 +6756,7 @@
           "product"
         ],
         "summary": "api.",
-        "operationId": "api__post_52",
+        "operationId": "api__post_73",
         "parameters": [],
         "security": [
           {
@@ -4217,7 +6785,7 @@
           "product"
         ],
         "summary": "api.",
-        "operationId": "api__get_46",
+        "operationId": "api__get_65",
         "parameters": [],
         "security": [
           {
@@ -4246,7 +6814,7 @@
           "product"
         ],
         "summary": "api.",
-        "operationId": "api__post_53",
+        "operationId": "api__post_74",
         "parameters": [],
         "security": [
           {
@@ -4275,7 +6843,7 @@
           "product"
         ],
         "summary": "api.",
-        "operationId": "api__get_47",
+        "operationId": "api__get_66",
         "parameters": [],
         "security": [
           {
@@ -4304,7 +6872,7 @@
           "product"
         ],
         "summary": "api.",
-        "operationId": "api__get_48",
+        "operationId": "api__get_67",
         "parameters": [],
         "security": [
           {
@@ -4479,7 +7047,7 @@
           "product"
         ],
         "summary": "api.",
-        "operationId": "api__post_54",
+        "operationId": "api__post_75",
         "parameters": [
           {
             "name": "product",
@@ -4517,7 +7085,7 @@
           "product"
         ],
         "summary": "api.",
-        "operationId": "api__post_55",
+        "operationId": "api__post_76",
         "parameters": [
           {
             "name": "product",
@@ -4555,7 +7123,7 @@
           "product"
         ],
         "summary": "api.",
-        "operationId": "api__put_8",
+        "operationId": "api__put_13",
         "parameters": [
           {
             "name": "product",
@@ -4593,7 +7161,7 @@
           "product"
         ],
         "summary": "api.",
-        "operationId": "api__post_56",
+        "operationId": "api__post_77",
         "parameters": [
           {
             "name": "product",
@@ -4631,7 +7199,7 @@
           "products"
         ],
         "summary": "api.",
-        "operationId": "api__post_57",
+        "operationId": "api__post_78",
         "parameters": [],
         "security": [
           {
@@ -4660,7 +7228,7 @@
           "products"
         ],
         "summary": "api.",
-        "operationId": "api__get_49",
+        "operationId": "api__get_68",
         "parameters": [],
         "security": [
           {
@@ -4689,7 +7257,7 @@
           "products"
         ],
         "summary": "api.",
-        "operationId": "api__post_58",
+        "operationId": "api__post_79",
         "parameters": [],
         "security": [
           {
@@ -4718,7 +7286,7 @@
           "profile"
         ],
         "summary": "api.",
-        "operationId": "api__get_50",
+        "operationId": "api__get_69",
         "parameters": [],
         "security": [
           {
@@ -4744,7 +7312,7 @@
           "profile"
         ],
         "summary": "api.",
-        "operationId": "api__patch_8",
+        "operationId": "api__patch_12",
         "parameters": [],
         "security": [
           {
@@ -4770,7 +7338,7 @@
           "profile"
         ],
         "summary": "api.",
-        "operationId": "api__delete_7",
+        "operationId": "api__delete_12",
         "parameters": [],
         "security": [
           {
@@ -4792,13 +7360,161 @@
         ]
       }
     },
+    "/api/v1/public/pricing": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Get public pricing catalog",
+        "operationId": "api_public_pricing_get",
+        "parameters": [
+          {
+            "name": "audience",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "solo",
+                "team"
+              ]
+            },
+            "description": "Optional audience filter.",
+            "example": "team"
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CAD",
+                "USD",
+                "EUR"
+              ]
+            },
+            "description": "Optional display currency.",
+            "example": "USD"
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional comma-separated includes.",
+            "example": "comparison_sections"
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Public pricing catalog returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "currency_code",
+                    "default_audience",
+                    "audience",
+                    "available_audiences",
+                    "highlighted_plan_key",
+                    "plans",
+                    "comparison_sections"
+                  ]
+                },
+                "example": {
+                  "currency_code": "USD",
+                  "default_audience": "team",
+                  "audience": "team",
+                  "available_audiences": [
+                    "solo",
+                    "team"
+                  ],
+                  "highlighted_plan_key": "growth",
+                  "plans": [
+                    {
+                      "key": "starter",
+                      "audience": "team",
+                      "onboarding_enabled": true,
+                      "prices_by_period": {
+                        "monthly": {
+                          "billing_period": "monthly",
+                          "currency_code": "USD",
+                          "display_price": "$29.00/mo",
+                          "is_discounted": true,
+                          "promotion": {
+                            "is_active": true,
+                            "discount_percent": 25
+                          },
+                          "billing_subtitle": "Billed monthly"
+                        },
+                        "yearly": {
+                          "billing_period": "yearly",
+                          "currency_code": "USD",
+                          "display_price": "$24.00/mo",
+                          "is_discounted": true,
+                          "promotion": {
+                            "is_active": true,
+                            "discount_percent": 35
+                          },
+                          "billing_subtitle": "For 12 months, billed annually"
+                        }
+                      }
+                    }
+                  ],
+                  "comparison_sections": [
+                    {
+                      "id": "core-workflow",
+                      "title": "Core workflow"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error for an unsupported audience or currency.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "errors"
+                  ]
+                },
+                "example": {
+                  "message": "The given data was invalid.",
+                  "errors": {
+                    "currency": [
+                      "The selected currency is invalid."
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Api\\PublicPricingController@index",
+        "x-middleware": [
+          "api"
+        ],
+        "description": "Returns the backend-authored public pricing catalog used by mobile pricing and upsell screens."
+      }
+    },
     "/api/v1/push-tokens": {
       "post": {
         "tags": [
           "push-tokens"
         ],
         "summary": "api.",
-        "operationId": "api__post_59",
+        "operationId": "api__post_80",
         "parameters": [],
         "security": [
           {
@@ -4824,7 +7540,7 @@
           "quote"
         ],
         "summary": "api.",
-        "operationId": "api__post_60",
+        "operationId": "api__post_81",
         "parameters": [
           {
             "name": "quote",
@@ -4862,7 +7578,7 @@
           "quote"
         ],
         "summary": "api.",
-        "operationId": "api__post_61",
+        "operationId": "api__post_82",
         "parameters": [
           {
             "name": "quote",
@@ -4900,7 +7616,7 @@
           "quote"
         ],
         "summary": "api.",
-        "operationId": "api__post_62",
+        "operationId": "api__post_83",
         "parameters": [
           {
             "name": "quote",
@@ -4938,7 +7654,7 @@
           "quotes"
         ],
         "summary": "api.",
-        "operationId": "api__get_51",
+        "operationId": "api__get_70",
         "parameters": [],
         "security": [
           {
@@ -4967,7 +7683,7 @@
           "requests"
         ],
         "summary": "api.",
-        "operationId": "api__get_52",
+        "operationId": "api__get_71",
         "parameters": [],
         "security": [
           {
@@ -4994,7 +7710,7 @@
           "requests"
         ],
         "summary": "api.",
-        "operationId": "api__post_63",
+        "operationId": "api__post_84",
         "parameters": [],
         "security": [
           {
@@ -5023,7 +7739,7 @@
           "requests"
         ],
         "summary": "api.",
-        "operationId": "api__patch_9",
+        "operationId": "api__patch_13",
         "parameters": [],
         "security": [
           {
@@ -5052,7 +7768,7 @@
           "requests"
         ],
         "summary": "api.",
-        "operationId": "api__get_53",
+        "operationId": "api__get_72",
         "parameters": [
           {
             "name": "lead",
@@ -5088,7 +7804,7 @@
           "requests"
         ],
         "summary": "api.",
-        "operationId": "api__put_9",
+        "operationId": "api__put_14",
         "parameters": [
           {
             "name": "lead",
@@ -5124,7 +7840,7 @@
           "requests"
         ],
         "summary": "api.",
-        "operationId": "api__delete_8",
+        "operationId": "api__delete_13",
         "parameters": [
           {
             "name": "lead",
@@ -5162,7 +7878,7 @@
           "requests"
         ],
         "summary": "api.",
-        "operationId": "api__post_64",
+        "operationId": "api__post_85",
         "parameters": [
           {
             "name": "lead",
@@ -5201,7 +7917,7 @@
           "requests"
         ],
         "summary": "api.",
-        "operationId": "api__post_65",
+        "operationId": "api__post_86",
         "parameters": [
           {
             "name": "lead",
@@ -5239,7 +7955,7 @@
           "requests"
         ],
         "summary": "api.",
-        "operationId": "api__delete_9",
+        "operationId": "api__delete_14",
         "parameters": [
           {
             "name": "lead",
@@ -5285,7 +8001,7 @@
           "requests"
         ],
         "summary": "api.",
-        "operationId": "api__post_66",
+        "operationId": "api__post_87",
         "parameters": [
           {
             "name": "lead",
@@ -5323,7 +8039,7 @@
           "requests"
         ],
         "summary": "api.",
-        "operationId": "api__post_67",
+        "operationId": "api__post_88",
         "parameters": [
           {
             "name": "lead",
@@ -5361,7 +8077,7 @@
           "requests"
         ],
         "summary": "api.",
-        "operationId": "api__delete_10",
+        "operationId": "api__delete_15",
         "parameters": [
           {
             "name": "lead",
@@ -5407,7 +8123,7 @@
           "reservations"
         ],
         "summary": "api.",
-        "operationId": "api__get_54",
+        "operationId": "api__get_73",
         "parameters": [],
         "security": [
           {
@@ -5434,7 +8150,7 @@
           "reservations"
         ],
         "summary": "api.",
-        "operationId": "api__post_68",
+        "operationId": "api__post_89",
         "parameters": [],
         "security": [
           {
@@ -5463,7 +8179,7 @@
           "reservations"
         ],
         "summary": "api.",
-        "operationId": "api__get_55",
+        "operationId": "api__get_74",
         "parameters": [],
         "security": [
           {
@@ -5492,7 +8208,7 @@
           "reservations"
         ],
         "summary": "api.",
-        "operationId": "api__get_56",
+        "operationId": "api__get_75",
         "parameters": [],
         "security": [
           {
@@ -5521,7 +8237,7 @@
           "reservations"
         ],
         "summary": "api.",
-        "operationId": "api__put_10",
+        "operationId": "api__put_15",
         "parameters": [
           {
             "name": "reservation",
@@ -5557,7 +8273,7 @@
           "reservations"
         ],
         "summary": "api.",
-        "operationId": "api__delete_11",
+        "operationId": "api__delete_16",
         "parameters": [
           {
             "name": "reservation",
@@ -5595,7 +8311,7 @@
           "reservations"
         ],
         "summary": "api.",
-        "operationId": "api__patch_10",
+        "operationId": "api__patch_14",
         "parameters": [
           {
             "name": "reservation",
@@ -5633,7 +8349,7 @@
           "sales"
         ],
         "summary": "api.",
-        "operationId": "api__get_57",
+        "operationId": "api__get_76",
         "parameters": [],
         "security": [
           {
@@ -5660,7 +8376,7 @@
           "sales"
         ],
         "summary": "api.",
-        "operationId": "api__post_69",
+        "operationId": "api__post_90",
         "parameters": [],
         "security": [
           {
@@ -5689,7 +8405,7 @@
           "sales"
         ],
         "summary": "api.",
-        "operationId": "api__get_58",
+        "operationId": "api__get_77",
         "parameters": [],
         "security": [
           {
@@ -5718,7 +8434,7 @@
           "sales"
         ],
         "summary": "api.",
-        "operationId": "api__get_59",
+        "operationId": "api__get_78",
         "parameters": [
           {
             "name": "sale",
@@ -5754,7 +8470,7 @@
           "sales"
         ],
         "summary": "api.",
-        "operationId": "api__put_11",
+        "operationId": "api__put_16",
         "parameters": [
           {
             "name": "sale",
@@ -5792,7 +8508,7 @@
           "sales"
         ],
         "summary": "api.",
-        "operationId": "api__post_70",
+        "operationId": "api__post_91",
         "parameters": [
           {
             "name": "sale",
@@ -5830,7 +8546,7 @@
           "sales"
         ],
         "summary": "api.",
-        "operationId": "api__patch_11",
+        "operationId": "api__patch_15",
         "parameters": [
           {
             "name": "sale",
@@ -6034,7 +8750,7 @@
           "services"
         ],
         "summary": "api.",
-        "operationId": "api__get_60",
+        "operationId": "api__get_79",
         "parameters": [],
         "security": [
           {
@@ -6063,7 +8779,7 @@
           "services"
         ],
         "summary": "api.",
-        "operationId": "api__get_61",
+        "operationId": "api__get_80",
         "parameters": [],
         "security": [
           {
@@ -6092,7 +8808,7 @@
           "services"
         ],
         "summary": "api.",
-        "operationId": "api__post_71",
+        "operationId": "api__post_92",
         "parameters": [],
         "security": [
           {
@@ -6120,9 +8836,64 @@
         "tags": [
           "settings"
         ],
-        "summary": "api.",
-        "operationId": "api__get_62",
-        "parameters": [],
+        "summary": "Get billing summary",
+        "operationId": "api__get_81",
+        "parameters": [
+          {
+            "name": "checkout",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional checkout feedback marker.",
+            "example": "success"
+          },
+          {
+            "name": "plan",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional checkout feedback plan.",
+            "example": "solo_pro"
+          },
+          {
+            "name": "billing_period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "monthly",
+                "yearly"
+              ]
+            },
+            "description": "Optional checkout feedback billing period.",
+            "example": "yearly"
+          },
+          {
+            "name": "credits",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional assistant credits feedback marker.",
+            "example": "cancel"
+          },
+          {
+            "name": "connect",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional Stripe Connect feedback marker.",
+            "example": "refresh"
+          }
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -6130,7 +8901,109 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Normalized billing summary returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "billing",
+                    "subscription",
+                    "plan_catalog",
+                    "capabilities",
+                    "assistant",
+                    "provider_details",
+                    "payment_methods",
+                    "loyalty",
+                    "flow_state"
+                  ]
+                },
+                "example": {
+                  "status": "ok",
+                  "billing": {
+                    "provider_effective": "stripe",
+                    "provider_ready": true,
+                    "tenant_currency_code": "CAD"
+                  },
+                  "subscription": {
+                    "plan_key": "solo_pro",
+                    "billing_period": "yearly",
+                    "status": "active"
+                  },
+                  "plan_catalog": {
+                    "plans": [
+                      {
+                        "key": "solo_pro",
+                        "audience": "solo"
+                      }
+                    ],
+                    "active_plan_key": "solo_pro",
+                    "seat_quantity": 1
+                  },
+                  "capabilities": {
+                    "can_checkout": true,
+                    "can_swap": true,
+                    "can_open_portal": true,
+                    "can_buy_assistant_credits": true
+                  },
+                  "assistant": {
+                    "enabled": true,
+                    "credits": {
+                      "enabled": true,
+                      "balance": 40,
+                      "pack_size": 100
+                    }
+                  },
+                  "provider_details": {
+                    "paddle": {},
+                    "stripe_connect": {
+                      "enabled": true
+                    }
+                  },
+                  "payment_methods": {
+                    "enabled_methods": [
+                      "cash"
+                    ],
+                    "default_method": "cash"
+                  },
+                  "loyalty": {
+                    "feature_enabled": false
+                  },
+                  "flow_state": {
+                    "checkout": {
+                      "status": "success",
+                      "plan_key": "solo_pro",
+                      "billing_period": "yearly"
+                    },
+                    "assistant_credits": {
+                      "status": "cancel"
+                    },
+                    "stripe_connect": {
+                      "status": "refresh"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only the account owner can access billing settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message"
+                  ]
+                },
+                "example": {
+                  "message": "This action is unauthorized."
+                }
+              }
+            }
           }
         },
         "x-action": "App\\Http\\Controllers\\Settings\\BillingSettingsController@edit",
@@ -6140,14 +9013,15 @@
           "App\\Http\\Middleware\\EnsureInternalUser",
           "App\\Http\\Middleware\\EnsureNotSuspended",
           "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
-        ]
+        ],
+        "description": "Returns the normalized mobile billing summary contract."
       },
       "put": {
         "tags": [
           "settings"
         ],
-        "summary": "api.",
-        "operationId": "api__put_12",
+        "summary": "Update billing-related store settings",
+        "operationId": "api__put_17",
         "parameters": [],
         "security": [
           {
@@ -6156,7 +9030,75 @@
         ],
         "responses": {
           "200": {
-            "description": "Success"
+            "description": "Billing-related store settings updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "payment_methods",
+                    "default_payment_method",
+                    "cash_allowed_contexts",
+                    "payment_method_settings",
+                    "tips",
+                    "loyalty"
+                  ]
+                },
+                "example": {
+                  "message": "Payment settings updated.",
+                  "payment_methods": [
+                    "cash",
+                    "card"
+                  ],
+                  "default_payment_method": "card",
+                  "cash_allowed_contexts": [
+                    "pos",
+                    "invoice"
+                  ],
+                  "payment_method_settings": {
+                    "enabled_methods_internal": [
+                      "cash",
+                      "card"
+                    ],
+                    "default_method_internal": "card"
+                  },
+                  "tips": {
+                    "max_percent": 20,
+                    "default_percent": 15
+                  },
+                  "loyalty": {
+                    "feature_enabled": true,
+                    "is_enabled": true,
+                    "points_per_currency_unit": 1
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error while updating payment, tips, or loyalty settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "errors"
+                  ]
+                },
+                "example": {
+                  "message": "The given data was invalid.",
+                  "errors": {
+                    "payment_methods.0": [
+                      "The selected payment_methods.0 is invalid."
+                    ]
+                  }
+                }
+              }
+            }
           }
         },
         "x-action": "App\\Http\\Controllers\\Settings\\BillingSettingsController@update",
@@ -6166,7 +9108,68 @@
           "App\\Http\\Middleware\\EnsureInternalUser",
           "App\\Http\\Middleware\\EnsureNotSuspended",
           "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
-        ]
+        ],
+        "description": "Updates payment method, tip, and loyalty settings used by the current tenant.",
+        "requestBody": {
+          "required": true,
+          "description": "Billing settings update payload.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "payment_methods": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "default_payment_method": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "cash_allowed_contexts": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "tips": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "loyalty": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "example": {
+                "payment_methods": [
+                  "cash",
+                  "card"
+                ],
+                "default_payment_method": "card",
+                "cash_allowed_contexts": [
+                  "pos",
+                  "invoice"
+                ],
+                "tips": {
+                  "max_percent": 20,
+                  "default_percent": 15,
+                  "allocation_strategy": "primary"
+                },
+                "loyalty": {
+                  "is_enabled": true,
+                  "points_per_currency_unit": 1,
+                  "rounding_mode": "floor",
+                  "points_label": "points"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/settings/billing/assistant-addon": {
@@ -6174,8 +9177,8 @@
         "tags": [
           "settings"
         ],
-        "summary": "api.",
-        "operationId": "api__post_72",
+        "summary": "Update assistant addon state",
+        "operationId": "api__post_93",
         "parameters": [],
         "security": [
           {
@@ -6183,8 +9186,52 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "Assistant addon state updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "action",
+                    "message",
+                    "enabled"
+                  ]
+                },
+                "example": {
+                  "status": "success",
+                  "action": "assistant_addon_updated",
+                  "message": "Assistant IA mis a jour.",
+                  "enabled": true
+                }
+              }
+            }
+          },
           "201": {
             "description": "Success"
+          },
+          "422": {
+            "description": "Assistant addon update failed because of provider or subscription rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "code",
+                    "message"
+                  ]
+                },
+                "example": {
+                  "status": "error",
+                  "code": "assistant_unavailable_for_provider",
+                  "message": "Assistant IA indisponible pour ce fournisseur."
+                }
+              }
+            }
           }
         },
         "x-action": "App\\Http\\Controllers\\Settings\\BillingSettingsController@updateAssistantAddon",
@@ -6194,16 +9241,40 @@
           "App\\Http\\Middleware\\EnsureInternalUser",
           "App\\Http\\Middleware\\EnsureNotSuspended",
           "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
-        ]
+        ],
+        "description": "Enables or disables the assistant addon when the current subscription and provider allow it.",
+        "requestBody": {
+          "required": true,
+          "description": "Assistant addon update payload.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              },
+              "example": {
+                "enabled": true
+              }
+            }
+          }
+        }
       }
     },
-    "/api/v1/settings/billing/checkout": {
+    "/api/v1/settings/billing/assistant-credits": {
       "post": {
         "tags": [
           "settings"
         ],
-        "summary": "api.",
-        "operationId": "api__post_73",
+        "summary": "Start assistant credits checkout",
+        "operationId": "api__post_94",
         "parameters": [],
         "security": [
           {
@@ -6211,8 +9282,173 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "Assistant credits checkout session created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "action",
+                    "url",
+                    "credits",
+                    "return_urls"
+                  ]
+                },
+                "example": {
+                  "status": "requires_redirect",
+                  "action": "open_checkout",
+                  "url": "https://checkout.stripe.test/assistant-credits",
+                  "credits": {
+                    "pack_count": 3,
+                    "pack_size": 100,
+                    "total_credits": 300
+                  },
+                  "return_urls": {
+                    "success_url": "mlkpro://billing/assistant-success?session_id={CHECKOUT_SESSION_ID}",
+                    "cancel_url": "mlkpro://billing/assistant-cancel"
+                  }
+                }
+              }
+            }
+          },
           "201": {
             "description": "Success"
+          },
+          "422": {
+            "description": "Assistant credits checkout could not be created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "code",
+                    "message"
+                  ]
+                },
+                "example": {
+                  "status": "error",
+                  "code": "assistant_activation_required",
+                  "message": "Activez l option IA avant d acheter des credits."
+                }
+              }
+            }
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\BillingSettingsController@createAssistantCreditCheckout",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ],
+        "description": "Creates a Stripe checkout session for assistant credits and returns a mobile redirect contract with pack details.",
+        "requestBody": {
+          "required": true,
+          "description": "Assistant credits checkout request payload.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "packs": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "success_url": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "cancel_url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              },
+              "example": {
+                "packs": 3,
+                "success_url": "mlkpro://billing/assistant-success",
+                "cancel_url": "mlkpro://billing/assistant-cancel"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/billing/checkout": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Start billing checkout",
+        "operationId": "api__post_95",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Checkout session created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "action",
+                    "url",
+                    "resolved_plan",
+                    "return_urls"
+                  ]
+                },
+                "example": {
+                  "status": "requires_redirect",
+                  "action": "open_checkout",
+                  "url": "https://checkout.stripe.test/subscription-mobile",
+                  "resolved_plan": {
+                    "plan_key": "starter",
+                    "billing_period": "monthly",
+                    "currency_code": "CAD",
+                    "promotion_discount_percent": null
+                  },
+                  "return_urls": {
+                    "success_url": "mlkpro://billing/subscription-success?session_id={CHECKOUT_SESSION_ID}",
+                    "cancel_url": "mlkpro://billing/subscription-cancel"
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Success"
+          },
+          "422": {
+            "description": "Business or validation error while starting checkout.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                },
+                "example": {
+                  "message": "The given data was invalid.",
+                  "errors": {
+                    "plan_key": [
+                      "Please choose a valid subscription plan."
+                    ]
+                  }
+                }
+              }
+            }
           }
         },
         "x-action": "App\\Http\\Controllers\\Settings\\SubscriptionController@checkout",
@@ -6222,7 +9458,48 @@
           "App\\Http\\Middleware\\EnsureInternalUser",
           "App\\Http\\Middleware\\EnsureNotSuspended",
           "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
-        ]
+        ],
+        "description": "Creates a provider checkout session and returns a mobile-safe redirect contract with resolved plan details.",
+        "requestBody": {
+          "required": true,
+          "description": "Checkout request payload.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "plan_key": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "price_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "billing_period": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "success_url": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "cancel_url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              },
+              "example": {
+                "plan_key": "starter",
+                "billing_period": "monthly",
+                "success_url": "mlkpro://billing/subscription-success",
+                "cancel_url": "mlkpro://billing/subscription-cancel"
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/settings/billing/connect": {
@@ -6230,8 +9507,8 @@
         "tags": [
           "settings"
         ],
-        "summary": "api.",
-        "operationId": "api__post_74",
+        "summary": "Start Stripe Connect onboarding",
+        "operationId": "api__post_96",
         "parameters": [],
         "security": [
           {
@@ -6239,8 +9516,71 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "Stripe Connect onboarding link created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "action",
+                    "url"
+                  ]
+                },
+                "example": {
+                  "status": "requires_redirect",
+                  "action": "open_connect_onboarding",
+                  "url": "https://connect.stripe.test/onboarding"
+                }
+              }
+            }
+          },
           "201": {
             "description": "Success"
+          },
+          "400": {
+            "description": "Stripe Connect is not configured for the platform.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "code",
+                    "message"
+                  ]
+                },
+                "example": {
+                  "status": "error",
+                  "code": "stripe_connect_not_configured",
+                  "message": "Stripe Connect is not configured."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Stripe Connect onboarding could not be started.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "code",
+                    "message"
+                  ]
+                },
+                "example": {
+                  "status": "error",
+                  "code": "stripe_connect_onboarding_failed",
+                  "message": "Unable to start Stripe Connect onboarding."
+                }
+              }
+            }
           }
         },
         "x-action": "App\\Http\\Controllers\\Settings\\BillingSettingsController@connectStripe",
@@ -6250,7 +9590,8 @@
           "App\\Http\\Middleware\\EnsureInternalUser",
           "App\\Http\\Middleware\\EnsureNotSuspended",
           "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
-        ]
+        ],
+        "description": "Creates a Stripe Connect onboarding link and returns a mobile redirect action."
       }
     },
     "/api/v1/settings/billing/payment-method": {
@@ -6258,8 +9599,8 @@
         "tags": [
           "settings"
         ],
-        "summary": "api.",
-        "operationId": "api__post_75",
+        "summary": "Prepare payment method update transaction",
+        "operationId": "api__post_97",
         "parameters": [],
         "security": [
           {
@@ -6267,8 +9608,50 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "Payment method update contract created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "action",
+                    "transaction_id"
+                  ]
+                },
+                "example": {
+                  "status": "ready",
+                  "action": "present_payment_method_update",
+                  "transaction_id": "txn_paddle_update_123"
+                }
+              }
+            }
+          },
           "201": {
             "description": "Success"
+          },
+          "422": {
+            "description": "Payment method update is not available for the current provider or subscription state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "code",
+                    "message"
+                  ]
+                },
+                "example": {
+                  "status": "error",
+                  "code": "billing_subscription_required",
+                  "message": "No subscription found."
+                }
+              }
+            }
           }
         },
         "x-action": "App\\Http\\Controllers\\Settings\\SubscriptionController@paymentMethodTransaction",
@@ -6278,7 +9661,8 @@
           "App\\Http\\Middleware\\EnsureInternalUser",
           "App\\Http\\Middleware\\EnsureNotSuspended",
           "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
-        ]
+        ],
+        "description": "Creates a provider-specific payment method update contract that mobile can present inside the native app flow."
       }
     },
     "/api/v1/settings/billing/portal": {
@@ -6286,8 +9670,8 @@
         "tags": [
           "settings"
         ],
-        "summary": "api.",
-        "operationId": "api__post_76",
+        "summary": "Open provider billing portal",
+        "operationId": "api__post_98",
         "parameters": [],
         "security": [
           {
@@ -6295,8 +9679,50 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "Provider portal or payment update redirect prepared successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "action",
+                    "url"
+                  ]
+                },
+                "example": {
+                  "status": "requires_redirect",
+                  "action": "open_customer_portal",
+                  "url": "https://billing.stripe.test/customer-portal"
+                }
+              }
+            }
+          },
           "201": {
             "description": "Success"
+          },
+          "422": {
+            "description": "Provider portal is unavailable for the current tenant or provider.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "code",
+                    "message"
+                  ]
+                },
+                "example": {
+                  "status": "error",
+                  "code": "billing_portal_unavailable",
+                  "message": "Unable to open Stripe customer portal."
+                }
+              }
+            }
           }
         },
         "x-action": "App\\Http\\Controllers\\Settings\\SubscriptionController@portal",
@@ -6306,7 +9732,8 @@
           "App\\Http\\Middleware\\EnsureInternalUser",
           "App\\Http\\Middleware\\EnsureNotSuspended",
           "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
-        ]
+        ],
+        "description": "Returns a redirect contract for the Stripe customer portal or the provider-managed payment update flow."
       }
     },
     "/api/v1/settings/billing/swap": {
@@ -6314,8 +9741,8 @@
         "tags": [
           "settings"
         ],
-        "summary": "api.",
-        "operationId": "api__post_77",
+        "summary": "Swap subscription plan",
+        "operationId": "api__post_99",
         "parameters": [],
         "security": [
           {
@@ -6323,8 +9750,52 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "Plan swap completed, redirected, or determined to be a no-op.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                },
+                "example": {
+                  "status": "success",
+                  "action": "subscription_updated",
+                  "message": "Plan updated.",
+                  "plan_key": "solo_pro",
+                  "billing_period": "yearly",
+                  "resolved_plan": {
+                    "plan_key": "solo_pro",
+                    "billing_period": "yearly",
+                    "currency_code": "CAD"
+                  }
+                }
+              }
+            }
+          },
           "201": {
             "description": "Success"
+          },
+          "422": {
+            "description": "Plan swap failed because of billing rules or provider constraints.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "status",
+                    "code",
+                    "message"
+                  ]
+                },
+                "example": {
+                  "status": "error",
+                  "code": "billing_plan_restricted",
+                  "message": "Selected plan is restricted for the current workspace."
+                }
+              }
+            }
           }
         },
         "x-action": "App\\Http\\Controllers\\Settings\\SubscriptionController@swap",
@@ -6334,7 +9805,46 @@
           "App\\Http\\Middleware\\EnsureInternalUser",
           "App\\Http\\Middleware\\EnsureNotSuspended",
           "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
-        ]
+        ],
+        "description": "Swaps the active subscription plan using the same backend plan selection and restriction rules as the web app.",
+        "requestBody": {
+          "required": true,
+          "description": "Plan swap request payload.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "plan_key": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "price_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "billing_period": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "success_url": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "cancel_url": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              },
+              "example": {
+                "plan_key": "solo_pro",
+                "billing_period": "yearly"
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/settings/categories": {
@@ -6343,7 +9853,7 @@
           "settings"
         ],
         "summary": "api.",
-        "operationId": "api__post_78",
+        "operationId": "api__post_100",
         "parameters": [],
         "security": [
           {
@@ -6371,7 +9881,7 @@
           "settings"
         ],
         "summary": "api.",
-        "operationId": "api__patch_12",
+        "operationId": "api__patch_16",
         "parameters": [
           {
             "name": "category",
@@ -6408,7 +9918,7 @@
           "settings"
         ],
         "summary": "api.",
-        "operationId": "api__patch_13",
+        "operationId": "api__patch_17",
         "parameters": [
           {
             "name": "category",
@@ -6445,7 +9955,7 @@
           "settings"
         ],
         "summary": "api.",
-        "operationId": "api__patch_14",
+        "operationId": "api__patch_18",
         "parameters": [
           {
             "name": "category",
@@ -6482,7 +9992,7 @@
           "settings"
         ],
         "summary": "api.",
-        "operationId": "api__get_63",
+        "operationId": "api__get_82",
         "parameters": [],
         "security": [
           {
@@ -6508,7 +10018,7 @@
           "settings"
         ],
         "summary": "api.",
-        "operationId": "api__put_13",
+        "operationId": "api__put_18",
         "parameters": [],
         "security": [
           {
@@ -6530,13 +10040,69 @@
         ]
       }
     },
+    "/api/v1/settings/marketing": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "api.",
+        "operationId": "api__get_83",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\MarketingSettingsController@edit",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "api.",
+        "operationId": "api__put_19",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\MarketingSettingsController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:campaigns"
+        ]
+      }
+    },
     "/api/v1/settings/reservations": {
       "get": {
         "tags": [
           "settings"
         ],
         "summary": "api.",
-        "operationId": "api__get_64",
+        "operationId": "api__get_84",
         "parameters": [],
         "security": [
           {
@@ -6563,7 +10129,7 @@
           "settings"
         ],
         "summary": "api.",
-        "operationId": "api__put_14",
+        "operationId": "api__put_20",
         "parameters": [],
         "security": [
           {
@@ -7268,7 +10834,7 @@
           "support"
         ],
         "summary": "api.",
-        "operationId": "api__get_65",
+        "operationId": "api__get_85",
         "parameters": [],
         "security": [
           {
@@ -7294,7 +10860,7 @@
           "support"
         ],
         "summary": "api.",
-        "operationId": "api__post_79",
+        "operationId": "api__post_101",
         "parameters": [],
         "security": [
           {
@@ -7322,7 +10888,7 @@
           "support"
         ],
         "summary": "api.",
-        "operationId": "api__get_66",
+        "operationId": "api__get_86",
         "parameters": [
           {
             "name": "ticket",
@@ -7357,7 +10923,7 @@
           "support"
         ],
         "summary": "api.",
-        "operationId": "api__put_15",
+        "operationId": "api__put_21",
         "parameters": [
           {
             "name": "ticket",
@@ -7394,7 +10960,7 @@
           "support"
         ],
         "summary": "api.",
-        "operationId": "api__post_80",
+        "operationId": "api__post_102",
         "parameters": [
           {
             "name": "ticket",
@@ -7431,7 +10997,7 @@
           "tasks"
         ],
         "summary": "api.",
-        "operationId": "api__get_67",
+        "operationId": "api__get_87",
         "parameters": [],
         "security": [
           {
@@ -7458,7 +11024,7 @@
           "tasks"
         ],
         "summary": "api.",
-        "operationId": "api__post_81",
+        "operationId": "api__post_103",
         "parameters": [],
         "security": [
           {
@@ -7487,7 +11053,7 @@
           "tasks"
         ],
         "summary": "api.",
-        "operationId": "api__get_68",
+        "operationId": "api__get_88",
         "parameters": [
           {
             "name": "task",
@@ -7523,7 +11089,7 @@
           "tasks"
         ],
         "summary": "api.",
-        "operationId": "api__put_16",
+        "operationId": "api__put_22",
         "parameters": [
           {
             "name": "task",
@@ -7559,7 +11125,7 @@
           "tasks"
         ],
         "summary": "api.",
-        "operationId": "api__delete_12",
+        "operationId": "api__delete_17",
         "parameters": [
           {
             "name": "task",
@@ -7597,7 +11163,7 @@
           "tasks"
         ],
         "summary": "api.",
-        "operationId": "api__patch_15",
+        "operationId": "api__patch_19",
         "parameters": [
           {
             "name": "task",
@@ -7635,7 +11201,7 @@
           "tasks"
         ],
         "summary": "api.",
-        "operationId": "api__post_82",
+        "operationId": "api__post_104",
         "parameters": [
           {
             "name": "task",
@@ -7673,7 +11239,7 @@
           "team"
         ],
         "summary": "api.",
-        "operationId": "api__get_69",
+        "operationId": "api__get_89",
         "parameters": [],
         "security": [
           {
@@ -7700,7 +11266,7 @@
           "team"
         ],
         "summary": "api.",
-        "operationId": "api__post_83",
+        "operationId": "api__post_105",
         "parameters": [],
         "security": [
           {
@@ -7729,7 +11295,7 @@
           "team"
         ],
         "summary": "api.",
-        "operationId": "api__put_17",
+        "operationId": "api__put_23",
         "parameters": [
           {
             "name": "teamMember",
@@ -7765,7 +11331,7 @@
           "team"
         ],
         "summary": "api.",
-        "operationId": "api__delete_13",
+        "operationId": "api__delete_18",
         "parameters": [
           {
             "name": "teamMember",
@@ -7803,7 +11369,7 @@
           "webhooks"
         ],
         "summary": "api.",
-        "operationId": "api__post_84",
+        "operationId": "api__post_106",
         "parameters": [],
         "security": [],
         "responses": {
@@ -7823,7 +11389,7 @@
           "webhooks"
         ],
         "summary": "api.",
-        "operationId": "api__post_85",
+        "operationId": "api__post_107",
         "parameters": [],
         "security": [],
         "responses": {
@@ -7899,7 +11465,7 @@
           "work"
         ],
         "summary": "api.",
-        "operationId": "api__get_70",
+        "operationId": "api__get_90",
         "parameters": [
           {
             "name": "customer",
@@ -8083,7 +11649,7 @@
           "work"
         ],
         "summary": "api.",
-        "operationId": "api__patch_16",
+        "operationId": "api__patch_20",
         "parameters": [
           {
             "name": "work",
@@ -8129,7 +11695,7 @@
           "work"
         ],
         "summary": "api.",
-        "operationId": "api__get_71",
+        "operationId": "api__get_91",
         "parameters": [
           {
             "name": "work",
@@ -8167,7 +11733,7 @@
           "work"
         ],
         "summary": "api.",
-        "operationId": "api__post_86",
+        "operationId": "api__post_108",
         "parameters": [
           {
             "name": "work",
@@ -8205,7 +11771,7 @@
           "work"
         ],
         "summary": "api.",
-        "operationId": "api__post_87",
+        "operationId": "api__post_109",
         "parameters": [
           {
             "name": "work",
@@ -8243,7 +11809,7 @@
           "work"
         ],
         "summary": "api.",
-        "operationId": "api__post_88",
+        "operationId": "api__post_110",
         "parameters": [
           {
             "name": "work",
@@ -8281,7 +11847,7 @@
           "work"
         ],
         "summary": "api.",
-        "operationId": "api__get_72",
+        "operationId": "api__get_92",
         "parameters": [
           {
             "name": "work",
@@ -8319,7 +11885,7 @@
           "work"
         ],
         "summary": "api.",
-        "operationId": "api__post_89",
+        "operationId": "api__post_111",
         "parameters": [
           {
             "name": "work",
@@ -8349,6 +11915,802 @@
           "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
           "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
         ]
+      }
+    },
+    "/api/v1/settings/security": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get security settings and 2FA state",
+        "operationId": "settings_security_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Security settings payload returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "two_factor",
+                    "rate_limit",
+                    "can_view_team",
+                    "activity"
+                  ]
+                },
+                "example": {
+                  "two_factor": {
+                    "required": true,
+                    "enabled": true,
+                    "method": "email",
+                    "has_app": false,
+                    "can_configure": true,
+                    "app_setup": {
+                      "setup_token": "setup_token_123",
+                      "secret": "JBSWY3DPEHPK3PXP",
+                      "otpauth_url": "otpauth://totp/Malikia%20Pro:owner%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=Malikia+Pro&period=30&digits=6",
+                      "expires_at": "2026-04-10T14:45:00Z"
+                    },
+                    "email": "owner@example.com",
+                    "phone_hint": "+*******0123",
+                    "last_sent_at": "2026-04-10T14:20:00Z",
+                    "sms": {
+                      "available": true,
+                      "has_phone": true,
+                      "phone_hint": "+*******0123",
+                      "twilio_configured": true,
+                      "company_enabled": true
+                    }
+                  },
+                  "rate_limit": 60,
+                  "can_view_team": true,
+                  "activity": [
+                    {
+                      "id": 501,
+                      "action": "auth.login",
+                      "created_at": "2026-04-10T14:00:00Z",
+                      "ip": "127.0.0.1",
+                      "user_agent": "MalikiaPro/1.0",
+                      "channel": "api",
+                      "two_factor": true,
+                      "device": "iPhone",
+                      "subject": {
+                        "id": 42,
+                        "name": "Owner User",
+                        "email": "owner@example.com",
+                        "profile_picture": null,
+                        "profile_picture_url": null
+                      },
+                      "actor": {
+                        "id": 42,
+                        "name": "Owner User",
+                        "email": "owner@example.com",
+                        "profile_picture": null,
+                        "profile_picture_url": null
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only internal non-superadmin users can view these security settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message"
+                  ]
+                },
+                "example": {
+                  "message": "This action is unauthorized."
+                }
+              }
+            }
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\SecuritySettingsController@edit",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureNotSuperadmin"
+        ]
+      }
+    },
+    "/api/v1/settings/security/2fa/app/start": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Start authenticator app setup",
+        "operationId": "settings_security_two_factor_app_start",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Authenticator app setup prepared successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "two_factor"
+                  ]
+                },
+                "example": {
+                  "message": "Authentificateur en preparation.",
+                  "two_factor": {
+                    "required": true,
+                    "enabled": false,
+                    "method": "email",
+                    "has_app": false,
+                    "can_configure": true,
+                    "app_setup": {
+                      "setup_token": "setup_token_123",
+                      "secret": "JBSWY3DPEHPK3PXP",
+                      "otpauth_url": "otpauth://totp/Malikia%20Pro:owner%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=Malikia+Pro&period=30&digits=6",
+                      "expires_at": "2026-04-10T14:45:00Z"
+                    },
+                    "email": "owner@example.com",
+                    "phone_hint": "+*******0123",
+                    "last_sent_at": null,
+                    "sms": {
+                      "available": true,
+                      "has_phone": true,
+                      "phone_hint": "+*******0123",
+                      "twilio_configured": true,
+                      "company_enabled": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only the account owner can configure two-factor methods.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message"
+                  ]
+                },
+                "example": {
+                  "message": "This action is unauthorized."
+                }
+              }
+            }
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\SecuritySettingsController@startAppSetup",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureNotSuperadmin"
+        ]
+      }
+    },
+    "/api/v1/settings/security/2fa/app/confirm": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Confirm authenticator app setup",
+        "operationId": "settings_security_two_factor_app_confirm",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Authenticator app confirmation payload.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "setup_token": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "setup_token",
+                  "code"
+                ]
+              },
+              "example": {
+                "setup_token": "setup_token_123",
+                "code": "123456"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticator app enabled successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "two_factor"
+                  ]
+                },
+                "example": {
+                  "message": "Authentificateur active.",
+                  "two_factor": {
+                    "required": true,
+                    "enabled": true,
+                    "method": "app",
+                    "has_app": true,
+                    "can_configure": true,
+                    "app_setup": null,
+                    "email": "owner@example.com",
+                    "phone_hint": "+*******0123",
+                    "last_sent_at": null,
+                    "sms": {
+                      "available": true,
+                      "has_phone": true,
+                      "phone_hint": "+*******0123",
+                      "twilio_configured": true,
+                      "company_enabled": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The setup token is missing or expired, or the TOTP code is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "errors"
+                  ]
+                },
+                "example": {
+                  "message": "Demarrez la configuration avant de valider.",
+                  "errors": {
+                    "setup_token": [
+                      "Demarrez la configuration avant de valider."
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\SecuritySettingsController@confirmAppSetup",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureNotSuperadmin"
+        ]
+      }
+    },
+    "/api/v1/settings/security/2fa/app/cancel": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Cancel pending authenticator app setup",
+        "operationId": "settings_security_two_factor_app_cancel",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending authenticator app setup canceled successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "two_factor"
+                  ]
+                },
+                "example": {
+                  "message": "Configuration d authentificateur annulee.",
+                  "two_factor": {
+                    "required": true,
+                    "enabled": false,
+                    "method": "email",
+                    "has_app": false,
+                    "can_configure": true,
+                    "app_setup": null,
+                    "email": "owner@example.com",
+                    "phone_hint": "+*******0123",
+                    "last_sent_at": null,
+                    "sms": {
+                      "available": true,
+                      "has_phone": true,
+                      "phone_hint": "+*******0123",
+                      "twilio_configured": true,
+                      "company_enabled": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\SecuritySettingsController@cancelAppSetup",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureNotSuperadmin"
+        ]
+      }
+    },
+    "/api/v1/settings/security/2fa/email": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Switch two-factor delivery to email",
+        "operationId": "settings_security_two_factor_email",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Email-based two-factor authentication enabled successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "two_factor"
+                  ]
+                },
+                "example": {
+                  "message": "2FA par email active.",
+                  "two_factor": {
+                    "required": true,
+                    "enabled": true,
+                    "method": "email",
+                    "has_app": false,
+                    "can_configure": true,
+                    "app_setup": null,
+                    "email": "owner@example.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\SecuritySettingsController@switchToEmail",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureNotSuperadmin"
+        ]
+      }
+    },
+    "/api/v1/settings/security/2fa/sms": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Switch two-factor delivery to SMS",
+        "operationId": "settings_security_two_factor_sms",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SMS-based two-factor authentication enabled successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "two_factor"
+                  ]
+                },
+                "example": {
+                  "message": "2FA par SMS active.",
+                  "two_factor": {
+                    "required": true,
+                    "enabled": true,
+                    "method": "sms",
+                    "has_app": false,
+                    "can_configure": true,
+                    "app_setup": null,
+                    "email": "owner@example.com",
+                    "phone_hint": "+*******0123",
+                    "last_sent_at": null,
+                    "sms": {
+                      "available": true,
+                      "has_phone": true,
+                      "phone_hint": "+*******0123",
+                      "twilio_configured": true,
+                      "company_enabled": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "SMS-based two-factor authentication is unavailable for the current owner or tenant setup.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "errors"
+                  ]
+                },
+                "example": {
+                  "message": "Activez d abord le 2FA SMS dans Parametres > Entreprise.",
+                  "errors": {
+                    "two_factor_method": [
+                      "Activez d abord le 2FA SMS dans Parametres > Entreprise."
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\SecuritySettingsController@switchToSms",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureNotSuperadmin"
+        ]
+      }
+    },
+    "/api/v1/global-search": {
+      "get": {
+        "tags": [
+          "global-search"
+        ],
+        "summary": "Search across the current workspace",
+        "operationId": "global_search_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search query. Queries shorter than two characters return no results.",
+            "example": "Search"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Grouped global search results returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "query",
+                    "groups"
+                  ]
+                },
+                "example": {
+                  "query": "Search",
+                  "groups": [
+                    {
+                      "type": "customers",
+                      "items": [
+                        {
+                          "id": 101,
+                          "title": "Search Client",
+                          "subtitle": "search-client@example.test",
+                          "url": "http://localhost/customer/101"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "tasks",
+                      "items": [
+                        {
+                          "id": 202,
+                          "title": "Search Task",
+                          "subtitle": "Todo · 2026-04-10",
+                          "url": "http://localhost/tasks/202"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "quotes",
+                      "items": [
+                        {
+                          "id": 303,
+                          "title": "Q-0001",
+                          "subtitle": "Search Quote",
+                          "url": "http://localhost/customer/quote/303/show"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "employees",
+                      "items": [
+                        {
+                          "id": 42,
+                          "title": "Search Owner",
+                          "subtitle": "search-owner@example.test",
+                          "url": "http://localhost/performance/employees/42"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is required to access workspace search.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message"
+                  ]
+                },
+                "example": {
+                  "message": "Unauthenticated."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only internal users can access workspace search.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message"
+                  ]
+                },
+                "example": {
+                  "message": "This action is unauthorized."
+                }
+              }
+            }
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\GlobalSearchController",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended"
+        ]
+      }
+    },
+    "/api/v1/ai/images": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Generate an AI image",
+        "operationId": "api__post_ai_images",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "AI image generation request payload.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "prompt": {
+                    "type": "string",
+                    "maxLength": 800
+                  },
+                  "context": {
+                    "type": "string",
+                    "enum": [
+                      "store",
+                      "product"
+                    ]
+                  }
+                },
+                "required": [
+                  "prompt",
+                  "context"
+                ]
+              },
+              "example": {
+                "prompt": "Generate a polished storefront hero image with plants and warm daylight.",
+                "context": "store"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "AI image generated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "url",
+                    "mode",
+                    "remaining",
+                    "credit_balance"
+                  ]
+                },
+                "example": {
+                  "url": "http://localhost/storage/company/ai/42/store-550e8400-e29b-41d4-a716-446655440000.png",
+                  "mode": "free",
+                  "remaining": 0,
+                  "credit_balance": 7
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Owners must complete onboarding before loading internal AI image generation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message",
+                    "onboarding_required"
+                  ]
+                },
+                "example": {
+                  "message": "Onboarding required.",
+                  "onboarding_required": true
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid or the AI provider rejected the generation request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message"
+                  ]
+                },
+                "example": {
+                  "message": "Limite atteinte. Reessayez dans quelques minutes."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The free daily image allowance is exhausted and no assistant credits are available.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message"
+                  ]
+                },
+                "example": {
+                  "message": "Limite quotidienne d'images IA atteinte. Achetez un pack IA pour continuer."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Image generation failed after credit consumption and the consumed credit was refunded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": [
+                    "message"
+                  ]
+                },
+                "example": {
+                  "message": "Generation d'image indisponible."
+                }
+              }
+            }
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\AiImageController@generate",
+        "x-middleware": [
+          "api",
+          "auth:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "throttle:ai-images"
+        ],
+        "description": "Generates a store or product image through the same backend AI workflow used by the web app. The contract preserves free daily usage, owner-level assistant credit consumption, refund on failure, storage, and returned public image URL."
       }
     }
   }

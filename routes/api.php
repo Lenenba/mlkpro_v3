@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AiImageController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Integration\InventoryController as IntegrationInventoryController;
 use App\Http\Controllers\Api\Integration\RequestController as IntegrationRequestController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\CampaignTrackingController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\MarketingDashboardKpiController;
@@ -67,6 +69,7 @@ use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\MarketingSettingsController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
+use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\SupportTicketMessageController;
@@ -155,6 +158,7 @@ Route::name('api.')->group(function () {
         Route::get('onboarding', [OnboardingController::class, 'index']);
         Route::post('onboarding', [OnboardingController::class, 'store']);
         Route::get('onboarding/billing', [OnboardingController::class, 'billing']);
+        Route::get('global-search', GlobalSearchController::class);
 
         Route::middleware(EnsureOnboardingIsComplete::class)->group(function () {
             Route::get('dashboard', [DashboardController::class, 'index']);
@@ -170,6 +174,15 @@ Route::name('api.')->group(function () {
             Route::get('pipeline', [PipelineController::class, 'data']);
 
             Route::prefix('settings')->group(function () {
+                Route::middleware('not.superadmin')->group(function () {
+                    Route::get('security', [SecuritySettingsController::class, 'edit']);
+                    Route::post('security/2fa/app/start', [SecuritySettingsController::class, 'startAppSetup']);
+                    Route::post('security/2fa/app/confirm', [SecuritySettingsController::class, 'confirmAppSetup']);
+                    Route::post('security/2fa/app/cancel', [SecuritySettingsController::class, 'cancelAppSetup']);
+                    Route::post('security/2fa/email', [SecuritySettingsController::class, 'switchToEmail']);
+                    Route::post('security/2fa/sms', [SecuritySettingsController::class, 'switchToSms']);
+                });
+
                 Route::get('company', [CompanySettingsController::class, 'edit']);
                 Route::put('company', [CompanySettingsController::class, 'update']);
 
@@ -221,6 +234,9 @@ Route::name('api.')->group(function () {
                 Route::put('{ticket}', [SupportTicketController::class, 'update']);
                 Route::post('{ticket}/messages', [SupportTicketMessageController::class, 'store']);
             });
+
+            Route::post('ai/images', [AiImageController::class, 'generate'])
+                ->middleware('throttle:ai-images');
 
             Route::middleware('company.feature:assistant')->group(function () {
                 Route::post('assistant/message', [AssistantController::class, 'message']);

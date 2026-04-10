@@ -12,7 +12,9 @@ class AssistantCreditService
     {
         $owner = $this->resolveOwner($user);
 
-        return (int) ($owner->assistant_credit_balance ?? 0);
+        return (int) (User::query()
+            ->whereKey($owner->id)
+            ->value('assistant_credit_balance') ?? 0);
     }
 
     public function consume(User $user, int $credits = 1, string $source = 'assistant', array $meta = []): bool
@@ -26,7 +28,7 @@ class AssistantCreditService
                 ->where('assistant_credit_balance', '>=', $credits)
                 ->decrement('assistant_credit_balance', $credits);
 
-            if (!$updated) {
+            if (! $updated) {
                 return false;
             }
 
@@ -77,12 +79,12 @@ class AssistantCreditService
         }
 
         $sessionId = $session['id'] ?? null;
-        if (!$sessionId) {
+        if (! $sessionId) {
             return false;
         }
 
         $user = $this->resolveUserFromSession($session, $metadata);
-        if (!$user) {
+        if (! $user) {
             return false;
         }
         $owner = $this->resolveOwner($user);

@@ -3,19 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Role;
+use App\Models\User;
 use App\Services\CompanyFeatureService;
 use App\Services\SecurityEventService;
 use App\Services\TwoFactorService;
-use App\Models\Role;
-use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -35,14 +35,12 @@ class AuthController extends Controller
 
         $owner = $ownerId === $user->id
             ? $user
-            : User::query()
-                ->select(['id', 'company_name', 'company_type', 'company_logo', 'onboarding_completed_at'])
-                ->find($ownerId);
+            : User::query()->find($ownerId);
 
         $features = $owner ? app(CompanyFeatureService::class)->resolveEnabledFeatures($owner) : [];
 
         $teamMembership = null;
-        if (!$user->isAccountOwner()) {
+        if (! $user->isAccountOwner()) {
             $teamMembership = $user->relationLoaded('teamMembership')
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
@@ -90,7 +88,7 @@ class AuthController extends Controller
         ]);
 
         $user = User::query()->where('email', $validated['email'])->first();
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
+        if (! $user || ! Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Invalid credentials.'],
             ]);
@@ -129,13 +127,13 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:' . User::class,
+            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', PasswordRule::defaults()],
             'device_name' => 'nullable|string|max:255',
         ]);
 
         $roleId = Role::where('name', 'owner')->value('id');
-        if (!$roleId) {
+        if (! $roleId) {
             $roleId = Role::create([
                 'name' => 'owner',
                 'description' => 'Account owner role',
@@ -169,7 +167,7 @@ class AuthController extends Controller
 
             if ($effectiveMethod !== TwoFactorService::METHOD_APP) {
                 $result = $twoFactorService->sendCode($user, true, $effectiveMethod);
-                if (!($result['sent'] ?? false)) {
+                if (! ($result['sent'] ?? false)) {
                     return response()->json([
                         'message' => 'Unable to deliver the two-factor code.',
                     ], 422);
@@ -182,7 +180,7 @@ class AuthController extends Controller
             }
 
             $challengeToken = Str::random(64);
-            Cache::put('two-factor-challenge:' . $challengeToken, [
+            Cache::put('two-factor-challenge:'.$challengeToken, [
                 'user_id' => $user->id,
                 'device_name' => $deviceName,
                 'method' => $effectiveMethod,
@@ -273,7 +271,7 @@ class AuthController extends Controller
     public function resendVerification(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'message' => 'Unauthorized.',
             ], 401);
