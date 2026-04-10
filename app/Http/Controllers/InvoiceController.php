@@ -7,10 +7,10 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Work;
+use App\Services\InvoiceDocumentService;
 use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
 use App\Support\TenantPaymentMethodsResolver;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
@@ -119,75 +119,15 @@ class InvoiceController extends Controller
         return $this->inertiaOrJson('Invoice/Show', $payload);
     }
 
-    public function pdf(Request $request, Invoice $invoice)
+    public function pdf(Request $request, Invoice $invoice, InvoiceDocumentService $invoiceDocumentService)
     {
         if ($invoice->user_id !== Auth::id()) {
             abort(403);
         }
 
-        $invoice->load([
-            'customer.properties',
-            'items',
-            'work.products',
-            'work.ratings',
-            'work.quote.property',
-            'payments.tipAssignee:id,name',
-        ]);
-
-        $isTaskBased = $invoice->items->isNotEmpty();
-        $taskItems = collect();
-        $productItems = collect();
-
-        if ($isTaskBased) {
-            $taskItems = $invoice->items->map(function ($item) {
-                return [
-                    'title' => $item->title ?: 'Line item',
-                    'scheduled_date' => $item->scheduled_date,
-                    'start_time' => $item->start_time,
-                    'end_time' => $item->end_time,
-                    'assignee_name' => $item->assignee_name,
-                    'total' => (float) ($item->total ?? 0),
-                ];
-            });
-        } elseif ($invoice->work && $invoice->work->products->isNotEmpty()) {
-            $productItems = $invoice->work->products->map(function ($product) {
-                $quantity = (float) ($product->pivot?->quantity ?? 0);
-                $unitPrice = (float) ($product->pivot?->price ?? $product->price ?? 0);
-                $total = (float) ($product->pivot?->total ?? round($quantity * $unitPrice, 2));
-
-                return [
-                    'title' => $product->name ?: 'Line item',
-                    'description' => $product->pivot?->description ?: $product->description,
-                    'quantity' => $quantity,
-                    'unit_price' => $unitPrice,
-                    'total' => $total,
-                ];
-            });
-        }
-
-        $subtotal = $isTaskBased
-            ? round($taskItems->sum('total'), 2)
-            : round($productItems->sum('total'), 2);
-        $totalPaid = round((float) $invoice->payments
-            ->whereIn('status', Payment::settledStatuses())
-            ->sum('amount'), 2);
-
-        $pdf = Pdf::loadView('pdf.invoice', [
-            'invoice' => $invoice,
-            'customer' => $invoice->customer,
-            'company' => $request->user(),
-            'work' => $invoice->work,
-            'isTaskBased' => $isTaskBased,
-            'taskItems' => $taskItems,
-            'productItems' => $productItems,
-            'subtotal' => $subtotal,
-            'totalPaid' => $totalPaid,
-        ])->setOption('isRemoteEnabled', true);
-
-        $label = $invoice->number ?: $invoice->id;
-        $filename = 'invoice-'.$label.'.pdf';
-
-        return $pdf->download($filename);
+        return $invoiceDocumentService
+            ->buildPdf($invoice, $request->user())
+            ->download($invoiceDocumentService->filename($invoice));
     }
 
     /**

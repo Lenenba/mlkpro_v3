@@ -8,7 +8,7 @@ use App\Models\Quote;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Work;
-use App\Notifications\ActionEmailNotification;
+use App\Notifications\InvoiceAvailableNotification;
 use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
 use Illuminate\Support\Carbon;
@@ -281,7 +281,8 @@ class WorkBillingService
             ];
         }
 
-        return NotificationDispatcher::send($customer, new ActionEmailNotification(
+        return NotificationDispatcher::send($customer, new InvoiceAvailableNotification(
+            $invoice,
             $isFr ? 'Nouvelle facture disponible' : 'New invoice available',
             $isFr ? 'Une nouvelle facture est disponible.' : 'A new invoice is available.',
             $details,

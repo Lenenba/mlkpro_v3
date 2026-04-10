@@ -4,7 +4,7 @@ use App\Models\Customer;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Work;
-use App\Notifications\ActionEmailNotification;
+use App\Notifications\InvoiceAvailableNotification;
 use App\Services\TaskBillingService;
 use Illuminate\Support\Facades\Notification;
 
@@ -48,9 +48,15 @@ test('task billing sends an invoice email when it creates a sent invoice', funct
     expect($invoice)->not->toBeNull()
         ->and($invoice->status)->toBe('sent');
 
-    Notification::assertSentTo($customer, ActionEmailNotification::class, function (ActionEmailNotification $notification) use ($invoice) {
+    Notification::assertSentTo($customer, InvoiceAvailableNotification::class, function (InvoiceAvailableNotification $notification) use ($customer, $invoice) {
+        $mailMessage = $notification->toMail($customer);
+
         return in_array($notification->subject, ['New invoice available', 'Nouvelle facture disponible'], true)
-            && str_contains((string) $notification->actionUrl, (string) $invoice->id);
+            && str_contains((string) $notification->actionUrl, (string) $invoice->id)
+            && count($mailMessage->rawAttachments) === 1
+            && ($mailMessage->rawAttachments[0]['name'] ?? null) === 'invoice-'.($invoice->number ?: $invoice->id).'.pdf'
+            && ($mailMessage->rawAttachments[0]['options']['mime'] ?? null) === 'application/pdf'
+            && str_starts_with((string) ($mailMessage->rawAttachments[0]['data'] ?? ''), '%PDF');
     });
 });
 
