@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AiImageController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Integration\InventoryController as IntegrationInventoryController;
 use App\Http\Controllers\Api\Integration\RequestController as IntegrationRequestController;
@@ -13,7 +14,6 @@ use App\Http\Controllers\Api\SuperAdmin\PlatformSettingsController as SuperAdmin
 use App\Http\Controllers\Api\SuperAdmin\SupportController as SuperAdminSupportController;
 use App\Http\Controllers\Api\SuperAdmin\TenantController as SuperAdminTenantController;
 use App\Http\Controllers\Api\TwoFactorController as ApiTwoFactorController;
-use App\Http\Controllers\AiImageController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\Billing\StripeWebhookController;
 use App\Http\Controllers\CampaignAutomationController;
