@@ -28,7 +28,7 @@ class AssistantCreditService
                 ->where('assistant_credit_balance', '>=', $credits)
                 ->decrement('assistant_credit_balance', $credits);
 
-            if (!$updated) {
+            if (! $updated) {
                 return false;
             }
 
@@ -79,12 +79,12 @@ class AssistantCreditService
         }
 
         $sessionId = $session['id'] ?? null;
-        if (!$sessionId) {
+        if (! $sessionId) {
             return false;
         }
 
         $user = $this->resolveUserFromSession($session, $metadata);
-        if (!$user) {
+        if (! $user) {
             return false;
         }
         $owner = $this->resolveOwner($user);

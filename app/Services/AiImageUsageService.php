@@ -9,7 +9,9 @@ use Illuminate\Support\Carbon;
 class AiImageUsageService
 {
     public const CONTEXT_STORE = 'store';
+
     public const CONTEXT_PRODUCT = 'product';
+
     public const FREE_DAILY_LIMIT = 1;
 
     public function contexts(): array
@@ -32,7 +34,7 @@ class AiImageUsageService
 
     public function sourceForContext(string $context): string
     {
-        return 'ai_image_' . $context;
+        return 'ai_image_'.$context;
     }
 
     public function freeUsed(User $user, string $context, ?Carbon $date = null): int
