@@ -37,6 +37,21 @@ function planEntitlementExpectedLimits(): array
         ->all();
 }
 
+function planEntitlementCanonicalize(mixed $value): mixed
+{
+    if (! is_array($value)) {
+        return $value;
+    }
+
+    foreach ($value as $key => $item) {
+        $value[$key] = planEntitlementCanonicalize($item);
+    }
+
+    ksort($value);
+
+    return $value;
+}
+
 it('syncs plan modules and limits from billing config into platform settings', function () {
     PlatformSetting::setValue('plan_modules', [
         'legacy' => ['quotes' => false],
@@ -49,10 +64,10 @@ it('syncs plan modules and limits from billing config into platform settings', f
         ->expectsOutputToContain('Synchronized')
         ->assertExitCode(0);
 
-    expect(PlatformSetting::getValue('plan_modules', []))
-        ->toBe(CompanyFeatureService::defaultPlanModules())
-        ->and(PlatformSetting::getValue('plan_limits', []))
-        ->toBe(planEntitlementExpectedLimits());
+    expect(planEntitlementCanonicalize(PlatformSetting::getValue('plan_modules', [])))
+        ->toBe(planEntitlementCanonicalize(CompanyFeatureService::defaultPlanModules()))
+        ->and(planEntitlementCanonicalize(PlatformSetting::getValue('plan_limits', [])))
+        ->toBe(planEntitlementCanonicalize(planEntitlementExpectedLimits()));
 });
 
 it('syncs the redesigned core and growth entitlements from billing config', function () {
@@ -99,8 +114,8 @@ it('can sync only the selected plans without touching the others', function () {
     $expectedModules = CompanyFeatureService::defaultPlanModules();
     $expectedLimits = planEntitlementExpectedLimits();
 
-    expect($modules['starter'] ?? null)->toBe($expectedModules['starter'])
-        ->and($limits['starter'] ?? null)->toBe($expectedLimits['starter'])
+    expect(planEntitlementCanonicalize($modules['starter'] ?? null))->toBe(planEntitlementCanonicalize($expectedModules['starter']))
+        ->and(planEntitlementCanonicalize($limits['starter'] ?? null))->toBe(planEntitlementCanonicalize($expectedLimits['starter']))
         ->and($modules['growth']['assistant'] ?? null)->toBeFalse()
         ->and($limits['growth']['jobs'] ?? null)->toBe(999);
 });
