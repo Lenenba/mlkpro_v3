@@ -352,7 +352,7 @@ class CustomerController extends Controller
         }
         [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
 
-        $validated = $request->validated();
+        $validated = $this->normalizeCustomerPayload($request->validated());
         $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
         $logoPath = FileHandler::handleImageUpload('customers', $request, 'logo', $defaultLogo);
         if (! empty($validated['logo_icon']) && ! $request->hasFile('logo')) {
@@ -445,7 +445,7 @@ class CustomerController extends Controller
         }
         [$accountOwner, $accountId] = $this->resolveCustomerAccount($user, true);
 
-        $validated = $request->validated();
+        $validated = $this->normalizeCustomerPayload($request->validated());
         $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
         $logoPath = FileHandler::handleImageUpload('customers', $request, 'logo', $defaultLogo);
         if (! empty($validated['logo_icon']) && ! $request->hasFile('logo')) {
@@ -545,7 +545,7 @@ class CustomerController extends Controller
     {
         $this->authorize('update', $customer);
 
-        $validated = $request->validated();
+        $validated = $this->normalizeCustomerPayload($request->validated(), $customer);
         $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
         $validated['logo'] = FileHandler::handleImageUpload(
             'customers',
@@ -796,6 +796,35 @@ class CustomerController extends Controller
             ['name' => 'client'],
             ['description' => 'Access to client functionalities']
         )->id;
+    }
+
+    private function normalizeCustomerPayload(array $validated, ?Customer $customer = null): array
+    {
+        $validated['billing_same_as_physical'] = array_key_exists('billing_same_as_physical', $validated)
+            ? (bool) $validated['billing_same_as_physical']
+            : false;
+        $validated['portal_access'] = array_key_exists('portal_access', $validated)
+            ? (bool) $validated['portal_access']
+            : ($customer ? false : true);
+        $validated['billing_mode'] = $validated['billing_mode'] ?? $customer?->billing_mode ?? 'end_of_job';
+        $validated['billing_grouping'] = $validated['billing_grouping'] ?? $customer?->billing_grouping ?? 'single';
+        $validated['discount_rate'] = array_key_exists('discount_rate', $validated) && is_numeric($validated['discount_rate'])
+            ? (float) $validated['discount_rate']
+            : 0.0;
+        $validated['auto_accept_quotes'] = array_key_exists('auto_accept_quotes', $validated)
+            ? (bool) $validated['auto_accept_quotes']
+            : false;
+        $validated['auto_validate_jobs'] = array_key_exists('auto_validate_jobs', $validated)
+            ? (bool) $validated['auto_validate_jobs']
+            : false;
+        $validated['auto_validate_tasks'] = array_key_exists('auto_validate_tasks', $validated)
+            ? (bool) $validated['auto_validate_tasks']
+            : false;
+        $validated['auto_validate_invoices'] = array_key_exists('auto_validate_invoices', $validated)
+            ? (bool) $validated['auto_validate_invoices']
+            : false;
+
+        return $validated;
     }
 
     private function normalizeCustomerOptionScope(string $scope): string
