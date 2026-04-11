@@ -41,7 +41,7 @@ const page = usePage();
 const isCreateMode = computed(() => props.mode === 'create');
 const blockDefinitions = computed(() => props.choices?.block_types || []);
 const defaults = computed(() => props.choices?.defaults || {});
-const localeList = computed(() => page.props.locales || ['fr', 'en']);
+const localeList = computed(() => page.props.locales || ['fr', 'en', 'es']);
 const fallbackLocale = computed(() => localeList.value[0] || 'fr');
 const editorLocale = ref(page.props.locale || fallbackLocale.value);
 const localeOptions = computed(() =>

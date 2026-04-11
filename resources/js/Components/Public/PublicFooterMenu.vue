@@ -23,6 +23,7 @@ const page = usePage();
 const { t } = useI18n();
 const currentLocale = computed(() => String(page.props.locale || 'fr').toLowerCase());
 const isFrench = computed(() => currentLocale.value.startsWith('fr'));
+const isSpanish = computed(() => currentLocale.value.startsWith('es'));
 
 const safeRoute = (name, params = {}, fallback = '#') => {
     try {
@@ -229,7 +230,48 @@ const fallbackGroups = computed(() => {
                     toLink('Conditions', safeRoute('terms')),
                     toLink('Confidentialité', safeRoute('privacy')),
                     toLink('Remboursement', safeRoute('refund')),
-                    toLink('Contact us', '/pages/contact-us'),
+                    toLink('Contact', '/pages/contact-us'),
+                ],
+            },
+        ];
+    }
+
+    if (isSpanish.value) {
+        return [
+            {
+                id: 'industries',
+                title: 'Sectores que atendemos',
+                links: [
+                    toLink('Fontaneria', '/pages/industry-plumbing'),
+                    toLink('HVAC', '/pages/industry-hvac'),
+                    toLink('Electricidad', '/pages/industry-electrical'),
+                    toLink('Limpieza', '/pages/industry-cleaning'),
+                    toLink('Salon y belleza', '/pages/industry-salon-beauty'),
+                    toLink('Restaurantes', '/pages/industry-restaurant'),
+                ],
+            },
+            {
+                id: 'products',
+                title: 'Productos',
+                links: [
+                    toLink('Sales & CRM', '/pages/sales-crm'),
+                    toLink('Reservas', '/pages/reservations'),
+                    toLink('Operations', '/pages/operations'),
+                    toLink('Commerce', '/pages/commerce'),
+                    toLink('Marketing & Loyalty', '/pages/marketing-loyalty'),
+                    toLink('AI & Automation', '/pages/ai-automation'),
+                    toLink('Command Center', '/pages/command-center'),
+                ],
+            },
+            {
+                id: 'resources',
+                title: 'Recursos',
+                links: [
+                    toLink('Precios', safeRoute('pricing')),
+                    toLink('Terminos', safeRoute('terms')),
+                    toLink('Privacidad', safeRoute('privacy')),
+                    toLink('Reembolso', safeRoute('refund')),
+                    toLink('Contacto', '/pages/contact-us'),
                 ],
             },
         ];
@@ -340,19 +382,21 @@ const legalLinks = computed(() => {
 });
 
 const defaultSupportCard = computed(() => ({
-    kicker: isFrench.value ? 'Accompagnement' : 'Support',
-    title: isFrench.value ? 'Parlez a notre equipe' : 'Talk to our team',
+    kicker: isFrench.value ? 'Accompagnement' : (isSpanish.value ? 'Acompanamiento' : 'Support'),
+    title: isFrench.value ? 'Parlez a notre equipe' : (isSpanish.value ? 'Habla con nuestro equipo' : 'Talk to our team'),
     body: isFrench.value
         ? '<p>Besoin d un parcours produit plus precis ou d une page publique sur mesure ? On peut vous guider.</p>'
-        : '<p>Need a sharper product journey or a custom public page setup? Our team can help.</p>',
+        : (isSpanish.value
+            ? '<p>Necesitas un recorrido de producto mas claro o una pagina publica mas personalizada? Podemos ayudarte.</p>'
+            : '<p>Need a sharper product journey or a custom public page setup? Our team can help.</p>'),
     actions: [
-        toLink(isFrench.value ? 'Nous contacter' : 'Contact us', '/pages/contact-us'),
-        toLink(isFrench.value ? 'Voir les tarifs' : 'View pricing', safeRoute('pricing')),
+        toLink(isFrench.value ? 'Nous contacter' : (isSpanish.value ? 'Contactanos' : 'Contact us'), '/pages/contact-us'),
+        toLink(isFrench.value ? 'Voir les tarifs' : (isSpanish.value ? 'Ver precios' : 'View pricing'), safeRoute('pricing')),
     ],
     meta: [
-        { label: isFrench.value ? 'Parcours public et modules metier' : 'Public pages and business modules' },
-        { label: isFrench.value ? 'Support produit et accompagnement' : 'Product support and enablement' },
-        { label: isFrench.value ? 'Disponible en francais et en anglais' : 'Available in French and English' },
+        { label: isFrench.value ? 'Parcours public et modules metier' : (isSpanish.value ? 'Paginas publicas y modulos del negocio' : 'Public pages and business modules') },
+        { label: isFrench.value ? 'Support produit et accompagnement' : (isSpanish.value ? 'Soporte de producto y acompanamiento' : 'Product support and enablement') },
+        { label: isFrench.value ? 'Disponible en francais, en anglais et en espagnol' : (isSpanish.value ? 'Disponible en frances, ingles y espanol' : 'Available in French, English, and Spanish') },
     ],
 }));
 
@@ -398,14 +442,14 @@ const footerContact = computed(() => {
         {
             key: 'google-play',
             href: String(section.google_play_href || '').trim(),
-            eyebrow: isFrench.value ? 'Disponible sur' : 'Get it on',
+            eyebrow: isFrench.value ? 'Disponible sur' : (isSpanish.value ? 'Disponible en' : 'Get it on'),
             label: 'Google Play',
             icon: Play,
         },
         {
             key: 'app-store',
             href: String(section.app_store_href || '').trim(),
-            eyebrow: isFrench.value ? 'Telecharger sur' : 'Download on the',
+            eyebrow: isFrench.value ? 'Telecharger sur' : (isSpanish.value ? 'Descargar en' : 'Download on the'),
             label: 'App Store',
             text: 'A',
         },
@@ -457,7 +501,7 @@ const footerCopy = computed(() => (
             <div class="public-site-footer__grid">
                 <aside v-if="hasFooterContact" class="public-site-footer__contact">
                     <div class="public-site-footer__eyebrow">
-                        {{ isFrench ? 'Contact' : 'Contact' }}
+                        {{ isSpanish ? 'Contacto' : 'Contact' }}
                     </div>
 
                     <div class="public-site-footer__contact-stack">

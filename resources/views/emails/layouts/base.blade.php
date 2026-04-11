@@ -27,6 +27,7 @@
     $hasCustomCompanyLogo = is_string($companyLogo) && $companyLogo !== '' && ! str_contains($companyLogo, 'customers/customer.png');
     $resolvedCompanyLogo = $hasCustomCompanyLogo ? $resolveEmailImage($companyLogo) : null;
     $platformLogo = $resolveEmailImage('/2.svg');
+    $platformMarkLogo = $resolveEmailImage('/brand/bimi-logo.svg');
 @endphp
 <body style="margin:0; padding:0; background-color:#f5f5f4;">
     <div style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all;">
@@ -63,7 +64,7 @@
                                                     @endif
                                                 </td>
                                                 <td align="right" valign="middle">
-                                                    <img src="{{ $platformLogo }}" alt="{{ $platformName }} logo" style="max-height:22px; width:auto; display:block; margin-left:auto;">
+                                                    <img src="{{ $platformMarkLogo }}" alt="{{ $platformName }} mark" style="height:22px; width:22px; display:block; margin-left:auto;">
                                                     <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#78716c;">
                                                         {{ $platformName }}
                                                     </div>

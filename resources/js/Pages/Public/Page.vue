@@ -126,21 +126,23 @@ const usesWelcomeAlignedHero = computed(() => {
 
 const frontHeroEyebrow = computed(() => {
     const slug = String(props.page?.slug || '').trim();
-    const isFrench = String(currentLocale.value || 'fr').toLowerCase().startsWith('fr');
+    const locale = String(currentLocale.value || 'fr').toLowerCase();
+    const isFrench = locale.startsWith('fr');
+    const isSpanish = locale.startsWith('es');
 
     if (slug === 'contact-us') {
-        return isFrench ? 'Contact' : 'Contact us';
+        return isFrench ? 'Contact' : (isSpanish ? 'Contacto' : 'Contact us');
     }
 
     if (slug.startsWith('solution-')) {
-        return isFrench ? 'Solutions' : 'Solutions';
+        return isSpanish ? 'Soluciones' : 'Solutions';
     }
 
     if (slug.startsWith('industry-')) {
-        return isFrench ? 'Industries' : 'Industries';
+        return isSpanish ? 'Industrias' : 'Industries';
     }
 
-    return isFrench ? 'Produits' : 'Products';
+    return isFrench ? 'Produits' : (isSpanish ? 'Productos' : 'Products');
 });
 
 const firstHeroSectionWithImage = computed(() => {

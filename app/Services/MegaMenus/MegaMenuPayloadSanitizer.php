@@ -2,6 +2,7 @@
 
 namespace App\Services\MegaMenus;
 
+use App\Support\LocalePreference;
 use App\Support\MegaMenuBlockRegistry;
 use App\Support\MegaMenuOptions;
 use Carbon\Carbon;
@@ -12,8 +13,6 @@ use Illuminate\Validation\Validator;
 
 class MegaMenuPayloadSanitizer
 {
-    private const SUPPORTED_LOCALES = ['fr', 'en'];
-
     private const MAX_TOP_LEVEL_ITEMS = 16;
 
     private const MAX_NESTED_ITEMS = 24;
@@ -756,7 +755,7 @@ class MegaMenuPayloadSanitizer
 
         $sanitized = [];
 
-        foreach (self::SUPPORTED_LOCALES as $locale) {
+        foreach ($this->supportedLocales() as $locale) {
             $values = $translations[$locale] ?? null;
             if (! is_array($values)) {
                 continue;
@@ -790,7 +789,7 @@ class MegaMenuPayloadSanitizer
 
         $sanitized = [];
 
-        foreach (self::SUPPORTED_LOCALES as $locale) {
+        foreach ($this->supportedLocales() as $locale) {
             $payload = $translations[$locale] ?? null;
             if (! is_array($payload) || $payload === []) {
                 continue;
@@ -1242,5 +1241,13 @@ class MegaMenuPayloadSanitizer
         if (! $isValid) {
             $validator->errors()->add($path, 'The selected link reference is invalid.');
         }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function supportedLocales(): array
+    {
+        return LocalePreference::supported();
     }
 }

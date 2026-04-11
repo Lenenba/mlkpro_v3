@@ -26,7 +26,7 @@ class PublicPageStockImages
 
         return [
             'image_url' => $visual['image_url'],
-            'image_alt' => $locale === 'fr' ? $visual['alt_fr'] : $visual['alt_en'],
+            'image_alt' => self::visualAlt($visual, $locale),
         ];
     }
 
@@ -40,13 +40,23 @@ class PublicPageStockImages
 
         return [
             'image_url' => $visual['image_url'],
-            'image_alt' => $locale === 'fr' ? $visual['alt_fr'] : $visual['alt_en'],
+            'image_alt' => self::visualAlt($visual, $locale),
         ];
     }
 
     public static function normalizeLocale(?string $locale): string
     {
-        return str_starts_with(strtolower((string) $locale), 'fr') ? 'fr' : 'en';
+        $value = strtolower((string) $locale);
+
+        if (str_starts_with($value, 'fr')) {
+            return 'fr';
+        }
+
+        if (str_starts_with($value, 'es')) {
+            return 'es';
+        }
+
+        return 'en';
     }
 
     /**
@@ -91,7 +101,7 @@ class PublicPageStockImages
                 'id' => 'stock-visual-'.$key,
                 'name' => 'Stock · '.self::humanizeKey($key),
                 'url' => $visual['image_url'],
-                'alt' => $locale === 'fr' ? $visual['alt_fr'] : $visual['alt_en'],
+                'alt' => self::visualAlt($visual, $locale),
                 'tags' => self::assetTags($key, $visual['image_url'], $welcomeUrls),
             ];
         }
@@ -147,6 +157,18 @@ class PublicPageStockImages
     private static function humanizeKey(string $value): string
     {
         return trim(ucwords(str_replace(['-', '_'], ' ', $value)));
+    }
+
+    /**
+     * @param  array<string, string>  $visual
+     */
+    private static function visualAlt(array $visual, string $locale): string
+    {
+        return match ($locale) {
+            'fr' => $visual['alt_fr'] ?? ($visual['alt_en'] ?? ''),
+            'es' => $visual['alt_es'] ?? ($visual['alt_en'] ?? ($visual['alt_fr'] ?? '')),
+            default => $visual['alt_en'] ?? ($visual['alt_fr'] ?? ''),
+        };
     }
 
     private const VISUALS = [
@@ -208,6 +230,7 @@ class PublicPageStockImages
         'office-collaboration' => [
             'image_url' => '/images/landing/stock/office-collaboration.jpg',
             'alt_fr' => 'Equipe qui collabore autour d un ordinateur dans un bureau',
+            'alt_es' => 'Equipo colaborando alrededor de un ordenador en la oficina',
             'alt_en' => 'Team collaborating around a computer in an office',
         ],
         'payments-terminal' => [
@@ -238,6 +261,7 @@ class PublicPageStockImages
         'service-tablet' => [
             'image_url' => '/images/landing/stock/service-tablet.jpg',
             'alt_fr' => 'Equipe qui coordonne les rendez-vous sur tablette',
+            'alt_es' => 'Equipo que coordina citas desde una tableta',
             'alt_en' => 'Team coordinating appointments on a tablet',
         ],
         'service-team' => [
@@ -268,6 +292,7 @@ class PublicPageStockImages
         'warehouse-worker' => [
             'image_url' => '/images/landing/stock/warehouse-worker.jpg',
             'alt_fr' => 'Preparateur qui gere articles et disponibilites',
+            'alt_es' => 'Operario gestionando articulos y disponibilidad',
             'alt_en' => 'Warehouse operator managing items and availability',
         ],
         'workflow-plan' => [

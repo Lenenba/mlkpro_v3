@@ -18,7 +18,17 @@ class WelcomeStockImages
 
     public static function normalizeLocale(?string $locale): string
     {
-        return str_starts_with(strtolower((string) $locale), 'fr') ? 'fr' : 'en';
+        $value = strtolower((string) $locale);
+
+        if (str_starts_with($value, 'fr')) {
+            return 'fr';
+        }
+
+        if (str_starts_with($value, 'es')) {
+            return 'es';
+        }
+
+        return 'en';
     }
 
     public static function heroSlides(?string $locale = 'fr'): array
@@ -38,6 +48,23 @@ class WelcomeStockImages
                 [
                     'image_url' => self::WORKFLOW_PLAN,
                     'image_alt' => 'Deux professionnels relisent des plans dans un chantier interieur',
+                ],
+            ];
+        }
+
+        if ($locale === 'es') {
+            return [
+                [
+                    'image_url' => self::HERO_TEAM,
+                    'image_alt' => 'Equipo de campo coordinandose en el sitio',
+                ],
+                [
+                    'image_url' => self::HERO_TABLET,
+                    'image_alt' => 'Responsable en obra revisando una tableta en el lugar',
+                ],
+                [
+                    'image_url' => self::WORKFLOW_PLAN,
+                    'image_alt' => 'Dos profesionales revisando planos dentro de una obra',
                 ],
             ];
         }
@@ -74,6 +101,13 @@ class WelcomeStockImages
             ];
         }
 
+        if ($locale === 'es') {
+            return [
+                'image_url' => self::WORKFLOW_PLAN,
+                'image_alt' => 'Profesionales revisando planos en una obra',
+            ];
+        }
+
         return [
             'image_url' => self::WORKFLOW_PLAN,
             'image_alt' => 'Professionals reviewing plans on a job site',
@@ -88,6 +122,13 @@ class WelcomeStockImages
             return [
                 'image_url' => self::FIELD_CHECKLIST,
                 'image_alt' => 'Technicien terrain avec checklist sur place',
+            ];
+        }
+
+        if ($locale === 'es') {
+            return [
+                'image_url' => self::FIELD_CHECKLIST,
+                'image_alt' => 'Tecnico de campo con una lista de control en el lugar',
             ];
         }
 
@@ -107,46 +148,71 @@ class WelcomeStockImages
                     'image_url' => self::MARKETING_DESK,
                     'image_alt' => 'Professionnelle gerant messages et demandes depuis son poste de travail',
                 ]
-                : [
-                    'image_url' => self::MARKETING_DESK,
-                    'image_alt' => 'Professional handling messages and requests from a desk',
-                ],
+                : ($locale === 'es'
+                    ? [
+                        'image_url' => self::MARKETING_DESK,
+                        'image_alt' => 'Profesional gestionando mensajes y solicitudes desde su escritorio',
+                    ]
+                    : [
+                        'image_url' => self::MARKETING_DESK,
+                        'image_alt' => 'Professional handling messages and requests from a desk',
+                    ]),
             'win_jobs' => $locale === 'fr'
                 ? [
                     'image_url' => self::WORKFLOW_PLAN,
                     'image_alt' => 'Deux professionnels qui valident des plans de chantier',
                 ]
-                : [
-                    'image_url' => self::WORKFLOW_PLAN,
-                    'image_alt' => 'Two professionals validating job plans together',
-                ],
+                : ($locale === 'es'
+                    ? [
+                        'image_url' => self::WORKFLOW_PLAN,
+                        'image_alt' => 'Dos profesionales validando juntos planos de trabajo',
+                    ]
+                    : [
+                        'image_url' => self::WORKFLOW_PLAN,
+                        'image_alt' => 'Two professionals validating job plans together',
+                    ]),
             'work_smarter' => $locale === 'fr'
                 ? [
                     'image_url' => self::FIELD_CHECKLIST,
                     'image_alt' => 'Technicien avec checklist pret pour l intervention',
                 ]
-                : [
-                    'image_url' => self::FIELD_CHECKLIST,
-                    'image_alt' => 'Technician holding a checklist before an on-site visit',
-                ],
+                : ($locale === 'es'
+                    ? [
+                        'image_url' => self::FIELD_CHECKLIST,
+                        'image_alt' => 'Tecnico con una lista de control antes de una visita en el lugar',
+                    ]
+                    : [
+                        'image_url' => self::FIELD_CHECKLIST,
+                        'image_alt' => 'Technician holding a checklist before an on-site visit',
+                    ]),
             'boost_profits' => $locale === 'fr'
                 ? [
                     'image_url' => self::PAYMENTS_TERMINAL,
                     'image_alt' => 'Paiement par carte sur terminal au milieu des outils d intervention',
                 ]
-                : [
-                    'image_url' => self::PAYMENTS_TERMINAL,
-                    'image_alt' => 'Card payment on a terminal beside service tools',
-                ],
+                : ($locale === 'es'
+                    ? [
+                        'image_url' => self::PAYMENTS_TERMINAL,
+                        'image_alt' => 'Pago con tarjeta en un terminal junto a herramientas de servicio',
+                    ]
+                    : [
+                        'image_url' => self::PAYMENTS_TERMINAL,
+                        'image_alt' => 'Card payment on a terminal beside service tools',
+                    ]),
             default => $locale === 'fr'
                 ? [
                     'image_url' => self::HERO_TEAM,
                     'image_alt' => 'Equipe terrain sur chantier',
                 ]
-                : [
-                    'image_url' => self::HERO_TEAM,
-                    'image_alt' => 'Field team on site',
-                ],
+                : ($locale === 'es'
+                    ? [
+                        'image_url' => self::HERO_TEAM,
+                        'image_alt' => 'Equipo de campo en el sitio',
+                    ]
+                    : [
+                        'image_url' => self::HERO_TEAM,
+                        'image_alt' => 'Field team on site',
+                    ]),
         };
     }
 

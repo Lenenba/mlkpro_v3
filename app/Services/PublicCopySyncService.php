@@ -531,6 +531,72 @@ class PublicCopySyncService
             ];
         }
 
+        if ($normalizedLocale === 'es') {
+            return [
+                'layout' => 'feature_tabs',
+                'background_color' => '#f7f2e8',
+                'image_position' => 'left',
+                'alignment' => 'center',
+                'density' => 'normal',
+                'tone' => 'default',
+                'feature_tabs_style' => 'workflow',
+                'kicker' => 'Un solo sistema para todo el recorrido del cliente',
+                'title' => 'Descubre como Malikia Pro impulsa el crecimiento desde el primer clic hasta el pago final',
+                'body' => '<p>Cada etapa del negocio permanece conectada para que marketing, cotizaciones, ejecucion e ingresos no vivan en herramientas separadas.</p>',
+                'feature_tabs_font_size' => 28,
+                'feature_tabs' => [
+                    [
+                        'id' => 'welcome-showcase-es-1',
+                        'label' => 'Hazte visible',
+                        'icon' => 'clipboard-check',
+                        'title' => 'Convierte la visibilidad en solicitudes calificadas sin romper el recorrido del cliente',
+                        'body' => '<p>Paginas publicas, formularios, campanas y seguimiento permanecen alineados desde el primer clic hasta la primera conversacion real.</p>',
+                        'items' => ['Resenas', 'Solicitudes', 'Campanas', 'Enlaces'],
+                        'cta_label' => 'Explorar Marketing & Loyalty',
+                        'cta_href' => '/pages/marketing-loyalty',
+                        'image_url' => $getNoticedImage['image_url'],
+                        'image_alt' => $getNoticedImage['image_alt'],
+                    ],
+                    [
+                        'id' => 'welcome-showcase-es-2',
+                        'label' => 'Gana trabajos',
+                        'icon' => 'file-text',
+                        'title' => 'Cotiza mas rapido, haz mejor seguimiento y convierte mas demanda en aprobaciones',
+                        'body' => '<p>El contexto del cliente, las plantillas, las opciones y las aprobaciones permanecen dentro de un flujo comercial que tu equipo puede gestionar de verdad.</p>',
+                        'items' => ['Calificacion', 'Plantillas', 'Opciones', 'Seguimiento'],
+                        'cta_label' => 'Explorar Sales & CRM',
+                        'cta_href' => '/pages/sales-crm',
+                        'image_url' => $winJobsImage['image_url'],
+                        'image_alt' => $winJobsImage['image_alt'],
+                    ],
+                    [
+                        'id' => 'welcome-showcase-es-3',
+                        'label' => 'Haz funcionar las operaciones',
+                        'icon' => 'calendar-days',
+                        'title' => 'Mantiene conectadas la coordinacion, la planificacion y la ejecucion',
+                        'body' => '<p>Dispatch, trabajos, listas de control, actualizaciones e historial permanecen visibles para todo el equipo en lugar de perderse en canales paralelos.</p>',
+                        'items' => ['Planificacion', 'Dispatch', 'Listas', 'Historial'],
+                        'cta_label' => 'Explorar Operations',
+                        'cta_href' => '/pages/operations',
+                        'image_url' => $workSmarterImage['image_url'],
+                        'image_alt' => $workSmarterImage['image_alt'],
+                    ],
+                    [
+                        'id' => 'welcome-showcase-es-4',
+                        'label' => 'Protege los ingresos',
+                        'icon' => 'circle-dollar-sign',
+                        'title' => 'Convierte el trabajo completado en facturas y pagos con menos carga administrativa',
+                        'body' => '<p>Las facturas, los recordatorios y el flujo de pagos permanecen vinculados al trabajo realizado para que sea mas facil cobrar y proteger los ingresos.</p>',
+                        'items' => ['Facturas', 'Pagos', 'Recordatorios', 'Informes'],
+                        'cta_label' => 'Explorar Commerce',
+                        'cta_href' => '/pages/commerce',
+                        'image_url' => $boostProfitsImage['image_url'],
+                        'image_alt' => $boostProfitsImage['image_alt'],
+                    ],
+                ],
+            ];
+        }
+
         return [
             'layout' => 'feature_tabs',
             'background_color' => '#f7f2e8',

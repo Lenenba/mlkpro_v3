@@ -1,10 +1,12 @@
 import { createI18n } from 'vue-i18n';
 import en from './en.json';
+import es from './es.json';
 import fr from './fr.json';
 import marketingEn from './marketing.en.json';
+import marketingEs from './marketing.es.json';
 import marketingFr from './marketing.fr.json';
 
-export const supportedLocales = ['fr', 'en'];
+export const supportedLocales = ['fr', 'en', 'es'];
 
 const normalizeLocale = (locale) =>
     supportedLocales.includes(locale) ? locale : 'fr';
@@ -41,5 +43,9 @@ export const createI18nInstance = (locale) =>
         messages: {
             fr: deepMerge(fr, marketingFr),
             en: deepMerge(en, marketingEn),
+            es: deepMerge(
+                deepMerge(en, marketingEn),
+                deepMerge(es, marketingEs),
+            ),
         },
     });

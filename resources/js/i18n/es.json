@@ -1,0 +1,854 @@
+{
+  "account": {
+    "default_name": "Cuenta",
+    "company_label": "Empresa",
+    "settings": "Configuracion",
+    "billing": "Facturacion",
+    "profile": "Mi cuenta",
+    "dark_mode": "Modo oscuro",
+    "logout": "Cerrar sesion",
+    "language": "Idioma"
+  },
+  "actions": {
+    "stop_impersonation": "Dejar de suplantar"
+  },
+  "alerts": {
+    "maintenance": {
+      "title": "Modo de mantenimiento",
+      "message": "La plataforma esta actualmente en modo de mantenimiento."
+    },
+    "impersonation": {
+      "title": "Suplantando",
+      "message": "Estas suplantando esta cuenta. Administrador original: {name}."
+    },
+    "success": {
+      "title": "Exito."
+    },
+    "error": {
+      "title": "Error."
+    },
+    "warning": {
+      "title": "Advertencia."
+    },
+    "validation_toast": {
+      "single": "1 error en el formulario. Revisa el campo resaltado.",
+      "plural": "{count} errores en el formulario. Revisa los campos resaltados.",
+      "generic": "Hay errores en el formulario. Revisa los campos resaltados."
+    }
+  },
+  "language": {
+    "fr": "Frances",
+    "en": "Ingles",
+    "es": "Espanol"
+  },
+  "nav": {
+    "admin": "Admin",
+    "tenants": "Organizaciones",
+    "demo_workspaces": "Demos",
+    "plans": "Planes",
+    "support": "Soporte",
+    "admins": "Admins",
+    "notifications": "Notificaciones",
+    "announcements": "Anuncios",
+    "settings": "Configuracion",
+    "welcome_builder": "Constructor de bienvenida",
+    "pages": "Paginas",
+    "sections": "Secciones",
+    "assets": "Recursos",
+    "dashboard": "Panel",
+    "customers": "Clientes",
+    "products": "Productos",
+    "sales": "Ventas",
+    "campaigns": "Campanas",
+    "loyalty": "Fidelizacion",
+    "performance": "Rendimiento",
+    "presence": "Presencia",
+    "planning": "Planificacion",
+    "orders": "Pedidos",
+    "services": "Servicios",
+    "categories": "Categorias",
+    "quotes": "Cotizaciones",
+    "plan_scans": "Escaneo de planos",
+    "requests": "Solicitudes",
+    "reservations": "Reservas",
+    "book_reservation": "Reservar",
+    "my_reservations": "Mis reservas",
+    "jobs": "Trabajos",
+    "tasks": "Tareas",
+    "team": "Equipo",
+    "invoices": "Facturas",
+    "tips": "Propinas"
+  },
+  "notifications_panel": {
+    "title": "Notificaciones",
+    "mark_all": "Marcar todo",
+    "empty": "No hay notificaciones."
+  },
+  "global_search": {
+    "open": "Busqueda global",
+    "placeholder": "Buscar clientes, tareas, cotizaciones, empleados...",
+    "placeholder_solo": "Buscar clientes, tareas, cotizaciones...",
+    "quick_actions": "Acciones rapidas",
+    "results": "Resultados",
+    "loading": "Buscando...",
+    "no_results": "No se encontraron resultados.",
+    "hint": "Ctrl + K",
+    "groups": {
+      "customers": "Clientes",
+      "tasks": "Tareas",
+      "quotes": "Cotizaciones",
+      "employees": "Empleados"
+    }
+  },
+  "quick_create": {
+    "customer": "Cliente",
+    "service": "Servicio",
+    "request": "Solicitud",
+    "quote": "Cotizacion",
+    "product": "Producto",
+    "new_customer": "Nuevo cliente",
+    "create_customer": "Crear cliente",
+    "new_product": "Nuevo producto",
+    "new_service": "Nuevo servicio",
+    "new_quote": "Nueva cotizacion",
+    "new_request": "Nueva solicitud",
+    "loading_categories": "Cargando categorias...",
+    "errors": {
+      "load_customers": "No se pueden cargar los clientes.",
+      "load_categories": "No se pueden cargar las categorias."
+    }
+  },
+  "public_pages": {
+    "actions": {
+      "home": "Inicio",
+      "login": "Iniciar sesion"
+    }
+  },
+  "public_showcase": {
+    "title": "Servicios de {company}",
+    "company_fallback": "Empresa",
+    "eyebrow": "Escaparate de servicios",
+    "headline": "Servicios de {company}.",
+    "subheadline": "Explora los servicios que ofrecemos para tus proyectos.",
+    "cta_request": "Solicitar cotizacion",
+    "cta_contact": "Contactanos",
+    "featured": "Servicio destacado",
+    "empty": "Todavia no hay servicios disponibles.",
+    "empty_description": "No hay descripcion disponible.",
+    "category_fallback": "Sin categoria",
+    "price_from": "Desde",
+    "price_quote": "Cotizacion requerida",
+    "stats_services": "{count} servicios",
+    "stats_categories": "{count} categorias",
+    "filters": {
+      "search": "Buscar",
+      "search_placeholder": "Buscar servicios",
+      "category": "Categoria",
+      "all": "Todas las categorias"
+    },
+    "sections": {
+      "services": "Servicios",
+      "services_hint": "Elige un servicio y solicita una cotizacion en minutos."
+    },
+    "contact": {
+      "title": "Contactanos",
+      "subtitle": "Cuentanos sobre tu proyecto y te responderemos rapido.",
+      "phone": "Telefono",
+      "email": "Correo electronico",
+      "location": "Ubicacion",
+      "empty": "Los datos de contacto estaran disponibles pronto."
+    }
+  },
+  "public_store": {
+    "title": "Tienda de {company}",
+    "subtitle": "Explora los productos disponibles.",
+    "company_fallback": "Tienda",
+    "search_placeholder": "Buscar productos",
+    "empty": "Todavia no hay productos disponibles.",
+    "empty_description": "No hay descripcion disponible.",
+    "filters": {
+      "all": "Todas las categorias",
+      "category": "Categoria",
+      "search": "Buscar",
+      "sort": "Ordenar",
+      "price_min": "Precio minimo",
+      "price_max": "Precio maximo",
+      "availability": "Disponibilidad",
+      "availability_all": "Todos los niveles de stock",
+      "availability_in": "En stock",
+      "availability_out": "Agotado",
+      "availability_low": "Stock bajo",
+      "promotions": "Promociones",
+      "promo_all": "Todos los productos",
+      "promo_only": "Solo promociones",
+      "reset": "Restablecer filtros"
+    },
+    "stock": {
+      "in": "En stock",
+      "low": "Stock bajo",
+      "out": "Agotado"
+    },
+    "actions": {
+      "login": "Iniciar sesion",
+      "register": "Crear cuenta",
+      "portal_hint": "Inicia sesion o crea una cuenta de cliente para hacer pedidos.",
+      "shop_now": "Comprar ahora",
+      "view_catalog": "Ver catalogo",
+      "view_product": "Ver producto",
+      "explore": "Explorar",
+      "add_to_cart": "Agregar al carrito",
+      "checkout": "Finalizar compra"
+    },
+    "product": {
+      "details": "Detalles del producto",
+      "category": "Categoria",
+      "stock": "Stock",
+      "sku": "SKU",
+      "category_fallback": "Sin categoria"
+    },
+    "reviews": {
+      "label": "Resenas",
+      "empty": "Todavia no hay resenas",
+      "title": "Resenas de clientes",
+      "loading": "Cargando resenas...",
+      "load_error": "No se pueden cargar las resenas.",
+      "anonymous": "Cliente"
+    },
+    "hero": {
+      "eyebrow": "Tienda publica",
+      "headline": "Una forma mas clara y mas rapida de comprar en {company}.",
+      "subheadline": "Mas vendidos, promociones, novedades y el catalogo completo.",
+      "stat_products": "{count} productos",
+      "stat_categories": "{count} categorias",
+      "stat_new_arrivals": "{count} novedades"
+    },
+    "sections": {
+      "spotlight": "Producto destacado",
+      "best_sellers": "Mas vendidos",
+      "promotions": "Promociones",
+      "new_arrivals": "Novedades",
+      "catalog": "Catalogo completo",
+      "categories": "Comprar por categoria"
+    },
+    "catalog": {
+      "results": "{count} resultados"
+    },
+    "badges": {
+      "best_seller": "Mas vendido",
+      "promo": "Promo",
+      "promo_with": "Promo -{percent}%",
+      "new": "Nuevo",
+      "low_stock": "Stock limitado",
+      "hot": "Tendencia"
+    },
+    "sort": {
+      "label": "Ordenar por",
+      "featured": "Destacados",
+      "newest": "Mas recientes",
+      "price_asc": "Precio: de menor a mayor",
+      "price_desc": "Precio: de mayor a menor",
+      "name_asc": "Nombre A-Z",
+      "stock_desc": "Mas stock"
+    },
+    "hints": {
+      "login_to_order": "Al finalizar la compra se crea una cuenta de cliente para que puedas seguir tus pedidos."
+    },
+    "promotions_hint": "Mejores precios, cantidades limitadas. Aprovecha las ofertas del momento.",
+    "categories_hint": "Explora las categorias destacadas seleccionadas del catalogo.",
+    "empty_collection": "Todavia no hay nada que mostrar.",
+    "cart_error": "No se puede actualizar el carrito.",
+    "checkout_error": "No se puede realizar el pedido.",
+    "cart": {
+      "title": "Tu carrito",
+      "item_count": "{count} articulos",
+      "summary": "Resumen",
+      "subtotal": "Subtotal",
+      "taxes": "Impuestos",
+      "delivery_fee": "Costo de entrega",
+      "total": "Total",
+      "clear": "Vaciar carrito",
+      "checkout": "Finalizar compra",
+      "checkout_hint": "Completa tus datos para realizar el pedido.",
+      "name": "Nombre completo",
+      "email": "Correo electronico",
+      "phone": "Telefono",
+      "delivery_address": "Direccion de entrega",
+      "submit": "Realizar pedido",
+      "empty": "Tu carrito esta vacio.",
+      "remove": "Eliminar",
+      "sku_fallback": "SKU pendiente",
+      "internal_notice": "Has iniciado sesion como usuario interno. Usa una cuenta de cliente para realizar pedidos.",
+      "added": "Agregado al carrito."
+    },
+    "fulfillment": {
+      "title": "Entrega o recogida",
+      "subtitle": "Elige un metodo",
+      "unavailable": "La entrega y la recogida todavia no estan configuradas.",
+      "delivery": "Entrega",
+      "pickup": "Recogida rapida",
+      "ready": "Listo pronto",
+      "ready_in": "Listo en {minutes} min",
+      "delivery_address": "Direccion de entrega",
+      "delivery_notes": "Instrucciones (opcional)",
+      "delivery_zone": "Zona: {zone}",
+      "scheduled_for": "Hora preferida (opcional)",
+      "pickup_address": "Recogida: {address}",
+      "pickup_notes": "Notas para la recogida (opcional)",
+      "pickup_time": "Hora de recogida (opcional)"
+    },
+    "related": {
+      "title": "Tambien te puede gustar"
+    },
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "page": "Pagina {current} / {total}"
+    },
+    "notes": {
+      "title": "Notas y sustituciones",
+      "customer_notes": "Notas para la tienda",
+      "substitution_allowed": "Permitir sustituciones",
+      "substitution_notes": "Preferencias de sustitucion"
+    }
+  },
+  "pricing": {
+    "meta": {
+      "title": "Precios"
+    },
+    "badges": {
+      "recommended": "Recomendado"
+    },
+    "switch": {
+      "label": "Elige tu contexto operativo"
+    },
+    "currency": {
+      "label": "Moneda"
+    },
+    "billing_cycle": {
+      "label": "Ciclo de facturacion",
+      "monthly": "Mensual",
+      "yearly": "Anual",
+      "interval_month": "/mes",
+      "interval_year": "/ano",
+      "save_badge": "Ahorra {percent}% con la facturacion anual",
+      "yearly_note": "Facturado anualmente con {percent}% de descuento.",
+      "billed_yearly": "Para 12 meses, facturado anualmente."
+    },
+    "audiences": {
+      "solo": "Solo",
+      "team": "Equipo"
+    },
+    "hero": {
+      "solo": {
+        "eyebrow": "Precios para operadores independientes",
+        "title": "Empieza con la configuracion que coincide con tu forma de trabajar hoy",
+        "subtitle": "Elige un plan individual que mantenga cotizaciones, facturacion, trabajos y herramientas de crecimiento alineados sin agregar complejidad innecesaria.",
+        "note": "Empieza con una configuracion operativa simple ahora y pasa a una coordinacion mas amplia solo cuando tu negocio lo necesite."
+      },
+      "team": {
+        "eyebrow": "Precios para equipos que necesitan coordinacion",
+        "title": "Elige el plan que se adapta a tu equipo, flujo de trabajo y etapa de crecimiento",
+        "subtitle": "Desde operaciones esenciales hasta automatizacion y supervision mas profundas, cada plan agrega el nivel de estructura que tu equipo realmente necesita.",
+        "note": "Puedes empezar con el nivel adecuado para hoy y subir cuando crezcan el volumen, el equipo y la complejidad operativa."
+      }
+    },
+    "plan_cards": {
+      "solo_essential": {
+        "features": {
+          "one": "Un punto de partida claro para cotizaciones, facturacion y seguimiento de clientes.",
+          "two": "Mantiene visibles en un solo lugar las solicitudes y el historial esencial del cliente.",
+          "three": "Presenta los servicios con claridad mediante un catalogo y una pagina publica.",
+          "four": "Pensado para operadores individuales que quieren estructura sin carga adicional."
+        }
+      },
+      "solo_pro": {
+        "features": {
+          "one": "Todo lo incluido en Solo Core.",
+          "two": "Agrega trabajos y tareas para seguir la ejecucion con mas seriedad.",
+          "three": "Mas control diario sin la complejidad de un equipo.",
+          "four": "La mejor opcion para operadores individuales activos."
+        }
+      },
+      "solo_growth": {
+        "features": {
+          "one": "Todo lo incluido en Solo Growth.",
+          "two": "Agrega planificacion y reservas limitadas para gestionar mas flujo.",
+          "three": "Usa IA, campanas y herramientas de fidelizacion dentro del mismo sistema.",
+          "four": "Pensado para negocios individuales con mas volumen y necesidades de crecimiento."
+        }
+      },
+      "starter": {
+        "features": {
+          "one": "Una base solida para cotizaciones, trabajos, planificacion y facturacion.",
+          "two": "Pensado para equipos pequenos que necesitan un flujo compartido.",
+          "three": "Mantiene alineados la oficina y el terreno en un solo sistema.",
+          "four": "Un punto de partida practico para coordinar equipos."
+        }
+      },
+      "growth": {
+        "features": {
+          "one": "Todo lo incluido en Team Core.",
+          "two": "Agrega permisos mas fuertes y un control operativo mas profundo.",
+          "three": "Pensado para equipos en crecimiento que necesitan mas estructura y visibilidad.",
+          "four": "El mejor equilibrio para crecer sin la carga de una solucion enterprise."
+        }
+      },
+      "scale": {
+        "features": {
+          "one": "Todo lo incluido en Team Growth.",
+          "two": "Informes avanzados y mayor profundidad operativa para equipos maduros.",
+          "three": "Onboarding dedicado y soporte mas fuerte a medida que aumenta la complejidad.",
+          "four": "Pensado para equipos que necesitan mas profundidad en todo el negocio."
+        }
+      },
+      "enterprise": {
+        "features": {
+          "one": "Implementacion personalizada para organizaciones mas grandes o complejas.",
+          "two": "Soporta limites adaptados, controles avanzados e implementacion guiada.",
+          "three": "Pensado para necesidades multi-entidad, de seguridad o ligadas a SLA.",
+          "four": "Contactanos para una configuracion mas personalizada."
+        }
+      }
+    },
+    "plans": {
+      "starter": {
+        "label": "Team Core",
+        "price": "Contactanos",
+        "desc": "Para equipos pequenos que construyen un flujo de trabajo mas estructurado."
+      },
+      "pro": {
+        "label": "Team Growth",
+        "badge": "Recomendado",
+        "price": "Contactanos",
+        "desc": "Para equipos en crecimiento que necesitan mas control y profundidad operativa."
+      },
+      "enterprise": {
+        "label": "Enterprise",
+        "price": "Personalizado",
+        "desc": "Para organizaciones con necesidades avanzadas, multi-entidad o ligadas a SLA."
+      }
+    },
+    "features": {
+      "solo": {
+        "title": "Pensado para operadores individuales que quieren control sin carga extra",
+        "items": {
+          "one": "Mantiene en un solo lugar las cotizaciones, facturas y solicitudes de clientes desde el primer dia.",
+          "two": "Presenta los servicios con claridad mediante un catalogo y una pagina publica profesional.",
+          "three": "Da el paso a trabajos y seguimiento de tareas cuando la ejecucion se vuelve mas exigente.",
+          "four": "Activa planificacion, reservas, IA y herramientas de crecimiento solo cuando tu flujo lo necesite.",
+          "five": "Pasa mas adelante a precios para equipos sin reconstruir tu forma de trabajar."
+        }
+      },
+      "team": {
+        "title": "Incluido en todos los planes para equipos",
+        "items": {
+          "one": "Cotizaciones, trabajos, tareas y facturacion en un solo flujo compartido.",
+          "two": "Un solo catalogo de servicios y productos para todo el negocio.",
+          "three": "Mejores senales operativas, incluido el contexto de precios por escaneo de planos cuando corresponde.",
+          "four": "Aprobaciones y visibilidad para el cliente a traves del portal.",
+          "five": "Roles y permisos de equipo que favorecen una ejecucion mas limpia."
+        }
+      }
+    },
+    "enterprise": {
+      "solo": {
+        "title": "Empieza simple hoy y crece hacia mas estructura despues",
+        "body": "Comienza con un plan individual que encaje con tu forma de operar hoy y pasa a la coordinacion de equipo solo cuando las contrataciones, el volumen o la complejidad del flujo lo hagan necesario."
+      },
+      "team": {
+        "title": "Necesitas un despliegue mas adaptado?",
+        "body": "Si tu equipo necesita limites personalizados, una revision de seguridad, onboarding dedicado o una implementacion mas guiada, podemos ayudarte a definir la configuracion adecuada."
+      }
+    },
+    "actions": {
+      "plan_trial": "Empezar prueba",
+      "plan_trial_note": "Incluye 1 mes de prueba durante el onboarding.",
+      "primary": "Empezar onboarding",
+      "secondary": "Iniciar sesion"
+    },
+    "comparison": {
+      "title": "Compara lo que mas importa antes de elegir",
+      "subtitle": "Revisa las capacidades clave, los limites y la profundidad del flujo incluidos en cada plan.",
+      "columns": {
+        "feature": "Funciones"
+      },
+      "sections": {
+        "fundamentals": "Fundamentos",
+        "operations": "Operaciones de campo",
+        "growth": "Crecimiento y automatizacion"
+      },
+      "rows": {
+        "team_members": "Empleados incluidos",
+        "account_access": "Acceso a la cuenta",
+        "clients": "Clientes",
+        "requests": "Solicitudes / leads",
+        "estimates": "Presupuestos",
+        "invoices": "Facturas",
+        "tips": "Propinas",
+        "catalog": "Catalogo de productos y servicios",
+        "catalog_items": "Elementos del catalogo",
+        "client_portal": "Portal del cliente",
+        "jobs": "Trabajos",
+        "tasks": "Tareas",
+        "planning": "Planificacion",
+        "team_planning": "Planificacion del equipo",
+        "time_tracking": "Seguimiento del tiempo",
+        "reservations": "Reservas y check-in",
+        "recurring_jobs": "Trabajos recurrentes",
+        "reports": "Informes integrados",
+        "permissions": "Permisos del equipo",
+        "automations": "Automatizaciones avanzadas",
+        "plan_scan": "Escaneo de planos y cotizaciones con IA",
+        "ai_assistant": "Asistente IA",
+        "campaigns": "Campanas",
+        "loyalty": "Fidelizacion",
+        "onboarding": "Onboarding dedicado",
+        "custom_integrations": "Integraciones personalizadas y SLA"
+      },
+      "values": {
+        "unlimited": "Ilimitado",
+        "optional": "Complemento opcional",
+        "owner_only": "1 propietario",
+        "limited": "Modo limitado",
+        "contact": "Contactanos"
+      }
+    }
+  },
+  "legal": {
+    "header": {
+      "tagline": "Suite de gestion empresarial"
+    },
+    "actions": {
+      "sign_in": "Iniciar sesion",
+      "create_account": "Crear cuenta"
+    },
+    "links": {
+      "terms": "Terminos y condiciones",
+      "privacy": "Politica de privacidad",
+      "refund": "Politica de reembolso",
+      "pricing": "Precios"
+    },
+    "footer": "Malikia Pro. Todos los derechos reservados. {year}"
+  },
+  "privacy": {
+    "meta": {
+      "title": "Politica de privacidad"
+    },
+    "intro": {
+      "eyebrow": "Politica de privacidad",
+      "title": "Politica de privacidad de Malikia Pro",
+      "updated": "Ultima actualizacion: {date}.",
+      "summary": "Esta politica explica como Malikia Pro recopila, usa y protege los datos en Malikia Pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Alcance",
+        "body": "Esta politica se aplica a la plataforma Malikia Pro y a los servicios relacionados."
+      },
+      "data": {
+        "title": "2. Datos que recopilamos",
+        "body": "Recopilamos datos de la cuenta, informacion de la empresa, datos de uso y archivos que subes."
+      },
+      "usage": {
+        "title": "3. Como usamos los datos",
+        "body": "Usamos los datos para prestar el servicio, mejorar las funciones y apoyar a tu equipo."
+      },
+      "sharing": {
+        "title": "4. Comparticion de datos",
+        "body": "Compartimos datos con proveedores de servicio solo cuando es necesario para operar la plataforma. No vendemos datos personales."
+      },
+      "security": {
+        "title": "5. Seguridad",
+        "body": "Usamos salvaguardas razonables, controles de acceso y registros para proteger tus datos."
+      },
+      "retention": {
+        "title": "6. Conservacion",
+        "body": "Conservamos los datos mientras tu cuenta este activa o cuando la ley lo exija."
+      },
+      "rights": {
+        "title": "7. Tus derechos",
+        "body": "Puedes solicitar acceso, correccion o eliminacion de datos a traves del propietario de tu cuenta."
+      },
+      "contact": {
+        "title": "8. Contacto",
+        "body": "Para preguntas sobre privacidad, contacta al soporte en la aplicacion."
+      }
+    },
+    "note": "Si tienes preguntas, contacta al soporte en la aplicacion."
+  },
+  "refund": {
+    "meta": {
+      "title": "Politica de reembolso"
+    },
+    "intro": {
+      "eyebrow": "Politica de reembolso",
+      "title": "Politica de reembolso de Malikia Pro",
+      "updated": "Ultima actualizacion: {date}.",
+      "summary": "Esta politica explica como se gestionan los reembolsos y los creditos para las suscripciones de Malikia Pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Alcance",
+        "body": "Las suscripciones se facturan por adelantado e incluyen acceso a las funciones de Malikia Pro."
+      },
+      "eligibility": {
+        "title": "2. Elegibilidad",
+        "body": "Los reembolsos pueden considerarse en caso de cargos duplicados o errores de facturacion verificados."
+      },
+      "exclusions": {
+        "title": "3. Exclusiones",
+        "bullets": {
+          "one": "Cambio de opinion despues de un uso significativo.",
+          "two": "Comisiones de terceros o cargos del proveedor de pagos.",
+          "three": "Servicios personalizados o servicios de onboarding."
+        }
+      },
+      "process": {
+        "title": "4. Como solicitarlo",
+        "body": "Envia una solicitud a traves del soporte en la aplicacion con la factura y el motivo del reembolso."
+      },
+      "timeline": {
+        "title": "5. Tiempo de procesamiento",
+        "body": "Si se aprueba, el reembolso se emite al metodo de pago original. El tiempo de procesamiento depende del proveedor de pagos."
+      },
+      "chargebacks": {
+        "title": "6. Contracargos",
+        "body": "Los contracargos pueden pausar el acceso mientras revisamos la reclamacion."
+      }
+    },
+    "note": "Contacta al soporte si necesitas ayuda con la facturacion."
+  },
+  "terms": {
+    "meta": {
+      "title": "Terminos y condiciones"
+    },
+    "header": {
+      "tagline": "Suite de gestion empresarial"
+    },
+    "actions": {
+      "sign_in": "Iniciar sesion",
+      "create_account": "Crear cuenta"
+    },
+    "intro": {
+      "eyebrow": "Terminos y condiciones",
+      "title": "Condiciones de uso de Malikia Pro",
+      "updated": "Ultima actualizacion: {date}. Esta pagina es una plantilla y debe revisarse antes de publicarse.",
+      "legal": "Nombre legal: Malikia Pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Alcance",
+        "body": "Estos terminos regulan el acceso a Malikia Pro, una plataforma que ayuda a las empresas a gestionar clientes, cotizaciones, trabajos, tareas, facturas, productos y escaneos de planos."
+      },
+      "accounts": {
+        "title": "2. Cuentas",
+        "bullets": {
+          "one": "Las cuentas son creadas y gestionadas por el propietario o un administrador de la empresa.",
+          "two": "Eres responsable de mantener seguras tus credenciales.",
+          "three": "Los roles y permisos limitan el acceso a los datos y las acciones."
+        }
+      },
+      "data": {
+        "title": "3. Propiedad de los datos",
+        "body": "Tu empresa conserva la propiedad de sus datos. Al usar Malikia Pro, otorgas a la plataforma permiso para almacenar, procesar y mostrar tus datos segun sea necesario para prestar el servicio."
+      },
+      "pricing": {
+        "title": "4. Cotizaciones y datos de precios",
+        "bullets": {
+          "one": "Las cotizaciones son estimaciones y pueden variar segun las condiciones del sitio y los cambios de alcance.",
+          "two": "Las consultas de precios usan fuentes de terceros y no se garantiza su exactitud.",
+          "three": "Debes validar los precios de los proveedores antes de aceptar o enviar una cotizacion."
+        }
+      },
+      "billing": {
+        "title": "5. Facturacion y pagos",
+        "body": "Las tarifas de suscripcion, impuestos y condiciones de pago se muestran en tu configuracion de facturacion. Las facturas impagadas pueden provocar acceso limitado hasta su resolucion."
+      },
+      "acceptable": {
+        "title": "6. Uso aceptable",
+        "bullets": {
+          "one": "No subas contenido ilegal ni hagas un uso indebido de los datos de los clientes.",
+          "two": "No intentes interrumpir ni descompilar el servicio.",
+          "three": "Cumple con las leyes aplicables y los acuerdos con los clientes."
+        }
+      },
+      "availability": {
+        "title": "7. Disponibilidad",
+        "body": "La plataforma se proporciona tal cual. Podemos realizar mantenimiento o actualizaciones que afecten temporalmente a la disponibilidad."
+      },
+      "liability": {
+        "title": "8. Limitacion de responsabilidad",
+        "body": "Malikia Pro no es responsable de danos indirectos, perdida de beneficios o perdida de datos mas alla de los limites exigidos por la ley. Usas el servicio por tu cuenta y riesgo."
+      },
+      "termination": {
+        "title": "9. Rescision",
+        "body": "Puedes cancelar tu suscripcion en cualquier momento. Podemos suspender el acceso por incumplimiento de estos terminos o por impago."
+      },
+      "changes": {
+        "title": "10. Cambios",
+        "body": "Podemos actualizar estos terminos. El uso continuado despues de los cambios significa que aceptas los terminos actualizados."
+      }
+    },
+    "note": "Preguntas? Contacta al propietario de tu cuenta o usa el canal de soporte dentro de la aplicacion.",
+    "footer": "Malikia Pro. Todos los derechos reservados. {year}"
+  },
+  "two_factor": {
+    "title": "Verificacion en dos pasos",
+    "sent": "Enviamos un codigo de verificacion a {email}.",
+    "sms_sent": "Enviamos un codigo de verificacion a {phone}.",
+    "app_prompt": "Introduce el codigo de tu aplicacion de autenticacion.",
+    "expires": "Este codigo caduca en {minutes} minutos.",
+    "code_label": "Codigo de verificacion",
+    "code_placeholder": "Introduce el codigo de 6 digitos",
+    "submit": "Verificar",
+    "resend": "Reenviar codigo"
+  },
+  "welcome": {
+    "meta": {
+      "title": "Bienvenida"
+    },
+    "nav": {
+      "tagline": "Suite operativa",
+      "contact": "Contactanos"
+    },
+    "hero": {
+      "eyebrow": "Creado para negocios de servicios que necesitan mas control",
+      "title": "Gestiona cotizaciones, agenda, trabajos y facturacion desde una sola plataforma conectada.",
+      "subtitle": "Malikia Pro ayuda a los negocios de servicios a gestionar todo el flujo de trabajo desde la primera solicitud hasta el pago final, con mas visibilidad, menos friccion y mejor seguimiento.",
+      "primary_cta": "Empezar prueba",
+      "secondary_cta": "Ver precios",
+      "note": "Una sola plataforma para gestionar clientes, cotizaciones, trabajos, reservas, facturacion y la coordinacion del dia a dia.",
+      "highlights": {
+        "one": "Cotizaciones inteligentes con control de margen",
+        "two": "Del escaneo de planos al precio en minutos",
+        "three": "Portal del cliente para aprobaciones"
+      },
+      "stats": {
+        "one_label": "para todo el flujo de trabajo",
+        "two_label": "de la solicitud al cobro",
+        "three_label": "a traves de equipos e ingresos"
+      },
+      "preview": {
+        "one": "Preparacion de la cotizacion",
+        "one_desc": "Margenes, fuentes y aprobaciones en una sola vista.",
+        "two": "Senales de escaneo de planos",
+        "two_desc": "Referencias con enlaces de proveedores y pruebas."
+      }
+    },
+    "trust": {
+      "title": "Creado para negocios de servicios con complejidad real en el dia a dia",
+      "items": {
+        "one": "Fontaneria",
+        "two": "Electricidad",
+        "three": "Climatizacion",
+        "four": "Limpieza",
+        "five": "Salones y belleza",
+        "six": "Restaurantes"
+      }
+    },
+    "features": {
+      "kicker": "Plataforma",
+      "title": "Todo lo que necesitas para gestionar clientes, trabajo e ingresos en un solo lugar",
+      "subtitle": "Desde cotizaciones y planificacion hasta reservas, facturacion y coordinacion del equipo, Malikia Pro ayuda a que el negocio funcione con menos friccion.",
+      "items": {
+        "quotes": {
+          "title": "Clientes y solicitudes",
+          "desc": "Mantiene visibles el historial del cliente, las solicitudes entrantes y el seguimiento desde la primera interaccion."
+        },
+        "plans": {
+          "title": "Cotizaciones y aprobaciones",
+          "desc": "Crea cotizaciones mas limpias, gestiona opciones y avanza con las aprobaciones con mas estructura."
+        },
+        "catalog": {
+          "title": "Planificacion y trabajos",
+          "desc": "Planifica el trabajo, asigna equipos y sigue la ejecucion sin perder el contexto entre oficina y terreno."
+        },
+        "ops": {
+          "title": "Reservas y flujo de clientes",
+          "desc": "Ofrece comodidad al reservar mientras mantienes bajo control llegadas, disponibilidad y flujo de cola."
+        },
+        "portal": {
+          "title": "Facturas y pagos",
+          "desc": "Convierte el trabajo aprobado en facturacion, recordatorios y pagos con un flujo de ingresos mas fluido."
+        },
+        "multi": {
+          "title": "Gestion y visibilidad",
+          "desc": "Da a propietarios y responsables una vista mas clara de la actividad, prioridades e ingresos en toda la operacion."
+        }
+      }
+    },
+    "new_features": {
+      "kicker": "Creado para avanzar mas rapido",
+      "title": "Agrega automatizacion, pagos conectados y una venta mas inteligente al flujo de trabajo",
+      "subtitle": "Estas incorporaciones ayudan a los equipos a ahorrar tiempo, reducir la friccion administrativa y hacer que la plataforma sea mas util en la operacion diaria.",
+      "badge": "Nuevo",
+      "items": {
+        "assistant": {
+          "title": "Asistente IA",
+          "desc": "Acelera la creacion de cotizaciones, trabajos y tareas administrativas con primeros borradores mas rapidos y menos repeticion manual."
+        },
+        "connect": {
+          "title": "Pagos conectados",
+          "desc": "Cobra con un flujo mas limpio ligado directamente a las facturas y a la actividad del cliente."
+        },
+        "store": {
+          "title": "Escaparate de productos",
+          "desc": "Vende productos u ofertas mixtas dentro de la misma experiencia que tu equipo ya usa para gestionar el trabajo."
+        }
+      }
+    },
+    "workflow": {
+      "kicker": "Flujo de trabajo",
+      "title": "De la solicitud al cobro, sin cambiar de sistema",
+      "subtitle": "Un flujo operativo mas limpio ayuda a cada equipo a avanzar mas rapido con menos errores en los traspasos.",
+      "steps": {
+        "one": {
+          "title": "Captura la solicitud",
+          "desc": "Empieza con la necesidad del cliente, el contexto y el trabajo que debe cotizarse o programarse."
+        },
+        "two": {
+          "title": "Crea la cotizacion",
+          "desc": "Prepara la oferta, gestiona opciones y avanza con las aprobaciones con mas control."
+        },
+        "three": {
+          "title": "Programa y coordina",
+          "desc": "Planifica el trabajo, asigna el equipo y manten visibles los detalles antes de empezar la ejecucion."
+        },
+        "four": {
+          "title": "Entrega el trabajo",
+          "desc": "Sigue el progreso, las listas, las notas, las pruebas y el contexto del cliente mientras se realiza el trabajo o servicio."
+        },
+        "five": {
+          "title": "Factura y cobra",
+          "desc": "Convierte el trabajo terminado en facturacion, recordatorios y pagos sin reconstruir el expediente desde cero."
+        }
+      }
+    },
+    "field": {
+      "kicker": "Ejecucion",
+      "title": "Manten alineados a los equipos en la oficina, en el terreno y en el local",
+      "subtitle": "Malikia Pro da al personal el contexto que necesita para avanzar el trabajo sin suposiciones, notas dispersas ni idas y vueltas constantes.",
+      "items": {
+        "one": "Vistas de trabajo diarias con prioridades y estado",
+        "two": "Listas de control, notas y pruebas vinculadas al trabajo",
+        "three": "Historial del cliente e instrucciones en contexto",
+        "four": "Aprobaciones, firmas y traspaso a facturacion con menos friccion"
+      }
+    },
+    "cta": {
+      "title": "Empieza hoy con un flujo de trabajo mas claro",
+      "subtitle": "Crea tu espacio de trabajo, explora la plataforma y evoluciona hacia una coordinacion mas profunda a medida que tu operacion se vuelve mas compleja.",
+      "primary": "Empezar prueba",
+      "secondary": "Ver precios"
+    },
+    "images": {
+      "hero_alt": "Equipo de campo coordinandose en el sitio",
+      "workflow_alt": "Profesionales revisando planos en una obra",
+      "mobile_alt": "Tecnico de campo sosteniendo una lista de control en el sitio"
+    },
+    "footer": {
+      "terms": "Terminos y condiciones",
+      "copy": "Malikia Pro. Todos los derechos reservados."
+    }
+  }
+}

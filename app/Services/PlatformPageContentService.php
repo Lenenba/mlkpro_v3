@@ -4,14 +4,13 @@ namespace App\Services;
 
 use App\Models\PlatformPage;
 use App\Models\PlatformSection;
+use App\Support\LocalePreference;
 use App\Support\PublicPageStockImages;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
 class PlatformPageContentService
 {
-    private const LOCALES = ['fr', 'en'];
-
     private const SHARED_MEDIA_KEYS = [
         'background_image_url',
         'image_url',
@@ -107,7 +106,7 @@ class PlatformPageContentService
 
     public function locales(): array
     {
-        return self::LOCALES;
+        return LocalePreference::supported();
     }
 
     public function meta(PlatformPage $page): array
@@ -274,7 +273,7 @@ class PlatformPageContentService
         $locale = $this->normalizeLocale($locale);
         $default = $this->defaultContent($locale, $page);
         $storedLocales = $this->storedLocales($page);
-        $stored = $storedLocales[$locale] ?? [];
+        $stored = $this->storedLocaleContent($storedLocales, $locale);
 
         $merged = $this->mergeContent($default, is_array($stored) ? $stored : []);
         $merged = $this->applySharedMedia($merged, $this->sharedMedia($page));
@@ -289,7 +288,7 @@ class PlatformPageContentService
         }
 
         $merged['sections'] = collect($sections)
-            ->map(function ($section, $index) {
+            ->map(function ($section, $index) use ($storedLocales, $locale) {
                 if (! is_array($section)) {
                     return null;
                 }
@@ -324,7 +323,12 @@ class PlatformPageContentService
                     'feature_tabs_font_size' => $this->cleanFeatureTabsFontSize($section['feature_tabs_font_size'] ?? null),
                     'testimonial_cards' => $this->sanitizeTestimonialCards($section['testimonial_cards'] ?? []),
                     'stats' => $this->sanitizeStatItems($section['stats'] ?? []),
-                    'hero_images' => $this->sanitizeHeroImages($section['hero_images'] ?? []),
+                    'hero_images' => $this->resolveSectionHeroImagesForLocale(
+                        $section['hero_images'] ?? [],
+                        $storedLocales,
+                        $locale,
+                        $index
+                    ),
                     'items' => $this->sanitizeStringList($section['items'] ?? []),
                     'testimonial_author' => $this->cleanText($section['testimonial_author'] ?? ''),
                     'testimonial_role' => $this->cleanText($section['testimonial_role'] ?? ''),
@@ -943,11 +947,7 @@ class PlatformPageContentService
             );
         }
 
-        foreach ($this->locales() as $candidateLocale) {
-            if ($candidateLocale === $locale) {
-                continue;
-            }
-
+        foreach ($this->fallbackLocalesFor($locale) as $candidateLocale) {
             $candidateContent = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
             $candidateHeader = is_array($candidateContent['header'] ?? null) ? $candidateContent['header'] : [];
             if (! array_key_exists('background_type', $candidateHeader)) {
@@ -970,11 +970,7 @@ class PlatformPageContentService
             return $this->cleanColor($storedHeader['background_color'] ?? null) ?? '';
         }
 
-        foreach ($this->locales() as $candidateLocale) {
-            if ($candidateLocale === $locale) {
-                continue;
-            }
-
+        foreach ($this->fallbackLocalesFor($locale) as $candidateLocale) {
             $candidateContent = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
             $candidateHeader = is_array($candidateContent['header'] ?? null) ? $candidateContent['header'] : [];
             if (! array_key_exists('background_color', $candidateHeader)) {
@@ -993,11 +989,7 @@ class PlatformPageContentService
             return $this->cleanBackgroundPreset($storedSection['background_preset'] ?? null) ?? '';
         }
 
-        foreach ($this->locales() as $candidateLocale) {
-            if ($candidateLocale === $locale) {
-                continue;
-            }
-
+        foreach ($this->fallbackLocalesFor($locale) as $candidateLocale) {
             $candidateContent = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
             $candidateSections = is_array($candidateContent['sections'] ?? null) ? $candidateContent['sections'] : [];
             $candidateSection = is_array($candidateSections[$index] ?? null) ? $candidateSections[$index] : [];
@@ -1017,11 +1009,7 @@ class PlatformPageContentService
             return $this->cleanColor($storedSection['background_color'] ?? null) ?? '';
         }
 
-        foreach ($this->locales() as $candidateLocale) {
-            if ($candidateLocale === $locale) {
-                continue;
-            }
-
+        foreach ($this->fallbackLocalesFor($locale) as $candidateLocale) {
             $candidateContent = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
             $candidateSections = is_array($candidateContent['sections'] ?? null) ? $candidateContent['sections'] : [];
             $candidateSection = is_array($candidateSections[$index] ?? null) ? $candidateSections[$index] : [];
@@ -1047,35 +1035,38 @@ class PlatformPageContentService
                 continue;
             }
 
-            $currentSlides = $this->sanitizeHeroImages($section['hero_images'] ?? []);
-            if ($currentSlides !== []) {
-                $sections[$index]['hero_images'] = $currentSlides;
-
-                continue;
-            }
-
-            foreach ($this->locales() as $candidateLocale) {
-                if ($candidateLocale === $locale) {
-                    continue;
-                }
-
-                $candidateContent = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
-                $candidateSections = is_array($candidateContent['sections'] ?? null) ? $candidateContent['sections'] : [];
-                $candidateSection = is_array($candidateSections[$index] ?? null) ? $candidateSections[$index] : [];
-                $candidateSlides = $this->sanitizeHeroImages($candidateSection['hero_images'] ?? []);
-
-                if ($candidateSlides === []) {
-                    continue;
-                }
-
-                $sections[$index]['hero_images'] = $candidateSlides;
-                break;
-            }
+            $sections[$index]['hero_images'] = $this->resolveSectionHeroImagesForLocale(
+                $section['hero_images'] ?? [],
+                $locales,
+                $locale,
+                $index
+            );
         }
 
         $currentContent['sections'] = $sections;
 
         return $currentContent;
+    }
+
+    private function resolveSectionHeroImagesForLocale($currentSlides, array $locales, string $locale, int $index): array
+    {
+        $slides = $this->sanitizeHeroImages($currentSlides);
+        if ($slides !== []) {
+            return $slides;
+        }
+
+        foreach ($this->fallbackLocalesFor($locale) as $candidateLocale) {
+            $candidateContent = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
+            $candidateSections = is_array($candidateContent['sections'] ?? null) ? $candidateContent['sections'] : [];
+            $candidateSection = is_array($candidateSections[$index] ?? null) ? $candidateSections[$index] : [];
+            $candidateSlides = $this->sanitizeHeroImages($candidateSection['hero_images'] ?? []);
+
+            if ($candidateSlides !== []) {
+                return $candidateSlides;
+            }
+        }
+
+        return [];
     }
 
     private function normalizeVisualsForLocale(array $content, PlatformPage $page, string $locale): array
@@ -2170,9 +2161,26 @@ class PlatformPageContentService
 
     private function normalizeLocale(string $locale): string
     {
-        $locale = strtolower(trim($locale));
+        return LocalePreference::normalize($locale);
+    }
 
-        return in_array($locale, $this->locales(), true) ? $locale : $this->locales()[0];
+    private function storedLocaleContent(array $storedLocales, string $locale): array
+    {
+        $resolvedLocale = LocalePreference::firstStoredLocale($storedLocales, $locale);
+        $stored = $resolvedLocale !== null ? ($storedLocales[$resolvedLocale] ?? []) : [];
+
+        return is_array($stored) ? $stored : [];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function fallbackLocalesFor(string $locale): array
+    {
+        return array_values(array_filter(
+            LocalePreference::resolutionOrder($locale),
+            fn (string $candidateLocale) => $candidateLocale !== $locale
+        ));
     }
 
     /**

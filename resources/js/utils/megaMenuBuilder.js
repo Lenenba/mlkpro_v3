@@ -342,7 +342,7 @@ export const normalizeMegaMenu = (menu = {}, defaults = {}, blockDefinitions = [
 
 export const cloneMegaMenu = (menu) => cloneDeep(menu);
 
-export const ensureMegaMenuTranslations = (menu, locales = ['fr', 'en'], defaultLocale = 'fr') => {
+export const ensureMegaMenuTranslations = (menu, locales = ['fr', 'en', 'es'], defaultLocale = 'fr') => {
     const fallbackLocale = defaultLocale || normalizeLocales(locales, defaultLocale)[0] || 'fr';
 
     bootstrapMenuLocale(menu, fallbackLocale);

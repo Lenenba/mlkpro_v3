@@ -153,6 +153,23 @@ export const defaultIndustryCards = (locale = 'fr') => {
         ];
     }
 
+    if (locale === 'es') {
+        return [
+            { id: 'industry-arborists', label: 'Arboristas', href: '', icon: 'tree-pine' },
+            { id: 'industry-commercial-cleaning', label: 'Limpieza comercial', href: '/pages/industry-cleaning', icon: 'brush-cleaning' },
+            { id: 'industry-construction', label: 'Construccion y contratistas', href: '', icon: 'construction' },
+            { id: 'industry-electrical', label: 'Contratista electrico', href: '/pages/industry-electrical', icon: 'plug-zap' },
+            { id: 'industry-hvac', label: 'HVAC', href: '/pages/industry-hvac', icon: 'fan' },
+            { id: 'industry-handyman', label: 'Manitas', href: '', icon: 'wrench' },
+            { id: 'industry-landscaping', label: 'Paisajismo', href: '', icon: 'shovel' },
+            { id: 'industry-lawn-care', label: 'Cuidado del cesped', href: '', icon: 'leaf' },
+            { id: 'industry-painting', label: 'Pintura', href: '', icon: 'paint-roller' },
+            { id: 'industry-plumbing', label: 'Fontaneria', href: '/pages/industry-plumbing', icon: 'shower-head' },
+            { id: 'industry-residential-cleaning', label: 'Limpieza residencial', href: '/pages/industry-cleaning', icon: 'sparkles' },
+            { id: 'industry-roofing', label: 'Techado', href: '', icon: 'house' },
+        ];
+    }
+
     return [
         { id: 'industry-arborists', label: 'Arborists', href: '', icon: 'tree-pine' },
         { id: 'industry-commercial-cleaning', label: 'Commercial Cleaning', href: '/pages/industry-cleaning', icon: 'brush-cleaning' },

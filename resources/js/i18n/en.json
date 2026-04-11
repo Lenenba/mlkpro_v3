@@ -49,7 +49,8 @@
   },
   "language": {
     "fr": "French",
-    "en": "English"
+    "en": "English",
+    "es": "Spanish"
   },
   "public_pages": {
     "actions": {
@@ -6848,7 +6849,7 @@
   },
   "welcome": {
     "meta": {
-      "title": "Welcome"
+      "title": "Operations Software for Service Businesses"
     },
     "nav": {
       "tagline": "Operations suite",
@@ -7086,7 +7087,7 @@
   },
   "pricing": {
     "meta": {
-      "title": "Pricing"
+      "title": "Plans and Pricing for Service Business Software"
     },
     "badges": {
       "recommended": "Recommended"

@@ -2,18 +2,15 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\LocalePreference;
 use Closure;
 use Illuminate\Http\Request;
 
 class SetLocale
 {
-    /**
-     * @var array<int, string>
-     */
-    private array $supportedLocales = ['fr', 'en'];
-
     public function handle(Request $request, Closure $next)
     {
+        $supportedLocales = LocalePreference::supported();
         $locale = null;
 
         $userLocale = $request->user()?->locale;
@@ -26,11 +23,11 @@ class SetLocale
         }
 
         if (!$locale) {
-            $locale = $request->getPreferredLanguage($this->supportedLocales);
+            $locale = $request->getPreferredLanguage($supportedLocales);
         }
 
-        if (!$locale || !in_array($locale, $this->supportedLocales, true)) {
-            $locale = config('app.locale', 'fr');
+        if (!$locale || !in_array($locale, $supportedLocales, true)) {
+            $locale = LocalePreference::default();
         }
 
         app()->setLocale($locale);

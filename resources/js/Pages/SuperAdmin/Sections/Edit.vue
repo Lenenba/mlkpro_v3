@@ -42,7 +42,7 @@ import {
 const props = defineProps({
     mode: { type: String, default: 'edit' },
     section: { type: Object, default: () => ({ id: null, name: '', type: 'generic', is_active: true }) },
-    locales: { type: Array, default: () => ['fr', 'en'] },
+    locales: { type: Array, default: () => ['fr', 'en', 'es'] },
     default_locale: { type: String, default: 'fr' },
     content: { type: Object, default: () => ({}) },
     meta: { type: Object, default: () => ({ updated_at: null, updated_by: null }) },
@@ -185,39 +185,40 @@ const ensureHeroImages = (items) => (
 
 const defaultWelcomeHeroSlides = (locale) => {
     const isFrench = locale === 'fr';
+    const isSpanish = locale === 'es';
 
     return ensureHeroImages([
         {
             image_url: '/images/landing/stock/team-laptop-window.jpg',
-            image_alt: isFrench ? 'Equipe qui prepare l accueil et la planification' : 'Team preparing scheduling and reception',
+            image_alt: isFrench ? 'Equipe qui prepare l accueil et la planification' : (isSpanish ? 'Equipo preparando la planificacion y la recepcion' : 'Team preparing scheduling and reception'),
         },
         {
             image_url: '/images/landing/stock/service-team.jpg',
-            image_alt: isFrench ? 'Equipe service en coordination' : 'Service team coordinating',
+            image_alt: isFrench ? 'Equipe service en coordination' : (isSpanish ? 'Equipo de servicio coordinandose' : 'Service team coordinating'),
         },
         {
             image_url: '/images/landing/stock/desk-phone-laptop.jpg',
-            image_alt: isFrench ? 'Responsable commerciale au bureau' : 'Sales lead at a desk',
+            image_alt: isFrench ? 'Responsable commerciale au bureau' : (isSpanish ? 'Responsable comercial en el escritorio' : 'Sales lead at a desk'),
         },
         {
             image_url: '/images/landing/stock/service-tablet.jpg',
-            image_alt: isFrench ? 'Coordination des rendez vous sur tablette' : 'Scheduling coordination on a tablet',
+            image_alt: isFrench ? 'Coordination des rendez vous sur tablette' : (isSpanish ? 'Coordinacion de citas en una tableta' : 'Scheduling coordination on a tablet'),
         },
         {
             image_url: '/images/landing/stock/collab-laptop-desk.jpg',
-            image_alt: isFrench ? 'Collegues en atelier autour d un ordinateur' : 'Colleagues collaborating around a laptop',
+            image_alt: isFrench ? 'Collegues en atelier autour d un ordinateur' : (isSpanish ? 'Companeros colaborando alrededor de un portatil' : 'Colleagues collaborating around a laptop'),
         },
         {
             image_url: '/images/landing/stock/store-worker.jpg',
-            image_alt: isFrench ? 'Preparation des commandes et du stock' : 'Order and inventory preparation',
+            image_alt: isFrench ? 'Preparation des commandes et du stock' : (isSpanish ? 'Preparacion de pedidos y stock' : 'Order and inventory preparation'),
         },
         {
             image_url: '/images/landing/stock/marketing-desk.jpg',
-            image_alt: isFrench ? 'Gestion des campagnes et messages' : 'Campaign and messaging management',
+            image_alt: isFrench ? 'Gestion des campagnes et messages' : (isSpanish ? 'Gestion de campanas y mensajes' : 'Campaign and messaging management'),
         },
         {
             image_url: '/images/landing/stock/meeting-room-laptops.jpg',
-            image_alt: isFrench ? 'Equipe en reunion autour de plusieurs ecrans' : 'Team meeting around multiple screens',
+            image_alt: isFrench ? 'Equipe en reunion autour de plusieurs ecrans' : (isSpanish ? 'Equipo reunido alrededor de varias pantallas' : 'Team meeting around multiple screens'),
         },
     ]);
 };
@@ -306,6 +307,50 @@ const defaultFooterGroups = (locale) => {
         ];
     }
 
+    if (locale === 'es') {
+        return [
+            {
+                id: createLocalId('footer-group'),
+                title: 'Sectores que atendemos',
+                layout: 'stack',
+                links: ensureFooterLinks([
+                    createFooterLink('Fontaneria', '/pages/industry-plumbing'),
+                    createFooterLink('HVAC', '/pages/industry-hvac'),
+                    createFooterLink('Electricidad', '/pages/industry-electrical'),
+                    createFooterLink('Limpieza', '/pages/industry-cleaning'),
+                    createFooterLink('Salon y belleza', '/pages/industry-salon-beauty'),
+                    createFooterLink('Restaurantes', '/pages/industry-restaurant'),
+                ]),
+            },
+            {
+                id: createLocalId('footer-group'),
+                title: 'Productos',
+                layout: 'stack',
+                links: ensureFooterLinks([
+                    createFooterLink('Sales & CRM', '/pages/sales-crm'),
+                    createFooterLink('Reservas', '/pages/reservations'),
+                    createFooterLink('Operations', '/pages/operations'),
+                    createFooterLink('Commerce', '/pages/commerce'),
+                    createFooterLink('Marketing & Loyalty', '/pages/marketing-loyalty'),
+                    createFooterLink('AI & Automation', '/pages/ai-automation'),
+                    createFooterLink('Command Center', '/pages/command-center'),
+                ]),
+            },
+            {
+                id: createLocalId('footer-group'),
+                title: 'Recursos',
+                layout: 'stack',
+                links: ensureFooterLinks([
+                    createFooterLink('Precios', '/pricing'),
+                    createFooterLink('Terminos', '/terms'),
+                    createFooterLink('Privacidad', '/privacy'),
+                    createFooterLink('Reembolso', '/refund'),
+                    createFooterLink('Contacto', '/pages/contact-us'),
+                ]),
+            },
+        ];
+    }
+
     return [
         {
             id: createLocalId('footer-group'),
@@ -357,6 +402,13 @@ const defaultFooterLegalLinks = (locale) => (
             createFooterLink('Confidentialite', '/privacy'),
             createFooterLink('Remboursement', '/refund'),
         ])
+        : locale === 'es'
+            ? ensureFooterLinks([
+                createFooterLink('Precios', '/pricing'),
+                createFooterLink('Terminos', '/terms'),
+                createFooterLink('Privacidad', '/privacy'),
+                createFooterLink('Reembolso', '/refund'),
+            ])
         : ensureFooterLinks([
             createFooterLink('Pricing', '/pricing'),
             createFooterLink('Terms', '/terms'),
@@ -430,12 +482,14 @@ const sectionTypePreset = (type) => {
             tone: 'contrast',
             title: currentLocale.value === 'fr'
                 ? 'Demarrez un essai. Voyez si cela colle a votre operation.'
-                : 'Start a trial. See how it fits your operation.',
+                : (currentLocale.value === 'es' ? 'Empieza una prueba. Mira como encaja con tu operacion.' : 'Start a trial. See how it fits your operation.'),
             body: currentLocale.value === 'fr'
                 ? '<p>Presentez votre plateforme, votre visite produit ou votre experience mobile avec un bloc plus editorial et plus vendeur.</p>'
-                : '<p>Showcase your platform, product tour, or mobile experience with a more editorial conversion block.</p>',
-            primary_label: currentLocale.value === 'fr' ? "Demarrer l'essai" : 'Start trial',
-            aside_link_label: currentLocale.value === 'fr' ? 'Voir la visite produit' : 'Watch product tour',
+                : (currentLocale.value === 'es'
+                    ? '<p>Muestra tu plataforma, tu visita de producto o tu experiencia movil con un bloque de conversion mas editorial y mas convincente.</p>'
+                    : '<p>Showcase your platform, product tour, or mobile experience with a more editorial conversion block.</p>'),
+            primary_label: currentLocale.value === 'fr' ? "Demarrer l'essai" : (currentLocale.value === 'es' ? 'Empezar prueba' : 'Start trial'),
+            aside_link_label: currentLocale.value === 'fr' ? 'Voir la visite produit' : (currentLocale.value === 'es' ? 'Ver la visita del producto' : 'Watch product tour'),
         };
     }
 
@@ -449,8 +503,8 @@ const sectionTypePreset = (type) => {
             tone: 'default',
             title: currentLocale.value === 'fr'
                 ? 'Fier partenaire des services a domicile dans plus de 50 industries.'
-                : 'Proud partner to home services in over 50 industries.',
-            primary_label: currentLocale.value === 'fr' ? 'Voir toutes les industries' : 'See All Industries',
+                : (currentLocale.value === 'es' ? 'Socio orgulloso de negocios de servicios en mas de 50 sectores.' : 'Proud partner to home services in over 50 industries.'),
+            primary_label: currentLocale.value === 'fr' ? 'Voir toutes les industries' : (currentLocale.value === 'es' ? 'Ver todos los sectores' : 'See All Industries'),
             industry_cards: defaultIndustryCards(currentLocale.value),
         };
     }
@@ -580,27 +634,35 @@ const sectionTypePreset = (type) => {
             brand_logo_url: '/1.svg',
             brand_logo_alt: 'Malikia Pro',
             brand_href: '/',
-            kicker: currentLocale.value === 'fr' ? 'Accompagnement' : 'Support',
-            title: currentLocale.value === 'fr' ? 'Parlez a notre equipe' : 'Talk to our team',
+            kicker: currentLocale.value === 'fr' ? 'Accompagnement' : (currentLocale.value === 'es' ? 'Acompanamiento' : 'Support'),
+            title: currentLocale.value === 'fr' ? 'Parlez a notre equipe' : (currentLocale.value === 'es' ? 'Habla con nuestro equipo' : 'Talk to our team'),
             body: currentLocale.value === 'fr'
                 ? '<p>Besoin d un parcours produit plus precis ou d une page publique sur mesure ? On peut vous guider.</p>'
-                : '<p>Need a sharper product journey or a custom public page setup? Our team can help.</p>',
+                : (currentLocale.value === 'es'
+                    ? '<p>Necesitas un recorrido de producto mas claro o una pagina publica mas personalizada? Podemos ayudarte.</p>'
+                    : '<p>Need a sharper product journey or a custom public page setup? Our team can help.</p>'),
             items: currentLocale.value === 'fr'
                 ? [
                     'Parcours public et modules metier',
                     'Support produit et accompagnement',
-                    'Disponible en francais et en anglais',
+                    'Disponible en francais, en anglais et en espagnol',
                 ]
-                : [
-                    'Public pages and business modules',
-                    'Product support and enablement',
-                    'Available in French and English',
-                ],
-            primary_label: currentLocale.value === 'fr' ? 'Nous contacter' : 'Contact us',
+                : (currentLocale.value === 'es'
+                    ? [
+                        'Paginas publicas y modulos del negocio',
+                        'Soporte de producto y acompanamiento',
+                        'Disponible en frances, ingles y espanol',
+                    ]
+                    : [
+                        'Public pages and business modules',
+                        'Product support and enablement',
+                        'Available in French, English, and Spanish',
+                    ]),
+            primary_label: currentLocale.value === 'fr' ? 'Nous contacter' : (currentLocale.value === 'es' ? 'Contactanos' : 'Contact us'),
             primary_href: '/pages/contact-us',
-            secondary_label: currentLocale.value === 'fr' ? 'Voir les tarifs' : 'View pricing',
+            secondary_label: currentLocale.value === 'fr' ? 'Voir les tarifs' : (currentLocale.value === 'es' ? 'Ver precios' : 'View pricing'),
             secondary_href: '/pricing',
-            copy: currentLocale.value === 'fr' ? 'Tous droits reserves.' : 'All rights reserved.',
+            copy: currentLocale.value === 'fr' ? 'Tous droits reserves.' : (currentLocale.value === 'es' ? 'Todos los derechos reservados.' : 'All rights reserved.'),
             contact_phone: '',
             contact_email: '',
             social_facebook_href: '',

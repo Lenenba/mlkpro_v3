@@ -7,6 +7,7 @@ use App\Models\PlatformSetting;
 use App\Models\TeamMemberShift;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
+use App\Support\LocalePreference;
 use App\Support\Database\UserSelects;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -37,6 +38,7 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
         $ownerId = $user?->accountOwnerId();
+        $siteUrl = rtrim((string) (config('app.url') ?: $request->getSchemeAndHttpHost()), '/');
 
         $accountOwner = null;
         $accountFeatures = null;
@@ -178,7 +180,15 @@ class HandleInertiaRequests extends Middleware
                 'pending_count' => $planningPendingCount,
             ],
             'locale' => app()->getLocale(),
-            'locales' => ['fr', 'en'],
+            'locales' => LocalePreference::supported(),
+            'branding' => [
+                'site_name' => config('app.name', 'Malikia Pro'),
+                'site_url' => $siteUrl,
+                'logo_icon_url' => url('brand/bimi-logo.svg'),
+                'favicon_url' => url('favicon.ico'),
+                'social_image_url' => url('brand/social-card.png'),
+                'apple_touch_icon_url' => url('apple-touch-icon.png'),
+            ],
             'demo' => [
                 'enabled' => (bool) config('demo.enabled'),
                 'allow_reset' => (bool) config('demo.allow_reset'),

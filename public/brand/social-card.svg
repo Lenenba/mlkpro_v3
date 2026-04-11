@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="bg" x1="84" y1="54" x2="1080" y2="588" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#111827"/>
+            <stop offset="1" stop-color="#0F172A"/>
+        </linearGradient>
+        <linearGradient id="glow" x1="796" y1="84" x2="1064" y2="352" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#34D399" stop-opacity="0.92"/>
+            <stop offset="1" stop-color="#10B981" stop-opacity="0"/>
+        </linearGradient>
+    </defs>
+
+    <rect width="1200" height="630" rx="38" fill="url(#bg)"/>
+    <circle cx="956" cy="158" r="188" fill="url(#glow)"/>
+    <circle cx="1086" cy="522" r="138" fill="#1F2937" fill-opacity="0.92"/>
+
+    <rect x="86" y="92" width="246" height="246" rx="34" fill="#2D2D2D"/>
+    <g transform="translate(109 115) scale(0.390625)">
+        <rect width="512" height="512" fill="#2D2D2D"/>
+        <path fill="#FFFFFF" d="M47.1,47h118.9l89.6,204l89.6-204h118.9v417.8H365.1V169.2L255.6,419.8h-0.1L146.1,169.2v295.6H47.1V47z"/>
+        <rect x="415.7" y="388.7" width="76.1" height="76.1" fill="#00C875"/>
+    </g>
+
+    <rect x="86" y="390" width="148" height="40" rx="20" fill="#111827" stroke="#334155"/>
+    <text x="160" y="416" text-anchor="middle" fill="#E2E8F0" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">
+        Malikia Pro
+    </text>
+
+    <text x="386" y="176" fill="#86EFAC" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="2">
+        OPERATIONS PLATFORM
+    </text>
+    <text x="386" y="268" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="68" font-weight="800">
+        Quotes, scheduling,
+    </text>
+    <text x="386" y="346" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="68" font-weight="800">
+        jobs, and invoicing.
+    </text>
+    <text x="386" y="410" fill="#CBD5E1" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="500">
+        One connected system for service businesses that need speed,
+    </text>
+    <text x="386" y="452" fill="#CBD5E1" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="500">
+        visibility, and a cleaner brand presence online.
+    </text>
+
+    <rect x="386" y="506" width="154" height="46" rx="23" fill="#16A34A" fill-opacity="0.18" stroke="#22C55E"/>
+    <rect x="558" y="506" width="170" height="46" rx="23" fill="#FFFFFF" fill-opacity="0.06" stroke="#334155"/>
+    <rect x="746" y="506" width="144" height="46" rx="23" fill="#FFFFFF" fill-opacity="0.06" stroke="#334155"/>
+
+    <text x="463" y="536" text-anchor="middle" fill="#DCFCE7" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">
+        Quotes
+    </text>
+    <text x="643" y="536" text-anchor="middle" fill="#E2E8F0" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">
+        Scheduling
+    </text>
+    <text x="818" y="536" text-anchor="middle" fill="#E2E8F0" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">
+        Billing
+    </text>
+</svg>

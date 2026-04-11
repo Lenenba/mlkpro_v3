@@ -191,7 +191,7 @@
       "template_name": "Template name",
       "channel": "Channel",
       "campaign_type": "Campaign type",
-      "language": "Language (FR/EN)",
+      "language": "Language (FR/EN/ES)",
       "tags": "Tags",
       "set_default": "Set as default for this channel/type/language",
       "subject": "Subject",

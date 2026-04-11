@@ -42,7 +42,7 @@ import {
 const props = defineProps({
     mode: { type: String, default: 'edit' },
     page: { type: Object, default: () => ({ id: null, slug: '', title: '', is_active: true }) },
-    locales: { type: Array, default: () => ['fr', 'en'] },
+    locales: { type: Array, default: () => ['fr', 'en', 'es'] },
     default_locale: { type: String, default: 'fr' },
     content: { type: Object, default: () => ({}) },
     theme: { type: Object, default: () => ({}) },
