@@ -519,7 +519,7 @@ const sectionTypePreset = (type) => {
             tone: 'default',
             title: currentLocale.value === 'fr'
                 ? 'Une IA pensee pour les entreprises de terrain.'
-                : 'AI built for blue-collar businesses',
+                : (currentLocale.value === 'es' ? 'IA pensada para negocios de campo.' : 'AI built for blue-collar businesses'),
             story_cards: defaultStoryCards(currentLocale.value),
         };
     }
@@ -687,10 +687,12 @@ const sectionTypePreset = (type) => {
             tone: 'default',
             title: currentLocale.value === 'fr'
                 ? 'Approuve par les meilleures equipes d entretien.'
-                : 'Trusted by the best cleaning teams.',
+                : (currentLocale.value === 'es' ? 'Aprobado por los mejores equipos de limpieza.' : 'Trusted by the best cleaning teams.'),
             body: currentLocale.value === 'fr'
                 ? '<p>Les pros de l entretien utilisent MLK Pro pour simplifier la planification, suivre les preferences clients et mieux coordonner leur equipe.</p>'
-                : '<p>Cleaning pros use MLK Pro to simplify scheduling, track client preferences, and coordinate their crews with less friction.</p>',
+                : (currentLocale.value === 'es'
+                    ? '<p>Los profesionales de limpieza usan MLK Pro para simplificar la planificacion, seguir las preferencias de los clientes y coordinar mejor a sus equipos.</p>'
+                    : '<p>Cleaning pros use MLK Pro to simplify scheduling, track client preferences, and coordinate their crews with less friction.</p>'),
             testimonial_cards: defaultTestimonialCards(currentLocale.value),
         };
     }

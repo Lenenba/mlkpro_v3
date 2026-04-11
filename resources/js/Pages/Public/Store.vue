@@ -1054,7 +1054,7 @@ const submitCheckout = async () => {
                                 headerIsCustom ? 'border-white/20 bg-white/10 hover:border-white/40' : 'border-slate-700 bg-slate-800 hover:border-slate-600',
                             ]"
                             @click="openCart"
-                            aria-label="Open cart"
+                            :aria-label="t('public_store.a11y.open_cart')"
                         >
                             <span class="sr-only">{{ t('public_store.cart.title') }}</span>
                             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -1225,14 +1225,14 @@ const submitCheckout = async () => {
                                             <path d="m15 18-6-6 6-6" />
                                         </svg>
                                     </span>
-                                    <span class="sr-only">Previous</span>
+                                    <span class="sr-only">{{ t('public_store.pagination.previous') }}</span>
                                 </button>
                                 <button
                                     type="button"
                                     class="inline-flex size-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
                                     @click="scrollCategoryBy(1)"
                                 >
-                                    <span class="sr-only">Next</span>
+                                    <span class="sr-only">{{ t('public_store.pagination.next') }}</span>
                                     <span class="text-2xl" aria-hidden="true">
                                         <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="m9 18 6-6-6-6" />
@@ -1543,7 +1543,7 @@ const submitCheckout = async () => {
                     type="button"
                     class="rounded-sm border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:border-slate-300"
                     @click="closeCart"
-                    aria-label="Close cart"
+                    :aria-label="t('public_store.a11y.close_cart')"
                 >
                     x
                 </button>
@@ -1799,7 +1799,7 @@ const submitCheckout = async () => {
                     type="button"
                     class="rounded-sm border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600"
                     @click="closeProductDetails"
-                    aria-label="Close dialog"
+                    :aria-label="t('public_store.a11y.close_dialog')"
                 >
                     x
                 </button>
@@ -1939,7 +1939,7 @@ const submitCheckout = async () => {
                             class="inline-flex size-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
                             @click="scrollRelatedBy(-1)"
                         >
-                            <span class="sr-only">Previous</span>
+                            <span class="sr-only">{{ t('public_store.pagination.previous') }}</span>
                             <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="m15 18-6-6 6-6" />
                             </svg>
@@ -1949,7 +1949,7 @@ const submitCheckout = async () => {
                             class="inline-flex size-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
                             @click="scrollRelatedBy(1)"
                         >
-                            <span class="sr-only">Next</span>
+                            <span class="sr-only">{{ t('public_store.pagination.next') }}</span>
                             <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="m9 18 6-6-6-6" />
                             </svg>

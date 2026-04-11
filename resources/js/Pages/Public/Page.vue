@@ -126,23 +126,20 @@ const usesWelcomeAlignedHero = computed(() => {
 
 const frontHeroEyebrow = computed(() => {
     const slug = String(props.page?.slug || '').trim();
-    const locale = String(currentLocale.value || 'fr').toLowerCase();
-    const isFrench = locale.startsWith('fr');
-    const isSpanish = locale.startsWith('es');
 
     if (slug === 'contact-us') {
-        return isFrench ? 'Contact' : (isSpanish ? 'Contacto' : 'Contact us');
+        return t('public_pages.hero_eyebrow.contact');
     }
 
     if (slug.startsWith('solution-')) {
-        return isSpanish ? 'Soluciones' : 'Solutions';
+        return t('public_pages.hero_eyebrow.solutions');
     }
 
     if (slug.startsWith('industry-')) {
-        return isSpanish ? 'Industrias' : 'Industries';
+        return t('public_pages.hero_eyebrow.industries');
     }
 
-    return isFrench ? 'Produits' : (isSpanish ? 'Productos' : 'Products');
+    return t('public_pages.hero_eyebrow.products');
 });
 
 const firstHeroSectionWithImage = computed(() => {
@@ -178,7 +175,7 @@ const frontHeroImageAlt = computed(() => {
         return sectionAlt;
     }
 
-    return String(props.content?.page_title || props.page?.title || 'Page hero').trim();
+    return String(props.content?.page_title || props.page?.title || t('public_pages.fallbacks.hero_image_alt')).trim();
 });
 
 const isDarkHexColor = (value) => {
@@ -379,7 +376,7 @@ const resolveHref = (href) => {
 };
 
 const sectionEmbedUrl = (section) => resolveHref(section?.embed_url || '');
-const sectionEmbedTitle = (section) => String(section?.embed_title || section?.title || 'Embedded form');
+const sectionEmbedTitle = (section) => String(section?.embed_title || section?.title || t('public_pages.fallbacks.embedded_form_title'));
 const sectionEmbedHeight = (section) => {
     const height = Number(section?.embed_height);
     if (!Number.isFinite(height) || height < 420) {
@@ -850,11 +847,11 @@ const headerMenuItems = computed(() => ([
         panel_type: 'link',
     },
     {
-        label: 'Industries',
+        label: t('public_pages.fallback_menu.industries'),
         panel_type: 'classic',
         children: [
             {
-                label: 'Plomberie',
+                label: t('public_pages.fallback_menu.plumbing'),
                 resolved_href: '/pages/industry-plumbing',
                 link_target: '_self',
                 panel_type: 'link',
@@ -866,25 +863,25 @@ const headerMenuItems = computed(() => ([
                 panel_type: 'link',
             },
             {
-                label: 'Electricite',
+                label: t('public_pages.fallback_menu.electrical'),
                 resolved_href: '/pages/industry-electrical',
                 link_target: '_self',
                 panel_type: 'link',
             },
             {
-                label: 'Nettoyage',
+                label: t('public_pages.fallback_menu.cleaning'),
                 resolved_href: '/pages/industry-cleaning',
                 link_target: '_self',
                 panel_type: 'link',
             },
             {
-                label: 'Salon & beaute',
+                label: t('public_pages.fallback_menu.salon_beauty'),
                 resolved_href: '/pages/industry-salon-beauty',
                 link_target: '_self',
                 panel_type: 'link',
             },
             {
-                label: 'Restaurant',
+                label: t('public_pages.fallback_menu.restaurant'),
                 resolved_href: '/pages/industry-restaurant',
                 link_target: '_self',
                 panel_type: 'link',

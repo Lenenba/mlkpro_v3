@@ -56,6 +56,381 @@
     "actions": {
       "home": "Home",
       "login": "Sign in"
+    },
+    "hero_eyebrow": {
+      "contact": "Contact us",
+      "solutions": "Solutions",
+      "industries": "Industries",
+      "products": "Products"
+    },
+    "fallbacks": {
+      "hero_image_alt": "Page hero",
+      "embedded_form_title": "Embedded form"
+    },
+    "fallback_menu": {
+      "industries": "Industries",
+      "plumbing": "Plumbing",
+      "electrical": "Electrical",
+      "cleaning": "Cleaning",
+      "salon_beauty": "Salon & Beauty",
+      "restaurant": "Restaurant"
+    }
+  },
+  "mega_menu": {
+    "mobile_toggle": "Menu",
+    "preview_image_placeholder": "Add a preview image for this product.",
+    "admin": {
+      "common": {
+        "mega_menus": "Mega menus",
+        "mega_menu": "Mega Menu",
+        "preview": "Preview",
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "delete": "Delete",
+        "activate": "Activate",
+        "deactivate": "Deactivate",
+        "save": "Save mega menu",
+        "saving": "Saving...",
+        "remove": "Remove",
+        "copy": "Copy",
+        "drag": "Drag",
+        "add_item": "Add item",
+        "add_child": "Add child",
+        "add_column": "Add column",
+        "add_block": "Add block",
+        "add_image": "Add image",
+        "desktop": "Desktop",
+        "tablet": "Tablet",
+        "metadata": "Metadata",
+        "created": "Created",
+        "updated": "Updated",
+        "created_by": "Created by",
+        "updated_by": "Updated by",
+        "unknown": "Unknown",
+        "visible": "Visible",
+        "title": "Title",
+        "slug": "Slug",
+        "description": "Description",
+        "theme": "Theme",
+        "label": "Label",
+        "icon": "Icon",
+        "note": "Note",
+        "target": "Target",
+        "row": "Row",
+        "tone": "Tone",
+        "not_available": "Not available",
+        "never": "Never"
+      },
+      "index": {
+        "head_title": "Mega Menu Manager",
+        "title": "Mega Menu Manager",
+        "description": "Manage header, footer, sidebar, and custom-zone mega menus from one builder-oriented workspace.",
+        "back_to_dashboard": "Back to dashboard",
+        "create": "Create mega menu",
+        "search": "Search",
+        "search_placeholder": "Title, slug, description",
+        "status": "Status",
+        "location": "Location",
+        "clear": "Clear",
+        "apply": "Apply",
+        "reorder_hint": "Drag rows to adjust priority. Activation still controls which menu is live for a location or custom zone.",
+        "save_order": "Save order",
+        "empty": "No mega menus match the current filters.",
+        "order": "Order",
+        "menu": "Menu",
+        "structure": "Structure",
+        "updated": "Updated",
+        "actions": "Actions",
+        "top_level_items": "{count} top-level items",
+        "content_blocks": "{count} content blocks"
+      },
+      "preview": {
+        "head_title": "Preview {title}",
+        "title": "Mega Menu Preview",
+        "description": "Review the published render shell before returning to the builder.",
+        "back_to_builder": "Back to builder",
+        "frontend_shell": "Frontend shell",
+        "headline": "Validate the hover and panel composition in context.",
+        "body": "This preview uses the same reusable renderer that can be resolved by location or slug on the frontend.",
+        "image_alt": "Mega menu preview image",
+        "image_label": "Mega menu preview",
+        "image_placeholder": "Add a preview image to the mega menu to display it here."
+      },
+      "edit": {
+        "head_create": "Create Mega Menu",
+        "head_edit": "Edit {title}",
+        "title_create": "Create Mega Menu",
+        "title_edit": "Mega Menu Builder",
+        "description": "Build rich, multi-column navigation with reusable content blocks and a live frontend preview.",
+        "preview_page": "Preview page",
+        "validation_issues": "Validation issues",
+        "structure_title": "Structure",
+        "structure_description": "Drag nodes to reorder the builder tree.",
+        "menu_root": "Menu root",
+        "live_preview_title": "Live preview",
+        "live_preview_description": "Desktop and tablet render share the same reusable renderer used by the public site.",
+        "context_area": "Context area",
+        "preview_headline": "Preview how the menu opens inside the frontend shell.",
+        "preview_body": "The center canvas uses the same data structure as the frontend renderer, so hover states, classic dropdowns, and multi-column panels stay aligned with production output.",
+        "editing_locale": "Editing locale",
+        "editing_locale_help": "Text edits apply to the selected locale only. Structure, links, visibility, and ordering stay shared.",
+        "selection_help": "Settings update the currently selected node in the structure tree.",
+        "menu_settings": "Menu settings",
+        "item_settings": "Item settings",
+        "column_settings": "Column settings",
+        "block_settings": "Block settings",
+        "block_settings_with_type": "Block settings · {type}",
+        "display_location": "Display location",
+        "custom_zone": "Custom zone",
+        "css_classes": "CSS classes",
+        "priority": "Priority",
+        "container_width": "Container width",
+        "accent_color": "Accent color",
+        "panel_background": "Panel background",
+        "open_on_hover": "Open on hover",
+        "show_dividers": "Show dividers",
+        "delete_menu": "Delete mega menu",
+        "panel_type": "Panel type",
+        "link_type": "Link type",
+        "internal_page": "Internal page",
+        "route_name": "Route name",
+        "anchor": "Anchor",
+        "href_or_url": "Href / URL",
+        "badge_text": "Badge text",
+        "badge_variant": "Badge variant",
+        "eyebrow": "Eyebrow",
+        "featured_item": "Featured item",
+        "highlight_color": "Highlight color",
+        "column_title": "Column title",
+        "width": "Width (e.g. 1fr, 240px, 40%)",
+        "alignment": "Alignment",
+        "background_color": "Background color",
+        "block_type": "Block type",
+        "block_title": "Block title",
+        "show_border": "Show border",
+        "asset_picker_title": "Choose or upload media",
+        "delete_item_confirm": "Delete \"{title}\"?",
+        "delete_menu_confirm": "Delete mega menu \"{title}\"?",
+        "delete_column_confirm": "Delete this column?",
+        "delete_block_confirm": "Delete this block?",
+        "new_menu_item": "New menu item",
+        "new_child_link": "New child link",
+        "new_column": "New column",
+        "dropdown_link": "Dropdown link",
+        "copy_suffix": "Copy",
+        "text_block_title": "Text block",
+        "text_block_content": "<p>Content</p>",
+        "untitled_item": "Untitled item",
+        "untitled_child": "Untitled child",
+        "untitled_column": "Untitled column",
+        "children": "Children",
+        "columns": "Columns",
+        "column_fallback_title": "Column"
+      },
+      "options": {
+        "statuses": {
+          "all": "All statuses",
+          "active": "Active",
+          "draft": "Draft",
+          "inactive": "Inactive"
+        },
+        "locations": {
+          "all": "All locations",
+          "header": "Header",
+          "footer": "Footer",
+          "sidebar": "Sidebar",
+          "custom": "Custom"
+        },
+        "themes": {
+          "default": "Default",
+          "brand": "Brand",
+          "contrast": "Contrast"
+        },
+        "container_widths": {
+          "lg": "Large",
+          "xl": "Extra large",
+          "size_2xl": "2XL",
+          "full": "Full width"
+        },
+        "alignment": {
+          "start": "Start",
+          "center": "Center",
+          "end": "End"
+        },
+        "rows": {
+          "main": "Main row",
+          "footer": "Footer row"
+        },
+        "tones": {
+          "default": "Default",
+          "muted": "Muted",
+          "contrast": "Contrast"
+        },
+        "panel_types": {
+          "link": "Link",
+          "classic": "Classic",
+          "mega": "Mega"
+        },
+        "link_types": {
+          "none": "None",
+          "internal_page": "Internal page",
+          "route": "Route",
+          "external_url": "External URL",
+          "anchor": "Anchor"
+        },
+        "link_targets": {
+          "self": "Same tab",
+          "blank": "New tab"
+        },
+        "badge_variants": {
+          "none": "None"
+        }
+      },
+      "block_types": {
+        "navigation_group": "Navigation group",
+        "product_showcase": "Product showcase",
+        "category_list": "Category list",
+        "quick_links": "Quick links",
+        "cards": "Cards",
+        "featured_content": "Featured content",
+        "promo_banner": "Promo banner",
+        "image": "Image",
+        "cta": "CTA",
+        "text": "Text",
+        "html": "HTML",
+        "module_shortcut": "Module shortcut",
+        "demo_preview": "Demo preview"
+      },
+      "payload": {
+        "group_title": "Group title",
+        "description": "Description",
+        "links": "Links",
+        "add_link": "Add link",
+        "label": "Label",
+        "href": "Href",
+        "note": "Note",
+        "badge": "Badge",
+        "remove": "Remove",
+        "section_title": "Section title",
+        "products": "Products",
+        "add_product": "Add product",
+        "preview_summary": "Preview summary",
+        "preview_image": "Preview image",
+        "library": "Library",
+        "image_alt": "Image alt",
+        "image_title": "Image title",
+        "categories": "Categories",
+        "add_category": "Add category",
+        "meta": "Meta",
+        "pills": "Pills",
+        "add_pill": "Add pill",
+        "cards": "Cards",
+        "add_card": "Add card",
+        "card_body": "Card body",
+        "eyebrow": "Eyebrow",
+        "title": "Title",
+        "body": "Body",
+        "cta_label": "CTA label",
+        "cta_href": "CTA href",
+        "image_url": "Image URL",
+        "alt_text": "Alt text",
+        "caption": "Caption",
+        "optional_link": "Optional link",
+        "button_label": "Button label",
+        "button_href": "Button href",
+        "sanitized_html": "Sanitized HTML",
+        "shortcuts": "Shortcuts",
+        "add_shortcut": "Add shortcut",
+        "icon": "Icon",
+        "route_name": "Route name",
+        "preview_image_alt": "Preview image alt",
+        "preview_image_title": "Preview image title",
+        "metrics": "Metrics",
+        "add_metric": "Add metric",
+        "value": "Value",
+        "defaults": {
+          "new_link": "New link",
+          "product": "Product",
+          "category": "Category",
+          "quick_link": "Quick link",
+          "card_title": "Card title",
+          "card_body_html": "<p>Card body</p>",
+          "shortcut": "Shortcut",
+          "metric": "Metric",
+          "metric_value": "Value"
+        }
+      }
+    }
+  },
+  "session": {
+    "expired_retry": "Session expired. Please try again."
+  },
+  "cookies": {
+    "title": "Cookies",
+    "banner": {
+      "body": "We use essential cookies to run the platform. You can accept or reject analytics cookies."
+    },
+    "actions": {
+      "accept_all": "Accept all",
+      "reject_all": "Reject all",
+      "customize": "Customize",
+      "save": "Save"
+    },
+    "modal": {
+      "title": "Cookie settings",
+      "description": "Choose the cookies you want to enable. Essential cookies are always on.",
+      "essential_title": "Essential",
+      "essential_description": "Required for login, security, and core site features.",
+      "analytics_title": "Analytics (Google Analytics)",
+      "analytics_description": "Helps us understand usage to improve the platform."
+    }
+  },
+  "public_footer": {
+    "contact": "Contact",
+    "store": {
+      "google_play_prefix": "Get it on",
+      "app_store_prefix": "Download on the"
+    },
+    "support": {
+      "kicker": "Support",
+      "title": "Talk to our team",
+      "body": "<p>Need a sharper product journey or a custom public page setup? Our team can help.</p>",
+      "contact_cta": "Contact us",
+      "pricing_cta": "View pricing",
+      "meta": {
+        "one": "Public pages and business modules",
+        "two": "Product support and enablement",
+        "three": "Available in French, English, and Spanish"
+      }
+    },
+    "fallback_groups": {
+      "industries": {
+        "title": "Industries We Serve",
+        "plumbing": "Plumbing",
+        "hvac": "HVAC",
+        "electrical": "Electrical",
+        "cleaning": "Cleaning",
+        "salon_beauty": "Salon & Beauty",
+        "restaurant": "Restaurant"
+      },
+      "products": {
+        "title": "Products",
+        "sales_crm": "Sales & CRM",
+        "reservations": "Reservations",
+        "operations": "Operations",
+        "commerce": "Commerce",
+        "marketing_loyalty": "Marketing & Loyalty",
+        "ai_automation": "AI & Automation",
+        "command_center": "Command Center"
+      },
+      "resources": {
+        "title": "Resources",
+        "pricing": "Pricing",
+        "terms": "Terms",
+        "privacy": "Privacy",
+        "refund": "Refund",
+        "contact": "Contact"
+      }
     }
   },
   "notifications_panel": {
@@ -7375,6 +7750,144 @@
     },
     "note": "Contact support if you need help with billing."
   },
+  "public_quote": {
+    "meta_title": "Quote review",
+    "document": "Quote",
+    "company_fallback": "Company",
+    "customer_fallback": "Customer",
+    "service_fallback": "Service",
+    "created": "Created",
+    "customer": "Customer",
+    "job": "Job",
+    "property": "Property",
+    "items": "Items",
+    "no_property": "No property selected.",
+    "no_items": "No items listed.",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "required_deposit": "Required deposit: {amount}",
+    "respond_title": "Respond to this quote",
+    "deposit_amount": "Deposit amount",
+    "method_placeholder": "Payment method (optional)",
+    "reference_placeholder": "Reference (optional)",
+    "actions": {
+      "accept": "Accept quote",
+      "decline": "Decline quote"
+    },
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted",
+      "declined": "Declined"
+    }
+  },
+  "public_invoice": {
+    "meta_title": "Invoice payment",
+    "document": "Invoice",
+    "company_fallback": "Company",
+    "customer_fallback": "Customer",
+    "service_fallback": "Service",
+    "created": "Created",
+    "customer": "Customer",
+    "job": "Job",
+    "total": "Total",
+    "paid": "Paid",
+    "balance_due": "Balance due",
+    "pay_title": "Pay this invoice",
+    "amount_placeholder": "Amount",
+    "amount_cannot_exceed": "Amount cannot exceed {amount}.",
+    "payment_hint": "You can pay the full balance or choose a partial amount.",
+    "reference_placeholder": "Reference",
+    "notes_placeholder": "Notes",
+    "actions": {
+      "pay_full_balance": "Pay full balance",
+      "pay_invoice": "Pay invoice",
+      "pay_with_stripe": "Pay with Stripe"
+    },
+    "tip": {
+      "title": "Add a tip? (optional)",
+      "subtitle": "The tip goes directly to the team member serving you.",
+      "enable": "Yes, add a tip",
+      "disable": "No thanks",
+      "percent_mode": "Percentage (%)",
+      "fixed_mode": "Fixed amount ($)",
+      "other_percent": "Other %",
+      "other_amount": "Other amount",
+      "max_percent": "Max: {value}%",
+      "max_amount": "Max: {amount}",
+      "change_hint": "You can change or remove tip before paying."
+    },
+    "summary": {
+      "subtotal": "Subtotal",
+      "tip": "Tip (optional)",
+      "total_charge": "Total charge",
+      "partial_remaining": "Partial payment selected. Remaining balance after this payment:",
+      "remaining": "Remaining balance after this payment:"
+    },
+    "details": {
+      "title": "Payment details (optional)",
+      "method": "Payment method:"
+    },
+    "recent_payments": {
+      "title": "Recent payments",
+      "subtotal": "Subtotal",
+      "tip": "Tip",
+      "total_paid": "Total paid",
+      "tip_assigned_to": "Tip assigned to: {name}"
+    },
+    "methods": {
+      "cash": "Cash",
+      "card": "Card (Stripe)",
+      "bank_transfer": "Bank transfer",
+      "check": "Check"
+    },
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted",
+      "partial": "Partial",
+      "paid": "Paid",
+      "overdue": "Overdue",
+      "void": "Void"
+    },
+    "payment_status": {
+      "pending": "Pending",
+      "completed": "Completed",
+      "paid": "Paid",
+      "failed": "Failed"
+    }
+  },
+  "public_work": {
+    "meta_title": "Job review",
+    "document": "Job",
+    "company_fallback": "Company",
+    "customer_fallback": "Customer",
+    "schedule": "Schedule",
+    "customer": "Customer",
+    "contact": "Contact",
+    "actions": {
+      "title": "Actions",
+      "validate": "Validate job",
+      "dispute": "Dispute job",
+      "proofs": "View proofs",
+      "none": "No validation actions are available for this job."
+    },
+    "schedule_confirmation": {
+      "title": "Schedule confirmation",
+      "description": "Accepting the schedule will generate tasks for each visit.",
+      "request_changes": "Request changes",
+      "accept": "Accept schedule"
+    },
+    "status": {
+      "pending": "Pending",
+      "scheduled": "Scheduled",
+      "confirmed": "Confirmed",
+      "validated": "Validated",
+      "completed": "Completed",
+      "closed": "Closed",
+      "disputed": "Disputed"
+    }
+  },
   "public_store": {
     "title": "{company} store",
     "subtitle": "Browse available products.",
@@ -7520,12 +8033,17 @@
         "next": "Next",
         "page": "Page {current} / {total}"
       },
-      "notes": {
-        "title": "Notes & substitutions",
-        "customer_notes": "Notes for the store",
-        "substitution_allowed": "Allow substitutions",
-        "substitution_notes": "Substitution preferences"
-      }
+    "notes": {
+      "title": "Notes & substitutions",
+      "customer_notes": "Notes for the store",
+      "substitution_allowed": "Allow substitutions",
+      "substitution_notes": "Substitution preferences"
+    },
+    "a11y": {
+      "close_dialog": "Close dialog",
+      "open_cart": "Open cart",
+      "close_cart": "Close cart"
+    }
   },
   "public_showcase": {
     "title": "{company} services",

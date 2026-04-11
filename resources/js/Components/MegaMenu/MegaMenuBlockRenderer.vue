@@ -164,7 +164,7 @@ watch(
                             decoding="async"
                         />
                         <div v-else class="flex h-[260px] items-center justify-center px-6 text-sm font-medium text-stone-500 dark:text-neutral-400">
-                            Add a preview image for this product.
+                            {{ $t('mega_menu.preview_image_placeholder') }}
                         </div>
                     </div>
                 </div>

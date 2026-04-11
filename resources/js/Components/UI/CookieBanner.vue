@@ -22,38 +22,21 @@ const consentDraft = ref({
     analytics: false,
 });
 
-const { locale } = useI18n();
-const isFrench = computed(() => (locale.value || 'fr').toLowerCase().startsWith('fr'));
+const { t } = useI18n();
 
-const bannerTitle = computed(() => (isFrench.value ? 'Cookies' : 'Cookies'));
-const bannerBody = computed(() =>
-    isFrench.value
-        ? 'Nous utilisons des cookies essentiels pour faire fonctionner la plateforme. Vous pouvez accepter ou refuser les cookies de mesure.'
-        : 'We use essential cookies to run the platform. You can accept or reject analytics cookies.'
-);
-const acceptAllLabel = computed(() => (isFrench.value ? 'Accepter tout' : 'Accept all'));
-const rejectAllLabel = computed(() => (isFrench.value ? 'Refuser tout' : 'Reject all'));
-const customizeLabel = computed(() => (isFrench.value ? 'Personnaliser' : 'Customize'));
-const saveLabel = computed(() => (isFrench.value ? 'Enregistrer' : 'Save'));
+const bannerTitle = computed(() => t('cookies.title'));
+const bannerBody = computed(() => t('cookies.banner.body'));
+const acceptAllLabel = computed(() => t('cookies.actions.accept_all'));
+const rejectAllLabel = computed(() => t('cookies.actions.reject_all'));
+const customizeLabel = computed(() => t('cookies.actions.customize'));
+const saveLabel = computed(() => t('cookies.actions.save'));
 
-const modalTitle = computed(() => (isFrench.value ? 'Parametres des cookies' : 'Cookie settings'));
-const modalDescription = computed(() =>
-    isFrench.value
-        ? 'Choisissez les cookies que vous souhaitez activer. Les cookies essentiels sont toujours actifs.'
-        : 'Choose the cookies you want to enable. Essential cookies are always on.'
-);
-const essentialTitle = computed(() => (isFrench.value ? 'Essentiels' : 'Essential'));
-const essentialDescription = computed(() =>
-    isFrench.value
-        ? 'Necessaires pour la connexion, la securite et le fonctionnement du site.'
-        : 'Required for login, security, and core site features.'
-);
-const analyticsTitle = computed(() => (isFrench.value ? 'Mesure (Google Analytics)' : 'Analytics (Google Analytics)'));
-const analyticsDescription = computed(() =>
-    isFrench.value
-        ? 'Aide a comprendre l usage pour ameliorer la plateforme.'
-        : 'Helps us understand usage to improve the platform.'
-);
+const modalTitle = computed(() => t('cookies.modal.title'));
+const modalDescription = computed(() => t('cookies.modal.description'));
+const essentialTitle = computed(() => t('cookies.modal.essential_title'));
+const essentialDescription = computed(() => t('cookies.modal.essential_description'));
+const analyticsTitle = computed(() => t('cookies.modal.analytics_title'));
+const analyticsDescription = computed(() => t('cookies.modal.analytics_description'));
 
 const parseCookieValue = (value) => {
     try {

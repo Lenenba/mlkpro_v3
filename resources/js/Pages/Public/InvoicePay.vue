@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethods } from '@/Composables/useTenantPaymentMethods';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import { humanizeDate } from '@/utils/date';
@@ -22,6 +23,8 @@ const props = defineProps({
         default: () => ({}),
     },
 });
+
+const { t, te } = useI18n();
 
 const form = useForm({
     amount: props.invoice?.balance_due || '',
@@ -148,12 +151,19 @@ const setPaymentAmount = (value) => {
     form.amount = normalized > 0 ? normalized.toFixed(2) : '';
 };
 
+const translateStatus = (status, prefix = 'public_invoice.status') => {
+    const normalized = String(status || '').trim().toLowerCase() || 'sent';
+    const key = `${prefix}.${normalized}`;
+
+    return te(key) ? t(key) : normalized.replace(/_/g, ' ');
+};
+
 const paymentMethodLabel = (method) => {
     return resolvePaymentMethodLabel(method, {
-        cash: 'Cash',
-        card: 'Card (Stripe)',
-        bankTransfer: 'Bank transfer',
-        check: 'Check',
+        cash: t('public_invoice.methods.cash'),
+        card: t('public_invoice.methods.card'),
+        bankTransfer: t('public_invoice.methods.bank_transfer'),
+        check: t('public_invoice.methods.check'),
     });
 };
 
@@ -197,10 +207,10 @@ const recentPayments = computed(() => props.invoice?.payments || []);
 const customerName = computed(() => {
     const data = customer.value;
     if (!data) {
-        return 'Customer';
+        return t('public_invoice.customer_fallback');
     }
     const name = data.company_name || `${data.first_name || ''} ${data.last_name || ''}`.trim();
-    return name || 'Customer';
+    return name || t('public_invoice.customer_fallback');
 });
 
 const statusClass = (status) => {
@@ -220,6 +230,8 @@ const statusClass = (status) => {
 
 const formatDate = (value) => humanizeDate(value) || '-';
 const { formatCurrency } = useCurrencyFormatter();
+const companyName = computed(() => props.company?.name || t('public_invoice.company_fallback'));
+const headTitle = computed(() => t('public_invoice.meta_title'));
 
 const roundMoney = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
 
@@ -236,7 +248,7 @@ const paymentChargedTotal = (payment) => {
 </script>
 
 <template>
-    <Head title="Invoice payment" />
+    <Head :title="headTitle" />
 
     <GuestLayout :card-class="'mt-6 w-full max-w-3xl rounded-sm border border-stone-200 bg-white px-6 py-6 shadow-md'">
         <div class="space-y-5">
@@ -245,56 +257,56 @@ const paymentChargedTotal = (payment) => {
                     <img
                         v-if="company?.logo_url"
                         :src="company.logo_url"
-                        :alt="company?.name || 'Company'"
+                        :alt="companyName"
                         class="h-10 w-10 rounded-sm border border-stone-200 object-cover"
                         loading="lazy"
                         decoding="async"
                     />
                     <div>
-                        <div class="text-xs uppercase tracking-wide text-stone-500">Invoice</div>
+                        <div class="text-xs uppercase tracking-wide text-stone-500">{{ t('public_invoice.document') }}</div>
                         <div class="text-lg font-semibold text-stone-800">
-                            {{ company?.name || 'Company' }}
+                            {{ companyName }}
                         </div>
                     </div>
                 </div>
                 <span class="rounded-sm px-2 py-1 text-xs font-semibold" :class="statusClass(invoice.status)">
-                    {{ invoice.status || 'sent' }}
+                    {{ translateStatus(invoice.status) }}
                 </span>
             </div>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div class="rounded-sm border border-stone-200 p-3 text-sm text-stone-700">
-                    <div class="text-xs text-stone-500">Invoice</div>
+                    <div class="text-xs text-stone-500">{{ t('public_invoice.document') }}</div>
                     <div class="font-semibold">{{ invoice.number || `#${invoice.id}` }}</div>
-                    <div class="mt-2 text-xs text-stone-500">Created</div>
+                    <div class="mt-2 text-xs text-stone-500">{{ t('public_invoice.created') }}</div>
                     <div class="text-sm">{{ formatDate(invoice.created_at) }}</div>
                 </div>
                 <div class="rounded-sm border border-stone-200 p-3 text-sm text-stone-700">
-                    <div class="text-xs text-stone-500">Customer</div>
+                    <div class="text-xs text-stone-500">{{ t('public_invoice.customer') }}</div>
                     <div class="font-semibold">{{ customerName }}</div>
-                    <div class="mt-2 text-xs text-stone-500">Job</div>
-                    <div class="text-sm">{{ work?.job_title || 'Service' }}</div>
+                    <div class="mt-2 text-xs text-stone-500">{{ t('public_invoice.job') }}</div>
+                    <div class="text-sm">{{ work?.job_title || t('public_invoice.service_fallback') }}</div>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div class="rounded-sm border border-stone-200 p-3 text-sm text-stone-700">
-                    <div class="text-xs text-stone-500">Total</div>
+                    <div class="text-xs text-stone-500">{{ t('public_invoice.total') }}</div>
                     <div class="font-semibold">{{ formatCurrency(invoice.total) }}</div>
                 </div>
                 <div class="rounded-sm border border-stone-200 p-3 text-sm text-stone-700">
-                    <div class="text-xs text-stone-500">Paid</div>
+                    <div class="text-xs text-stone-500">{{ t('public_invoice.paid') }}</div>
                     <div class="font-semibold">{{ formatCurrency(invoice.amount_paid) }}</div>
                 </div>
                 <div class="rounded-sm border border-stone-200 p-3 text-sm text-stone-700">
-                    <div class="text-xs text-stone-500">Balance due</div>
+                    <div class="text-xs text-stone-500">{{ t('public_invoice.balance_due') }}</div>
                     <div class="font-semibold">{{ formatCurrency(invoice.balance_due) }}</div>
                 </div>
             </div>
 
             <div class="rounded-sm border border-stone-200 p-4">
                 <div class="mb-3 flex items-center justify-between">
-                    <h2 class="text-sm font-semibold text-stone-800">Pay this invoice</h2>
+                    <h2 class="text-sm font-semibold text-stone-800">{{ t('public_invoice.pay_title') }}</h2>
                     <span v-if="!allowPayment" class="text-xs text-stone-500">{{ paymentMessage }}</span>
                 </div>
 
@@ -306,14 +318,14 @@ const paymentChargedTotal = (payment) => {
                         step="0.01"
                         :disabled="!allowPayment"
                         class="w-full rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 disabled:opacity-60"
-                        placeholder="Amount"
+                        :placeholder="t('public_invoice.amount_placeholder')"
                     />
                     <div v-if="form.errors.amount" class="text-xs text-red-600">{{ form.errors.amount }}</div>
                     <div v-else-if="exceedsBalanceDue" class="text-xs text-red-600">
-                        Amount cannot exceed {{ formatCurrency(balanceDue) }}.
+                        {{ t('public_invoice.amount_cannot_exceed', { amount: formatCurrency(balanceDue) }) }}
                     </div>
                     <p class="text-[11px] text-stone-500">
-                        You can pay the full balance or choose a partial amount.
+                        {{ t('public_invoice.payment_hint') }}
                     </p>
                     <div class="flex flex-wrap gap-2">
                         <button
@@ -322,7 +334,7 @@ const paymentChargedTotal = (payment) => {
                             class="rounded-sm border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-60"
                             @click="setPaymentAmount(balanceDue)"
                         >
-                            Pay full balance
+                            {{ t('public_invoice.actions.pay_full_balance') }}
                         </button>
                         <button
                             type="button"
@@ -343,8 +355,8 @@ const paymentChargedTotal = (payment) => {
                     </div>
 
                     <div class="rounded-sm border border-stone-200 bg-stone-50 p-3">
-                        <div class="text-sm font-semibold text-stone-800">Add a tip? (optional)</div>
-                        <p class="text-xs text-stone-500">The tip goes directly to the team member serving you.</p>
+                        <div class="text-sm font-semibold text-stone-800">{{ t('public_invoice.tip.title') }}</div>
+                        <p class="text-xs text-stone-500">{{ t('public_invoice.tip.subtitle') }}</p>
 
                         <div class="mt-3 flex flex-wrap gap-2">
                             <button
@@ -354,7 +366,7 @@ const paymentChargedTotal = (payment) => {
                                 :class="tipEnabled ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-stone-200 bg-white text-stone-700'"
                                 @click="tipEnabled = true"
                             >
-                                Yes, add a tip
+                                {{ t('public_invoice.tip.enable') }}
                             </button>
                             <button
                                 type="button"
@@ -363,7 +375,7 @@ const paymentChargedTotal = (payment) => {
                                 :class="!tipEnabled ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-200 bg-white text-stone-700'"
                                 @click="tipEnabled = false"
                             >
-                                No thanks
+                                {{ t('public_invoice.tip.disable') }}
                             </button>
                         </div>
 
@@ -376,7 +388,7 @@ const paymentChargedTotal = (payment) => {
                                     :class="tipMode === 'percent' ? 'border-slate-900 bg-slate-900 text-white' : 'border-stone-200 bg-white text-stone-700'"
                                     @click="tipMode = 'percent'"
                                 >
-                                    Percentage (%)
+                                    {{ t('public_invoice.tip.percent_mode') }}
                                 </button>
                                 <button
                                     type="button"
@@ -385,7 +397,7 @@ const paymentChargedTotal = (payment) => {
                                     :class="tipMode === 'fixed' ? 'border-slate-900 bg-slate-900 text-white' : 'border-stone-200 bg-white text-stone-700'"
                                     @click="tipMode = 'fixed'"
                                 >
-                                    Fixed amount ($)
+                                    {{ t('public_invoice.tip.fixed_mode') }}
                                 </button>
                             </div>
 
@@ -411,9 +423,9 @@ const paymentChargedTotal = (payment) => {
                                     step="0.01"
                                     :disabled="!allowPayment"
                                     class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 disabled:opacity-60"
-                                    placeholder="Other %"
+                                    :placeholder="t('public_invoice.tip.other_percent')"
                                 />
-                                <div class="text-[11px] text-stone-500">Max: {{ maxTipPercent }}%</div>
+                                <div class="text-[11px] text-stone-500">{{ t('public_invoice.tip.max_percent', { value: maxTipPercent }) }}</div>
                                 <div v-if="form.errors.tip_percent" class="text-xs text-red-600">{{ form.errors.tip_percent }}</div>
                             </div>
 
@@ -439,37 +451,37 @@ const paymentChargedTotal = (payment) => {
                                     step="0.01"
                                     :disabled="!allowPayment"
                                     class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 disabled:opacity-60"
-                                    placeholder="Other amount"
+                                    :placeholder="t('public_invoice.tip.other_amount')"
                                 />
-                                <div class="text-[11px] text-stone-500">Max: {{ formatCurrency(maxTipFixed) }}</div>
+                                <div class="text-[11px] text-stone-500">{{ t('public_invoice.tip.max_amount', { amount: formatCurrency(maxTipFixed) }) }}</div>
                                 <div v-if="form.errors.tip_amount" class="text-xs text-red-600">{{ form.errors.tip_amount }}</div>
                             </div>
                         </div>
 
-                        <p class="mt-2 text-[11px] text-stone-500">You can change or remove tip before paying.</p>
+                        <p class="mt-2 text-[11px] text-stone-500">{{ t('public_invoice.tip.change_hint') }}</p>
                     </div>
 
                     <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600">
                         <div class="flex items-center justify-between">
-                            <span>Subtotal</span>
+                            <span>{{ t('public_invoice.summary.subtotal') }}</span>
                             <span class="font-medium text-stone-800">{{ formatCurrency(paymentAmount) }}</span>
                         </div>
                         <div class="mt-1 flex items-center justify-between">
-                            <span>Tip (optional)</span>
+                            <span>{{ t('public_invoice.summary.tip') }}</span>
                             <span class="font-medium text-stone-800">{{ formatCurrency(tipAmount) }}</span>
                         </div>
                         <div class="mt-2 flex items-center justify-between border-t border-stone-200 pt-2">
-                            <span class="font-semibold text-stone-800">Total charge</span>
+                            <span class="font-semibold text-stone-800">{{ t('public_invoice.summary.total_charge') }}</span>
                             <span class="font-semibold text-stone-900">{{ formatCurrency(totalChargeAmount) }}</span>
                         </div>
                     </div>
                     <p class="text-[11px] text-stone-500">
                         <template v-if="isPartialPayment">
-                            Partial payment selected. Remaining balance after this payment:
+                            {{ t('public_invoice.summary.partial_remaining') }}
                             <span class="font-semibold text-stone-700">{{ formatCurrency(paymentRemainingAfterThis) }}</span>
                         </template>
                         <template v-else>
-                            Remaining balance after this payment:
+                            {{ t('public_invoice.summary.remaining') }}
                             <span class="font-semibold text-stone-700">{{ formatCurrency(paymentRemainingAfterThis) }}</span>
                         </template>
                     </p>
@@ -480,7 +492,7 @@ const paymentChargedTotal = (payment) => {
                             :disabled="!canSubmitPayment || form.processing"
                             class="inline-flex w-full items-center justify-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                         >
-                            Pay invoice
+                            {{ t('public_invoice.actions.pay_invoice') }}
                         </button>
                         <button
                             v-if="canUseStripe"
@@ -489,13 +501,13 @@ const paymentChargedTotal = (payment) => {
                             class="inline-flex w-full items-center justify-center rounded-sm border border-transparent bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                             @click="startStripeCheckout"
                         >
-                            Pay with Stripe
+                            {{ t('public_invoice.actions.pay_with_stripe') }}
                         </button>
                     </div>
 
                     <details class="rounded-sm border border-stone-200 bg-stone-50 p-3">
                         <summary class="cursor-pointer text-xs font-semibold text-stone-700">
-                            Payment details (optional)
+                            {{ t('public_invoice.details.title') }}
                         </summary>
                         <div class="mt-3 space-y-2">
                             <div v-if="hasMultiplePaymentMethods">
@@ -514,7 +526,7 @@ const paymentChargedTotal = (payment) => {
                                 </select>
                             </div>
                             <div v-else class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600">
-                                Payment method:
+                                {{ t('public_invoice.details.method') }}
                                 <span class="font-semibold text-stone-700">
                                     {{ paymentMethodLabel(singlePaymentMethod) }}
                                 </span>
@@ -525,14 +537,14 @@ const paymentChargedTotal = (payment) => {
                                 type="text"
                                 :disabled="!allowPayment"
                                 class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 disabled:opacity-60"
-                                placeholder="Reference"
+                                :placeholder="t('public_invoice.reference_placeholder')"
                             />
                             <textarea
                                 v-model="form.notes"
                                 rows="2"
                                 :disabled="!allowPayment"
                                 class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 disabled:opacity-60"
-                                placeholder="Notes"
+                                :placeholder="t('public_invoice.notes_placeholder')"
                             ></textarea>
                         </div>
                     </details>
@@ -540,7 +552,7 @@ const paymentChargedTotal = (payment) => {
             </div>
 
             <div v-if="recentPayments.length" class="rounded-sm border border-stone-200 p-4">
-                <h2 class="text-sm font-semibold text-stone-800">Recent payments</h2>
+                <h2 class="text-sm font-semibold text-stone-800">{{ t('public_invoice.recent_payments.title') }}</h2>
                 <div class="mt-3 space-y-2">
                     <div
                         v-for="payment in recentPayments"
@@ -550,24 +562,24 @@ const paymentChargedTotal = (payment) => {
                         <div class="flex flex-wrap items-center justify-between gap-2 text-sm text-stone-700">
                             <span>{{ formatDate(payment.paid_at) }}</span>
                             <span class="rounded-sm bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-700">
-                                {{ payment.status || 'completed' }}
+                                {{ translateStatus(payment.status || 'completed', 'public_invoice.payment_status') }}
                             </span>
                         </div>
                         <div class="mt-2 space-y-1 text-xs text-stone-600">
                             <div class="flex items-center justify-between">
-                                <span>Subtotal</span>
+                                <span>{{ t('public_invoice.recent_payments.subtotal') }}</span>
                                 <span class="font-medium text-stone-800">{{ formatCurrency(payment.amount) }}</span>
                             </div>
                             <div class="flex items-center justify-between">
-                                <span>Tip</span>
+                                <span>{{ t('public_invoice.recent_payments.tip') }}</span>
                                 <span class="font-medium text-stone-800">{{ formatCurrency(paymentTipAmount(payment)) }}</span>
                             </div>
                             <div class="flex items-center justify-between border-t border-stone-200 pt-1">
-                                <span class="font-semibold text-stone-800">Total paid</span>
+                                <span class="font-semibold text-stone-800">{{ t('public_invoice.recent_payments.total_paid') }}</span>
                                 <span class="font-semibold text-stone-900">{{ formatCurrency(paymentChargedTotal(payment)) }}</span>
                             </div>
                             <div v-if="payment.tip_assignee_name" class="text-[11px] text-stone-500">
-                                Tip assigned to: {{ payment.tip_assignee_name }}
+                                {{ t('public_invoice.recent_payments.tip_assigned_to', { name: payment.tip_assignee_name }) }}
                             </div>
                         </div>
                     </div>

@@ -20,8 +20,7 @@ const props = defineProps({
 
 const page = usePage();
 const { t, locale } = useI18n();
-const isFrench = computed(() => (locale.value || 'fr').toLowerCase().startsWith('fr'));
-const cookieLabel = computed(() => (isFrench.value ? 'Cookies' : 'Cookies'));
+const cookieLabel = computed(() => t('cookies.title'));
 const userName = computed(() => {
     locale.value;
     return page.props.auth?.user?.name || t('account.default_name');
@@ -203,7 +202,7 @@ const openCookiePreferences = () => {
                     :model-value="props.active"
                     :tabs="navTabs"
                     id-prefix="settings-main"
-                    aria-label="Navigation des parametres"
+                    :aria-label="t('settings._label')"
                 />
 
                 <section class="settings-content">
@@ -378,6 +377,4 @@ const openCookiePreferences = () => {
     min-width: 0;
 }
 </style>
-
-
 

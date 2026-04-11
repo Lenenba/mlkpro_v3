@@ -21,6 +21,14 @@ const setDocumentLang = (locale) => {
     }
 };
 
+const translate = (key, fallback, params = {}) => {
+    if (i18nInstance?.global?.t) {
+        return i18nInstance.global.t(key, params);
+    }
+
+    return fallback;
+};
+
 const dispatchToast = (type, message) => {
     if (typeof window === 'undefined') {
         return;
@@ -54,7 +62,7 @@ const handleSessionExpired = (status) => {
         return;
     }
     sessionReloading = true;
-    dispatchToast('warning', 'Session expirée. Veuillez réessayer.');
+    dispatchToast('warning', translate('session.expired_retry', 'Session expiree. Veuillez reessayer.'));
     setTimeout(() => {
         sessionReloading = false;
     }, 4000);

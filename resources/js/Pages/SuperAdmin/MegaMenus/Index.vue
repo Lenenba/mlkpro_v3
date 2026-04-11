@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import draggable from 'vuedraggable';
+import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
 const props = defineProps({
@@ -12,6 +13,8 @@ const props = defineProps({
     create_url: { type: String, required: true },
     reorder_url: { type: String, required: true },
 });
+
+const { t } = useI18n();
 
 const filterForm = reactive({
     search: props.filters?.search || '',
@@ -24,6 +27,21 @@ const orderedMenus = ref(
 );
 const orderDirty = ref(false);
 
+const tx = (key, params = {}) => t(`mega_menu.admin.${key}`, params);
+const headTitle = computed(() => tx('index.head_title'));
+
+const translateChoiceLabel = (prefix, option) => {
+    const value = String(option?.value ?? '').trim();
+    if (!value) {
+        return option?.label || '';
+    }
+
+    const translationKey = `mega_menu.admin.options.${prefix}.${value.replace(/^_+/, '')}`;
+    const translated = t(translationKey);
+
+    return translated === translationKey ? (option?.label || value) : translated;
+};
+
 watch(
     () => props.menus,
     (menus) => {
@@ -34,7 +52,7 @@ watch(
 );
 
 const formatDate = (value) => {
-    if (!value) return 'Never';
+    if (!value) return tx('common.never');
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 };
@@ -77,7 +95,7 @@ const persistOrder = () => {
 
 const confirmDelete = (menu) => {
     if (!menu?.id) return;
-    if (!window.confirm(`Delete mega menu "${menu.title}"?`)) return;
+    if (!window.confirm(tx('edit.delete_menu_confirm', { title: menu.title }))) return;
 
     router.delete(route('superadmin.mega-menus.destroy', menu.id), {
         preserveScroll: true,
@@ -97,18 +115,24 @@ const deactivateMenu = (menu) => {
 };
 
 const statusOptions = computed(() => [
-    { value: '', label: 'All statuses' },
-    ...(props.choices?.statuses || []),
+    { value: '', label: tx('options.statuses.all') },
+    ...(props.choices?.statuses || []).map((option) => ({
+        ...option,
+        label: translateChoiceLabel('statuses', option),
+    })),
 ]);
 
 const locationOptions = computed(() => [
-    { value: '', label: 'All locations' },
-    ...(props.choices?.display_locations || []),
+    { value: '', label: tx('options.locations.all') },
+    ...(props.choices?.display_locations || []).map((option) => ({
+        ...option,
+        label: translateChoiceLabel('locations', option),
+    })),
 ]);
 </script>
 
 <template>
-    <Head title="Mega Menu Manager" />
+    <Head :title="headTitle" />
 
     <AuthenticatedLayout>
         <div class="space-y-5">
@@ -116,21 +140,21 @@ const locationOptions = computed(() => [
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div class="space-y-1">
                         <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                            Mega Menu Manager
+                            {{ tx('index.title') }}
                         </h1>
                         <p class="text-sm text-stone-600 dark:text-neutral-400">
-                            Manage header, footer, sidebar, and custom-zone mega menus from one builder-oriented workspace.
+                            {{ tx('index.description') }}
                         </p>
                     </div>
 
                     <div class="flex flex-wrap gap-2">
                         <Link :href="dashboard_url"
                             class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
-                            Back to dashboard
+                            {{ tx('index.back_to_dashboard') }}
                         </Link>
                         <Link :href="create_url"
                             class="rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700">
-                            Create mega menu
+                            {{ tx('index.create') }}
                         </Link>
                     </div>
                 </div>
@@ -140,18 +164,18 @@ const locationOptions = computed(() => [
                 <form class="grid gap-3 md:grid-cols-[1.4fr_220px_220px_auto_auto]" @submit.prevent="applyFilters">
                     <div>
                         <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                            Search
+                            {{ tx('index.search') }}
                         </label>
                         <input
                             v-model="filterForm.search"
                             type="text"
-                            placeholder="Title, slug, description"
+                            :placeholder="tx('index.search_placeholder')"
                             class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                         />
                     </div>
                     <div>
                         <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                            Status
+                            {{ tx('index.status') }}
                         </label>
                         <select
                             v-model="filterForm.status"
@@ -164,7 +188,7 @@ const locationOptions = computed(() => [
                     </div>
                     <div>
                         <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                            Location
+                            {{ tx('index.location') }}
                         </label>
                         <select
                             v-model="filterForm.location"
@@ -180,13 +204,13 @@ const locationOptions = computed(() => [
                         class="self-end rounded-sm border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
                         @click="clearFilters"
                     >
-                        Clear
+                        {{ tx('index.clear') }}
                     </button>
                     <button
                         type="submit"
                         class="self-end rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700"
                     >
-                        Apply
+                        {{ tx('index.apply') }}
                     </button>
                 </form>
             </section>
@@ -194,7 +218,7 @@ const locationOptions = computed(() => [
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
                     <div class="text-sm text-stone-500 dark:text-neutral-400">
-                        Drag rows to adjust priority. Activation still controls which menu is live for a location or custom zone.
+                        {{ tx('index.reorder_hint') }}
                     </div>
                     <button
                         type="button"
@@ -205,26 +229,26 @@ const locationOptions = computed(() => [
                         :disabled="!orderDirty"
                         @click="persistOrder"
                     >
-                        Save order
+                        {{ tx('index.save_order') }}
                     </button>
                 </div>
 
                 <div v-if="!orderedMenus.length"
                     class="rounded-sm border border-dashed border-stone-300 p-6 text-sm text-stone-600 dark:border-neutral-700 dark:text-neutral-300">
-                    No mega menus match the current filters.
+                    {{ tx('index.empty') }}
                 </div>
 
                 <div v-else class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-stone-200 text-sm dark:divide-neutral-700">
                         <thead class="bg-stone-50 dark:bg-neutral-800/60">
                             <tr class="text-left text-xs font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
-                                <th class="px-3 py-2">Order</th>
-                                <th class="px-3 py-2">Menu</th>
-                                <th class="px-3 py-2">Status</th>
-                                <th class="px-3 py-2">Location</th>
-                                <th class="px-3 py-2">Structure</th>
-                                <th class="px-3 py-2">Updated</th>
-                                <th class="px-3 py-2 text-right">Actions</th>
+                                <th class="px-3 py-2">{{ tx('index.order') }}</th>
+                                <th class="px-3 py-2">{{ tx('index.menu') }}</th>
+                                <th class="px-3 py-2">{{ tx('index.status') }}</th>
+                                <th class="px-3 py-2">{{ tx('index.location') }}</th>
+                                <th class="px-3 py-2">{{ tx('index.structure') }}</th>
+                                <th class="px-3 py-2">{{ tx('index.updated') }}</th>
+                                <th class="px-3 py-2 text-right">{{ tx('index.actions') }}</th>
                             </tr>
                         </thead>
                         <draggable
@@ -259,8 +283,8 @@ const locationOptions = computed(() => [
                                         <div v-if="menu.custom_zone">{{ menu.custom_zone }}</div>
                                     </td>
                                     <td class="px-3 py-3 text-xs text-stone-600 dark:text-neutral-300">
-                                        <div>{{ menu.top_level_items }} top-level items</div>
-                                        <div>{{ menu.block_count }} content blocks</div>
+                                        <div>{{ tx('index.top_level_items', { count: menu.top_level_items }) }}</div>
+                                        <div>{{ tx('index.content_blocks', { count: menu.block_count }) }}</div>
                                     </td>
                                     <td class="px-3 py-3 text-xs text-stone-600 dark:text-neutral-300">
                                         <div>{{ formatDate(menu.updated_at) }}</div>
@@ -270,15 +294,15 @@ const locationOptions = computed(() => [
                                         <div class="flex flex-wrap justify-end gap-2 text-xs">
                                             <Link :href="route('superadmin.mega-menus.preview', menu.id)"
                                                 class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800">
-                                                Preview
+                                                {{ tx('common.preview') }}
                                             </Link>
                                             <Link :href="route('superadmin.mega-menus.edit', menu.id)"
                                                 class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800">
-                                                Edit
+                                                {{ tx('common.edit') }}
                                             </Link>
                                             <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
                                                 @click="duplicateMenu(menu)">
-                                                Duplicate
+                                                {{ tx('common.duplicate') }}
                                             </button>
                                             <button
                                                 v-if="menu.status !== 'active'"
@@ -286,7 +310,7 @@ const locationOptions = computed(() => [
                                                 class="rounded-sm border border-emerald-200 px-2 py-1 font-semibold text-emerald-700 hover:bg-emerald-50"
                                                 @click="activateMenu(menu)"
                                             >
-                                                Activate
+                                                {{ tx('common.activate') }}
                                             </button>
                                             <button
                                                 v-else
@@ -294,14 +318,14 @@ const locationOptions = computed(() => [
                                                 class="rounded-sm border border-amber-200 px-2 py-1 font-semibold text-amber-700 hover:bg-amber-50"
                                                 @click="deactivateMenu(menu)"
                                             >
-                                                Deactivate
+                                                {{ tx('common.deactivate') }}
                                             </button>
                                             <button
                                                 type="button"
                                                 class="rounded-sm border border-red-200 px-2 py-1 font-semibold text-red-700 hover:bg-red-50"
                                                 @click="confirmDelete(menu)"
                                             >
-                                                Delete
+                                                {{ tx('common.delete') }}
                                             </button>
                                         </div>
                                     </td>

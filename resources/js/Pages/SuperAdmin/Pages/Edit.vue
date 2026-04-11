@@ -490,12 +490,14 @@ const sectionPreset = (layout) => {
             background_color: '#202322',
             title: currentLocale.value === 'fr'
                 ? 'Demarrez un essai. Voyez si cela colle a votre operation.'
-                : 'Start a trial. See how it fits your operation.',
+                : (currentLocale.value === 'es' ? 'Empieza una prueba. Mira como encaja con tu operacion.' : 'Start a trial. See how it fits your operation.'),
             body: currentLocale.value === 'fr'
                 ? '<p>Presentez votre plateforme, votre visite produit ou votre experience mobile avec un bloc plus editorial et plus vendeur.</p>'
-                : '<p>Showcase your platform, product tour, or mobile experience with a more editorial conversion block.</p>',
-            primary_label: currentLocale.value === 'fr' ? "Demarrer l'essai" : 'Start trial',
-            aside_link_label: currentLocale.value === 'fr' ? 'Voir la visite produit' : 'Watch product tour',
+                : (currentLocale.value === 'es'
+                    ? '<p>Muestra tu plataforma, tu visita de producto o tu experiencia movil con un bloque de conversion mas editorial y mas convincente.</p>'
+                    : '<p>Showcase your platform, product tour, or mobile experience with a more editorial conversion block.</p>'),
+            primary_label: currentLocale.value === 'fr' ? "Demarrer l'essai" : (currentLocale.value === 'es' ? 'Empezar prueba' : 'Start trial'),
+            aside_link_label: currentLocale.value === 'fr' ? 'Voir la visite produit' : (currentLocale.value === 'es' ? 'Ver la visita del producto' : 'Watch product tour'),
         };
     }
 
@@ -506,8 +508,8 @@ const sectionPreset = (layout) => {
             background_color: '#f7f2e8',
             title: currentLocale.value === 'fr'
                 ? 'Fier partenaire des services a domicile dans plus de 50 industries.'
-                : 'Proud partner to home services in over 50 industries.',
-            primary_label: currentLocale.value === 'fr' ? 'Voir toutes les industries' : 'See All Industries',
+                : (currentLocale.value === 'es' ? 'Socio orgulloso de negocios de servicios en mas de 50 sectores.' : 'Proud partner to home services in over 50 industries.'),
+            primary_label: currentLocale.value === 'fr' ? 'Voir toutes les industries' : (currentLocale.value === 'es' ? 'Ver todos los sectores' : 'See All Industries'),
             industry_cards: defaultIndustryCards(currentLocale.value),
         };
     }
@@ -519,7 +521,7 @@ const sectionPreset = (layout) => {
             background_color: '#f7f2e8',
             title: currentLocale.value === 'fr'
                 ? 'Une IA pensee pour les entreprises de terrain.'
-                : 'AI built for blue-collar businesses',
+                : (currentLocale.value === 'es' ? 'IA pensada para negocios de campo.' : 'AI built for blue-collar businesses'),
             story_cards: defaultStoryCards(currentLocale.value),
         };
     }
@@ -539,10 +541,12 @@ const sectionPreset = (layout) => {
             background_color: '#f7f2e8',
             title: currentLocale.value === 'fr'
                 ? 'Approuve par les meilleures equipes d entretien.'
-                : 'Trusted by the best cleaning teams.',
+                : (currentLocale.value === 'es' ? 'Aprobado por los mejores equipos de limpieza.' : 'Trusted by the best cleaning teams.'),
             body: currentLocale.value === 'fr'
                 ? '<p>Les pros de l entretien utilisent MLK Pro pour simplifier la planification, suivre les preferences clients et mieux coordonner leur equipe.</p>'
-                : '<p>Cleaning pros use MLK Pro to simplify scheduling, track client preferences, and coordinate their crews with less friction.</p>',
+                : (currentLocale.value === 'es'
+                    ? '<p>Los profesionales de limpieza usan MLK Pro para simplificar la planificacion, seguir las preferencias de los clientes y coordinar mejor a sus equipos.</p>'
+                    : '<p>Cleaning pros use MLK Pro to simplify scheduling, track client preferences, and coordinate their crews with less friction.</p>'),
             testimonial_cards: defaultTestimonialCards(currentLocale.value),
         };
     }

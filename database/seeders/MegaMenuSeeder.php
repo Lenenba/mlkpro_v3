@@ -84,10 +84,10 @@ class MegaMenuSeeder extends Seeder
     {
         return [
             'slug' => 'main-header-menu',
-            'title' => 'Platform Modules Showcase',
+            'title' => 'Vitrine des modules plateforme',
             'status' => 'active',
             'display_location' => 'header',
-            'description' => 'Primary marketing mega menu dedicated to platform modules and product suites.',
+            'description' => 'Mega menu marketing principal dedie aux modules plateforme et aux parcours produits.',
             'ordering' => 1,
             'settings' => [
                 'theme' => 'brand',
@@ -96,6 +96,16 @@ class MegaMenuSeeder extends Seeder
                 'panel_background' => '#ffffff',
                 'open_on_hover' => true,
                 'show_dividers' => true,
+                'translations' => $this->translationBuckets(
+                    [
+                        'title' => 'Platform Modules Showcase',
+                        'description' => 'Primary marketing mega menu dedicated to platform modules and product suites.',
+                    ],
+                    [
+                        'title' => 'Vitrina de modulos de la plataforma',
+                        'description' => 'Mega menu principal de marketing dedicado a los modulos de la plataforma y a los recorridos de producto.',
+                    ],
+                ),
             ],
             'items' => [
                 $this->productsAndServicesItem($productPages),
@@ -113,11 +123,23 @@ class MegaMenuSeeder extends Seeder
     {
         return [
             'slug' => 'footer-resources-menu',
-            'title' => 'Footer Resources Menu',
+            'title' => 'Menu ressources du footer',
             'status' => 'active',
             'display_location' => 'footer',
-            'description' => 'Secondary footer navigation.',
+            'description' => 'Navigation secondaire du pied de page.',
             'ordering' => 2,
+            'settings' => [
+                'translations' => $this->translationBuckets(
+                    [
+                        'title' => 'Footer Resources Menu',
+                        'description' => 'Secondary footer navigation.',
+                    ],
+                    [
+                        'title' => 'Menu de recursos del pie de pagina',
+                        'description' => 'Navegacion secundaria del pie de pagina.',
+                    ],
+                ),
+            ],
             'items' => [
                 [
                     'label' => 'Juridique',
@@ -126,16 +148,24 @@ class MegaMenuSeeder extends Seeder
                     'panel_type' => 'classic',
                     'is_visible' => true,
                     'settings' => [
-                        'translations' => [
-                            'en' => [
-                                'label' => 'Legal',
-                            ],
-                        ],
+                        'translations' => $this->translationBuckets(
+                            ['label' => 'Legal'],
+                            ['label' => 'Legal'],
+                        ),
                     ],
                     'children' => [
-                        $this->classicLink('Conditions', '/terms', '', 'Terms'),
-                        $this->classicLink('Confidentialité', '/privacy', '', 'Privacy'),
-                        $this->classicLink('Remboursement', '/refund', '', 'Refund'),
+                        $this->classicLink(
+                            ['fr' => 'Conditions', 'en' => 'Terms', 'es' => 'Terminos'],
+                            '/terms'
+                        ),
+                        $this->classicLink(
+                            ['fr' => 'Confidentialite', 'en' => 'Privacy', 'es' => 'Privacidad'],
+                            '/privacy'
+                        ),
+                        $this->classicLink(
+                            ['fr' => 'Remboursement', 'en' => 'Refund', 'es' => 'Reembolso'],
+                            '/refund'
+                        ),
                     ],
                 ],
             ],
@@ -687,6 +717,134 @@ class MegaMenuSeeder extends Seeder
      */
     private function productsAndServicesItem(array $productPages): array
     {
+        $products = [
+            $this->localizedShowcaseProduct(
+                productKey: 'sales-crm',
+                label: 'Sales & CRM',
+                href: $this->pagePath($productPages['sales-crm']),
+                notes: [
+                    'fr' => 'Demandes, devis, clients et pipeline.',
+                    'en' => 'Requests, quotes, customers, and pipelines.',
+                    'es' => 'Solicitudes, cotizaciones, clientes y pipeline.',
+                ],
+                summaries: [
+                    'fr' => 'Captez la demande, qualifiez les opportunites et avancez plus vite du premier contact au devis valide.',
+                    'en' => 'Capture demand, qualify opportunities, and move faster from first request to approved quote.',
+                    'es' => 'Capta la demanda, califica oportunidades y avanza mas rapido desde la primera solicitud hasta la cotizacion aprobada.',
+                ],
+                badges: [
+                    'fr' => 'Populaire',
+                    'en' => 'Popular',
+                    'es' => 'Popular',
+                ],
+            ),
+            $this->localizedShowcaseProduct(
+                productKey: 'reservations',
+                label: 'Reservations',
+                href: $this->pagePath($productPages['reservations']),
+                notes: [
+                    'fr' => 'Reservations, disponibilites et planification libre-service.',
+                    'en' => 'Bookings, availability, and self-service scheduling.',
+                    'es' => 'Reservas, disponibilidad y planificacion en autoservicio.',
+                ],
+                summaries: [
+                    'fr' => 'Laissez les clients reserver en ligne pendant que les equipes gardent le controle des disponibilites, files et confirmations.',
+                    'en' => 'Let customers book online while teams keep live control over availability, queues, and confirmations.',
+                    'es' => 'Permite que los clientes reserven en linea mientras los equipos conservan el control de la disponibilidad, las colas y las confirmaciones.',
+                ],
+                badges: [
+                    'fr' => 'Essentiel',
+                    'en' => 'Core',
+                    'es' => 'Clave',
+                ],
+            ),
+            $this->localizedShowcaseProduct(
+                productKey: 'operations',
+                label: 'Operations',
+                href: $this->pagePath($productPages['operations']),
+                notes: [
+                    'fr' => 'Planning, jobs, taches et dispatch.',
+                    'en' => 'Scheduling, jobs, tasks, and dispatch.',
+                    'es' => 'Planificacion, trabajos, tareas y despacho.',
+                ],
+                summaries: [
+                    'fr' => 'Coordonnez l execution terrain, les affectations, les preuves de travail et le suivi quotidien depuis un meme cockpit operationnel.',
+                    'en' => 'Coordinate field execution, assignments, proof of work, and daily follow-up from one operational cockpit.',
+                    'es' => 'Coordina la ejecucion en terreno, las asignaciones, las pruebas de trabajo y el seguimiento diario desde un mismo centro operativo.',
+                ],
+            ),
+            $this->localizedShowcaseProduct(
+                productKey: 'commerce',
+                label: 'Commerce',
+                href: $this->pagePath($productPages['commerce']),
+                notes: [
+                    'fr' => 'Catalogue, vitrine, factures et paiements.',
+                    'en' => 'Catalog, storefront, invoices, and payments.',
+                    'es' => 'Catalogo, escaparate, facturas y pagos.',
+                ],
+                summaries: [
+                    'fr' => 'Vendez produits et services, facturez vos clients et encaissez sans fragmenter le parcours.',
+                    'en' => 'Sell products and services, invoice customers, and collect payments without fragmenting the journey.',
+                    'es' => 'Vende productos y servicios, factura a tus clientes y cobra sin fragmentar la experiencia.',
+                ],
+            ),
+            $this->localizedShowcaseProduct(
+                productKey: 'marketing-loyalty',
+                label: 'Marketing & Loyalty',
+                href: $this->pagePath($productPages['marketing-loyalty']),
+                notes: [
+                    'fr' => 'Campagnes, segments, fidelite et parcours VIP.',
+                    'en' => 'Campaigns, segments, loyalty, and VIP journeys.',
+                    'es' => 'Campanas, segmentos, fidelizacion y recorridos VIP.',
+                ],
+                summaries: [
+                    'fr' => 'Construisez des parcours de retention et des relances ciblees avec le meme contexte client que les ventes et les operations.',
+                    'en' => 'Build retention programs and targeted follow-up using the same customer context as sales and operations.',
+                    'es' => 'Construye programas de fidelizacion y seguimientos segmentados usando el mismo contexto de cliente que ventas y operaciones.',
+                ],
+                badges: [
+                    'fr' => 'Croissance',
+                    'en' => 'Growth',
+                    'es' => 'Crecimiento',
+                ],
+            ),
+            $this->localizedShowcaseProduct(
+                productKey: 'ai-automation',
+                label: 'AI & Automation',
+                href: $this->pagePath($productPages['ai-automation']),
+                notes: [
+                    'fr' => 'Assistant, brouillons, resumes et actions suggerees.',
+                    'en' => 'Assistant, drafts, summaries, and suggested actions.',
+                    'es' => 'Asistente, borradores, resumenes y acciones sugeridas.',
+                ],
+                summaries: [
+                    'fr' => 'Integrez l IA dans le workflow que vos equipes utilisent deja au lieu d ajouter un outil de plus.',
+                    'en' => 'Embed AI into the workflow your teams already use instead of adding another disconnected tool.',
+                    'es' => 'Integra la IA en el flujo de trabajo que tu equipo ya usa en lugar de agregar otra herramienta desconectada.',
+                ],
+                badges: [
+                    'fr' => 'IA',
+                    'en' => 'AI',
+                    'es' => 'IA',
+                ],
+            ),
+            $this->localizedShowcaseProduct(
+                productKey: 'command-center',
+                label: 'Command Center',
+                href: $this->pagePath($productPages['command-center']),
+                notes: [
+                    'fr' => 'Visibilite transverse et pilotage leadership.',
+                    'en' => 'Cross-module visibility and leadership overview.',
+                    'es' => 'Visibilidad transversal y vista de liderazgo.',
+                ],
+                summaries: [
+                    'fr' => 'Obtenez une lecture executive unifiee du revenu, des operations et de l activite client depuis un centre de pilotage partage.',
+                    'en' => 'Get one executive-level view across revenue, operations, and customer activity with a shared command center.',
+                    'es' => 'Obtiene una vista ejecutiva unica de ingresos, operaciones y actividad del cliente desde un centro de mando compartido.',
+                ],
+            ),
+        ];
+
         return [
             'label' => 'Produits & Services',
             'description' => 'Explorez tout le catalogue plateforme depuis un point d\'entrée unique.',
@@ -702,91 +860,35 @@ class MegaMenuSeeder extends Seeder
                 'note' => 'Explorez tout le catalogue plateforme depuis un point d\'entrée unique.',
                 'featured' => false,
                 'highlight_color' => '#0f766e',
-                'translations' => [
-                    'en' => [
+                'translations' => $this->translationBuckets(
+                    [
                         'label' => 'Products & Services',
                         'description' => 'Browse the full platform catalog from a single entry point.',
                         'eyebrow' => 'Modules',
                         'note' => 'Browse the full platform catalog from a single entry point.',
                     ],
-                ],
+                    [
+                        'label' => 'Productos y servicios',
+                        'description' => 'Explora todo el catalogo de la plataforma desde un unico punto de entrada.',
+                        'eyebrow' => 'Modulos',
+                        'note' => 'Explora todo el catalogo de la plataforma desde un unico punto de entrada.',
+                    ],
+                ),
             ],
             'columns' => [
                 $this->column('', '1fr', [
                     $this->productShowcaseBlock(
-                        'Produits & Services',
-                        'Products & Services',
-                        'Survolez un produit pour prévisualiser l\'interface, puis cliquez pour ouvrir sa page détaillée.',
-                        'Hover a product to preview the interface and click to open its detailed page.',
-                        [
-                            $this->showcaseProduct(
-                                'Sales & CRM',
-                                $this->pagePath($productPages['sales-crm']),
-                                'Requests, quotes, customers, and pipelines.',
-                                'Capture demand, qualify opportunities, and move faster from first request to approved quote.',
-                                $this->stockImage('sales-crm', 'en')['image_url'],
-                                $this->stockImage('sales-crm', 'en')['image_alt'],
-                                'Sales and CRM',
-                                'Popular'
-                            ),
-                            $this->showcaseProduct(
-                                'Reservations',
-                                $this->pagePath($productPages['reservations']),
-                                'Bookings, availability, and self-service scheduling.',
-                                'Let customers book online while teams keep live control over availability, queues, and confirmations.',
-                                $this->stockImage('reservations', 'en')['image_url'],
-                                $this->stockImage('reservations', 'en')['image_alt'],
-                                'Reservations',
-                                'Core'
-                            ),
-                            $this->showcaseProduct(
-                                'Operations',
-                                $this->pagePath($productPages['operations']),
-                                'Scheduling, jobs, tasks, and dispatch.',
-                                'Coordinate field execution, assignments, proof of work, and daily follow-up from one operational cockpit.',
-                                $this->stockImage('operations', 'en')['image_url'],
-                                $this->stockImage('operations', 'en')['image_alt'],
-                                'Operations'
-                            ),
-                            $this->showcaseProduct(
-                                'Commerce',
-                                $this->pagePath($productPages['commerce']),
-                                'Catalog, storefront, invoices, and payments.',
-                                'Sell products and services, invoice customers, and collect payments without fragmenting the journey.',
-                                $this->stockImage('commerce', 'en')['image_url'],
-                                $this->stockImage('commerce', 'en')['image_alt'],
-                                'Commerce'
-                            ),
-                            $this->showcaseProduct(
-                                'Marketing & Loyalty',
-                                $this->pagePath($productPages['marketing-loyalty']),
-                                'Campaigns, segments, loyalty, and VIP journeys.',
-                                'Build retention programs and targeted follow-up using the same customer context as sales and operations.',
-                                $this->stockImage('marketing-loyalty', 'en')['image_url'],
-                                $this->stockImage('marketing-loyalty', 'en')['image_alt'],
-                                'Marketing and Loyalty',
-                                'Growth'
-                            ),
-                            $this->showcaseProduct(
-                                'AI & Automation',
-                                $this->pagePath($productPages['ai-automation']),
-                                'Assistant, drafts, summaries, and suggested actions.',
-                                'Embed AI into the workflow your teams already use instead of adding another disconnected tool.',
-                                $this->stockImage('ai-automation', 'en')['image_url'],
-                                $this->stockImage('ai-automation', 'en')['image_alt'],
-                                'AI and Automation',
-                                'AI'
-                            ),
-                            $this->showcaseProduct(
-                                'Command Center',
-                                $this->pagePath($productPages['command-center']),
-                                'Cross-module visibility and leadership overview.',
-                                'Get one executive-level view across revenue, operations, and customer activity with a shared command center.',
-                                $this->stockImage('command-center', 'en')['image_url'],
-                                $this->stockImage('command-center', 'en')['image_alt'],
-                                'Command Center'
-                            ),
-                        ]
+                        titles: [
+                            'fr' => 'Produits & Services',
+                            'en' => 'Products & Services',
+                            'es' => 'Productos y servicios',
+                        ],
+                        descriptions: [
+                            'fr' => 'Survolez un produit pour previsualiser l interface, puis cliquez pour ouvrir sa page detaillee.',
+                            'en' => 'Hover a product to preview the interface and click to open its detailed page.',
+                            'es' => 'Pasa el cursor sobre un producto para previsualizar la interfaz y haz clic para abrir su pagina detallada.',
+                        ],
+                        products: $products,
                     ),
                 ]),
             ],
@@ -807,12 +909,16 @@ class MegaMenuSeeder extends Seeder
             'panel_type' => 'link',
             'is_visible' => true,
             'settings' => [
-                'translations' => [
-                    'en' => [
+                'translations' => $this->translationBuckets(
+                    [
                         'label' => 'Pricing',
                         'description' => 'Compare plans and platform modules.',
                     ],
-                ],
+                    [
+                        'label' => 'Precios',
+                        'description' => 'Compara planes y modulos de la plataforma.',
+                    ],
+                ),
             ],
         ];
     }
@@ -836,14 +942,20 @@ class MegaMenuSeeder extends Seeder
                 'eyebrow' => 'Industries',
                 'note' => 'Choisissez un secteur pour ouvrir sa page dédiée.',
                 'highlight_color' => '#0f766e',
-                'translations' => [
-                    'en' => [
+                'translations' => $this->translationBuckets(
+                    [
                         'label' => 'Industries',
                         'description' => 'Choose an industry to open its dedicated page.',
                         'eyebrow' => 'Industries',
                         'note' => 'Choose an industry to open its dedicated page.',
                     ],
-                ],
+                    [
+                        'label' => 'Industrias',
+                        'description' => 'Elige un sector para abrir su pagina dedicada.',
+                        'eyebrow' => 'Industrias',
+                        'note' => 'Elige un sector para abrir su pagina dedicada.',
+                    ],
+                ),
             ],
         ];
     }
@@ -855,46 +967,58 @@ class MegaMenuSeeder extends Seeder
     {
         return [
             $this->classicLink(
-                'Plomberie',
+                ['fr' => 'Plomberie', 'en' => 'Plumbing', 'es' => 'Fontaneria'],
                 '/pages/industry-plumbing',
-                'Flux pour équipes plomberie et service.',
-                'Plumbing',
-                'Flows for plumbing and service teams.'
+                [
+                    'fr' => 'Flux pour equipes plomberie et service.',
+                    'en' => 'Flows for plumbing and service teams.',
+                    'es' => 'Flujos para equipos de fontaneria y servicio.',
+                ]
             ),
             $this->classicLink(
-                'HVAC',
+                ['fr' => 'HVAC', 'en' => 'HVAC', 'es' => 'HVAC'],
                 '/pages/industry-hvac',
-                'Operations HVAC, maintenance et interventions.',
-                'HVAC',
-                'HVAC maintenance and service operations.'
+                [
+                    'fr' => 'Operations HVAC, maintenance et interventions.',
+                    'en' => 'HVAC maintenance and service operations.',
+                    'es' => 'Operaciones HVAC, mantenimiento y servicios.',
+                ]
             ),
             $this->classicLink(
-                'Électricité',
+                ['fr' => 'Electricite', 'en' => 'Electrical', 'es' => 'Electricidad'],
                 '/pages/industry-electrical',
-                'Devis, chantiers et interventions électriques.',
-                'Electrical',
-                'Quotes, projects, and electrical jobs.'
+                [
+                    'fr' => 'Devis, chantiers et interventions electriques.',
+                    'en' => 'Quotes, projects, and electrical jobs.',
+                    'es' => 'Cotizaciones, proyectos y trabajos electricos.',
+                ]
             ),
             $this->classicLink(
-                'Nettoyage',
+                ['fr' => 'Nettoyage', 'en' => 'Cleaning', 'es' => 'Limpieza'],
                 '/pages/industry-cleaning',
-                'Sites récurrents, équipes et qualité de service.',
-                'Cleaning',
-                'Recurring sites, teams, and service quality.'
+                [
+                    'fr' => 'Sites recurrents, equipes et qualite de service.',
+                    'en' => 'Recurring sites, teams, and service quality.',
+                    'es' => 'Sitios recurrentes, equipos y calidad del servicio.',
+                ]
             ),
             $this->classicLink(
-                'Salon & beauté',
+                ['fr' => 'Salon & beaute', 'en' => 'Salon & Beauty', 'es' => 'Salon y belleza'],
                 '/pages/industry-salon-beauty',
-                'Réservations, rappels et fidélisation.',
-                'Salon & Beauty',
-                'Bookings, reminders, and retention.'
+                [
+                    'fr' => 'Reservations, rappels et fidelisation.',
+                    'en' => 'Bookings, reminders, and retention.',
+                    'es' => 'Reservas, recordatorios y fidelizacion.',
+                ]
             ),
             $this->classicLink(
-                'Restaurant',
+                ['fr' => 'Restaurant', 'en' => 'Restaurant', 'es' => 'Restaurante'],
                 '/pages/industry-restaurant',
-                'Réservations, attente et accueil en salle.',
-                'Restaurant',
-                'Bookings, waiting flow, and front-of-house.'
+                [
+                    'fr' => 'Reservations, attente et accueil en salle.',
+                    'en' => 'Bookings, waiting flow, and front-of-house.',
+                    'es' => 'Reservas, flujo de espera y recepcion en sala.',
+                ]
             ),
         ];
     }
@@ -918,12 +1042,16 @@ class MegaMenuSeeder extends Seeder
                 'featured' => false,
                 'highlight_color' => '',
                 'dynamic_href_setting' => 'contact_form_url',
-                'translations' => [
-                    'en' => [
+                'translations' => $this->translationBuckets(
+                    [
                         'label' => 'Contact us',
                         'description' => 'Open the contact page and then update the form link from the Pages admin.',
                     ],
-                ],
+                    [
+                        'label' => 'Contactanos',
+                        'description' => 'Abre la pagina de contacto y despues actualiza el enlace del formulario desde el admin de Pages.',
+                    ],
+                ),
             ],
         ];
     }
@@ -946,34 +1074,86 @@ class MegaMenuSeeder extends Seeder
      * @param  array<int, array<string, mixed>>  $items
      * @return array<string, mixed>
      */
-    private function productShowcaseBlock(
-        string $title,
-        string $englishTitle,
-        string $description,
-        string $englishDescription,
-        array $items
-    ): array {
+    private function productShowcaseBlock(array $titles, array $descriptions, array $products): array
+    {
         return [
             'type' => 'product_showcase',
-            'title' => $title,
+            'title' => (string) ($titles['fr'] ?? ''),
             'settings' => [
-                'translations' => [
-                    'en' => [
-                        'title' => $englishTitle,
-                    ],
-                ],
+                'translations' => $this->translationBuckets(
+                    ['title' => (string) ($titles['en'] ?? '')],
+                    ['title' => (string) ($titles['es'] ?? '')],
+                ),
             ],
             'payload' => [
-                'title' => $title,
-                'description' => $description,
-                'translations' => [
-                    'en' => [
-                        'title' => $englishTitle,
-                        'description' => $englishDescription,
+                'title' => (string) ($titles['fr'] ?? ''),
+                'description' => (string) ($descriptions['fr'] ?? ''),
+                'translations' => $this->translationBuckets(
+                    [
+                        'title' => (string) ($titles['en'] ?? ''),
+                        'description' => (string) ($descriptions['en'] ?? ''),
+                        'items' => array_values(array_map(fn (array $product) => $product['en'], $products)),
                     ],
-                ],
-                'items' => $items,
+                    [
+                        'title' => (string) ($titles['es'] ?? ''),
+                        'description' => (string) ($descriptions['es'] ?? ''),
+                        'items' => array_values(array_map(fn (array $product) => $product['es'], $products)),
+                    ],
+                ),
+                'items' => array_values(array_map(fn (array $product) => $product['fr'], $products)),
             ],
+        ];
+    }
+
+    /**
+     * @param  array<string, string>  $notes
+     * @param  array<string, string>  $summaries
+     * @param  array<string, string>  $badges
+     * @return array<string, array<string, mixed>>
+     */
+    private function localizedShowcaseProduct(
+        string $productKey,
+        string $label,
+        string $href,
+        array $notes,
+        array $summaries,
+        array $badges = []
+    ): array {
+        $frImage = $this->stockImage($productKey, 'fr');
+        $enImage = $this->stockImage($productKey, 'en');
+        $esImage = $this->stockImage($productKey, 'es');
+
+        return [
+            'fr' => $this->showcaseProduct(
+                $label,
+                $href,
+                (string) ($notes['fr'] ?? ''),
+                (string) ($summaries['fr'] ?? ''),
+                $frImage['image_url'],
+                $frImage['image_alt'],
+                $label,
+                (string) ($badges['fr'] ?? '')
+            ),
+            'en' => $this->showcaseProduct(
+                $label,
+                $href,
+                (string) ($notes['en'] ?? ''),
+                (string) ($summaries['en'] ?? ''),
+                $enImage['image_url'],
+                $enImage['image_alt'],
+                $label,
+                (string) ($badges['en'] ?? '')
+            ),
+            'es' => $this->showcaseProduct(
+                $label,
+                $href,
+                (string) ($notes['es'] ?? ''),
+                (string) ($summaries['es'] ?? ''),
+                $esImage['image_url'],
+                $esImage['image_alt'],
+                $label,
+                (string) ($badges['es'] ?? '')
+            ),
         ];
     }
 
@@ -1006,27 +1186,24 @@ class MegaMenuSeeder extends Seeder
     /**
      * @return array<string, mixed>
      */
-    private function classicLink(
-        string $label,
-        string $linkValue,
-        string $description = '',
-        ?string $englishLabel = null,
-        ?string $englishDescription = null
-    ): array {
-        $settings = [];
-
-        if ($englishLabel !== null || $englishDescription !== null) {
-            $settings['translations'] = [
-                'en' => array_filter([
-                    'label' => $englishLabel,
-                    'description' => $englishDescription,
+    private function classicLink(array $labels, string $linkValue, array $descriptions = []): array
+    {
+        $settings = [
+            'translations' => $this->translationBuckets(
+                array_filter([
+                    'label' => $labels['en'] ?? null,
+                    'description' => $descriptions['en'] ?? null,
                 ], fn ($value) => $value !== null && $value !== ''),
-            ];
-        }
+                array_filter([
+                    'label' => $labels['es'] ?? null,
+                    'description' => $descriptions['es'] ?? null,
+                ], fn ($value) => $value !== null && $value !== ''),
+            ),
+        ];
 
         return [
-            'label' => $label,
-            'description' => $description,
+            'label' => (string) ($labels['fr'] ?? ''),
+            'description' => (string) ($descriptions['fr'] ?? ''),
             'link_type' => 'internal_page',
             'link_value' => $linkValue,
             'link_target' => '_self',
@@ -1034,6 +1211,26 @@ class MegaMenuSeeder extends Seeder
             'is_visible' => true,
             'settings' => $settings,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $english
+     * @param  array<string, mixed>  $spanish
+     * @return array<string, array<string, mixed>>
+     */
+    private function translationBuckets(array $english = [], array $spanish = []): array
+    {
+        $translations = [];
+
+        if ($english !== []) {
+            $translations['en'] = $english;
+        }
+
+        if ($spanish !== []) {
+            $translations['es'] = $spanish;
+        }
+
+        return $translations;
     }
 
     /**

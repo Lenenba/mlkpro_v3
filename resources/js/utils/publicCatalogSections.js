@@ -1,5 +1,7 @@
 const normalizeLocale = (locale = 'fr') => (
-    String(locale || 'fr').toLowerCase().startsWith('fr') ? 'fr' : 'en'
+    String(locale || 'fr').toLowerCase().startsWith('fr')
+        ? 'fr'
+        : (String(locale || 'fr').toLowerCase().startsWith('es') ? 'es' : 'en')
 );
 
 const toCount = (value) => {
@@ -123,6 +125,20 @@ const storeFulfillmentSummary = (fulfillment, locale) => {
         return 'Panier, resume et validation restent prets a l activation du fulfillment.';
     }
 
+    if (locale === 'es') {
+        if (deliveryEnabled && pickupEnabled) {
+            return 'Entrega y recogida rapida disponibles desde la misma pagina.';
+        }
+        if (deliveryEnabled) {
+            return 'La entrega esta disponible directamente desde el carrito publico.';
+        }
+        if (pickupEnabled) {
+            return 'La recogida rapida esta disponible con preparacion programada.';
+        }
+
+        return 'Carrito, resumen y checkout siguen listos mientras se configura el fulfillment.';
+    }
+
     if (deliveryEnabled && pickupEnabled) {
         return 'Delivery and quick pickup are both available from the same page.';
     }
@@ -139,27 +155,27 @@ const storeFulfillmentSummary = (fulfillment, locale) => {
 const resolveShowcasePrimaryCta = ({ locale, requestUrl, phone, email, servicesHref = '#services' }) => {
     if (requestUrl) {
         return {
-            label: locale === 'fr' ? 'Demander un devis' : 'Request a quote',
+            label: locale === 'fr' ? 'Demander un devis' : (locale === 'es' ? 'Solicitar un presupuesto' : 'Request a quote'),
             href: requestUrl,
         };
     }
 
     if (phone) {
         return {
-            label: locale === 'fr' ? 'Nous appeler' : 'Call us',
+            label: locale === 'fr' ? 'Nous appeler' : (locale === 'es' ? 'Llamarnos' : 'Call us'),
             href: `tel:${phone}`,
         };
     }
 
     if (email) {
         return {
-            label: locale === 'fr' ? 'Envoyer un email' : 'Send an email',
+            label: locale === 'fr' ? 'Envoyer un email' : (locale === 'es' ? 'Enviar un email' : 'Send an email'),
             href: `mailto:${email}`,
         };
     }
 
     return {
-        label: locale === 'fr' ? 'Voir les services' : 'See services',
+        label: locale === 'fr' ? 'Voir les services' : (locale === 'es' ? 'Ver servicios' : 'See services'),
         href: servicesHref,
     };
 };
@@ -252,6 +268,150 @@ const buildStoreFeatureTabs = ({
                 ],
                 cta_label: 'Voir les produits disponibles',
                 cta_href: catalogHref,
+            },
+        ];
+    }
+
+    if (locale === 'es') {
+        return [
+            {
+                id: 'store-flow-discover',
+                label: 'Descubrir',
+                title: 'Orienta al cliente desde la primera visita',
+                body: '<p>El producto destacado, los mas vendidos y las categorias visibles evitan una cuadricula anonima y dan una entrada real al catalogo.</p>',
+                image_url: visuals.discover,
+                image_alt: 'Colaborador en almacen con una tableta y un portapapeles',
+                metric: countLabel(productCount, locale, 'producto activo', 'productos activos'),
+                items: [
+                    countLabel(categoryCount, locale, 'categoria visible', 'categorias visibles'),
+                    countLabel(bestSellerCount, locale, 'superventas destacado', 'superventas destacados'),
+                    'El scroll lleva despues directamente al catalogo completo.',
+                ],
+                cta_label: 'Ver el catalogo',
+                cta_href: catalogHref,
+            },
+            {
+                id: 'store-flow-compare',
+                label: 'Comparar',
+                title: 'Deja que el cliente filtre sin romper el ritmo',
+                body: '<p>Busqueda, orden, categorias y estado del stock siguen claros para pasar de la necesidad a la referencia correcta en pocos gestos.</p>',
+                image_url: visuals.compare,
+                image_alt: 'Pila de cajas listas para prepararse en la zona de almacen',
+                metric: promoCount > 0
+                    ? countLabel(promoCount, locale, 'promocion activa', 'promociones activas')
+                    : 'El catalogo esta listo para recibir tus proximas promociones',
+                items: [
+                    'Los filtros se mantienen durante la navegacion.',
+                    'Las promociones y el bajo stock siguen visibles sin abrir cada ficha.',
+                    'El producto adecuado aparece mas rapido, incluso en movil.',
+                ],
+                cta_label: 'Explorar categorias',
+                cta_href: '#categories',
+            },
+            {
+                id: 'store-flow-checkout',
+                label: 'Comprar',
+                title: 'Pasa del catalogo al carrito sin friccion',
+                body: '<p>La adicion rapida, el resumen y la creacion de cuenta cliente permiten convertir la visita en un pedido seguido.</p>',
+                image_url: visuals.checkout,
+                image_alt: 'Pago con terminal en el momento del checkout',
+                metric: newArrivalCount > 0
+                    ? countLabel(newArrivalCount, locale, 'nueva llegada visible', 'nuevas llegadas visibles')
+                    : 'Carrito y checkout siempre al alcance',
+                items: [
+                    'Cada tarjeta puede abrir la ficha o anadir al carrito.',
+                    'El resumen sigue coherente con promociones, impuestos y cantidades.',
+                    'La cuenta cliente se crea para seguir el pedido despues.',
+                ],
+                cta_label: 'Ir al carrito y al checkout',
+                cta_href: catalogHref,
+            },
+            {
+                id: 'store-flow-fulfillment',
+                label: 'Recibir',
+                title: 'Mantiene la promesa de servicio hasta la entrega',
+                body: `<p>${fulfillmentSummary}</p>`,
+                image_url: visuals.fulfill,
+                image_alt: 'Paquetes ordenados y listos para recogida o entrega',
+                metric: fulfillmentSummary,
+                items: [
+                    'El cliente conserva el contexto del pedido sin salir de la pagina.',
+                    'Entrega, recogida y notas especiales viven en el mismo flujo.',
+                    'El carrito sigue siendo util aunque el fulfillment siga evolucionando.',
+                ],
+                cta_label: 'Ver productos disponibles',
+                cta_href: catalogHref,
+            },
+        ];
+    }
+
+    if (locale === 'es') {
+        return [
+            {
+                id: 'service-flow-qualify',
+                label: 'Calificar',
+                title: 'Capta una necesidad clara antes incluso de la visita',
+                body: '<p>El visitante entiende rapido que haces, que tipos de solicitudes atiendes y como contactarte sin buscar en otro sitio.</p>',
+                image_url: visuals.qualify,
+                image_alt: 'Equipo revisando informacion en una tableta',
+                metric: countLabel(serviceCount, locale, 'servicio visible', 'servicios visibles'),
+                items: [
+                    countLabel(categoryCount, locale, 'categoria de servicio', 'categorias de servicio'),
+                    'El servicio destacado ofrece un punto de entrada concreto.',
+                    'La solicitud de presupuesto sigue accesible desde el hero y en toda la pagina.',
+                ],
+                cta_label: primaryCta.label,
+                cta_href: primaryCta.href,
+            },
+            {
+                id: 'service-flow-plan',
+                label: 'Planificar',
+                title: 'Muestra que la solicitud avanza con un proceso real',
+                body: '<p>La pagina deja de ser una simple lista. Cuenta la captura de la necesidad, la preparacion y la puesta en marcha del equipo.</p>',
+                image_url: visuals.plan,
+                image_alt: 'Profesionales validando un plan de trabajo',
+                metric: 'Una narrativa mas clara entre solicitud, preparacion e intervencion',
+                items: [
+                    'Las categorias estructuran la lectura en lugar de recargarla.',
+                    'Las descripciones resultan mas utiles para elegir el servicio correcto.',
+                    'El CTA de contacto vuelve en el momento adecuado sin saturar la pagina.',
+                ],
+                cta_label: 'Ver servicios',
+                cta_href: servicesHref,
+            },
+            {
+                id: 'service-flow-deliver',
+                label: 'Intervenir',
+                title: 'Ancla la pagina en la realidad del terreno',
+                body: '<p>Los visuales UHD libres de derechos refuerzan la credibilidad del oficio mientras las tarjetas de servicios mantienen el detalle util para vender.</p>',
+                image_url: visuals.deliver,
+                image_alt: 'Tecnico trabajando en una instalacion interior',
+                metric: 'La ejecucion en terreno se muestra con un contexto mas creible',
+                items: [
+                    'El visitante ve a la vez el contexto humano y la oferta detallada.',
+                    'Las tarjetas conservan precio, categoria y siguiente accion.',
+                    'El relato editorial introduce las pruebas antes de la cuadricula.',
+                ],
+                cta_label: primaryCta.label,
+                cta_href: primaryCta.href,
+            },
+            {
+                id: 'service-flow-follow',
+                label: 'Seguir',
+                title: 'Mantiene claro el siguiente paso hasta el final',
+                body: '<p>Ya sea un presupuesto, una llamada o un email, la pagina termina con un camino evidente para continuar la conversacion.</p>',
+                image_url: visuals.follow,
+                image_alt: 'Tecnico de campo con una checklist antes de la visita',
+                metric: requestUrl
+                    ? 'La solicitud de presupuesto sigue siendo prioritaria en toda la pagina'
+                    : 'Telefono y email siguen conectados directamente con la pagina de servicios',
+                items: [
+                    'El contacto nunca desaparece detras de la cuadricula.',
+                    'Los visitantes pueden volver a la lista o seguir contactando.',
+                    'La pagina sigue clara tanto en movil como en desktop.',
+                ],
+                cta_label: primaryCta.label,
+                cta_href: primaryCta.href,
             },
         ];
     }
@@ -650,6 +810,121 @@ export const buildStorePublicSections = ({
         ];
     }
 
+    if (resolvedLocale === 'es') {
+        return [
+            {
+                layout: 'feature_pairs',
+                background_color: '#ffffff',
+                kicker: 'Pagina de productos redisenada',
+                title: `La tienda ${companyName || 'de productos'} sigue ahora el mismo ritmo que la renovacion publica.`,
+                body: `<p>La pagina arranca con una promesa clara, muestra el contexto de compra y luego deja que los bloques ecommerce existentes hagan el trabajo. Tienes ${productCount} productos activos, ${categoryCount} categorias y una entrada directa a los mas vendidos, las promociones y al catalogo completo.</p>`,
+                items: [
+                    bestSellerCount > 0
+                        ? countLabel(bestSellerCount, resolvedLocale, 'seleccion destacada', 'selecciones destacadas')
+                        : 'El bloque de superventas ya esta listo para guiar las compras recurrentes.',
+                    promoCount > 0
+                        ? countLabel(promoCount, resolvedLocale, 'promocion visible', 'promociones visibles')
+                        : 'Las promociones apareceran aqui en cuanto esten activas.',
+                    fulfillmentSummary,
+                ],
+                primary_label: 'Ver el catalogo',
+                primary_href: catalogHref,
+                secondary_label: 'Ver categorias',
+                secondary_href: categoriesHref,
+                image_url: storeVisuals.intro,
+                image_alt: 'Colaborador logistico en un espacio de preparacion',
+                aside_kicker: 'De la eleccion a la validacion',
+                aside_title: 'Las acciones utiles siguen visibles sin romper el storytelling.',
+                aside_body: '<p>Las secciones reutilizables introducen la pagina y luego busqueda, filtros, carrito y checkout toman el relevo en el momento adecuado.</p>',
+                aside_items: [
+                    'Producto destacado visible desde la apertura.',
+                    'Anadir rapido al carrito desde las tarjetas o la ficha detallada.',
+                    'Entrega, recogida y resumen disponibles en el mismo flujo.',
+                ],
+                aside_link_label: 'Ir a los mas vendidos',
+                aside_link_href: bestSellersHref,
+                aside_image_url: storeVisuals.introAside,
+                aside_image_alt: 'Pago con terminal para cerrar un pedido',
+            },
+            {
+                layout: 'feature_tabs',
+                background_color: '#f8fafc',
+                kicker: 'Recorrido de compra',
+                title: 'Pasa del descubrimiento al pedido sin volver a una simple cuadricula.',
+                body: '<p>Este acordeon retoma el flujo deseado en el documento de rediseno: una narrativa corta, pruebas concretas y luego un paso natural hacia las tarjetas de producto y el carrito.</p>',
+                feature_tabs_style: 'workflow',
+                primary_label: 'Explorar productos',
+                primary_href: catalogHref,
+                feature_tabs: buildStoreFeatureTabs({
+                    locale: resolvedLocale,
+                    productCount,
+                    categoryCount,
+                    bestSellerCount,
+                    promoCount,
+                    newArrivalCount,
+                    fulfillment,
+                    catalogHref,
+                    images: {
+                        discover: storeVisuals.flowDiscover,
+                        compare: storeVisuals.flowCompare,
+                        checkout: storeVisuals.flowCheckout,
+                        fulfill: storeVisuals.flowFulfill,
+                    },
+                }),
+            },
+            {
+                layout: 'story_grid',
+                background_color: '#ffffff',
+                kicker: 'Pruebas visibles',
+                title: 'Lo que la nueva estructura deja mas claro para tus clientes.',
+                body: '<p>Antes incluso de desplazarse por el catalogo, la pagina explica que esta disponible, que es popular y como se entregara el pedido.</p>',
+                primary_label: 'Abrir el catalogo',
+                primary_href: catalogHref,
+                story_cards: [
+                    {
+                        id: 'store-story-bestsellers',
+                        title: 'Referencias claras antes del primer clic',
+                        body: `<p>${bestSellerCount > 0 ? `${countLabel(bestSellerCount, resolvedLocale, 'superventas aparece', 'superventas aparecen')} al inicio de la pagina para reforzar la compra.` : 'El bloque de superventas ya esta listo para guiar las compras recurrentes.'}</p>`,
+                        image_url: storeVisuals.storyConfidence,
+                        image_alt: 'Cajas de productos listas para prepararse',
+                    },
+                    {
+                        id: 'store-story-promos',
+                        title: 'Las ofertas activas siguen siendo faciles de leer',
+                        body: `<p>${promoCount > 0 ? `${countLabel(promoCount, resolvedLocale, 'promocion activa sigue visible', 'promociones activas siguen visibles')} sin abrir cada ficha de producto.` : 'Los badges de precio y promocion mantienen la lectura simple en cuanto hay ofertas activas.'}</p>`,
+                        image_url: storeVisuals.storyPromos,
+                        image_alt: 'Pago con terminal en mostrador',
+                    },
+                    {
+                        id: 'store-story-fulfillment',
+                        title: 'La promesa continua despues del carrito',
+                        body: `<p>${fulfillmentSummary}</p>`,
+                        image_url: storeVisuals.storyFulfillment,
+                        image_alt: 'Operador logistico listo para preparar un pedido',
+                    },
+                ],
+            },
+            {
+                layout: 'showcase_cta',
+                background_preset: 'midnight-cobalt',
+                tone: 'contrast',
+                kicker: 'Listo para convertir',
+                title: 'El storytelling introduce la pagina y luego el catalogo toma el relevo para vender.',
+                body: `<p>${featuredName ? `El producto destacado del momento es ${featuredName}${featuredCategory ? ` en ${featuredCategory}` : ''}. ` : ''}Los filtros, el carrito y el checkout siguen accesibles sin romper el recorrido.</p>`,
+                primary_label: 'Ver todos los productos',
+                primary_href: catalogHref,
+                secondary_label: bestSellerCount > 0 ? 'Empezar por los mas vendidos' : 'Ver categorias',
+                secondary_href: bestSellerCount > 0 ? bestSellersHref : categoriesHref,
+                image_url: storeVisuals.showcase,
+                image_alt: featuredName || 'Producto destacado de la tienda',
+                aside_image_url: storeVisuals.showcaseAside,
+                aside_image_alt: 'Pago al final del recorrido de compra',
+                aside_link_label: 'Acceso directo al catalogo',
+                aside_link_href: catalogHref,
+            },
+        ];
+    }
+
     return [
         {
             layout: 'feature_pairs',
@@ -789,11 +1064,11 @@ export const buildShowcasePublicSections = ({
     });
     const secondaryCta = requestUrl
         ? {
-            label: resolvedLocale === 'fr' ? 'Voir les services' : 'See services',
+            label: resolvedLocale === 'fr' ? 'Voir les services' : (resolvedLocale === 'es' ? 'Ver servicios' : 'See services'),
             href: servicesHref,
         }
         : {
-            label: resolvedLocale === 'fr' ? 'Revenir a la liste' : 'Back to the list',
+            label: resolvedLocale === 'fr' ? 'Revenir a la liste' : (resolvedLocale === 'es' ? 'Volver a la lista' : 'Back to the list'),
             href: servicesHref,
         };
     const featuredName = firstNonEmpty(heroService?.name);
@@ -956,6 +1231,152 @@ export const buildShowcasePublicSections = ({
                         requestUrl ? 'Le lien de devis reste prioritaire.' : 'Le meilleur canal de contact reste mis en avant.',
                         'Le visiteur peut revenir a la liste complete sans perdre le contexte.',
                         'Le bloc reste lisible sur mobile grace a la meme structure reusable.',
+                    ],
+                    aside_link_label: primaryCta.label,
+                    aside_link_href: primaryCta.href,
+                },
+            ],
+        };
+    }
+
+    if (resolvedLocale === 'es') {
+        return {
+            intro: [
+                {
+                    layout: 'feature_pairs',
+                    background_color: '#ffffff',
+                    kicker: 'Pagina de servicios redisenada',
+                    title: `${companyName || 'Tu empresa'} presenta ahora sus servicios con el mismo lenguaje visual que la home.`,
+                    body: `<p>La pagina presenta primero la promesa, conecta esa promesa con un contexto real de terreno y luego deja que la cuadricula de servicios tome el relevo. ${locationLine ? `${companyName || 'El equipo'} opera desde ${locationLine}. ` : ''}Actualmente tienes ${serviceCount} servicios visibles en ${categoryCount} categorias.</p>`,
+                    items: [
+                        featuredName
+                            ? `Servicio destacado visible: ${featuredName}${featuredCategory ? ` (${featuredCategory})` : ''}.`
+                            : 'El hero destaca el primer servicio disponible.',
+                        requestUrl
+                            ? 'El presupuesto sigue accesible sin salir de la pagina.'
+                            : 'Telefono y email siguen conectados al recorrido publico.',
+                        'Las secciones editoriales introducen la prueba antes de la cuadricula de tarjetas.',
+                    ],
+                    primary_label: primaryCta.label,
+                    primary_href: primaryCta.href,
+                    secondary_label: secondaryCta.label,
+                    secondary_href: secondaryCta.href,
+                    image_url: serviceVisuals.intro,
+                    image_alt: 'Equipo de servicio coordinandose en el sitio',
+                    aside_kicker: 'Contexto del oficio',
+                    aside_title: 'Una pagina mas creible tanto para la oficina como para el terreno.',
+                    aside_body: '<p>El relato editorial enmarca la solicitud, los visuales aportan materia del oficio y luego la cuadricula de servicios mantiene el detalle necesario para convertir.</p>',
+                    aside_items: [
+                        'El hero conserva el servicio destacado como prueba concreta.',
+                        'Las categorias se convierten en una navegacion real.',
+                        'El CTA principal vuelve en los momentos que importan.',
+                    ],
+                    aside_link_label: 'Ver todos los servicios',
+                    aside_link_href: servicesHref,
+                    aside_image_url: serviceVisuals.introAside,
+                    aside_image_alt: 'Tecnico interviniendo en una instalacion',
+                },
+                {
+                    layout: 'feature_tabs',
+                    background_color: '#f8fafc',
+                    kicker: 'Flujo de servicio',
+                    title: 'Estructura la pagina como un recorrido claro entre necesidad, planificacion e intervencion.',
+                    body: '<p>Este acordeon reutiliza los bloques del rediseno para mostrar un flujo de trabajo real en lugar de una sucesion de tarjetas sin jerarquia.</p>',
+                    feature_tabs_style: 'workflow',
+                    primary_label: primaryCta.label,
+                    primary_href: primaryCta.href,
+                    feature_tabs: buildShowcaseFeatureTabs({
+                        locale: resolvedLocale,
+                        serviceCount,
+                        categoryCount,
+                        requestUrl,
+                        phone,
+                        email,
+                        servicesHref,
+                        images: {
+                            qualify: serviceVisuals.flowQualify,
+                            plan: serviceVisuals.flowPlan,
+                            deliver: serviceVisuals.flowDeliver,
+                            follow: serviceVisuals.flowFollow,
+                        },
+                    }),
+                },
+                {
+                    layout: 'story_grid',
+                    background_color: '#ffffff',
+                    kicker: 'Momentos que tranquilizan',
+                    title: 'Lo que la nueva maquetacion aclara antes incluso de la lista de servicios.',
+                    body: '<p>Cada bloque anade contexto del oficio y luego la cuadricula mantiene el detalle practico para elegir y pedir un presupuesto.</p>',
+                    primary_label: 'Explorar servicios',
+                    primary_href: servicesHref,
+                    story_cards: [
+                        {
+                            id: 'showcase-story-featured',
+                            title: 'Un punto de entrada concreto',
+                            body: `<p>${featuredName ? `El hero ancla la pagina alrededor de ${featuredName}${featuredCategory ? ` en ${featuredCategory}` : ''}, lo que da enseguida un ejemplo real del nivel de servicio.` : 'El servicio destacado da enseguida un ejemplo concreto del trabajo ofrecido.'}</p>`,
+                            image_url: serviceVisuals.storyFeatured,
+                            image_alt: 'Equipo de servicio conversando alrededor de una tableta',
+                        },
+                        {
+                            id: 'showcase-story-field',
+                            title: 'El terreno sigue visible',
+                            body: '<p>Las imagenes UHD libres de derechos muestran la intervencion, la preparacion y la coordinacion, lo que hace la pagina mas creible para los oficios de servicio.</p>',
+                            image_url: serviceVisuals.storyField,
+                            image_alt: 'Tecnico durante una instalacion',
+                        },
+                        {
+                            id: 'showcase-story-contact',
+                            title: 'La siguiente accion sigue siendo evidente',
+                            body: `<p>${requestUrl ? 'El presupuesto sigue a un clic durante toda la pagina.' : 'Los canales de contacto siguen visibles para continuar la conversacion sin friccion.'}</p>`,
+                            image_url: serviceVisuals.storyContact,
+                            image_alt: 'Equipo de campo hablando sobre el siguiente paso',
+                        },
+                    ],
+                },
+                {
+                    layout: 'showcase_cta',
+                    background_preset: 'deep-ocean',
+                    tone: 'contrast',
+                    kicker: 'Listo para lanzar una solicitud',
+                    title: 'El contexto del oficio tranquiliza y luego la pagina de servicios convierte.',
+                    body: `<p>${featuredName ? `El servicio destacado ${featuredName} aporta una prueba inmediata mientras la lista completa sigue accesible justo debajo.` : 'El servicio destacado aporta una prueba inmediata mientras la lista completa sigue accesible justo debajo.'}</p>`,
+                    primary_label: primaryCta.label,
+                    primary_href: primaryCta.href,
+                    secondary_label: secondaryCta.label,
+                    secondary_href: secondaryCta.href,
+                    image_url: serviceVisuals.showcase,
+                    image_alt: featuredName || 'Servicio destacado en vitrina',
+                    aside_image_url: serviceVisuals.showcaseAside,
+                    aside_image_alt: 'Equipo de servicio revisando detalles en una tableta',
+                    aside_link_label: 'Ver la lista completa',
+                    aside_link_href: servicesHref,
+                },
+            ],
+            contact: [
+                {
+                    layout: 'contact',
+                    background_color: '#ffffff',
+                    kicker: 'Contacto',
+                    title: 'Hablanos de tu proyecto con un canal simple y directo.',
+                    body: '<p>La pagina mantiene el mismo formato que la renovacion y luego se cierra con un bloque de contacto reutilizable para ayudar al visitante a pasar a la accion.</p>',
+                    items: [
+                        phone ? `Telefono: ${phone}` : 'Telefono: por confirmar',
+                        email ? `Email: ${email}` : 'Email: por confirmar',
+                        locationLine ? `Zona: ${locationLine}` : 'Zona: informacion de ubicacion por definir',
+                    ],
+                    primary_label: primaryCta.label,
+                    primary_href: primaryCta.href,
+                    secondary_label: 'Volver a los servicios',
+                    secondary_href: servicesHref,
+                    image_url: serviceVisuals.contact,
+                    image_alt: 'Equipo de servicio coordinandose',
+                    aside_kicker: 'Siguiente paso',
+                    aside_title: 'Un bloque de contacto mas util que repetir el hero.',
+                    aside_body: '<p>Este ultimo bloque recuerda el canal adecuado mientras conserva la misma gramatica visual que las demas paginas publicas.</p>',
+                    aside_items: [
+                        requestUrl ? 'El enlace de presupuesto sigue siendo prioritario.' : 'El mejor canal de contacto sigue destacado.',
+                        'El visitante puede volver a la lista completa sin perder el contexto.',
+                        'El bloque sigue siendo legible en movil gracias a la misma estructura reutilizable.',
                     ],
                     aside_link_label: primaryCta.label,
                     aside_link_href: primaryCta.href,

@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import draggable from 'vuedraggable';
+import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -38,6 +39,25 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t } = useI18n();
+const tx = (key, params = {}) => t(`mega_menu.admin.${key}`, params);
+const normalizeOptionKey = (value) => {
+    const normalized = String(value || '').trim().replace(/^_+/, '');
+    return normalized === '2xl' ? 'size_2xl' : normalized;
+};
+const translateOptionLabel = (prefix, value, fallback = '') => {
+    const normalized = normalizeOptionKey(value);
+    const translationKey = `mega_menu.admin.options.${prefix}.${normalized}`;
+    const translated = t(translationKey);
+
+    return translated === translationKey ? (fallback || String(value || '')) : translated;
+};
+const blockTypeLabel = (type, fallback = null) => {
+    const translationKey = `mega_menu.admin.block_types.${type}`;
+    const translated = t(translationKey);
+
+    return translated === translationKey ? (fallback || type) : translated;
+};
 const isCreateMode = computed(() => props.mode === 'create');
 const blockDefinitions = computed(() => props.choices?.block_types || []);
 const defaults = computed(() => props.choices?.defaults || {});
@@ -52,7 +72,7 @@ const editorLocaleCode = computed(() => String(editorLocale.value || fallbackLoc
 const initialState = normalizeMegaMenu(cloneMegaMenu(props.menu || {}), defaults.value, blockDefinitions.value);
 const form = useForm(initialState);
 ensureMegaMenuTranslations(form, localeList.value, fallbackLocale.value);
-applyMegaMenuLocale(form, editorLocale.value, fallbackLocale.value);
+applyMegaMenuLocale(form, editorLocale.value, fallbackLocale.value, localeList.value);
 
 const previewDevice = ref('desktop');
 const assetPickerOpen = ref(false);
@@ -66,36 +86,44 @@ const selection = reactive({
 });
 
 const optionValues = (key) => props.choices?.[key] || [];
-const statusOptions = computed(() => optionValues('statuses'));
-const locationOptions = computed(() => optionValues('display_locations'));
-const panelTypeOptions = computed(() => optionValues('panel_types'));
-const linkTypeOptions = computed(() => optionValues('link_types'));
-const linkTargetOptions = computed(() => optionValues('link_targets'));
-const badgeVariantOptions = computed(() => [{ value: '', label: 'None' }, ...optionValues('badge_variants')]);
+const localizedOptions = (key, prefix) =>
+    optionValues(key).map((option) => ({
+        ...option,
+        label: translateOptionLabel(prefix, option.value, option.label),
+    }));
+const statusOptions = computed(() => localizedOptions('statuses', 'statuses'));
+const locationOptions = computed(() => localizedOptions('display_locations', 'locations'));
+const panelTypeOptions = computed(() => localizedOptions('panel_types', 'panel_types'));
+const linkTypeOptions = computed(() => localizedOptions('link_types', 'link_types'));
+const linkTargetOptions = computed(() => localizedOptions('link_targets', 'link_targets'));
+const badgeVariantOptions = computed(() => [
+    { value: '', label: tx('options.badge_variants.none') },
+    ...optionValues('badge_variants'),
+]);
 const themeOptions = computed(() => [
-    { value: 'default', label: 'Default' },
-    { value: 'brand', label: 'Brand' },
-    { value: 'contrast', label: 'Contrast' },
+    { value: 'default', label: tx('options.themes.default') },
+    { value: 'brand', label: tx('options.themes.brand') },
+    { value: 'contrast', label: tx('options.themes.contrast') },
 ]);
 const containerWidthOptions = computed(() => [
-    { value: 'lg', label: 'Large' },
-    { value: 'xl', label: 'Extra large' },
-    { value: '2xl', label: '2XL' },
-    { value: 'full', label: 'Full width' },
+    { value: 'lg', label: tx('options.container_widths.lg') },
+    { value: 'xl', label: tx('options.container_widths.xl') },
+    { value: '2xl', label: tx('options.container_widths.size_2xl') },
+    { value: 'full', label: tx('options.container_widths.full') },
 ]);
 const alignmentOptions = computed(() => [
-    { value: 'start', label: 'Start' },
-    { value: 'center', label: 'Center' },
-    { value: 'end', label: 'End' },
+    { value: 'start', label: tx('options.alignment.start') },
+    { value: 'center', label: tx('options.alignment.center') },
+    { value: 'end', label: tx('options.alignment.end') },
 ]);
 const rowOptions = computed(() => [
-    { value: 'main', label: 'Main row' },
-    { value: 'footer', label: 'Footer row' },
+    { value: 'main', label: tx('options.rows.main') },
+    { value: 'footer', label: tx('options.rows.footer') },
 ]);
 const toneOptions = computed(() => [
-    { value: 'default', label: 'Default' },
-    { value: 'muted', label: 'Muted' },
-    { value: 'contrast', label: 'Contrast' },
+    { value: 'default', label: tx('options.tones.default') },
+    { value: 'muted', label: tx('options.tones.muted') },
+    { value: 'contrast', label: tx('options.tones.contrast') },
 ]);
 
 const findItemContext = (key, items = form.items, parentList = null, parentItem = null) => {
@@ -150,24 +178,37 @@ const selectedEntity = computed(() => {
 });
 
 const selectionTitle = computed(() => {
-    if (selection.type === 'block') return `Block settings${selectedBlockContext.value?.block?.type ? ` · ${selectedBlockContext.value.block.type}` : ''}`;
-    if (selection.type === 'column') return 'Column settings';
-    if (selection.type === 'item') return 'Item settings';
-    return 'Menu settings';
+    if (selection.type === 'block') {
+        const type = selectedBlockContext.value?.block?.type;
+        return type
+            ? tx('edit.block_settings_with_type', { type: blockTypeLabel(type, type) })
+            : tx('edit.block_settings');
+    }
+    if (selection.type === 'column') return tx('edit.column_settings');
+    if (selection.type === 'item') return tx('edit.item_settings');
+    return tx('edit.menu_settings');
 });
 
 const errorEntries = computed(() => Object.entries(form.errors || {}));
+const headTitle = computed(() => (isCreateMode.value
+    ? tx('edit.head_create')
+    : tx('edit.head_edit', { title: form.title || tx('common.mega_menu') })));
+const linkValueLabel = computed(() => {
+    if (activeSelection.value?.link_type === 'route') return tx('edit.route_name');
+    if (activeSelection.value?.link_type === 'anchor') return tx('edit.anchor');
+    return tx('edit.href_or_url');
+});
 
 const formatDate = (value) => {
-    if (!value) return 'Not available';
+    if (!value) return tx('common.not_available');
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 };
 
 const findBlockDefinition = (type) => blockDefinitions.value.find((definition) => definition.type === type) || blockDefinitions.value[0] || {
     type: 'text',
-    label: 'Text',
-    default_payload: { title: 'Text block', body: '<p>Content</p>' },
+    label: blockTypeLabel('text', 'text'),
+    default_payload: { title: tx('edit.text_block_title'), body: tx('edit.text_block_content') },
 };
 
 const createBlock = (type = null, overrides = {}) => {
@@ -215,7 +256,7 @@ const createItem = (overrides = {}) => {
     if (item.panel_type === 'classic') {
         item.children = Array.isArray(overrides.children) && overrides.children.length
             ? overrides.children.map((child) => createItem(child))
-            : [createItem({ panel_type: 'link', label: 'Dropdown link', link_type: 'internal_page', link_value: '/' })];
+            : [createItem({ panel_type: 'link', label: tx('edit.dropdown_link'), link_type: 'internal_page', link_value: '/' })];
     }
 
     if (item.panel_type === 'mega') {
@@ -256,7 +297,7 @@ const ensurePanelStructure = (item) => {
     if (item.panel_type === 'classic') {
         item.columns = [];
         if (!Array.isArray(item.children) || !item.children.length) {
-            item.children = [createItem({ panel_type: 'link', label: 'Dropdown link', link_type: 'internal_page', link_value: '/' })];
+            item.children = [createItem({ panel_type: 'link', label: tx('edit.dropdown_link'), link_type: 'internal_page', link_value: '/' })];
         }
     } else if (item.panel_type === 'mega') {
         item.children = [];
@@ -270,7 +311,7 @@ const ensurePanelStructure = (item) => {
 };
 
 const addTopLevelItem = () => {
-    const item = createItem({ label: 'New menu item', panel_type: 'mega' });
+    const item = createItem({ label: tx('edit.new_menu_item'), panel_type: 'mega' });
     form.items.push(item);
     selectItem(item);
 };
@@ -278,7 +319,7 @@ const addTopLevelItem = () => {
 const addChildItem = (item) => {
     item.panel_type = 'classic';
     ensurePanelStructure(item);
-    const child = createItem({ label: 'New child link', panel_type: 'link', link_type: 'internal_page', link_value: '/' });
+    const child = createItem({ label: tx('edit.new_child_link'), panel_type: 'link', link_type: 'internal_page', link_value: '/' });
     item.children.push(child);
     selectItem(child);
 };
@@ -286,7 +327,7 @@ const addChildItem = (item) => {
 const addColumnToItem = (item) => {
     item.panel_type = 'mega';
     ensurePanelStructure(item);
-    const column = createColumn({ title: 'New column' });
+    const column = createColumn({ title: tx('edit.new_column') });
     item.columns.push(column);
     selectColumn(item, column);
 };
@@ -301,14 +342,14 @@ const duplicateItem = (context) => {
     const copy = createItem({
         ...cloneMegaMenu(context.item),
         id: null,
-        label: `${context.item.label} Copy`,
+        label: `${context.item.label} ${tx('edit.copy_suffix')}`,
     });
     context.list.splice(context.index + 1, 0, copy);
     selectItem(copy);
 };
 
 const removeItem = (context) => {
-    if (!window.confirm(`Delete "${context.item.label}"?`)) return;
+    if (!window.confirm(tx('edit.delete_item_confirm', { title: context.item.label }))) return;
     context.list.splice(context.index, 1);
     resetSelectionToMenu();
 };
@@ -317,14 +358,14 @@ const duplicateColumn = (context) => {
     const copy = createColumn({
         ...cloneMegaMenu(context.column),
         id: null,
-        title: `${context.column.title || 'Column'} Copy`,
+        title: `${context.column.title || tx('edit.column_fallback_title')} ${tx('edit.copy_suffix')}`,
     });
     context.list.splice(context.index + 1, 0, copy);
     selectColumn(context.item, copy);
 };
 
 const removeColumn = (context) => {
-    if (!window.confirm('Delete this column?')) return;
+    if (!window.confirm(tx('edit.delete_column_confirm'))) return;
     context.list.splice(context.index, 1);
     if (!context.item.columns.length) {
         context.item.columns.push(createColumn());
@@ -336,14 +377,14 @@ const duplicateBlock = (context) => {
     const copy = createBlock(context.block.type, {
         ...cloneMegaMenu(context.block),
         id: null,
-        title: `${context.block.title || context.block.type} Copy`,
+        title: `${context.block.title || blockTypeLabel(context.block.type, context.block.type)} ${tx('edit.copy_suffix')}`,
     });
     context.list.splice(context.index + 1, 0, copy);
     selectBlock(context.item, context.column, copy);
 };
 
 const removeBlock = (context) => {
-    if (!window.confirm('Delete this block?')) return;
+    if (!window.confirm(tx('edit.delete_block_confirm'))) return;
     context.list.splice(context.index, 1);
     if (!context.column.blocks.length) {
         context.column.blocks.push(createBlock());
@@ -355,7 +396,7 @@ const changeBlockType = (block) => {
     const definition = findBlockDefinition(block.type);
     block.payload = cloneMegaMenu(definition.default_payload);
     if (!block.title) {
-        block.title = definition.label;
+        block.title = blockTypeLabel(definition.type, definition.label);
     }
 };
 
@@ -420,8 +461,8 @@ const previewMenu = computed(() => {
 
 const submit = () => {
     const workingCopy = cloneMegaMenu(form);
-    persistMegaMenuLocale(workingCopy, editorLocale.value, fallbackLocale.value);
-    applyMegaMenuLocale(workingCopy, fallbackLocale.value, fallbackLocale.value);
+    persistMegaMenuLocale(workingCopy, editorLocale.value, fallbackLocale.value, localeList.value);
+    applyMegaMenuLocale(workingCopy, fallbackLocale.value, fallbackLocale.value, localeList.value);
     const payload = prepareMegaMenuForSubmit(workingCopy);
     form.transform(() => payload);
 
@@ -434,7 +475,7 @@ const submit = () => {
 };
 
 const deleteCurrent = () => {
-    if (!form.id || !window.confirm(`Delete mega menu "${form.title}"?`)) return;
+    if (!form.id || !window.confirm(tx('edit.delete_menu_confirm', { title: form.title }))) return;
     router.delete(route('superadmin.mega-menus.destroy', form.id));
 };
 
@@ -445,13 +486,13 @@ watch(editorLocale, (nextLocale, previousLocale) => {
         return;
     }
 
-    persistMegaMenuLocale(form, previousLocale || fallbackLocale.value, fallbackLocale.value);
-    applyMegaMenuLocale(form, nextLocale, fallbackLocale.value);
+    persistMegaMenuLocale(form, previousLocale || fallbackLocale.value, fallbackLocale.value, localeList.value);
+    applyMegaMenuLocale(form, nextLocale, fallbackLocale.value, localeList.value);
 });
 </script>
 
 <template>
-    <Head :title="isCreateMode ? 'Create Mega Menu' : `Edit ${form.title || 'Mega Menu'}`" />
+    <Head :title="headTitle" />
 
     <AuthenticatedLayout>
         <div class="space-y-5">
@@ -459,47 +500,47 @@ watch(editorLocale, (nextLocale, previousLocale) => {
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div class="space-y-1">
                         <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ isCreateMode ? 'Create Mega Menu' : 'Mega Menu Builder' }}
+                            {{ isCreateMode ? tx('edit.title_create') : tx('edit.title_edit') }}
                         </h1>
                         <p class="text-sm text-stone-600 dark:text-neutral-400">
-                            Build rich, multi-column navigation with reusable content blocks and a live frontend preview.
+                            {{ tx('edit.description') }}
                         </p>
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <Link :href="dashboard_url"
                             class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
-                            Dashboard
+                            {{ t('nav.dashboard') }}
                         </Link>
                         <Link :href="index_url"
                             class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
-                            Mega menus
+                            {{ tx('common.mega_menus') }}
                         </Link>
                         <Link v-if="preview_url" :href="preview_url"
                             class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
-                            Preview page
+                            {{ tx('edit.preview_page') }}
                         </Link>
                         <button v-if="activate_url && form.status !== 'active'" type="button"
                             class="rounded-sm border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
                             @click="router.post(activate_url)">
-                            Activate
+                            {{ tx('common.activate') }}
                         </button>
                         <button v-if="deactivate_url && form.status === 'active'" type="button"
                             class="rounded-sm border border-amber-200 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-50"
                             @click="router.post(deactivate_url)">
-                            Deactivate
+                            {{ tx('common.deactivate') }}
                         </button>
                         <button type="button"
                             class="rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
                             :disabled="form.processing"
                             @click="submit">
-                            {{ form.processing ? 'Saving...' : 'Save mega menu' }}
+                            {{ form.processing ? tx('common.saving') : tx('common.save') }}
                         </button>
                     </div>
                 </div>
             </section>
 
             <section v-if="errorEntries.length" class="rounded-sm border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                <div class="font-semibold">Validation issues</div>
+                <div class="font-semibold">{{ tx('edit.validation_issues') }}</div>
                 <ul class="mt-2 space-y-1">
                     <li v-for="[key, message] in errorEntries" :key="key">
                         <span class="font-mono text-xs">{{ key }}</span> · {{ message }}
@@ -512,13 +553,13 @@ watch(editorLocale, (nextLocale, previousLocale) => {
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="flex items-center justify-between">
                             <div>
-                                <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Structure</div>
-                                <div class="text-xs text-stone-500 dark:text-neutral-400">Drag nodes to reorder the builder tree.</div>
+                                <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ tx('edit.structure_title') }}</div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ tx('edit.structure_description') }}</div>
                             </div>
                             <button type="button"
                                 class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
                                 @click="addTopLevelItem">
-                                Add item
+                                {{ tx('common.add_item') }}
                             </button>
                         </div>
                     </div>
@@ -530,7 +571,7 @@ watch(editorLocale, (nextLocale, previousLocale) => {
                                 ? 'border-green-600 bg-emerald-50 text-emerald-700'
                                 : 'border-stone-200 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800'"
                             @click="selectMenu">
-                            Menu root
+                            {{ tx('edit.menu_root') }}
                         </button>
 
                         <draggable v-model="form.items" item-key="builder_key" handle=".builder-handle" class="space-y-3">
@@ -538,11 +579,11 @@ watch(editorLocale, (nextLocale, previousLocale) => {
                                 <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
                                     <div class="flex items-start gap-2">
                                         <button type="button" class="builder-handle mt-1 cursor-grab rounded-sm border border-stone-200 px-2 py-1 text-[11px] font-semibold text-stone-500 dark:border-neutral-700 dark:text-neutral-400">
-                                            Drag
+                                            {{ tx('common.drag') }}
                                         </button>
                                         <button type="button" class="min-w-0 flex-1 text-left" @click="selectItem(item)">
                                             <div class="truncate text-sm font-semibold" :class="selection.itemKey === item.builder_key ? 'text-emerald-700 dark:text-emerald-300' : 'text-stone-800 dark:text-neutral-100'">
-                                                {{ item.label || 'Untitled item' }}
+                                                {{ item.label || tx('edit.untitled_item') }}
                                             </div>
                                             <div class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                                 {{ item.panel_type }} · {{ item.link_type }}
@@ -551,28 +592,28 @@ watch(editorLocale, (nextLocale, previousLocale) => {
                                     </div>
                                     <div class="mt-3 flex flex-wrap gap-2 text-[11px]">
                                         <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800" @click="duplicateItem(findItemContext(item.builder_key))">
-                                            Duplicate
+                                            {{ tx('common.duplicate') }}
                                         </button>
                                         <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800" @click="addChildItem(item)">
-                                            Add child
+                                            {{ tx('common.add_child') }}
                                         </button>
                                         <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800" @click="addColumnToItem(item)">
-                                            Add column
+                                            {{ tx('common.add_column') }}
                                         </button>
                                         <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-red-700 hover:bg-red-50" @click="removeItem(findItemContext(item.builder_key))">
-                                            Remove
+                                            {{ tx('common.remove') }}
                                         </button>
                                     </div>
 
                                     <div v-if="item.panel_type === 'classic'" class="mt-3 space-y-2 border-t border-stone-200 pt-3 dark:border-neutral-700">
-                                        <div class="text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Children</div>
+                                        <div class="text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ tx('edit.children') }}</div>
                                         <draggable v-model="item.children" item-key="builder_key" handle=".builder-child-handle" class="space-y-2">
                                             <template #item="{ element: child }">
                                                 <div class="rounded-sm border border-stone-200 bg-stone-50 p-2 dark:border-neutral-700 dark:bg-neutral-800">
                                                     <div class="flex items-start gap-2">
-                                                        <button type="button" class="builder-child-handle mt-1 cursor-grab rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-500 dark:border-neutral-700 dark:text-neutral-400">Drag</button>
+                                                        <button type="button" class="builder-child-handle mt-1 cursor-grab rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-500 dark:border-neutral-700 dark:text-neutral-400">{{ tx('common.drag') }}</button>
                                                         <button type="button" class="min-w-0 flex-1 text-left" @click="selectItem(child)">
-                                                            <div class="truncate text-sm font-medium">{{ child.label || 'Untitled child' }}</div>
+                                                            <div class="truncate text-sm font-medium">{{ child.label || tx('edit.untitled_child') }}</div>
                                                             <div class="text-[10px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ child.link_type }}</div>
                                                         </button>
                                                         <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-[10px] font-semibold text-red-700 hover:bg-red-50" @click="removeItem(findItemContext(child.builder_key))">X</button>
@@ -583,37 +624,37 @@ watch(editorLocale, (nextLocale, previousLocale) => {
                                     </div>
 
                                     <div v-if="item.panel_type === 'mega'" class="mt-3 space-y-3 border-t border-stone-200 pt-3 dark:border-neutral-700">
-                                        <div class="text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Columns</div>
+                                        <div class="text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ tx('edit.columns') }}</div>
                                         <draggable v-model="item.columns" item-key="builder_key" handle=".builder-column-handle" class="space-y-3">
                                             <template #item="{ element: column }">
                                                 <div class="rounded-sm border border-stone-200 bg-stone-50 p-2 dark:border-neutral-700 dark:bg-neutral-800">
                                                     <div class="flex items-start gap-2">
-                                                        <button type="button" class="builder-column-handle mt-1 cursor-grab rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-500 dark:border-neutral-700 dark:text-neutral-400">Drag</button>
+                                                        <button type="button" class="builder-column-handle mt-1 cursor-grab rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-500 dark:border-neutral-700 dark:text-neutral-400">{{ tx('common.drag') }}</button>
                                                         <button type="button" class="min-w-0 flex-1 text-left" @click="selectColumn(item, column)">
-                                                            <div class="truncate text-sm font-medium">{{ column.title || 'Untitled column' }}</div>
+                                                            <div class="truncate text-sm font-medium">{{ column.title || tx('edit.untitled_column') }}</div>
                                                             <div class="text-[10px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ column.width }}</div>
                                                         </button>
-                                                        <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-700 hover:bg-white dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-900" @click="duplicateColumn(findColumnContext(column.builder_key))">Copy</button>
+                                                        <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-700 hover:bg-white dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-900" @click="duplicateColumn(findColumnContext(column.builder_key))">{{ tx('common.copy') }}</button>
                                                         <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-[10px] font-semibold text-red-700 hover:bg-red-50" @click="removeColumn(findColumnContext(column.builder_key))">X</button>
                                                     </div>
                                                     <div class="mt-2 flex justify-end gap-2">
                                                         <button type="button" class="rounded-sm border border-emerald-200 px-2 py-1 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-50" @click="addBlockToColumn(item, column, 'image')">
-                                                            Add image
+                                                            {{ tx('common.add_image') }}
                                                         </button>
                                                         <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-700 hover:bg-white dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-900" @click="addBlockToColumn(item, column)">
-                                                            Add block
+                                                            {{ tx('common.add_block') }}
                                                         </button>
                                                     </div>
                                                     <draggable v-model="column.blocks" item-key="builder_key" handle=".builder-block-handle" class="mt-2 space-y-2">
                                                         <template #item="{ element: block }">
                                                             <div class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
                                                                 <div class="flex items-start gap-2">
-                                                                    <button type="button" class="builder-block-handle mt-1 cursor-grab rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-500 dark:border-neutral-700 dark:text-neutral-400">Drag</button>
+                                                                    <button type="button" class="builder-block-handle mt-1 cursor-grab rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-500 dark:border-neutral-700 dark:text-neutral-400">{{ tx('common.drag') }}</button>
                                                                     <button type="button" class="min-w-0 flex-1 text-left" @click="selectBlock(item, column, block)">
-                                                                        <div class="truncate text-sm font-medium">{{ block.title || block.type }}</div>
+                                                                        <div class="truncate text-sm font-medium">{{ block.title || blockTypeLabel(block.type, block.type) }}</div>
                                                                         <div class="text-[10px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ block.type }}</div>
                                                                     </button>
-                                                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800" @click="duplicateBlock(findBlockContext(block.builder_key))">Copy</button>
+                                                                    <button type="button" class="rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800" @click="duplicateBlock(findBlockContext(block.builder_key))">{{ tx('common.copy') }}</button>
                                                                     <button type="button" class="rounded-sm border border-red-200 px-2 py-1 text-[10px] font-semibold text-red-700 hover:bg-red-50" @click="removeBlock(findBlockContext(block.builder_key))">X</button>
                                                                 </div>
                                                             </div>
@@ -633,19 +674,19 @@ watch(editorLocale, (nextLocale, previousLocale) => {
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="flex items-center justify-between">
                             <div>
-                                <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Live preview</div>
-                                <div class="text-xs text-stone-500 dark:text-neutral-400">Desktop and tablet render share the same reusable renderer used by the public site.</div>
+                                <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ tx('edit.live_preview_title') }}</div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ tx('edit.live_preview_description') }}</div>
                             </div>
                             <div class="flex gap-2 text-xs">
                                 <button type="button" class="rounded-sm border px-2 py-1 font-semibold"
                                     :class="previewDevice === 'desktop' ? 'border-green-600 bg-emerald-50 text-emerald-700' : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
                                     @click="previewDevice = 'desktop'">
-                                    Desktop
+                                    {{ tx('common.desktop') }}
                                 </button>
                                 <button type="button" class="rounded-sm border px-2 py-1 font-semibold"
                                     :class="previewDevice === 'tablet' ? 'border-green-600 bg-emerald-50 text-emerald-700' : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
                                     @click="previewDevice = 'tablet'">
-                                    Tablet
+                                    {{ tx('common.tablet') }}
                                 </button>
                             </div>
                         </div>
@@ -675,21 +716,21 @@ watch(editorLocale, (nextLocale, previousLocale) => {
                             </div>
                             <div class="grid gap-6 p-6 lg:grid-cols-[1.1fr_0.9fr]">
                                 <div class="space-y-4">
-                                    <div class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">Context area</div>
+                                    <div class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">{{ tx('edit.context_area') }}</div>
                                     <h2 class="text-3xl font-semibold tracking-tight text-stone-900 dark:text-white">
-                                        Preview how the menu opens inside the frontend shell.
+                                        {{ tx('edit.preview_headline') }}
                                     </h2>
                                     <p class="text-sm text-stone-600 dark:text-neutral-300">
-                                        The center canvas uses the same data structure as the frontend renderer, so hover states, classic dropdowns, and multi-column panels stay aligned with production output.
+                                        {{ tx('edit.preview_body') }}
                                     </p>
                                 </div>
                                 <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                                    <div class="font-semibold text-stone-900 dark:text-white">Metadata</div>
+                                    <div class="font-semibold text-stone-900 dark:text-white">{{ tx('common.metadata') }}</div>
                                     <div class="mt-2 space-y-2 text-xs">
-                                        <div>Created: {{ formatDate(meta.created_at) }}</div>
-                                        <div>Updated: {{ formatDate(meta.updated_at) }}</div>
-                                        <div>Created by: {{ meta.created_by?.name || meta.created_by?.email || 'Unknown' }}</div>
-                                        <div>Updated by: {{ meta.updated_by?.name || meta.updated_by?.email || 'Unknown' }}</div>
+                                        <div>{{ tx('common.created') }}: {{ formatDate(meta.created_at) }}</div>
+                                        <div>{{ tx('common.updated') }}: {{ formatDate(meta.updated_at) }}</div>
+                                        <div>{{ tx('common.created_by') }}: {{ meta.created_by?.name || meta.created_by?.email || tx('common.unknown') }}</div>
+                                        <div>{{ tx('common.updated_by') }}: {{ meta.updated_by?.name || meta.updated_by?.email || tx('common.unknown') }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -699,51 +740,51 @@ watch(editorLocale, (nextLocale, previousLocale) => {
 
                 <aside class="space-y-4">
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <FloatingSelect v-model="editorLocale" :options="localeOptions" label="Editing locale" />
+                        <FloatingSelect v-model="editorLocale" :options="localeOptions" :label="tx('edit.editing_locale')" />
                         <div class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                            Text edits apply to the selected locale only. Structure, links, visibility, and ordering stay shared.
+                            {{ tx('edit.editing_locale_help') }}
                         </div>
                     </div>
 
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ selectionTitle }}</div>
                         <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                            Settings update the currently selected node in the structure tree.
+                            {{ tx('edit.selection_help') }}
                         </div>
                     </div>
 
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <template v-if="selection.type === 'menu'">
                             <div class="space-y-4">
-                                <FloatingInput v-model="form.title" label="Title" />
-                                <FloatingInput v-model="form.slug" label="Slug" />
+                                <FloatingInput v-model="form.title" :label="tx('common.title')" />
+                                <FloatingInput v-model="form.slug" :label="tx('common.slug')" />
                                 <div class="grid gap-3 md:grid-cols-2">
-                                    <FloatingSelect v-model="form.status" :options="statusOptions" label="Status" />
-                                    <FloatingSelect v-model="form.display_location" :options="locationOptions" label="Display location" />
+                                    <FloatingSelect v-model="form.status" :options="statusOptions" :label="tx('index.status')" />
+                                    <FloatingSelect v-model="form.display_location" :options="locationOptions" :label="tx('edit.display_location')" />
                                 </div>
-                                <FloatingInput v-if="form.display_location === 'custom'" v-model="form.custom_zone" label="Custom zone" />
+                                <FloatingInput v-if="form.display_location === 'custom'" v-model="form.custom_zone" :label="tx('edit.custom_zone')" />
                                 <div>
-                                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Description</label>
+                                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ tx('common.description') }}</label>
                                     <textarea v-model="form.description" rows="3" class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"></textarea>
                                 </div>
                                 <div class="grid gap-3 md:grid-cols-2">
-                                    <FloatingInput v-model="form.css_classes" label="CSS classes" />
-                                    <FloatingInput v-model="form.ordering" type="number" label="Priority" />
+                                    <FloatingInput v-model="form.css_classes" :label="tx('edit.css_classes')" />
+                                    <FloatingInput v-model="form.ordering" type="number" :label="tx('edit.priority')" />
                                 </div>
                                 <div class="grid gap-3 md:grid-cols-2">
-                                    <FloatingSelect v-model="form.settings.theme" :options="themeOptions" label="Theme" />
-                                    <FloatingSelect v-model="form.settings.container_width" :options="containerWidthOptions" label="Container width" />
+                                    <FloatingSelect v-model="form.settings.theme" :options="themeOptions" :label="tx('common.theme')" />
+                                    <FloatingSelect v-model="form.settings.container_width" :options="containerWidthOptions" :label="tx('edit.container_width')" />
                                 </div>
                                 <div class="grid gap-3 md:grid-cols-2">
                                     <div>
-                                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Accent color</label>
+                                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ tx('edit.accent_color') }}</label>
                                         <div class="mt-1 flex gap-2">
                                             <input v-model="form.settings.accent_color" type="color" class="h-11 w-14 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
                                             <input v-model="form.settings.accent_color" type="text" class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" />
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Panel background</label>
+                                        <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ tx('edit.panel_background') }}</label>
                                         <div class="mt-1 flex gap-2">
                                             <input v-model="form.settings.panel_background" type="color" class="h-11 w-14 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
                                             <input v-model="form.settings.panel_background" type="text" class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" />
@@ -753,16 +794,16 @@ watch(editorLocale, (nextLocale, previousLocale) => {
                                 <div class="grid gap-3 md:grid-cols-2">
                                     <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                         <Checkbox v-model:checked="form.settings.open_on_hover" />
-                                        <span>Open on hover</span>
+                                        <span>{{ tx('edit.open_on_hover') }}</span>
                                     </label>
                                     <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                         <Checkbox v-model:checked="form.settings.show_dividers" />
-                                        <span>Show dividers</span>
+                                        <span>{{ tx('edit.show_dividers') }}</span>
                                     </label>
                                 </div>
                                 <div v-if="!isCreateMode" class="pt-2">
                                     <button type="button" class="rounded-sm border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50" @click="deleteCurrent">
-                                        Delete mega menu
+                                        {{ tx('edit.delete_menu') }}
                                     </button>
                                 </div>
                             </div>
@@ -770,43 +811,43 @@ watch(editorLocale, (nextLocale, previousLocale) => {
 
                         <template v-else-if="selection.type === 'item' && activeSelection">
                             <div class="space-y-4">
-                                <FloatingInput v-model="activeSelection.label" label="Label" />
-                                <FloatingInput v-model="activeSelection.description" label="Description" />
+                                <FloatingInput v-model="activeSelection.label" :label="tx('common.label')" />
+                                <FloatingInput v-model="activeSelection.description" :label="tx('common.description')" />
                                 <div class="grid gap-3 md:grid-cols-2">
-                                    <FloatingSelect v-model="activeSelection.panel_type" :options="panelTypeOptions" label="Panel type" @update:modelValue="ensurePanelStructure(activeSelection)" />
-                                    <FloatingSelect v-model="activeSelection.link_type" :options="linkTypeOptions" label="Link type" />
+                                    <FloatingSelect v-model="activeSelection.panel_type" :options="panelTypeOptions" :label="tx('edit.panel_type')" @update:modelValue="ensurePanelStructure(activeSelection)" />
+                                    <FloatingSelect v-model="activeSelection.link_type" :options="linkTypeOptions" :label="tx('edit.link_type')" />
                                 </div>
                                 <div class="grid gap-3 md:grid-cols-2">
                                     <div v-if="activeSelection.link_type === 'internal_page'">
-                                        <FloatingSelect v-model="activeSelection.link_value" :options="internal_page_options" label="Internal page" option-value="value" option-label="label" filterable />
+                                        <FloatingSelect v-model="activeSelection.link_value" :options="internal_page_options" :label="tx('edit.internal_page')" option-value="value" option-label="label" filterable />
                                     </div>
-                                    <FloatingInput v-else-if="activeSelection.link_type !== 'none'" v-model="activeSelection.link_value" :label="activeSelection.link_type === 'route' ? 'Route name' : activeSelection.link_type === 'anchor' ? 'Anchor' : 'Href / URL'" />
-                                    <FloatingSelect v-model="activeSelection.link_target" :options="linkTargetOptions" label="Target" />
+                                    <FloatingInput v-else-if="activeSelection.link_type !== 'none'" v-model="activeSelection.link_value" :label="linkValueLabel" />
+                                    <FloatingSelect v-model="activeSelection.link_target" :options="linkTargetOptions" :label="tx('common.target')" />
                                 </div>
                                 <div class="grid gap-3 md:grid-cols-2">
-                                    <FloatingInput v-model="activeSelection.icon" label="Icon" />
-                                    <FloatingInput v-model="activeSelection.css_classes" label="CSS classes" />
+                                    <FloatingInput v-model="activeSelection.icon" :label="tx('common.icon')" />
+                                    <FloatingInput v-model="activeSelection.css_classes" :label="tx('edit.css_classes')" />
                                 </div>
                                 <div class="grid gap-3 md:grid-cols-2">
-                                    <FloatingInput v-model="activeSelection.badge_text" label="Badge text" />
-                                    <FloatingSelect v-model="activeSelection.badge_variant" :options="badgeVariantOptions" label="Badge variant" />
+                                    <FloatingInput v-model="activeSelection.badge_text" :label="tx('edit.badge_text')" />
+                                    <FloatingSelect v-model="activeSelection.badge_variant" :options="badgeVariantOptions" :label="tx('edit.badge_variant')" />
                                 </div>
                                 <div class="grid gap-3 md:grid-cols-2">
-                                    <FloatingInput v-model="activeSelection.settings.eyebrow" label="Eyebrow" />
-                                    <FloatingInput v-model="activeSelection.settings.note" label="Note" />
+                                    <FloatingInput v-model="activeSelection.settings.eyebrow" :label="tx('edit.eyebrow')" />
+                                    <FloatingInput v-model="activeSelection.settings.note" :label="tx('common.note')" />
                                 </div>
                                 <div class="grid gap-3 md:grid-cols-2">
                                     <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                         <Checkbox v-model:checked="activeSelection.is_visible" />
-                                        <span>Visible</span>
+                                        <span>{{ tx('common.visible') }}</span>
                                     </label>
                                     <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                         <Checkbox v-model:checked="activeSelection.settings.featured" />
-                                        <span>Featured item</span>
+                                        <span>{{ tx('edit.featured_item') }}</span>
                                     </label>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Highlight color</label>
+                                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ tx('edit.highlight_color') }}</label>
                                     <div class="mt-1 flex gap-2">
                                         <input v-model="activeSelection.settings.highlight_color" type="color" class="h-11 w-14 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
                                         <input v-model="activeSelection.settings.highlight_color" type="text" class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" />
@@ -817,15 +858,15 @@ watch(editorLocale, (nextLocale, previousLocale) => {
 
                         <template v-else-if="selection.type === 'column' && activeSelection">
                             <div class="space-y-4">
-                                <FloatingInput v-model="activeSelection.title" label="Column title" />
-                                <FloatingInput v-model="activeSelection.width" label="Width (e.g. 1fr, 240px, 40%)" />
-                                <FloatingInput v-model="activeSelection.css_classes" label="CSS classes" />
+                                <FloatingInput v-model="activeSelection.title" :label="tx('edit.column_title')" />
+                                <FloatingInput v-model="activeSelection.width" :label="tx('edit.width')" />
+                                <FloatingInput v-model="activeSelection.css_classes" :label="tx('edit.css_classes')" />
                                 <div class="grid gap-3 md:grid-cols-2">
-                                    <FloatingSelect v-model="activeSelection.settings.alignment" :options="alignmentOptions" label="Alignment" />
-                                    <FloatingSelect v-model="activeSelection.settings.row" :options="rowOptions" label="Row" />
+                                    <FloatingSelect v-model="activeSelection.settings.alignment" :options="alignmentOptions" :label="tx('edit.alignment')" />
+                                    <FloatingSelect v-model="activeSelection.settings.row" :options="rowOptions" :label="tx('common.row')" />
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Background color</label>
+                                    <label class="block text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ tx('edit.background_color') }}</label>
                                     <div class="mt-1 flex gap-2">
                                         <input v-model="activeSelection.settings.background_color" type="color" class="h-11 w-14 rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" />
                                         <input v-model="activeSelection.settings.background_color" type="text" class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" />
@@ -836,14 +877,14 @@ watch(editorLocale, (nextLocale, previousLocale) => {
 
                         <template v-else-if="selection.type === 'block' && activeSelection">
                             <div class="space-y-4">
-                                <FloatingSelect v-model="activeSelection.type" :options="blockDefinitions.map((definition) => ({ value: definition.type, label: definition.label }))" label="Block type" @update:modelValue="changeBlockType(activeSelection)" />
-                                <FloatingInput v-model="activeSelection.title" label="Block title" />
-                                <FloatingInput v-model="activeSelection.css_classes" label="CSS classes" />
+                                <FloatingSelect v-model="activeSelection.type" :options="blockDefinitions.map((definition) => ({ value: definition.type, label: blockTypeLabel(definition.type, definition.label) }))" :label="tx('edit.block_type')" @update:modelValue="changeBlockType(activeSelection)" />
+                                <FloatingInput v-model="activeSelection.title" :label="tx('edit.block_title')" />
+                                <FloatingInput v-model="activeSelection.css_classes" :label="tx('edit.css_classes')" />
                                 <div class="grid gap-3 md:grid-cols-2">
-                                    <FloatingSelect v-model="activeSelection.settings.tone" :options="toneOptions" label="Tone" />
+                                    <FloatingSelect v-model="activeSelection.settings.tone" :options="toneOptions" :label="tx('common.tone')" />
                                     <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                         <Checkbox v-model:checked="activeSelection.settings.show_border" />
-                                        <span>Show border</span>
+                                        <span>{{ tx('edit.show_border') }}</span>
                                     </label>
                                 </div>
                                 <div class="border-t border-stone-200 pt-4 dark:border-neutral-700">
@@ -860,7 +901,7 @@ watch(editorLocale, (nextLocale, previousLocale) => {
             :show="assetPickerOpen"
             :list-url="asset_list_url"
             :upload-url="asset_upload_url"
-            title="Choose or upload media"
+            :title="tx('edit.asset_picker_title')"
             @close="closeAssetPicker"
             @select="handleAssetSelect"
         />

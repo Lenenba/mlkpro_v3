@@ -71,9 +71,9 @@ class PublicIndustryPageSections
             'image_alt' => $visual['image_alt'],
             'aside_image_url' => $asideVisual['image_url'],
             'aside_image_alt' => $asideVisual['image_alt'],
-            'primary_label' => $locale === 'fr' ? 'Nous contacter' : 'Talk to us',
+            'primary_label' => self::localizedLabel($locale, 'Nous contacter', 'Talk to us', 'Contactanos'),
             'primary_href' => '/pages/contact-us',
-            'aside_link_label' => $locale === 'fr' ? 'Voir la visite produit' : 'See the product tour',
+            'aside_link_label' => self::localizedLabel($locale, 'Voir la visite produit', 'See the product tour', 'Ver la visita del producto'),
             'aside_link_href' => '/demo',
             'showcase_divider_style' => 'round',
         ]);
@@ -84,7 +84,7 @@ class PublicIndustryPageSections
      */
     private static function showcaseCopy(string $slug, string $locale): array
     {
-        $copy = self::SHOWCASE_COPY[$slug][$locale] ?? self::SHOWCASE_COPY['industry-plumbing'][$locale];
+        $copy = self::localizedIndustryCopy(self::SHOWCASE_COPY, $slug, $locale);
 
         return [
             'kicker' => $copy['kicker'],
@@ -98,7 +98,34 @@ class PublicIndustryPageSections
      */
     private static function editorialCtaCopy(string $slug, string $locale): array
     {
-        return self::EDITORIAL_CTA_COPY[$slug][$locale] ?? self::EDITORIAL_CTA_COPY['industry-plumbing'][$locale];
+        return self::localizedIndustryCopy(self::EDITORIAL_CTA_COPY, $slug, $locale);
+    }
+
+    /**
+     * @param  array<string, array<string, array<string, string>>>  $copySet
+     * @return array<string, string>
+     */
+    private static function localizedIndustryCopy(array $copySet, string $slug, string $locale): array
+    {
+        $primary = $copySet[$slug] ?? $copySet['industry-plumbing'] ?? [];
+
+        return $primary[$locale]
+            ?? $primary['en']
+            ?? $copySet['industry-plumbing'][$locale]
+            ?? $copySet['industry-plumbing']['en'];
+    }
+
+    private static function localizedLabel(string $locale, string $french, string $english, ?string $spanish = null): string
+    {
+        if ($locale === 'fr') {
+            return $french;
+        }
+
+        if ($locale === 'es' && $spanish !== null) {
+            return $spanish;
+        }
+
+        return $english;
     }
 
     /**
@@ -484,7 +511,8 @@ class PublicIndustryPageSections
     private static function testimonialSection(string $slug, string $locale): array
     {
         $visual = PublicPageStockImages::slot($slug, 'header', $locale);
-        $quote = self::TESTIMONIAL_QUOTES[$slug][$locale] ?? self::TESTIMONIAL_QUOTES['industry-plumbing'][$locale];
+        $quoteSet = self::TESTIMONIAL_QUOTES[$slug] ?? self::TESTIMONIAL_QUOTES['industry-plumbing'];
+        $quote = $quoteSet[$locale] ?? $quoteSet['en'] ?? self::TESTIMONIAL_QUOTES['industry-plumbing']['en'];
 
         return self::baseSection('industry-testimonial', 'testimonial', [
             'background_color' => '#e5ecef',
@@ -494,7 +522,7 @@ class PublicIndustryPageSections
             'image_url' => $visual['image_url'],
             'image_alt' => $visual['image_alt'],
             'testimonial_author' => 'Jules BILITIK',
-            'testimonial_role' => $locale === 'fr' ? 'Cofondateur' : 'Co-founder',
+            'testimonial_role' => self::localizedLabel($locale, 'Cofondateur', 'Co-founder', 'Cofundador'),
         ]);
     }
 

@@ -49,6 +49,20 @@ export const sanitizeFeatureTabIconKey = (value) => (
     Object.prototype.hasOwnProperty.call(featureTabIconMap, value) ? value : ''
 );
 
+const normalizeFeatureTabsLocale = (locale = 'fr') => {
+    const value = String(locale || 'fr').toLowerCase();
+
+    if (value.startsWith('fr')) {
+        return 'fr';
+    }
+
+    if (value.startsWith('es')) {
+        return 'es';
+    }
+
+    return 'en';
+};
+
 const normalizeItems = (items) => (
     Array.isArray(items)
         ? items
@@ -101,6 +115,8 @@ export const resolveFeatureTabIconComponent = (tab) => (
 );
 
 export const defaultFeatureTabs = (locale = 'fr') => {
+    locale = normalizeFeatureTabsLocale(locale);
+
     if (locale === 'fr') {
         return [
             createFeatureTab({
@@ -303,6 +319,215 @@ export const defaultFeatureTabs = (locale = 'fr') => {
                         title: 'Voyez ou vous gagnez et ou vous perdez',
                         body: '<p>Suivez vos revenus, vos services les plus profitables et vos tendances de performance pour prendre de meilleures decisions.</p>',
                         cta_label: 'Voir les rapports',
+                        cta_href: '#',
+                    },
+                ],
+            }),
+        ];
+    }
+
+    if (locale === 'es') {
+        return [
+            createFeatureTab({
+                id: 'feature-tab-get-noticed',
+                label: 'Hazte notar',
+                icon: 'clipboard-check',
+                title: 'Manten tu marca visible donde los clientes ya estan buscando',
+                body: '<p>Paginas publicas, formularios de solicitud, campanas y seguimientos se mantienen alineados desde el primer clic hasta la fidelizacion.</p>',
+                cta_label: 'Ver Marketing & Loyalty',
+                cta_href: '/pages/marketing-loyalty',
+                image_url: '/images/landing/stock/marketing-desk.jpg',
+                image_alt: 'Profesional gestionando mensajes y solicitudes desde su escritorio',
+                metric: '44 % de crecimiento medio durante el primer ano',
+                story: '<p>Aclaramos nuestra presencia publica, automatizamos seguimientos y aumentamos la demanda cualificada sin anadir mas trabajo manual.</p>',
+                person: 'Equipo de crecimiento',
+                role: 'Operaciones locales',
+                avatar_url: '/images/presets/avatar-1.svg',
+                avatar_alt: 'Retrato del equipo de crecimiento',
+                children: [
+                    {
+                        id: 'feature-tab-get-noticed-reviews',
+                        label: 'Solicitudes de resenas',
+                        title: 'Consigue mas resenas sin recordatorios manuales',
+                        body: '<p>Activa la solicitud en el momento adecuado y facilita que los clientes dejen comentarios mientras la experiencia sigue fresca.</p>',
+                        cta_label: 'Ver resenas',
+                        cta_href: '#',
+                    },
+                    {
+                        id: 'feature-tab-get-noticed-responses',
+                        label: 'Respuestas rapidas',
+                        title: 'Responde antes a las nuevas solicitudes',
+                        body: '<p>Automatiza los primeros mensajes y mantiene un tiempo de respuesta corto para mostrar que tu empresa es agil desde el inicio.</p>',
+                        cta_label: 'Ver mensajeria',
+                        cta_href: '#',
+                    },
+                    {
+                        id: 'feature-tab-get-noticed-campaigns',
+                        label: 'Marketing automatizado',
+                        title: 'Sigue visible sin campanas complicadas',
+                        body: '<p>Programa seguimientos de clientes, recordatorios estacionales y campanas simples para volver a estar presente en el momento correcto.</p>',
+                        cta_label: 'Ver marketing',
+                        cta_href: '#',
+                    },
+                    {
+                        id: 'feature-tab-get-noticed-sharing',
+                        label: 'Enlaces para compartir',
+                        title: 'Haz que tu oferta sea mas facil de compartir',
+                        body: '<p>Comparte formularios, paginas y presupuestos con enlaces claros para acelerar las recomendaciones y el boca a boca.</p>',
+                        cta_label: 'Ver enlaces',
+                        cta_href: '#',
+                    },
+                ],
+            }),
+            createFeatureTab({
+                id: 'feature-tab-win-jobs',
+                label: 'Ganar trabajos',
+                icon: 'file-text',
+                title: 'Convierte la demanda entrante en presupuestos aprobados mas rapido',
+                body: '<p>Cualificacion, presupuestos, seguimientos e historial del cliente siguen conectados para que cada oportunidad avance con menos friccion.</p>',
+                cta_label: 'Ver Sales & CRM',
+                cta_href: '/pages/sales-crm',
+                image_url: '/images/landing/stock/workflow-plan.jpg',
+                image_alt: 'Dos profesionales validando juntos planes de trabajo',
+                metric: 'Presupuestos mas rapidos y mejor seguidos',
+                story: '<p>Las plantillas, las opciones y los seguimientos automaticos nos ayudaron a enviar propuestas mas limpias antes en el dia y a mantenerlas avanzando.</p>',
+                person: 'Equipo comercial',
+                role: 'Ventas y cualificacion',
+                avatar_url: '/images/presets/avatar-2.svg',
+                avatar_alt: 'Retrato del equipo comercial',
+                children: [
+                    {
+                        id: 'feature-tab-win-jobs-booking',
+                        label: 'Reservas online y formularios',
+                        title: 'Captura mas demanda sin friccion',
+                        body: '<p>Anade formularios de solicitud simples, acepta reservas online y lleva los leads directamente a tu pipeline.</p>',
+                        cta_label: 'Ver captacion de leads',
+                        cta_href: '#',
+                    },
+                    {
+                        id: 'feature-tab-win-jobs-templates',
+                        label: 'Plantillas de presupuesto',
+                        title: 'Envia presupuestos coherentes en menos tiempo',
+                        body: '<p>Precarga tus servicios, precios y opciones frecuentes para sacar presupuestos claros y uniformes desde la oficina o desde el terreno.</p>',
+                        cta_label: 'Ver plantillas de presupuesto',
+                        cta_href: '#',
+                    },
+                    {
+                        id: 'feature-tab-win-jobs-line-items',
+                        label: 'Lineas opcionales',
+                        title: 'Aumenta el valor medio de cada presupuesto',
+                        body: '<p>Anade opciones, extras y servicios complementarios para ofrecer mas valor sin rehacer cada presupuesto a mano.</p>',
+                        cta_label: 'Ver opciones de presupuesto',
+                        cta_href: '#',
+                    },
+                    {
+                        id: 'feature-tab-win-jobs-follow-ups',
+                        label: 'Seguimientos automaticos',
+                        title: 'Haz seguimiento en el momento correcto sin gestion manual',
+                        body: '<p>Programa recordatorios y seguimientos automaticos para que tus oportunidades avancen sin dejar leads en espera.</p>',
+                        cta_label: 'Ver seguimientos',
+                        cta_href: '#',
+                    },
+                ],
+            }),
+            createFeatureTab({
+                id: 'feature-tab-work-smarter',
+                label: 'Trabajar mejor',
+                icon: 'calendar-days',
+                title: 'Pasa de la oficina al terreno con el mismo nivel de claridad',
+                body: '<p>Planificacion, asignacion, fichas de trabajo, checklists e historial del cliente permanecen visibles para que los equipos intervengan con el contexto correcto.</p>',
+                cta_label: 'Ver Operations',
+                cta_href: '/pages/operations',
+                image_url: '/images/landing/stock/field-checklist.jpg',
+                image_alt: 'Tecnico con una checklist antes de la intervencion',
+                metric: 'Menos ida y vuelta entre la oficina y el terreno',
+                story: '<p>La planificacion y los detalles de trabajo por fin viven en la misma herramienta, lo que reduce las llamadas de aclaracion durante la jornada.</p>',
+                person: 'Equipo de campo',
+                role: 'Asignacion y ejecucion',
+                avatar_url: '/images/presets/avatar-3.svg',
+                avatar_alt: 'Retrato del equipo de campo',
+                children: [
+                    {
+                        id: 'feature-tab-work-smarter-schedule',
+                        label: 'Calendario arrastrar y soltar',
+                        title: 'Mueve horarios sin rehacer toda la jornada',
+                        body: '<p>Reprograma en segundos, asigna el equipo correcto y mantiene a todos alineados con actualizaciones instantaneas.</p>',
+                        cta_label: 'Ver planificacion',
+                        cta_href: '#',
+                    },
+                    {
+                        id: 'feature-tab-work-smarter-dispatch',
+                        label: 'Asignacion de equipos',
+                        title: 'Envia el equipo adecuado al trabajo adecuado',
+                        body: '<p>Visualiza disponibilidad, ubicacion y carga de trabajo para enviar a las personas correctas sin perder tiempo.</p>',
+                        cta_label: 'Ver dispatch',
+                        cta_href: '#',
+                    },
+                    {
+                        id: 'feature-tab-work-smarter-checklists',
+                        label: 'Checklists de campo',
+                        title: 'Estandariza la ejecucion de cada intervencion',
+                        body: '<p>Anade pasos, formularios y controles de calidad para que el trabajo quede bien hecho desde la primera vez.</p>',
+                        cta_label: 'Ver checklists',
+                        cta_href: '#',
+                    },
+                    {
+                        id: 'feature-tab-work-smarter-history',
+                        label: 'Historial del cliente',
+                        title: 'Recupera el contexto completo antes de cada visita',
+                        body: '<p>Mantiene notas, fotos, solicitudes y trabajos anteriores en el mismo lugar para que tus equipos lleguen preparados al cliente.</p>',
+                        cta_label: 'Ver fichas de cliente',
+                        cta_href: '#',
+                    },
+                ],
+            }),
+            createFeatureTab({
+                id: 'feature-tab-boost-profits',
+                label: 'Impulsar beneficios',
+                icon: 'circle-dollar-sign',
+                title: 'Factura mas rapido y acorta el ciclo de cobro',
+                body: '<p>Facturas, pagos en el sitio, recordatorios y seguimiento del margen siguen conectados al trabajo realizado para proteger tus ingresos.</p>',
+                cta_label: 'Ver Commerce',
+                cta_href: '/pages/commerce',
+                image_url: '/images/landing/stock/payments-terminal.jpg',
+                image_alt: 'Pago con tarjeta en un terminal junto a herramientas de servicio',
+                metric: 'Mejor visibilidad sobre margen y tesoreria',
+                story: '<p>Los equipos cierran trabajos mas rapido y los recordatorios salen automaticamente, asi que el dinero entra antes con menos seguimiento manual.</p>',
+                person: 'Equipo financiero',
+                role: 'Facturacion y pagos',
+                avatar_url: '/images/presets/avatar-4.svg',
+                avatar_alt: 'Retrato del equipo financiero',
+                children: [
+                    {
+                        id: 'feature-tab-boost-profits-invoicing',
+                        label: 'Facturacion rapida',
+                        title: 'Convierte un trabajo terminado en factura en pocos clics',
+                        body: '<p>Genera facturas sin volver a escribir la informacion del trabajo y envialas enseguida al cliente.</p>',
+                        cta_label: 'Ver facturacion',
+                        cta_href: '#',
+                    },
+                    {
+                        id: 'feature-tab-boost-profits-payments',
+                        label: 'Pagos en el sitio',
+                        title: 'Cobra mientras el equipo sigue con el cliente',
+                        body: '<p>Acepta varios metodos de pago desde el movil para reducir retrasos y limitar las cuentas por cobrar.</p>',
+                        cta_label: 'Ver pagos moviles',
+                        cta_href: '#',
+                    },
+                    {
+                        id: 'feature-tab-boost-profits-reminders',
+                        label: 'Recordatorios automaticos',
+                        title: 'Haz seguimiento sin perseguir cada factura manualmente',
+                        body: '<p>Automatiza los recordatorios de pago para que tu equipo administrativo dedique menos tiempo a insistir en cuentas vencidas.</p>',
+                        cta_label: 'Ver recordatorios',
+                        cta_href: '#',
+                    },
+                    {
+                        id: 'feature-tab-boost-profits-reporting',
+                        label: 'Informes de margen',
+                        title: 'Ve donde el beneficio crece o se escapa',
+                        body: '<p>Sigue ingresos, servicios mas rentables y tendencias de rendimiento para tomar decisiones apoyadas en numeros claros.</p>',
+                        cta_label: 'Ver informes',
                         cta_href: '#',
                     },
                 ],
@@ -519,6 +744,8 @@ export const defaultFeatureTabs = (locale = 'fr') => {
 };
 
 export const defaultFeatureTabsShowcaseSection = (locale = 'fr') => {
+    locale = normalizeFeatureTabsLocale(locale);
+
     if (locale === 'fr') {
         return {
             layout: 'feature_tabs',
@@ -533,6 +760,27 @@ export const defaultFeatureTabsShowcaseSection = (locale = 'fr') => {
             feature_tabs_style: 'workflow',
             feature_tabs_font_size: defaultFeatureTabsTriggerFontSize,
             feature_tabs: defaultFeatureTabs('fr'),
+            primary_label: '',
+            primary_href: '',
+            secondary_label: '',
+            secondary_href: '',
+        };
+    }
+
+    if (locale === 'es') {
+        return {
+            layout: 'feature_tabs',
+            background_color: '#f7f2e8',
+            image_position: 'left',
+            alignment: 'center',
+            density: 'normal',
+            tone: 'default',
+            kicker: 'Un sistema que cubre todo el recorrido del cliente',
+            title: 'La solucion todo en uno para profesionales de servicios a domicilio',
+            body: '<p>Desde la visibilidad local hasta el pago final, cada etapa se mantiene dentro del mismo flujo operativo en lugar de repartirse entre herramientas desconectadas.</p>',
+            feature_tabs_style: 'workflow',
+            feature_tabs_font_size: defaultFeatureTabsTriggerFontSize,
+            feature_tabs: defaultFeatureTabs('es'),
             primary_label: '',
             primary_href: '',
             secondary_label: '',

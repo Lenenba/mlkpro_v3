@@ -346,7 +346,23 @@ class MegaMenuRenderer
 
     private function resolveTranslatedText(?string $default, array $translations, string $field): ?string
     {
+        $currentLocale = $this->currentLocale();
+        $defaultLocale = $this->defaultContentLocale();
+
+        $localized = $this->translatedFieldValue($translations, $currentLocale, $field);
+        if ($localized !== null) {
+            return $localized;
+        }
+
+        if ($currentLocale === $defaultLocale) {
+            return $default;
+        }
+
         foreach ($this->localeResolutionOrder() as $locale) {
+            if ($locale === $currentLocale || $locale === $defaultLocale) {
+                continue;
+            }
+
             $localized = $this->translatedFieldValue($translations, $locale, $field);
             if ($localized !== null) {
                 return $localized;
@@ -380,12 +396,20 @@ class MegaMenuRenderer
         $translations = is_array($payload['translations'] ?? null) ? $payload['translations'] : [];
         unset($payload['translations']);
 
-        $localized = [];
+        $currentLocale = $this->currentLocale();
+        $defaultLocale = $this->defaultContentLocale();
+        $localized = $this->resolvePayloadTranslation($translations, $currentLocale) ?? [];
 
-        foreach ($this->localeResolutionOrder() as $locale) {
-            $localized = $this->resolvePayloadTranslation($translations, $locale) ?? [];
-            if ($localized !== []) {
-                break;
+        if ($localized === [] && $currentLocale !== $defaultLocale) {
+            foreach ($this->localeResolutionOrder() as $locale) {
+                if ($locale === $currentLocale || $locale === $defaultLocale) {
+                    continue;
+                }
+
+                $localized = $this->resolvePayloadTranslation($translations, $locale) ?? [];
+                if ($localized !== []) {
+                    break;
+                }
             }
         }
 
@@ -486,6 +510,11 @@ class MegaMenuRenderer
     private function currentLocale(): string
     {
         return LocalePreference::normalize((string) app()->getLocale());
+    }
+
+    private function defaultContentLocale(): string
+    {
+        return LocalePreference::default();
     }
 
     /**

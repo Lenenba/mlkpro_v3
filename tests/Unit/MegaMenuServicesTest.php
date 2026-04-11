@@ -501,6 +501,133 @@ it('renders translated mega menu fields for the active locale', function () {
     expect($menu['items'][0]['columns'][0]['blocks'][0]['payload']['links'][0]['badge'])->toBe('Popular');
 });
 
+it('keeps the default french content when english translations also exist', function () {
+    $user = megaMenuTestUser();
+    $service = app(MegaMenuManagerService::class);
+
+    $service->create(megaMenuPayload([
+        'slug' => 'default-french-header',
+        'title' => 'Menu principal FR',
+        'description' => 'Description FR',
+        'status' => 'active',
+        'settings' => [
+            'theme' => 'default',
+            'container_width' => 'xl',
+            'accent_color' => '#16a34a',
+            'panel_background' => '#ffffff',
+            'open_on_hover' => true,
+            'show_dividers' => true,
+            'translations' => [
+                'en' => [
+                    'title' => 'Main Header EN',
+                    'description' => 'Description EN',
+                ],
+            ],
+        ],
+        'items' => [
+            [
+                'label' => 'Produits & Services',
+                'description' => 'Catalogue complet',
+                'link_type' => 'none',
+                'link_target' => '_self',
+                'panel_type' => 'mega',
+                'icon' => 'grid',
+                'badge_text' => 'Nouveau',
+                'badge_variant' => 'new',
+                'is_visible' => true,
+                'settings' => [
+                    'eyebrow' => 'Modules',
+                    'note' => 'Navigation principale',
+                    'featured' => false,
+                    'highlight_color' => '#16a34a',
+                    'translations' => [
+                        'en' => [
+                            'label' => 'Products & Services',
+                            'description' => 'Full product catalog',
+                            'badge_text' => 'New',
+                            'eyebrow' => 'Modules',
+                            'note' => 'Primary navigation',
+                        ],
+                    ],
+                ],
+                'columns' => [
+                    [
+                        'title' => 'Primaire',
+                        'width' => '1fr',
+                        'settings' => [
+                            'alignment' => 'start',
+                            'background_color' => '',
+                            'translations' => [
+                                'en' => [
+                                    'title' => 'Primary',
+                                ],
+                            ],
+                        ],
+                        'blocks' => [
+                            [
+                                'type' => 'navigation_group',
+                                'title' => 'Explorer',
+                                'settings' => [
+                                    'tone' => 'default',
+                                    'show_border' => false,
+                                    'translations' => [
+                                        'en' => [
+                                            'title' => 'Explore',
+                                        ],
+                                    ],
+                                ],
+                                'payload' => [
+                                    'title' => 'Explorer',
+                                    'description' => 'Liens principaux',
+                                    'links' => [
+                                        [
+                                            'label' => 'Tarifs',
+                                            'href' => '/pricing',
+                                            'note' => 'Forfaits et modules',
+                                            'badge' => 'Populaire',
+                                            'target' => '_self',
+                                        ],
+                                    ],
+                                    'translations' => [
+                                        'en' => [
+                                            'title' => 'Explore',
+                                            'description' => 'Primary links',
+                                            'links' => [
+                                                [
+                                                    'label' => 'Pricing',
+                                                    'href' => '/pricing',
+                                                    'note' => 'Plans and modules',
+                                                    'badge' => 'Popular',
+                                                    'target' => '_self',
+                                                ],
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]), $user->id);
+
+    app()->setLocale('fr');
+
+    $menu = app(MegaMenuRenderer::class)->resolveBySlug('default-french-header');
+
+    expect($menu['title'])->toBe('Menu principal FR');
+    expect($menu['description'])->toBe('Description FR');
+    expect($menu['items'][0]['label'])->toBe('Produits & Services');
+    expect($menu['items'][0]['badge_text'])->toBe('Nouveau');
+    expect($menu['items'][0]['settings']['note'])->toBe('Navigation principale');
+    expect($menu['items'][0]['columns'][0]['title'])->toBe('Primaire');
+    expect($menu['items'][0]['columns'][0]['blocks'][0]['title'])->toBe('Explorer');
+    expect($menu['items'][0]['columns'][0]['blocks'][0]['payload']['title'])->toBe('Explorer');
+    expect($menu['items'][0]['columns'][0]['blocks'][0]['payload']['links'][0]['label'])->toBe('Tarifs');
+    expect($menu['items'][0]['columns'][0]['blocks'][0]['payload']['links'][0]['badge'])->toBe('Populaire');
+});
+
 it('preserves canonical product showcase links when localized payload snapshots are stale', function () {
     $user = megaMenuTestUser();
     $service = app(MegaMenuManagerService::class);
