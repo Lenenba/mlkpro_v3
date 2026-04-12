@@ -1,0 +1,44 @@
+{
+  "refund": {
+    "meta": {
+      "title": "Politica de reembolso"
+    },
+    "intro": {
+      "eyebrow": "Politica de reembolso",
+      "title": "Politica de reembolso de Malikia Pro",
+      "updated": "Ultima actualizacion: {date}.",
+      "summary": "Esta politica explica como se gestionan los reembolsos y los creditos para las suscripciones de Malikia Pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Alcance",
+        "body": "Las suscripciones se facturan por adelantado e incluyen acceso a las funciones de Malikia Pro."
+      },
+      "eligibility": {
+        "title": "2. Elegibilidad",
+        "body": "Los reembolsos pueden considerarse en caso de cargos duplicados o errores de facturacion verificados."
+      },
+      "exclusions": {
+        "title": "3. Exclusiones",
+        "bullets": {
+          "one": "Cambio de opinion despues de un uso significativo.",
+          "two": "Comisiones de terceros o cargos del proveedor de pagos.",
+          "three": "Servicios personalizados o servicios de onboarding."
+        }
+      },
+      "process": {
+        "title": "4. Como solicitarlo",
+        "body": "Envia una solicitud a traves del soporte en la aplicacion con la factura y el motivo del reembolso."
+      },
+      "timeline": {
+        "title": "5. Tiempo de procesamiento",
+        "body": "Si se aprueba, el reembolso se emite al metodo de pago original. El tiempo de procesamiento depende del proveedor de pagos."
+      },
+      "chargebacks": {
+        "title": "6. Contracargos",
+        "body": "Los contracargos pueden pausar el acceso mientras revisamos la reclamacion."
+      }
+    },
+    "note": "Contacta al soporte si necesitas ayuda con la facturacion."
+  }
+}

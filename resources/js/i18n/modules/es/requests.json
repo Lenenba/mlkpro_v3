@@ -1,0 +1,463 @@
+{
+  "requests": {
+    "title": "Solicitudes",
+    "stats": {
+      "total": "Solicitudes totales",
+      "new": "Nuevo",
+      "in_progress": "En progreso",
+      "won": "Ganado",
+      "lost": "perdido",
+      "unassigned": "No asignado"
+    },
+    "filters": {
+      "search_placeholder": "Solicitudes de búsqueda...",
+      "all_statuses": "Todos los estados",
+      "all_customers": "Todos los clientes"
+    },
+    "actions": {
+      "clear": "Borrar",
+      "intake": "Ingesta de plomo",
+      "import_csv": "Importar CSV",
+      "new_request": "Nueva solicitud",
+      "view": "Ver",
+      "back": "Atrás",
+      "view_quote": "Ver cotización",
+      "convert": "Convertir",
+      "update": "Actualizar",
+      "timeline": "Línea de tiempo",
+      "delete": "Eliminar",
+      "delete_confirm": "¿Eliminar esta solicitud?",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "create_request": "Crear solicitud",
+      "convert_to_quote": "Convertir a cotización"
+    },
+    "view": {
+      "table": "Tabla",
+      "board": "tablero"
+    },
+    "board": {
+      "empty": "No hay pistas aquí todavía."
+    },
+    "sources": {
+      "manual": "manuales",
+      "web_form": "formulario web",
+      "phone": "Teléfono",
+      "email": "Correo electrónico",
+      "whatsapp": "WhatsApp",
+      "sms": "SMS",
+      "qr": "QR",
+      "api": "API",
+      "import": "Importar",
+      "referral": "Referencia",
+      "ads": "Anuncios",
+      "portal": "Portal",
+      "other": "Otro",
+      "unknown": "Desconocido"
+    },
+    "urgency": {
+      "urgent": "Urgente",
+      "high": "Alto",
+      "medium": "Medio",
+      "low": "Bajo"
+    },
+    "badges": {
+      "score": "Puntuación",
+      "serviceable": "Útil",
+      "not_serviceable": "No reparable",
+      "budget_amount": "Presupuesto ${amount}"
+    },
+    "quality": {
+      "title": "Calidad del plomo",
+      "source": "Fuente",
+      "source_placeholder": "Seleccionar fuente",
+      "urgency": "Urgencia",
+      "urgency_placeholder": "Seleccione urgencia",
+      "serviceable_label": "Útil",
+      "serviceable_placeholder": "Seleccione reparable",
+      "serviceable": "Útil",
+      "not_serviceable": "No reparable",
+      "unknown": "Desconocido",
+      "budget": "Presupuesto",
+      "save": "Guardar"
+    },
+    "duplicates": {
+      "title": "Posibles duplicados",
+      "merge": "Fusionarse aquí",
+      "merge_confirm": "¿Fusionar este duplicado con el cliente potencial actual?"
+    },
+    "intake": {
+      "title": "Ingesta de plomo",
+      "public_form": "Forma pública",
+      "public_form_hint": "Comparte este enlace en tu sitio web, QR o campañas.",
+      "webhook": "Webhook/API",
+      "webhook_hint": "Envíe una solicitud POST con un token API.",
+      "endpoint": "Punto final",
+      "copy": "Copiar",
+      "copied": "Copiado.",
+      "example": "Solicitud de ejemplo"
+    },
+    "import": {
+      "title": "Importar clientes potenciales",
+      "csv_file": "archivo CSV",
+      "mapping_title": "Columnas del mapa",
+      "mapping_hint": "Haga coincidir sus encabezados CSV con los campos de clientes potenciales.",
+      "missing_headers": "Cargue un archivo CSV con una fila de encabezado para asignar columnas.",
+      "skip": "Saltar",
+      "submit": "Importar",
+      "fields": {
+        "contact_name": "Nombre de contacto",
+        "contact_email": "Correo electrónico",
+        "contact_phone": "Teléfono",
+        "title": "Título",
+        "service_type": "Tipo de servicio",
+        "description": "Descripción",
+        "channel": "Fuente / canal",
+        "urgency": "Urgencia",
+        "budget": "Presupuesto",
+        "external_customer_id": "ID de cliente externo",
+        "street1": "dirección postal",
+        "street2": "Línea de dirección 2",
+        "city": "Ciudad",
+        "state": "Estado / Provincia",
+        "postal_code": "código postal",
+        "country": "País",
+        "next_follow_up_at": "Próxima fecha de seguimiento",
+        "is_serviceable": "Útil"
+      }
+    },
+    "form": {
+      "title": "Solicitar un servicio",
+      "subtitle": "Cuéntanos qué necesitas y nos comunicaremos contigo.",
+      "contact_button": "Contáctenos",
+      "contact_phone_label": "llamar",
+      "contact_name": "nombre completo",
+      "contact_email": "Correo electrónico",
+      "contact_phone": "Teléfono",
+      "service_type": "Servicio necesario",
+      "title_label": "Asunto",
+      "description": "Detalles",
+      "budget": "Presupuesto estimado",
+      "urgency": "Urgencia",
+      "urgency_placeholder": "Seleccione urgencia",
+      "intent_title": "Necesidades del proyecto",
+      "intent_hint": "Seleccione solo los servicios proporcionados por esta empresa.",
+      "intent_options": {
+        "website": "Sitio web / escaparate",
+        "booking": "Reservas / reservas",
+        "payment": "Pagos",
+        "crm": "CRM / seguimiento de leads",
+        "integration": "Integraciones/API"
+      },
+      "suggestions_title": "Servicios sugeridos",
+      "suggestions_hint": "Según sus comentarios, aquí encontrará servicios coincidentes que le ayudarán a ampliar el alcance de su solicitud.",
+      "source_catalog_only": "Las sugerencias provienen únicamente del catálogo activo de esta empresa.",
+      "detected_categories": "Categorías detectadas",
+      "suggestions_loading": "Analizando...",
+      "suggestions_empty": "Aún no hay ningún servicio coincidente. Agregue más detalles para refinar las sugerencias.",
+      "suggestions_placeholder": "Describa su necesidad de ver sugerencias de servicios relevantes.",
+      "suggestions_error": "No se pueden cargar sugerencias en este momento.",
+      "category_fallback": "Servicio sin categoría",
+      "service_price": "Precio",
+      "pricing_preview_title": "Precios de servicios seleccionados",
+      "pricing_total_estimate": "Total estimado (excluyendo cotización bajo petición)",
+      "pricing_on_request_count": "{count} servicios permanecen cotizados a pedido.",
+      "quote_qualification_title": "Calificación de precios",
+      "quote_qualification_hint": "Responda estas preguntas para reducir las incógnitas sobre los precios.",
+      "final_summary_title": "Revisión final",
+      "final_summary_hint": "Revise la información que falta y marque las líneas que deben permanecer en la cotización previa solicitud.",
+      "selected_services_title": "Servicios seleccionados",
+      "selected_services_empty": "Ningún servicio seleccionado todavía.",
+      "sur_devis_label": "Cotización a pedido",
+      "missing_information_title": "Información faltante",
+      "missing_information_none": "No se detectó información faltante para los precios.",
+      "quote_assumptions": "Supuestos/contexto (opcional)",
+      "final_actions_title": "finalizar",
+      "final_actions_hint": "Si se selecciona un correo electrónico y servicios válidos, se envía una cotización automáticamente.",
+      "receive_quote": "Recibe mi cotización",
+      "request_call": "Solicitar una llamada",
+      "receive_quote_requirements": "Sin un correo electrónico válido y servicios seleccionados, su solicitud se maneja como una solicitud de llamada.",
+      "quote_questions": {
+        "business_goal": {
+          "label": "Objetivo comercial principal",
+          "hint": "¿Qué resultado espera de este proyecto?"
+        },
+        "desired_deadline": {
+          "label": "Plazo objetivo",
+          "hint": "¿Cuándo necesitas la primera versión en vivo?"
+        },
+        "budget_range": {
+          "label": "Rango de presupuesto",
+          "hint": "Proporcione un rango de presupuesto o dotación esperada."
+        },
+        "website_pages": {
+          "label": "Número de páginas del sitio web",
+          "hint": "¿Cuántas páginas debe incluir el sitio web?"
+        },
+        "brand_assets_ready": {
+          "label": "Activos de marca disponibles",
+          "hint": "¿Ya tienes logo, imágenes y contenido?"
+        },
+        "booking_volume": {
+          "label": "Volumen de reservas esperado",
+          "hint": "¿Cuántas reservas por semana/mes se esperan?"
+        },
+        "staff_count": {
+          "label": "Miembros del equipo a bordo",
+          "hint": "¿Cuántos miembros del personal necesitan acceso?"
+        },
+        "payment_flows": {
+          "label": "Flujos de pago",
+          "hint": "¿En línea, presencial, depósitos, suscripciones, pagos parciales?"
+        },
+        "payment_provider": {
+          "label": "Proveedor de pago preferido",
+          "hint": "¿Stripe, efectivo, transferencia u otro proveedor?"
+        },
+        "crm_contacts_volume": {
+          "label": "Volumen de contactos",
+          "hint": "Número aproximado de contactos/leads a gestionar."
+        },
+        "crm_pipeline": {
+          "label": "Etapas del oleoducto",
+          "hint": "¿Qué etapas principales se deben rastrear?"
+        },
+        "integration_tools": {
+          "label": "Herramientas para integrar",
+          "hint": "Enumere las aplicaciones/plataformas para conectarse."
+        },
+        "integration_api_access": {
+          "label": "Acceso API disponible",
+          "hint": "¿Ya tienes claves API o documentación técnica?"
+        }
+      },
+      "address_title": "Dirección (opcional)",
+      "street1": "Línea de dirección",
+      "city": "Ciudad",
+      "state": "Estado / Provincia",
+      "postal_code": "código postal",
+      "country": "País",
+      "address_search_placeholder": "Buscar una dirección",
+      "address_searching": "Buscando...",
+      "address_validated": "Dirección validada",
+      "address_label": "Dirección",
+      "address_error_key": "Falta la configuración de Geoapify. Verifique la configuración de la aplicación.",
+      "address_error_failed": "La búsqueda falló. Verifique la clave Geoapify o use la entrada manual.",
+      "submit": "Enviar solicitud",
+      "success": "¡Gracias! Nos comunicaremos contigo pronto."
+    },
+    "analytics": {
+      "title": "Análisis (últimos {days} días)",
+      "subtitle": "Información continua para realizar un seguimiento del rendimiento de los clientes potenciales.",
+      "first_response": "Promedio de primera respuesta",
+      "first_response_note": "Basado en la primera acción después de la creación del cliente potencial.",
+      "conversion_rate": "Tasa de conversión",
+      "conversion_note": "Clientes potenciales ganados vs total creado.",
+      "total_leads": "Nuevos clientes potenciales",
+      "total_note": "Creado en los últimos {days} días.",
+      "form": {
+        "title": "Rendimiento del formulario de clientes potenciales",
+        "window": "Últimos {days} días",
+        "views": "Vistas de formulario",
+        "unique": "{count} visitantes únicos",
+        "submits": "Envíos de formularios",
+        "submits_note": "Clientes potenciales creados a partir del formulario público.",
+        "conversion": "Conversión de formulario",
+        "conversion_note": "Envíos ÷ vistas.",
+        "last_view": "Última vista",
+        "last_submit": "Última presentación",
+        "empty": "Aún no hay actividad de formulario.",
+        "referrers_title": "Principales referentes",
+        "no_referrers": "Aún no hay datos de referencia.",
+        "utm_title": "Principales etiquetas UTM",
+        "utm_sources": "Fuentes",
+        "utm_mediums": "Medios",
+        "utm_campaigns": "Campañas",
+        "no_utm": "Sin datos UTM"
+      },
+      "by_source": "Conversión por fuente",
+      "no_data": "Aún no hay datos.",
+      "risk_title": "Clientes potenciales en riesgo",
+      "no_risk": "No hay pistas en riesgo en este momento.",
+      "last_activity": "Última actividad",
+      "follow_up": "Seguimiento",
+      "risk_7": "Más de 7 días sin acción",
+      "risk_14": "Más de 14 días sin acción"
+    },
+    "bulk": {
+      "selected": "{count} seleccionado",
+      "status_label": "Estado",
+      "status_placeholder": "Cambiar estado",
+      "assign_label": "Asignar a",
+      "assign_placeholder": "Seleccionar cesionario",
+      "apply_status": "Aplicar estado",
+      "apply_assign": "Asignar",
+      "lost_reason": "razón perdida",
+      "lost_reason_prompt": "Proporciona una razón perdida."
+    },
+    "table": {
+      "request": "Solicitar",
+      "customer": "Cliente",
+      "status": "Estado",
+      "assignee": "Cesionario",
+      "follow_up": "Seguimiento",
+      "created": "Creado",
+      "actions": "Acciones"
+    },
+    "labels": {
+      "request_number": "Solicitud #{id}",
+      "request": "Solicitar",
+      "unknown_customer": "Cliente desconocido",
+      "unknown_status": "Estado desconocido",
+      "unassigned": "No asignado",
+      "no_follow_up": "Sin seguimiento"
+    },
+    "show": {
+      "details": "Detalles del cliente potencial",
+      "channel_fallback": "Canal desconocido",
+      "service": "Servicio",
+      "service_fallback": "No especificado",
+      "urgency": "Urgencia",
+      "urgency_fallback": "No especificado",
+      "description": "Descripción",
+      "description_empty": "Aún no hay descripción.",
+      "address": "Dirección",
+      "no_address": "Aún no hay dirección.",
+      "summary": "Resumen",
+      "contact": "Contacto",
+      "phone": "Teléfono",
+      "email": "Correo electrónico",
+      "email_action": "Correo electrónico",
+      "call": "llamar",
+      "whatsapp": "WhatsApp",
+      "customer": "Cliente",
+      "status_updated": "Estado actualizado",
+      "source": "Fuente"
+    },
+    "origin": {
+      "title": "Origen de la campaña",
+      "campaign": "Campaña",
+      "kind": "Tipo de atribución",
+      "direction": "Dirección",
+      "channel": "Canal fuente",
+      "prospect": "prospecto de origen",
+      "batch": "Lote fuente",
+      "first_outreach": "Primer alcance",
+      "attributed_at": "Atribuido en",
+      "utm": "contexto UTM",
+      "kinds": {
+        "campaign_prospecting": "Campaña de prospección",
+        "campaign_inbound": "Campaña entrante"
+      },
+      "directions": {
+        "inbound": "entrante",
+        "outbound": "saliente"
+      }
+    },
+    "notes": {
+      "title": "Notas",
+      "empty": "Aún no hay notas.",
+      "add": "Agregar nota",
+      "save": "guardar nota",
+      "delete": "Eliminar",
+      "delete_confirm": "¿Eliminar esta nota?",
+      "author_fallback": "Miembro del equipo"
+    },
+    "media": {
+      "title": "Archivos",
+      "empty": "Aún no hay archivos.",
+      "upload": "Subir",
+      "delete": "Eliminar",
+      "delete_confirm": "¿Eliminar este archivo?",
+      "invalid_type": "Tipo de archivo no compatible. Solo PDF o imagen.",
+      "too_large": "Archivo demasiado grande. Máximo 10 MB.",
+      "author_fallback": "Miembro del equipo",
+      "view": "Ver",
+      "download": "Descargar",
+      "file": "Archivo"
+    },
+    "tasks": {
+      "title": "Tareas de seguimiento",
+      "empty": "Aún no hay tareas.",
+      "create": "Crear tarea",
+      "assign_action": "Asignar",
+      "assigned_badge": "Asignado",
+      "unassigned_badge": "No asignado",
+      "title_label": "Título de la tarea",
+      "description": "Notas",
+      "assignee": "Cesionario",
+      "due_date": "fecha de vencimiento",
+      "no_due": "Sin fecha de vencimiento",
+      "todo": "hacer",
+      "in_progress": "En progreso",
+      "done": "Hecho"
+    },
+    "activity": {
+      "title": "Actividad",
+      "empty": "Aún no hay actividad.",
+      "author_fallback": "Sistema"
+    },
+    "status": {
+      "new": "Nuevo",
+      "call_requested": "Llamada solicitada",
+      "contacted": "Contactado",
+      "qualified": "Calificado",
+      "quote_sent": "Cotización enviada",
+      "won": "Ganado",
+      "lost": "perdido",
+      "converted": "Convertido"
+    },
+    "empty": "No se encontraron solicitudes.",
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "showing": "Mostrando {from}-{to}"
+    },
+    "convert": {
+      "title": "Convertir solicitud en cotización",
+      "default_job_title": "Nueva cotización",
+      "create_customer": "Crear nuevo cliente",
+      "customer": "Cliente",
+      "select_customer": "Seleccionar cliente",
+      "location": "Ubicación",
+      "no_location": "Sin ubicación",
+      "location_fallback": "Ubicación",
+      "customer_name": "Nombre del cliente",
+      "contact_name": "Nombre de contacto",
+      "contact_email": "Correo electrónico de contacto",
+      "contact_phone": "Teléfono de contacto",
+      "job_title": "Título del trabajo",
+      "notes_optional": "Notas (opcional)"
+    },
+    "update": {
+      "title": "Solicitud de actualización",
+      "status": "Estado",
+      "assignee": "Cesionario",
+      "follow_up": "Próximo seguimiento",
+      "lost_reason": "razón perdida"
+    },
+    "quick_form": {
+      "new_customer": "Nuevo cliente",
+      "existing_customer": "Cliente existente",
+      "create_customer": "Crear cliente",
+      "customer_optional": "Cliente (opcional)",
+      "loading_customers": "Cargando clientes...",
+      "search_placeholder": "Buscar clientes",
+      "no_customer": "Ningún cliente",
+      "continue_without": "Continuar sin cliente",
+      "title": "Título",
+      "service_type": "Tipo de servicio",
+      "source": "Fuente",
+      "source_placeholder": "Seleccionar fuente",
+      "urgency_optional": "Urgencia (opcional)",
+      "urgency_placeholder": "Seleccione urgencia",
+      "serviceable_optional": "Útil (opcional)",
+      "serviceable_placeholder": "Seleccione reparable",
+      "budget_optional": "Presupuesto (opcional)",
+      "contact_name_optional": "Nombre de contacto (opcional)",
+      "contact_email_optional": "Correo electrónico de contacto (opcional)",
+      "contact_phone_optional": "Teléfono de contacto (opcional)",
+      "description_optional": "Descripción (opcional)"
+    }
+  }
+}

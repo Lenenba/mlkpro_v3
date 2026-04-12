@@ -1,0 +1,1421 @@
+{
+  "super_admin": {
+    "common": {
+      "not_available": "N/A",
+      "unknown": "Desconocido",
+      "actions": "Acciones",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "view": "Ver",
+      "close": "Cerrar",
+      "cancel": "Cancelar",
+      "save_changes": "Guardar cambios",
+      "filters": "Filtros",
+      "clear": "Borrar",
+      "apply_filters": "Aplicar filtros",
+      "apply": "Aplicar",
+      "all": "Todos",
+      "unlimited": "Ilimitado",
+      "enabled": "Habilitado",
+      "disabled": "Discapacitado"
+    },
+    "dashboard": {
+      "page_title": "Panel de control de superadministrador",
+      "title": "Panel de plataforma",
+      "subtitle": "KPI globales y estado de la plataforma en todas las empresas.",
+      "kpi": {
+        "total_companies": "Total empresas",
+        "onboarded": "Incorporado: {count} ({percent})",
+        "new_companies_30d": "Nuevas empresas (30d)",
+        "onboarding_conversion_30d": "Conversión de incorporación: {percent}",
+        "active_companies": "Empresas activas",
+        "active_wau_mau": "WAU {wau} / MAU {mau}",
+        "activation_rates": "Activación J7 {j7} | J30 {j30}",
+        "platform_health": "Estado de la plataforma",
+        "health_hint": "{failed} trabajos fallidos · {pending} pendiente"
+      },
+      "actions": {
+        "tenants": "inquilinos",
+        "support": "Soporte",
+        "announcements": "Anuncios",
+        "admins": "Administradores",
+        "notifications": "Notificaciones",
+        "settings": "Configuración"
+      },
+      "action_center": {
+        "title": "centro de acción",
+        "support": "Soporte",
+        "announcements": "Anuncios",
+        "notifications": "Notificaciones",
+        "tenants": "inquilinos",
+        "admins": "Administradores",
+        "settings": "Configuración"
+      },
+      "acquisition": {
+        "title": "Adquisición (últimos 7 días)",
+        "empty": "Sin datos de adquisición."
+      },
+      "site_traffic": {
+        "title": "Tráfico del sitio web",
+        "last_24h": "Últimas 24h",
+        "last_7d": "últimos 7 días",
+        "last_30d": "últimos 30 días",
+        "unique_label": "{count} único",
+        "legend_total": "Total",
+        "legend_unique": "Único",
+        "empty": "Aún no hay datos de tráfico."
+      },
+      "alerts": {
+        "title": "Alertas de plataforma",
+        "last_24h": "Últimas 24h",
+        "limits": "Inquilinos cerca de los límites",
+        "limit_list": "Limitar alertas",
+        "limit_empty": "Ningún inquilino está cerca de sus límites.",
+        "stripe_failures": "Fallos de rayas",
+        "smtp_failures": "Fallos SMTP",
+        "jobs_backlog": "Trabajos pendientes",
+        "jobs_backlog_detail": "{pending} pendiente · más antiguo {oldest} min",
+        "storage": "Uso de almacenamiento"
+      },
+      "risk": {
+        "title": "Inquilinos en riesgo",
+        "view_all": "Ver todo",
+        "empty": "No hay inquilinos marcados.",
+        "last_activity": "Última actividad: {date}",
+        "inactive_days": "{count} días inactivo",
+        "flags": {
+          "onboarding": "Incorporación bloqueada",
+          "churn": "Riesgo de abandono",
+          "inactive_14": "Inactivo 14d",
+          "inactive_30": "Inactivo 30d"
+        }
+      },
+      "usage": {
+        "title": "Uso (últimos 30 días)",
+        "quotes": "Cotizaciones",
+        "invoices": "Facturas",
+        "jobs": "Trabajos",
+        "products": "Productos",
+        "services": "Servicios",
+        "avg_days_to_first": "Promedio de días al primero: Cotización {quote}, Factura {invoice}, Producto {product}, Servicio {service}, Trabajo {job}",
+        "service_mix": "Combinación de servicios: {services} servicios / {products} productos ({percent}% servicios)"
+      },
+      "usage_trends": {
+        "title": "Uso por módulo (7d / 30d)",
+        "module": "Módulo",
+        "last_7d": "7d",
+        "last_30d": "30d",
+        "trend": "Tendencia",
+        "empty": "Sin datos de uso."
+      },
+      "revenue": {
+        "title": "Ingresos y retención",
+        "mrr": "MRR",
+        "arpu": "ARPU",
+        "active_subs": "Subs activos",
+        "trialing": "Ensayo",
+        "payment_failed": "Pago fallido",
+        "trial_conversion": "Conversión de prueba",
+        "churn_30d": "Rotación (30d)",
+        "churn_rate": "tasa de abandono"
+      },
+      "cohorts": {
+        "title": "Cohortes (retención de 30 días)",
+        "month": "Mes",
+        "new": "Nuevo",
+        "retained": "Retenido",
+        "empty": "Aún no hay datos de cohorte."
+      },
+      "health": {
+        "title": "Salud",
+        "failed_jobs_24h": "Trabajos fallidos 24h",
+        "failed_jobs_7d": "Trabajos fallidos 7d",
+        "email_failures_24h": "Fallos de correo electrónico 24h",
+        "pending_jobs": "Trabajos pendientes",
+        "oldest_job_minutes": "Edad laboral más antigua (min)",
+        "public_storage": "Almacenamiento público"
+      },
+      "data_quality": {
+        "title": "Calidad de datos",
+        "customer_email_duplicates": "Duplicados de correo electrónico del cliente",
+        "customer_name_duplicates": "Duplicados del nombre del cliente",
+        "product_name_duplicates": "Duplicados del nombre del producto"
+      },
+      "limits": {
+        "quotes": "Cotizaciones",
+        "requests": "Solicitudes",
+        "plan_scan_quotes": "Planificar cotizaciones de escaneo",
+        "invoices": "Facturas",
+        "jobs": "Trabajos",
+        "products": "Productos",
+        "services": "Servicios",
+        "tasks": "Tareas",
+        "team_members": "Miembros del equipo",
+        "assistant_requests": "Solicitudes de asistente de IA"
+      },
+      "trend": {
+        "none": "Sin tendencia",
+        "flat": "Sin cambios",
+        "up": "arriba",
+        "down": "abajo",
+        "new": "Nuevo"
+      },
+      "audit": {
+        "title": "Suplantación y auditoría",
+        "impersonate_cta": "hacerse pasar por un inquilino",
+        "filters": {
+          "admin": "administrador",
+          "tenant": "inquilino",
+          "action": "acción"
+        },
+        "empty": "No se encontraron registros de auditoría.",
+        "action_by": "Por {user}",
+        "actions": {
+          "tenant.limits_updated": "Límites de inquilinos actualizados",
+          "tenant.features_updated": "Funciones para inquilinos actualizadas",
+          "tenant.plan_updated": "Plan de inquilino actualizado",
+          "tenant.suspended": "Inquilino suspendido",
+          "tenant.restored": "Inquilino restaurado",
+          "tenant.onboarding_reset": "Reinicio de incorporación",
+          "tenant.impersonate": "Suplantación de inquilino",
+          "tenant.export": "Exportación de datos de inquilinos",
+          "platform_settings.updated": "Configuración de la plataforma actualizada",
+          "notifications.updated": "Notificaciones de la plataforma actualizadas",
+          "platform_announcement.created": "Anuncio de plataforma creado",
+          "platform_announcement.updated": "Anuncio de plataforma actualizado",
+          "platform_announcement.deleted": "Anuncio de plataforma eliminado",
+          "platform_page.created": "Página pública creada",
+          "platform_page.updated": "Página pública actualizada",
+          "platform_page.deleted": "Página pública eliminada",
+          "platform_section.created": "Sección pública creada",
+          "platform_section.updated": "Sección pública actualizada",
+          "platform_section.deleted": "Sección pública eliminada",
+          "platform_admin.created": "Administrador de plataforma creado",
+          "platform_admin.updated": "Administrador de plataforma actualizado",
+          "welcome_builder.updated": "Página de bienvenida actualizada"
+        }
+      },
+      "recent_activity": {
+        "title": "Actividad administrativa reciente",
+        "empty": "No hay acciones de administrador recientes.",
+        "action_by": "{action} por {user}"
+      }
+    },
+    "admins": {
+      "page_title": "Administradores de plataforma",
+      "title": "Administradores de plataforma",
+      "subtitle": "Cree y administre cuentas de administrador delegado.",
+      "actions": {
+        "add": "Agregar administrador",
+        "create": "Crear administrador",
+        "edit": "Editar administrador"
+      },
+      "stats": {
+        "total": "Administradores totales",
+        "active": "Activo",
+        "inactive": "Inactivo",
+        "require_2fa": "Requerir 2FA"
+      },
+      "table": {
+        "name": "Nombre",
+        "email": "Correo electrónico",
+        "role": "Rol",
+        "status": "Estado"
+      },
+      "status": {
+        "active": "Activo",
+        "inactive": "Inactivo"
+      },
+      "empty": "Aún no hay administradores de plataforma.",
+      "form": {
+        "name": "Nombre",
+        "email": "Correo electrónico",
+        "role": "Rol",
+        "permissions": "Permisos",
+        "require_2fa": "Requerir 2FA"
+      }
+    },
+    "tenants": {
+      "page_title": "inquilinos",
+      "title": "inquilinos",
+      "subtitle": "Busca y gestiona todas las empresas de la plataforma.",
+      "stats": {
+        "total_companies": "Total empresas",
+        "active": "Activo",
+        "suspended": "suspendido",
+        "new_30d": "Nuevo (30d)",
+        "onboarded": "Incorporado"
+      },
+      "filters": {
+        "search_placeholder": "Buscar empresa, propietario o correo electrónico",
+        "company_type": "Tipo de empresa",
+        "status": "Estado",
+        "plan": "Planificar",
+        "created_from": "Creado a partir de",
+        "created_to": "Creado para"
+      },
+      "company_types": {
+        "services": "Servicios",
+        "products": "Productos"
+      },
+      "table": {
+        "company": "Empresa",
+        "owner": "propietario",
+        "type": "Tipo",
+        "plan": "Planificar",
+        "status": "Estado",
+        "created": "Creado",
+        "unnamed_company": "Empresa sin nombre"
+      },
+      "status": {
+        "active": "Activo",
+        "suspended": "suspendido"
+      },
+      "empty": "No se encontraron inquilinos.",
+      "detail": {
+        "fallback_title": "inquilino",
+        "export_data": "Exportar datos",
+        "impersonate": "Suplantar",
+        "company_details": "Detalles de la empresa",
+        "owner": "propietario",
+        "type": "Tipo",
+        "location": "Ubicación",
+        "created": "Creado",
+        "onboarding": "Incorporación",
+        "onboarding_completed": "Completado",
+        "onboarding_pending": "Pendiente",
+        "status": "Estado",
+        "subscription": "Suscripción",
+        "plan_label": "Planificar",
+        "subscription_status": "Estado",
+        "comped_badge": "Comped (100% de descuento)",
+        "plan_management": "Gestión de planos",
+        "plan_select": "Planificar",
+        "plan_comped_label": "Comped (100% de descuento)",
+        "plan_comped_help": "Stripe registra un plan pago activo pero no se realiza ningún cargo.",
+        "plan_update": "Plan de actualización",
+        "plan_unavailable": "Las actualizaciones del plan solo están disponibles cuando la facturación de Stripe está configurada.",
+        "plan_no_plans": "No se configuran planes pagos.",
+        "usage": "Uso",
+        "usage_customers": "Clientes",
+        "usage_quotes": "Cotizaciones",
+        "usage_plan_scan_quotes": "Planificar cotizaciones de escaneo",
+        "usage_invoices": "Facturas",
+        "usage_jobs": "Trabajos",
+        "usage_products": "Productos",
+        "usage_services": "Servicios",
+        "usage_tasks": "Tareas",
+        "usage_team_members": "Miembros del equipo",
+        "account_actions": "Acciones de cuenta",
+        "security_overrides": "Anulaciones de seguridad",
+        "security_disable_2fa": "Deshabilitar 2FA para este inquilino",
+        "security_disable_2fa_help": "Úselo solo para desbloquear el acceso si el propietario no puede recibir códigos 2FA.",
+        "security_save": "Guardar seguridad",
+        "suspended_label": "suspendido",
+        "suspended_reason_empty": "No se proporcionó ningún motivo.",
+        "suspension_reason": "Motivo de suspensión",
+        "suspend_tenant": "suspender inquilino",
+        "restore_tenant": "Restaurar inquilino",
+        "reset_onboarding": "Restablecer incorporación",
+        "no_manage_permission": "No tiene permiso para gestionar las acciones de los inquilinos.",
+        "feature_flags": "Banderas de características",
+        "update_features": "Funciones de actualización",
+        "no_feature_permission": "No tienes permiso para actualizar indicadores de funciones.",
+        "usage_vs_limits": "Uso versus límites",
+        "usage_table": {
+          "module": "Módulo",
+          "used": "Usado",
+          "limit": "Límite",
+          "usage": "Uso"
+        },
+        "usage_empty": "No hay datos de uso disponibles.",
+        "usage_warning": "Algunos módulos están cerca o por encima de sus límites.",
+        "manual_overrides": "Anulación de límites manuales",
+        "save_overrides": "Guardar anulaciones",
+        "no_limits_permission": "No tienes permiso para actualizar los límites."
+      }
+    },
+    "support": {
+      "page_title": "Boletos de soporte",
+      "title": "Tickets de soporte",
+      "subtitle": "Realice un seguimiento de SLA, estado y etiquetas para solicitudes de soporte de plataforma.",
+      "actions": {
+        "new_ticket": "Nuevo billete",
+        "create_ticket": "Crear ticket",
+        "update_ticket": "Actualizar ticket",
+        "save_ticket": "Guardar billete",
+        "back": "Volver a entradas",
+        "send_message": "enviar mensaje"
+      },
+      "stats": {
+        "total": "Entradas totales",
+        "open": "Abierto",
+        "assigned": "Asignado",
+        "pending": "Pendiente",
+        "resolved": "Resuelto",
+        "closed": "Cerrado"
+      },
+      "filters": {
+        "search_placeholder": "Buscar entradas o inquilinos",
+        "status": "Estado",
+        "priority": "Prioridad",
+        "tenant": "inquilino"
+      },
+      "table": {
+        "title": "Título",
+        "tenant": "inquilino",
+        "assigned": "Asignado",
+        "status": "Estado",
+        "priority": "Prioridad",
+        "sla": "SLA",
+        "tags": "Etiquetas"
+      },
+      "labels": {
+        "internal": "Interno",
+        "tenant": "inquilino",
+        "created_at": "Creado",
+        "assigned_to": "Asignado a",
+        "sla_due": "SLA vencido"
+      },
+      "audit": {
+        "actions": {
+          "support_ticket.created": "Boleto creado",
+          "support_ticket.updated": "Boleto actualizado",
+          "support_ticket.assigned": "Boleto asignado",
+          "support_ticket.status_changed": "Estado actualizado",
+          "support_ticket.message_added": "Mensaje agregado",
+          "support_ticket.sla_due_soon_sent": "Recordatorio de SLA enviado",
+          "support_ticket.sla_overdue_sent": "Se envió un recordatorio de SLA vencido",
+          "support_ticket.unassigned_reminder_sent": "Recordatorio no asignado enviado"
+        }
+      },
+      "sections": {
+        "conversation": "Conversación",
+        "history": "Historia",
+        "update": "Actualizar ticket",
+        "details": "Detalles",
+        "attachments": "Adjuntos"
+      },
+      "attachments": {
+        "file": "Adjunto"
+      },
+      "empty": "No se encontraron entradas.",
+      "empty_states": {
+        "conversation": "Aún no hay mensajes.",
+        "history": "Aún no hay actividad.",
+        "attachments": "Aún no hay archivos adjuntos."
+      },
+      "form": {
+        "tenant": "inquilino",
+        "select_tenant": "Seleccionar inquilino",
+        "title": "Título",
+        "description": "Descripción",
+        "status": "Estado",
+        "priority": "Prioridad",
+        "sla_due": "SLA vencido",
+        "tags": "Etiquetas (separadas por comas)",
+        "assigned": "Asignado a",
+        "select_assignee": "Seleccionar cesionario",
+        "message": "Escribe una respuesta",
+        "internal_message": "Nota interna (no visible para el cliente)"
+      },
+      "editor": {
+        "heading_2": "Título 2",
+        "heading_3": "Título 3",
+        "bold": "Negrita",
+        "italic": "cursiva",
+        "underline": "subrayado",
+        "unordered_list": "Lista con viñetas",
+        "ordered_list": "lista numerada",
+        "quote": "Cotización",
+        "code_block": "bloque de código",
+        "horizontal_rule": "Divisor",
+        "link": "Enlace",
+        "image": "Imagen",
+        "ai_image": "imagen de IA",
+        "clear": "Borrar formato",
+        "link_prompt": "Introduzca una URL de enlace",
+        "image_prompt": "Introduzca una URL de imagen",
+        "ai_prompt": "Describe la imagen a generar."
+      },
+      "show": {
+        "title": "ticket de soporte"
+      }
+    },
+    "announcements": {
+      "page_title": "Anuncios",
+      "title": "Anuncios en el panel del cliente",
+      "subtitle": "Administre videos o folletos que se muestran en los paneles de inquilinos/clientes.",
+      "actions": {
+        "preview": "Vista previa de ubicación",
+        "add": "Agregar anuncio",
+        "confirm_delete": "¿Eliminar este anuncio?",
+        "create": "Crear anuncio"
+      },
+      "stats": {
+        "total": "Total",
+        "active": "Activo",
+        "drafts": "Borradores",
+        "with_media": "Con los medios",
+        "targeted": "Dirigido"
+      },
+      "filters": {
+        "search_placeholder": "Buscar anuncios",
+        "status": "Estado",
+        "audience": "Audiencia",
+        "placement": "Colocación",
+        "media": "Medios"
+      },
+      "status": {
+        "active": "Activo",
+        "draft": "Borrador"
+      },
+      "audience": {
+        "tenants": "Inquilinos específicos",
+        "new_tenants": "Nuevos inquilinos",
+        "all": "Todos los inquilinos"
+      },
+      "placement": {
+        "internal": "Tablero superior",
+        "quick_actions": "Ranura de acciones rápidas"
+      },
+      "media": {
+        "image": "Imagen",
+        "video": "Vídeo",
+        "none": "Sin medios"
+      },
+      "display_style": {
+        "media_only": "Solo medios",
+        "standard": "Tarjeta estándar"
+      },
+      "window": {
+        "range": "{start} a {end}",
+        "until": "Hasta {end}",
+        "from": "Desde {start}"
+      },
+      "table": {
+        "title": "Título",
+        "audience": "Audiencia",
+        "status": "Estado",
+        "window": "ventana",
+        "media": "Medios",
+        "priority": "Prioridad",
+        "targets": "Objetivos",
+        "new_tenants": "Nuevos inquilinos: {days} días",
+        "attached": "Adjunto"
+      },
+      "empty": "No se encontraron anuncios.",
+      "form": {
+        "edit_title": "Editar anuncio",
+        "new_title": "Nuevo anuncio",
+        "title": "Título",
+        "status": "Estado",
+        "message": "Mensaje",
+        "display_style": "Estilo de visualización",
+        "display_style_hint": "Los medios solo ocultan el título, el mensaje y el enlace.",
+        "card_background": "Fondo de la tarjeta",
+        "audience": "Audiencia",
+        "placement": "Colocación",
+        "priority": "Prioridad",
+        "target_tenants": "Inquilinos objetivo",
+        "new_tenant_window": "Ventana para nuevo inquilino (días)",
+        "start_date": "Fecha de inicio",
+        "end_date": "Fecha de finalización",
+        "media_section": "Medios",
+        "media_type": "Tipo de medio",
+        "media_url": "URL de medios",
+        "upload_file": "Subir archivo",
+        "remove_media": "Eliminar medios existentes",
+        "current_media": "Medios actuales",
+        "link_label": "Etiqueta de enlace",
+        "link_url": "URL del enlace"
+      }
+    },
+    "announcements_preview": {
+      "page_title": "Vista previa del anuncio",
+      "title": "Vista previa del anuncio",
+      "subtitle": "Obtenga una vista previa de cómo aparecen los anuncios en el panel de la empresa.",
+      "manage": "Administrar anuncios",
+      "example_view": "Vista de ejemplo",
+      "top": {
+        "title": "Ubicación superior",
+        "subtitle": "Se muestra junto a las tarjetas KPI en la parte superior del panel.",
+        "panel_title": "Ubicación superior",
+        "empty": "No hay anuncios activos para la primera posición."
+      },
+      "quick": {
+        "title": "Colocación de acciones rápidas",
+        "subtitle": "Reemplaza la tarjeta de acciones rápidas en el lado derecho del tablero.",
+        "panel_title": "Ranura de acciones rápidas",
+        "empty": "No hay anuncios activos para la colocación de acciones rápidas."
+      }
+    },
+    "notifications": {
+      "page_title": "Preferencias de notificación",
+      "title": "Preferencias de notificación",
+      "subtitle": "Elija qué alertas recibe y cómo las recibe.",
+      "channels": "Canales",
+      "categories": "Categorías",
+      "digest_frequency": "Frecuencia de resumen",
+      "quiet_start": "Comienzan las horas de silencio (HH:MM)",
+      "quiet_end": "Finalizan las horas de silencio (HH:MM)",
+      "alert_thresholds": "Umbrales de alerta",
+      "rules": {
+        "error_spike": "Pico de errores",
+        "payment_failed": "Pago fallido",
+        "churn_risk": "Riesgo de abandono"
+      },
+      "save": "Guardar preferencias"
+    },
+    "settings": {
+      "page_title": "Configuración de la plataforma",
+      "title": "Configuración de la plataforma",
+      "subtitle": "Configure las preferencias de la plataforma global.",
+      "maintenance": {
+        "title": "Modo de mantenimiento",
+        "enable": "Habilitar banner de mantenimiento",
+        "message": "Mensaje de mantenimiento",
+        "save": "Guardar configuración"
+      },
+      "templates": {
+        "title": "Plantillas globales",
+        "email_default": "Plantilla de correo electrónico predeterminada",
+        "quote_default": "Plantilla de cotización predeterminada",
+        "invoice_default": "Plantilla de factura predeterminada",
+        "save": "Guardar plantillas"
+      },
+      "plan_limits": {
+        "title": "Límites del plan",
+        "subtitle": "Establezca límites de uso predeterminados por plan (déjelo en blanco para ilimitado).",
+        "empty": "No hay planes configurados.",
+        "edit_limits": "Editar límites",
+        "helper": "Haga clic en una tarjeta de plan para editar sus límites (déjelo en blanco para ilimitado).",
+        "save": "Guardar límites",
+        "edit_limits_title": "Editar límites - {plan}",
+        "modal_hint": "Deje un campo en blanco para mantenerlo ilimitado."
+      },
+      "plan_modules": {
+        "title": "Módulos del plan",
+        "subtitle": "Elija qué módulos están habilitados por plan.",
+        "empty": "No hay planes configurados.",
+        "edit_modules": "Editar módulos",
+        "helper": "Haga clic en una tarjeta de plan para editar sus módulos habilitados.",
+        "save": "Guardar módulos",
+        "edit_modules_title": "Editar módulos - {plan}",
+        "modal_hint": "Deshabilite los módulos para ocultarlos de este plan."
+      },
+      "plan_display": {
+        "title": "Visualización del plano",
+        "subtitle": "Edite el contenido que se muestra en las tarjetas del plan (nombre, etiqueta de precio, insignia, características).",
+        "empty": "No hay planes configurados.",
+        "edit_display": "Editar visualización",
+        "helper": "Haga clic en una tarjeta de plan para editar lo que se muestra a las empresas.",
+        "save": "Guardar visualización",
+        "edit_display_title": "Editar visualización - {plan}",
+        "fields": {
+          "name": "Nombre del plan",
+          "price": "etiqueta de precio",
+          "badge": "Etiqueta de insignia",
+          "features": "Características",
+          "add_feature": "Agregar característica",
+          "remove": "Quitar"
+        }
+      },
+      "limits": {
+        "quotes": "Cotizaciones",
+        "requests": "Solicitudes",
+        "plan_scan_quotes": "Planificar cotizaciones de escaneo",
+        "invoices": "Facturas",
+        "jobs": "Trabajos",
+        "products": "Productos",
+        "services": "Servicios",
+        "tasks": "Tareas",
+        "team_members": "Miembros del equipo",
+        "assistant_requests": "Asistente de IA (mensajes)"
+      },
+      "modules": {
+        "quotes": "Cotizaciones",
+        "requests": "Solicitudes",
+        "reservations": "Reservas",
+        "plan_scans": "Planificar escaneos",
+        "invoices": "Facturas",
+        "jobs": "Trabajos",
+        "products": "Productos",
+        "performance": "Rendimiento",
+        "presence": "Presencia",
+        "planning": "Planificación",
+        "services": "Servicios",
+        "tasks": "Tareas",
+        "team_members": "Miembros del equipo",
+        "assistant": "asistente de IA",
+        "loyalty": "Lealtad",
+        "campaigns": "Campañas"
+      }
+    },
+    "welcome_builder": {
+      "title": "Bienvenido constructor",
+      "subtitle": "Edite la página de bienvenida pública como un mini CMS.",
+      "meta": {
+        "updated_at": "Última actualización",
+        "never": "nunca"
+      },
+      "actions": {
+        "preview": "Vista previa",
+        "back_dashboard": "Volver al tablero",
+        "save": "Guardar página de bienvenida"
+      },
+      "locale": {
+        "label": "Idioma",
+        "hint": "Los cambios se aplican únicamente a la configuración regional seleccionada."
+      },
+      "sections": {
+        "navigation": {
+          "title": "Navegación",
+          "tagline": "Lema",
+          "menu_hint": "Botones y enlaces en la parte superior derecha.",
+          "add_menu": "Agregar elemento de menú"
+        },
+        "hero": {
+          "title": "héroe",
+          "eyebrow": "ceja",
+          "note": "Nota",
+          "title_label": "Título",
+          "subtitle": "Subtítulo",
+          "primary_label": "Etiqueta de CTA principal",
+          "primary_href": "CTA principal href/ruta",
+          "secondary_label": "Etiqueta CTA secundaria",
+          "secondary_href": "CTA secundaria href/ruta",
+          "stat_value": "Valor de estadística",
+          "stat_label": "etiqueta de estadística",
+          "highlights": "Destacados (uno por línea)",
+          "preview_title": "Título de vista previa",
+          "preview_desc": "Descripción de vista previa"
+        },
+        "trust": {
+          "title": "banda de confianza",
+          "title_label": "Título",
+          "items": "Artículos (uno por línea)"
+        },
+        "features": {
+          "title": "Características",
+          "kicker": "pateador",
+          "title_label": "Título",
+          "subtitle": "Subtítulo",
+          "add_item": "Agregar característica"
+        },
+        "new_features": {
+          "title": "Nuevas características",
+          "kicker": "pateador",
+          "title_label": "Título",
+          "subtitle": "Subtítulo",
+          "badge": "Insignia",
+          "add_item": "Agregar nueva característica"
+        },
+        "workflow": {
+          "title": "Flujo de trabajo",
+          "kicker": "pateador",
+          "title_label": "Título",
+          "subtitle": "Subtítulo",
+          "add_step": "Agregar paso"
+        },
+        "field": {
+          "title": "Sección de campo",
+          "kicker": "pateador",
+          "title_label": "Título",
+          "subtitle": "Subtítulo",
+          "items": "Viñetas (una por línea)"
+        },
+        "cta": {
+          "title": "CTA inferior",
+          "title_label": "Título",
+          "subtitle": "Subtítulo",
+          "primary_label": "etiqueta primaria",
+          "primary_href": "href principal/ruta",
+          "secondary_label": "etiqueta secundaria",
+          "secondary_href": "href/ruta secundaria"
+        },
+        "custom": {
+          "title": "Secciones personalizadas",
+          "add": "Agregar sección",
+          "empty": "Aún no hay secciones personalizadas.",
+          "section_label": "Sección"
+        },
+        "footer": {
+          "title": "Pie de página",
+          "terms_label": "Etiqueta de términos",
+          "terms_href": "Términos href/ruta",
+          "copy": "Derechos de autor"
+        }
+      },
+      "common": {
+        "enabled": "Habilitado",
+        "label": "Etiqueta",
+        "href": "Href o nombre de ruta",
+        "style": "Estilo",
+        "background": "Antecedentes",
+        "background_hex": "Color de fondo (#hexadecimal)",
+        "background_preset": "Fondo preestablecido",
+        "background_presets": {
+          "none": "Sin preajuste",
+          "welcome_hero": "Bienvenido héroe gradiente",
+          "graphite_crimson": "Negro y rojo",
+          "obsidian_amber": "Negro y ámbar",
+          "midnight_cobalt": "azul medianoche",
+          "deep_ocean": "océano profundo"
+        },
+        "move_up": "arriba",
+        "move_down": "abajo",
+        "remove": "Quitar",
+        "preview": "Vista previa",
+        "remove_image": "Quitar imagen",
+        "image_hint": "La carga reemplaza la imagen actual.",
+        "image_url": "URL de la imagen",
+        "image_alt": "Texto alternativo de la imagen",
+        "key": "clave",
+        "title": "Título",
+        "description": "Descripción",
+        "kicker": "pateador",
+        "body": "cuerpo",
+        "primary_label": "etiqueta primaria",
+        "primary_href": "href principal/ruta",
+        "secondary_label": "etiqueta secundaria",
+        "secondary_href": "href/ruta secundaria"
+      },
+      "styles": {
+        "outline": "esquema",
+        "solid": "Sólido",
+        "ghost": "fantasma"
+      }
+    },
+    "pages": {
+      "title": "Constructor de páginas",
+      "subtitle": "Cree, edite y publique páginas públicas.",
+      "empty": "Aún no hay páginas. Crea el primero.",
+      "meta": {
+        "updated_at": "Última actualización",
+        "never": "nunca"
+      },
+      "actions": {
+        "back_dashboard": "Volver al tablero",
+        "back_list": "Volver a las páginas",
+        "create": "Nueva pagina",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "view": "Ver",
+        "preview": "Página de vista previa",
+        "save": "Guardar página",
+        "confirm_delete": "¿Eliminar /pages/{slug}?"
+      },
+      "status": {
+        "active": "Activo",
+        "draft": "Borrador"
+      },
+      "filters": {
+        "search": "Buscar",
+        "search_placeholder": "Título o babosa",
+        "status": "Estado",
+        "all_statuses": "Todos los estados",
+        "clear": "Borrar",
+        "apply": "Aplicar",
+        "results": "{count} página(s)"
+      },
+      "table": {
+        "slug": "babosa",
+        "title": "Título",
+        "status": "Estado",
+        "updated": "Actualizado",
+        "actions": "Acciones"
+      },
+      "locale": {
+        "label": "Idioma",
+        "hint": "Las ediciones se aplican únicamente a la configuración regional seleccionada."
+      },
+      "header": {
+        "title": "encabezado",
+        "subtitle": "Configure el fondo del héroe y la alineación del título público.",
+        "alignment": "Alineación de texto",
+        "background_type": "Tipo de fondo",
+        "background_color": "Color de fondo",
+        "background_image_url": "Imagen de fondo",
+        "background_image_alt": "Texto alternativo de la imagen de fondo",
+        "background": {
+          "none": "Ninguno",
+          "color": "Color",
+          "image": "Imagen"
+        }
+      },
+      "templates": {
+        "title": "Plantillas",
+        "hint": "Elija una plantilla para completar previamente la página.",
+        "select": "Elige una plantilla",
+        "apply": "Aplicar plantilla",
+        "pricing": {
+          "label": "Página de precios",
+          "description": "Planes y precios para tus ofertas.",
+          "page_title": "Precios",
+          "page_subtitle": "Elija el plan que se adapte a su negocio.",
+          "sections": {
+            "hero": {
+              "kicker": "Planes",
+              "title": "Opciones simples y claras",
+              "body": "Compara planes y elige el ritmo que más te convenga.",
+              "items": {
+                "one": "Borrar facturación mensual",
+                "two": "Cancelar en cualquier momento",
+                "three": "Apoyo prioritario"
+              },
+              "primary_label": "Ver planos",
+              "secondary_label": "Contacta con el equipo"
+            },
+            "plans": {
+              "kicker": "¿Qué está incluido?",
+              "title": "Todo para lanzar rápido",
+              "body": "Cada plan incluye lo esencial para comenzar y luego escalar.",
+              "items": {
+                "one": "Clientes, cotizaciones, trabajos, facturas.",
+                "two": "Portal de cliente integrado",
+                "three": "Informes simples y claros"
+              }
+            }
+          }
+        },
+        "about": {
+          "label": "Acerca de la página",
+          "description": "Misión, valores y equipo.",
+          "page_title": "Acerca de",
+          "page_subtitle": "Nuestra misión y cómo ayudamos a los clientes.",
+          "sections": {
+            "mission": {
+              "kicker": "Misión",
+              "title": "Simplifique las operaciones de campo",
+              "body": "Ayudamos a los equipos a gestionar clientes, cotizaciones y trabajos sin fricciones."
+            },
+            "values": {
+              "kicker": "Valores",
+              "title": "que nos guia",
+              "body": "Principios simples para ofrecer mejores resultados y más rápido.",
+              "items": {
+                "one": "Claridad y transparencia",
+                "two": "Enfoque al cliente",
+                "three": "Mejora continua"
+              }
+            },
+            "team": {
+              "kicker": "Equipo",
+              "title": "Un equipo cerca del campo",
+              "body": "Construimos con y para profesionales del servicio.",
+              "primary_label": "Contáctenos"
+            }
+          }
+        }
+      },
+      "sections": {
+        "title": "Secciones",
+        "add": "Agregar sección",
+        "add_type": "Tipo de sección a agregar",
+        "section_label": "Sección",
+        "empty_title": "No hay secciones en esta página.",
+        "empty_subtitle": "Puedes empezar desde cero y agregar una nueva sección o insertar un bloque de la biblioteca.",
+        "edit": "Editar",
+        "close_editor": "Cerrar",
+        "cards_count": "{count} tarjetas",
+        "tabs_count": "{count} pestañas",
+        "items_count": "{count} balas",
+        "images_count": "{count} imágenes"
+      },
+      "library": {
+        "select": "bloque de biblioteca",
+        "add": "Agregar desde la biblioteca",
+        "manage": "Administrar biblioteca",
+        "source": "bloque fuente",
+        "use_source": "Usar contenido de la biblioteca",
+        "copy": "Copiar de la biblioteca",
+        "draft": "Borrador"
+      },
+      "shared_footer": {
+        "title": "Pie de página compartido",
+        "subtitle": "Este pie de página se aplica automáticamente en todas las páginas públicas. Actualízalo una vez aquí y el cambio fluirá por todas partes.",
+        "edit": "Editar pie de página",
+        "manage": "biblioteca abierta",
+        "navigation": "columnas",
+        "legal_links": "Enlaces legales",
+        "contact": "Contacto",
+        "note": "El pie de página no se gestiona como una sección del cuerpo normal. Permanece global y compartido en páginas públicas.",
+        "empty_title": "Pie de página compartido"
+      },
+      "layouts": {
+        "split": "Dividir (texto + imagen)",
+        "duo": "2 bloques (imagen + panel de color)",
+        "testimonial": "Testimonio (cita + imagen)",
+        "feature_pairs": "2 imágenes + 2 bloques de texto",
+        "showcase_cta": "Escaparate de CTA (héroe + medios en capas)",
+        "industry_grid": "Industrias (cuadrícula de tarjetas)",
+        "story_grid": "Tríptico visual (3 cartas)",
+        "feature_tabs": "Pestañas de funciones (acordeón + medios)",
+        "testimonial_grid": "Testimonios (cuadrícula de tarjetas)",
+        "footer": "Pie de página reutilizable",
+        "stack": "Pila (centrada)",
+        "contact": "Contacto (3 columnas)"
+      },
+      "alignments": {
+        "left": "Izquierda",
+        "center": "Centro",
+        "right": "Derecha"
+      },
+      "image_positions": {
+        "left": "Imagen izquierda",
+        "right": "Imagen derecha"
+      },
+      "showcase_divider_styles": {
+        "diagonal": "diagonal",
+        "vertical": "verticales",
+        "round": "redondo",
+        "curve": "Curva",
+        "notch": "muesca",
+        "glow": "Resplandor"
+      },
+      "densities": {
+        "compact": "Compacto",
+        "normal": "normales",
+        "spacious": "Espacioso"
+      },
+      "tones": {
+        "default": "Predeterminado",
+        "muted": "silenciado",
+        "contrast": "Alto contraste"
+      },
+      "edit": {
+        "title_create": "Crear página",
+        "title_edit": "Editar página"
+      },
+      "fields": {
+        "title": "Título de la página (administrador)",
+        "slug": "Babosa (URL)",
+        "is_active": "visible públicamente",
+        "page_title": "Título público",
+        "page_subtitle": "Subtítulo público",
+        "layout": "Diseño",
+        "items": "Viñetas (una por línea)",
+        "image_position": "Posición de la imagen"
+      },
+      "common": {
+        "enabled": "Habilitado",
+        "move_up": "arriba",
+        "move_down": "abajo",
+        "remove": "Quitar",
+        "key": "clave",
+        "description": "Descripción",
+        "background": "Antecedentes",
+        "background_hex": "Color de fondo (#hexadecimal)",
+        "background_preset": "Fondo preestablecido",
+        "background_presets": {
+          "none": "Sin preajuste",
+          "welcome_hero": "Bienvenido héroe gradiente",
+          "graphite_crimson": "Negro y rojo",
+          "obsidian_amber": "Negro y ámbar",
+          "midnight_cobalt": "azul medianoche",
+          "deep_ocean": "océano profundo"
+        },
+        "panel_background": "Fondo del panel de contenido",
+        "panel_background_hex": "Color del panel de contenido (#hex)",
+        "image_position": "Posición de la imagen",
+        "alignment": "Alineación",
+        "density": "densidad",
+        "tone": "tono",
+        "kicker": "pateador",
+        "title": "Título",
+        "body": "cuerpo",
+        "copy": "Copia de pie de página",
+        "card_label": "Título de la tarjeta",
+        "card_href": "Tarjeta href/ruta",
+        "card_icon": "Icono de tarjeta",
+        "story_card_title": "Título de la tarjeta visual",
+        "story_card_body": "Copia de tarjeta visual",
+        "story_card_image_url": "URL de la imagen de la tarjeta visual",
+        "story_card_image_alt": "Texto alternativo de imagen de tarjeta visual",
+        "tab_label": "Etiqueta de pestaña",
+        "tab_icon": "Icono de pestaña",
+        "tab_title": "Título del panel",
+        "tab_body": "Cuerpo del panel",
+        "tab_metric": "Métrica destacada",
+        "tab_story": "Cita / prueba social",
+        "tab_person": "Nombre de la persona",
+        "tab_role": "Rol de persona",
+        "tab_avatar_url": "URL del avatar de persona",
+        "tab_avatar_alt": "Texto alternativo de avatar",
+        "tab_items": "Subpuntos de tabulación (uno por línea)",
+        "tab_image_url": "URL de la imagen del panel",
+        "tab_image_alt": "Texto alternativo de la imagen del panel",
+        "tab_cta_label": "Etiqueta CTA del panel",
+        "tab_cta_href": "Panel CTA href/ruta",
+        "feature_item_label": "Etiqueta de elemento en la que se puede hacer clic",
+        "feature_item_title": "Título del panel de elementos en los que se puede hacer clic",
+        "feature_item_body": "Cuerpo del panel de elementos en los que se puede hacer clic",
+        "feature_item_image_url": "URL de imagen de elemento en el que se puede hacer clic",
+        "feature_item_image_alt": "Texto alternativo de la imagen del elemento en el que se puede hacer clic",
+        "feature_item_cta_label": "Etiqueta de CTA del elemento en el que se puede hacer clic",
+        "feature_item_cta_href": "Elemento en el que se puede hacer clic CTA href/ruta",
+        "testimonial_card_quote": "Cotización",
+        "testimonial_card_author_name": "Nombre",
+        "testimonial_card_author_role": "Rol",
+        "testimonial_card_author_company": "Empresa",
+        "testimonial_card_image_url": "URL de la foto",
+        "testimonial_card_image_alt": "Texto alternativo de la foto",
+        "testimonial_author": "Autor testimonial",
+        "testimonial_role": "Papel testimonial",
+        "aside_kicker": "Pateador de columna derecha",
+        "aside_title": "Título de la columna derecha",
+        "aside_body": "Cuerpo de la columna derecha",
+        "aside_items": "Viñetas de la columna derecha (una por línea)",
+        "aside_link_label": "Etiqueta de enlace de la columna derecha",
+        "aside_link_href": "Columna derecha href/ruta",
+        "aside_image_url": "URL de la imagen del bloque 2",
+        "aside_image_alt": "Texto alternativo de la imagen del bloque 2",
+        "showcase_overlay_label": "Etiqueta de superposición de medios",
+        "showcase_overlay_href": "Superposición de medios href/ruta",
+        "showcase_badge_label": "Etiqueta de insignia",
+        "showcase_badge_value": "Destacado de la insignia",
+        "showcase_badge_note": "Nota de insignia",
+        "showcase_divider_style": "Forma del divisor del escaparate",
+        "showcase_floating_image_url": "URL de imagen flotante",
+        "showcase_floating_image_alt": "Texto alternativo de imagen flotante",
+        "image_url": "URL de la imagen",
+        "image_alt": "Texto alternativo de la imagen",
+        "embed_url": "URL de formulario incrustado",
+        "embed_title": "Título de formulario incrustado",
+        "embed_height": "Altura del formulario incrustado (px)",
+        "primary_label": "etiqueta primaria",
+        "primary_href": "href principal/ruta",
+        "secondary_label": "etiqueta secundaria",
+        "secondary_href": "href/ruta secundaria",
+        "contact_phone": "Teléfono de contacto",
+        "contact_email": "Correo electrónico de contacto",
+        "social_facebook_href": "enlace de facebook",
+        "social_x_href": "enlace X",
+        "social_instagram_href": "enlace de instagram",
+        "social_youtube_href": "enlace de youtube",
+        "social_linkedin_href": "enlace de LinkedIn",
+        "google_play_href": "enlace de GooglePlay",
+        "app_store_href": "Enlace de la tienda de aplicaciones",
+        "brand_logo_url": "URL del logotipo de pie de página",
+        "brand_logo_alt": "Texto alternativo del logotipo de pie de página",
+        "brand_href": "Logotipo de pie de página href/ruta",
+        "footer_group_title": "Título de la columna",
+        "footer_group_layout": "Diseño de enlace",
+        "footer_link_label": "Etiqueta de enlace",
+        "footer_link_href": "Enlace href/ruta",
+        "footer_link_note": "Nota opcional"
+      },
+      "contact_aside": {
+        "title": "Columna de detalles",
+        "subtitle": "Agregue detalles de oficina, soporte o punto de contacto para la tercera columna."
+      },
+      "testimonial": {
+        "title": "Atribución de testimonios",
+        "subtitle": "Agregue el nombre y el rol que se muestran debajo de la cotización."
+      },
+      "feature_pairs": {
+        "secondary_title": "Bloque texto + imagen 2",
+        "secondary_subtitle": "Configure la imagen y el contenido secundario alternativo."
+      },
+      "showcase_cta": {
+        "title": "Exhibición de medios en capas",
+        "subtitle": "Configure la imagen principal, la maqueta del dispositivo flotante, la superposición de medios y la insignia de confianza."
+      },
+      "industry_grid": {
+        "cards_title": "Tarjetas de industria",
+        "cards_subtitle": "Agregue las industrias que se muestran en la cuadrícula y un enlace opcional para cada tarjeta.",
+        "icon_auto": "Icono automático",
+        "add_card": "Agregar tarjeta",
+        "card_label": "Tarjeta {number}"
+      },
+      "story_grid": {
+        "title": "Tríptico visual",
+        "subtitle": "Agregue tarjetas con una imagen visual potente en la parte superior y una prueba o explicación de respaldo debajo.",
+        "add_card": "Agregar tarjeta",
+        "card_label": "Tarjeta visual {number}"
+      },
+      "testimonial_grid": {
+        "title": "Cuadrícula de testimonios",
+        "subtitle": "Agregue las citas, nombres y fotografías que se muestran en la cuadrícula de tarjetas.",
+        "add_card": "Agregar testimonio",
+        "card_label": "Testimonio {number}"
+      },
+      "feature_tabs": {
+        "title": "Pestañas de funciones",
+        "subtitle": "Agregue los grupos de acordeón a la izquierda y el contenido detallado que se muestra a la derecha.",
+        "add_tab": "Agregar pestaña",
+        "tab_label": "Pestaña {number}",
+        "style_label": "estilo acordeón",
+        "styles": {
+          "editorial": "Panel editorial + medios",
+          "workflow": "Flujo de trabajo apilado"
+        },
+        "font_size_label": "Tamaño del título de acordeón (px)",
+        "icon_auto": "Seleccione un icono",
+        "children_title": "Elementos en los que se puede hacer clic",
+        "children_subtitle": "Cada elemento puede controlar su propio texto, imagen y CTA en el panel del lado derecho.",
+        "add_child": "Agregar elemento en el que se puede hacer clic",
+        "child_label": "Artículo {number}"
+      },
+      "footer": {
+        "title": "Contenido de pie de página reutilizable",
+        "subtitle": "Configure el logotipo, las columnas de navegación, los enlaces legales, la tarjeta de soporte compartida, los detalles de contacto, los enlaces sociales, las insignias de la tienda y el texto del pie de página.",
+        "preview_title": "Orden de visualización",
+        "preview_subtitle": "Este resumen sigue el mismo orden que el pie de página público: marca, contacto, navegación, soporte y luego fila inferior.",
+        "order_brand": "Marca",
+        "order_contact": "Contacto",
+        "order_navigation": "Navegación",
+        "order_support": "Soporte",
+        "order_bottom": "Fila inferior",
+        "preview_groups": "grupos",
+        "preview_links": "enlaces",
+        "preview_items": "artículos",
+        "preview_socials": "sociales",
+        "preview_stores": "tiendas",
+        "appearance_title": "Marca y apariencia",
+        "appearance_subtitle": "Establezca primero el fondo del pie de página y la fila superior de la marca.",
+        "contact_title": "Contacto y aplicaciones",
+        "contact_subtitle": "Estos elementos se muestran en la columna izquierda del pie de página público.",
+        "items_label": "balas de apoyo",
+        "brand_title": "Marca",
+        "brand_subtitle": "Logotipo y enlace principal mostrados al inicio del pie de página.",
+        "navigation_title": "Columnas de navegación",
+        "navigation_subtitle": "Administre cada columna de pie de página aquí sin depender del mega menú.",
+        "support_title": "Panel de soporte",
+        "support_subtitle": "Este bloque se asigna al panel de soporte del lado derecho en el pie de página público.",
+        "add_group": "Agregar columna",
+        "group_label": "Columna {number}",
+        "link_label": "Enlace {number}",
+        "add_link": "Agregar enlace",
+        "bottom_title": "Fila inferior",
+        "bottom_subtitle": "Configure el texto de derechos de autor y los enlaces legales que se muestran en la parte inferior.",
+        "legal_title": "Enlaces legales",
+        "legal_subtitle": "Estos enlaces se muestran en la fila inferior del pie de página.",
+        "add_legal_link": "Agregar enlace legal",
+        "legal_label": "Enlace legal {number}",
+        "group_layout_stack": "Una sola columna",
+        "group_layout_split": "Dos columnas"
+      },
+      "theme": {
+        "title": "Tema",
+        "subtitle": "Configuración de estilo global para esta página.",
+        "fields": {
+          "font_heading": "fuente de encabezado",
+          "font_body": "fuente del cuerpo",
+          "button_style": "Estilo de botón",
+          "radius": "Radio de esquina",
+          "shadow": "Sombra de tarjeta",
+          "background_style": "Estilo de fondo"
+        },
+        "fonts": {
+          "montserrat": "Montserrat",
+          "work_sans": "Trabajo sin",
+          "space_grotesk": "Grotesco espacial",
+          "sora": "sora",
+          "dm_sans": "DM Sans"
+        },
+        "radius": {
+          "sm": "pequeño",
+          "md": "Medio",
+          "lg": "Grande",
+          "xl": "Extra grande"
+        },
+        "shadow": {
+          "none": "Ninguno",
+          "soft": "suave",
+          "deep": "Profundo"
+        },
+        "buttons": {
+          "solid": "Sólido",
+          "outline": "esquema",
+          "soft": "suave",
+          "ghost": "fantasma"
+        },
+        "background": {
+          "solid": "Sólido",
+          "gradient": "gradiente"
+        },
+        "colors": {
+          "primary": "Primaria",
+          "primary_soft": "Suave primario",
+          "primary_contrast": "Contraste primario",
+          "background": "Antecedentes",
+          "background_alt": "Fondo (alt)",
+          "surface": "Superficie",
+          "text": "Texto",
+          "muted": "Texto silenciado",
+          "border": "frontera"
+        }
+      },
+      "visibility": {
+        "title": "Visibilidad",
+        "subtitle": "Limite esta sección a una audiencia específica.",
+        "auth_label": "Audiencia",
+        "auth_any": "todos",
+        "auth_only": "Usuarios autenticados",
+        "guest_only": "Sólo invitados",
+        "device_label": "Dispositivo",
+        "device_all": "Todos los dispositivos",
+        "device_desktop": "Escritorio",
+        "device_mobile": "Móvil",
+        "locales": "Lugares",
+        "roles": "Roles (separados por comas)",
+        "roles_placeholder": "propietario, administrador, cliente",
+        "plans": "Planes (separados por comas)",
+        "plans_placeholder": "gratis, profesional, escala",
+        "start_at": "Fecha de inicio",
+        "end_at": "Fecha de finalización"
+      },
+      "assets": {
+        "title": "Biblioteca de activos",
+        "subtitle": "Seleccione un activo para insertar.",
+        "choose": "Elige de la biblioteca",
+        "preview": "Vista previa",
+        "search": "Buscar",
+        "search_placeholder": "Buscar activos",
+        "tag": "Etiqueta",
+        "tag_placeholder": "Filtrar por etiqueta",
+        "loading": "Cargando recursos...",
+        "empty": "No se encontraron activos.",
+        "use": "Utilice este activo"
+      }
+    },
+    "sections": {
+      "title": "Biblioteca de secciones",
+      "subtitle": "Crea bloques reutilizables para tus páginas públicas.",
+      "empty": "Aún no hay secciones. Crea tu primer bloque.",
+      "meta": {
+        "updated_at": "Última actualización",
+        "never": "nunca"
+      },
+      "actions": {
+        "back_dashboard": "Volver al tablero",
+        "back_list": "Volver a secciones",
+        "create": "Nueva sección",
+        "edit": "Editar",
+        "duplicate": "Duplicar",
+        "delete": "Eliminar",
+        "save": "Guardar sección",
+        "confirm_delete": "¿Eliminar {name}?"
+      },
+      "status": {
+        "active": "Activo",
+        "draft": "Borrador"
+      },
+      "table": {
+        "name": "Nombre",
+        "type": "Tipo",
+        "status": "Estado",
+        "updated": "Actualizado",
+        "actions": "Acciones"
+      },
+      "locale": {
+        "label": "Idioma",
+        "hint": "Las ediciones se aplican únicamente a la configuración regional seleccionada."
+      },
+      "edit": {
+        "title_create": "Crear sección",
+        "title_edit": "Editar sección"
+      },
+      "fields": {
+        "name": "Nombre",
+        "type": "Tipo",
+        "is_active": "Activo"
+      },
+      "layout": {
+        "subtitle": "Configure los elementos visuales del bloque reutilizable antes de insertarlos en una página."
+      },
+      "types": {
+        "generic": "genérico",
+        "hero": "héroe",
+        "features": "Características",
+        "faq": "Preguntas frecuentes",
+        "testimonials": "Testimonios",
+        "cta": "Llamado a la acción",
+        "gallery": "Galería",
+        "duo": "2 bloques reutilizables",
+        "testimonial": "Testimonio reutilizable",
+        "feature_pairs": "Reutilizable 2 imágenes + 2 bloques de texto",
+        "showcase_cta": "CTA de escaparate reutilizable",
+        "industry_grid": "Industrias reutilizables",
+        "story_grid": "Tríptico visual reutilizable",
+        "feature_tabs": "Pestañas de funciones reutilizables",
+        "testimonial_grid": "Testimonios reutilizables",
+        "footer": "Pie de página reutilizable",
+        "welcome_hero": "Bienvenido héroe",
+        "welcome_trust": "Bienvenido tira de confianza",
+        "welcome_features": "Funciones de bienvenida",
+        "welcome_workflow": "Flujo de trabajo de bienvenida",
+        "welcome_field": "Bloque de campo de bienvenida",
+        "welcome_cta": "CTA de bienvenida",
+        "welcome_custom": "Bloque personalizado de bienvenida"
+      },
+      "welcome": {
+        "hero": {
+          "highlights": "Destacados (uno por línea)",
+          "note": "Nota de apoyo",
+          "typography_title": "tipografía héroe",
+          "typography_subtitle": "Ajuste el título y los colores del cuerpo, además del tamaño del título.",
+          "title_color": "Color del título",
+          "body_color": "Color del texto",
+          "title_font_size": "Tamaño del título (px)",
+          "stats_title": "Estadísticas de héroe",
+          "stats_subtitle": "Agregue las métricas compactas que se muestran debajo de las CTA.",
+          "add_stat": "Agregar estadística",
+          "stat_value": "Valor métrico",
+          "stat_label": "etiqueta métrica",
+          "preview_title": "Tarjetas de vista previa",
+          "preview_subtitle": "Tarjetas cortas que se muestran junto a la imagen del héroe.",
+          "add_preview": "Agregar tarjeta de vista previa",
+          "slides_title": "Diapositivas deslizantes",
+          "slides_subtitle": "Defina las fotos que rotan dentro del objeto visual principal.",
+          "add_slide": "Agregar diapositiva",
+          "slide_label": "Diapositiva {number}",
+          "slide_image_url": "Imagen de diapositiva",
+          "slide_image_alt": "Deslizar texto alternativo",
+          "choose_asset": "Elija entre activos"
+        },
+        "features": {
+          "items_title": "Tarjetas de características principales",
+          "items_subtitle": "Tarjetas que se muestran en la primera cuadrícula de funciones.",
+          "add_item": "Agregar tarjeta de función",
+          "secondary_enabled": "Mostrar la fila de características secundarias",
+          "secondary_badge": "Insignia secundaria",
+          "secondary_body": "Subtítulo secundario",
+          "add_secondary_item": "Agregar tarjeta secundaria"
+        },
+        "workflow": {
+          "steps_title": "Pasos del flujo de trabajo",
+          "steps_subtitle": "Tarjetas ordenadas que se muestran junto al objeto visual del flujo de trabajo.",
+          "add_step": "Agregar paso"
+        }
+      }
+    },
+    "assets": {
+      "title": "Activos",
+      "subtitle": "Administrar cargas compartidas para páginas públicas.",
+      "empty": "Aún no hay activos. Sube tus primeros archivos.",
+      "actions": {
+        "back_dashboard": "Volver al tablero",
+        "upload": "Subir",
+        "delete": "Eliminar",
+        "copy": "Copiar URL",
+        "confirm_delete": "¿Eliminar {name}?"
+      },
+      "fields": {
+        "files": "Archivos",
+        "tags": "Etiquetas",
+        "tags_placeholder": "marketing, héroe, pdf",
+        "alt": "Texto alternativo",
+        "alt_placeholder": "Texto alternativo opcional"
+      },
+      "filters": {
+        "search": "Buscar",
+        "search_placeholder": "Buscar por nombre o mimo",
+        "tag": "Etiqueta",
+        "tag_placeholder": "Filtrar por etiqueta"
+      }
+    }
+  }
+}

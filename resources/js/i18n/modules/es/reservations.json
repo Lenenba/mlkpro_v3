@@ -1,0 +1,421 @@
+{
+  "reservations": {
+    "title": "Reservas",
+    "subtitle": "Revise, confirme o rechace reservas asignadas a su equipo.",
+    "empty": "Aún no hay reservas.",
+    "owner_only": {
+      "staff_notice": "El crecimiento individual mantiene las reservas en modo limitado: vea las reservas existentes, administre la lista de espera y configure ajustes globales, pero las reservas basadas en el personal permanecen deshabilitadas.",
+      "client_notice": "Este espacio de trabajo en solitario aún no ofrece espacios para citas en vivo. Únase a la lista de espera y la empresa podrá realizar un seguimiento manual.",
+      "client_waitlist_hint": "La reserva de espacios y la reprogramación permanecen desactivadas en el modo individual solo para propietarios."
+    },
+    "stats": {
+      "total": "Total",
+      "pending": "Pendiente",
+      "confirmed": "Confirmado",
+      "completed": "Completado",
+      "today": "hoy",
+      "upcoming": "Próximo"
+    },
+    "performance": {
+      "title": "Rendimiento (últimos {days} días)",
+      "occupancy_rate": "Tasa de ocupación",
+      "no_show_rate": "Tarifa de no presentación",
+      "reschedule_rate": "Tarifa de reprogramación",
+      "completion_rate": "Tasa de finalización",
+      "avg_service_value": "Valor promedio del servicio",
+      "tip_rate": "tasa de propina",
+      "resource_reservation_rate": "Uso de recursos",
+      "table_turnover": "Rotación de mesa",
+      "party_size_avg": "Tamaño promedio del grupo"
+    },
+    "filters": {
+      "search": "Buscar",
+      "search_placeholder": "Cliente, producto, contacto...",
+      "status": "Estado",
+      "sort": "ordenar",
+      "all_statuses": "Todos los estados",
+      "date_from": "De",
+      "date_to": "a"
+    },
+    "scope": {
+      "mine": "Mis reservas",
+      "all": "Todas las reservas"
+    },
+    "quick": {
+      "pending": "Pendiente",
+      "today": "hoy",
+      "upcoming": "Próximo",
+      "past": "Pasado"
+    },
+    "sort": {
+      "date_asc": "Fecha (la más antigua primero)",
+      "date_desc": "Fecha (la más reciente primero)",
+      "status": "Estado"
+    },
+    "actions": {
+      "new": "Nueva reserva",
+      "create": "crear",
+      "update": "Actualizar",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "cancel": "Cancelar",
+      "decline": "Rechazar",
+      "confirm": "Confirmar",
+      "complete": "Marcar completado",
+      "no_show": "Marcar no presentarse",
+      "set_pending": "Establecer pendiente",
+      "already_confirmed": "Ya confirmado",
+      "view": "Ver",
+      "reschedule": "Reprogramar",
+      "filters": "Filtros",
+      "clear_filters": "Limpiar filtros",
+      "delete_confirm": "¿Eliminar esta reserva?"
+    },
+    "form": {
+      "create_title": "Crear reserva",
+      "edit_title": "Editar reserva",
+      "customer": "Cliente",
+      "item": "Producto o servicio",
+      "status": "Estado",
+      "title": "Título",
+      "starts_at": "Comienza en",
+      "ends_at": "Termina en",
+      "party_size": "Tamaño del grupo",
+      "quantity": "Cantidad",
+      "channel": "canal",
+      "contact_name": "Nombre de contacto",
+      "contact_email": "Correo electrónico",
+      "contact_phone": "Teléfono",
+      "notes": "Notas",
+      "internal_notes": "Notas internas",
+      "none": "Ninguno"
+    },
+    "table": {
+      "when": "Fecha/hora",
+      "customer": "Cliente",
+      "item": "Producto/servicio",
+      "status": "Estado",
+      "size_qty": "Tamaño / Cantidad",
+      "contact": "Contacto",
+      "actions": "Acciones",
+      "party_size_value": "Parte: {value}",
+      "quantity_value": "Cantidad: {value}"
+    },
+    "waitlist": {
+      "title": "Lista de espera",
+      "subtitle": "Realice un seguimiento de la demanda pendiente y libere espacios rápidamente.",
+      "empty": "No hay entradas en la lista de espera.",
+      "cards": {
+        "pending": "Pendiente",
+        "released": "liberado",
+        "booked": "Reservado"
+      },
+      "status": {
+        "pending": "Pendiente",
+        "released": "liberado",
+        "booked": "Reservado",
+        "cancelled": "Cancelado",
+        "expired": "Caducado"
+      },
+      "actions": {
+        "release": "Ranura de liberación",
+        "booked": "Marcar reservado",
+        "updated": "Entrada en la lista de espera actualizada.",
+        "update_error": "No se puede actualizar la entrada de la lista de espera."
+      }
+    },
+    "queue": {
+      "title": "Cola híbrida",
+      "subtitle": "Opere visitas sin cita previa y citas en una sola cola.",
+      "empty": "No hay elementos en cola en este momento.",
+      "cards": {
+        "waiting": "esperando",
+        "called": "llamado",
+        "in_service": "en servicio"
+      },
+      "columns": {
+        "ticket": "Boleto",
+        "origin": "Origen",
+        "position": "Posición / ETA"
+      },
+      "types": {
+        "appointment": "Cita",
+        "ticket": "Boleto sin cita previa"
+      },
+      "origins": {
+        "booking": "RESERVAR",
+        "walk_in": "VISITA"
+      },
+      "assignment_mode": {
+        "per_staff": "Por cola de personal",
+        "global_pull": "Cola de extracción global"
+      },
+      "status": {
+        "not_arrived": "No llegó",
+        "checked_in": "Registrado",
+        "pre_called": "Prellamada",
+        "called": "llamado",
+        "skipped": "Saltado",
+        "in_service": "en servicio",
+        "done": "Hecho",
+        "no_show": "No presentarse",
+        "cancelled": "Cancelado",
+        "left": "Izquierda"
+      },
+      "actions": {
+        "check_in": "Registro",
+        "pre_call": "Prellamada",
+        "call": "llamar",
+        "start": "Empezar",
+        "done": "Hecho",
+        "skip": "Saltar",
+        "call_next": "Llamar siguiente",
+        "updated": "Elemento de la cola actualizado.",
+        "update_error": "No se puede actualizar el elemento de la cola.",
+        "call_next_empty": "No hay ningún elemento de cola invocable disponible en este momento."
+      },
+      "client": {
+        "title": "Cola sin cita previa",
+        "subtitle": "Tome un boleto, rastree su posición y confirme su presencia.",
+        "estimated_duration": "Duración estimada (minutos)",
+        "notes": "Notas",
+        "create": "tomar un boleto",
+        "created": "Ticket de cola creado.",
+        "create_error": "No se puede crear un ticket de cola.",
+        "update_error": "No se puede actualizar el ticket de cola.",
+        "cancelled": "Boleto de cola cancelado.",
+        "still_here": "Todavía aquí",
+        "still_here_done": "Presencia confirmada.",
+        "none": "Sin billetes de cola.",
+        "kiosk_only_notice": "La creación de entradas ahora se realiza en el quiosco del salón."
+      },
+      "screen": {
+        "open": "Abrir pantalla en vivo",
+        "title": "Pantalla de cola en vivo",
+        "subtitle": "Muestre ahora el flujo de servicio y espera para operaciones de salón o restaurante.",
+        "refresh": "Actualizar",
+        "refresh_error": "No se pueden actualizar los datos de la pantalla en vivo.",
+        "updated_at": "Actualizado",
+        "mode_tv": "modo televisión",
+        "mode_board": "Modo tablero",
+        "now_serving": "Ahora sirviendo",
+        "current": "Actual",
+        "timer": "Temporizador",
+        "up_next": "A continuación",
+        "no_next": "No hay próximo cliente",
+        "overview": "Descripción general",
+        "total_active": "Total activo",
+        "no_chairs": "No hay ninguna silla activa configurada para esta pantalla.",
+        "waiting_list": "lista de espera",
+        "call_expires": "La llamada caduca",
+        "show_names": "Mostrar nombres",
+        "hide_names": "Ocultar nombres",
+        "assignment_mode": "modo cola",
+        "metrics": {
+          "seats_active": "Asientos activos",
+          "occupied": "Ocupado",
+          "ready": "Listo",
+          "avg_wait": "espera promedio",
+          "next_booking": "Próxima reserva"
+        },
+        "states": {
+          "available": "Disponible",
+          "available_ready": "Disponible - próximo listo",
+          "called": "llamado",
+          "in_service": "en servicio",
+          "check_in_needed": "Es necesario registrarse",
+          "blocked": "Bloqueado"
+        },
+        "disabled": "El modo de cola híbrida está deshabilitado. Habilítelo en la configuración de reservas."
+      }
+    },
+    "kiosk": {
+      "title": "Quiosco de salón",
+      "subtitle": "Tome un boleto sin cita previa, regístrese como cliente existente o realice un seguimiento de su boleto.",
+      "open": "quiosco abierto",
+      "tabs": {
+        "walk_in": "Sin cita previa",
+        "known_client": "Ya eres cliente",
+        "track": "Boleto de seguimiento"
+      },
+      "fields": {
+        "phone": "Número de teléfono",
+        "guest_name": "Nombre (opcional)",
+        "code": "Código de verificación",
+        "queue_number": "Número de billete (opcional)",
+        "any_service": "cualquier servicio",
+        "any_team_member": "Cualquier miembro del equipo"
+      },
+      "labels": {
+        "ticket": "Boleto"
+      },
+      "walk_in": {
+        "title": "Tome un boleto sin cita previa",
+        "subtitle": "Ingrese su teléfono, elija servicio/miembro si es necesario y reciba su posición/ETA.",
+        "submit": "toma mi boleto"
+      },
+      "known_client": {
+        "title": "ya soy cliente",
+        "subtitle": "Encuentra tu perfil por teléfono y continúa con el mejor camino.",
+        "lookup": "Encuentra mi perfil",
+        "verify_prompt": "Se requiere un código de verificación para esta cuenta.",
+        "verify": "Verificar teléfono",
+        "debug_code": "código de depuración",
+        "reservation_ready": "Tienes una reserva cercana lista para realizar el check-in.",
+        "check_in": "Regístrese ahora",
+        "create_ticket_help": "No se encontró ninguna reserva cercana. Puedes coger un billete a tu nombre.",
+        "create_ticket": "tomar un boleto",
+        "active_ticket": "Ya tienes un ticket activo."
+      },
+      "track": {
+        "title": "Seguimiento de mi billete",
+        "subtitle": "Verifique la posición y la ETA usando su teléfono y el número de boleto opcional.",
+        "submit": "Boleto de seguimiento"
+      },
+      "messages": {
+        "ticket_created": "Ticket de cola creado.",
+        "check_in_done": "Reserva registrada.",
+        "client_not_found": "No se encontró ningún perfil de cliente existente para este teléfono.",
+        "client_found": "Perfil del cliente encontrado.",
+        "code_sent": "Código de verificación enviado.",
+        "phone_verified": "Teléfono verificado.",
+        "active_ticket_exists": "Ya tienes un ticket activo para este número de teléfono."
+      },
+      "errors": {
+        "lookup": "No se puede buscar este cliente.",
+        "lookup_first": "Primero busque un cliente.",
+        "verify": "No se puede verificar este código.",
+        "check_in": "No se puede registrar esta reserva.",
+        "create_ticket": "No se puede crear el ticket.",
+        "track": "No se puede rastrear este ticket.",
+        "track_not_found": "No se encontró ningún ticket para estos detalles."
+      }
+    },
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "showing": "{from} - {to}"
+    },
+    "view": {
+      "list": "Lista"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "confirmed": "Confirmado",
+      "rescheduled": "Reprogramado",
+      "completed": "Completado",
+      "cancelled": "Cancelado",
+      "no_show": "No presentarse"
+    },
+    "legend": {
+      "title": "Leyenda de estado",
+      "tip": "Las acciones dependen del estado actual.",
+      "pending": "Esperando confirmación. Puedes confirmar o rechazar.",
+      "confirmed": "Confirmado y planificado. Puede completar, marcar no presentación o cancelar.",
+      "rescheduled": "El tiempo fue cambiado. Puedes confirmar o rechazar.",
+      "completed": "Servicio terminado. No se requiere ninguna otra acción de estado.",
+      "cancelled": "La reserva fue cancelada o rechazada.",
+      "no_show": "El cliente no asistió."
+    },
+    "errors": {
+      "load_events": "No se pueden cargar eventos de reserva.",
+      "load_slots": "No se pueden cargar los espacios disponibles.",
+      "cancel": "No se puede cancelar esta reserva.",
+      "create": "No se puede crear la reserva.",
+      "reschedule": "No se puede reprogramar esta reserva.",
+      "update_status": "No se puede actualizar el estado de la reserva.",
+      "validation": "Corrija los campos resaltados."
+    },
+    "item_type": {
+      "service": "Servicio",
+      "product": "Producto"
+    },
+    "payment_policy": {
+      "title": "Resumen de la política de pagos",
+      "deposit": "Depósito",
+      "no_show_fee": "Tarifa por no presentarse",
+      "none": "Ninguno"
+    },
+    "client": {
+      "book": {
+        "title": "Reserva de libros",
+        "subtitle": "Elija la ranura que mejor se adapte a sus necesidades.",
+        "my_reservations": "Mis reservas",
+        "summary_title": "Detalles de la reserva",
+        "selected_slot": "Ranura seleccionada",
+        "loading_slots": "Cargando espacios disponibles...",
+        "no_availability": "No hay disponibilidad para esta gama. Pruebe con otra semana o servicio.",
+        "upcoming_title": "Próximas reservas",
+        "default_service": "Reserva",
+        "no_upcoming": "No hay próximas reservas.",
+        "select_slot_error": "Seleccione un espacio disponible para continuar.",
+        "deposit_notice": "Depósito de reserva requerido: {amount}",
+        "no_show_notice": "Política de tarifas por no presentarse: {amount}",
+        "fields": {
+          "team_member": "Miembro del equipo",
+          "service": "Servicio",
+          "duration": "Duración (minutos)",
+          "party_size": "Tamaño del grupo",
+          "contact_name": "Nombre de contacto",
+          "contact_email": "Correo electrónico de contacto",
+          "contact_phone": "Teléfono de contacto",
+          "client_notes": "Notas"
+        },
+        "actions": {
+          "submit": "Enviar reserva",
+          "submitting": "Enviando...",
+          "submitted": "Solicitud de reserva enviada."
+        },
+        "waitlist": {
+          "title": "Únete a la lista de espera",
+          "description": "No hay ningún espacio coincidente en este momento. Únase a la lista de espera y obtenga prioridad cuando se libere un espacio.",
+          "join_button": "Unirse a la lista de espera",
+          "created": "Solicitud de lista de espera enviada.",
+          "create_error": "No se puede crear una solicitud de lista de espera.",
+          "cancelled": "Entrada a la lista de espera cancelada.",
+          "cancel_error": "No se puede cancelar la entrada a la lista de espera.",
+          "notes": "Detalles preferidos",
+          "my_entries": "Mis entradas en la lista de espera",
+          "none": "No hay entradas en la lista de espera."
+        }
+      },
+      "index": {
+        "title": "Mis reservas",
+        "subtitle": "Realice un seguimiento, cancele o reprograme sus reservas.",
+        "book_button": "Reserva una reserva",
+        "empty": "Aún no tienes reservas.",
+        "details_title": "Detalles de la reserva",
+        "reschedule_title": "Reprogramar reserva",
+        "reschedule_member": "Miembro del equipo",
+        "reschedule_notes": "Notas",
+        "any_available": "Cualquiera disponible",
+        "cancel_prompt": "Motivo de cancelación opcional:",
+        "select_slot_error": "Seleccione un espacio antes de enviarlo.",
+        "cancellation_cutoff": "Fecha límite de cancelación: {hours} hora(s) antes del inicio.",
+        "review": {
+          "title": "Califica tu reserva",
+          "description": "Comparta sus comentarios una vez completado el servicio.",
+          "fields": {
+            "rating": "Calificación",
+            "feedback": "Comentarios"
+          },
+          "actions": {
+            "leave": "Deja una reseña",
+            "submit": "Enviar reseña",
+            "submitting": "Enviando..."
+          },
+          "labels": {
+            "excellent": "Excelente",
+            "good": "bueno",
+            "okay": "Está bien",
+            "poor": "pobre",
+            "bad": "malo"
+          },
+          "errors": {
+            "generic": "No se puede enviar la revisión de la reserva."
+          }
+        }
+      }
+    }
+  }
+}

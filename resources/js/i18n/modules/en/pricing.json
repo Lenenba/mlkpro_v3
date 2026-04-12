@@ -1,0 +1,204 @@
+{
+  "pricing": {
+    "meta": {
+      "title": "Plans and Pricing for Service Business Software"
+    },
+    "badges": {
+      "recommended": "Recommended"
+    },
+    "switch": {
+      "label": "Choose your operating context"
+    },
+    "currency": {
+      "label": "Currency"
+    },
+    "billing_cycle": {
+      "label": "Billing cycle",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "interval_month": "/month",
+      "interval_year": "/year",
+      "save_badge": "Save {percent}% with annual billing",
+      "yearly_note": "Billed yearly with {percent}% off.",
+      "billed_yearly": "For 12 months, billed annually."
+    },
+    "audiences": {
+      "solo": "Solo",
+      "team": "Team"
+    },
+    "hero": {
+      "solo": {
+        "eyebrow": "Pricing for independent operators",
+        "title": "Start with the setup that matches how you work today",
+        "subtitle": "Choose a solo plan that keeps quotes, invoicing, jobs, and growth tools aligned without adding unnecessary complexity.",
+        "note": "Start with a simple operating setup now, then move into broader coordination only when your business needs it."
+      },
+      "team": {
+        "eyebrow": "Pricing for teams that need coordination",
+        "title": "Choose the plan that fits your team, workflow, and growth stage",
+        "subtitle": "From core operations to deeper automation and oversight, each plan adds the level of structure your team actually needs.",
+        "note": "You can start with the right level for today and move up as volume, staffing, and workflow complexity grow."
+      }
+    },
+    "plan_cards": {
+      "solo_essential": {
+        "features": {
+          "one": "A clean starting point for quotes, invoicing, and customer follow-up.",
+          "two": "Keep requests and essential client history visible in one place.",
+          "three": "Present services clearly with a catalog and public page.",
+          "four": "Built for solo operators who want structure without extra overhead."
+        }
+      },
+      "solo_pro": {
+        "features": {
+          "one": "Everything in Solo Core.",
+          "two": "Add jobs and tasks to track execution more seriously.",
+          "three": "More day-to-day control without team complexity.",
+          "four": "The best fit for active solo operators."
+        }
+      },
+      "solo_growth": {
+        "features": {
+          "one": "Everything in Solo Growth.",
+          "two": "Add planning and limited reservations to manage more flow.",
+          "three": "Use AI, campaigns, and loyalty tools in the same system.",
+          "four": "Built for solo businesses with more volume and growth needs."
+        }
+      },
+      "starter": {
+        "features": {
+          "one": "A solid base for quotes, jobs, planning, and invoicing.",
+          "two": "Built for small teams that need a shared workflow.",
+          "three": "Keep the office and the field aligned in one system.",
+          "four": "A practical starting point for team coordination."
+        }
+      },
+      "growth": {
+        "features": {
+          "one": "Everything in Team Core.",
+          "two": "Add stronger permissions and deeper operational control.",
+          "three": "Built for growing teams that need more structure and visibility.",
+          "four": "The best balance for scaling without enterprise overhead."
+        }
+      },
+      "scale": {
+        "features": {
+          "one": "Everything in Team Growth.",
+          "two": "Advanced reporting and broader operational depth for mature teams.",
+          "three": "Dedicated onboarding and stronger support as complexity increases.",
+          "four": "Built for teams that need more depth across the business."
+        }
+      },
+      "enterprise": {
+        "features": {
+          "one": "Custom rollout for larger or more complex organizations.",
+          "two": "Support tailored limits, advanced controls, and guided implementation.",
+          "three": "Built for multi-entity, security, or SLA-driven requirements.",
+          "four": "Contact us for a more tailored setup."
+        }
+      }
+    },
+    "plans": {
+      "starter": {
+        "label": "Team Core",
+        "price": "Contact us",
+        "desc": "For small teams building a more structured operating workflow."
+      },
+      "pro": {
+        "label": "Team Growth",
+        "badge": "Recommended",
+        "price": "Contact us",
+        "desc": "For growing teams that need more control and operational depth."
+      },
+      "enterprise": {
+        "label": "Enterprise",
+        "price": "Custom",
+        "desc": "For organizations with advanced, multi-entity, or SLA-driven needs."
+      }
+    },
+    "features": {
+      "solo": {
+        "title": "Built for solo operators who want control without overhead",
+        "items": {
+          "one": "Keep quotes, invoices, and customer requests in one place from day one.",
+          "two": "Present services clearly with a catalog and public page that still feels professional.",
+          "three": "Move into jobs and task tracking when execution starts to get more demanding.",
+          "four": "Unlock planning, reservations, AI, and growth tools only when your workflow needs them.",
+          "five": "Move into team pricing later without rebuilding the way you work."
+        }
+      },
+      "team": {
+        "title": "Included with every team plan",
+        "items": {
+          "one": "Quotes, jobs, tasks, and invoicing in one shared workflow.",
+          "two": "One catalog for services and products across the business.",
+          "three": "Better operational signals, including plan scan pricing context where relevant.",
+          "four": "Client approvals and visibility through the portal.",
+          "five": "Team roles and permissions that support cleaner execution."
+        }
+      }
+    },
+    "enterprise": {
+      "solo": {
+        "title": "Start simple now, grow into more structure later",
+        "body": "Begin with a solo plan that fits the way you operate today, then move into team coordination only when hiring, volume, or workflow complexity make it necessary."
+      },
+      "team": {
+        "title": "Need a more tailored rollout?",
+        "body": "If your team needs custom limits, a security review, dedicated onboarding, or a more guided implementation path, we can help you map the right setup."
+      }
+    },
+    "actions": {
+      "plan_trial": "Start trial",
+      "plan_trial_note": "Includes a 1 month trial during onboarding.",
+      "primary": "Start onboarding",
+      "secondary": "Sign in"
+    },
+    "comparison": {
+      "title": "Compare what matters most before you choose",
+      "subtitle": "Review the key capabilities, limits, and workflow depth included in each plan.",
+      "columns": {
+        "feature": "Features"
+      },
+      "sections": {
+        "fundamentals": "Fundamentals",
+        "operations": "Field operations",
+        "growth": "Growth and automation"
+      },
+      "rows": {
+        "team_members": "Included employees",
+        "account_access": "Account access",
+        "clients": "Clients",
+        "requests": "Requests / leads",
+        "estimates": "Estimates",
+        "invoices": "Invoices",
+        "catalog": "Products and services catalog",
+        "catalog_items": "Catalog items",
+        "client_portal": "Client portal",
+        "jobs": "Jobs",
+        "tasks": "Tasks",
+        "planning": "Planning",
+        "team_planning": "Team planning",
+        "time_tracking": "Time tracking",
+        "reservations": "Reservations and check-in",
+        "recurring_jobs": "Recurring jobs",
+        "reports": "Built-in reports",
+        "permissions": "Team permissions",
+        "automations": "Advanced automations",
+        "plan_scan": "Plan scan and AI quotes",
+        "ai_assistant": "AI assistant",
+        "campaigns": "Campaigns",
+        "loyalty": "Loyalty",
+        "onboarding": "Dedicated onboarding",
+        "custom_integrations": "Custom integrations and SLA"
+      },
+      "values": {
+        "unlimited": "Unlimited",
+        "optional": "Optional add-on",
+        "owner_only": "1 owner",
+        "limited": "Limited mode",
+        "contact": "Contact us"
+      }
+    }
+  }
+}

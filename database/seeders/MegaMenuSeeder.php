@@ -41,6 +41,12 @@ class MegaMenuSeeder extends Seeder
             content: $this->contactPageContent(),
             userId: $userId
         );
+        $this->upsertPage(
+            slug: 'partners',
+            title: 'Partners',
+            content: $this->partnersPageContent(),
+            userId: $userId
+        );
         $manager = app(MegaMenuManagerService::class);
 
         foreach ($this->menus($productPages, $contactPage) as $payload) {
@@ -84,10 +90,10 @@ class MegaMenuSeeder extends Seeder
     {
         return [
             'slug' => 'main-header-menu',
-            'title' => 'Platform Modules Showcase',
+            'title' => 'Vitrine des modules plateforme',
             'status' => 'active',
             'display_location' => 'header',
-            'description' => 'Primary marketing mega menu dedicated to platform modules and product suites.',
+            'description' => 'Mega menu marketing principal dedie aux modules plateforme et aux parcours produits.',
             'ordering' => 1,
             'settings' => [
                 'theme' => 'brand',
@@ -96,6 +102,16 @@ class MegaMenuSeeder extends Seeder
                 'panel_background' => '#ffffff',
                 'open_on_hover' => true,
                 'show_dividers' => true,
+                'translations' => $this->translationBuckets(
+                    [
+                        'title' => 'Platform Modules Showcase',
+                        'description' => 'Primary marketing mega menu dedicated to platform modules and product suites.',
+                    ],
+                    [
+                        'title' => 'Vitrina de modulos de la plataforma',
+                        'description' => 'Mega menu principal de marketing dedicado a los modulos de la plataforma y a los recorridos de producto.',
+                    ],
+                ),
             ],
             'items' => [
                 $this->productsAndServicesItem($productPages),
@@ -113,11 +129,23 @@ class MegaMenuSeeder extends Seeder
     {
         return [
             'slug' => 'footer-resources-menu',
-            'title' => 'Footer Resources Menu',
+            'title' => 'Menu ressources du footer',
             'status' => 'active',
             'display_location' => 'footer',
-            'description' => 'Secondary footer navigation.',
+            'description' => 'Navigation secondaire du pied de page.',
             'ordering' => 2,
+            'settings' => [
+                'translations' => $this->translationBuckets(
+                    [
+                        'title' => 'Footer Resources Menu',
+                        'description' => 'Secondary footer navigation.',
+                    ],
+                    [
+                        'title' => 'Menu de recursos del pie de pagina',
+                        'description' => 'Navegacion secundaria del pie de pagina.',
+                    ],
+                ),
+            ],
             'items' => [
                 [
                     'label' => 'Juridique',
@@ -126,16 +154,24 @@ class MegaMenuSeeder extends Seeder
                     'panel_type' => 'classic',
                     'is_visible' => true,
                     'settings' => [
-                        'translations' => [
-                            'en' => [
-                                'label' => 'Legal',
-                            ],
-                        ],
+                        'translations' => $this->translationBuckets(
+                            ['label' => 'Legal'],
+                            ['label' => 'Legal'],
+                        ),
                     ],
                     'children' => [
-                        $this->classicLink('Conditions', '/terms', '', 'Terms'),
-                        $this->classicLink('Confidentialité', '/privacy', '', 'Privacy'),
-                        $this->classicLink('Remboursement', '/refund', '', 'Refund'),
+                        $this->classicLink(
+                            ['fr' => 'Conditions', 'en' => 'Terms', 'es' => 'Terminos'],
+                            '/terms'
+                        ),
+                        $this->classicLink(
+                            ['fr' => 'Confidentialite', 'en' => 'Privacy', 'es' => 'Privacidad'],
+                            '/privacy'
+                        ),
+                        $this->classicLink(
+                            ['fr' => 'Remboursement', 'en' => 'Refund', 'es' => 'Reembolso'],
+                            '/refund'
+                        ),
                     ],
                 ],
             ],
@@ -219,6 +255,12 @@ class MegaMenuSeeder extends Seeder
                     'header' => $this->pageHeader($product['slug'], 'en'),
                     'sections' => $this->localizedProductSections($product, 'en'),
                 ],
+                'es' => [
+                    'page_title' => (string) ($product['es']['title'] ?? $product['title']),
+                    'page_subtitle' => $product['es']['subtitle'],
+                    'header' => $this->pageHeader($product['slug'], 'es'),
+                    'sections' => $this->localizedProductSections($product, 'es'),
+                ],
             ],
             'theme' => $this->publicPageTheme(),
             'updated_at' => now()->toIso8601String(),
@@ -241,21 +283,29 @@ class MegaMenuSeeder extends Seeder
         $workflowVisual = $this->stockImage($product['slug'], $locale, 'workflow');
         $pagesVisual = $this->stockImage($product['slug'], $locale, 'pages');
 
-        $labels = $locale === 'fr'
-            ? [
+        $labels = match ($locale) {
+            'fr' => [
                 'overview_kicker' => 'Vue d\'ensemble',
                 'workflow_kicker' => 'Comment ça fonctionne',
                 'pages_kicker' => 'Pages incluses',
                 'primary_label' => 'Voir les tarifs',
                 'secondary_label' => 'Voir la démo',
-            ]
-            : [
+            ],
+            'es' => [
+                'overview_kicker' => 'Resumen general',
+                'workflow_kicker' => 'Como funciona',
+                'pages_kicker' => 'Paginas incluidas',
+                'primary_label' => 'Ver precios',
+                'secondary_label' => 'Ver demo',
+            ],
+            default => [
                 'overview_kicker' => 'Overview',
                 'workflow_kicker' => 'How it works',
                 'pages_kicker' => 'Included pages',
                 'primary_label' => 'View pricing',
                 'secondary_label' => 'View demo',
-            ];
+            ],
+        };
 
         return [
             $this->pageSection(
@@ -306,7 +356,7 @@ class MegaMenuSeeder extends Seeder
         return [
             'locales' => [
                 'fr' => [
-                    'page_title' => $solution['title'],
+                    'page_title' => (string) ($solution['fr']['title'] ?? $solution['title']),
                     'page_subtitle' => $solution['fr']['subtitle'],
                     'header' => $this->pageHeader($solution['slug'], 'fr'),
                     'sections' => $this->localizedSolutionSections($solution, 'fr'),
@@ -316,6 +366,12 @@ class MegaMenuSeeder extends Seeder
                     'page_subtitle' => $solution['en']['subtitle'],
                     'header' => $this->pageHeader($solution['slug'], 'en'),
                     'sections' => $this->localizedSolutionSections($solution, 'en'),
+                ],
+                'es' => [
+                    'page_title' => $solution['es']['title'],
+                    'page_subtitle' => $solution['es']['subtitle'],
+                    'header' => $this->pageHeader($solution['slug'], 'es'),
+                    'sections' => $this->localizedSolutionSections($solution, 'es'),
                 ],
             ],
             'theme' => $this->publicPageTheme(),
@@ -334,21 +390,29 @@ class MegaMenuSeeder extends Seeder
         $workflowVisual = $this->stockImage($solution['slug'], $locale, 'workflow');
         $modulesVisual = $this->stockImage($solution['slug'], $locale, 'modules');
 
-        $labels = $locale === 'fr'
-            ? [
+        $labels = match ($locale) {
+            'fr' => [
                 'overview_kicker' => 'Solution',
                 'workflow_kicker' => 'Mode opératoire',
                 'modules_kicker' => 'Modules et pages',
                 'primary_label' => 'Voir les tarifs',
                 'secondary_label' => 'Nous contacter',
-            ]
-            : [
+            ],
+            'es' => [
+                'overview_kicker' => 'Solucion',
+                'workflow_kicker' => 'Modo operativo',
+                'modules_kicker' => 'Modulos y paginas',
+                'primary_label' => 'Ver precios',
+                'secondary_label' => 'Contactanos',
+            ],
+            default => [
                 'overview_kicker' => 'Solution',
                 'workflow_kicker' => 'Operating model',
                 'modules_kicker' => 'Modules and pages',
                 'primary_label' => 'View pricing',
                 'secondary_label' => 'Contact us',
-            ];
+            ],
+        };
 
         return [
             $this->pageSection(
@@ -461,6 +525,7 @@ class MegaMenuSeeder extends Seeder
     {
         $partnersFr = $this->stockImage('partners', 'fr', 'overview');
         $partnersEn = $this->stockImage('partners', 'en', 'overview');
+        $partnersEs = $this->stockImage('partners', 'es', 'overview');
 
         return [
             'locales' => [
@@ -512,6 +577,30 @@ class MegaMenuSeeder extends Seeder
                         ),
                     ],
                 ],
+                'es' => [
+                    'page_title' => 'Socios',
+                    'page_subtitle' => '<p>Explora el ecosistema de socios e integraciones alrededor de la plataforma.</p>',
+                    'header' => $this->pageHeader('partners', 'es'),
+                    'sections' => [
+                        $this->pageSection(
+                            id: 'partners-overview',
+                            kicker: 'Socios',
+                            title: 'Un ecosistema pensado para acelerar el despliegue',
+                            body: '<p>Descubre los socios de implementacion, tecnologia y crecimiento conectados con la plataforma.</p>',
+                            items: [
+                                'Socios de implementacion',
+                                'Integraciones de negocio y pasarelas de pago',
+                                'Socios de crecimiento y adquisicion',
+                            ],
+                            imageUrl: $partnersEs['image_url'],
+                            imageAlt: $partnersEs['image_alt'],
+                            primaryLabel: 'Ver precios',
+                            primaryHref: '/pricing',
+                            secondaryLabel: 'Ver demo',
+                            secondaryHref: '/demo'
+                        ),
+                    ],
+                ],
             ],
             'theme' => $this->publicPageTheme(),
             'updated_at' => now()->toIso8601String(),
@@ -527,16 +616,22 @@ class MegaMenuSeeder extends Seeder
         return [
             'locales' => [
                 'fr' => [
-                    'page_title' => $industry['title'],
+                    'page_title' => (string) ($industry['fr']['title'] ?? $industry['title']),
                     'page_subtitle' => $industry['fr']['subtitle'],
                     'header' => $this->pageHeader($industry['slug'], 'fr'),
                     'sections' => PublicIndustryPageSections::sections($industry['slug'], 'fr'),
                 ],
                 'en' => [
-                    'page_title' => $industry['title'],
+                    'page_title' => (string) ($industry['en']['title'] ?? $industry['title']),
                     'page_subtitle' => $industry['en']['subtitle'],
                     'header' => $this->pageHeader($industry['slug'], 'en'),
                     'sections' => PublicIndustryPageSections::sections($industry['slug'], 'en'),
+                ],
+                'es' => [
+                    'page_title' => (string) ($industry['es']['title'] ?? $industry['title']),
+                    'page_subtitle' => $industry['es']['subtitle'],
+                    'header' => $this->pageHeader($industry['slug'], 'es'),
+                    'sections' => PublicIndustryPageSections::sections($industry['slug'], 'es'),
                 ],
             ],
             'theme' => $this->publicPageTheme(),
@@ -556,6 +651,8 @@ class MegaMenuSeeder extends Seeder
         $contactFrDetail = $this->stockImage('contact-us', 'fr', 'details');
         $contactEn = $this->stockImage('contact-us', 'en', 'overview');
         $contactEnDetail = $this->stockImage('contact-us', 'en', 'details');
+        $contactEs = $this->stockImage('contact-us', 'es', 'overview');
+        $contactEsDetail = $this->stockImage('contact-us', 'es', 'details');
 
         return [
             'locales' => [
@@ -675,6 +772,64 @@ class MegaMenuSeeder extends Seeder
                         ),
                     ],
                 ],
+                'es' => [
+                    'page_title' => 'Cuentanos como funciona hoy tu negocio',
+                    'page_subtitle' => '<p>Describe tu forma de trabajar, tu organizacion y las areas donde buscas mas velocidad, visibilidad o control. Te ayudaremos a evaluar la configuracion de Malikia Pro adecuada para lo que sigue.</p>',
+                    'header' => $this->pageHeader('contact-us', 'es'),
+                    'sections' => [
+                        $this->pageSection(
+                            id: 'contact-overview',
+                            kicker: 'Contacto comercial',
+                            title: 'Empieza la conversacion con el contexto adecuado',
+                            body: '<p>Cuentanos sobre tus servicios, el tamano de tu equipo, tu forma de trabajar y los puntos donde necesitas mas estructura. Usaremos ese contexto para orientarte hacia la configuracion de Malikia Pro mas adecuada para tu negocio.</p>',
+                            items: [
+                                'Tu modelo de negocio, el tamano del equipo y el contexto operativo',
+                                'Los puntos de friccion que quieres resolver primero',
+                                'Tus preguntas sobre ventas, planificacion, trabajos, reservas, facturacion o coordinacion',
+                                'El siguiente tema que estas evaluando: precios, despliegue o encaje del producto',
+                            ],
+                            imageUrl: $contactEs['image_url'],
+                            imageAlt: $contactEs['image_alt'],
+                            primaryLabel: $hasEmbeddedForm ? 'Abrir el formulario' : '',
+                            primaryHref: $formUrl,
+                            secondaryLabel: 'Ver precios',
+                            secondaryHref: '/pricing',
+                            embedUrl: $hasEmbeddedForm ? $embeddedFormUrl : '',
+                            embedTitle: $hasEmbeddedForm ? 'Formulario de consulta comercial' : '',
+                            embedHeight: 820
+                        ),
+                        $this->pageSection(
+                            id: 'contact-details',
+                            kicker: 'Habla con el equipo',
+                            title: 'Recibe orientacion de un equipo que entiende las realidades operativas',
+                            body: '<p>Si quieres validar el encaje antes de profundizar, contactanos y te ayudaremos a ver donde Malikia Pro puede apoyar tus ventas, tu coordinacion, tu planificacion, tus reservas, tu trabajo de campo y tus operaciones de ingresos.</p>',
+                            items: [
+                                'Ayuda para evaluar el encaje del producto y el alcance operativo',
+                                'Orientacion sobre despliegue, onboarding y siguientes pasos',
+                                'Seguimiento comercial para solicitudes cualificadas',
+                            ],
+                            imageUrl: $contactEsDetail['image_url'],
+                            imageAlt: $contactEsDetail['image_alt'],
+                            primaryLabel: $hasEmbeddedForm ? 'Contactanos' : '',
+                            primaryHref: $formUrl,
+                            secondaryLabel: '',
+                            secondaryHref: '',
+                            backgroundColor: '#ffffff',
+                            extra: [
+                                'layout' => 'contact',
+                                'aside_kicker' => 'Equipo comercial',
+                                'aside_title' => 'Un equipo centrado en el encaje, el despliegue y los siguientes pasos',
+                                'aside_body' => '<p>Contactanos si necesitas ayuda para elegir un plan, evaluar tu funcionamiento o entender como Malikia Pro puede apoyar una operacion mas estructurada.</p>',
+                                'aside_items' => [
+                                    'Relevante para nuevos prospectos, preguntas de precios y conversaciones de despliegue',
+                                    'Adecuado para negocios que operan varios flujos de servicio con necesidades crecientes de coordinacion',
+                                ],
+                                'aside_link_label' => $hasEmbeddedForm ? 'Contactanos' : '',
+                                'aside_link_href' => $hasEmbeddedForm ? $formUrl : '',
+                            ]
+                        ),
+                    ],
+                ],
             ],
             'theme' => $this->publicPageTheme(),
             'updated_at' => now()->toIso8601String(),
@@ -687,6 +842,134 @@ class MegaMenuSeeder extends Seeder
      */
     private function productsAndServicesItem(array $productPages): array
     {
+        $products = [
+            $this->localizedShowcaseProduct(
+                productKey: 'sales-crm',
+                label: 'Sales & CRM',
+                href: $this->pagePath($productPages['sales-crm']),
+                notes: [
+                    'fr' => 'Demandes, devis, clients et pipeline.',
+                    'en' => 'Requests, quotes, customers, and pipelines.',
+                    'es' => 'Solicitudes, cotizaciones, clientes y pipeline.',
+                ],
+                summaries: [
+                    'fr' => 'Captez la demande, qualifiez les opportunites et avancez plus vite du premier contact au devis valide.',
+                    'en' => 'Capture demand, qualify opportunities, and move faster from first request to approved quote.',
+                    'es' => 'Capta la demanda, califica oportunidades y avanza mas rapido desde la primera solicitud hasta la cotizacion aprobada.',
+                ],
+                badges: [
+                    'fr' => 'Populaire',
+                    'en' => 'Popular',
+                    'es' => 'Popular',
+                ],
+            ),
+            $this->localizedShowcaseProduct(
+                productKey: 'reservations',
+                label: 'Reservations',
+                href: $this->pagePath($productPages['reservations']),
+                notes: [
+                    'fr' => 'Reservations, disponibilites et planification libre-service.',
+                    'en' => 'Bookings, availability, and self-service scheduling.',
+                    'es' => 'Reservas, disponibilidad y planificacion en autoservicio.',
+                ],
+                summaries: [
+                    'fr' => 'Laissez les clients reserver en ligne pendant que les equipes gardent le controle des disponibilites, files et confirmations.',
+                    'en' => 'Let customers book online while teams keep live control over availability, queues, and confirmations.',
+                    'es' => 'Permite que los clientes reserven en linea mientras los equipos conservan el control de la disponibilidad, las colas y las confirmaciones.',
+                ],
+                badges: [
+                    'fr' => 'Essentiel',
+                    'en' => 'Core',
+                    'es' => 'Clave',
+                ],
+            ),
+            $this->localizedShowcaseProduct(
+                productKey: 'operations',
+                label: 'Operations',
+                href: $this->pagePath($productPages['operations']),
+                notes: [
+                    'fr' => 'Planning, jobs, taches et dispatch.',
+                    'en' => 'Scheduling, jobs, tasks, and dispatch.',
+                    'es' => 'Planificacion, trabajos, tareas y despacho.',
+                ],
+                summaries: [
+                    'fr' => 'Coordonnez l execution terrain, les affectations, les preuves de travail et le suivi quotidien depuis un meme cockpit operationnel.',
+                    'en' => 'Coordinate field execution, assignments, proof of work, and daily follow-up from one operational cockpit.',
+                    'es' => 'Coordina la ejecucion en terreno, las asignaciones, las pruebas de trabajo y el seguimiento diario desde un mismo centro operativo.',
+                ],
+            ),
+            $this->localizedShowcaseProduct(
+                productKey: 'commerce',
+                label: 'Commerce',
+                href: $this->pagePath($productPages['commerce']),
+                notes: [
+                    'fr' => 'Catalogue, vitrine, factures et paiements.',
+                    'en' => 'Catalog, storefront, invoices, and payments.',
+                    'es' => 'Catalogo, escaparate, facturas y pagos.',
+                ],
+                summaries: [
+                    'fr' => 'Vendez produits et services, facturez vos clients et encaissez sans fragmenter le parcours.',
+                    'en' => 'Sell products and services, invoice customers, and collect payments without fragmenting the journey.',
+                    'es' => 'Vende productos y servicios, factura a tus clientes y cobra sin fragmentar la experiencia.',
+                ],
+            ),
+            $this->localizedShowcaseProduct(
+                productKey: 'marketing-loyalty',
+                label: 'Marketing & Loyalty',
+                href: $this->pagePath($productPages['marketing-loyalty']),
+                notes: [
+                    'fr' => 'Campagnes, segments, fidelite et parcours VIP.',
+                    'en' => 'Campaigns, segments, loyalty, and VIP journeys.',
+                    'es' => 'Campanas, segmentos, fidelizacion y recorridos VIP.',
+                ],
+                summaries: [
+                    'fr' => 'Construisez des parcours de retention et des relances ciblees avec le meme contexte client que les ventes et les operations.',
+                    'en' => 'Build retention programs and targeted follow-up using the same customer context as sales and operations.',
+                    'es' => 'Construye programas de fidelizacion y seguimientos segmentados usando el mismo contexto de cliente que ventas y operaciones.',
+                ],
+                badges: [
+                    'fr' => 'Croissance',
+                    'en' => 'Growth',
+                    'es' => 'Crecimiento',
+                ],
+            ),
+            $this->localizedShowcaseProduct(
+                productKey: 'ai-automation',
+                label: 'AI & Automation',
+                href: $this->pagePath($productPages['ai-automation']),
+                notes: [
+                    'fr' => 'Assistant, brouillons, resumes et actions suggerees.',
+                    'en' => 'Assistant, drafts, summaries, and suggested actions.',
+                    'es' => 'Asistente, borradores, resumenes y acciones sugeridas.',
+                ],
+                summaries: [
+                    'fr' => 'Integrez l IA dans le workflow que vos equipes utilisent deja au lieu d ajouter un outil de plus.',
+                    'en' => 'Embed AI into the workflow your teams already use instead of adding another disconnected tool.',
+                    'es' => 'Integra la IA en el flujo de trabajo que tu equipo ya usa en lugar de agregar otra herramienta desconectada.',
+                ],
+                badges: [
+                    'fr' => 'IA',
+                    'en' => 'AI',
+                    'es' => 'IA',
+                ],
+            ),
+            $this->localizedShowcaseProduct(
+                productKey: 'command-center',
+                label: 'Command Center',
+                href: $this->pagePath($productPages['command-center']),
+                notes: [
+                    'fr' => 'Visibilite transverse et pilotage leadership.',
+                    'en' => 'Cross-module visibility and leadership overview.',
+                    'es' => 'Visibilidad transversal y vista de liderazgo.',
+                ],
+                summaries: [
+                    'fr' => 'Obtenez une lecture executive unifiee du revenu, des operations et de l activite client depuis un centre de pilotage partage.',
+                    'en' => 'Get one executive-level view across revenue, operations, and customer activity with a shared command center.',
+                    'es' => 'Obtiene una vista ejecutiva unica de ingresos, operaciones y actividad del cliente desde un centro de mando compartido.',
+                ],
+            ),
+        ];
+
         return [
             'label' => 'Produits & Services',
             'description' => 'Explorez tout le catalogue plateforme depuis un point d\'entrée unique.',
@@ -702,91 +985,35 @@ class MegaMenuSeeder extends Seeder
                 'note' => 'Explorez tout le catalogue plateforme depuis un point d\'entrée unique.',
                 'featured' => false,
                 'highlight_color' => '#0f766e',
-                'translations' => [
-                    'en' => [
+                'translations' => $this->translationBuckets(
+                    [
                         'label' => 'Products & Services',
                         'description' => 'Browse the full platform catalog from a single entry point.',
                         'eyebrow' => 'Modules',
                         'note' => 'Browse the full platform catalog from a single entry point.',
                     ],
-                ],
+                    [
+                        'label' => 'Productos y servicios',
+                        'description' => 'Explora todo el catalogo de la plataforma desde un unico punto de entrada.',
+                        'eyebrow' => 'Modulos',
+                        'note' => 'Explora todo el catalogo de la plataforma desde un unico punto de entrada.',
+                    ],
+                ),
             ],
             'columns' => [
                 $this->column('', '1fr', [
                     $this->productShowcaseBlock(
-                        'Produits & Services',
-                        'Products & Services',
-                        'Survolez un produit pour prévisualiser l\'interface, puis cliquez pour ouvrir sa page détaillée.',
-                        'Hover a product to preview the interface and click to open its detailed page.',
-                        [
-                            $this->showcaseProduct(
-                                'Sales & CRM',
-                                $this->pagePath($productPages['sales-crm']),
-                                'Requests, quotes, customers, and pipelines.',
-                                'Capture demand, qualify opportunities, and move faster from first request to approved quote.',
-                                $this->stockImage('sales-crm', 'en')['image_url'],
-                                $this->stockImage('sales-crm', 'en')['image_alt'],
-                                'Sales and CRM',
-                                'Popular'
-                            ),
-                            $this->showcaseProduct(
-                                'Reservations',
-                                $this->pagePath($productPages['reservations']),
-                                'Bookings, availability, and self-service scheduling.',
-                                'Let customers book online while teams keep live control over availability, queues, and confirmations.',
-                                $this->stockImage('reservations', 'en')['image_url'],
-                                $this->stockImage('reservations', 'en')['image_alt'],
-                                'Reservations',
-                                'Core'
-                            ),
-                            $this->showcaseProduct(
-                                'Operations',
-                                $this->pagePath($productPages['operations']),
-                                'Scheduling, jobs, tasks, and dispatch.',
-                                'Coordinate field execution, assignments, proof of work, and daily follow-up from one operational cockpit.',
-                                $this->stockImage('operations', 'en')['image_url'],
-                                $this->stockImage('operations', 'en')['image_alt'],
-                                'Operations'
-                            ),
-                            $this->showcaseProduct(
-                                'Commerce',
-                                $this->pagePath($productPages['commerce']),
-                                'Catalog, storefront, invoices, and payments.',
-                                'Sell products and services, invoice customers, and collect payments without fragmenting the journey.',
-                                $this->stockImage('commerce', 'en')['image_url'],
-                                $this->stockImage('commerce', 'en')['image_alt'],
-                                'Commerce'
-                            ),
-                            $this->showcaseProduct(
-                                'Marketing & Loyalty',
-                                $this->pagePath($productPages['marketing-loyalty']),
-                                'Campaigns, segments, loyalty, and VIP journeys.',
-                                'Build retention programs and targeted follow-up using the same customer context as sales and operations.',
-                                $this->stockImage('marketing-loyalty', 'en')['image_url'],
-                                $this->stockImage('marketing-loyalty', 'en')['image_alt'],
-                                'Marketing and Loyalty',
-                                'Growth'
-                            ),
-                            $this->showcaseProduct(
-                                'AI & Automation',
-                                $this->pagePath($productPages['ai-automation']),
-                                'Assistant, drafts, summaries, and suggested actions.',
-                                'Embed AI into the workflow your teams already use instead of adding another disconnected tool.',
-                                $this->stockImage('ai-automation', 'en')['image_url'],
-                                $this->stockImage('ai-automation', 'en')['image_alt'],
-                                'AI and Automation',
-                                'AI'
-                            ),
-                            $this->showcaseProduct(
-                                'Command Center',
-                                $this->pagePath($productPages['command-center']),
-                                'Cross-module visibility and leadership overview.',
-                                'Get one executive-level view across revenue, operations, and customer activity with a shared command center.',
-                                $this->stockImage('command-center', 'en')['image_url'],
-                                $this->stockImage('command-center', 'en')['image_alt'],
-                                'Command Center'
-                            ),
-                        ]
+                        titles: [
+                            'fr' => 'Produits & Services',
+                            'en' => 'Products & Services',
+                            'es' => 'Productos y servicios',
+                        ],
+                        descriptions: [
+                            'fr' => 'Survolez un produit pour previsualiser l interface, puis cliquez pour ouvrir sa page detaillee.',
+                            'en' => 'Hover a product to preview the interface and click to open its detailed page.',
+                            'es' => 'Pasa el cursor sobre un producto para previsualizar la interfaz y haz clic para abrir su pagina detallada.',
+                        ],
+                        products: $products,
                     ),
                 ]),
             ],
@@ -807,12 +1034,16 @@ class MegaMenuSeeder extends Seeder
             'panel_type' => 'link',
             'is_visible' => true,
             'settings' => [
-                'translations' => [
-                    'en' => [
+                'translations' => $this->translationBuckets(
+                    [
                         'label' => 'Pricing',
                         'description' => 'Compare plans and platform modules.',
                     ],
-                ],
+                    [
+                        'label' => 'Precios',
+                        'description' => 'Compara planes y modulos de la plataforma.',
+                    ],
+                ),
             ],
         ];
     }
@@ -836,14 +1067,20 @@ class MegaMenuSeeder extends Seeder
                 'eyebrow' => 'Industries',
                 'note' => 'Choisissez un secteur pour ouvrir sa page dédiée.',
                 'highlight_color' => '#0f766e',
-                'translations' => [
-                    'en' => [
+                'translations' => $this->translationBuckets(
+                    [
                         'label' => 'Industries',
                         'description' => 'Choose an industry to open its dedicated page.',
                         'eyebrow' => 'Industries',
                         'note' => 'Choose an industry to open its dedicated page.',
                     ],
-                ],
+                    [
+                        'label' => 'Industrias',
+                        'description' => 'Elige un sector para abrir su pagina dedicada.',
+                        'eyebrow' => 'Industrias',
+                        'note' => 'Elige un sector para abrir su pagina dedicada.',
+                    ],
+                ),
             ],
         ];
     }
@@ -855,46 +1092,58 @@ class MegaMenuSeeder extends Seeder
     {
         return [
             $this->classicLink(
-                'Plomberie',
+                ['fr' => 'Plomberie', 'en' => 'Plumbing', 'es' => 'Fontaneria'],
                 '/pages/industry-plumbing',
-                'Flux pour équipes plomberie et service.',
-                'Plumbing',
-                'Flows for plumbing and service teams.'
+                [
+                    'fr' => 'Flux pour equipes plomberie et service.',
+                    'en' => 'Flows for plumbing and service teams.',
+                    'es' => 'Flujos para equipos de fontaneria y servicio.',
+                ]
             ),
             $this->classicLink(
-                'HVAC',
+                ['fr' => 'HVAC', 'en' => 'HVAC', 'es' => 'HVAC'],
                 '/pages/industry-hvac',
-                'Operations HVAC, maintenance et interventions.',
-                'HVAC',
-                'HVAC maintenance and service operations.'
+                [
+                    'fr' => 'Operations HVAC, maintenance et interventions.',
+                    'en' => 'HVAC maintenance and service operations.',
+                    'es' => 'Operaciones HVAC, mantenimiento y servicios.',
+                ]
             ),
             $this->classicLink(
-                'Électricité',
+                ['fr' => 'Électricité', 'en' => 'Electrical', 'es' => 'Electricidad'],
                 '/pages/industry-electrical',
-                'Devis, chantiers et interventions électriques.',
-                'Electrical',
-                'Quotes, projects, and electrical jobs.'
+                [
+                    'fr' => 'Devis, chantiers et interventions électriques.',
+                    'en' => 'Quotes, projects, and electrical jobs.',
+                    'es' => 'Cotizaciones, proyectos y trabajos electricos.',
+                ]
             ),
             $this->classicLink(
-                'Nettoyage',
+                ['fr' => 'Nettoyage', 'en' => 'Cleaning', 'es' => 'Limpieza'],
                 '/pages/industry-cleaning',
-                'Sites récurrents, équipes et qualité de service.',
-                'Cleaning',
-                'Recurring sites, teams, and service quality.'
+                [
+                    'fr' => 'Sites recurrents, equipes et qualite de service.',
+                    'en' => 'Recurring sites, teams, and service quality.',
+                    'es' => 'Sitios recurrentes, equipos y calidad del servicio.',
+                ]
             ),
             $this->classicLink(
-                'Salon & beauté',
+                ['fr' => 'Salon & beauté', 'en' => 'Salon & Beauty', 'es' => 'Salon y belleza'],
                 '/pages/industry-salon-beauty',
-                'Réservations, rappels et fidélisation.',
-                'Salon & Beauty',
-                'Bookings, reminders, and retention.'
+                [
+                    'fr' => 'Réservations, rappels et fidélisation.',
+                    'en' => 'Bookings, reminders, and retention.',
+                    'es' => 'Reservas, recordatorios y fidelizacion.',
+                ]
             ),
             $this->classicLink(
-                'Restaurant',
+                ['fr' => 'Restaurant', 'en' => 'Restaurant', 'es' => 'Restaurante'],
                 '/pages/industry-restaurant',
-                'Réservations, attente et accueil en salle.',
-                'Restaurant',
-                'Bookings, waiting flow, and front-of-house.'
+                [
+                    'fr' => 'Reservations, attente et accueil en salle.',
+                    'en' => 'Bookings, waiting flow, and front-of-house.',
+                    'es' => 'Reservas, flujo de espera y recepcion en sala.',
+                ]
             ),
         ];
     }
@@ -918,12 +1167,16 @@ class MegaMenuSeeder extends Seeder
                 'featured' => false,
                 'highlight_color' => '',
                 'dynamic_href_setting' => 'contact_form_url',
-                'translations' => [
-                    'en' => [
+                'translations' => $this->translationBuckets(
+                    [
                         'label' => 'Contact us',
                         'description' => 'Open the contact page and then update the form link from the Pages admin.',
                     ],
-                ],
+                    [
+                        'label' => 'Contactanos',
+                        'description' => 'Abre la pagina de contacto y despues actualiza el enlace del formulario desde el admin de Pages.',
+                    ],
+                ),
             ],
         ];
     }
@@ -946,34 +1199,86 @@ class MegaMenuSeeder extends Seeder
      * @param  array<int, array<string, mixed>>  $items
      * @return array<string, mixed>
      */
-    private function productShowcaseBlock(
-        string $title,
-        string $englishTitle,
-        string $description,
-        string $englishDescription,
-        array $items
-    ): array {
+    private function productShowcaseBlock(array $titles, array $descriptions, array $products): array
+    {
         return [
             'type' => 'product_showcase',
-            'title' => $title,
+            'title' => (string) ($titles['fr'] ?? ''),
             'settings' => [
-                'translations' => [
-                    'en' => [
-                        'title' => $englishTitle,
-                    ],
-                ],
+                'translations' => $this->translationBuckets(
+                    ['title' => (string) ($titles['en'] ?? '')],
+                    ['title' => (string) ($titles['es'] ?? '')],
+                ),
             ],
             'payload' => [
-                'title' => $title,
-                'description' => $description,
-                'translations' => [
-                    'en' => [
-                        'title' => $englishTitle,
-                        'description' => $englishDescription,
+                'title' => (string) ($titles['fr'] ?? ''),
+                'description' => (string) ($descriptions['fr'] ?? ''),
+                'translations' => $this->translationBuckets(
+                    [
+                        'title' => (string) ($titles['en'] ?? ''),
+                        'description' => (string) ($descriptions['en'] ?? ''),
+                        'items' => array_values(array_map(fn (array $product) => $product['en'], $products)),
                     ],
-                ],
-                'items' => $items,
+                    [
+                        'title' => (string) ($titles['es'] ?? ''),
+                        'description' => (string) ($descriptions['es'] ?? ''),
+                        'items' => array_values(array_map(fn (array $product) => $product['es'], $products)),
+                    ],
+                ),
+                'items' => array_values(array_map(fn (array $product) => $product['fr'], $products)),
             ],
+        ];
+    }
+
+    /**
+     * @param  array<string, string>  $notes
+     * @param  array<string, string>  $summaries
+     * @param  array<string, string>  $badges
+     * @return array<string, array<string, mixed>>
+     */
+    private function localizedShowcaseProduct(
+        string $productKey,
+        string $label,
+        string $href,
+        array $notes,
+        array $summaries,
+        array $badges = []
+    ): array {
+        $frImage = $this->stockImage($productKey, 'fr');
+        $enImage = $this->stockImage($productKey, 'en');
+        $esImage = $this->stockImage($productKey, 'es');
+
+        return [
+            'fr' => $this->showcaseProduct(
+                $label,
+                $href,
+                (string) ($notes['fr'] ?? ''),
+                (string) ($summaries['fr'] ?? ''),
+                $frImage['image_url'],
+                $frImage['image_alt'],
+                $label,
+                (string) ($badges['fr'] ?? '')
+            ),
+            'en' => $this->showcaseProduct(
+                $label,
+                $href,
+                (string) ($notes['en'] ?? ''),
+                (string) ($summaries['en'] ?? ''),
+                $enImage['image_url'],
+                $enImage['image_alt'],
+                $label,
+                (string) ($badges['en'] ?? '')
+            ),
+            'es' => $this->showcaseProduct(
+                $label,
+                $href,
+                (string) ($notes['es'] ?? ''),
+                (string) ($summaries['es'] ?? ''),
+                $esImage['image_url'],
+                $esImage['image_alt'],
+                $label,
+                (string) ($badges['es'] ?? '')
+            ),
         ];
     }
 
@@ -1006,27 +1311,24 @@ class MegaMenuSeeder extends Seeder
     /**
      * @return array<string, mixed>
      */
-    private function classicLink(
-        string $label,
-        string $linkValue,
-        string $description = '',
-        ?string $englishLabel = null,
-        ?string $englishDescription = null
-    ): array {
-        $settings = [];
-
-        if ($englishLabel !== null || $englishDescription !== null) {
-            $settings['translations'] = [
-                'en' => array_filter([
-                    'label' => $englishLabel,
-                    'description' => $englishDescription,
+    private function classicLink(array $labels, string $linkValue, array $descriptions = []): array
+    {
+        $settings = [
+            'translations' => $this->translationBuckets(
+                array_filter([
+                    'label' => $labels['en'] ?? null,
+                    'description' => $descriptions['en'] ?? null,
                 ], fn ($value) => $value !== null && $value !== ''),
-            ];
-        }
+                array_filter([
+                    'label' => $labels['es'] ?? null,
+                    'description' => $descriptions['es'] ?? null,
+                ], fn ($value) => $value !== null && $value !== ''),
+            ),
+        ];
 
         return [
-            'label' => $label,
-            'description' => $description,
+            'label' => (string) ($labels['fr'] ?? ''),
+            'description' => (string) ($descriptions['fr'] ?? ''),
             'link_type' => 'internal_page',
             'link_value' => $linkValue,
             'link_target' => '_self',
@@ -1034,6 +1336,26 @@ class MegaMenuSeeder extends Seeder
             'is_visible' => true,
             'settings' => $settings,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $english
+     * @param  array<string, mixed>  $spanish
+     * @return array<string, array<string, mixed>>
+     */
+    private function translationBuckets(array $english = [], array $spanish = []): array
+    {
+        $translations = [];
+
+        if ($english !== []) {
+            $translations['en'] = $english;
+        }
+
+        if ($spanish !== []) {
+            $translations['es'] = $spanish;
+        }
+
+        return $translations;
     }
 
     /**
@@ -1119,7 +1441,9 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('industry-plumbing', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('industry-plumbing', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('industry-plumbing', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('industry-plumbing', 'es')['image_alt'],
                 'fr' => [
+                    'title' => 'Plomberie',
                     'subtitle' => '<p>Gardez demandes, devis, interventions, et paiements dans un même flux plus clair pour les équipes plomberie.</p>',
                     'overview_title' => 'Un système plus clair pour la plomberie résidentielle et commerciale',
                     'overview_body' => '<p>Malikia Pro aide les équipes plomberie à capter la demande, envoyer le devis, planifier l\'intervention, et encaisser plus vite sans éclater le contexte entre plusieurs outils.</p>',
@@ -1139,6 +1463,7 @@ class MegaMenuSeeder extends Seeder
                     ],
                 ],
                 'en' => [
+                    'title' => 'Plumbing',
                     'subtitle' => '<p>Keep requests, quotes, field work, and payments inside one clearer flow built for plumbing teams.</p>',
                     'overview_title' => 'A clearer system for residential and commercial plumbing',
                     'overview_body' => '<p>Malikia Pro helps plumbing teams capture demand, send the quote, schedule the visit, and collect payment faster without splitting the context across multiple tools.</p>',
@@ -1157,6 +1482,10 @@ class MegaMenuSeeder extends Seeder
                         '4. Invoice and follow up on payment',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Fontaneria',
+                    'subtitle' => '<p>Manten solicitudes, presupuestos, intervenciones y pagos dentro de un mismo flujo mas claro para los equipos de fontaneria.</p>',
+                ],
             ],
             'hvac' => [
                 'slug' => 'industry-hvac',
@@ -1164,7 +1493,9 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('industry-hvac', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('industry-hvac', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('industry-hvac', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('industry-hvac', 'es')['image_alt'],
                 'fr' => [
+                    'title' => 'HVAC / Climatisation',
                     'subtitle' => '<p>Gardez appels de service, maintenance, interventions terrain, et facturation dans un même flux opérationnel conçu pour les équipes HVAC.</p>',
                     'overview_title' => 'Coordonnez appels, maintenance, et facturation dans un même système HVAC',
                     'overview_body' => '<p>Entre les urgences, les visites d\'entretien, et les interventions planifiées, Malikia Pro aide les équipes HVAC à garder un flux plus lisible du bureau jusqu\'à la facture.</p>',
@@ -1184,6 +1515,7 @@ class MegaMenuSeeder extends Seeder
                     ],
                 ],
                 'en' => [
+                    'title' => 'HVAC / Air Conditioning',
                     'subtitle' => '<p>Keep service calls, maintenance, field visits, and billing connected in one operating flow built for HVAC teams.</p>',
                     'overview_title' => 'Coordinate calls, maintenance, and billing inside one HVAC system',
                     'overview_body' => '<p>Between urgent calls, maintenance visits, and planned work, Malikia Pro helps HVAC teams keep a clearer flow from dispatch through invoicing.</p>',
@@ -1202,14 +1534,20 @@ class MegaMenuSeeder extends Seeder
                         '4. Generate the invoice and follow up',
                     ],
                 ],
+                'es' => [
+                    'title' => 'HVAC / Climatizacion',
+                    'subtitle' => '<p>Manten llamadas de servicio, mantenimiento, visitas de campo y facturacion conectados en un mismo flujo operativo pensado para equipos HVAC.</p>',
+                ],
             ],
             'electrical' => [
                 'slug' => 'industry-electrical',
-                'title' => 'Electricite',
+                'title' => 'Électricité',
                 'image_url' => $this->stockImage('industry-electrical', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('industry-electrical', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('industry-electrical', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('industry-electrical', 'es')['image_alt'],
                 'fr' => [
+                    'title' => 'Électricité',
                     'subtitle' => '<p>Gardez demandes, devis, chantiers, et clôture dans un même flux plus clair pour les équipes électriques.</p>',
                     'overview_title' => 'Une coordination plus claire pour les équipes électriques',
                     'overview_body' => '<p>Malikia Pro relie demande, devis, exécution, et encaissement pour que le bureau et le terrain avancent avec le même niveau de contexte.</p>',
@@ -1229,6 +1567,7 @@ class MegaMenuSeeder extends Seeder
                     ],
                 ],
                 'en' => [
+                    'title' => 'Electrical',
                     'subtitle' => '<p>Keep requests, quotes, jobs, and closeout inside one clearer flow for electrical teams.</p>',
                     'overview_title' => 'Clearer coordination for electrical teams',
                     'overview_body' => '<p>Malikia Pro connects demand, quoting, execution, and collection so office and field teams move with the same level of context.</p>',
@@ -1247,6 +1586,10 @@ class MegaMenuSeeder extends Seeder
                         '4. Close the work and invoice',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Electricidad',
+                    'subtitle' => '<p>Manten solicitudes, presupuestos, trabajos y cierre dentro de un mismo flujo mas claro para los equipos electricos.</p>',
+                ],
             ],
             'cleaning' => [
                 'slug' => 'industry-cleaning',
@@ -1254,7 +1597,9 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('industry-cleaning', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('industry-cleaning', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('industry-cleaning', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('industry-cleaning', 'es')['image_alt'],
                 'fr' => [
+                    'title' => 'Nettoyage',
                     'subtitle' => '<p>Gardez sites récurrents, présence, qualité de service, et suivi client dans un même flux plus fiable pour les équipes de nettoyage.</p>',
                     'overview_title' => 'Pilotez les opérations récurrentes avec plus de constance',
                     'overview_body' => '<p>Pour les entreprises de nettoyage, Malikia Pro aide à structurer les sites, suivre la présence, documenter la qualité, et protéger la relation client dans la durée.</p>',
@@ -1274,6 +1619,7 @@ class MegaMenuSeeder extends Seeder
                     ],
                 ],
                 'en' => [
+                    'title' => 'Cleaning',
                     'subtitle' => '<p>Keep recurring sites, attendance, service quality, and customer follow-up inside one more reliable flow for cleaning teams.</p>',
                     'overview_title' => 'Run recurring operations with more consistency',
                     'overview_body' => '<p>For cleaning businesses, Malikia Pro helps structure sites, track attendance, document quality, and protect the customer relationship over time.</p>',
@@ -1292,14 +1638,20 @@ class MegaMenuSeeder extends Seeder
                         '4. Invoice and retain customers',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Limpieza',
+                    'subtitle' => '<p>Manten sitios recurrentes, asistencia, calidad de servicio y seguimiento del cliente dentro de un flujo mas fiable para los equipos de limpieza.</p>',
+                ],
             ],
             'salon-beauty' => [
                 'slug' => 'industry-salon-beauty',
-                'title' => 'Salon & beaute',
+                'title' => 'Salon & beauté',
                 'image_url' => $this->stockImage('industry-salon-beauty', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('industry-salon-beauty', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('industry-salon-beauty', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('industry-salon-beauty', 'es')['image_alt'],
                 'fr' => [
+                    'title' => 'Salon & beauté',
                     'subtitle' => '<p>Gardez réservations, rappels, gestion des no-shows, et fidélisation dans une même expérience plus fluide pour l\'équipe comme pour le client.</p>',
                     'overview_title' => 'Une expérience plus fluide pour les salons et activités beauté',
                     'overview_body' => '<p>Pour les salons et activités beauté, réservation, présence, accueil, et fidélisation font partie du même revenu. Le produit doit rester simple, rapide, et premium.</p>',
@@ -1319,6 +1671,7 @@ class MegaMenuSeeder extends Seeder
                     ],
                 ],
                 'en' => [
+                    'title' => 'Salon & beauty',
                     'subtitle' => '<p>Keep bookings, reminders, no-show handling, and loyalty connected in one smoother experience for the team and the client.</p>',
                     'overview_title' => 'A smoother experience for salons and beauty businesses',
                     'overview_body' => '<p>For salons and beauty businesses, booking, attendance, reception, and loyalty are part of the same revenue flow. The product has to stay simple, fast, and premium.</p>',
@@ -1337,6 +1690,10 @@ class MegaMenuSeeder extends Seeder
                         '4. Follow up and build retention',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Salon y belleza',
+                    'subtitle' => '<p>Manten reservas, recordatorios, gestion de no-shows y fidelizacion conectados en una experiencia mas fluida tanto para el equipo como para el cliente.</p>',
+                ],
             ],
             'restaurant' => [
                 'slug' => 'industry-restaurant',
@@ -1344,7 +1701,9 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('industry-restaurant', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('industry-restaurant', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('industry-restaurant', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('industry-restaurant', 'es')['image_alt'],
                 'fr' => [
+                    'title' => 'Restaurant',
                     'subtitle' => '<p>Gardez réservations, file d\'attente, check-in, et expérience client reliés dans un même parcours plus fluide pour l\'équipe d\'accueil.</p>',
                     'overview_title' => 'Gérez le parcours restaurant avec plus de fluidité avant et pendant le service',
                     'overview_body' => '<p>Le revenu ne dépend pas seulement des tables réservées, mais aussi de la fluidité d\'accueil, de l\'attente, des dépôts, et de la relation client après la visite.</p>',
@@ -1364,6 +1723,7 @@ class MegaMenuSeeder extends Seeder
                     ],
                 ],
                 'en' => [
+                    'title' => 'Restaurant',
                     'subtitle' => '<p>Keep bookings, waitlist flow, check-in, and guest experience connected in one smoother journey for the front-of-house team.</p>',
                     'overview_title' => 'Manage the restaurant journey with more flow before and during service',
                     'overview_body' => '<p>Revenue depends not only on booked tables, but also on front-of-house flow, waiting time, deposits, and guest follow-up after the visit.</p>',
@@ -1382,6 +1742,10 @@ class MegaMenuSeeder extends Seeder
                         '4. Follow up after the visit',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Restaurante',
+                    'subtitle' => '<p>Manten reservas, flujo de lista de espera, check-in y experiencia del cliente conectados en un recorrido mas fluido para el equipo de recepcion.</p>',
+                ],
             ],
         ];
     }
@@ -1398,7 +1762,9 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('solution-field-services', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('solution-field-services', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('solution-field-services', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('solution-field-services', 'es')['image_alt'],
                 'fr' => [
+                    'title' => 'Services terrain',
                     'subtitle' => '<p>Coordonnez planification, dispatch, exécution terrain, et preuve de travail dans un même flux opérationnel pensé pour garder les équipes alignées de l\'affectation à la clôture.</p>',
                     'overview_title' => 'Pilotez le terrain avec une coordination plus claire de la planification jusqu\'à la preuve',
                     'overview_body' => '<p>Services terrain réunit planning, dispatch, jobs, suivi des tâches, et preuve de travail pour aider les équipes à livrer plus régulièrement sans reconstruire le contexte à chaque étape.</p>',
@@ -1457,6 +1823,36 @@ class MegaMenuSeeder extends Seeder
                         'Proofs',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Servicios de campo',
+                    'subtitle' => '<p>Coordina planificacion, asignacion, ejecucion en campo y prueba de trabajo dentro de un mismo flujo operativo pensado para mantener alineados a los equipos desde la asignacion hasta el cierre.</p>',
+                    'overview_title' => 'Gestiona el trabajo de campo con una coordinacion mas clara desde la planificacion hasta la prueba',
+                    'overview_body' => '<p>Servicios de campo reune planificacion, asignacion, trabajos, seguimiento de tareas y prueba de trabajo para ayudar a los equipos a entregar con mas regularidad sin reconstruir el contexto en cada etapa.</p>',
+                    'overview_items' => [
+                        'Planificacion de equipos y asignacion centralizadas',
+                        'Trabajos de campo con pruebas, notas y estados',
+                        'Tareas internas visibles por rol o equipo',
+                        'Seguimiento operativo sin perdida de contexto',
+                    ],
+                    'workflow_title' => 'Un recorrido de campo claro desde la asignacion hasta el cierre',
+                    'workflow_body' => '<p>Los responsables planifican y asignan el trabajo, los equipos ejecutan con el contexto adecuado en la mano y los trabajos terminados regresan con pruebas, notas y validacion listas para revisar.</p>',
+                    'workflow_items' => [
+                        '1. Planificar recursos y franjas de trabajo',
+                        '2. Asignar trabajos y visitas de campo',
+                        '3. Seguir la ejecucion sobre el terreno',
+                        '4. Cerrar el trabajo con prueba y validacion',
+                    ],
+                    'modules_title' => 'Los espacios de campo que mantienen a los equipos alineados durante la ejecucion',
+                    'modules_body' => '<p>La solucion activa las paginas operativas en las que los equipos se apoyan para planificar, asignar, ejecutar, documentar y cerrar el trabajo con menos brechas entre la oficina y el terreno.</p>',
+                    'modules_items' => [
+                        'Planificacion',
+                        'Trabajos',
+                        'Tareas',
+                        'Presencia',
+                        'Equipo',
+                        'Pruebas',
+                    ],
+                ],
             ],
             'reservations-queues' => [
                 'slug' => 'solution-reservations-queues',
@@ -1464,7 +1860,9 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('solution-reservations-queues', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('solution-reservations-queues', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('solution-reservations-queues', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('solution-reservations-queues', 'es')['image_alt'],
                 'fr' => [
+                    'title' => 'Réservations & files',
                     'subtitle' => '<p>Transformez réservation, confirmations, accueil, et gestion de la file en un parcours client plus fluide de la première réservation jusqu\'à l\'arrivée sur site.</p>',
                     'overview_title' => 'Gérez le flux client plus clairement avant et pendant la visite',
                     'overview_body' => '<p>Réservations & files réunit disponibilités, confirmations, check-in, et gestion de la file pour que les clients avancent plus fluidement dans la visite et que l\'équipe garde un meilleur contrôle sur place.</p>',
@@ -1523,6 +1921,36 @@ class MegaMenuSeeder extends Seeder
                         'Queue board',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Reservas y colas',
+                    'subtitle' => '<p>Transforma reservas, confirmaciones, recepcion y visibilidad de la cola en un recorrido del cliente mas fluido desde la primera reserva hasta la llegada al sitio.</p>',
+                    'overview_title' => 'Gestiona el flujo del cliente con mas claridad antes y durante la visita',
+                    'overview_body' => '<p>Reservas y colas une disponibilidad, confirmaciones, check-in y gestion de cola para que los clientes avancen con mas fluidez en la visita y el equipo mantenga un mejor control en el sitio.</p>',
+                    'overview_items' => [
+                        'Reservas online con disponibilidad en tiempo real',
+                        'Recordatorios y confirmaciones automatizados',
+                        'Check-in en sitio y kioscos de autoservicio',
+                        'Vista en tiempo real de colas y llegadas',
+                    ],
+                    'workflow_title' => 'Un recorrido de visita claro desde la reserva hasta la llegada',
+                    'workflow_body' => '<p>El cliente reserva, el equipo confirma, la visita se prepara y se gestiona en el sitio, y cada cambio permanece visible para que el flujo de recepcion sea mas facil de pilotar.</p>',
+                    'workflow_items' => [
+                        '1. Publicar disponibilidades y recursos',
+                        '2. Aceptar reservas en autoservicio',
+                        '3. Gestionar confirmaciones, retrasos y cancelaciones',
+                        '4. Seguir la cola y el check-in en tiempo real',
+                    ],
+                    'modules_title' => 'Los espacios que mantienen reserva, recepcion y cola dentro de un mismo flujo',
+                    'modules_body' => '<p>La solucion conecta las paginas que estructuran la reserva antes de la visita, la llegada al sitio y la visibilidad de recepcion en tiempo real.</p>',
+                    'modules_items' => [
+                        'Calendario',
+                        'Disponibilidad',
+                        'Reservas de clientes',
+                        'Kiosco del cliente',
+                        'Kiosco publico',
+                        'Panel de cola',
+                    ],
+                ],
             ],
             'sales-quoting' => [
                 'slug' => 'solution-sales-quoting',
@@ -1530,7 +1958,9 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('solution-sales-quoting', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('solution-sales-quoting', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('solution-sales-quoting', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('solution-sales-quoting', 'es')['image_alt'],
                 'fr' => [
+                    'title' => 'Vente & devis',
                     'subtitle' => '<p>Captez les demandes entrantes, qualifiez les opportunités, envoyez des devis plus propres, et gardez la relance visible jusqu\'à l\'approbation du travail.</p>',
                     'overview_title' => 'Passez de la première demande au devis approuvé sans friction',
                     'overview_body' => '<p>Vente & devis relie la demande entrante, la qualification, le contexte client, le devis, et la relance pour aider l\'équipe à convertir plus vite sans reconstruire les mêmes informations à chaque étape.</p>',
@@ -1589,6 +2019,36 @@ class MegaMenuSeeder extends Seeder
                         'Plan scan',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Ventas y presupuestos',
+                    'subtitle' => '<p>Capta la demanda entrante, califica oportunidades, envia presupuestos mas limpios y mantiene visible el seguimiento hasta que el trabajo se aprueba.</p>',
+                    'overview_title' => 'Pasa de la primera solicitud al presupuesto aprobado sin friccion',
+                    'overview_body' => '<p>Ventas y presupuestos conecta la demanda entrante, la cualificacion, el contexto del cliente, el presupuesto y el seguimiento para ayudar al equipo a convertir mas rapido sin reconstruir la misma informacion en cada etapa.</p>',
+                    'overview_items' => [
+                        'Solicitudes centralizadas desde la web o el equipo',
+                        'Fichas de cliente compartidas con historial visible',
+                        'Presupuestos seguidos por estado, seguimiento y aprobacion',
+                        'Un pipeline comercial mas claro para priorizar oportunidades',
+                    ],
+                    'workflow_title' => 'Un flujo claro para los equipos comerciales',
+                    'workflow_body' => '<p>El equipo capta la solicitud, califica la oportunidad, prepara el presupuesto, hace seguimiento con el contexto adecuado y hace avanzar el trabajo sin saltar entre herramientas desconectadas.</p>',
+                    'workflow_items' => [
+                        '1. Captar leads entrantes',
+                        '2. Calificar y enriquecer la ficha del cliente',
+                        '3. Preparar y enviar el presupuesto',
+                        '4. Hacer seguimiento y convertir en trabajo o ingresos',
+                    ],
+                    'modules_title' => 'Los espacios comerciales que hacen avanzar presupuestos y conversion',
+                    'modules_body' => '<p>La solucion reune las paginas en las que el equipo se apoya para captar demanda, estructurar presupuestos, seguir el movimiento de oportunidades y mantener el contexto del cliente disponible desde la primera solicitud hasta la aprobacion.</p>',
+                    'modules_items' => [
+                        'Panel comercial',
+                        'Solicitudes',
+                        'Presupuestos',
+                        'Clientes',
+                        'Pipeline',
+                        'Escaneo de planos',
+                    ],
+                ],
             ],
             'commerce-catalog' => [
                 'slug' => 'solution-commerce-catalog',
@@ -1596,7 +2056,9 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('solution-commerce-catalog', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('solution-commerce-catalog', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('solution-commerce-catalog', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('solution-commerce-catalog', 'es')['image_alt'],
                 'fr' => [
+                    'title' => 'Commerce & catalogue',
                     'subtitle' => '<p>Publiez votre offre, guidez la commande, facturez proprement, et encaissez dans un même parcours commercial connecté.</p>',
                     'overview_title' => 'Structurez l\'offre, la commande, et le revenu dans un même système commercial',
                     'overview_body' => '<p>Commerce & catalogue relie catalogue, boutique, commande, facture, et paiement pour que la vente reste lisible du premier choix client jusqu\'au revenu encaissé.</p>',
@@ -1655,6 +2117,36 @@ class MegaMenuSeeder extends Seeder
                         'Payments',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Comercio y catalogo',
+                    'subtitle' => '<p>Publica tu oferta, guia el pedido, factura con claridad y cobra dentro de un mismo recorrido comercial conectado.</p>',
+                    'overview_title' => 'Estructura la oferta, el pedido y los ingresos dentro de un solo sistema comercial',
+                    'overview_body' => '<p>Comercio y catalogo mantiene conectados catalogo, escaparate, flujo de pedido, facturacion y pago para que la venta sea clara desde la primera seleccion hasta el ingreso cobrado.</p>',
+                    'overview_items' => [
+                        'Catalogo claro de productos y servicios',
+                        'Flujo de pedido guiado y coherente',
+                        'Facturacion ligada a la transaccion',
+                        'Pagos y seguimiento de ingresos en un mismo lugar',
+                    ],
+                    'workflow_title' => 'Pasa de la oferta publicada al ingreso cobrado sin romper el flujo',
+                    'workflow_body' => '<p>El equipo estructura la oferta, abre la venta, genera el pedido o la factura y sigue el pago sin volver a introducir el mismo contexto en cada etapa.</p>',
+                    'workflow_items' => [
+                        '1. Estructurar productos, servicios y precios',
+                        '2. Abrir la venta por el escaparate o el equipo',
+                        '3. Generar el pedido o la factura',
+                        '4. Seguir el pago y el ingreso cobrado',
+                    ],
+                    'modules_title' => 'Los espacios comerciales que mantienen conectadas venta, factura y pago',
+                    'modules_body' => '<p>La solucion reune las paginas que presentan la oferta, facilitan un cobro mas limpio y mantienen los ingresos mas faciles de leer.</p>',
+                    'modules_items' => [
+                        'Productos',
+                        'Servicios',
+                        'Escaparate',
+                        'Pedidos',
+                        'Facturas',
+                        'Pagos',
+                    ],
+                ],
             ],
             'marketing-loyalty' => [
                 'slug' => 'solution-marketing-loyalty',
@@ -1662,7 +2154,9 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('solution-marketing-loyalty', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('solution-marketing-loyalty', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('solution-marketing-loyalty', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('solution-marketing-loyalty', 'es')['image_alt'],
                 'fr' => [
+                    'title' => 'Marketing & fidélisation',
                     'subtitle' => '<p>Transformez signaux client, campagnes ciblées, et parcours de fidélisation en une façon plus pertinente de faire revenir les clients et de développer le revenu récurrent.</p>',
                     'overview_title' => 'Réactivez les clients avec plus de pertinence et moins d\'approximation',
                     'overview_body' => '<p>Marketing & fidélisation relie signaux d\'audience, campagnes, logique VIP, et parcours de relance pour aider l\'équipe à agir avec un meilleur timing et à garder le revenu récurrent plus visible.</p>',
@@ -1721,6 +2215,36 @@ class MegaMenuSeeder extends Seeder
                         'Prospect providers',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Marketing y fidelizacion',
+                    'subtitle' => '<p>Transforma senales de cliente, campanas segmentadas y recorridos de fidelizacion en una manera mas relevante de hacer volver a las personas y desarrollar ingresos recurrentes.</p>',
+                    'overview_title' => 'Reactiva clientes con mas relevancia y menos aproximacion',
+                    'overview_body' => '<p>Marketing y fidelizacion conecta senales de audiencia, campanas, logica VIP y recorridos de seguimiento para que los equipos actuen con mejor timing y mantengan mas visibles los ingresos recurrentes.</p>',
+                    'overview_items' => [
+                        'Campanas de email y SMS mas relevantes',
+                        'Segmentos construidos a partir del comportamiento real',
+                        'Programas VIP y beneficios de fidelizacion',
+                        'Seguimientos utiles en el momento adecuado',
+                    ],
+                    'workflow_title' => 'Pasa de la senal del cliente al ingreso recurrente con un flujo de retencion mas claro',
+                    'workflow_body' => '<p>El equipo identifica la audiencia adecuada, prepara el mensaje o el recorrido, activa el canal correcto y mide el retorno usando el mismo contexto de cliente que el resto de la plataforma.</p>',
+                    'workflow_items' => [
+                        '1. Detectar las senales correctas del cliente',
+                        '2. Construir segmentos y logica VIP',
+                        '3. Activar campanas y recorridos en el momento adecuado',
+                        '4. Seguir reactivacion, fidelidad y valor',
+                    ],
+                    'modules_title' => 'Los espacios que conectan senales, campanas y fidelizacion',
+                    'modules_body' => '<p>La solucion reune los modulos que ayudan a los equipos a actuar en el momento correcto, con el contexto correcto, y a medir el efecto sobre los ingresos recurrentes.</p>',
+                    'modules_items' => [
+                        'Campanas',
+                        'Listas de correo',
+                        'Segmentos de audiencia',
+                        'Fidelizacion',
+                        'Niveles VIP',
+                        'Fuentes de prospectos',
+                    ],
+                ],
             ],
             'multi-entity-oversight' => [
                 'slug' => 'solution-multi-entity-oversight',
@@ -1728,7 +2252,9 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('solution-multi-entity-oversight', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('solution-multi-entity-oversight', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('solution-multi-entity-oversight', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('solution-multi-entity-oversight', 'es')['image_alt'],
                 'fr' => [
+                    'title' => 'Pilotage multi-entreprise',
                     'subtitle' => '<p>Obtenez une vue dirigeante partagée sur les entités, la performance, et les priorités pour comparer plus vite, décider plus clairement, et agir sans perdre le contexte local.</p>',
                     'overview_title' => 'Pilotez plusieurs entités avec plus de visibilité et un meilleur alignement',
                     'overview_body' => '<p>Pilotage multi-entreprise relie indicateurs transverses, vues partagées, et logique de comparaison pour aider la direction à lire la performance plus clairement et à coordonner l\'action sans casser le contexte.</p>',
@@ -1787,6 +2313,36 @@ class MegaMenuSeeder extends Seeder
                         'Shared reports',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Supervision multiempresa',
+                    'subtitle' => '<p>Obtiene una vista directiva compartida sobre entidades, rendimiento y prioridades para comparar mas rapido, decidir con mas claridad y actuar sin perder el contexto local.</p>',
+                    'overview_title' => 'Lidera varias entidades con mas visibilidad y mejor alineacion',
+                    'overview_body' => '<p>Supervision multiempresa conecta indicadores transversales, vistas directivas compartidas y logica de comparacion para que los equipos lean el rendimiento con mas claridad y coordinen la accion sin romper el contexto.</p>',
+                    'overview_items' => [
+                        'Vista consolidada entre entidades o unidades de negocio',
+                        'Indicadores compartidos entre modulos clave',
+                        'Puntos de atencion detectados rapidamente',
+                        'Direccion y responsables trabajando desde la misma vista',
+                    ],
+                    'workflow_title' => 'De la visibilidad compartida a la accion coordinada sin perder la lectura local',
+                    'workflow_body' => '<p>La direccion revisa las senales globales, identifica las diferencias que importan, baja al equipo o entidad adecuados y convierte las prioridades en accion a traves del modulo o responsable correcto.</p>',
+                    'workflow_items' => [
+                        '1. Leer indicadores transversales',
+                        '2. Comparar entidades, equipos o periodos',
+                        '3. Aislar las diferencias que exigen una decision',
+                        '4. Pasar al modulo o responsable correcto para actuar',
+                    ],
+                    'modules_title' => 'Los espacios de supervision que conectan vision global y accion local',
+                    'modules_body' => '<p>La solucion se apoya en vistas consolidadas y espacios de mando compartidos que ayudan a la direccion a priorizar sin perder el contexto operativo.</p>',
+                    'modules_items' => [
+                        'Panel global',
+                        'Vista de ingresos',
+                        'Vista de operaciones',
+                        'Vista de equipo',
+                        'Alertas',
+                        'Informes compartidos',
+                    ],
+                ],
             ],
         ];
     }
@@ -1804,6 +2360,7 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('sales-crm', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('sales-crm', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('sales-crm', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('sales-crm', 'es')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Centralisez les demandes, les devis, et le suivi client dans un même espace commercial.</p>',
                     'overview_title' => 'Passez de la demande au devis sans rupture',
@@ -1862,6 +2419,10 @@ class MegaMenuSeeder extends Seeder
                         'Plan scan',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Ventas y CRM',
+                    'subtitle' => '<p>Centraliza solicitudes, presupuestos y seguimiento del cliente en un mismo espacio comercial.</p>',
+                ],
             ],
             'reservations' => [
                 'slug' => 'reservations',
@@ -1870,6 +2431,7 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('reservations', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('reservations', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('reservations', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('reservations', 'es')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Offrez la réservation en libre-service sans perdre le contrôle de la visite.</p>',
                     'overview_title' => 'La prise de rendez-vous devient un vrai canal de vente',
@@ -1928,6 +2490,10 @@ class MegaMenuSeeder extends Seeder
                         'Queue board',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Reservas',
+                    'subtitle' => '<p>Ofrece reservas en autoservicio sin perder el control de la visita.</p>',
+                ],
             ],
             'operations' => [
                 'slug' => 'operations',
@@ -1936,6 +2502,7 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('operations', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('operations', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('operations', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('operations', 'es')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Pilotez planning, dispatch, exécution terrain, et preuve de travail depuis un même espace opérationnel.</p>',
                     'overview_title' => 'Une vue opérationnelle complète pour mieux livrer',
@@ -1994,6 +2561,10 @@ class MegaMenuSeeder extends Seeder
                         'Daily follow-up',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Operaciones',
+                    'subtitle' => '<p>Gestiona planificacion, despacho, ejecucion en campo y prueba de trabajo desde un mismo espacio operativo.</p>',
+                ],
             ],
             'commerce' => [
                 'slug' => 'commerce',
@@ -2002,6 +2573,7 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('commerce', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('commerce', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('commerce', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('commerce', 'es')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Vendez produits et services, émettez les factures et encaissez dans un même parcours client connecté.</p>',
                     'overview_title' => 'Reliez catalogue, vente, facturation et paiement',
@@ -2060,6 +2632,10 @@ class MegaMenuSeeder extends Seeder
                         'Payments',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Comercio',
+                    'subtitle' => '<p>Vende productos y servicios, emite facturas y cobra en un mismo recorrido del cliente conectado.</p>',
+                ],
             ],
             'marketing-loyalty' => [
                 'slug' => 'marketing-loyalty',
@@ -2068,6 +2644,7 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('marketing-loyalty', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('marketing-loyalty', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('marketing-loyalty', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('marketing-loyalty', 'es')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Lancez des campagnes, créez des segments plus intelligents, et ramenez les clients avec des parcours de fidélisation reliés à leur activité réelle plutôt qu\'à des envois génériques.</p>',
                     'overview_title' => 'Une base de rétention connectée à vos opérations',
@@ -2126,6 +2703,10 @@ class MegaMenuSeeder extends Seeder
                         'Prospect providers',
                     ],
                 ],
+                'es' => [
+                    'title' => 'Marketing y fidelizacion',
+                    'subtitle' => '<p>Lanza campanas, crea segmentos mas inteligentes y haz volver a los clientes con recorridos de fidelizacion conectados a su actividad real.</p>',
+                ],
             ],
             'ai-automation' => [
                 'slug' => 'ai-automation',
@@ -2134,6 +2715,7 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('ai-automation', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('ai-automation', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('ai-automation', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('ai-automation', 'es')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Utilisez assistants, brouillons, résumés, et automatisations dans le travail que votre équipe fait déjà, avec une aide qui reste utile, contextualisée, et révisable.</p>',
                     'overview_title' => 'L\'IA intégrée à la plateforme, pas à côté',
@@ -2192,6 +2774,10 @@ class MegaMenuSeeder extends Seeder
                         'AI images',
                     ],
                 ],
+                'es' => [
+                    'title' => 'IA y automatizacion',
+                    'subtitle' => '<p>Usa el asistente, borradores inteligentes y acciones sugeridas directamente dentro de los flujos de trabajo que ya existen.</p>',
+                ],
             ],
             'command-center' => [
                 'slug' => 'command-center',
@@ -2200,6 +2786,7 @@ class MegaMenuSeeder extends Seeder
                 'image_url' => $this->stockImage('command-center', 'fr')['image_url'],
                 'image_alt_fr' => $this->stockImage('command-center', 'fr')['image_alt'],
                 'image_alt_en' => $this->stockImage('command-center', 'en')['image_alt'],
+                'image_alt_es' => $this->stockImage('command-center', 'es')['image_alt'],
                 'fr' => [
                     'subtitle' => '<p>Obtenez une couche de pilotage partagée sur le revenu, les opérations, et l\'activité client pour voir les priorités plus vite et orienter l\'action avec plus de clarté.</p>',
                     'overview_title' => 'Un poste de pilotage pour la direction et les opérations',
@@ -2257,6 +2844,10 @@ class MegaMenuSeeder extends Seeder
                         'Alerts',
                         'Shared reports',
                     ],
+                ],
+                'es' => [
+                    'title' => 'Centro de mando',
+                    'subtitle' => '<p>Obten una capa de supervision compartida sobre ingresos, operaciones y actividad del cliente para ver prioridades mas rapido y orientar la accion con mas claridad.</p>',
                 ],
             ],
         ];

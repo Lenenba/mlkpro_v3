@@ -1,0 +1,54 @@
+{
+  "portal_order": {
+    "title": "Orden {number}",
+    "subtitle": "Detalles del pedido",
+    "actions": {
+      "back_to_dashboard": "Volver al tablero",
+      "download_pdf": "Descargar factura"
+    },
+    "sections": {
+      "items": "Artículos",
+      "summary": "Resumen",
+      "payment": "Pago",
+      "fulfillment": "Entrega / recogida",
+      "customer": "Cliente",
+      "payments": "Historial de pagos",
+      "reviews": "Reseñas"
+    },
+    "table": {
+      "product": "Producto",
+      "sku": "SKU",
+      "unit": "Unidad",
+      "quantity": "Cantidad",
+      "price": "Precio",
+      "total": "Total"
+    },
+    "labels": {
+      "order_status": "Estado del pedido",
+      "payment_status": "Estado de pago",
+      "created_on": "Creado el {date}",
+      "paid_on": "Pagado el {date}",
+      "requested_time": "Hora solicitada: {date}",
+      "delivery_address": "Dirección",
+      "notes": "Notas"
+    },
+    "reviews": {
+      "unavailable": "Las reseñas están disponibles una vez pagado el pedido.",
+      "order_title": "Revisión de pedidos",
+      "order_subtitle": "Califique la entrega y el servicio en general.",
+      "product_title": "Revisión del producto",
+      "rating_label": "Calificación",
+      "title_label": "Título",
+      "comment_label": "Comentario",
+      "submit_order": "Enviar revisión de pedido",
+      "submit_product": "Enviar reseña del producto",
+      "status": {
+        "approved": "Publicado",
+        "blocked": "Bloqueado"
+      }
+    },
+    "empty": {
+      "payments": "No se registraron pagos."
+    }
+  }
+}

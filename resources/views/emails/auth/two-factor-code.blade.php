@@ -20,15 +20,15 @@
                     'heroTitle' => __('mail.auth.two_factor.hero_title'),
                     'heroIntro' => $heroIntro,
                     'heroCaption' => __('mail.auth.two_factor.hero_caption'),
-                    'heroSideTitle' => 'Code snapshot',
+                    'heroSideTitle' => __('mail.common.code_snapshot'),
                     'heroSideRows' => [
                         ['label' => __('mail.common.platform'), 'value' => $companyName ?? 'Malikia Pro'],
                         ['label' => __('mail.auth.two_factor.code_title'), 'value' => $code],
                         ['label' => __('mail.common.expires'), 'value' => !empty($expiresInMinutes) ? $expiresInMinutes.' '.__('mail.common.minutes') : null],
                     ],
                     'heroMetrics' => [
-                        ['value' => (string) strlen((string) $code), 'label' => app()->isLocale('fr') ? 'Chiffres' : 'Digits'],
-                        ['value' => !empty($expiresInMinutes) ? (string) $expiresInMinutes : (app()->isLocale('fr') ? 'Maintenant' : 'Now'), 'label' => __('mail.common.minutes')],
+                        ['value' => (string) strlen((string) $code), 'label' => __('mail.common.digits')],
+                        ['value' => !empty($expiresInMinutes) ? (string) $expiresInMinutes : __('mail.common.now'), 'label' => __('mail.common.minutes')],
                         ['value' => '2FA', 'label' => __('mail.common.secure')],
                     ],
                 ])

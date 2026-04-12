@@ -1375,11 +1375,25 @@ test('template library resolves most specific default template', function () {
         ],
     ]);
 
+    $promotionEs = $service->save($owner, $owner, [
+        'name' => 'Promotion ES',
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'language' => 'ES',
+        'is_default' => true,
+        'content' => [
+            'subject' => 'Promotion ES',
+            'html' => 'Promotion ES body',
+        ],
+    ]);
+
     $resolvedFr = $service->resolveDefault($owner, Campaign::CHANNEL_EMAIL, Campaign::TYPE_PROMOTION, 'FR');
+    $resolvedEs = $service->resolveDefault($owner, Campaign::CHANNEL_EMAIL, Campaign::TYPE_PROMOTION, 'ES');
     $resolvedEn = $service->resolveDefault($owner, Campaign::CHANNEL_EMAIL, Campaign::TYPE_PROMOTION, 'EN');
     $resolvedOther = $service->resolveDefault($owner, Campaign::CHANNEL_EMAIL, Campaign::TYPE_WINBACK, 'EN');
 
     expect($resolvedFr?->id)->toBe($promotionFr->id);
+    expect($resolvedEs?->id)->toBe($promotionEs->id);
     expect($resolvedEn?->id)->toBe($promotionDefault->id);
     expect($resolvedOther?->id)->toBe($fallback->id);
 });
@@ -1475,6 +1489,19 @@ test('email template composer compiles simple three-section schema', function ()
     expect($html)->toContain('text-align:center;');
     expect($html)->toContain('border:1px solid {brandPrimaryColor};');
     expect($html)->not->toContain('linear-gradient');
+});
+
+test('email template composer exposes spanish presets for campaign emails', function () {
+    /** @var EmailTemplateComposer $composer */
+    $composer = app(EmailTemplateComposer::class);
+
+    $promotionEs = collect($composer->presetCatalog())
+        ->first(fn (array $preset) => ($preset['key'] ?? null) === 'promotion-premium' && ($preset['language'] ?? null) === 'ES');
+
+    expect($promotionEs)->not->toBeNull()
+        ->and($promotionEs['name'])->toBe('Promocion premium')
+        ->and(data_get($promotionEs, 'content.subject'))->toBe('{firstName}, aprovecha {promoPercent}% de descuento en {offerName}')
+        ->and(data_get($promotionEs, 'content.schema.sections.0.columns.0.kicker'))->toBe('Oferta del momento');
 });
 
 test('marketing template image upload stores file and returns public url', function () {
@@ -2574,13 +2601,14 @@ test('template seeder is idempotent for tenant defaults', function () {
     $countAfterFirstSeed = MessageTemplate::query()->where('user_id', $owner->id)->count();
 
     $expectedTemplateCount = count($emailTemplateComposer->presetCatalog())
-        + (count(CampaignType::values()) * 2 * 2);
+        + (count(CampaignType::values()) * 2 * 3);
 
     $templateSeeder->seedDefaultsForTenant($owner, $owner);
     $templates = MessageTemplate::query()->where('user_id', $owner->id)->get();
 
     expect($countAfterFirstSeed)->toBe($expectedTemplateCount)
-        ->and($templates->count())->toBe($expectedTemplateCount);
+        ->and($templates->count())->toBe($expectedTemplateCount)
+        ->and($templates->where('language', 'ES')->count())->toBeGreaterThan(0);
 
     $duplicates = DB::table('message_templates')
         ->select(['campaign_type', 'channel', 'language'])

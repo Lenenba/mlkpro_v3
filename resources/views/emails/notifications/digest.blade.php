@@ -14,14 +14,14 @@
                     'heroCaption' => __('mail.platform_admin_digest.caption'),
                     'heroSideTitle' => __('mail.platform_admin_digest.snapshot'),
                     'heroSideRows' => [
-                        ['label' => app()->isLocale('fr') ? 'Frequence' : 'Frequency', 'value' => $frequency ?? __('mail.platform_admin_digest.daily')],
-                        ['label' => app()->isLocale('fr') ? 'Genere' : 'Generated', 'value' => $generatedAt?->toDateTimeString() ?? now()->toDateTimeString()],
+                        ['label' => __('mail.common.frequency'), 'value' => $frequency ?? __('mail.platform_admin_digest.daily')],
+                        ['label' => __('mail.common.generated'), 'value' => $generatedAt?->toDateTimeString() ?? now()->toDateTimeString()],
                         ['label' => __('mail.common.support'), 'value' => $supportEmail ?? 'support'],
                     ],
                     'heroMetrics' => [
                         ['value' => (string) count($items ?? []), 'label' => __('mail.common.update')],
-                        ['value' => strtoupper(substr((string) ($frequency ?? __('mail.platform_admin_digest.daily')), 0, 1)), 'label' => app()->isLocale('fr') ? 'Cycle' : 'Cycle'],
-                        ['value' => __('mail.common.admin'), 'label' => app()->isLocale('fr') ? 'Perimetre' : 'Scope'],
+                        ['value' => strtoupper(substr((string) ($frequency ?? __('mail.platform_admin_digest.daily')), 0, 1)), 'label' => __('mail.common.cycle')],
+                        ['value' => __('mail.common.admin'), 'label' => __('mail.common.scope')],
                     ],
                 ])
             </td>

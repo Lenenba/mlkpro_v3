@@ -22,15 +22,19 @@ class AiImageController extends Controller
         AssistantCreditService $creditService
     ): JsonResponse {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
-        if (function_exists('set_time_limit')) {
+
+        if (! app()->runningInConsole() && function_exists('set_time_limit')) {
             @set_time_limit(120);
         }
-        @ini_set('max_execution_time', '120');
 
-        if (!config('services.openai.key')) {
+        if (! app()->runningInConsole()) {
+            @ini_set('max_execution_time', '120');
+        }
+
+        if (! config('services.openai.key')) {
             return response()->json([
                 'message' => 'OpenAI n\'est pas configure.',
             ], 422);
@@ -52,7 +56,7 @@ class AiImageController extends Controller
             $usedFree = true;
         } else {
             $creditConsumed = $usageService->consumeCredit($owner, $context, 1);
-            if (!$creditConsumed) {
+            if (! $creditConsumed) {
                 return response()->json([
                     'message' => 'Limite quotidienne d\'images IA atteinte. Achetez un pack IA pour continuer.',
                 ], 429);
@@ -89,7 +93,7 @@ class AiImageController extends Controller
         }
 
         $b64 = $response['data'][0]['b64_json'] ?? null;
-        if (!is_string($b64) || $b64 === '') {
+        if (! is_string($b64) || $b64 === '') {
             if ($creditConsumed) {
                 $creditService->refund($owner, 1, [
                     'source' => $usageService->sourceForContext($context),
@@ -118,7 +122,7 @@ class AiImageController extends Controller
 
         $format = strtolower((string) config('services.openai.image_output_format', 'png'));
         $format = preg_replace('/[^a-z0-9]/', '', $format) ?: 'png';
-        if (!in_array($format, ['png', 'jpeg', 'jpg', 'webp'], true)) {
+        if (! in_array($format, ['png', 'jpeg', 'jpg', 'webp'], true)) {
             $format = 'png';
         }
 

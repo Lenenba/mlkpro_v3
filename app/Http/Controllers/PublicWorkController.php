@@ -8,11 +8,11 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
-use App\Support\NotificationDispatcher;
 use App\Services\TaskBillingService;
 use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
 use App\Services\WorkScheduleService;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\URL;
@@ -105,7 +105,7 @@ class PublicWorkController extends Controller
                 'validate' => $allowValidation,
                 'dispute' => $allowDispute,
                 'schedule' => $allowSchedule,
-                'proofs' => !(bool) ($customer?->auto_validate_tasks ?? false),
+                'proofs' => ! (bool) ($customer?->auto_validate_tasks ?? false),
             ],
             'actions' => [
                 'validateUrl' => $validateUrl,
@@ -122,18 +122,18 @@ class PublicWorkController extends Controller
         $customer = $work->customer;
         if ($customer && $customer->auto_validate_jobs) {
             return redirect()->back()->withErrors([
-                'status' => 'Job actions are handled by the company.',
+                'status' => __('public.work.messages.handled_by_company'),
             ]);
         }
 
         if (in_array($work->status, [Work::STATUS_VALIDATED, Work::STATUS_AUTO_VALIDATED], true)) {
-            return redirect()->back()->with('success', 'Job already validated.');
+            return redirect()->back()->with('success', __('public.work.messages.already_validated'));
         }
 
         $allowed = [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE];
-        if (!in_array($work->status, $allowed, true)) {
+        if (! in_array($work->status, $allowed, true)) {
             return redirect()->back()->withErrors([
-                'status' => 'This job is not ready for validation.',
+                'status' => __('public.work.messages.not_ready_for_validation'),
             ]);
         }
 
@@ -154,11 +154,11 @@ class PublicWorkController extends Controller
         $owner = User::find($work->user_id);
         if ($owner && $owner->email) {
             $customerLabel = $customer?->company_name
-                ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+                ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Job validated by client',
-                $customerLabel ? $customerLabel . ' validated a job.' : 'A client validated a job.',
+                $customerLabel ? $customerLabel.' validated a job.' : 'A client validated a job.',
                 [
                     ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
                     ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
@@ -172,7 +172,7 @@ class PublicWorkController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', 'Job validated.');
+        return redirect()->back()->with('success', __('public.work.messages.validated'));
     }
 
     public function dispute(Request $request, Work $work)
@@ -180,18 +180,18 @@ class PublicWorkController extends Controller
         $customer = $work->customer;
         if ($customer && $customer->auto_validate_jobs) {
             return redirect()->back()->withErrors([
-                'status' => 'Job actions are handled by the company.',
+                'status' => __('public.work.messages.handled_by_company'),
             ]);
         }
 
         if ($work->status === Work::STATUS_DISPUTE) {
-            return redirect()->back()->with('success', 'Job already marked as dispute.');
+            return redirect()->back()->with('success', __('public.work.messages.already_marked_dispute'));
         }
 
         $allowed = [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE];
-        if (!in_array($work->status, $allowed, true)) {
+        if (! in_array($work->status, $allowed, true)) {
             return redirect()->back()->withErrors([
-                'status' => 'This job cannot be disputed right now.',
+                'status' => __('public.work.messages.cannot_dispute_now'),
             ]);
         }
 
@@ -207,11 +207,11 @@ class PublicWorkController extends Controller
         $owner = User::find($work->user_id);
         if ($owner && $owner->email) {
             $customerLabel = $customer?->company_name
-                ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+                ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Job disputed by client',
-                $customerLabel ? $customerLabel . ' disputed a job.' : 'A client disputed a job.',
+                $customerLabel ? $customerLabel.' disputed a job.' : 'A client disputed a job.',
                 [
                     ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
                     ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
@@ -225,19 +225,19 @@ class PublicWorkController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', 'Job marked as dispute.');
+        return redirect()->back()->with('success', __('public.work.messages.marked_dispute'));
     }
 
     public function confirmSchedule(Request $request, Work $work, WorkScheduleService $scheduleService)
     {
         if ($work->status === Work::STATUS_CANCELLED) {
             return redirect()->back()->withErrors([
-                'status' => 'This job cannot be scheduled.',
+                'status' => __('public.work.messages.cannot_be_scheduled'),
             ]);
         }
 
         $assigneeIds = $work->teamMembers()->pluck('team_members.id')->all();
-        if (!$assigneeIds) {
+        if (! $assigneeIds) {
             $assigneeIds = TeamMember::query()
                 ->forAccount($work->user_id)
                 ->active()
@@ -245,9 +245,9 @@ class PublicWorkController extends Controller
                 ->all();
         }
 
-        if (!$assigneeIds) {
+        if (! $assigneeIds) {
             return redirect()->back()->withErrors([
-                'schedule' => 'Add at least one team member before confirming the schedule.',
+                'schedule' => __('public.work.messages.add_team_member'),
             ]);
         }
 
@@ -261,7 +261,7 @@ class PublicWorkController extends Controller
         }
 
         if ($pendingCount === 0) {
-            return redirect()->back()->with('success', 'Planning deja confirme.');
+            return redirect()->back()->with('success', __('public.work.messages.schedule_already_confirmed'));
         }
 
         if ($work->status !== Work::STATUS_SCHEDULED) {
@@ -280,7 +280,7 @@ class PublicWorkController extends Controller
                 'tasks_planned' => $pendingCount,
             ], 'Schedule queued by client (public link)');
 
-            return redirect()->back()->with('success', 'Planning en cours. Les taches seront creees sous peu.');
+            return redirect()->back()->with('success', __('public.work.messages.schedule_in_progress'));
         }
 
         try {
@@ -294,21 +294,21 @@ class PublicWorkController extends Controller
         ], 'Schedule confirmed by client (public link)');
 
         return redirect()->back()->with('success', $createdCount > 0
-            ? 'Planning confirme, les taches ont ete creees.'
-            : 'Planning deja confirme.');
+            ? __('public.work.messages.schedule_confirmed')
+            : __('public.work.messages.schedule_already_confirmed'));
     }
 
     public function rejectSchedule(Request $request, Work $work)
     {
         if ($work->status === Work::STATUS_CANCELLED) {
             return redirect()->back()->withErrors([
-                'status' => 'This job cannot be updated right now.',
+                'status' => __('public.work.messages.cannot_update_now'),
             ]);
         }
 
         if ($work->tasks()->exists()) {
             return redirect()->back()->withErrors([
-                'schedule' => 'This schedule has already been confirmed.',
+                'schedule' => __('public.work.messages.schedule_confirmed_already'),
             ]);
         }
 
@@ -325,11 +325,11 @@ class PublicWorkController extends Controller
         if ($owner && $owner->email) {
             $customer = $work->customer;
             $customerLabel = $customer?->company_name
-                ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+                ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Schedule rejected by client',
-                $customerLabel ? $customerLabel . ' rejected a schedule.' : 'A client rejected a schedule.',
+                $customerLabel ? $customerLabel.' rejected a schedule.' : 'A client rejected a schedule.',
                 [
                     ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
                     ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
@@ -343,7 +343,7 @@ class PublicWorkController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', 'Schedule sent back for updates.');
+        return redirect()->back()->with('success', __('public.work.messages.schedule_sent_back'));
     }
 
     private function resolveExpiry(Request $request): Carbon

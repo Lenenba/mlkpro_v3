@@ -3,6 +3,7 @@
 namespace App\Services\Campaigns;
 
 use App\Models\Campaign;
+use App\Support\CampaignTemplateLanguage;
 use Illuminate\Support\Str;
 
 class EmailTemplateComposer
@@ -26,10 +27,10 @@ class EmailTemplateComposer
      */
     public function presetCatalog(): array
     {
-        return [
-            ...$this->presetsForLanguage('FR'),
-            ...$this->presetsForLanguage('EN'),
-        ];
+        return collect(CampaignTemplateLanguage::supported())
+            ->flatMap(fn (string $language) => $this->presetsForLanguage($language))
+            ->values()
+            ->all();
     }
 
     /**
@@ -573,6 +574,12 @@ class EmailTemplateComposer
      */
     private function presetsForLanguage(string $language): array
     {
+        $language = CampaignTemplateLanguage::normalize($language);
+
+        if ($language === 'ES') {
+            return $this->spanishPresets();
+        }
+
         $isFrench = strtoupper($language) === 'FR';
 
         return [
@@ -941,6 +948,384 @@ class EmailTemplateComposer
                         title: $isFrench ? 'Besoin d aide ?' : 'Need help?',
                         body: $isFrench ? 'Ajoutez un dernier point de contact avant le footer entreprise.' : 'Add a last contact point before the business footer.',
                         buttonLabel: $isFrench ? 'Contacter l equipe' : 'Contact the team',
+                        buttonUrl: '{brandContactUrl}'
+                    ),
+                ]
+            ),
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function spanishPresets(): array
+    {
+        return [
+            $this->preset(
+                key: 'promotion-premium',
+                language: 'ES',
+                name: 'Promocion premium',
+                description: 'Hero simple, argumentos clave y CTA claro.',
+                campaignType: Campaign::TYPE_PROMOTION,
+                tags: ['promotion', 'premium'],
+                subject: '{firstName}, aprovecha {promoPercent}% de descuento en {offerName}',
+                previewText: 'Una promocion clara y orientada a la conversion.',
+                headerBlocks: [
+                    $this->simpleBlock(
+                        title: '{promoPercent}% de descuento en {offerName}',
+                        body: 'Destaca tu oferta con un mensaje directo, una imagen fuerte y un boton bien visible.',
+                        kicker: 'Oferta del momento',
+                        buttonLabel: 'Ver oferta',
+                        buttonUrl: '{trackedCtaUrl}',
+                        imageUrl: '{offerImageUrl}'
+                    ),
+                    $this->simpleBlock(
+                        title: '{offerPrice}',
+                        body: "Codigo {promoCode}\nHasta {promoEndDate}",
+                        kicker: 'Detalles de la oferta'
+                    ),
+                ],
+                bodyBlocks: [
+                    $this->simpleBlock(
+                        title: 'Por que hacer clic',
+                        body: "Una oferta clara\nUn beneficio inmediato\nUna accion simple"
+                    ),
+                    $this->simpleBlock(
+                        title: 'Lo que destacas',
+                        body: "{offerName}\n{offerAvailability}\nPresentacion limpia en movil y escritorio."
+                    ),
+                ],
+                footerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Actua ahora mientras la oferta sigue activa',
+                        body: 'Aprovecha la atencion de tus clientes mientras la oferta sigue disponible.',
+                        buttonLabel: 'Quiero aprovecharla',
+                        buttonUrl: '{trackedCtaUrl}'
+                    ),
+                ]
+            ),
+            $this->preset(
+                key: 'relance-client',
+                language: 'ES',
+                name: 'Seguimiento de cliente',
+                description: 'Seguimiento simple y premium para reactivar.',
+                campaignType: Campaign::TYPE_WINBACK,
+                tags: ['winback', 'follow-up'],
+                subject: '{firstName}, tenemos algo para ti',
+                previewText: 'Un seguimiento mas elegante y humano.',
+                headerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Pensamos en ti',
+                        body: 'Desde tu ultima compra el {lastOrderDate}, nuestra oferta ha evolucionado.',
+                        kicker: 'Seguimiento',
+                        buttonLabel: 'Descubrir',
+                        buttonUrl: '{trackedCtaUrl}'
+                    ),
+                ],
+                bodyBlocks: [
+                    $this->simpleBlock(
+                        title: 'Lo que cambia',
+                        body: "Un mensaje mas claro\nUna oferta mejor presentada\nUna relacion mas directa con tu equipo"
+                    ),
+                    $this->simpleBlock(
+                        title: 'Por que volver',
+                        body: 'Devuelve a tus clientes una razon real para regresar con un enfoque mas premium.'
+                    ),
+                ],
+                footerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Lo hablamos?',
+                        body: 'Puedes hacer clic o simplemente responder a este correo.',
+                        buttonLabel: 'Volver ahora',
+                        buttonUrl: '{trackedCtaUrl}'
+                    ),
+                ]
+            ),
+            $this->preset(
+                key: 'nouveaute-lancement',
+                language: 'ES',
+                name: 'Anuncio de novedad',
+                description: 'Plantilla simple para lanzamiento o novedad.',
+                campaignType: Campaign::TYPE_ANNOUNCEMENT,
+                tags: ['announcement', 'launch'],
+                subject: 'Nuevo de {brandName}: {offerName}',
+                previewText: 'Convierte un anuncio en un verdadero momento de marca.',
+                headerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Conoce {offerName}',
+                        body: 'Una novedad presentada en un formato mas limpio, claro y convincente.',
+                        kicker: 'Novedad',
+                        buttonLabel: 'Explorar',
+                        buttonUrl: '{trackedCtaUrl}',
+                        imageUrl: '{offerImageUrl}'
+                    ),
+                ],
+                bodyBlocks: [
+                    $this->simpleBlock(
+                        title: 'Lo que anuncias',
+                        body: "{offerName}\n{offerPrice}\n{offerAvailability}"
+                    ),
+                    $this->simpleBlock(
+                        title: 'Por que importa',
+                        body: 'Un anuncio mejor trabajado refuerza la credibilidad de tu marca.'
+                    ),
+                ],
+                footerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Descubre la novedad',
+                        body: '{brandDescription}',
+                        buttonLabel: 'Acceder a la novedad',
+                        buttonUrl: '{trackedCtaUrl}'
+                    ),
+                ]
+            ),
+            $this->preset(
+                key: 'offre-speciale',
+                language: 'ES',
+                name: 'Oferta especial',
+                description: 'Formato corto y de alto impacto.',
+                campaignType: Campaign::TYPE_PROMOTION,
+                tags: ['offer', 'flash'],
+                subject: 'Oferta especial: {promoPercent}% hasta {promoEndDate}',
+                previewText: 'Corto, legible y orientado a la accion.',
+                headerBlocks: [
+                    $this->simpleBlock(
+                        title: '{promoPercent}% en {offerName}',
+                        body: 'Un formato simple para impulsar una campaña flash sin sobrecarga visual.',
+                        kicker: 'Tiempo limitado',
+                        buttonLabel: 'Activar ahora',
+                        buttonUrl: '{trackedCtaUrl}'
+                    ),
+                ],
+                bodyBlocks: [
+                    $this->simpleBlock(
+                        title: 'Recordatorio rapido',
+                        body: "Codigo {promoCode}\nCaduca el {promoEndDate}"
+                    ),
+                ],
+                footerBlocks: [
+                    $this->simpleBlock(
+                        title: 'No dejes pasar esta oferta',
+                        body: 'Un ultimo empuje limpio pensado para provocar el clic.',
+                        buttonLabel: 'Quiero la oferta',
+                        buttonUrl: '{trackedCtaUrl}'
+                    ),
+                ]
+            ),
+            $this->preset(
+                key: 'fidelisation-premium',
+                language: 'ES',
+                name: 'Fidelizacion premium',
+                description: 'Plantilla relacional para agradecer y fidelizar.',
+                campaignType: Campaign::TYPE_CROSS_SELL,
+                tags: ['loyalty', 'retention'],
+                subject: 'Gracias {firstName}, te espera una ventaja exclusiva',
+                previewText: 'Un correo mas valioso para tus mejores clientes.',
+                headerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Gracias por tu confianza',
+                        body: 'Tus mejores clientes merecen un mensaje mas premium y personal.',
+                        kicker: 'Fidelidad',
+                        buttonLabel: 'Ver mi ventaja',
+                        buttonUrl: '{trackedCtaUrl}'
+                    ),
+                ],
+                bodyBlocks: [
+                    $this->simpleBlock(
+                        title: 'Tus ventajas',
+                        body: "Atencion prioritaria\nOfertas exclusivas\nRelacion directa con tu equipo"
+                    ),
+                    $this->simpleBlock(
+                        title: 'Por que importa',
+                        body: 'Un buen correo de fidelizacion debe hacer sentir al cliente que realmente importa.'
+                    ),
+                ],
+                footerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Aprovechalo ahora',
+                        body: '{brandFooterNote}',
+                        buttonLabel: 'Acceder a mi ventaja',
+                        buttonUrl: '{trackedCtaUrl}'
+                    ),
+                ]
+            ),
+            $this->preset(
+                key: 'rappel-rendez-vous',
+                language: 'ES',
+                name: 'Recordatorio de cita',
+                description: 'Recordatorio claro para citas o intervenciones.',
+                campaignType: Campaign::TYPE_ANNOUNCEMENT,
+                tags: ['reminder', 'appointment'],
+                subject: 'Recordatorio: tu cita se acerca',
+                previewText: 'Fecha, hora y accion en un formato simple.',
+                headerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Tu cita se acerca',
+                        body: 'Consulta los datos utiles y confirma con un clic.',
+                        kicker: 'Recordatorio',
+                        buttonLabel: 'Confirmar',
+                        buttonUrl: '{trackedCtaUrl}'
+                    ),
+                ],
+                bodyBlocks: [
+                    $this->simpleBlock(
+                        title: 'Informacion util',
+                        body: "Fecha: {appointmentDate}\nHora: {appointmentTime}\nLugar: {appointmentLocation}"
+                    ),
+                ],
+                footerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Necesitas cambiarla?',
+                        body: 'Contactanos si necesitas modificar la cita.',
+                        buttonLabel: 'Contactarnos',
+                        buttonUrl: '{brandContactUrl}'
+                    ),
+                ]
+            ),
+            $this->preset(
+                key: 'campagne-services',
+                language: 'ES',
+                name: 'Campaña de servicios',
+                description: 'Formato simple para destacar tus servicios.',
+                campaignType: Campaign::TYPE_NEW_OFFER,
+                tags: ['services', 'campaign'],
+                subject: '{offerName}: un servicio listo para reservar',
+                previewText: 'Un formato simple para vender mejor tus servicios.',
+                headerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Pon tu servicio en primer plano',
+                        body: 'Un hero claro, un mensaje legible y un CTA visible.',
+                        kicker: 'Servicio destacado',
+                        buttonLabel: 'Reservar',
+                        buttonUrl: '{trackedCtaUrl}',
+                        imageUrl: '{offerImageUrl}'
+                    ),
+                ],
+                bodyBlocks: [
+                    $this->simpleBlock(
+                        title: 'Lo que ofreces',
+                        body: "{serviceName}\n{serviceCategory}\n{offerPrice}"
+                    ),
+                    $this->simpleBlock(
+                        title: 'Por que elegir a tu equipo',
+                        body: "Experiencia\nDisponibilidad\nPresentacion limpia en movil"
+                    ),
+                ],
+                footerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Planifica ahora',
+                        body: 'Dirige a tus clientes hacia la reserva o el contacto directo.',
+                        buttonLabel: 'Reservar cita',
+                        buttonUrl: '{brandBookingUrl}'
+                    ),
+                ]
+            ),
+            $this->preset(
+                key: 'campagne-produits',
+                language: 'ES',
+                name: 'Campaña de productos',
+                description: 'Formato de catalogo simple para productos.',
+                campaignType: Campaign::TYPE_NEW_OFFER,
+                tags: ['products', 'catalog'],
+                subject: '{offerName} es el producto destacado de esta semana',
+                previewText: 'Una presentacion mas limpia para tus productos.',
+                headerBlocks: [
+                    $this->simpleBlock(
+                        title: '{offerName} esta en primer plano',
+                        body: 'Destaca un producto con imagen, mensaje corto y CTA.',
+                        kicker: 'Seleccion',
+                        buttonLabel: 'Ver producto',
+                        buttonUrl: '{trackedCtaUrl}',
+                        imageUrl: '{offerImageUrl}'
+                    ),
+                ],
+                bodyBlocks: [
+                    $this->simpleBlock(
+                        title: 'Producto principal',
+                        body: "{productName}\n{productPrice}\n{offerAvailability}"
+                    ),
+                    $this->simpleBlock(
+                        title: 'Por que destaca',
+                        body: "Visual potente\nPrecio visible\nAccion inmediata"
+                    ),
+                ],
+                footerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Seguir descubriendo',
+                        body: 'Agrega un enlace a tu tienda, catalogo o coleccion.',
+                        buttonLabel: 'Ver tienda',
+                        buttonUrl: '{brandWebsiteUrl}'
+                    ),
+                ]
+            ),
+            $this->preset(
+                key: 'institutionnel',
+                language: 'ES',
+                name: 'Mensaje institucional',
+                description: 'Formato corporativo simple y creible.',
+                campaignType: Campaign::TYPE_ANNOUNCEMENT,
+                tags: ['institutional', 'brand'],
+                subject: 'Novedades de {brandName}',
+                previewText: 'Una comunicacion corporativa mas clara.',
+                headerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Un mensaje de {brandName}',
+                        body: 'Comparte informacion importante en un formato mas limpio y estructurado.',
+                        kicker: 'Actualidad de la empresa',
+                        buttonLabel: 'Saber mas',
+                        buttonUrl: '{trackedCtaUrl}'
+                    ),
+                ],
+                bodyBlocks: [
+                    $this->simpleBlock(
+                        title: 'El mensaje',
+                        body: '{brandDescription}'
+                    ),
+                ],
+                footerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Sigue conectado con {brandName}',
+                        body: 'Usa este espacio para la conclusion o la siguiente accion esperada.',
+                        buttonLabel: 'Visitar el sitio',
+                        buttonUrl: '{brandWebsiteUrl}'
+                    ),
+                ]
+            ),
+            $this->preset(
+                key: 'offre-croisee',
+                language: 'ES',
+                name: 'Oferta cruzada',
+                description: 'Formato simple para productos o servicios complementarios.',
+                campaignType: Campaign::TYPE_CROSS_SELL,
+                tags: ['cross-sell', 'upsell'],
+                subject: 'Una sugerencia complementaria para ti, {firstName}',
+                previewText: 'Recomienda con mas claridad y simplicidad.',
+                headerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Una sugerencia que completa la necesidad',
+                        body: 'Presenta un producto o servicio complementario en un formato mas claro.',
+                        kicker: 'Sugerencia',
+                        buttonLabel: 'Descubrir',
+                        buttonUrl: '{trackedCtaUrl}'
+                    ),
+                ],
+                bodyBlocks: [
+                    $this->simpleBlock(
+                        title: 'Por que esta recomendacion',
+                        body: "Relevante\nClara\nFacil de accionar"
+                    ),
+                    $this->simpleBlock(
+                        title: 'Oferta recomendada',
+                        body: "{offerName}\n{offerPrice}",
+                        buttonLabel: 'Ver recomendacion',
+                        buttonUrl: '{trackedCtaUrl}'
+                    ),
+                ],
+                footerBlocks: [
+                    $this->simpleBlock(
+                        title: 'Necesitas ayuda?',
+                        body: 'Agrega un ultimo punto de contacto antes del pie de empresa.',
+                        buttonLabel: 'Contactar al equipo',
                         buttonUrl: '{brandContactUrl}'
                     ),
                 ]

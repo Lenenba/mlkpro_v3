@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+import LocaleFlag from '@/Components/UI/LocaleFlag.vue';
 
 defineProps({
     buttonClass: {
@@ -14,7 +15,7 @@ defineProps({
 });
 
 const page = usePage();
-const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
+const availableLocales = computed(() => page.props.locales || ['fr', 'en', 'es']);
 const currentLocale = computed(() => page.props.locale || availableLocales.value[0] || 'fr');
 const hasMultipleLocales = computed(() => availableLocales.value.length > 1);
 
@@ -116,12 +117,7 @@ onBeforeUnmount(() => {
             :aria-expanded="isOpen ? 'true' : 'false'"
             @click="toggleMenu"
         >
-            <svg :class="iconClass" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M2 12h20" />
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-            </svg>
+            <LocaleFlag :locale="currentLocale" :class="[iconClass, 'rounded-[3px] shadow-sm ring-1 ring-black/10']" />
         </button>
 
         <Teleport to="body">
@@ -135,13 +131,7 @@ onBeforeUnmount(() => {
             >
                 <div class="flex items-center justify-between border-b border-stone-200 px-3 py-2 text-sm font-semibold text-stone-700 dark:border-neutral-700 dark:text-neutral-200">
                     <span class="flex items-center gap-2">
-                        <svg class="size-4 text-stone-400 dark:text-neutral-400" xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="M2 12h20" />
-                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                        </svg>
+                        <LocaleFlag :locale="currentLocale" class="size-5 rounded-[3px] shadow-sm ring-1 ring-black/10" />
                         {{ $t(`language.${currentLocale}`) }}
                     </span>
                     <svg class="size-3 text-stone-400 dark:text-neutral-500" xmlns="http://www.w3.org/2000/svg"
@@ -160,15 +150,18 @@ onBeforeUnmount(() => {
                         class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-stone-700 hover:bg-stone-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
                         @click="setLocale(locale)"
                     >
+                        <LocaleFlag :locale="locale" class="size-5 rounded-[3px] shadow-sm ring-1 ring-black/10" />
+                        <span class="flex-1">{{ $t(`language.${locale}`) }}</span>
                         <span
-                            class="flex size-4 items-center justify-center rounded-full border border-stone-300 dark:border-neutral-600"
+                            v-if="currentLocale === locale"
+                            class="inline-flex size-5 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200"
+                            aria-hidden="true"
                         >
-                            <span
-                                v-if="currentLocale === locale"
-                                class="size-2 rounded-full bg-green-600"
-                            ></span>
+                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m5 12 5 5L20 7" />
+                            </svg>
                         </span>
-                        <span>{{ $t(`language.${locale}`) }}</span>
                     </button>
                 </div>
             </div>

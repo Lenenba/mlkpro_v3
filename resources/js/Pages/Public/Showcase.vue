@@ -35,6 +35,54 @@ const resolveHeroCopy = (value) => {
     }
     return trimmed.replace(/\{company\}/g, companyName.value);
 };
+const normalizedLocaleKey = computed(() => {
+    const value = String(locale.value || 'fr').toLowerCase();
+    if (value.startsWith('fr')) {
+        return 'fr';
+    }
+    if (value.startsWith('es')) {
+        return 'es';
+    }
+    return 'en';
+});
+const localeFallbackOrder = computed(() => {
+    if (normalizedLocaleKey.value === 'fr') {
+        return ['fr', 'en', 'es'];
+    }
+    if (normalizedLocaleKey.value === 'es') {
+        return ['es', 'en', 'fr'];
+    }
+    return ['en', 'fr', 'es'];
+});
+const resolveLocalizedHeroValue = (value) => {
+    if (!value || typeof value !== 'object') {
+        return '';
+    }
+
+    for (const key of localeFallbackOrder.value) {
+        const candidate = String(value[key] || '').trim();
+        if (candidate) {
+            return value[key];
+        }
+    }
+
+    return '';
+};
+const resolveLocalizedHeroCaption = (value, index) => {
+    if (!value || typeof value !== 'object') {
+        return '';
+    }
+
+    for (const key of localeFallbackOrder.value) {
+        const items = Array.isArray(value[key]) ? value[key] : [];
+        const candidate = String(items[index] || '').trim();
+        if (candidate) {
+            return items[index];
+        }
+    }
+
+    return '';
+};
 const normalizeHeroImages = (value) => {
     if (!Array.isArray(value)) {
         return [];
@@ -47,17 +95,19 @@ const heroSlides = computed(() => {
     const slides = normalizeHeroImages(company.value?.store_settings?.hero_images);
     return slides.length ? slides : publicCatalogStockImages.services.heroSlides;
 });
-const heroCopyHtml = computed(() => resolveHeroCopy(company.value?.store_settings?.hero_copy?.[locale.value]));
+const heroCopyHtml = computed(() => resolveHeroCopy(
+    resolveLocalizedHeroValue(company.value?.store_settings?.hero_copy)
+));
 const heroCaptions = computed(() => {
     const captions = company.value?.store_settings?.hero_captions || {};
     return {
         fr: Array.isArray(captions.fr) ? captions.fr : [],
+        es: Array.isArray(captions.es) ? captions.es : [],
         en: Array.isArray(captions.en) ? captions.en : [],
     };
 });
 const heroSlideCaption = computed(() => {
-    const list = heroCaptions.value?.[locale.value] || [];
-    return resolveHeroCopy(list[heroBackgroundIndex.value] || '');
+    return resolveHeroCopy(resolveLocalizedHeroCaption(heroCaptions.value, heroBackgroundIndex.value));
 });
 const heroSlideCopyHtml = computed(() => heroSlideCaption.value || heroCopyHtml.value);
 const heroImage = computed(() => (

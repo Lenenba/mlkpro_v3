@@ -3,11 +3,10 @@
 namespace App\Services;
 
 use App\Models\PlatformSection;
+use App\Support\LocalePreference;
 
 class PlatformSectionContentService
 {
-    private const LOCALES = ['fr', 'en'];
-
     private const SHARED_MEDIA_KEYS = [
         'image_url',
         'aside_image_url',
@@ -99,7 +98,7 @@ class PlatformSectionContentService
 
     public function locales(): array
     {
-        return self::LOCALES;
+        return LocalePreference::supported();
     }
 
     public function meta(PlatformSection $section): array
@@ -157,11 +156,16 @@ class PlatformSectionContentService
         $locale = $this->normalizeLocale($locale);
         $default = $this->defaultContent($locale, $section->type);
         $storedLocales = $this->storedLocales($section);
-        $stored = $storedLocales[$locale] ?? [];
+        $stored = $this->storedLocaleContent($storedLocales, $locale);
 
         $merged = $this->mergeContent($default, is_array($stored) ? $stored : []);
         $merged = $this->applySharedMedia($merged, $this->sharedMedia($section));
         $merged = $this->resolveBackgroundVisualsForLocale($merged, $storedLocales, $locale);
+        $merged['hero_images'] = $this->resolveHeroImagesForLocale(
+            $this->sanitizeHeroImages($merged['hero_images'] ?? []),
+            $storedLocales,
+            $locale
+        );
 
         return $this->sanitizeSection($merged);
     }
@@ -654,11 +658,7 @@ class PlatformSectionContentService
             return $this->cleanBackgroundPreset($stored['background_preset'] ?? null) ?? '';
         }
 
-        foreach ($this->locales() as $candidateLocale) {
-            if ($candidateLocale === $locale) {
-                continue;
-            }
-
+        foreach ($this->fallbackLocalesFor($locale) as $candidateLocale) {
             $candidate = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
             if (array_key_exists('background_preset', $candidate)) {
                 return $this->cleanBackgroundPreset($candidate['background_preset'] ?? null) ?? '';
@@ -674,11 +674,7 @@ class PlatformSectionContentService
             return $this->cleanColor($stored[$key] ?? null) ?? '';
         }
 
-        foreach ($this->locales() as $candidateLocale) {
-            if ($candidateLocale === $locale) {
-                continue;
-            }
-
+        foreach ($this->fallbackLocalesFor($locale) as $candidateLocale) {
             $candidate = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
             if (array_key_exists($key, $candidate)) {
                 return $this->cleanColor($candidate[$key] ?? null) ?? '';
@@ -694,11 +690,7 @@ class PlatformSectionContentService
             return $currentSlides;
         }
 
-        foreach ($this->locales() as $candidateLocale) {
-            if ($candidateLocale === $locale) {
-                continue;
-            }
-
+        foreach ($this->fallbackLocalesFor($locale) as $candidateLocale) {
             $candidate = is_array($locales[$candidateLocale] ?? null) ? $locales[$candidateLocale] : [];
             $candidateSlides = $this->sanitizeHeroImages($candidate['hero_images'] ?? []);
             if ($candidateSlides !== []) {
@@ -1344,7 +1336,7 @@ class PlatformSectionContentService
                 'items' => [
                     'Parcours public et modules métier',
                     'Support produit et accompagnement',
-                    'Disponible en français et en anglais',
+                    'Disponible en français, en anglais et en espagnol',
                 ],
                 'primary_label' => 'Nous contacter',
                 'primary_href' => '/pages/contact-us',
@@ -1358,6 +1350,31 @@ class PlatformSectionContentService
             ]);
         }
 
+        if ($normalized === 'es') {
+            return array_merge($this->defaultSection('footer'), [
+                'brand_logo_url' => '/1.svg',
+                'brand_logo_alt' => 'Malikia Pro',
+                'brand_href' => '/',
+                'kicker' => 'Acompanamiento',
+                'title' => 'Habla con nuestro equipo',
+                'body' => '<p>Necesitas un recorrido de producto mas claro o una pagina publica mas personalizada? Podemos ayudarte.</p>',
+                'items' => [
+                    'Paginas publicas y modulos del negocio',
+                    'Soporte de producto y acompanamiento',
+                    'Disponible en frances, ingles y espanol',
+                ],
+                'primary_label' => 'Contactanos',
+                'primary_href' => '/pages/contact-us',
+                'secondary_label' => 'Ver precios',
+                'secondary_href' => '/pricing',
+                'copy' => 'Todos los derechos reservados.',
+                'contact_phone' => (string) (config('app.support_phone') ?? ''),
+                'contact_email' => $this->defaultFooterEmail(),
+                'footer_groups' => $this->defaultFooterGroups('es'),
+                'legal_links' => $this->defaultFooterLegalLinks('es'),
+            ]);
+        }
+
         return array_merge($this->defaultSection('footer'), [
             'brand_logo_url' => '/1.svg',
             'brand_logo_alt' => 'Malikia Pro',
@@ -1368,7 +1385,7 @@ class PlatformSectionContentService
             'items' => [
                 'Public pages and business modules',
                 'Product support and enablement',
-                'Available in French and English',
+                'Available in French, English, and Spanish',
             ],
             'primary_label' => 'Contact us',
             'primary_href' => '/pages/contact-us',
@@ -1428,6 +1445,50 @@ class PlatformSectionContentService
             ];
         }
 
+        if ($locale === 'es') {
+            return [
+                [
+                    'id' => 'industries',
+                    'title' => 'Sectores que atendemos',
+                    'layout' => 'stack',
+                    'links' => [
+                        ['id' => 'industries-plumbing', 'label' => 'Fontaneria', 'href' => '/pages/industry-plumbing', 'note' => ''],
+                        ['id' => 'industries-hvac', 'label' => 'HVAC', 'href' => '/pages/industry-hvac', 'note' => ''],
+                        ['id' => 'industries-electrical', 'label' => 'Electricidad', 'href' => '/pages/industry-electrical', 'note' => ''],
+                        ['id' => 'industries-cleaning', 'label' => 'Limpieza', 'href' => '/pages/industry-cleaning', 'note' => ''],
+                        ['id' => 'industries-salon', 'label' => 'Salon y belleza', 'href' => '/pages/industry-salon-beauty', 'note' => ''],
+                        ['id' => 'industries-restaurant', 'label' => 'Restaurantes', 'href' => '/pages/industry-restaurant', 'note' => ''],
+                    ],
+                ],
+                [
+                    'id' => 'products',
+                    'title' => 'Productos',
+                    'layout' => 'stack',
+                    'links' => [
+                        ['id' => 'products-sales-crm', 'label' => 'Sales & CRM', 'href' => '/pages/sales-crm', 'note' => ''],
+                        ['id' => 'products-reservations', 'label' => 'Reservas', 'href' => '/pages/reservations', 'note' => ''],
+                        ['id' => 'products-operations', 'label' => 'Operations', 'href' => '/pages/operations', 'note' => ''],
+                        ['id' => 'products-commerce', 'label' => 'Commerce', 'href' => '/pages/commerce', 'note' => ''],
+                        ['id' => 'products-marketing', 'label' => 'Marketing & Loyalty', 'href' => '/pages/marketing-loyalty', 'note' => ''],
+                        ['id' => 'products-ai', 'label' => 'AI & Automation', 'href' => '/pages/ai-automation', 'note' => ''],
+                        ['id' => 'products-command', 'label' => 'Command Center', 'href' => '/pages/command-center', 'note' => ''],
+                    ],
+                ],
+                [
+                    'id' => 'resources',
+                    'title' => 'Recursos',
+                    'layout' => 'stack',
+                    'links' => [
+                        ['id' => 'resources-pricing', 'label' => 'Precios', 'href' => '/pricing', 'note' => ''],
+                        ['id' => 'resources-terms', 'label' => 'Terminos', 'href' => '/terms', 'note' => ''],
+                        ['id' => 'resources-privacy', 'label' => 'Privacidad', 'href' => '/privacy', 'note' => ''],
+                        ['id' => 'resources-refund', 'label' => 'Reembolso', 'href' => '/refund', 'note' => ''],
+                        ['id' => 'resources-contact', 'label' => 'Contacto', 'href' => '/pages/contact-us', 'note' => ''],
+                    ],
+                ],
+            ];
+        }
+
         return [
             [
                 'id' => 'industries',
@@ -1473,9 +1534,11 @@ class PlatformSectionContentService
 
     private function defaultSharedFooterName(): string
     {
-        return $this->normalizeLocale(app()->getLocale()) === 'fr'
-            ? 'Footer partagé'
-            : 'Shared footer';
+        return match ($this->normalizeLocale(app()->getLocale())) {
+            'fr' => 'Footer partagé',
+            'es' => 'Footer compartido',
+            default => 'Shared footer',
+        };
     }
 
     private function defaultFooterLegalLinks(string $locale): array
@@ -1486,6 +1549,15 @@ class PlatformSectionContentService
                 ['id' => 'legal-terms', 'label' => 'Conditions', 'href' => '/terms', 'note' => ''],
                 ['id' => 'legal-privacy', 'label' => 'Confidentialité', 'href' => '/privacy', 'note' => ''],
                 ['id' => 'legal-refund', 'label' => 'Remboursement', 'href' => '/refund', 'note' => ''],
+            ];
+        }
+
+        if ($locale === 'es') {
+            return [
+                ['id' => 'legal-pricing', 'label' => 'Precios', 'href' => '/pricing', 'note' => ''],
+                ['id' => 'legal-terms', 'label' => 'Terminos', 'href' => '/terms', 'note' => ''],
+                ['id' => 'legal-privacy', 'label' => 'Privacidad', 'href' => '/privacy', 'note' => ''],
+                ['id' => 'legal-refund', 'label' => 'Reembolso', 'href' => '/refund', 'note' => ''],
             ];
         }
 
@@ -1514,8 +1586,25 @@ class PlatformSectionContentService
 
     private function normalizeLocale(string $locale): string
     {
-        $locale = strtolower(trim($locale));
+        return LocalePreference::normalize($locale);
+    }
 
-        return in_array($locale, $this->locales(), true) ? $locale : $this->locales()[0];
+    private function storedLocaleContent(array $storedLocales, string $locale): array
+    {
+        $resolvedLocale = LocalePreference::firstStoredLocale($storedLocales, $locale);
+        $stored = $resolvedLocale !== null ? ($storedLocales[$resolvedLocale] ?? []) : [];
+
+        return is_array($stored) ? $stored : [];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function fallbackLocalesFor(string $locale): array
+    {
+        return array_values(array_filter(
+            LocalePreference::resolutionOrder($locale),
+            fn (string $candidateLocale) => $candidateLocale !== $locale
+        ));
     }
 }

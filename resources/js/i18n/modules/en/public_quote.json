@@ -1,0 +1,33 @@
+{
+  "public_quote": {
+    "meta_title": "Quote review",
+    "document": "Quote",
+    "company_fallback": "Company",
+    "customer_fallback": "Customer",
+    "service_fallback": "Service",
+    "created": "Created",
+    "customer": "Customer",
+    "job": "Job",
+    "property": "Property",
+    "items": "Items",
+    "no_property": "No property selected.",
+    "no_items": "No items listed.",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "required_deposit": "Required deposit: {amount}",
+    "respond_title": "Respond to this quote",
+    "deposit_amount": "Deposit amount",
+    "method_placeholder": "Payment method (optional)",
+    "reference_placeholder": "Reference (optional)",
+    "actions": {
+      "accept": "Accept quote",
+      "decline": "Decline quote"
+    },
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted",
+      "declined": "Declined"
+    }
+  }
+}

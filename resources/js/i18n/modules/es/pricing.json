@@ -1,0 +1,205 @@
+{
+  "pricing": {
+    "meta": {
+      "title": "Precios"
+    },
+    "badges": {
+      "recommended": "Recomendado"
+    },
+    "switch": {
+      "label": "Elige tu contexto operativo"
+    },
+    "currency": {
+      "label": "Moneda"
+    },
+    "billing_cycle": {
+      "label": "Ciclo de facturacion",
+      "monthly": "Mensual",
+      "yearly": "Anual",
+      "interval_month": "/mes",
+      "interval_year": "/ano",
+      "save_badge": "Ahorra {percent}% con la facturacion anual",
+      "yearly_note": "Facturado anualmente con {percent}% de descuento.",
+      "billed_yearly": "Para 12 meses, facturado anualmente."
+    },
+    "audiences": {
+      "solo": "Solo",
+      "team": "Equipo"
+    },
+    "hero": {
+      "solo": {
+        "eyebrow": "Precios para operadores independientes",
+        "title": "Empieza con la configuracion que coincide con tu forma de trabajar hoy",
+        "subtitle": "Elige un plan individual que mantenga cotizaciones, facturacion, trabajos y herramientas de crecimiento alineados sin agregar complejidad innecesaria.",
+        "note": "Empieza con una configuracion operativa simple ahora y pasa a una coordinacion mas amplia solo cuando tu negocio lo necesite."
+      },
+      "team": {
+        "eyebrow": "Precios para equipos que necesitan coordinacion",
+        "title": "Elige el plan que se adapta a tu equipo, flujo de trabajo y etapa de crecimiento",
+        "subtitle": "Desde operaciones esenciales hasta automatizacion y supervision mas profundas, cada plan agrega el nivel de estructura que tu equipo realmente necesita.",
+        "note": "Puedes empezar con el nivel adecuado para hoy y subir cuando crezcan el volumen, el equipo y la complejidad operativa."
+      }
+    },
+    "plan_cards": {
+      "solo_essential": {
+        "features": {
+          "one": "Un punto de partida claro para cotizaciones, facturacion y seguimiento de clientes.",
+          "two": "Mantiene visibles en un solo lugar las solicitudes y el historial esencial del cliente.",
+          "three": "Presenta los servicios con claridad mediante un catalogo y una pagina publica.",
+          "four": "Pensado para operadores individuales que quieren estructura sin carga adicional."
+        }
+      },
+      "solo_pro": {
+        "features": {
+          "one": "Todo lo incluido en Solo Core.",
+          "two": "Agrega trabajos y tareas para seguir la ejecucion con mas seriedad.",
+          "three": "Mas control diario sin la complejidad de un equipo.",
+          "four": "La mejor opcion para operadores individuales activos."
+        }
+      },
+      "solo_growth": {
+        "features": {
+          "one": "Todo lo incluido en Solo Growth.",
+          "two": "Agrega planificacion y reservas limitadas para gestionar mas flujo.",
+          "three": "Usa IA, campanas y herramientas de fidelizacion dentro del mismo sistema.",
+          "four": "Pensado para negocios individuales con mas volumen y necesidades de crecimiento."
+        }
+      },
+      "starter": {
+        "features": {
+          "one": "Una base solida para cotizaciones, trabajos, planificacion y facturacion.",
+          "two": "Pensado para equipos pequenos que necesitan un flujo compartido.",
+          "three": "Mantiene alineados la oficina y el terreno en un solo sistema.",
+          "four": "Un punto de partida practico para coordinar equipos."
+        }
+      },
+      "growth": {
+        "features": {
+          "one": "Todo lo incluido en Team Core.",
+          "two": "Agrega permisos mas fuertes y un control operativo mas profundo.",
+          "three": "Pensado para equipos en crecimiento que necesitan mas estructura y visibilidad.",
+          "four": "El mejor equilibrio para crecer sin la carga de una solucion enterprise."
+        }
+      },
+      "scale": {
+        "features": {
+          "one": "Todo lo incluido en Team Growth.",
+          "two": "Informes avanzados y mayor profundidad operativa para equipos maduros.",
+          "three": "Onboarding dedicado y soporte mas fuerte a medida que aumenta la complejidad.",
+          "four": "Pensado para equipos que necesitan mas profundidad en todo el negocio."
+        }
+      },
+      "enterprise": {
+        "features": {
+          "one": "Implementacion personalizada para organizaciones mas grandes o complejas.",
+          "two": "Soporta limites adaptados, controles avanzados e implementacion guiada.",
+          "three": "Pensado para necesidades multi-entidad, de seguridad o ligadas a SLA.",
+          "four": "Contactanos para una configuracion mas personalizada."
+        }
+      }
+    },
+    "plans": {
+      "starter": {
+        "label": "Team Core",
+        "price": "Contactanos",
+        "desc": "Para equipos pequenos que construyen un flujo de trabajo mas estructurado."
+      },
+      "pro": {
+        "label": "Team Growth",
+        "badge": "Recomendado",
+        "price": "Contactanos",
+        "desc": "Para equipos en crecimiento que necesitan mas control y profundidad operativa."
+      },
+      "enterprise": {
+        "label": "Enterprise",
+        "price": "Personalizado",
+        "desc": "Para organizaciones con necesidades avanzadas, multi-entidad o ligadas a SLA."
+      }
+    },
+    "features": {
+      "solo": {
+        "title": "Pensado para operadores individuales que quieren control sin carga extra",
+        "items": {
+          "one": "Mantiene en un solo lugar las cotizaciones, facturas y solicitudes de clientes desde el primer dia.",
+          "two": "Presenta los servicios con claridad mediante un catalogo y una pagina publica profesional.",
+          "three": "Da el paso a trabajos y seguimiento de tareas cuando la ejecucion se vuelve mas exigente.",
+          "four": "Activa planificacion, reservas, IA y herramientas de crecimiento solo cuando tu flujo lo necesite.",
+          "five": "Pasa mas adelante a precios para equipos sin reconstruir tu forma de trabajar."
+        }
+      },
+      "team": {
+        "title": "Incluido en todos los planes para equipos",
+        "items": {
+          "one": "Cotizaciones, trabajos, tareas y facturacion en un solo flujo compartido.",
+          "two": "Un solo catalogo de servicios y productos para todo el negocio.",
+          "three": "Mejores senales operativas, incluido el contexto de precios por escaneo de planos cuando corresponde.",
+          "four": "Aprobaciones y visibilidad para el cliente a traves del portal.",
+          "five": "Roles y permisos de equipo que favorecen una ejecucion mas limpia."
+        }
+      }
+    },
+    "enterprise": {
+      "solo": {
+        "title": "Empieza simple hoy y crece hacia mas estructura despues",
+        "body": "Comienza con un plan individual que encaje con tu forma de operar hoy y pasa a la coordinacion de equipo solo cuando las contrataciones, el volumen o la complejidad del flujo lo hagan necesario."
+      },
+      "team": {
+        "title": "Necesitas un despliegue mas adaptado?",
+        "body": "Si tu equipo necesita limites personalizados, una revision de seguridad, onboarding dedicado o una implementacion mas guiada, podemos ayudarte a definir la configuracion adecuada."
+      }
+    },
+    "actions": {
+      "plan_trial": "Empezar prueba",
+      "plan_trial_note": "Incluye 1 mes de prueba durante el onboarding.",
+      "primary": "Empezar onboarding",
+      "secondary": "Iniciar sesion"
+    },
+    "comparison": {
+      "title": "Compara lo que mas importa antes de elegir",
+      "subtitle": "Revisa las capacidades clave, los limites y la profundidad del flujo incluidos en cada plan.",
+      "columns": {
+        "feature": "Funciones"
+      },
+      "sections": {
+        "fundamentals": "Fundamentos",
+        "operations": "Operaciones de campo",
+        "growth": "Crecimiento y automatizacion"
+      },
+      "rows": {
+        "team_members": "Empleados incluidos",
+        "account_access": "Acceso a la cuenta",
+        "clients": "Clientes",
+        "requests": "Solicitudes / leads",
+        "estimates": "Presupuestos",
+        "invoices": "Facturas",
+        "tips": "Propinas",
+        "catalog": "Catalogo de productos y servicios",
+        "catalog_items": "Elementos del catalogo",
+        "client_portal": "Portal del cliente",
+        "jobs": "Trabajos",
+        "tasks": "Tareas",
+        "planning": "Planificacion",
+        "team_planning": "Planificacion del equipo",
+        "time_tracking": "Seguimiento del tiempo",
+        "reservations": "Reservas y check-in",
+        "recurring_jobs": "Trabajos recurrentes",
+        "reports": "Informes integrados",
+        "permissions": "Permisos del equipo",
+        "automations": "Automatizaciones avanzadas",
+        "plan_scan": "Escaneo de planos y cotizaciones con IA",
+        "ai_assistant": "Asistente IA",
+        "campaigns": "Campanas",
+        "loyalty": "Fidelizacion",
+        "onboarding": "Onboarding dedicado",
+        "custom_integrations": "Integraciones personalizadas y SLA"
+      },
+      "values": {
+        "unlimited": "Ilimitado",
+        "optional": "Complemento opcional",
+        "owner_only": "1 propietario",
+        "limited": "Modo limitado",
+        "contact": "Contactanos"
+      }
+    }
+  }
+}

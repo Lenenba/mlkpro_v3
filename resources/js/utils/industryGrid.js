@@ -1,3 +1,4 @@
+import { industryCardCopy } from './publicCopy';
 import {
     Bug,
     BrushCleaning,
@@ -25,6 +26,20 @@ import {
     Waves,
     Wrench,
 } from 'lucide-vue-next';
+
+const normalizeIndustryLocale = (locale = 'fr') => {
+    const value = String(locale || 'fr').toLowerCase();
+
+    if (value.startsWith('fr')) {
+        return 'fr';
+    }
+
+    if (value.startsWith('es')) {
+        return 'es';
+    }
+
+    return 'en';
+};
 
 export const industryIconMap = {
     'tree-pine': TreePine,
@@ -135,36 +150,6 @@ export const ensureIndustryCards = (cards) => (
     Array.isArray(cards) ? cards.map((card) => createIndustryCard(card)) : []
 );
 
-export const defaultIndustryCards = (locale = 'fr') => {
-    if (locale === 'fr') {
-        return [
-            { id: 'industry-arborists', label: 'Arboristes', href: '', icon: 'tree-pine' },
-            { id: 'industry-commercial-cleaning', label: 'Nettoyage commercial', href: '/pages/industry-cleaning', icon: 'brush-cleaning' },
-            { id: 'industry-construction', label: 'Construction & entrepreneurs', href: '', icon: 'construction' },
-            { id: 'industry-electrical', label: 'Entrepreneur electrique', href: '/pages/industry-electrical', icon: 'plug-zap' },
-            { id: 'industry-hvac', label: 'HVAC', href: '/pages/industry-hvac', icon: 'fan' },
-            { id: 'industry-handyman', label: 'Homme a tout faire', href: '', icon: 'wrench' },
-            { id: 'industry-landscaping', label: 'Amenagement paysager', href: '', icon: 'shovel' },
-            { id: 'industry-lawn-care', label: 'Entretien de pelouse', href: '', icon: 'leaf' },
-            { id: 'industry-painting', label: 'Peinture', href: '', icon: 'paint-roller' },
-            { id: 'industry-plumbing', label: 'Plomberie', href: '/pages/industry-plumbing', icon: 'shower-head' },
-            { id: 'industry-residential-cleaning', label: 'Nettoyage residentiel', href: '/pages/industry-cleaning', icon: 'sparkles' },
-            { id: 'industry-roofing', label: 'Toiture', href: '', icon: 'house' },
-        ];
-    }
-
-    return [
-        { id: 'industry-arborists', label: 'Arborists', href: '', icon: 'tree-pine' },
-        { id: 'industry-commercial-cleaning', label: 'Commercial Cleaning', href: '/pages/industry-cleaning', icon: 'brush-cleaning' },
-        { id: 'industry-construction', label: 'Construction & Contractors', href: '', icon: 'construction' },
-        { id: 'industry-electrical', label: 'Electrical Contractor', href: '/pages/industry-electrical', icon: 'plug-zap' },
-        { id: 'industry-hvac', label: 'HVAC', href: '/pages/industry-hvac', icon: 'fan' },
-        { id: 'industry-handyman', label: 'Handyman', href: '', icon: 'wrench' },
-        { id: 'industry-landscaping', label: 'Landscaping', href: '', icon: 'shovel' },
-        { id: 'industry-lawn-care', label: 'Lawn Care', href: '', icon: 'leaf' },
-        { id: 'industry-painting', label: 'Painting', href: '', icon: 'paint-roller' },
-        { id: 'industry-plumbing', label: 'Plumbing', href: '/pages/industry-plumbing', icon: 'shower-head' },
-        { id: 'industry-residential-cleaning', label: 'Residential Cleaning', href: '/pages/industry-cleaning', icon: 'sparkles' },
-        { id: 'industry-roofing', label: 'Roofing', href: '', icon: 'house' },
-    ];
-};
+export const defaultIndustryCards = (locale = 'fr') => (
+    ensureIndustryCards(industryCardCopy[normalizeIndustryLocale(locale)] || industryCardCopy.en)
+);

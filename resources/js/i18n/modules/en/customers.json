@@ -1,0 +1,385 @@
+{
+  "customers": {
+    "title": "Customers",
+    "stats": {
+      "total": "Total customers",
+      "new": "New (30 days)",
+      "active": "Active (30 days)",
+      "with_quotes": "With quotes",
+      "with_jobs": "With jobs"
+    },
+    "activity": {
+      "title": "Top customer activity",
+      "subtitle": "Quotes + jobs activity",
+      "actions": "{count} actions",
+      "empty": "No customer activity yet.",
+      "quotes_short": "q",
+      "jobs_short": "j"
+    },
+    "view": {
+      "table": "Table",
+      "cards": "Cards"
+    },
+    "filters": {
+      "search_placeholder": "Search name, company, email, or phone",
+      "city": "City",
+      "country": "Country",
+      "quotes": "Quotes",
+      "requests": "Requests",
+      "jobs": "Jobs",
+      "status": "Status",
+      "created_from": "Created from",
+      "created_to": "Created to",
+      "with_quotes": "With quotes",
+      "no_quotes": "No quotes",
+      "with_jobs": "With jobs",
+      "no_jobs": "No jobs"
+    },
+    "actions": {
+      "filters": "Filters",
+      "clear": "Clear",
+      "add_customer": "Add customer",
+      "archive": "Archive",
+      "restore": "Restore",
+      "delete": "Delete",
+      "delete_confirm": "Delete \"{name}\"?",
+      "archive_confirm": "{action} \"{name}\"?",
+      "view": "View",
+      "edit": "Edit",
+      "back_to_list": "Back to list",
+      "more_actions": "... More actions",
+      "create_quote": "Create quote",
+      "create_request": "Create request",
+      "create_job": "Create job",
+      "create_invoice": "Create invoice",
+      "cancel": "Cancel",
+      "save": "Save",
+      "save_changes": "Save changes"
+    },
+    "bulk": {
+      "title": "Bulk actions",
+      "enable_portal": "Enable portal access",
+      "disable_portal": "Disable portal access",
+      "delete_confirm": "Delete selected customers?"
+    },
+    "table": {
+      "company": "Company",
+      "contact": "Contact",
+      "phone": "Phone",
+      "city": "City",
+      "quotes": "Quotes",
+      "jobs": "Jobs",
+      "created": "Created"
+    },
+    "labels": {
+      "selected": "{count} selected",
+      "customer_fallback": "Customer",
+      "customer_initial": "C",
+      "unknown_city": "Unknown city",
+      "logo_alt": "Customer logo",
+      "quotes": "Quotes",
+      "jobs": "Jobs",
+      "created": "Created",
+      "no_phone": "No phone",
+      "none": "-",
+      "unknown_status": "Unknown status"
+    },
+    "empty": {
+      "title": "No customers",
+      "subtitle": "Add a customer to start your database.",
+      "action": "Add customer"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "of": "of",
+      "results": "results"
+    },
+    "status": {
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "details": {
+      "sales": {
+        "title": "Sales",
+        "view_all": "View all",
+        "count": "Sales",
+        "paid": "Paid",
+        "total": "Total",
+        "empty": "No sales for this customer yet.",
+        "sale_fallback": "Sale #{id}"
+      },
+      "purchase": {
+        "title": "Purchase habits",
+        "last_purchase": "Last purchase",
+        "days_since": "Days since",
+        "average_order": "Average order",
+        "average_items": "Average items",
+        "frequency": "Average cadence",
+        "recent_30": "30-day purchases",
+        "preference": "Preference"
+      },
+      "top_products": {
+        "title": "Top products",
+        "product_fallback": "Product",
+        "initial_fallback": "P",
+        "sku_fallback": "SKU -",
+        "empty": "No recent purchases."
+      },
+      "schedule": {
+        "title": "Schedule",
+        "upcoming_jobs": "Upcoming jobs",
+        "view_all": "View all",
+        "starts": "Starts",
+        "no_upcoming_jobs": "No upcoming jobs.",
+        "tasks": "Tasks",
+        "due": "Due",
+        "no_due_date": "No due date",
+        "no_tasks": "No tasks yet."
+      },
+      "activity": {
+        "title": "Recent activity for this client",
+        "empty": "No recent activity yet."
+      },
+      "preview": {
+        "title": "Customer overview",
+        "quotes": "Quotes",
+        "active_jobs": "Active jobs",
+        "jobs": "Jobs",
+        "invoices": "Invoices",
+        "requests": "Requests",
+        "balance_due": "Balance due",
+        "latest_quote": "Latest quote",
+        "quote_number": "Quote {number}",
+        "quote_fallback": "Quote",
+        "total": "Total",
+        "no_quotes": "No quotes.",
+        "latest_job": "Latest job",
+        "job_fallback": "Job",
+        "no_jobs": "No jobs.",
+        "latest_invoice": "Latest invoice",
+        "invoice_number": "Invoice {number}",
+        "invoice_fallback": "Invoice",
+        "no_invoices": "No invoices."
+      },
+      "contact": {
+        "title": "Contact details",
+        "fields": {
+          "number": "Number",
+          "name": "Name",
+          "phone": "Phone",
+          "email": "Email"
+        }
+      },
+      "mailing_lists": {
+        "title": "Mailing lists",
+        "description": "Add this customer to a marketing mailing list in one click.",
+        "add_action": "Add to mailing list",
+        "modal_title": "Add to mailing list",
+        "modal_description": "Select a target mailing list, then confirm adding this customer.",
+        "select_label": "Mailing list",
+        "select_placeholder": "Choose a mailing list",
+        "confirm_add": "Add customer",
+        "loading": "Loading mailing lists...",
+        "info_added": "Added to {list}. New: {added}, already present: {alreadyPresent}, total: {total}.",
+        "error_load": "Unable to load mailing lists.",
+        "error_add": "Unable to add this customer to the mailing list."
+      },
+      "tags": {
+        "title": "Tags",
+        "field": "Tags (comma separated)",
+        "empty": "No tags yet."
+      },
+      "auto_validation": {
+        "title": "Auto validation",
+        "quotes": "Auto-validate quotes",
+        "jobs": "Auto-validate jobs",
+        "tasks": "Auto-validate tasks",
+        "invoices": "Auto-validate invoices"
+      },
+      "last_interaction": {
+        "title": "Last customer interaction",
+        "empty": "No interactions yet."
+      },
+      "billing_history": {
+        "title": "Billing history",
+        "invoiced": "Invoiced",
+        "paid": "Paid",
+        "balance_due": "Balance due",
+        "recent_payments": "Recent payments",
+        "invoice_fallback": "Invoice",
+        "payment_fallback": "Payment",
+        "paid_on": "Paid on",
+        "empty": "No payments yet."
+      },
+      "loyalty": {
+        "title": "Loyalty points",
+        "balance": "Balance",
+        "earn_rate": "Earning rate",
+        "rate_value": "{rate} pts per $1 spent",
+        "minimum_spend": "Minimum spend",
+        "rounding": "Rounding: {mode}",
+        "enabled": "Program active",
+        "disabled": "Program inactive",
+        "recent_activity": "Recent point activity",
+        "event_accrual": "Points earned",
+        "event_refund": "Points removed (refund)",
+        "event_redemption": "Points redeemed",
+        "event_redemption_reversal": "Points restored",
+        "payment_amount": "Based on payment of {amount}",
+        "empty": "No loyalty activity yet.",
+        "points_unit": "points",
+        "rounding_modes": {
+          "floor": "Floor",
+          "round": "Nearest",
+          "ceil": "Ceil"
+        }
+      },
+      "notes": {
+        "title": "Internal notes",
+        "field": "Internal notes",
+        "empty": "No notes yet."
+      },
+      "days_label": "{count} days"
+    },
+    "form": {
+      "title": {
+        "new": "New client",
+        "edit": "Edit client"
+      },
+      "sections": {
+        "client_details": "Client details",
+        "contact_details": "Contact details",
+        "auto_validation": "Client auto validation",
+        "additional_details": "Additional client detail",
+        "billing_preferences": "Billing preferences",
+        "location": "Location"
+      },
+      "fields": {
+        "title": "Title",
+        "first_name": "First name",
+        "last_name": "Last name",
+        "company_name": "Company name",
+        "company_logo": "Company logo",
+        "upload_company_logo": "Upload company logo",
+        "choose_company_icon": "Or choose a company icon",
+        "company_icon_alt": "Company icon",
+        "default_icon": "Default",
+        "clear_icon": "Clear icon",
+        "phone": "Phone",
+        "email": "Email address",
+        "portal_access": "Give access to the platform",
+        "description": "Description",
+        "referred_by": "Referred by",
+        "discount_rate": "Loyalty discount (%)",
+        "search_address": "Search for an address",
+        "notes": "Notes"
+      },
+      "auto_accept_quotes": "Auto-accept quotes",
+      "billing": {
+        "same_as_property": "Billing address is the same as the property address",
+        "mode": "Billing mode",
+        "grouping": "Grouping",
+        "cycle": "Cycle",
+        "delay_days": "Delay (days)",
+        "date_rule": "Date rule (ex: 1st of month)"
+      },
+      "billing_modes": {
+        "per_task": "Per task",
+        "per_segment": "Per segment",
+        "end_of_job": "End of job",
+        "deferred": "Deferred"
+      },
+      "billing_groupings": {
+        "single": "Single invoice",
+        "periodic": "Grouped"
+      },
+      "billing_cycles": {
+        "weekly": "Weekly",
+        "biweekly": "Every 2 weeks",
+        "monthly": "Monthly",
+        "every_n_tasks": "Every N tasks"
+      },
+      "salutations": {
+        "mr": "Mr",
+        "mrs": "Mrs",
+        "miss": "Miss"
+      },
+      "actions": {
+        "save_create_another": "Save and create another",
+        "save_client": "Save client",
+        "update_client": "Update client"
+      },
+      "errors": {
+        "city_required": "City is required when saving a location.",
+        "required_fields": "Please fill all required fields.",
+        "save_failed": "Unable to save customer. Please try again."
+      }
+    },
+    "properties": {
+      "title": "Properties",
+      "add": "Add property",
+      "set_default": "Set as default",
+      "default_label": "Default",
+      "empty": "No properties yet.",
+      "delete_confirm": "Delete this property?",
+      "fallback": "Property",
+      "types": {
+        "physical": "Physical",
+        "billing": "Billing",
+        "other": "Other"
+      },
+      "fields": {
+        "type": "Type",
+        "street1": "Street 1",
+        "street2": "Street 2",
+        "city": "City",
+        "state": "State",
+        "zip": "Zip code",
+        "country": "Country"
+      }
+    },
+    "tabs": {
+      "overview": "Overview",
+      "empty_modules": "No modules are enabled for this plan.",
+      "status_label": "Status",
+      "filters": {
+        "all": "All statuses"
+      },
+      "active_works": "Active works",
+      "requests": {
+        "label": "Requests",
+        "status": {
+          "new": "New",
+          "call_requested": "Call requested",
+          "contacted": "Contacted",
+          "qualified": "Qualified",
+          "quote_sent": "Quote sent",
+          "won": "Won",
+          "lost": "Lost",
+          "converted": "Converted"
+        }
+      },
+      "quotes": "Quotes",
+      "jobs": "Jobs",
+      "invoices": "Invoices",
+      "items": "{count} items",
+      "empty_filtered": "No {type} match this filter.",
+      "empty_title": "No {type} data",
+      "empty_subtitle": "In the meantime, you can create new custom {type} to monitor your most important metrics",
+      "types": {
+        "works": "works",
+        "requests": "requests",
+        "quotes": "quotes",
+        "jobs": "jobs",
+        "invoices": "invoices"
+      },
+      "actions": {
+        "create_quote": "Create quote",
+        "create_job": "Create job",
+        "view_invoices": "View invoices",
+        "create_request": "Create request"
+      }
+    }
+  }
+}

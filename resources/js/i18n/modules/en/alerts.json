@@ -1,0 +1,26 @@
+{
+  "alerts": {
+    "maintenance": {
+      "title": "Maintenance mode",
+      "message": "The platform is currently in maintenance mode."
+    },
+    "impersonation": {
+      "title": "Impersonating",
+      "message": "You are impersonating this account. Original admin: {name}."
+    },
+    "success": {
+      "title": "Success."
+    },
+    "error": {
+      "title": "Error."
+    },
+    "warning": {
+      "title": "Warning."
+    },
+    "validation_toast": {
+      "single": "1 form error. Check the highlighted field.",
+      "plural": "{count} form errors. Check the highlighted fields.",
+      "generic": "There are form errors. Please review the highlighted fields."
+    }
+  }
+}

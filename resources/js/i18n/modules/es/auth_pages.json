@@ -1,0 +1,47 @@
+{
+  "auth_pages": {
+    "login": {
+      "title": "Iniciar sesion",
+      "email": "Email",
+      "password": "Contrasena",
+      "remember": "Recordarme",
+      "forgot_password": "Has olvidado tu contrasena?",
+      "submit": "Iniciar sesion"
+    },
+    "register": {
+      "title": "Crear cuenta",
+      "name": "Nombre completo",
+      "email": "Email",
+      "password": "Contrasena",
+      "password_confirmation": "Confirmar la contrasena",
+      "already_registered": "Ya estas registrado?",
+      "submit": "Crear cuenta"
+    },
+    "forgot_password": {
+      "title": "Olvidaste tu contrasena",
+      "description": "Has olvidado tu contrasena? No pasa nada. Escribe tu correo electronico y te enviaremos un enlace para restablecerla y elegir una nueva.",
+      "email": "Email",
+      "submit": "Enviar enlace de restablecimiento"
+    },
+    "reset_password": {
+      "title": "Restablecer contrasena",
+      "email": "Email",
+      "password": "Contrasena",
+      "password_confirmation": "Confirmar la contrasena",
+      "submit": "Restablecer contrasena"
+    },
+    "verify_email": {
+      "title": "Verificacion del email",
+      "description": "Gracias por registrarte. Antes de empezar, verifica tu direccion de email haciendo clic en el enlace que acabamos de enviarte. Si no lo recibiste, podemos enviarte otro.",
+      "resent": "Se ha enviado un nuevo enlace de verificacion al email que indicaste durante el registro.",
+      "submit": "Reenviar email de verificacion",
+      "logout": "Cerrar sesion"
+    },
+    "confirm_password": {
+      "title": "Confirmar contrasena",
+      "description": "Esta es una zona segura de la aplicacion. Confirma tu contrasena antes de continuar.",
+      "password": "Contrasena",
+      "submit": "Confirmar"
+    }
+  }
+}

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\PlatformSetting;
+use App\Support\LocalePreference;
 use App\Support\WelcomeStockImages;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -11,8 +12,6 @@ use Illuminate\Support\Str;
 class WelcomeContentService
 {
     private const SETTING_KEY = 'welcome_builder';
-
-    private const LOCALES = ['fr', 'en'];
 
     private const ALLOWED_HTML_TAGS = [
         'div',
@@ -37,14 +36,14 @@ class WelcomeContentService
 
     public function locales(): array
     {
-        return self::LOCALES;
+        return LocalePreference::supported();
     }
 
     public function resolveForLocale(string $locale): array
     {
         $locale = $this->normalizeLocale($locale);
         $default = $this->defaultContent($locale);
-        $stored = $this->storedLocales()[$locale] ?? [];
+        $stored = $this->storedLocaleContent($this->storedLocales(), $locale);
 
         $merged = $this->mergeContent($default, $stored);
 
@@ -144,11 +143,19 @@ class WelcomeContentService
                     'label' => (string) trans('welcome.hero.stats.one_label'),
                 ],
                 [
-                    'value' => 'End-to-end',
+                    'value' => match ($locale) {
+                        'fr' => 'De bout en bout',
+                        'es' => 'De punta a punta',
+                        default => 'End-to-end',
+                    },
                     'label' => (string) trans('welcome.hero.stats.two_label'),
                 ],
                 [
-                    'value' => 'Live visibility',
+                    'value' => match ($locale) {
+                        'fr' => 'Visibilite en direct',
+                        'es' => 'Visibilidad en tiempo real',
+                        default => 'Live visibility',
+                    },
                     'label' => (string) trans('welcome.hero.stats.three_label'),
                 ],
             ];
@@ -946,9 +953,15 @@ class WelcomeContentService
 
     private function normalizeLocale(string $locale): string
     {
-        $locale = strtolower(trim($locale));
+        return LocalePreference::normalize($locale);
+    }
 
-        return in_array($locale, $this->locales(), true) ? $locale : $this->locales()[0];
+    private function storedLocaleContent(array $storedLocales, string $locale): array
+    {
+        $resolvedLocale = LocalePreference::firstStoredLocale($storedLocales, $locale);
+        $stored = $resolvedLocale !== null ? ($storedLocales[$resolvedLocale] ?? []) : [];
+
+        return is_array($stored) ? $stored : [];
     }
 
     private function withLocale(string $locale, callable $callback): array

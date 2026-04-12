@@ -7,15 +7,12 @@ use App\Models\MegaMenuBlock;
 use App\Models\MegaMenuColumn;
 use App\Models\MegaMenuItem;
 use App\Models\PlatformSetting;
+use App\Support\LocalePreference;
 use App\Support\MegaMenuOptions;
 use Illuminate\Support\Facades\Route;
 
 class MegaMenuRenderer
 {
-    private const DEFAULT_LOCALE = 'fr';
-
-    private const SUPPORTED_LOCALES = ['fr', 'en'];
-
     public function resolveForLocation(string $location, ?string $zone = null): array
     {
         $location = in_array($location, MegaMenuOptions::displayLocations(), true)
@@ -349,14 +346,30 @@ class MegaMenuRenderer
 
     private function resolveTranslatedText(?string $default, array $translations, string $field): ?string
     {
-        $localized = $this->translatedFieldValue($translations, $this->currentLocale(), $field);
+        $currentLocale = $this->currentLocale();
+        $defaultLocale = $this->defaultContentLocale();
+
+        $localized = $this->translatedFieldValue($translations, $currentLocale, $field);
         if ($localized !== null) {
             return $localized;
         }
 
-        $fallback = $this->translatedFieldValue($translations, self::DEFAULT_LOCALE, $field);
+        if ($currentLocale === $defaultLocale) {
+            return $default;
+        }
 
-        return $fallback ?? $default;
+        foreach ($this->localeResolutionOrder() as $locale) {
+            if ($locale === $currentLocale || $locale === $defaultLocale) {
+                continue;
+            }
+
+            $localized = $this->translatedFieldValue($translations, $locale, $field);
+            if ($localized !== null) {
+                return $localized;
+            }
+        }
+
+        return $default;
     }
 
     /**
@@ -383,9 +396,22 @@ class MegaMenuRenderer
         $translations = is_array($payload['translations'] ?? null) ? $payload['translations'] : [];
         unset($payload['translations']);
 
-        $localized = $this->resolvePayloadTranslation($translations, $this->currentLocale())
-            ?? $this->resolvePayloadTranslation($translations, self::DEFAULT_LOCALE)
-            ?? [];
+        $currentLocale = $this->currentLocale();
+        $defaultLocale = $this->defaultContentLocale();
+        $localized = $this->resolvePayloadTranslation($translations, $currentLocale) ?? [];
+
+        if ($localized === [] && $currentLocale !== $defaultLocale) {
+            foreach ($this->localeResolutionOrder() as $locale) {
+                if ($locale === $currentLocale || $locale === $defaultLocale) {
+                    continue;
+                }
+
+                $localized = $this->resolvePayloadTranslation($translations, $locale) ?? [];
+                if ($localized !== []) {
+                    break;
+                }
+            }
+        }
 
         if ($localized === []) {
             return $payload;
@@ -483,10 +509,19 @@ class MegaMenuRenderer
 
     private function currentLocale(): string
     {
-        $locale = (string) app()->getLocale();
+        return LocalePreference::normalize((string) app()->getLocale());
+    }
 
-        return in_array($locale, self::SUPPORTED_LOCALES, true)
-            ? $locale
-            : self::DEFAULT_LOCALE;
+    private function defaultContentLocale(): string
+    {
+        return LocalePreference::supported()[0] ?? 'fr';
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function localeResolutionOrder(): array
+    {
+        return LocalePreference::resolutionOrder($this->currentLocale());
     }
 }

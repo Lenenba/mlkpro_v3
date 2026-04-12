@@ -5,12 +5,15 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 
 defineProps({
     status: {
         type: String,
     },
 });
+
+const { t } = useI18n();
 
 const form = useForm({
     email: '',
@@ -23,12 +26,10 @@ const submit = () => {
 
 <template>
     <GuestLayout>
-        <Head title="Forgot Password" />
+        <Head :title="t('auth_pages.forgot_password.title')" />
 
         <div class="mb-4 text-sm text-stone-600 dark:text-neutral-400">
-            Forgot your password? No problem. Just let us know your email
-            address and we will email you a password reset link that will allow
-            you to choose a new one.
+            {{ t('auth_pages.forgot_password.description') }}
         </div>
 
         <div
@@ -40,7 +41,7 @@ const submit = () => {
 
         <form @submit.prevent="submit">
             <div>
-                <InputLabel for="email" value="Email" />
+                <InputLabel for="email" :value="t('auth_pages.forgot_password.email')" />
 
                 <TextInput
                     id="email"
@@ -60,7 +61,7 @@ const submit = () => {
                     :class="{ 'opacity-25': form.processing }"
                     :disabled="form.processing"
                 >
-                    Email Password Reset Link
+                    {{ t('auth_pages.forgot_password.submit') }}
                 </PrimaryButton>
             </div>
         </form>

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
+import LocaleFlag from '@/Components/UI/LocaleFlag.vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -62,11 +63,10 @@ const safeRoute = (name, fallback = '#') => {
 };
 
 const currentLocale = computed(() => String(page.props.locale || 'fr').toLowerCase());
-const currentLocaleCode = computed(() => currentLocale.value.toUpperCase());
 const availableLocales = computed(() => (
     Array.isArray(page.props.locales) && page.props.locales.length
         ? page.props.locales
-        : ['fr', 'en']
+        : ['fr', 'en', 'es']
 ));
 const availableCurrencies = computed(() => {
     const currencies = Array.isArray(props.availableCurrencies) ? props.availableCurrencies : [];
@@ -301,7 +301,7 @@ onBeforeUnmount(() => {
                             @click="toggleLangMenu"
                             @keydown.escape="closeLangMenu"
                         >
-                            <span>{{ currentLocaleCode }}</span>
+                            <LocaleFlag :locale="currentLocale" class="size-5 rounded-[3px] shadow-sm ring-1 ring-black/10" />
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 width="16"
@@ -336,7 +336,8 @@ onBeforeUnmount(() => {
                                 :aria-selected="currentLocale === locale"
                                 @click="setLocale(locale)"
                             >
-                                {{ $t(`language.${locale}`) }}
+                                <LocaleFlag :locale="locale" class="size-5 rounded-[3px] shadow-sm ring-1 ring-black/10" />
+                                <span>{{ $t(`language.${locale}`) }}</span>
                             </button>
                         </div>
                     </div>
@@ -488,6 +489,9 @@ onBeforeUnmount(() => {
 
 .public-site-header__locale-item {
     width: 100%;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
     padding: 0.45rem 0.75rem;
     border-radius: 0.125rem;
     text-align: left;

@@ -1,0 +1,79 @@
+{
+  "loyalty_module": {
+    "title": "Gestion fidelite",
+    "subtitle": "Suivez l evolution des points et les soldes clients en temps reel.",
+    "default_points_label": "points",
+    "actions": {
+      "configure": "Configurer le module",
+      "apply_filters": "Appliquer les filtres",
+      "clear_filters": "Effacer les filtres",
+      "show_advanced": "Afficher avance",
+      "hide_advanced": "Masquer avance"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher par client, evenement, paiement ou reference...",
+      "period": "Periode",
+      "customer": "Client",
+      "event": "Evenement",
+      "per_page": "Lignes / page",
+      "from": "Du",
+      "to": "Au",
+      "all_customers": "Tous les clients",
+      "all_events": "Tous les evenements"
+    },
+    "period": {
+      "last_7_days": "7 derniers jours",
+      "last_30_days": "30 derniers jours",
+      "last_90_days": "90 derniers jours",
+      "this_month": "Ce mois-ci",
+      "custom": "Periode personnalisee"
+    },
+    "kpi": {
+      "total_balance": "Solde total des points",
+      "active_customers": "Clients avec points",
+      "points_earned": "Points gagnes",
+      "points_spent": "Points utilises"
+    },
+    "program": {
+      "title": "Etat du programme",
+      "status": "Statut",
+      "enabled": "Actif",
+      "disabled": "Desactive",
+      "rate": "Taux de gain (pts / $1)",
+      "minimum_spend": "Montant minimum",
+      "rounding_mode": "Mode d arrondi"
+    },
+    "customer_stats": {
+      "title": "Suivi points clients",
+      "customer": "Client",
+      "balance": "Solde",
+      "earned": "Gagnes",
+      "spent": "Utilises",
+      "empty": "Aucune donnee client a afficher."
+    },
+    "ledger": {
+      "title": "Evolution des points",
+      "date": "Date et heure",
+      "customer": "Client",
+      "event": "Evenement",
+      "reference": "Reference",
+      "points": "Points",
+      "amount": "Montant",
+      "results": "resultats",
+      "result_count": "{count} resultats",
+      "page_indicator": "Page {current} / {total}",
+      "empty": "Aucun mouvement trouve."
+    },
+    "events": {
+      "accrual": "Points credites",
+      "refund": "Ajustement remboursement",
+      "redemption": "Points utilises",
+      "redemption_reversal": "Annulation d utilisation"
+    },
+    "references": {
+      "payment": "Paiement #{id}",
+      "sale": "Vente {number}",
+      "sale_id": "Vente #{id}"
+    }
+  }
+}

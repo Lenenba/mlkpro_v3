@@ -258,10 +258,13 @@ class PublicPricingCatalogService
 
     private function comparisonCopy(): array
     {
-        $locale = str_starts_with(app()->getLocale(), 'fr') ? 'fr' : 'en';
+        $rawLocale = strtolower((string) app()->getLocale());
+        $locale = str_starts_with($rawLocale, 'fr')
+            ? 'fr'
+            : (str_starts_with($rawLocale, 'es') ? 'es' : 'en');
 
-        return $locale === 'fr'
-            ? [
+        return match ($locale) {
+            'fr' => [
                 'pricing.comparison.sections.fundamentals' => 'Fondamentaux',
                 'pricing.comparison.sections.operations' => 'Operations terrain',
                 'pricing.comparison.sections.growth' => 'Croissance et automatisation',
@@ -296,8 +299,44 @@ class PublicPricingCatalogService
                 'pricing.comparison.values.owner_only' => '1 owner',
                 'pricing.comparison.values.limited' => 'Mode limite',
                 'pricing.comparison.values.contact' => 'Contact us',
-            ]
-            : [
+            ],
+            'es' => [
+                'pricing.comparison.sections.fundamentals' => 'Fundamentos',
+                'pricing.comparison.sections.operations' => 'Operaciones de campo',
+                'pricing.comparison.sections.growth' => 'Crecimiento y automatizacion',
+                'pricing.comparison.rows.team_members' => 'Empleados incluidos',
+                'pricing.comparison.rows.account_access' => 'Acceso a la cuenta',
+                'pricing.comparison.rows.clients' => 'Clientes',
+                'pricing.comparison.rows.requests' => 'Solicitudes / leads',
+                'pricing.comparison.rows.estimates' => 'Presupuestos',
+                'pricing.comparison.rows.invoices' => 'Facturas',
+                'pricing.comparison.rows.tips' => 'Propinas',
+                'pricing.comparison.rows.catalog' => 'Catalogo de productos y servicios',
+                'pricing.comparison.rows.catalog_items' => 'Elementos del catalogo',
+                'pricing.comparison.rows.client_portal' => 'Portal del cliente',
+                'pricing.comparison.rows.jobs' => 'Trabajos',
+                'pricing.comparison.rows.tasks' => 'Tareas',
+                'pricing.comparison.rows.planning' => 'Planificacion',
+                'pricing.comparison.rows.team_planning' => 'Planificacion del equipo',
+                'pricing.comparison.rows.time_tracking' => 'Seguimiento del tiempo',
+                'pricing.comparison.rows.reservations' => 'Reservas y check-in',
+                'pricing.comparison.rows.recurring_jobs' => 'Trabajos recurrentes',
+                'pricing.comparison.rows.reports' => 'Informes integrados',
+                'pricing.comparison.rows.permissions' => 'Permisos del equipo',
+                'pricing.comparison.rows.automations' => 'Automatizaciones avanzadas',
+                'pricing.comparison.rows.plan_scan' => 'Escaneo de planos y cotizaciones con IA',
+                'pricing.comparison.rows.ai_assistant' => 'Asistente IA',
+                'pricing.comparison.rows.campaigns' => 'Campanas',
+                'pricing.comparison.rows.loyalty' => 'Fidelizacion',
+                'pricing.comparison.rows.onboarding' => 'Onboarding dedicado',
+                'pricing.comparison.rows.custom_integrations' => 'Integraciones personalizadas y SLA',
+                'pricing.comparison.values.unlimited' => 'Ilimitado',
+                'pricing.comparison.values.optional' => 'Complemento opcional',
+                'pricing.comparison.values.owner_only' => '1 propietario',
+                'pricing.comparison.values.limited' => 'Modo limitado',
+                'pricing.comparison.values.contact' => 'Contactanos',
+            ],
+            default => [
                 'pricing.comparison.sections.fundamentals' => 'Fundamentals',
                 'pricing.comparison.sections.operations' => 'Field operations',
                 'pricing.comparison.sections.growth' => 'Growth and automation',
@@ -332,6 +371,7 @@ class PublicPricingCatalogService
                 'pricing.comparison.values.owner_only' => '1 owner',
                 'pricing.comparison.values.limited' => 'Limited mode',
                 'pricing.comparison.values.contact' => 'Contact us',
-            ];
+            ],
+        };
     }
 }

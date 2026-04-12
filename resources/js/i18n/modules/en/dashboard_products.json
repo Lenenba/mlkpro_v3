@@ -1,0 +1,90 @@
+{
+  "dashboard_products": {
+    "common": {
+      "customer_fallback": "Customer",
+      "confirm_supplier_request": "Send a stock request to the supplier?",
+      "recent_sales_title": "Recent sales",
+      "recent_sales_empty": "No recent sales.",
+      "sale_label": "Sale #{id}",
+      "stock_alerts_title": "Stock alerts",
+      "stock_alerts_empty": "No stock alerts.",
+      "stock_line": "Stock: {stock} / Min: {min}",
+      "stock_out": "Out of stock",
+      "stock_low": "Low stock",
+      "supplier_unknown": "Supplier",
+      "request_stock": "Request stock",
+      "top_products_title": "Top products",
+      "top_products_empty": "No top products yet.",
+      "quantity": "Qty: {count}"
+    },
+    "owner": {
+      "page_title": "Products dashboard",
+      "title": "Products dashboard",
+      "subtitle": "Sales and inventory overview.",
+      "actions": {
+        "new_sale": "New sale",
+        "products": "Products",
+        "customers": "Customers"
+      },
+      "kpi": {
+        "sales_today": "Sales today",
+        "revenue_today": "Revenue today",
+        "sales_month": "Sales this month",
+        "inventory_value": "Inventory value",
+        "low_stock": "Low stock",
+        "out_of_stock": "Out of stock"
+      },
+      "stock_signals": {
+        "reserved": "Reserved {count}",
+        "damaged": "Damaged {count}",
+        "expired": "Expired {count}",
+        "expiring": "Expiring {count}"
+      },
+      "performance": {
+        "title": "Seller performance",
+        "range": "{start} - {end}",
+        "export": "Export ranking",
+        "active_sellers": "{count} active sellers",
+        "online_label": "Online store",
+        "online_badge": "Online",
+        "seller_fallback": "Seller",
+        "period": {
+          "day": "Today",
+          "week": "This week",
+          "month": "This month",
+          "year": "This year"
+        },
+        "kpi": {
+          "revenue": "Revenue",
+          "orders": "Orders",
+          "items_sold": "Items sold",
+          "avg_order": "Avg order value",
+          "customers": "Customers",
+          "revenue_per_seller": "Revenue per seller"
+        },
+        "top_sellers": "Top sellers",
+        "top_products": "Top products",
+        "seller_of_year": "Seller of the year",
+        "seller_line": "{revenue} · {orders} orders · {items} items",
+        "product_line": "{revenue} · {quantity} items",
+        "no_sellers": "No seller performance yet.",
+        "no_products": "No product performance yet.",
+        "no_seller_year": "No seller data for the year yet."
+      }
+    },
+    "team": {
+      "page_title": "Products dashboard",
+      "title": "Products dashboard",
+      "subtitle": "Sales and stock overview.",
+      "actions": {
+        "new_sale": "New sale"
+      },
+      "kpi": {
+        "sales_today": "Sales today",
+        "revenue_today": "Revenue today",
+        "low_stock": "Low stock",
+        "out_of_stock": "Out of stock"
+      }
+    }
+  }
+}

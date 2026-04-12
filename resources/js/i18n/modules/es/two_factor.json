@@ -1,0 +1,15 @@
+{
+  "two_factor": {
+    "title": "Verificacion en dos pasos",
+    "sent": "Enviamos un codigo de verificacion a {email}.",
+    "sms_sent": "Enviamos un codigo de verificacion a {phone}.",
+    "app_prompt": "Introduce el codigo de tu aplicacion de autenticacion.",
+    "expires": "Este codigo caduca en {minutes} minutos.",
+    "code_label": "Codigo de verificacion",
+    "code_placeholder": "Introduce el codigo de 6 digitos",
+    "submit": "Verificar",
+    "resend": "Reenviar codigo",
+    "email_fallback": "tu email",
+    "phone_fallback": "tu telefono"
+  }
+}

@@ -1,0 +1,163 @@
+{
+  "planning": {
+    "absence_overview": {
+      "title": "Time off overview",
+      "week_range": "This week",
+      "today": "Today",
+      "week": "This week",
+      "empty_today": "No time off today.",
+      "empty_week": "No time off this week.",
+      "more_week": "+{count} more"
+    },
+    "title": "Planning",
+    "subtitle": "Schedule recurring shifts for the sales team.",
+    "subtitle_services": "Schedule jobs and tasks across the team.",
+    "subtitle_owner_only": "Review your calendar in a solo planning view.",
+    "subtitle_owner_only_services": "Track jobs and tasks in a solo planning view.",
+    "calendar": {
+      "title": "Team schedule",
+      "today": "Today",
+      "month": "Month",
+      "week": "Week",
+      "day": "Day",
+      "year": "Year"
+    },
+    "preview": {
+      "empty": "No shifts",
+      "empty_services": "No events",
+      "count": "{count} shifts",
+      "count_services": "{count} events",
+      "more": "{count} more"
+    },
+    "filters": {
+      "title": "Calendars",
+      "member": "Team member",
+      "all_members": "All team members",
+      "range": "Range",
+      "loading": "Loading shifts...",
+      "loading_services": "Loading schedules...",
+      "empty": "No shifts scheduled for this range.",
+      "empty_services": "No jobs or tasks scheduled for this range."
+    },
+    "kinds": {
+      "shift": "Shift",
+      "absence": "Absence",
+      "leave": "Leave"
+    },
+    "form": {
+      "title": "Add shift",
+      "title_absence": "Report an absence",
+      "title_leave": "Request leave",
+      "kind": "Type",
+      "member": "Team member",
+      "date": "Shift date",
+      "start_date": "Start date",
+      "end_date": "End date",
+      "duration": "Duration",
+      "full_day": "Full day",
+      "hours": "A few hours",
+      "start_time": "Start time",
+      "end_time": "End time",
+      "break_minutes": "Break (min)",
+      "shift_title": "Shift title",
+      "notes": "Notes",
+      "reason": "Reason / notes",
+      "recurring": "Recurring shift",
+      "frequency": "Frequency",
+      "recurrence_end": "Repeat until",
+      "weekdays": "Days of week",
+      "month_day": "Day of month",
+      "create": "Create shift",
+      "creating": "Creating...",
+      "scroll_to_form": "Open planning form",
+      "use_selected_day": "Use selected day",
+      "save_time_off": "Save",
+      "saving_time_off": "Saving..."
+    },
+    "all_day": "All day",
+    "frequency": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "yearly": "Yearly"
+    },
+    "weekdays": {
+      "mo": "Mon",
+      "tu": "Tue",
+      "we": "Wed",
+      "th": "Thu",
+      "fr": "Fri",
+      "sa": "Sat",
+      "su": "Sun"
+    },
+    "errors": {
+      "load": "Unable to load shifts.",
+      "save": "Unable to save the shift.",
+      "delete": "Unable to delete the shift.",
+      "status": "Unable to update the status.",
+      "update": "Unable to update the shift.",
+      "conflict": "Scheduling conflict detected."
+    },
+    "notices": {
+      "created": "{count} shift(s) created.",
+      "absence_created": "Absence saved.",
+      "absence_created_many": "{count} absence day(s) saved.",
+      "leave_created": "Leave saved.",
+      "leave_created_many": "{count} leave day(s) saved.",
+      "absence_deleted": "Absence deleted.",
+      "leave_deleted": "Leave deleted.",
+      "updated": "Shift updated.",
+      "approved": "Request approved.",
+      "rejected": "Request rejected.",
+      "deleted": "Shift deleted."
+    },
+    "status": {
+      "label": "Status",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "approve": "Approve",
+      "approving": "Approving...",
+      "reject": "Reject",
+      "rejecting": "Rejecting..."
+    },
+    "pending": {
+      "title": "Pending requests",
+      "empty": "No pending requests.",
+      "count": "{count} pending",
+      "more": "+{count} more requests"
+    },
+    "empty": {
+      "title": "Scheduling locked",
+      "description": "Only managers can create shifts."
+    },
+    "empty_services": {
+      "title": "Planning overview",
+      "description": "Schedules are derived from jobs and tasks."
+    },
+    "empty_owner_only": {
+      "title": "Planning is view-only",
+      "description": "Shift creation stays disabled in solo mode until owner scheduling is available."
+    },
+    "empty_owner_only_services": {
+      "title": "Solo operations view",
+      "description": "Jobs and tasks stay visible here, but team scheduling stays disabled in solo mode."
+    },
+    "owner_only": {
+      "badge": "Owner-only view",
+      "panel_title": "Solo planning",
+      "panel_description": "This solo plan keeps planning read-only while team members stay disabled."
+    },
+    "delete": {
+      "title": "Delete shift",
+      "absence_title": "Delete absence",
+      "leave_title": "Delete leave",
+      "description": "Remove this shift from the calendar?",
+      "absence_description": "Remove this absence from the calendar?",
+      "leave_description": "Remove this leave from the calendar?",
+      "confirm": "Delete",
+      "cancel": "Cancel",
+      "deleting": "Deleting..."
+    }
+  }
+}

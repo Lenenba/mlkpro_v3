@@ -171,18 +171,68 @@ const resolveHeroCopy = (value) => {
     }
     return trimmed.replace(/\{company\}/g, companyName.value);
 };
+const normalizedLocaleKey = computed(() => {
+    const value = String(locale.value || 'fr').toLowerCase();
+    if (value.startsWith('fr')) {
+        return 'fr';
+    }
+    if (value.startsWith('es')) {
+        return 'es';
+    }
+    return 'en';
+});
+const localeFallbackOrder = computed(() => {
+    if (normalizedLocaleKey.value === 'fr') {
+        return ['fr', 'en', 'es'];
+    }
+    if (normalizedLocaleKey.value === 'es') {
+        return ['es', 'en', 'fr'];
+    }
+    return ['en', 'fr', 'es'];
+});
+const resolveLocalizedHeroValue = (value) => {
+    if (!value || typeof value !== 'object') {
+        return '';
+    }
 
-const heroCopyHtml = computed(() => resolveHeroCopy(company.value?.store_settings?.hero_copy?.[locale.value]));
+    for (const key of localeFallbackOrder.value) {
+        const candidate = String(value[key] || '').trim();
+        if (candidate) {
+            return value[key];
+        }
+    }
+
+    return '';
+};
+const resolveLocalizedHeroCaption = (value, index) => {
+    if (!value || typeof value !== 'object') {
+        return '';
+    }
+
+    for (const key of localeFallbackOrder.value) {
+        const items = Array.isArray(value[key]) ? value[key] : [];
+        const candidate = String(items[index] || '').trim();
+        if (candidate) {
+            return items[index];
+        }
+    }
+
+    return '';
+};
+
+const heroCopyHtml = computed(() => resolveHeroCopy(
+    resolveLocalizedHeroValue(company.value?.store_settings?.hero_copy)
+));
 const heroCaptions = computed(() => {
     const captions = company.value?.store_settings?.hero_captions || {};
     return {
         fr: Array.isArray(captions.fr) ? captions.fr : [],
+        es: Array.isArray(captions.es) ? captions.es : [],
         en: Array.isArray(captions.en) ? captions.en : [],
     };
 });
 const heroSlideCaption = computed(() => {
-    const list = heroCaptions.value?.[locale.value] || [];
-    return resolveHeroCopy(list[heroBackgroundIndex.value] || '');
+    return resolveHeroCopy(resolveLocalizedHeroCaption(heroCaptions.value, heroBackgroundIndex.value));
 });
 const heroSlideCopyHtml = computed(() => heroSlideCaption.value || heroCopyHtml.value);
 
@@ -1054,7 +1104,7 @@ const submitCheckout = async () => {
                                 headerIsCustom ? 'border-white/20 bg-white/10 hover:border-white/40' : 'border-slate-700 bg-slate-800 hover:border-slate-600',
                             ]"
                             @click="openCart"
-                            aria-label="Open cart"
+                            :aria-label="t('public_store.a11y.open_cart')"
                         >
                             <span class="sr-only">{{ t('public_store.cart.title') }}</span>
                             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -1225,14 +1275,14 @@ const submitCheckout = async () => {
                                             <path d="m15 18-6-6 6-6" />
                                         </svg>
                                     </span>
-                                    <span class="sr-only">Previous</span>
+                                    <span class="sr-only">{{ t('public_store.pagination.previous') }}</span>
                                 </button>
                                 <button
                                     type="button"
                                     class="inline-flex size-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
                                     @click="scrollCategoryBy(1)"
                                 >
-                                    <span class="sr-only">Next</span>
+                                    <span class="sr-only">{{ t('public_store.pagination.next') }}</span>
                                     <span class="text-2xl" aria-hidden="true">
                                         <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="m9 18 6-6-6-6" />
@@ -1543,7 +1593,7 @@ const submitCheckout = async () => {
                     type="button"
                     class="rounded-sm border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:border-slate-300"
                     @click="closeCart"
-                    aria-label="Close cart"
+                    :aria-label="t('public_store.a11y.close_cart')"
                 >
                     x
                 </button>
@@ -1799,7 +1849,7 @@ const submitCheckout = async () => {
                     type="button"
                     class="rounded-sm border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600"
                     @click="closeProductDetails"
-                    aria-label="Close dialog"
+                    :aria-label="t('public_store.a11y.close_dialog')"
                 >
                     x
                 </button>
@@ -1939,7 +1989,7 @@ const submitCheckout = async () => {
                             class="inline-flex size-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
                             @click="scrollRelatedBy(-1)"
                         >
-                            <span class="sr-only">Previous</span>
+                            <span class="sr-only">{{ t('public_store.pagination.previous') }}</span>
                             <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="m15 18-6-6 6-6" />
                             </svg>
@@ -1949,7 +1999,7 @@ const submitCheckout = async () => {
                             class="inline-flex size-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
                             @click="scrollRelatedBy(1)"
                         >
-                            <span class="sr-only">Next</span>
+                            <span class="sr-only">{{ t('public_store.pagination.next') }}</span>
                             <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="m9 18 6-6-6-6" />
                             </svg>

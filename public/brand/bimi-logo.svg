@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.2" baseProfile="tiny-ps" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <title>Malikia Pro</title>
+    <rect width="512" height="512" fill="#2D2D2D" />
+    
+    <path fill="#FFFFFF" d="M47.1,47h118.9l89.6,204l89.6-204h118.9v417.8H365.1V169.2L255.6,419.8h-0.1L146.1,169.2v295.6H47.1V47z"/>
+    
+    <rect x="415.7" y="388.7" fill="#00C875" width="76.1" height="76.1"/>
+</svg>

@@ -1,0 +1,140 @@
+{
+  "portal_shop": {
+    "page_title": {
+      "create": "Boutique",
+      "edit": "Modifier commande"
+    },
+    "header": {
+      "section": "Boutique",
+      "logo_alt": "Logo boutique",
+      "edit_title": "Modifier {order}",
+      "create_title": "Commander chez {company}",
+      "create_subtitle": "Choisissez vos produits, livraison ou retrait rapide.",
+      "edit_subtitle": "Mettez a jour vos articles avant la livraison.",
+      "company_fallback": "nos partenaires"
+    },
+    "actions": {
+      "back_to_dashboard": "Retour au tableau de bord",
+      "reset_filters": "Reinitialiser",
+      "cancel_order": "Annuler la commande",
+      "cancel_confirm": "Annuler cette commande ?"
+    },
+    "locked_notice": "Cette commande est deja en livraison ou finalisee. Les modifications sont bloquees.",
+    "status": {
+      "order_status": "Statut commande",
+      "confirmed_at": "Confirmee le {date}",
+      "payment": "Paiement: {status}",
+      "delivery_photo": "Photo livraison",
+      "delivery_photo_alt": "Photo livraison"
+    },
+    "payment": {
+      "deposit_required": "Acompte requis",
+      "amount_paid": "Deja paye",
+      "balance_due": "Solde a payer",
+      "pay_deposit": "Payer l acompte",
+      "pay_balance": "Payer le solde",
+      "processing": "Paiement...",
+      "error": "Impossible de demarrer le paiement."
+    },
+    "confirm_receipt": {
+      "title": "Confirmer la reception",
+      "subtitle": "Ajoutez une photo si besoin, puis confirmez.",
+      "action": "Confirmer"
+    },
+    "filters": {
+      "title": "Filtres",
+      "category_label": "Categorie",
+      "category_all": "Toutes les categories",
+      "availability_label": "Disponibilite",
+      "availability_all": "Tous",
+      "availability_in": "En stock",
+      "availability_low": "Bientot",
+      "availability_out": "Rupture",
+      "tracking_label": "Type",
+      "tracking_all": "Tous",
+      "tracking_standard": "Standard",
+      "tracking_lot": "Lot",
+      "tracking_serial": "Serie"
+    },
+    "timeline": {
+      "title": "Suivi de commande",
+      "pickup_qr_title": "QR de retrait",
+      "pickup_qr_note": "Montrez ce QR code au comptoir pour confirmer le retrait.",
+      "pickup_qr_alt": "QR retrait {code}",
+      "pickup_code": "Code: {code}"
+    },
+    "search": {
+      "placeholder": "Rechercher un produit",
+      "results": "{count} produits"
+    },
+    "cart": {
+      "label": "Panier ({count})",
+      "title": "Panier",
+      "header_order": "Votre commande",
+      "header_cart": "Votre panier",
+      "items_count": "{count} articles",
+      "items_title": "Articles",
+      "items_empty": "Ajoutez des produits pour commencer.",
+      "remove": "Supprimer"
+    },
+    "empty": {
+      "no_products": "Aucun produit ne correspond aux filtres actuels.",
+      "no_description": "Aucune description.",
+      "product_description": "Aucune description disponible pour ce produit."
+    },
+    "product": {
+      "label": "Produit",
+      "sku_fallback": "SKU -",
+      "price_label": "Prix",
+      "supplier": "Fournisseur",
+      "barcode": "Code barre",
+      "min_stock": "Stock minimum",
+      "quantity": "Quantite",
+      "add": "Ajouter",
+      "add_another": "Ajouter un autre",
+      "add_to_cart": "Ajouter au panier",
+      "go_to_cart": "Aller au panier",
+      "description": "Description"
+    },
+    "labels": {
+      "stock": "Stock {count}"
+    },
+    "fulfillment": {
+      "title": "Livraison ou retrait",
+      "delivery": "Livraison",
+      "delivery_fee": "Frais {amount}",
+      "delivery_free": "Gratuite",
+      "pickup": "Retrait rapide",
+      "pickup_ready": "Pret en {minutes} min",
+      "delivery_address": "Adresse de livraison",
+      "delivery_instructions": "Instructions (optionnel)",
+      "delivery_zone": "Zone: {zone}",
+      "pickup_address_label": "Adresse de retrait",
+      "pickup_address_fallback": "Retrait en magasin",
+      "pickup_notes": "Notes (optionnel)",
+      "scheduled": "Horaire souhaite (optionnel)"
+    },
+    "notes": {
+      "title": "Notes & substitutions",
+      "customer_notes": "Notes pour l epicerie",
+      "substitution_allowed": "Autoriser les substitutions",
+      "substitution_notes": "Preferences de substitution"
+    },
+    "summary": {
+      "title": "Resume",
+      "subtotal": "Sous-total",
+      "taxes": "Taxes",
+      "delivery": "Livraison",
+      "total": "Total",
+      "checkout_update": "Mettre a jour la commande",
+      "checkout_create": "Commander maintenant"
+    },
+    "stock": {
+      "out": "Rupture",
+      "low": "Stock faible",
+      "in": "En stock"
+    },
+    "order_number": "Commande #{id}",
+    "order_fallback": "Commande"
+  }
+}

@@ -1,0 +1,912 @@
+{
+  "settings": {
+    "groups": {
+      "account": "Compte",
+      "platform": "Plateforme"
+    },
+    "items": {
+      "profile": {
+        "label": "Profil",
+        "description": "Identité, accès et préférences"
+      },
+      "security": {
+        "label": "Sécurité",
+        "description": "Mot de passe et authentification à deux facteurs",
+        "badge": "Bientôt"
+      },
+      "company": {
+        "label": "Entreprise",
+        "description": "Informations, catégories et paramètres"
+      },
+      "hr": {
+        "label": "RH",
+        "description": "Modeles de shifts"
+      },
+      "reservations": {
+        "label": "Reservations",
+        "description": "Regles de reservation et disponibilites"
+      },
+      "billing": {
+        "label": "Facturation",
+        "description": "Plan, paiements et historique"
+      },
+      "marketing": {
+        "label": "Marketing",
+        "description": "Canaux campagnes et templates"
+      },
+      "loyalty": {
+        "label": "Fidelite",
+        "description": "Configuration du programme de points"
+      },
+      "notifications": {
+        "label": "Alertes",
+        "description": "Emails, alertes et préférences",
+        "badge": "Bientôt"
+      },
+      "support": {
+        "label": "Support",
+        "description": "Incidents et assistance"
+      }
+    },
+    "reservations": {
+      "meta_title": "Réservations",
+      "title": "Paramètres réservations",
+      "subtitle": "Gérez les règles de réservation, les disponibilités d'équipe et les exceptions.",
+      "owner_only": {
+        "notice": "Le mode solo propriétaire uniquement conserve seulement les réglages globaux et les ressources utiles à la liste d'attente. Les horaires par membre, surcharges par membre et la file hybride restent désactivés tant que les membres d'équipe ne sont pas disponibles."
+      },
+      "summary": {
+        "timezone": "Fuseau horaire",
+        "team_members": "Membres d'équipe",
+        "weekly_rules": "Règles hebdomadaires",
+        "exceptions": "Exceptions",
+        "resources": "Ressources"
+      },
+      "company_rules": {
+        "title": "Règles de réservation entreprise",
+        "description": "Règles par défaut appliquées à tous les membres."
+      },
+      "presets": {
+        "service_general": "Services généraux",
+        "salon": "Salon de coiffure / beauté",
+        "restaurant": "Restaurant"
+      },
+      "team_settings": {
+        "title": "Surcharges par membre",
+        "description": "Paramètres spécifiques pour certains membres.",
+        "select_member": "Membre d'équipe",
+        "add": "Ajouter une surcharge",
+        "empty": "Aucune surcharge spécifique."
+      },
+      "weekly": {
+        "title": "Disponibilités hebdomadaires",
+        "description": "Définissez les horaires récurrents par membre."
+      },
+      "exceptions": {
+        "title": "Exceptions de disponibilité",
+        "description": "Définissez des fermetures ponctuelles ou ouvertures spéciales.",
+        "all_members": "Tous les membres",
+        "all_day": "(toute la journée)",
+        "types": {
+          "closed": "Ferme",
+          "open": "Ouvert"
+        }
+      },
+      "resources": {
+        "title": "Ressources et capacite",
+        "description": "Definissez des ressources optionnelles pour controler la capacite des creneaux.",
+        "empty": "Aucune ressource configuree.",
+        "fields": {
+          "name": "Nom de la ressource",
+          "type": "Type de ressource",
+          "capacity": "Capacite",
+          "is_active": "Active"
+        },
+        "types": {
+          "general": "General",
+          "chair": "Fauteuil",
+          "wash_station": "Bac",
+          "table": "Table",
+          "zone": "Zone"
+        },
+        "status": {
+          "active": "Active",
+          "inactive": "Inactive"
+        }
+      },
+      "notifications": {
+        "title": "Notifications reservations",
+        "description": "Configurez les emails, notifications in-app, rappels et demandes d avis.",
+        "fields": {
+          "enabled": "Activer les notifications reservations",
+          "email": "Envoyer des emails",
+          "in_app": "Envoyer des notifications in-app",
+          "sms": "Envoyer des notifications SMS",
+          "notify_on_created": "Notifier a la creation d une reservation",
+          "notify_on_rescheduled": "Notifier a la replanification d une reservation",
+          "notify_on_cancelled": "Notifier a l annulation d une reservation",
+          "notify_on_completed": "Notifier a la fin d une reservation",
+          "notify_on_reminder": "Envoyer des rappels avant le debut",
+          "notify_on_review_submitted": "Notifier quand un avis est recu",
+          "review_request_on_completed": "Demander un avis client apres la fin",
+          "notify_on_queue_pre_call": "Notifier le client au pre-appel file",
+          "notify_on_queue_called": "Notifier le client quand il est appele",
+          "notify_on_queue_grace_expired": "Notifier quand le delai de grace file expire",
+          "notify_on_queue_ticket_created": "Envoyer un SMS quand le ticket file est cree",
+          "notify_on_queue_eta_10m": "Envoyer une alerte a environ 10 minutes du tour",
+          "notify_on_queue_status_changed": "Notifier les changements de statut file (optionnel)",
+          "reminder_hours": "Moments des rappels"
+        },
+        "reminders": {
+          "day_before": "24 heures avant",
+          "two_hours": "2 heures avant",
+          "one_hour": "1 heure avant"
+        }
+      },
+      "queue": {
+        "assignment_modes": {
+          "per_staff": "File par employe",
+          "global_pull": "File globale (pull)"
+        },
+        "dispatch_modes": {
+          "fifo": "FIFO",
+          "fifo_with_appointment_priority": "FIFO + priorite rendez-vous",
+          "skill_based": "Base competences"
+        }
+      },
+      "fields": {
+        "team_member": "Membre d equipe",
+        "day": "Jour",
+        "date": "Date",
+        "start_time": "Debut",
+        "end_time": "Fin",
+        "start_time_optional": "Debut (optionnel)",
+        "end_time_optional": "Fin (optionnel)",
+        "type": "Type",
+        "reason": "Raison",
+        "buffer_minutes": "Minutes de buffer",
+        "slot_interval_minutes": "Intervalle des creneaux (minutes)",
+        "min_notice_minutes": "Preavis minimum (minutes)",
+        "max_advance_days": "Reservation max a l avance (jours)",
+        "cancellation_cutoff_hours": "Limite d annulation (heures)",
+        "business_preset": "Preset metier",
+        "late_release_minutes": "Liberation retard (minutes)",
+        "waitlist_enabled": "Activer la liste d attente",
+        "queue_mode_enabled": "Activer le mode file hybride",
+        "queue_assignment_mode": "Mode d attribution de file",
+        "queue_dispatch_mode": "Mode d ordonnancement de file",
+        "queue_grace_minutes": "Delai de grace appel (minutes)",
+        "queue_pre_call_threshold": "Seuil pre-appel (personnes devant)",
+        "queue_no_show_on_grace_expiry": "Marquer absent si delai depasse",
+        "deposit_required": "Exiger un acompte de reservation",
+        "deposit_amount": "Montant de l acompte",
+        "no_show_fee_enabled": "Activer les frais d absence",
+        "no_show_fee_amount": "Montant frais d absence",
+        "allow_client_cancel": "Autoriser l annulation client",
+        "allow_client_reschedule": "Autoriser le deplacement client"
+      },
+      "member_unknown": "Membre inconnu",
+      "add": "Ajouter",
+      "remove": "Retirer",
+      "save": "Enregistrer",
+      "saving": "Enregistrement..."
+    },
+    "security": {
+      "meta_title": "Securite",
+      "title": "Securite",
+      "subtitle": "Gerez l authentification a deux facteurs et l activite du compte.",
+      "tabs": {
+        "auth": {
+          "label": "Authentification",
+          "description": "2FA et acces"
+        },
+        "activity": {
+          "label": "Activite",
+          "description": "Connexions recentes"
+        }
+      },
+      "two_factor": {
+        "title": "Authentification a deux facteurs",
+        "description": "Ajoute un code email a la connexion.",
+        "status_required": "Obligatoire",
+        "status_enabled": "Activee",
+        "status_disabled": "Desactivee",
+        "required_hint": "La 2FA est obligatoire pour les owners.",
+        "email_label": "Email",
+        "last_sent": "Dernier code envoye",
+        "last_sent_empty": "Aucun code envoye",
+        "method_title": "Methode 2FA preferee",
+        "method_email": "Code email",
+        "method_app": "Application d authentification",
+        "method_sms": "Code SMS",
+        "method_ready": "Application configuree",
+        "sms_phone": "Numero utilise: {phone}",
+        "app_start": "Configurer l application",
+        "app_setup_hint": "Scannez le QR code ou saisissez la cle dans votre application, puis validez le code a 6 chiffres.",
+        "app_secret_label": "Cle de configuration",
+        "app_code_placeholder": "Entrez le code a 6 chiffres",
+        "app_confirm": "Valider l application",
+        "app_cancel": "Annuler",
+        "app_qr_alt": "QR d authentification",
+        "switch_email": "Passer aux codes email",
+        "switch_sms": "Passer aux codes SMS",
+        "sms_disabled_company": "Le 2FA SMS doit etre active dans les parametres entreprise.",
+        "sms_missing_phone": "Ajoutez un numero de telephone sur votre profil pour activer le 2FA SMS.",
+        "sms_missing_twilio": "Le service SMS n est pas configure."
+      },
+      "password": {
+        "title": "Mot de passe",
+        "description": "Changez votre mot de passe depuis votre profil.",
+        "action": "Mettre a jour"
+      },
+      "rate_limit": {
+        "title": "Protection API",
+        "description": "Le rate limiting protege votre API et vos automatisations.",
+        "value": "{limit} requetes / min / utilisateur",
+        "unavailable": "Limite non configuree"
+      },
+      "activity": {
+        "title": "Activite recente",
+        "description": "Dernieres connexions et evenements de securite.",
+        "empty": "Aucune activite de securite.",
+        "columns": {
+          "user": "Utilisateur",
+          "event": "Evenement",
+          "channel": "Canal",
+          "ip": "IP",
+          "device": "Appareil",
+          "date": "Date"
+        },
+        "channels": {
+          "web": "Web",
+          "api": "API"
+        },
+        "unknown_device": "Appareil inconnu",
+        "actions": {
+          "auth.login": "Connexion",
+          "auth.logout": "Deconnexion",
+          "auth.password_changed": "Mot de passe modifie",
+          "auth.2fa.sent": "Code 2FA envoye",
+          "auth.2fa.resend": "Code 2FA renvoye"
+        },
+        "badges": {
+          "two_factor": "2FA"
+        }
+      }
+    },
+    "company": {
+      "meta_title": "Entreprise",
+      "title": "Parametres entreprise",
+      "subtitle": "Mettez a jour les informations de votre entreprise.",
+      "aria_sections": "Sections des parametres entreprise",
+      "tabs": {
+        "company": {
+          "label": "Entreprise",
+          "description": "Identite et activite"
+        },
+        "suppliers": {
+          "label": "Fournisseurs",
+          "description": "Plateformes actives"
+        },
+        "store": {
+          "label": "Boutique",
+          "description": "Parametres de la boutique"
+        },
+        "showcase": {
+          "label": "Vitrine services",
+          "description": "Parametres de la vitrine services"
+        },
+        "categories": {
+          "label": "Categories",
+          "description": "Services et produits"
+        },
+        "warehouses": {
+          "label": "Entrepots",
+          "description": "Emplacements de stock"
+        },
+        "api": {
+          "label": "Acces API",
+          "description": "Tokens et permissions"
+        },
+        "limits": {
+          "label": "Limites",
+          "description": "Consommation du forfait"
+        }
+      },
+      "profile": {
+        "title": "Profil entreprise",
+        "description": "Identite, adresse et activite de la societe."
+      },
+      "store": {
+        "title": "Parametres de la boutique",
+        "description": "Personnalisez l en-tete et le produit vedette.",
+        "title_services": "Parametres de la vitrine services",
+        "description_services": "Personnalisez la vitrine publique de vos services.",
+        "header_color": "Couleur de l en-tete",
+        "featured_product": "Produit vedette",
+        "featured_service": "Service vedette",
+        "featured_placeholder": "Selectionner un produit",
+        "featured_placeholder_service": "Selectionner un service",
+        "hero_images": "Images de fond du produit vedette",
+        "hero_images_hint": "Collez une URL d image par ligne. Elles defileront derriere le produit vedette.",
+        "hero_images_upload": "Importer des images (ordinateur)",
+        "hero_images_upload_hint": "Selectionnez des images haute resolution (min. 1280x720) pour eviter la pixelisation.",
+        "hero_images_new": "Nouveau",
+        "ai_images_generate": "Generer une image IA",
+        "ai_images_generate_busy": "Generation...",
+        "ai_images_modal_title": "Generer une image IA",
+        "ai_images_modal_label": "Decrivez l image que vous voulez",
+        "ai_images_modal_hint": "Indiquez le produit, le decor, l ambiance et le style.",
+        "ai_images_prompt": "Decrivez l image a generer",
+        "ai_images_prompt_required": "Ajoutez une description pour generer l image.",
+        "ai_images_hint": "Limite quotidienne : {limit} image(s). Restant aujourd hui : {remaining}.",
+        "ai_images_limit_reached": "Limite quotidienne d images IA atteinte. Achetez un pack IA dans la facturation pour continuer.",
+        "ai_images_disabled": "La generation d images IA est desactivee. Ajoutez un pack IA dans la facturation ou configurez la cle IA.",
+        "ai_images_error": "Impossible de generer l image IA.",
+        "hero_captions_title": "Textes par image (optionnel)",
+        "hero_captions_hint": "Ajoutez un texte par slide. Laissez vide pour utiliser le texte global.",
+        "hero_captions_fr": "Texte slide (FR)",
+        "hero_captions_es": "Texte slide (ES)",
+        "hero_captions_en": "Texte slide (EN)",
+        "hero_captions_slide": "Slide {index}",
+        "hero_copy_fr": "Texte du hero (FR)",
+        "hero_copy_es": "Texte du hero (ES)",
+        "hero_copy_en": "Texte du hero (EN)",
+        "hero_copy_placeholder": "Rédigez ici le texte du hero...",
+        "editor_labels": {
+          "heading2": "Titre",
+          "heading3": "Sous-titre",
+          "bold": "Gras",
+          "italic": "Italique",
+          "underline": "Souligné",
+          "unorderedList": "Liste à puces",
+          "orderedList": "Liste numérotée",
+          "quote": "Citation",
+          "codeBlock": "Bloc de code",
+          "horizontalRule": "Séparateur",
+          "link": "Insérer un lien",
+          "image": "Insérer une image",
+          "aiImage": "Générer une image",
+          "clear": "Effacer le style"
+        }
+      },
+      "fields": {
+        "name": "Nom de l'entreprise",
+        "public_slug": "Slug public (boutique)",
+        "public_slug_hint": "Utilise pour l'URL publique: /{path}/{slug}.",
+        "logo_optional": "Logo (optionnel)",
+        "logo_upload": "Telecharger votre logo",
+        "description_optional": "Description (optionnel)",
+        "country_optional": "Pays (optionnel)",
+        "country_other": "Pays (autre)",
+        "province_optional": "Province / Etat (optionnel)",
+        "province_other": "Province / Etat (autre)",
+        "city_optional": "Ville (optionnel)",
+        "city_other": "Ville (autre)",
+        "timezone": "Fuseau horaire",
+        "timezone_placeholder": "Selectionner un fuseau horaire",
+        "timezone_search_placeholder": "Rechercher un fuseau horaire",
+        "company_type": "Type d'entreprise",
+        "type_services": "Entreprise de services",
+        "type_products": "Entreprise de produits"
+      },
+      "select": {
+        "country": "Selectionner un pays",
+        "province": "Selectionner une province",
+        "city": "Selectionner une ville",
+        "other": "Autre..."
+      },
+      "countries": {
+        "canada": "Canada",
+        "france": "France",
+        "belgium": "Belgique",
+        "switzerland": "Suisse",
+        "morocco": "Maroc",
+        "tunisia": "Tunisie"
+      },
+      "delivery": {
+        "title": "Livraison & retrait",
+        "description": "Parametrez les options proposees aux clients pour commander.",
+        "delivery_active": "Livraison active",
+        "pickup_active": "Retrait en magasin",
+        "delivery_fee_optional": "Frais de livraison (optionnel)",
+        "prep_time_minutes": "Temps de preparation (minutes)",
+        "delivery_zone_optional": "Zone de livraison (optionnel)",
+        "pickup_address": "Adresse de retrait",
+        "delivery_notes_optional": "Notes livraison (optionnel)",
+        "pickup_notes_optional": "Notes retrait (optionnel)"
+      },
+      "notifications": {
+        "title": "Notifications jour de tache",
+        "description": "Choisissez comment informer le client le jour de la tache.",
+        "email": "Email",
+        "sms": "SMS",
+        "whatsapp": "WhatsApp",
+        "two_factor_sms": "Autoriser le 2FA par SMS",
+        "two_factor_sms_hint": "Si active, le proprietaire peut choisir SMS comme methode 2FA dans Securite."
+      },
+      "presence": {
+        "title": "Presence & pointage",
+        "description": "Configurez le pointage auto et manuel.",
+        "auto_clock_in": "Pointage auto a la connexion",
+        "auto_clock_out": "Pointage auto a la deconnexion",
+        "manual_clock": "Autoriser le pointage manuel",
+        "manual_hint": "Les employes peuvent pointer depuis la page Presence."
+      },
+      "actions": {
+        "save": "Enregistrer",
+        "remove": "Retirer",
+        "cancel": "Annuler"
+      },
+      "categories": {
+        "title": "Categories de services / produits",
+        "description": "Ajoutez des categories pour organiser vos services et produits.",
+        "empty": "Aucune categorie pour le moment.",
+        "new_label": "Nouvelle categorie",
+        "add": "Ajouter"
+      },
+      "api": {
+        "title": "Acces API",
+        "description": "Genere des tokens publics ou prives pour connecter des outils externes.",
+        "token_new": "Nouveau token:",
+        "token_hint": "Copiez ce token maintenant, il ne sera plus visible.",
+        "empty": "Aucun token pour le moment.",
+        "revoke": "Revoquer",
+        "scopes": "Scopes: {scopes}",
+        "created": "Cree: {date}",
+        "expires": "Expire: {date}",
+        "create_title": "Creer un token",
+        "fields": {
+          "name": "Nom du token",
+          "type": "Type",
+          "type_public": "Public (lecture)",
+          "type_private": "Prive (lecture/ecriture)",
+          "expires": "Expiration"
+        },
+        "generate": "Generer"
+      },
+      "warehouses": {
+        "title": "Entrepots",
+        "description": "Gere vos emplacements de stock et choisis un entrepot par defaut.",
+        "empty": "Aucun entrepot pour le moment.",
+        "default_badge": "Defaut",
+        "no_code": "Sans code",
+        "set_default": "Definir par defaut",
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "fields": {
+          "name": "Nom",
+          "code": "Code",
+          "address": "Adresse",
+          "city": "Ville",
+          "state": "Province / Etat",
+          "postal_code": "Code postal",
+          "country": "Pays"
+        },
+        "active": "Entrepot actif",
+        "cancel": "Annuler",
+        "save": "Enregistrer",
+        "add_title": "Ajouter un entrepot",
+        "default_checkbox": "Definir comme defaut",
+        "add": "Ajouter"
+      },
+      "suppliers": {
+        "title": "Fournisseurs (Canada)",
+        "description": "Choisissez vos plateformes actives et jusqu a {limit} fournisseurs preferes.",
+        "empty": "Aucun fournisseur disponible pour le moment.",
+        "custom_badge": "Personnalise",
+        "visit_site": "Visiter le site",
+        "remove": "Supprimer",
+        "preferred": "Preferer",
+        "enable_hint": "Activez ce fournisseur pour le proposer.",
+        "add_title": "Ajouter un fournisseur",
+        "add_description": "Ajoutez un fournisseur avec son lien pour l inclure dans les recherches.",
+        "fields": {
+          "name": "Nom du fournisseur",
+          "url": "Lien du fournisseur"
+        },
+        "add": "Ajouter"
+      },
+      "limits": {
+        "title": "Limites du forfait",
+        "current_plan": "Plan actuel : {plan}",
+        "table": {
+          "module": "Module",
+          "used": "Utilise",
+          "limit": "Limite",
+          "remaining": "Reste",
+          "usage": "Usage",
+          "empty": "Aucune donnee de limite disponible."
+        },
+        "alert": "Certaines limites sont proches ou depassees. Pensez a mettre a jour votre forfait.",
+        "labels": {
+          "quotes": "Devis",
+          "requests": "Demandes",
+          "plan_scan_quotes": "Devis plan scan",
+          "invoices": "Factures",
+          "jobs": "Jobs",
+          "products": "Produits",
+          "services": "Services",
+          "tasks": "Taches",
+          "team_members": "Membres d'equipe",
+          "assistant_requests": "Assistant IA (messages)"
+        },
+        "plan_fallback": "Plan"
+      },
+      "errors": {
+        "create_warehouse": "Impossible de creer l'entrepot.",
+        "update_warehouse": "Impossible de mettre a jour l'entrepot.",
+        "set_default_warehouse": "Impossible de definir l'entrepot par defaut.",
+        "delete_warehouse": "Impossible de supprimer l'entrepot.",
+        "create_token": "Impossible de creer le token.",
+        "revoke_token": "Impossible de revoquer le token."
+      },
+      "confirm": {
+        "delete_warehouse": "Supprimer l'entrepot \"{name}\" ?",
+        "revoke_token": "Revoquer ce token ?"
+      }
+    },
+    "hr": {
+      "meta_title": "Parametres RH",
+      "title": "Parametres RH",
+      "subtitle": "Definir des shifts par poste.",
+      "sections": {
+        "templates": {
+          "title": "Modeles de shift",
+          "description": "Creer des shifts predefinis par poste."
+        },
+        "defaults": {
+          "title": "Defaut global",
+          "description": "Utilise si aucun modele n existe pour un poste."
+        }
+      },
+      "form": {
+        "position": "Poste",
+        "start_time": "Heure de debut",
+        "end_time": "Heure de fin",
+        "breaks": "Pauses (min)",
+        "break_total": "Pause totale : {minutes} min (max 60)",
+        "days": "Jours de travail",
+        "active": "Modele actif",
+        "add_break": "Ajouter une pause",
+        "remove_break": "Retirer",
+        "create": "Creer le modele",
+        "update": "Mettre a jour",
+        "cancel": "Annuler"
+      },
+      "table": {
+        "position": "Poste",
+        "time": "Horaire",
+        "breaks": "Pauses",
+        "days": "Jours",
+        "status": "Statut",
+        "actions": "Actions",
+        "global": "Global",
+        "company": "Entreprise",
+        "active": "Actif",
+        "inactive": "Inactif"
+      },
+      "messages": {
+        "empty": "Aucun modele pour le moment."
+      },
+      "confirm": {
+        "delete": "Supprimer ce modele de shift ?"
+      }
+    },
+    "billing": {
+      "meta_title": "Facturation",
+      "aria_sections": "Sections de facturation",
+      "tabs": {
+        "plans": {
+          "label": "Abonnement",
+          "description": "Plans et statut"
+        },
+        "payment": {
+          "label": "Paiement",
+          "description": "Carte et factures"
+        }
+      },
+      "actions": {
+        "switch_plan": "Changer pour ce plan",
+        "choose_plan": "Choisir ce plan",
+        "contact_sales": "Demander une offre",
+        "contact_phone": "Telephone : {phone}",
+        "processing": "Traitement..."
+      },
+      "status": {
+        "active": "Actif",
+        "trialing": "Essai",
+        "past_due": "En retard",
+        "paused": "En pause",
+        "canceled": "Annule",
+        "unpaid": "Impayee",
+        "inactive": "Inactif"
+      },
+      "errors": {
+        "paddle_not_configured": "Paddle n'est pas configure.",
+        "no_active_subscription": "Aucun abonnement actif.",
+        "paddle_not_ready": "Paddle.js n'est pas pret. Rechargez la page.",
+        "payment_update_failed": "Impossible de lancer la mise a jour du paiement.",
+        "paddle_load_failed": "Impossible de charger Paddle.js. Verifiez votre connexion.",
+        "paddle_unavailable": "Paddle.js est charge mais indisponible. Rechargez la page.",
+        "paddle_missing_keys": "Paddle n'est pas configure (token/seller manquant).",
+        "missing_transaction": "Transaction manquante.",
+        "paddle_api_missing": "Paddle API non configure. Ajoutez `PADDLE_API_KEY` dans `.env`.",
+        "paddle_js_missing": "Paddle.js non configure. Ajoutez `PADDLE_CLIENT_SIDE_TOKEN` (ou `PADDLE_SELLER_ID`) dans `.env`.",
+        "no_plans_configured": "Aucun plan configure. Ajoutez vos PRICE_ID dans l'environnement.",
+        "provider_not_supported": "Le fournisseur de facturation est defini sur {provider}. Les actions Paddle sont desactivees.",
+        "stripe_not_configured": "Stripe n'est pas configure. Verifiez STRIPE_SECRET, STRIPE_PRICE_* et STRIPE_ENABLED=true.",
+        "stripe_checkout_failed": "Impossible de demarrer le checkout Stripe.",
+        "stripe_portal_failed": "Impossible d'ouvrir le portail client Stripe.",
+        "plan_change_failed": "Impossible de changer de forfait pour le moment."
+      },
+      "plans": {
+        "title": "Abonnement plateforme",
+        "subtitle": "Consultez votre plan actif, ajustez votre forfait et gerez l usage IA associe.",
+        "catalog_title": "Forfaits {audience}",
+        "catalog_subtitle_solo": "Le meme coeur produit pour travailler seul, avec une evolution simple vers Team plus tard.",
+        "catalog_subtitle_team": "Le meme coeur produit avec collaboration, permissions et limites plus hautes pour travailler a plusieurs.",
+        "advisor": {
+          "title": "Changer de forfait",
+          "dialog_title": "Assistant de choix de forfait",
+          "subtitle": "Repondez a quelques questions et nous vous proposons les forfaits les plus coherents avec votre contexte actuel.",
+          "trigger_change": "Changer de forfait",
+          "trigger_choose": "Trouver un forfait",
+          "close": "Fermer",
+          "back": "Precedent",
+          "next": "Suivant",
+          "show_results": "Voir les suggestions",
+          "top_match": "Meilleure recommandation",
+          "alternative": "Alternative",
+          "current_match": "Votre forfait actuel correspond deja bien a vos reponses.",
+          "steps": {
+            "business": "Organisation",
+            "focus": "Besoins",
+            "ai": "IA",
+            "results": "Suggestions"
+          },
+          "questions": {
+            "business": "Quelle est votre taille d'organisation ?",
+            "focus": "Quel est votre besoin principal ?",
+            "ai": "Quelle place doit prendre l'IA ?"
+          },
+          "options": {
+            "business": {
+              "solo": {
+                "label": "Solo",
+                "description": "Je travaille seul et je veux un forfait pensé pour un indépendant."
+              },
+              "small_team": {
+                "label": "Petite équipe",
+                "description": "Nous sommes une petite équipe avec un besoin simple de coordination."
+              },
+              "growing_team": {
+                "label": "Équipe en croissance",
+                "description": "Nous avons déjà une vraie équipe et le besoin de mieux structurer nos opérations."
+              },
+              "large_team": {
+                "label": "Équipe structurée",
+                "description": "Nous gérons un volume plus important avec davantage de coordination et de support."
+              },
+              "custom_scale": {
+                "label": "Sur mesure",
+                "description": "Nous avons 50+ utilisateurs ou des besoins d'accompagnement plus spécifiques."
+              }
+            },
+            "focus": {
+              "quotes": {
+                "label": "Devis et factures",
+                "description": "Je veux surtout aller vite sur les devis, factures et le suivi client."
+              },
+              "operations": {
+                "label": "Opérations terrain",
+                "description": "Je veux mieux gérer jobs, tâches, planning et coordination quotidienne."
+              },
+              "automation": {
+                "label": "Automatisation et IA",
+                "description": "Je cherche plus d'automatisations, de performance, de scan et d'IA."
+              }
+            },
+            "ai": {
+              "light": {
+                "label": "Usage léger",
+                "description": "J ai seulement besoin d un peu d aide IA et de quelques scans chaque mois."
+              },
+              "regular": {
+                "label": "Usage régulier",
+                "description": "Je veux que l IA soutienne l exécution au quotidien sans viser les plus gros volumes."
+              },
+              "advanced": {
+                "label": "Usage avancé",
+                "description": "Je prevois un usage plus soutenu de l IA, du scan et de l automatisation."
+              }
+            }
+          },
+          "reasons": {
+            "solo": "Adapté à une activité solo.",
+            "small_team": "Bon fit pour une petite équipe.",
+            "growing_team": "Conçu pour une équipe en croissance.",
+            "large_team": "Mieux calibré pour une structure plus large.",
+            "custom_scale": "Plus adapté à un besoin sur mesure.",
+            "room_to_grow": "Laisse de la marge pour grandir sans changer trop vite.",
+            "quotes": "Garde une expérience simple pour devis et factures.",
+            "operations": "Renforce jobs, tâches et planning au quotidien.",
+            "automation": "Ouvre plus d'automatisations, de performance et de workflows avancés.",
+            "ai_light": "Garde un acces IA leger et facile a piloter.",
+            "ai_growth": "Apporte plus de capacite IA et scan pour un usage regulier.",
+            "ai_advanced": "Ajoute plus de marge sur l IA et le scan pour un usage avance.",
+            "custom_support": "Permet un accompagnement et un cadrage plus personnalisés."
+          }
+        }
+      },
+      "checkout": {
+        "success_title": "Abonnement activé. Merci !",
+        "success_subtitle": "Vous etes maintenant sur {plan}.",
+        "swapped": "Plan mis a jour vers {plan}.",
+        "payment_method": "Carte mise a jour. Merci !",
+        "cancelled": "Paiement annule. Choisissez un plan pour continuer.",
+        "plan_fallback": "le nouveau plan"
+      },
+      "summary": {
+        "active_plan": "Vous etes sur {plan} (Statut: {status})",
+        "trialing": "Essai en cours",
+        "trialing_until": "Essai en cours jusqu au {date}",
+        "no_subscription": "Aucun abonnement actif. Selectionnez un plan pour demarrer."
+      },
+      "plan": {
+        "monthly": "Plan mensuel",
+        "yearly": "Plan annuel",
+        "badge_active": "Actif",
+        "badge_popular": "Populaire",
+        "interval_month": "/mois",
+        "interval_year": "/an",
+        "yearly_note": "Payez a l annee et economisez {percent}%.",
+        "billed_yearly": "Pour 12 mois, facture annuellement.",
+        "current_plan": "Vous etes sur ce plan.",
+        "cta_active": "Plan actif",
+        "custom_pricing": "Sur mesure",
+        "team_limit": "Jusqu a {count} employes",
+        "team_limit_plus": "{count}+ employes"
+      },
+      "assistant_addon": {
+        "title": "Assistant IA",
+        "subtitle": "Gerez l Assistant IA et payez uniquement l usage additionnel.",
+        "subtitle_credit": "Gerez l Assistant IA et achetez des packs de credits si necessaire.",
+        "included_badge": "Inclus",
+        "optional_badge": "Option payante",
+        "cta_enable": "Activer l option",
+        "cta_disable": "Desactiver l option",
+        "cta_included": "Inclus",
+        "usage_title": "Utilisation ce mois",
+        "usage_requests": "requetes",
+        "usage_tokens_label": "Tokens",
+        "usage_tokens": "tokens",
+        "usage_units_label": "Unites",
+        "usage_units": "unites facturees",
+        "credit_balance_label": "Credits restants",
+        "credit_balance_suffix": "credits",
+        "credit_pack": "Pack de {count} credits",
+        "credit_cta": "Acheter des credits",
+        "credit_success": "Credits ajoutes. Merci !",
+        "credit_cancel": "Achat de credits annule.",
+        "credit_not_available": "Les credits IA ne sont pas disponibles.",
+        "credit_enable_required": "Activez l option IA pour acheter des credits.",
+        "credit_error": "Impossible de demarrer l achat de credits.",
+        "not_available": "Option IA indisponible. Configurez Stripe et le prix d usage ou de credits.",
+        "error": "Impossible de mettre a jour l option IA."
+      },
+      "payment": {
+        "title": "Moyen de paiement",
+        "subtitle": "Gere la carte associee a votre abonnement.",
+        "update_card": "Mettre a jour la carte",
+        "summary_active": "Abonnement actif: {plan} (Statut: {status})",
+        "summary_none": "Aucun abonnement actif pour le moment."
+      },
+      "payment_methods": {
+        "title": "Modes de paiement acceptes",
+        "subtitle": "Choisissez les moyens de paiement autorises pour cette entreprise.",
+        "save": "Enregistrer les paiements",
+        "default_label": "Mode de paiement par defaut",
+        "default_hint_single": "Une seule methode est active, elle sera appliquee automatiquement.",
+        "default_hint_multi": "Si aucun mode n est preselectionne, ce mode par defaut est utilise.",
+        "cash_context_title": "Contextes autorises pour le cash",
+        "cash_context_subtitle": "Limitez les ecrans ou le cash peut etre selectionne.",
+        "methods": {
+          "cash": {
+            "label": "Cash",
+            "description": "Encaissement sur place, marque en attente jusqu a reception."
+          },
+          "card": {
+            "label": "Carte (Stripe)",
+            "description": "Paiement carte en ligne via Stripe."
+          },
+          "bank_transfer": {
+            "label": "Virement bancaire",
+            "description": "Paiement manuel par virement hors checkout carte."
+          },
+          "check": {
+            "label": "Cheque",
+            "description": "Paiement collecte par cheque papier."
+          }
+        },
+        "cash_contexts": {
+          "reservation": "Reservation",
+          "invoice": "Facture",
+          "store_order": "Commande store",
+          "tip": "Pourboire / extra",
+          "walk_in": "Walk-in / ticket"
+        }
+      },
+      "tips": {
+        "title": "Parametres pourboires",
+        "subtitle": "Configurez les limites, le mode de repartition et la regle de remboursement partiel.",
+        "save": "Enregistrer les parametres",
+        "max_percent": "Pourcentage maximum (%)",
+        "max_fixed_amount": "Montant fixe maximum ($)",
+        "default_percent": "Pourcentage par defaut (%)",
+        "allocation_strategy": "Strategie d attribution",
+        "allocation_primary": "Membre principal",
+        "allocation_split": "Repartition entre membres assignes",
+        "partial_refund_rule": "Regle de remboursement partiel",
+        "refund_prorata": "Repartition au prorata",
+        "refund_manual": "Repartition manuelle"
+      },
+      "loyalty": {
+        "title": "Parametres fidelite",
+        "subtitle": "Configurez l accumulation et l utilisation des points en POS.",
+        "save": "Enregistrer la fidelite",
+        "enabled": "Activer le programme fidelite",
+        "points_per_currency_unit": "Points gagnes par 1$ depense",
+        "minimum_spend": "Montant minimum avant gains de points ($)",
+        "rounding_mode": "Mode d arrondi",
+        "points_label": "Libelle des points",
+        "rounding_modes": {
+          "floor": "Arrondi inferieur",
+          "round": "Arrondi au plus proche",
+          "ceil": "Arrondi superieur"
+        }
+      },
+      "connect": {
+        "title": "Stripe Connect",
+        "subtitle": "Connectez votre compte bancaire pour recevoir les paiements client directement.",
+        "status_connected": "Connecté",
+        "status_pending": "Onboarding en cours",
+        "status_action_required": "Action requise",
+        "status_not_connected": "Non connecté",
+        "action_connect": "Connecter Stripe",
+        "action_complete": "Completer les informations",
+        "action_resume": "Reprendre l'onboarding",
+        "action_required_hint": "{count} information(s) a completer dans Stripe.",
+        "action_required_hint_generic": "Des informations sont manquantes dans Stripe.",
+        "fee_note": "Frais plateforme : {fee} %",
+        "success": "Compte Stripe lié.",
+        "error_start": "Impossible de demarrer l'onboarding Stripe Connect."
+      }
+    },
+    "loyalty": {
+      "meta_title": "Parametres fidelite",
+      "title": "Configuration du module fidelite",
+      "subtitle": "Definissez les regles de gains, d utilisation et le libelle des points.",
+      "save": "Enregistrer la configuration",
+      "fields": {
+        "enabled": "Activer le programme fidelite",
+        "points_per_currency_unit": "Points gagnes par 1$ depense",
+        "minimum_spend": "Montant minimum avant gain de points ($)",
+        "rounding_mode": "Mode d arrondi",
+        "points_label": "Libelle des points"
+      },
+      "status": {
+        "enabled": "Programme active",
+        "disabled": "Programme desactive"
+      },
+      "rounding_modes": {
+        "floor": "Arrondi inferieur",
+        "round": "Arrondi au plus proche",
+        "ceil": "Arrondi superieur"
+      },
+      "preview": "Apercu du libelle: {label}",
+      "preview_title": "Apercu rapide"
+    },
+    "_label": "Parametres"
+  }
+}

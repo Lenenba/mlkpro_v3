@@ -1,0 +1,18 @@
+{
+  "legal": {
+    "header": {
+      "tagline": "Business management suite"
+    },
+    "actions": {
+      "sign_in": "Sign in",
+      "create_account": "Create account"
+    },
+    "links": {
+      "terms": "Terms and conditions",
+      "privacy": "Privacy policy",
+      "refund": "Refund policy",
+      "pricing": "Pricing"
+    },
+    "footer": "Malikia Pro. All rights reserved. {year}"
+  }
+}

@@ -171,7 +171,7 @@ class PublicInvoiceController extends Controller
         $amount = (float) $validated['amount'];
         if ($amount > (float) $invoice->balance_due) {
             return redirect()->back()->withErrors([
-                'amount' => 'Amount exceeds the balance due.',
+                'amount' => __('public.invoice.messages.amount_exceeds_balance_due'),
             ]);
         }
         $result = app(CreateInvoicePaymentAction::class)->execute(
@@ -271,7 +271,7 @@ class PublicInvoiceController extends Controller
             $amount = (float) $validated['amount'];
             if ($amount > (float) $invoice->balance_due) {
                 return redirect()->back()->withErrors([
-                    'amount' => 'Amount exceeds the balance due.',
+                    'amount' => __('public.invoice.messages.amount_exceeds_balance_due'),
                 ]);
             }
         }
@@ -283,7 +283,7 @@ class PublicInvoiceController extends Controller
 
         $stripeService = app(StripeInvoiceService::class);
         if (! $stripeService->isConfigured()) {
-            return redirect()->back()->with('error', 'Stripe is not configured.');
+            return redirect()->back()->with('error', __('public.invoice.messages.stripe_not_configured'));
         }
 
         $expiresAt = $this->resolveExpiry($request);
@@ -301,7 +301,7 @@ class PublicInvoiceController extends Controller
 
         $session = $stripeService->createCheckoutSession($invoice, $successUrl, $cancelUrl, $amount, $tip);
         if (empty($session['url'])) {
-            return redirect()->back()->with('error', 'Unable to start Stripe checkout.');
+            return redirect()->back()->with('error', __('public.invoice.messages.stripe_checkout_unavailable'));
         }
 
         if ($request->header('X-Inertia')) {
@@ -324,15 +324,15 @@ class PublicInvoiceController extends Controller
     private function resolvePaymentAvailability(Invoice $invoice, $customer = null): array
     {
         if ($invoice->status === 'void' || $invoice->status === 'draft') {
-            return [false, 'This invoice cannot be paid.'];
+            return [false, __('public.invoice.messages.cannot_pay')];
         }
 
         if ($invoice->balance_due <= 0) {
-            return [false, 'This invoice is already paid.'];
+            return [false, __('public.invoice.messages.already_paid')];
         }
 
         if ($customer && $customer->auto_validate_invoices) {
-            return [false, 'Invoice actions are handled by the company.'];
+            return [false, __('public.invoice.messages.handled_by_company')];
         }
 
         return [true, null];

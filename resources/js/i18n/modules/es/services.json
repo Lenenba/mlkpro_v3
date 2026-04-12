@@ -1,0 +1,144 @@
+{
+  "services": {
+    "title": "Servicios",
+    "stats": {
+      "total": "Servicios totales",
+      "active": "Activo",
+      "archived": "Archivado",
+      "avg_price": "Precio medio"
+    },
+    "filters": {
+      "search_placeholder": "Servicios de búsqueda",
+      "category": "categoría",
+      "status": "Estado",
+      "price_min": "Precio mínimo",
+      "price_max": "Precio máximo",
+      "created_from": "Creado a partir de",
+      "created_to": "Creado para"
+    },
+    "aria": {
+      "dropdown": "Menú desplegable"
+    },
+    "actions": {
+      "filters": "Filtros",
+      "clear": "Borrar",
+      "add_service": "Agregar servicio",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "delete_confirm": "¿Eliminar \"{name}\"?",
+      "new_service": "Nuevo servicio",
+      "edit_service": "Editar servicio",
+      "cancel": "Cancelar",
+      "create_service": "Crear servicio",
+      "update_service": "Servicio de actualización",
+      "archive": "Archivo",
+      "restore": "Restaurar"
+    },
+    "table": {
+      "service": "Servicio",
+      "price": "Precio",
+      "category": "categoría",
+      "status": "Estado",
+      "created": "Creado"
+    },
+    "labels": {
+      "uncategorized": "Sin categoría"
+    },
+    "status": {
+      "active": "Activo",
+      "archived": "Archivado"
+    },
+    "empty": "No se encontraron servicios.",
+    "pagination": {
+      "results": "resultados",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "of": "de",
+      "label": "Paginación"
+    },
+    "form": {
+      "name": "Nombre",
+      "category": "categoría",
+      "category_hint": "¿Necesitas una nueva categoría?",
+      "category_hide": "Ocultar",
+      "category_add": "Añadir categoría",
+      "category_empty": "Aún no hay categorías. Crea uno a continuación.",
+      "category_new": "Nuevo nombre de categoría",
+      "category_create": "crear",
+      "unit": "Unidad",
+      "tax_rate": "Tasa impositiva (%)",
+      "price": "Precio",
+      "description": "Descripción",
+      "errors": {
+        "category_name_required": "Introduzca un nombre de categoría.",
+        "category_create_failed": "No se puede crear la categoría.",
+        "required_fields": "Por favor complete todos los campos requeridos.",
+        "save_failed": "No se puede guardar el servicio. Por favor inténtalo de nuevo."
+      }
+    },
+    "materials": {
+      "title": "Materiales",
+      "add": "Añadir material",
+      "custom": "personalizado",
+      "product": "Producto",
+      "label": "Etiqueta",
+      "quantity": "Cantidad",
+      "unit_price": "Precio unitario",
+      "unit": "Unidad",
+      "billable": "facturable",
+      "description_optional": "Descripción (opcional)",
+      "remove": "Quitar",
+      "empty": "Aún no hay materiales."
+    },
+    "units": {
+      "piece": "Pieza",
+      "hour": "Hora",
+      "m2": "m2",
+      "other": "Otro"
+    },
+    "categories": {
+      "title": "Categorías",
+      "subtitle": "Administrar categorías utilizadas para servicios y productos.",
+      "stats": {
+        "total": "Categorías totales",
+        "active": "Activo",
+        "archived": "Archivado",
+        "in_use": "En uso"
+      },
+      "form": {
+        "edit_label": "Editar categoría",
+        "new_label": "Nueva categoría",
+        "editing": "Edición: {name}",
+        "update": "Actualizar",
+        "add": "Añadir"
+      },
+      "filters": {
+        "search_placeholder": "Buscar categorías",
+        "status": "Estado",
+        "created_by": "Creado por",
+        "created_from": "Creado a partir de",
+        "created_to": "Creado para"
+      },
+      "table": {
+        "category": "categoría",
+        "items": "Artículos",
+        "created_by": "Creado por",
+        "status": "Estado",
+        "created": "Creado",
+        "system_category": "Categoría del sistema",
+        "products": "Productos",
+        "services": "Servicios",
+        "locked": "bloqueado"
+      },
+      "empty": "No se encontraron categorías.",
+      "creator": {
+        "owner": "propietario",
+        "system": "Sistema",
+        "team_member": "Miembro del equipo"
+      },
+      "actions": {
+        "archive_confirm": "¿Archivo \"{name}\"?"
+      }
+    }
+  }
+}

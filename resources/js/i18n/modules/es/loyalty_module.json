@@ -1,0 +1,79 @@
+{
+  "loyalty_module": {
+    "title": "Gestión de fidelización",
+    "subtitle": "Seguimiento del movimiento de puntos y saldos de clientes en tiempo real.",
+    "default_points_label": "puntos",
+    "actions": {
+      "configure": "Configurar módulo",
+      "apply_filters": "Aplicar filtros",
+      "clear_filters": "Limpiar filtros",
+      "show_advanced": "Mostrar avanzado",
+      "hide_advanced": "Ocultar avanzado"
+    },
+    "filters": {
+      "search_placeholder": "Búsqueda por cliente, evento, pago o referencia...",
+      "period": "Periodo",
+      "customer": "Cliente",
+      "event": "Evento",
+      "per_page": "Filas/página",
+      "from": "De",
+      "to": "a",
+      "all_customers": "Todos los clientes",
+      "all_events": "Todos los eventos"
+    },
+    "period": {
+      "last_7_days": "últimos 7 días",
+      "last_30_days": "últimos 30 días",
+      "last_90_days": "últimos 90 días",
+      "this_month": "este mes",
+      "custom": "Rango personalizado"
+    },
+    "kpi": {
+      "total_balance": "Saldo total de puntos",
+      "active_customers": "Clientes con puntos",
+      "points_earned": "Puntos ganados",
+      "points_spent": "Puntos gastados"
+    },
+    "program": {
+      "title": "Estado del programa",
+      "status": "Estado",
+      "enabled": "Habilitado",
+      "disabled": "Discapacitado",
+      "rate": "Tasa de ganancia (pts / $1)",
+      "minimum_spend": "Gasto mínimo",
+      "rounding_mode": "Modo de redondeo"
+    },
+    "customer_stats": {
+      "title": "Resumen de puntos de clientes",
+      "customer": "Cliente",
+      "balance": "Saldo",
+      "earned": "Ganado",
+      "spent": "Redimido",
+      "empty": "No hay datos de clientes para mostrar."
+    },
+    "ledger": {
+      "title": "Evolución de puntos",
+      "date": "Fecha y hora",
+      "customer": "Cliente",
+      "event": "Evento",
+      "reference": "Referencia",
+      "points": "Puntos",
+      "amount": "Cantidad",
+      "results": "resultados",
+      "result_count": "{count} resultados",
+      "page_indicator": "Página {current} / {total}",
+      "empty": "No se encontró ningún movimiento."
+    },
+    "events": {
+      "accrual": "Puntos ganados",
+      "refund": "Ajuste de reembolso",
+      "redemption": "Puntos canjeados",
+      "redemption_reversal": "Reversión de reembolso"
+    },
+    "references": {
+      "payment": "Pago #{id}",
+      "sale": "Venta {number}",
+      "sale_id": "Venta #{id}"
+    }
+  }
+}

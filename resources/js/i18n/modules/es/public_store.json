@@ -1,0 +1,159 @@
+{
+  "public_store": {
+    "title": "Tienda de {company}",
+    "subtitle": "Explora los productos disponibles.",
+    "company_fallback": "Tienda",
+    "search_placeholder": "Buscar productos",
+    "empty": "Todavia no hay productos disponibles.",
+    "empty_description": "No hay descripcion disponible.",
+    "filters": {
+      "all": "Todas las categorias",
+      "category": "Categoria",
+      "search": "Buscar",
+      "sort": "Ordenar",
+      "price_min": "Precio minimo",
+      "price_max": "Precio maximo",
+      "availability": "Disponibilidad",
+      "availability_all": "Todos los niveles de stock",
+      "availability_in": "En stock",
+      "availability_out": "Agotado",
+      "availability_low": "Stock bajo",
+      "promotions": "Promociones",
+      "promo_all": "Todos los productos",
+      "promo_only": "Solo promociones",
+      "reset": "Restablecer filtros"
+    },
+    "stock": {
+      "in": "En stock",
+      "low": "Stock bajo",
+      "out": "Agotado"
+    },
+    "actions": {
+      "login": "Iniciar sesion",
+      "register": "Crear cuenta",
+      "portal_hint": "Inicia sesion o crea una cuenta de cliente para hacer pedidos.",
+      "shop_now": "Comprar ahora",
+      "view_catalog": "Ver catalogo",
+      "view_product": "Ver producto",
+      "explore": "Explorar",
+      "add_to_cart": "Agregar al carrito",
+      "checkout": "Finalizar compra"
+    },
+    "product": {
+      "details": "Detalles del producto",
+      "category": "Categoria",
+      "stock": "Stock",
+      "sku": "SKU",
+      "category_fallback": "Sin categoria"
+    },
+    "reviews": {
+      "label": "Resenas",
+      "empty": "Todavia no hay resenas",
+      "title": "Resenas de clientes",
+      "loading": "Cargando resenas...",
+      "load_error": "No se pueden cargar las resenas.",
+      "anonymous": "Cliente"
+    },
+    "hero": {
+      "eyebrow": "Tienda publica",
+      "headline": "Una forma mas clara y mas rapida de comprar en {company}.",
+      "subheadline": "Mas vendidos, promociones, novedades y el catalogo completo.",
+      "stat_products": "{count} productos",
+      "stat_categories": "{count} categorias",
+      "stat_new_arrivals": "{count} novedades"
+    },
+    "sections": {
+      "spotlight": "Producto destacado",
+      "best_sellers": "Mas vendidos",
+      "promotions": "Promociones",
+      "new_arrivals": "Novedades",
+      "catalog": "Catalogo completo",
+      "categories": "Comprar por categoria"
+    },
+    "catalog": {
+      "results": "{count} resultados"
+    },
+    "badges": {
+      "best_seller": "Mas vendido",
+      "promo": "Promo",
+      "promo_with": "Promo -{percent}%",
+      "new": "Nuevo",
+      "low_stock": "Stock limitado",
+      "hot": "Tendencia"
+    },
+    "sort": {
+      "label": "Ordenar por",
+      "featured": "Destacados",
+      "newest": "Mas recientes",
+      "price_asc": "Precio: de menor a mayor",
+      "price_desc": "Precio: de mayor a menor",
+      "name_asc": "Nombre A-Z",
+      "stock_desc": "Mas stock"
+    },
+    "hints": {
+      "login_to_order": "Al finalizar la compra se crea una cuenta de cliente para que puedas seguir tus pedidos."
+    },
+    "promotions_hint": "Mejores precios, cantidades limitadas. Aprovecha las ofertas del momento.",
+    "categories_hint": "Explora las categorias destacadas seleccionadas del catalogo.",
+    "empty_collection": "Todavia no hay nada que mostrar.",
+    "cart_error": "No se puede actualizar el carrito.",
+    "checkout_error": "No se puede realizar el pedido.",
+    "cart": {
+      "title": "Tu carrito",
+      "item_count": "{count} articulos",
+      "summary": "Resumen",
+      "subtotal": "Subtotal",
+      "taxes": "Impuestos",
+      "delivery_fee": "Costo de entrega",
+      "total": "Total",
+      "clear": "Vaciar carrito",
+      "checkout": "Finalizar compra",
+      "checkout_hint": "Completa tus datos para realizar el pedido.",
+      "name": "Nombre completo",
+      "email": "Correo electronico",
+      "phone": "Telefono",
+      "delivery_address": "Direccion de entrega",
+      "submit": "Realizar pedido",
+      "empty": "Tu carrito esta vacio.",
+      "remove": "Eliminar",
+      "sku_fallback": "SKU pendiente",
+      "internal_notice": "Has iniciado sesion como usuario interno. Usa una cuenta de cliente para realizar pedidos.",
+      "added": "Agregado al carrito."
+    },
+    "fulfillment": {
+      "title": "Entrega o recogida",
+      "subtitle": "Elige un metodo",
+      "unavailable": "La entrega y la recogida todavia no estan configuradas.",
+      "delivery": "Entrega",
+      "pickup": "Recogida rapida",
+      "ready": "Listo pronto",
+      "ready_in": "Listo en {minutes} min",
+      "delivery_address": "Direccion de entrega",
+      "delivery_notes": "Instrucciones (opcional)",
+      "delivery_zone": "Zona: {zone}",
+      "scheduled_for": "Hora preferida (opcional)",
+      "pickup_address": "Recogida: {address}",
+      "pickup_notes": "Notas para la recogida (opcional)",
+      "pickup_time": "Hora de recogida (opcional)"
+    },
+    "related": {
+      "title": "Tambien te puede gustar"
+    },
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "page": "Pagina {current} / {total}"
+    },
+    "notes": {
+      "title": "Notas y sustituciones",
+      "customer_notes": "Notas para la tienda",
+      "substitution_allowed": "Permitir sustituciones",
+      "substitution_notes": "Preferencias de sustitucion"
+    },
+    "a11y": {
+      "close_dialog": "Cerrar cuadro de dialogo",
+      "open_cart": "Abrir carrito",
+      "close_cart": "Cerrar carrito"
+    }
+  }
+}

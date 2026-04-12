@@ -3,6 +3,7 @@
 namespace App\Services\Demo;
 
 use App\Models\MarketingSetting;
+use App\Support\LocalePreference;
 use Illuminate\Support\Arr;
 
 class DemoWorkspaceCatalog
@@ -109,10 +110,17 @@ class DemoWorkspaceCatalog
      */
     public function locales(): array
     {
-        return [
-            ['value' => 'fr', 'label' => 'French'],
-            ['value' => 'en', 'label' => 'English'],
-        ];
+        return array_map(
+            fn (string $locale) => [
+                'value' => $locale,
+                'label' => match ($locale) {
+                    'fr' => 'French',
+                    'es' => 'Spanish',
+                    default => 'English',
+                },
+            ],
+            LocalePreference::supported()
+        );
     }
 
     /**

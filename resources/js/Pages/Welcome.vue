@@ -47,7 +47,9 @@ const props = defineProps({
 const { t, locale } = useI18n();
 const welcomeContent = computed(() => props.welcomeContent || {});
 const normalizedLocale = computed(() => (
-    String(locale.value || 'fr').toLowerCase().startsWith('fr') ? 'fr' : 'en'
+    String(locale.value || 'fr').toLowerCase().startsWith('fr')
+        ? 'fr'
+        : (String(locale.value || 'fr').toLowerCase().startsWith('es') ? 'es' : 'en')
 ));
 const welcomeShowcaseSection = computed(() => {
     const fallback = defaultFeatureTabsShowcaseSection(normalizedLocale.value);

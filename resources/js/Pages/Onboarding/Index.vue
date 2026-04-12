@@ -42,13 +42,28 @@ const props = defineProps({
 
 const page = usePage();
 const isGuest = computed(() => !page.props.auth?.user);
-const { t, locale } = useI18n();
+const { t, locale, te, tm } = useI18n();
 
 const step = ref(1);
 const showTerms = ref(false);
 
 const preset = computed(() => props.preset || {});
 const planOptions = computed(() => props.plans || []);
+const localizedPlanOptions = computed(() => planOptions.value.map((plan) => {
+    const baseKey = `onboarding.plan.catalog.${plan.key}`;
+    const localizedDescription = te(`${baseKey}.description`)
+        ? t(`${baseKey}.description`)
+        : plan.description;
+    const localizedFeatures = te(`${baseKey}.features`)
+        ? tm(`${baseKey}.features`)
+        : plan.features;
+
+    return {
+        ...plan,
+        description: localizedDescription,
+        features: Array.isArray(localizedFeatures) ? localizedFeatures : plan.features,
+    };
+}));
 const planLimits = computed(() => props.planLimits || {});
 const currencyOptions = computed(() =>
     (props.supportedCurrencies || []).map((currency) => ({
@@ -402,9 +417,9 @@ const priceForCurrency = (plan) => plan?.prices_by_currency?.[selectedCurrencyCo
 const hasPlanPrice = (plan) => Boolean(plan?.contact_only || priceForCurrency(plan)?.stripe_price_id);
 const visiblePlanOptions = computed(() => {
     const targetAudience = isSoloProfile.value ? 'solo' : 'team';
-    const matchingAudience = planOptions.value.filter((plan) => (plan?.audience || 'team') === targetAudience);
+    const matchingAudience = localizedPlanOptions.value.filter((plan) => (plan?.audience || 'team') === targetAudience);
 
-    return matchingAudience.length ? matchingAudience : planOptions.value;
+    return matchingAudience.length ? matchingAudience : localizedPlanOptions.value;
 });
 const planCandidates = computed(() => visiblePlanOptions.value
     .filter((plan) => hasPlanPrice(plan))
@@ -1007,7 +1022,7 @@ const closeTerms = () => {
                             <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('onboarding.plan.title') }}</h3>
                             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.plan.subtitle') }}</p>
                             <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                                Charged currency: {{ selectedCurrencyCode }}
+                                {{ $t('onboarding.plan.charged_currency', { currency: selectedCurrencyCode }) }}
                             </p>
                             <div class="mt-3 inline-flex rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950">
                                 <button

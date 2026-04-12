@@ -112,11 +112,11 @@ return new class extends Migration
             'note' => 'Choose an industry to open its dedicated page.',
         ];
         $settings['eyebrow'] = 'Industries';
-        $settings['note'] = 'Choisissez un secteur pour ouvrir sa page dediee.';
+        $settings['note'] = 'Choisissez un secteur pour ouvrir sa page dédiée.';
         $settings['translations'] = $translations;
 
         $item->forceFill([
-            'description' => 'Choisissez un secteur pour ouvrir sa page dediee.',
+            'description' => 'Choisissez un secteur pour ouvrir sa page dédiée.',
             'link_type' => MegaMenuOptions::LINK_NONE,
             'link_value' => null,
             'link_target' => MegaMenuOptions::TARGET_SELF,
@@ -187,8 +187,8 @@ return new class extends Migration
                 'english_description' => 'HVAC maintenance and service operations.',
             ],
             [
-                'label' => 'Electricite',
-                'description' => 'Devis, chantiers et interventions electriques.',
+                'label' => 'Électricité',
+                'description' => 'Devis, chantiers et interventions électriques.',
                 'link_value' => '/pages/industry-electrical',
                 'english_label' => 'Electrical',
                 'english_description' => 'Quotes, projects, and electrical jobs.',
@@ -201,8 +201,8 @@ return new class extends Migration
                 'english_description' => 'Recurring sites, teams, and service quality.',
             ],
             [
-                'label' => 'Salon & beaute',
-                'description' => 'Reservations, rappels et fidelisation.',
+                'label' => 'Salon & beauté',
+                'description' => 'Réservations, rappels et fidélisation.',
                 'link_value' => '/pages/industry-salon-beauty',
                 'english_label' => 'Salon & Beauty',
                 'english_description' => 'Bookings, reminders, and retention.',

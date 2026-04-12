@@ -1,0 +1,78 @@
+{
+  "public_invoice": {
+    "meta_title": "Paiement de facture",
+    "document": "Facture",
+    "company_fallback": "Entreprise",
+    "customer_fallback": "Client",
+    "service_fallback": "Service",
+    "created": "Creee",
+    "customer": "Client",
+    "job": "Intervention",
+    "total": "Total",
+    "paid": "Paye",
+    "balance_due": "Solde du",
+    "pay_title": "Payer cette facture",
+    "amount_placeholder": "Montant",
+    "amount_cannot_exceed": "Le montant ne peut pas depasser {amount}.",
+    "payment_hint": "Vous pouvez payer le solde complet ou choisir un montant partiel.",
+    "reference_placeholder": "Reference",
+    "notes_placeholder": "Notes",
+    "actions": {
+      "pay_full_balance": "Payer le solde complet",
+      "pay_invoice": "Payer la facture",
+      "pay_with_stripe": "Payer avec Stripe"
+    },
+    "tip": {
+      "title": "Ajouter un pourboire ? (optionnel)",
+      "subtitle": "Le pourboire est verse directement au membre de l equipe qui vous sert.",
+      "enable": "Oui, ajouter un pourboire",
+      "disable": "Non merci",
+      "percent_mode": "Pourcentage (%)",
+      "fixed_mode": "Montant fixe ($)",
+      "other_percent": "Autre %",
+      "other_amount": "Autre montant",
+      "max_percent": "Max : {value}%",
+      "max_amount": "Max : {amount}",
+      "change_hint": "Vous pouvez modifier ou retirer le pourboire avant le paiement."
+    },
+    "summary": {
+      "subtotal": "Sous-total",
+      "tip": "Pourboire (optionnel)",
+      "total_charge": "Total facture",
+      "partial_remaining": "Paiement partiel selectionne. Solde restant apres ce paiement :",
+      "remaining": "Solde restant apres ce paiement :"
+    },
+    "details": {
+      "title": "Details du paiement (optionnel)",
+      "method": "Moyen de paiement :"
+    },
+    "recent_payments": {
+      "title": "Paiements recents",
+      "subtotal": "Sous-total",
+      "tip": "Pourboire",
+      "total_paid": "Total paye",
+      "tip_assigned_to": "Pourboire attribue a : {name}"
+    },
+    "methods": {
+      "cash": "Especes",
+      "card": "Carte (Stripe)",
+      "bank_transfer": "Virement bancaire",
+      "check": "Cheque"
+    },
+    "status": {
+      "draft": "Brouillon",
+      "sent": "Envoyee",
+      "accepted": "Acceptee",
+      "partial": "Partielle",
+      "paid": "Payee",
+      "overdue": "En retard",
+      "void": "Annulee"
+    },
+    "payment_status": {
+      "pending": "En attente",
+      "completed": "Termine",
+      "paid": "Paye",
+      "failed": "Echoue"
+    }
+  }
+}

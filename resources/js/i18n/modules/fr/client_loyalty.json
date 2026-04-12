@@ -1,0 +1,25 @@
+{
+  "client_loyalty": {
+    "title": "Mes points fidelite",
+    "subtitle": "Consultez votre solde et l historique des mouvements de points.",
+    "kpi": {
+      "balance": "Solde disponible",
+      "earned_period": "Points gagnes (periode)",
+      "spent_period": "Points utilises (periode)",
+      "movements": "Mouvements (periode)",
+      "earned_lifetime": "Total gagne",
+      "spent_lifetime": "Total utilise",
+      "movements_lifetime": "Total mouvements"
+    },
+    "program": {
+      "title": "Regles du programme",
+      "status": "Statut",
+      "rate": "Taux de gain (pts / $1)",
+      "minimum_spend": "Montant minimum",
+      "label": "Libelle"
+    },
+    "ledger": {
+      "title": "Historique des points"
+    }
+  }
+}

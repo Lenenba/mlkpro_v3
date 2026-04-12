@@ -1,0 +1,26 @@
+{
+  "public_pages": {
+    "actions": {
+      "home": "Home",
+      "login": "Sign in"
+    },
+    "hero_eyebrow": {
+      "contact": "Contact us",
+      "solutions": "Solutions",
+      "industries": "Industries",
+      "products": "Products"
+    },
+    "fallbacks": {
+      "hero_image_alt": "Page hero",
+      "embedded_form_title": "Embedded form"
+    },
+    "fallback_menu": {
+      "industries": "Industries",
+      "plumbing": "Plumbing",
+      "electrical": "Electrical",
+      "cleaning": "Cleaning",
+      "salon_beauty": "Salon & Beauty",
+      "restaurant": "Restaurant"
+    }
+  }
+}

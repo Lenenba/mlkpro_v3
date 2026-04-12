@@ -1,0 +1,158 @@
+{
+  "quotes": {
+    "title": "Cotizaciones",
+    "create_title": "Crear cotización",
+    "show_title": "Ver cotización",
+    "company_fallback": "Empresa",
+    "form": {
+      "quote_for": "Cotización para {customer}",
+      "quote_locked": "Esta cotización está bloqueada porque ha sido aceptada o archivada.",
+      "job_title": "Título del trabajo",
+      "property": "Propiedad",
+      "no_property": "Ninguna propiedad",
+      "property_address": "Dirección de la propiedad",
+      "no_property_selected": "Ninguna propiedad seleccionada.",
+      "contact_details": "Detalles de contacto",
+      "quote_details": "Detalles de la cotización",
+      "quote_label": "Cotización",
+      "status": "Estado",
+      "rate_opportunity": "Calificar oportunidad",
+      "add_custom_fields": "Agregar campos personalizados",
+      "templates": "Plantillas",
+      "template_default": "Plantilla predeterminada",
+      "template_help": "Elija un punto de partida para esta cita.",
+      "client_message": "Mensaje del cliente",
+      "subtotal": "Subtotal",
+      "discount": "Descuento (%)",
+      "add_discount": "Añadir descuento",
+      "tax": "Impuesto",
+      "hide_taxes": "Ocultar impuestos",
+      "add_tax": "Agregar impuesto",
+      "no_taxes": "No hay impuestos configurados.",
+      "total_taxes": "Impuestos totales",
+      "total_amount": "Monto total",
+      "required_deposit": "Depósito requerido",
+      "minimum_label": "Mínimo: ${amount}",
+      "add_required_deposit": "Agregar depósito requerido",
+      "terms": "Términos y condiciones",
+      "cancel": "Cancelar",
+      "save_and_create_another": "Guardar y crear otro",
+      "save_quote": "Guardar cotización"
+    },
+    "show": {
+      "timeline": "Línea de tiempo",
+      "no_rating_yet": "Aún no hay calificación",
+      "table": {
+        "product_services": "Producto/Servicios",
+        "qty": "Cant.",
+        "unit_cost": "Costo unitario",
+        "total": "Total"
+      },
+      "price_sources_title": "Fuentes de precios y justificación",
+      "price_sources_subtitle": "Puntos de referencia de proveedores, fuente seleccionada y por qué se eligió cada precio.",
+      "variant_label": "Variante {value}",
+      "basis_label": "Base {value}",
+      "selected_supplier": "Proveedor seleccionado",
+      "not_available": "No disponible",
+      "supplier_unit_cost": "Costo unitario del proveedor: ${price}",
+      "product_label": "Producto: {name}",
+      "quote_unit_price": "Precio unitario de cotización: ${price}",
+      "best_price": "Mejor precio: {name} ${price}",
+      "preferred_supplier": "Proveedor preferido: {name} ${price}",
+      "source_status_missing": "No se encontró precio en vivo para esta línea.",
+      "source_status_skipped": "Se omitieron los precios en vivo para mantener el escaneo rápido.",
+      "open_source_link": "Enlace de código abierto",
+      "selection_reason": "Razón de selección",
+      "query_label": "Consulta: {query}",
+      "benchmarks_label": "Puntos de referencia: mínimo ${min}, mediana ${median}, máximo ${max}",
+      "benchmarks_preferred": "mínimo preferido ${value}",
+      "all_supplier_prices": "Todos los precios de proveedores.",
+      "source_link": "Enlace fuente",
+      "tax_fallback": "Impuesto"
+    },
+    "view": {
+      "table": "Tabla",
+      "cards": "Tarjetas"
+    },
+    "filters": {
+      "search_placeholder": "Buscar cotizaciones, clientes o notas",
+      "status": {
+        "all": "Todo el estado"
+      },
+      "customer": {
+        "all": "Todos los clientes"
+      },
+      "total_min": "total mínimo",
+      "total_max": "máximo total",
+      "created_from": "Creado a partir de",
+      "created_to": "Creado para",
+      "deposit": {
+        "label": "Depósito",
+        "with": "Con deposito",
+        "none": "Sin depósito"
+      },
+      "tax": {
+        "label": "Impuesto",
+        "with": "Con impuestos",
+        "none": "Sin impuestos"
+      }
+    },
+    "status": {
+      "draft": "Borrador",
+      "sent": "Enviado",
+      "accepted": "Aceptado",
+      "declined": "Rechazado",
+      "archived": "Archivado"
+    },
+    "table": {
+      "quote": "Cotización",
+      "job": "Trabajo",
+      "customer": "Cliente",
+      "status": "Estado",
+      "rating": "Calificación",
+      "total": "Total",
+      "created": "Creado",
+      "results": "resultados"
+    },
+    "actions": {
+      "filters": "Filtros",
+      "clear": "Borrar",
+      "new_quote_for": "Nueva cotización para...",
+      "new_quote": "Nueva cotización",
+      "view": "Ver",
+      "edit": "Editar",
+      "send_email": "Enviar correo electrónico",
+      "accept_quote": "Aceptar cotización",
+      "create_job": "crear trabajo",
+      "archive": "Archivo",
+      "restore": "Restaurar",
+      "archive_confirm": "¿Archivar cita {number}?"
+    },
+    "labels": {
+      "unknown_customer": "Desconocido",
+      "customer_fallback": "Cliente",
+      "quote_fallback": "Cotización",
+      "quote_initial": "Q",
+      "job_fallback": "Trabajo"
+    },
+    "stats": {
+      "total": "Cotizaciones totales",
+      "total_value": "Valor total",
+      "average_value": "Valor medio",
+      "open": "Cotizaciones abiertas",
+      "accepted": "Aceptado",
+      "declined": "Rechazado",
+      "top_by_value": "Cotizaciones principales por valor",
+      "based_on_filters": "Basado en filtros actuales",
+      "empty": "Aún no hay datos de cotización."
+    },
+    "empty": {
+      "quotes": "Aún no hay cotizaciones."
+    },
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "of": "de"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "dashboard_tasks": {
+    "fallback_name": "team",
+    "subtitle_admin": "Welcome, {name}. Here's the team task overview.",
+    "subtitle_member": "Welcome, {name}. Here's your task overview.",
+    "kpi": {
+      "total": "Total tasks"
+    },
+    "announcements": {
+      "title": "Announcements",
+      "subtitle": "Latest updates for your team."
+    },
+    "timeline": {
+      "title": "Today's schedule",
+      "subtitle": "Tasks and jobs due today.",
+      "auto_alerts": "Auto alerts",
+      "empty": "No tasks or jobs scheduled today."
+    },
+    "upcoming": {
+      "title": "Upcoming tasks",
+      "manage": "Manage tasks",
+      "empty": "No upcoming tasks."
+    },
+    "my_tasks": {
+      "title": "My tasks",
+      "view_all": "View all",
+      "empty": "No tasks assigned yet."
+    },
+    "labels": {
+      "due": "Due {date}"
+    }
+  }
+}

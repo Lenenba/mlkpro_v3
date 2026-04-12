@@ -26,7 +26,7 @@ class PublicPageStockImages
 
         return [
             'image_url' => $visual['image_url'],
-            'image_alt' => $locale === 'fr' ? $visual['alt_fr'] : $visual['alt_en'],
+            'image_alt' => self::visualAlt($visual, $locale),
         ];
     }
 
@@ -40,13 +40,23 @@ class PublicPageStockImages
 
         return [
             'image_url' => $visual['image_url'],
-            'image_alt' => $locale === 'fr' ? $visual['alt_fr'] : $visual['alt_en'],
+            'image_alt' => self::visualAlt($visual, $locale),
         ];
     }
 
     public static function normalizeLocale(?string $locale): string
     {
-        return str_starts_with(strtolower((string) $locale), 'fr') ? 'fr' : 'en';
+        $value = strtolower((string) $locale);
+
+        if (str_starts_with($value, 'fr')) {
+            return 'fr';
+        }
+
+        if (str_starts_with($value, 'es')) {
+            return 'es';
+        }
+
+        return 'en';
     }
 
     /**
@@ -91,7 +101,7 @@ class PublicPageStockImages
                 'id' => 'stock-visual-'.$key,
                 'name' => 'Stock · '.self::humanizeKey($key),
                 'url' => $visual['image_url'],
-                'alt' => $locale === 'fr' ? $visual['alt_fr'] : $visual['alt_en'],
+                'alt' => self::visualAlt($visual, $locale),
                 'tags' => self::assetTags($key, $visual['image_url'], $welcomeUrls),
             ];
         }
@@ -149,130 +159,167 @@ class PublicPageStockImages
         return trim(ucwords(str_replace(['-', '_'], ' ', $value)));
     }
 
+    /**
+     * @param  array<string, string>  $visual
+     */
+    private static function visualAlt(array $visual, string $locale): string
+    {
+        return match ($locale) {
+            'fr' => $visual['alt_fr'] ?? ($visual['alt_en'] ?? ''),
+            'es' => $visual['alt_es'] ?? ($visual['alt_en'] ?? ($visual['alt_fr'] ?? '')),
+            default => $visual['alt_en'] ?? ($visual['alt_fr'] ?? ''),
+        };
+    }
+
     private const VISUALS = [
         'beauty-treatment' => [
             'image_url' => '/images/landing/stock/beauty-treatment.jpg',
             'alt_fr' => 'Professionnelle beaute qui prepare un soin en salon',
+            'alt_es' => 'Profesional de belleza preparando un tratamiento en un salon',
             'alt_en' => 'Beauty professional preparing a treatment in a salon',
         ],
         'cleaning-team-office' => [
             'image_url' => '/images/landing/stock/cleaning-team-office.jpg',
             'alt_fr' => 'Equipe de nettoyage en intervention dans des bureaux',
+            'alt_es' => 'Equipo de limpieza trabajando dentro de una oficina',
             'alt_en' => 'Cleaning team working inside an office space',
         ],
         'collab-laptop-desk' => [
             'image_url' => '/images/landing/stock/collab-laptop-desk.jpg',
             'alt_fr' => 'Deux collegues collaborent autour d un ordinateur portable',
+            'alt_es' => 'Dos colegas colaborando alrededor de un portatil',
             'alt_en' => 'Two teammates collaborating around a laptop',
         ],
         'desk-phone-laptop' => [
             'image_url' => '/images/landing/stock/desk-phone-laptop.jpg',
             'alt_fr' => 'Responsable commerciale avec telephone et ordinateur sur son bureau',
+            'alt_es' => 'Responsable comercial trabajando en un escritorio con telefono y portatil',
             'alt_en' => 'Sales lead working from a desk with phone and laptop',
         ],
         'field-checklist' => [
             'image_url' => '/images/landing/stock/field-checklist.jpg',
             'alt_fr' => 'Technicien terrain avec checklist avant intervention',
+            'alt_es' => 'Tecnico de campo revisando una lista antes del trabajo',
             'alt_en' => 'Field technician reviewing a checklist before work',
         ],
         'electrician-panel' => [
             'image_url' => '/images/landing/stock/electrician-panel.jpg',
             'alt_fr' => 'Electricien qui intervient sur un panneau electrique',
+            'alt_es' => 'Electricista trabajando en un panel electrico',
             'alt_en' => 'Electrician working on an electrical panel',
         ],
         'hero-tablet' => [
             'image_url' => '/images/landing/stock/hero-tablet.jpg',
             'alt_fr' => 'Equipe qui consulte une tablette pour organiser la suite',
+            'alt_es' => 'Equipo revisando una tableta para organizar el siguiente paso',
             'alt_en' => 'Team reviewing a tablet to organize the next step',
         ],
         'hero-team' => [
             'image_url' => '/images/landing/stock/hero-team.jpg',
             'alt_fr' => 'Equipe en coordination pour garder un service fluide',
+            'alt_es' => 'Equipo coordinandose para mantener el servicio fluido',
             'alt_en' => 'Team coordinating to keep service flowing smoothly',
         ],
         'hvac-maintenance' => [
             'image_url' => '/images/landing/stock/hvac-maintenance.jpg',
             'alt_fr' => 'Technicien HVAC en train de faire une maintenance technique',
+            'alt_es' => 'Tecnico de HVAC realizando tareas de mantenimiento',
             'alt_en' => 'HVAC technician performing maintenance work',
         ],
         'marketing-desk' => [
             'image_url' => '/images/landing/stock/marketing-desk.jpg',
             'alt_fr' => 'Professionnelle qui gere messages et campagnes depuis son poste',
+            'alt_es' => 'Profesional gestionando campanas y mensajes desde un escritorio',
             'alt_en' => 'Professional managing campaigns and messages from a desk',
         ],
         'meeting-room-laptops' => [
             'image_url' => '/images/landing/stock/meeting-room-laptops.jpg',
             'alt_fr' => 'Equipe en reunion autour de plusieurs ordinateurs',
+            'alt_es' => 'Equipo en reunion alrededor de varios portatiles',
             'alt_en' => 'Team in a meeting around multiple laptops',
         ],
         'office-collaboration' => [
             'image_url' => '/images/landing/stock/office-collaboration.jpg',
             'alt_fr' => 'Equipe qui collabore autour d un ordinateur dans un bureau',
+            'alt_es' => 'Equipo colaborando alrededor de un ordenador en la oficina',
             'alt_en' => 'Team collaborating around a computer in an office',
         ],
         'payments-terminal' => [
             'image_url' => '/images/landing/stock/payments-terminal.jpg',
             'alt_fr' => 'Terminal de paiement dans un contexte de vente',
+            'alt_es' => 'Terminal de pago en un contexto comercial',
             'alt_en' => 'Payment terminal in a retail context',
         ],
         'plumbing-pipe-repair' => [
             'image_url' => '/images/landing/stock/plumbing-pipe-repair.jpg',
             'alt_fr' => 'Plombier en train de reparer une canalisation',
+            'alt_es' => 'Fontanero reparando una conexion de tuberia',
             'alt_en' => 'Plumber repairing a pipe connection',
         ],
         'restaurant-service' => [
             'image_url' => '/images/landing/stock/restaurant-service.jpg',
             'alt_fr' => 'Service en salle dans un restaurant',
+            'alt_es' => 'Servicio de mesa en un restaurante en accion',
             'alt_en' => 'Restaurant table service in action',
         ],
         'salon-front-desk' => [
             'image_url' => '/images/landing/stock/salon-front-desk.jpg',
             'alt_fr' => 'Accueil client a la reception d un salon',
+            'alt_es' => 'Recepcion de clientes en la entrada de un salon',
             'alt_en' => 'Client reception at a salon front desk',
         ],
         'service-install' => [
             'image_url' => '/images/landing/stock/service-install.jpg',
             'alt_fr' => 'Technicien en intervention sur une installation interieure',
+            'alt_es' => 'Tecnico realizando una instalacion interior',
             'alt_en' => 'Technician performing an indoor installation',
         ],
         'service-tablet' => [
             'image_url' => '/images/landing/stock/service-tablet.jpg',
             'alt_fr' => 'Equipe qui coordonne les rendez-vous sur tablette',
+            'alt_es' => 'Equipo que coordina citas desde una tableta',
             'alt_en' => 'Team coordinating appointments on a tablet',
         ],
         'service-team' => [
             'image_url' => '/images/landing/stock/service-team.jpg',
             'alt_fr' => 'Equipe service en coordination avant une intervention',
+            'alt_es' => 'Equipo de servicio coordinandose antes del trabajo de campo',
             'alt_en' => 'Service team coordinating before field work',
         ],
         'store-boxes' => [
             'image_url' => '/images/landing/stock/store-boxes.jpg',
             'alt_fr' => 'Preparation de colis et de stock dans un espace de vente',
+            'alt_es' => 'Cajas e inventario preparandose en un entorno comercial',
             'alt_en' => 'Boxes and inventory being prepared in a commerce setting',
         ],
         'store-payment' => [
             'image_url' => '/images/landing/stock/store-payment.jpg',
             'alt_fr' => 'Paiement sur terminal dans un contexte de vente',
+            'alt_es' => 'Pago con tarjeta en un terminal en un contexto de venta',
             'alt_en' => 'Card payment on a terminal in a selling context',
         ],
         'store-worker' => [
             'image_url' => '/images/landing/stock/store-worker.jpg',
             'alt_fr' => 'Collaborateur logistique dans un espace de preparation',
+            'alt_es' => 'Miembro del equipo logistico dentro de un espacio de preparacion',
             'alt_en' => 'Fulfillment team member inside a preparation space',
         ],
         'team-laptop-window' => [
             'image_url' => '/images/landing/stock/team-laptop-window.jpg',
             'alt_fr' => 'Equipe qui prepare l accueil client et la planification',
+            'alt_es' => 'Equipo preparando la planificacion y la atencion al cliente',
             'alt_en' => 'Team preparing customer scheduling and reception',
         ],
         'warehouse-worker' => [
             'image_url' => '/images/landing/stock/warehouse-worker.jpg',
             'alt_fr' => 'Preparateur qui gere articles et disponibilites',
+            'alt_es' => 'Operario gestionando articulos y disponibilidad',
             'alt_en' => 'Warehouse operator managing items and availability',
         ],
         'workflow-plan' => [
             'image_url' => '/images/landing/stock/workflow-plan.jpg',
             'alt_fr' => 'Professionnels qui relisent un plan avant execution',
+            'alt_es' => 'Profesionales revisando un plan antes de la ejecucion',
             'alt_en' => 'Professionals reviewing a plan before execution',
         ],
     ];

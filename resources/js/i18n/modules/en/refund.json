@@ -1,0 +1,44 @@
+{
+  "refund": {
+    "meta": {
+      "title": "Refund policy"
+    },
+    "intro": {
+      "eyebrow": "Refund policy",
+      "title": "Refund policy for Malikia pro",
+      "updated": "Last update: {date}.",
+      "summary": "This policy explains how refunds and credits are handled for Malikia pro subscriptions."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Scope",
+        "body": "Subscriptions are billed in advance and include access to Malikia pro features."
+      },
+      "eligibility": {
+        "title": "2. Eligibility",
+        "body": "Refunds may be considered for duplicate charges or verified billing errors."
+      },
+      "exclusions": {
+        "title": "3. Exclusions",
+        "bullets": {
+          "one": "Change of mind after significant use.",
+          "two": "Third-party fees or payment provider charges.",
+          "three": "Custom services or onboarding services."
+        }
+      },
+      "process": {
+        "title": "4. How to request",
+        "body": "Submit a request via in-app support with the invoice and reason for the refund."
+      },
+      "timeline": {
+        "title": "5. Processing time",
+        "body": "If approved, refunds are issued to the original payment method. Processing time depends on the payment provider."
+      },
+      "chargebacks": {
+        "title": "6. Chargebacks",
+        "body": "Chargebacks may pause access while we review the claim."
+      }
+    },
+    "note": "Contact support if you need help with billing."
+  }
+}

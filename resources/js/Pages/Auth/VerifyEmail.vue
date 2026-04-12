@@ -3,12 +3,15 @@ import { computed } from 'vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     status: {
         type: String,
     },
 });
+
+const { t } = useI18n();
 
 const form = useForm({});
 
@@ -23,20 +26,17 @@ const verificationLinkSent = computed(
 
 <template>
     <GuestLayout>
-        <Head title="Email Verification" />
+        <Head :title="t('auth_pages.verify_email.title')" />
 
         <div class="mb-4 text-sm text-stone-600 dark:text-neutral-400">
-            Thanks for signing up! Before getting started, could you verify your
-            email address by clicking on the link we just emailed to you? If you
-            didn't receive the email, we will gladly send you another.
+            {{ t('auth_pages.verify_email.description') }}
         </div>
 
         <div
             class="mb-4 text-sm font-medium text-green-600 dark:text-green-400"
             v-if="verificationLinkSent"
         >
-            A new verification link has been sent to the email address you
-            provided during registration.
+            {{ t('auth_pages.verify_email.resent') }}
         </div>
 
         <form @submit.prevent="submit">
@@ -45,7 +45,7 @@ const verificationLinkSent = computed(
                     :class="{ 'opacity-25': form.processing }"
                     :disabled="form.processing"
                 >
-                    Resend Verification Email
+                    {{ t('auth_pages.verify_email.submit') }}
                 </PrimaryButton>
 
                 <Link
@@ -53,7 +53,7 @@ const verificationLinkSent = computed(
                     method="post"
                     as="button"
                     class="rounded-sm text-sm text-stone-600 underline hover:text-stone-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-stone-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:focus:ring-indigo-400 dark:focus:ring-offset-neutral-900"
-                    >Log Out</Link
+                    >{{ t('auth_pages.verify_email.logout') }}</Link
                 >
             </div>
         </form>

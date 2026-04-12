@@ -1,0 +1,150 @@
+{
+  "welcome": {
+    "meta": {
+      "title": "Bienvenida"
+    },
+    "nav": {
+      "tagline": "Suite operativa",
+      "contact": "Contactanos"
+    },
+    "hero": {
+      "eyebrow": "Creado para negocios de servicios que necesitan mas control",
+      "title": "Gestiona cotizaciones, agenda, trabajos y facturacion desde una sola plataforma conectada.",
+      "subtitle": "Malikia Pro ayuda a los negocios de servicios a gestionar todo el flujo de trabajo desde la primera solicitud hasta el pago final, con mas visibilidad, menos friccion y mejor seguimiento.",
+      "primary_cta": "Empezar prueba",
+      "secondary_cta": "Ver precios",
+      "note": "Una sola plataforma para gestionar clientes, cotizaciones, trabajos, reservas, facturacion y la coordinacion del dia a dia.",
+      "highlights": {
+        "one": "Cotizaciones inteligentes con control de margen",
+        "two": "Del escaneo de planos al precio en minutos",
+        "three": "Portal del cliente para aprobaciones"
+      },
+      "stats": {
+        "one_label": "para todo el flujo de trabajo",
+        "two_label": "de la solicitud al cobro",
+        "three_label": "a traves de equipos e ingresos"
+      },
+      "preview": {
+        "one": "Preparacion de la cotizacion",
+        "one_desc": "Margenes, fuentes y aprobaciones en una sola vista.",
+        "two": "Senales de escaneo de planos",
+        "two_desc": "Referencias con enlaces de proveedores y pruebas."
+      }
+    },
+    "trust": {
+      "title": "Creado para negocios de servicios con complejidad real en el dia a dia",
+      "items": {
+        "one": "Fontaneria",
+        "two": "Electricidad",
+        "three": "Climatizacion",
+        "four": "Limpieza",
+        "five": "Salones y belleza",
+        "six": "Restaurantes"
+      }
+    },
+    "features": {
+      "kicker": "Plataforma",
+      "title": "Todo lo que necesitas para gestionar clientes, trabajo e ingresos en un solo lugar",
+      "subtitle": "Desde cotizaciones y planificacion hasta reservas, facturacion y coordinacion del equipo, Malikia Pro ayuda a que el negocio funcione con menos friccion.",
+      "items": {
+        "quotes": {
+          "title": "Clientes y solicitudes",
+          "desc": "Mantiene visibles el historial del cliente, las solicitudes entrantes y el seguimiento desde la primera interaccion."
+        },
+        "plans": {
+          "title": "Cotizaciones y aprobaciones",
+          "desc": "Crea cotizaciones mas limpias, gestiona opciones y avanza con las aprobaciones con mas estructura."
+        },
+        "catalog": {
+          "title": "Planificacion y trabajos",
+          "desc": "Planifica el trabajo, asigna equipos y sigue la ejecucion sin perder el contexto entre oficina y terreno."
+        },
+        "ops": {
+          "title": "Reservas y flujo de clientes",
+          "desc": "Ofrece comodidad al reservar mientras mantienes bajo control llegadas, disponibilidad y flujo de cola."
+        },
+        "portal": {
+          "title": "Facturas y pagos",
+          "desc": "Convierte el trabajo aprobado en facturacion, recordatorios y pagos con un flujo de ingresos mas fluido."
+        },
+        "multi": {
+          "title": "Gestion y visibilidad",
+          "desc": "Da a propietarios y responsables una vista mas clara de la actividad, prioridades e ingresos en toda la operacion."
+        }
+      }
+    },
+    "new_features": {
+      "kicker": "Creado para avanzar mas rapido",
+      "title": "Agrega automatizacion, pagos conectados y una venta mas inteligente al flujo de trabajo",
+      "subtitle": "Estas incorporaciones ayudan a los equipos a ahorrar tiempo, reducir la friccion administrativa y hacer que la plataforma sea mas util en la operacion diaria.",
+      "badge": "Nuevo",
+      "items": {
+        "assistant": {
+          "title": "Asistente IA",
+          "desc": "Acelera la creacion de cotizaciones, trabajos y tareas administrativas con primeros borradores mas rapidos y menos repeticion manual."
+        },
+        "connect": {
+          "title": "Pagos conectados",
+          "desc": "Cobra con un flujo mas limpio ligado directamente a las facturas y a la actividad del cliente."
+        },
+        "store": {
+          "title": "Escaparate de productos",
+          "desc": "Vende productos u ofertas mixtas dentro de la misma experiencia que tu equipo ya usa para gestionar el trabajo."
+        }
+      }
+    },
+    "workflow": {
+      "kicker": "Flujo de trabajo",
+      "title": "De la solicitud al cobro, sin cambiar de sistema",
+      "subtitle": "Un flujo operativo mas limpio ayuda a cada equipo a avanzar mas rapido con menos errores en los traspasos.",
+      "steps": {
+        "one": {
+          "title": "Captura la solicitud",
+          "desc": "Empieza con la necesidad del cliente, el contexto y el trabajo que debe cotizarse o programarse."
+        },
+        "two": {
+          "title": "Crea la cotizacion",
+          "desc": "Prepara la oferta, gestiona opciones y avanza con las aprobaciones con mas control."
+        },
+        "three": {
+          "title": "Programa y coordina",
+          "desc": "Planifica el trabajo, asigna el equipo y manten visibles los detalles antes de empezar la ejecucion."
+        },
+        "four": {
+          "title": "Entrega el trabajo",
+          "desc": "Sigue el progreso, las listas, las notas, las pruebas y el contexto del cliente mientras se realiza el trabajo o servicio."
+        },
+        "five": {
+          "title": "Factura y cobra",
+          "desc": "Convierte el trabajo terminado en facturacion, recordatorios y pagos sin reconstruir el expediente desde cero."
+        }
+      }
+    },
+    "field": {
+      "kicker": "Ejecucion",
+      "title": "Manten alineados a los equipos en la oficina, en el terreno y en el local",
+      "subtitle": "Malikia Pro da al personal el contexto que necesita para avanzar el trabajo sin suposiciones, notas dispersas ni idas y vueltas constantes.",
+      "items": {
+        "one": "Vistas de trabajo diarias con prioridades y estado",
+        "two": "Listas de control, notas y pruebas vinculadas al trabajo",
+        "three": "Historial del cliente e instrucciones en contexto",
+        "four": "Aprobaciones, firmas y traspaso a facturacion con menos friccion"
+      }
+    },
+    "cta": {
+      "title": "Empieza hoy con un flujo de trabajo mas claro",
+      "subtitle": "Crea tu espacio de trabajo, explora la plataforma y evoluciona hacia una coordinacion mas profunda a medida que tu operacion se vuelve mas compleja.",
+      "primary": "Empezar prueba",
+      "secondary": "Ver precios"
+    },
+    "images": {
+      "hero_alt": "Equipo de campo coordinandose en el sitio",
+      "workflow_alt": "Profesionales revisando planos en una obra",
+      "mobile_alt": "Tecnico de campo sosteniendo una lista de control en el sitio"
+    },
+    "footer": {
+      "terms": "Terminos y condiciones",
+      "copy": "Malikia Pro. Todos los derechos reservados."
+    }
+  }
+}

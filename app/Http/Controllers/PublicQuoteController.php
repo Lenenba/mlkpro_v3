@@ -40,11 +40,11 @@ class PublicQuoteController extends Controller
         $allowDecline = ! $quote->isArchived() && ! $hasDecision;
         $statusMessage = null;
         if ($quote->isArchived()) {
-            $statusMessage = 'Archived quotes cannot be updated.';
+            $statusMessage = __('public.quote.status.archived_cannot_update');
         } elseif ($quote->status === 'accepted') {
-            $statusMessage = 'This quote is already accepted.';
+            $statusMessage = __('public.quote.status.already_accepted');
         } elseif ($quote->status === 'declined') {
-            $statusMessage = 'This quote is already declined.';
+            $statusMessage = __('public.quote.status.already_declined');
         }
 
         $expiresAt = $this->resolveExpiry($request);
@@ -125,17 +125,17 @@ class PublicQuoteController extends Controller
     {
         if ($quote->isArchived()) {
             return redirect()->back()->withErrors([
-                'status' => 'Archived quotes cannot be accepted.',
+                'status' => __('public.quote.actions.archived_cannot_accept'),
             ]);
         }
 
         if ($quote->status === 'accepted') {
-            return redirect()->back()->with('success', 'Quote already accepted.');
+            return redirect()->back()->with('success', __('public.quote.actions.already_accepted'));
         }
 
         if ($quote->status === 'declined') {
             return redirect()->back()->withErrors([
-                'status' => 'Quote already declined.',
+                'status' => __('public.quote.actions.already_declined'),
             ]);
         }
 
@@ -151,7 +151,7 @@ class PublicQuoteController extends Controller
 
         if ($requiredDeposit > 0 && $depositAmount < $requiredDeposit) {
             return redirect()->back()->withErrors([
-                'deposit_amount' => 'Deposit is below the required amount.',
+                'deposit_amount' => __('public.quote.actions.deposit_below_required'),
             ]);
         }
 
@@ -268,24 +268,24 @@ class PublicQuoteController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', 'Quote accepted.');
+        return redirect()->back()->with('success', __('public.quote.actions.accepted'));
     }
 
     public function decline(Request $request, Quote $quote)
     {
         if ($quote->isArchived()) {
             return redirect()->back()->withErrors([
-                'status' => 'Archived quotes cannot be declined.',
+                'status' => __('public.quote.actions.archived_cannot_decline'),
             ]);
         }
 
         if ($quote->status === 'declined') {
-            return redirect()->back()->with('success', 'Quote already declined.');
+            return redirect()->back()->with('success', __('public.quote.actions.already_declined'));
         }
 
         if ($quote->status === 'accepted') {
             return redirect()->back()->withErrors([
-                'status' => 'Quote already accepted.',
+                'status' => __('public.quote.actions.already_accepted'),
             ]);
         }
 
@@ -323,7 +323,7 @@ class PublicQuoteController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', 'Quote declined.');
+        return redirect()->back()->with('success', __('public.quote.actions.declined'));
     }
 
     private function syncWorkProductsFromQuote(Quote $quote, Work $work): void

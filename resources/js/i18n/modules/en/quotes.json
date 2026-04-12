@@ -1,0 +1,158 @@
+{
+  "quotes": {
+    "title": "Quotes",
+    "create_title": "Create quote",
+    "show_title": "View quote",
+    "company_fallback": "Company",
+    "form": {
+      "quote_for": "Quote for {customer}",
+      "quote_locked": "This quote is locked because it has been accepted or archived.",
+      "job_title": "Job title",
+      "property": "Property",
+      "no_property": "No property",
+      "property_address": "Property address",
+      "no_property_selected": "No property selected.",
+      "contact_details": "Contact details",
+      "quote_details": "Quote details",
+      "quote_label": "Quote",
+      "status": "Status",
+      "rate_opportunity": "Rate opportunity",
+      "add_custom_fields": "Add custom fields",
+      "templates": "Templates",
+      "template_default": "Default template",
+      "template_help": "Pick a starting point for this quote.",
+      "client_message": "Client message",
+      "subtotal": "Subtotal",
+      "discount": "Discount (%)",
+      "add_discount": "Add discount",
+      "tax": "Tax",
+      "hide_taxes": "Hide taxes",
+      "add_tax": "Add tax",
+      "no_taxes": "No taxes configured.",
+      "total_taxes": "Total taxes",
+      "total_amount": "Total amount",
+      "required_deposit": "Required deposit",
+      "minimum_label": "Min: ${amount}",
+      "add_required_deposit": "Add required deposit",
+      "terms": "Terms and conditions",
+      "cancel": "Cancel",
+      "save_and_create_another": "Save and create another",
+      "save_quote": "Save quote"
+    },
+    "show": {
+      "timeline": "Timeline",
+      "no_rating_yet": "No rating yet",
+      "table": {
+        "product_services": "Product/Services",
+        "qty": "Qty.",
+        "unit_cost": "Unit cost",
+        "total": "Total"
+      },
+      "price_sources_title": "Price sources & justification",
+      "price_sources_subtitle": "Supplier benchmarks, selected source, and why each price was chosen.",
+      "variant_label": "Variant {value}",
+      "basis_label": "Basis {value}",
+      "selected_supplier": "Selected supplier",
+      "not_available": "Not available",
+      "supplier_unit_cost": "Supplier unit cost: ${price}",
+      "product_label": "Product: {name}",
+      "quote_unit_price": "Quote unit price: ${price}",
+      "best_price": "Best price: {name} ${price}",
+      "preferred_supplier": "Preferred supplier: {name} ${price}",
+      "source_status_missing": "No live price found for this line.",
+      "source_status_skipped": "Live pricing skipped to keep scan fast.",
+      "open_source_link": "Open source link",
+      "selection_reason": "Selection reason",
+      "query_label": "Query: {query}",
+      "benchmarks_label": "Benchmarks: min ${min}, median ${median}, max ${max}",
+      "benchmarks_preferred": "preferred min ${value}",
+      "all_supplier_prices": "All supplier prices",
+      "source_link": "Source link",
+      "tax_fallback": "Tax"
+    },
+    "view": {
+      "table": "Table",
+      "cards": "Cards"
+    },
+    "filters": {
+      "search_placeholder": "Search quotes, customer, or notes",
+      "status": {
+        "all": "All status"
+      },
+      "customer": {
+        "all": "All customers"
+      },
+      "total_min": "Total min",
+      "total_max": "Total max",
+      "created_from": "Created from",
+      "created_to": "Created to",
+      "deposit": {
+        "label": "Deposit",
+        "with": "With deposit",
+        "none": "No deposit"
+      },
+      "tax": {
+        "label": "Tax",
+        "with": "With tax",
+        "none": "No tax"
+      }
+    },
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "archived": "Archived"
+    },
+    "table": {
+      "quote": "Quote",
+      "job": "Job",
+      "customer": "Customer",
+      "status": "Status",
+      "rating": "Rating",
+      "total": "Total",
+      "created": "Created",
+      "results": "results"
+    },
+    "actions": {
+      "filters": "Filters",
+      "clear": "Clear",
+      "new_quote_for": "New quote for...",
+      "new_quote": "New quote",
+      "view": "View",
+      "edit": "Edit",
+      "send_email": "Send email",
+      "accept_quote": "Accept quote",
+      "create_job": "Create job",
+      "archive": "Archive",
+      "restore": "Restore",
+      "archive_confirm": "Archive quote {number}?"
+    },
+    "labels": {
+      "unknown_customer": "Unknown",
+      "customer_fallback": "Customer",
+      "quote_fallback": "Quote",
+      "quote_initial": "Q",
+      "job_fallback": "Job"
+    },
+    "stats": {
+      "total": "Total quotes",
+      "total_value": "Total value",
+      "average_value": "Average value",
+      "open": "Open quotes",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "top_by_value": "Top quotes by value",
+      "based_on_filters": "Based on current filters",
+      "empty": "No quote data yet."
+    },
+    "empty": {
+      "quotes": "No quotes yet."
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "of": "of"
+    }
+  }
+}

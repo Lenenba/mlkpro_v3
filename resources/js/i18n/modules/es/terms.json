@@ -1,0 +1,76 @@
+{
+  "terms": {
+    "meta": {
+      "title": "Terminos y condiciones"
+    },
+    "header": {
+      "tagline": "Suite de gestion empresarial"
+    },
+    "actions": {
+      "sign_in": "Iniciar sesion",
+      "create_account": "Crear cuenta"
+    },
+    "intro": {
+      "eyebrow": "Terminos y condiciones",
+      "title": "Condiciones de uso de Malikia Pro",
+      "updated": "Ultima actualizacion: {date}. Esta pagina es una plantilla y debe revisarse antes de publicarse.",
+      "legal": "Nombre legal: Malikia Pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Alcance",
+        "body": "Estos terminos regulan el acceso a Malikia Pro, una plataforma que ayuda a las empresas a gestionar clientes, cotizaciones, trabajos, tareas, facturas, productos y escaneos de planos."
+      },
+      "accounts": {
+        "title": "2. Cuentas",
+        "bullets": {
+          "one": "Las cuentas son creadas y gestionadas por el propietario o un administrador de la empresa.",
+          "two": "Eres responsable de mantener seguras tus credenciales.",
+          "three": "Los roles y permisos limitan el acceso a los datos y las acciones."
+        }
+      },
+      "data": {
+        "title": "3. Propiedad de los datos",
+        "body": "Tu empresa conserva la propiedad de sus datos. Al usar Malikia Pro, otorgas a la plataforma permiso para almacenar, procesar y mostrar tus datos segun sea necesario para prestar el servicio."
+      },
+      "pricing": {
+        "title": "4. Cotizaciones y datos de precios",
+        "bullets": {
+          "one": "Las cotizaciones son estimaciones y pueden variar segun las condiciones del sitio y los cambios de alcance.",
+          "two": "Las consultas de precios usan fuentes de terceros y no se garantiza su exactitud.",
+          "three": "Debes validar los precios de los proveedores antes de aceptar o enviar una cotizacion."
+        }
+      },
+      "billing": {
+        "title": "5. Facturacion y pagos",
+        "body": "Las tarifas de suscripcion, impuestos y condiciones de pago se muestran en tu configuracion de facturacion. Las facturas impagadas pueden provocar acceso limitado hasta su resolucion."
+      },
+      "acceptable": {
+        "title": "6. Uso aceptable",
+        "bullets": {
+          "one": "No subas contenido ilegal ni hagas un uso indebido de los datos de los clientes.",
+          "two": "No intentes interrumpir ni descompilar el servicio.",
+          "three": "Cumple con las leyes aplicables y los acuerdos con los clientes."
+        }
+      },
+      "availability": {
+        "title": "7. Disponibilidad",
+        "body": "La plataforma se proporciona tal cual. Podemos realizar mantenimiento o actualizaciones que afecten temporalmente a la disponibilidad."
+      },
+      "liability": {
+        "title": "8. Limitacion de responsabilidad",
+        "body": "Malikia Pro no es responsable de danos indirectos, perdida de beneficios o perdida de datos mas alla de los limites exigidos por la ley. Usas el servicio por tu cuenta y riesgo."
+      },
+      "termination": {
+        "title": "9. Rescision",
+        "body": "Puedes cancelar tu suscripcion en cualquier momento. Podemos suspender el acceso por incumplimiento de estos terminos o por impago."
+      },
+      "changes": {
+        "title": "10. Cambios",
+        "body": "Podemos actualizar estos terminos. El uso continuado despues de los cambios significa que aceptas los terminos actualizados."
+      }
+    },
+    "note": "Preguntas? Contacta al propietario de tu cuenta o usa el canal de soporte dentro de la aplicacion.",
+    "footer": "Malikia Pro. Todos los derechos reservados. {year}"
+  }
+}

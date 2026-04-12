@@ -191,7 +191,7 @@
       "template_name": "Nom du template",
       "channel": "Canal",
       "campaign_type": "Type de campagne",
-      "language": "Langue (FR/EN)",
+      "language": "Langue (FR/EN/ES)",
       "tags": "Tags",
       "set_default": "Définir comme défaut pour ce canal/type/langue",
       "subject": "Sujet",
@@ -373,6 +373,7 @@
       "preferred": "Langue préférée",
       "fr": "Français",
       "en": "Anglais",
+      "es": "Espagnol",
       "both": "Français et anglais"
     },
     "campaign_directions": {

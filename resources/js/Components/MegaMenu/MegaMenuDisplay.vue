@@ -374,7 +374,7 @@ onBeforeUnmount(() => {
                     <path d="M4 6h16" />
                     <path d="M4 18h16" />
                 </svg>
-                <span>Menu</span>
+                <span>{{ $t('mega_menu.mobile_toggle') }}</span>
             </button>
 
             <div

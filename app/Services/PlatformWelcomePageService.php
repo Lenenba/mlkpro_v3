@@ -4,8 +4,9 @@ namespace App\Services;
 
 use App\Models\PlatformPage;
 use App\Models\PlatformSection;
+use App\Support\LocalePreference;
 use App\Support\WelcomeEditorialSections;
-use App\Support\WelcomeStockImages;
+use App\Support\WelcomeShowcaseSection;
 
 class PlatformWelcomePageService
 {
@@ -57,7 +58,7 @@ class PlatformWelcomePageService
 
         $changed = false;
 
-        foreach (['fr', 'en'] as $locale) {
+        foreach (LocalePreference::supported() as $locale) {
             $localeContent = is_array($locales[$locale] ?? null) ? $locales[$locale] : [];
             $existingSections = $this->sanitizeSectionList($localeContent['sections'] ?? []);
             $existingById = collect($existingSections)
@@ -107,10 +108,10 @@ class PlatformWelcomePageService
 
     private function canonicalLocaleForExistingSections(array $locales): string
     {
-        $bestLocale = 'fr';
+        $bestLocale = LocalePreference::default();
         $bestCount = -1;
 
-        foreach (['fr', 'en'] as $locale) {
+        foreach (LocalePreference::resolutionOrder($bestLocale) as $locale) {
             $count = count($this->sanitizeSectionList($locales[$locale]['sections'] ?? []));
             if ($count > $bestCount) {
                 $bestLocale = $locale;
@@ -189,37 +190,25 @@ class PlatformWelcomePageService
         $orderedSections[] = $this->createSection(
             'Welcome Hero',
             'welcome_hero',
-            [
-                'fr' => $this->mapHeroSection($legacy['fr'] ?? []),
-                'en' => $this->mapHeroSection($legacy['en'] ?? []),
-            ],
+            $this->mapLegacyLocales($legacy, fn (array $localeLegacy) => $this->mapHeroSection($localeLegacy)),
             $userId
         );
         $orderedSections[] = $this->createSection(
             'Welcome Trust',
             'welcome_trust',
-            [
-                'fr' => $this->mapTrustSection($legacy['fr'] ?? []),
-                'en' => $this->mapTrustSection($legacy['en'] ?? []),
-            ],
+            $this->mapLegacyLocales($legacy, fn (array $localeLegacy) => $this->mapTrustSection($localeLegacy)),
             $userId
         );
         $orderedSections[] = $this->createSection(
             'Welcome Showcase',
             'feature_tabs',
-            [
-                'fr' => $this->defaultShowcaseSection('fr'),
-                'en' => $this->defaultShowcaseSection('en'),
-            ],
+            $this->mapSupportedLocales(fn (string $locale) => $this->defaultShowcaseSection($locale)),
             $userId
         );
         $orderedSections[] = $this->createSection(
             'Welcome Features',
             'welcome_features',
-            [
-                'fr' => $this->mapFeaturesSection($legacy['fr'] ?? []),
-                'en' => $this->mapFeaturesSection($legacy['en'] ?? []),
-            ],
+            $this->mapLegacyLocales($legacy, fn (array $localeLegacy) => $this->mapFeaturesSection($localeLegacy)),
             $userId
         );
 
@@ -231,7 +220,7 @@ class PlatformWelcomePageService
         ]);
 
         $locales = [];
-        foreach (['fr', 'en'] as $locale) {
+        foreach (LocalePreference::supported() as $locale) {
             $sourceSections = array_map(function (PlatformSection $section, int $index) use ($locale, $sectionContentService) {
                 $content = $sectionContentService->resolveForLocale($section, $locale);
 
@@ -284,6 +273,33 @@ class PlatformWelcomePageService
             ],
             'updated_by' => $userId,
         ]);
+    }
+
+    /**
+     * @param  callable(string): array<string, mixed>  $resolver
+     * @return array<string, array<string, mixed>>
+     */
+    private function mapSupportedLocales(callable $resolver): array
+    {
+        $locales = [];
+
+        foreach (LocalePreference::supported() as $locale) {
+            $locales[$locale] = $resolver($locale);
+        }
+
+        return $locales;
+    }
+
+    /**
+     * @param  array<string, mixed>  $legacy
+     * @param  callable(array<string, mixed>): array<string, mixed>  $resolver
+     * @return array<string, array<string, mixed>>
+     */
+    private function mapLegacyLocales(array $legacy, callable $resolver): array
+    {
+        return $this->mapSupportedLocales(
+            fn (string $locale) => $resolver(is_array($legacy[$locale] ?? null) ? $legacy[$locale] : [])
+        );
     }
 
     private function pageSectionIdForSource(PlatformSection $section, int $index): string
@@ -458,139 +474,6 @@ class PlatformWelcomePageService
 
     private function defaultShowcaseSection(string $locale): array
     {
-        $getNoticedImage = WelcomeStockImages::showcaseImage('get_noticed', $locale);
-        $winJobsImage = WelcomeStockImages::showcaseImage('win_jobs', $locale);
-        $workSmarterImage = WelcomeStockImages::showcaseImage('work_smarter', $locale);
-        $boostProfitsImage = WelcomeStockImages::showcaseImage('boost_profits', $locale);
-
-        if ($locale === 'fr') {
-            return [
-                'layout' => 'feature_tabs',
-                'background_color' => '#f7f2e8',
-                'image_position' => 'left',
-                'alignment' => 'center',
-                'density' => 'normal',
-                'tone' => 'default',
-                'feature_tabs_style' => 'workflow',
-                'kicker' => 'Une plateforme sur tout le parcours client',
-                'title' => 'Voyez comment Malikia Pro soutient la croissance du premier clic jusqu’au paiement final',
-                'body' => '<p>Chaque étape du business reste connectée pour que marketing, devis, exécution et revenus ne vivent pas dans des outils séparés.</p>',
-                'feature_tabs_font_size' => 28,
-                'feature_tabs' => [
-                    [
-                        'id' => 'welcome-showcase-fr-1',
-                        'label' => 'Se faire remarquer',
-                        'icon' => 'clipboard-check',
-                        'title' => 'Transformez votre visibilité en demandes qualifiées sans casser le parcours client',
-                        'body' => '<p>Pages publiques, formulaires, campagnes et suivi restent alignés du premier clic jusqu’au premier vrai échange.</p>',
-                        'items' => ['Avis', 'Demandes', 'Campagnes', 'Liens'],
-                        'cta_label' => 'Explorer Marketing & Loyalty',
-                        'cta_href' => '/pages/marketing-loyalty',
-                        'image_url' => $getNoticedImage['image_url'],
-                        'image_alt' => $getNoticedImage['image_alt'],
-                    ],
-                    [
-                        'id' => 'welcome-showcase-fr-2',
-                        'label' => 'Gagner des jobs',
-                        'icon' => 'file-text',
-                        'title' => 'Envoyez plus vite vos devis, relancez mieux et convertissez plus de demandes',
-                        'body' => '<p>Contexte client, modèles, options et validations restent dans un même flux commercial que l’équipe peut vraiment piloter.</p>',
-                        'items' => ['Qualification', 'Modèles', 'Options', 'Relances'],
-                        'cta_label' => 'Explorer Sales & CRM',
-                        'cta_href' => '/pages/sales-crm',
-                        'image_url' => $winJobsImage['image_url'],
-                        'image_alt' => $winJobsImage['image_alt'],
-                    ],
-                    [
-                        'id' => 'welcome-showcase-fr-3',
-                        'label' => 'Faire tourner les opérations',
-                        'icon' => 'calendar-days',
-                        'title' => 'Gardez coordination, planning et exécution connectés',
-                        'body' => '<p>Dispatch, jobs, checklists, mises à jour et historique restent visibles pour toute l’équipe au lieu de se perdre dans des canaux parallèles.</p>',
-                        'items' => ['Planning', 'Dispatch', 'Checklists', 'Historique'],
-                        'cta_label' => 'Explorer Operations',
-                        'cta_href' => '/pages/operations',
-                        'image_url' => $workSmarterImage['image_url'],
-                        'image_alt' => $workSmarterImage['image_alt'],
-                    ],
-                    [
-                        'id' => 'welcome-showcase-fr-4',
-                        'label' => 'Protéger les revenus',
-                        'icon' => 'circle-dollar-sign',
-                        'title' => 'Passez du travail réalisé à la facturation avec moins d’administration',
-                        'body' => '<p>Factures, rappels et flux de paiement restent liés au travail effectué pour raccourcir le délai d’encaissement et mieux protéger le revenu.</p>',
-                        'items' => ['Factures', 'Paiements', 'Rappels', 'Rapports'],
-                        'cta_label' => 'Explorer Commerce',
-                        'cta_href' => '/pages/commerce',
-                        'image_url' => $boostProfitsImage['image_url'],
-                        'image_alt' => $boostProfitsImage['image_alt'],
-                    ],
-                ],
-            ];
-        }
-
-        return [
-            'layout' => 'feature_tabs',
-            'background_color' => '#f7f2e8',
-            'image_position' => 'left',
-            'alignment' => 'center',
-            'density' => 'normal',
-            'tone' => 'default',
-            'feature_tabs_style' => 'workflow',
-            'kicker' => 'One system across the full customer journey',
-            'title' => 'See how Malikia Pro supports growth from first click to final payment',
-            'body' => '<p>Every stage of the business stays connected so marketing, quoting, execution, and revenue do not live in separate tools.</p>',
-            'feature_tabs_font_size' => 28,
-            'feature_tabs' => [
-                [
-                    'id' => 'welcome-showcase-en-1',
-                    'label' => 'Get Noticed',
-                    'icon' => 'clipboard-check',
-                    'title' => 'Turn visibility into qualified requests without breaking the customer journey',
-                    'body' => '<p>Public pages, intake forms, campaigns, and follow-up stay aligned from the first click to the first real conversation.</p>',
-                    'items' => ['Reviews', 'Requests', 'Campaigns', 'Links'],
-                    'cta_label' => 'Explore Marketing & Loyalty',
-                    'cta_href' => '/pages/marketing-loyalty',
-                    'image_url' => $getNoticedImage['image_url'],
-                    'image_alt' => $getNoticedImage['image_alt'],
-                ],
-                [
-                    'id' => 'welcome-showcase-en-2',
-                    'label' => 'Win work',
-                    'icon' => 'file-text',
-                    'title' => 'Quote faster, follow up better, and move more demand to approval',
-                    'body' => '<p>Customer context, templates, options, and approvals stay inside one commercial workflow your team can actually manage.</p>',
-                    'items' => ['Qualification', 'Templates', 'Upsells', 'Follow-ups'],
-                    'cta_label' => 'Explore Sales & CRM',
-                    'cta_href' => '/pages/sales-crm',
-                    'image_url' => $winJobsImage['image_url'],
-                    'image_alt' => $winJobsImage['image_alt'],
-                ],
-                [
-                    'id' => 'welcome-showcase-en-3',
-                    'label' => 'Run operations',
-                    'icon' => 'calendar-days',
-                    'title' => 'Keep office coordination, scheduling, and execution connected',
-                    'body' => '<p>Dispatch, jobs, checklists, updates, and history stay visible to the whole team instead of getting lost in side channels.</p>',
-                    'items' => ['Scheduling', 'Dispatch', 'Checklists', 'History'],
-                    'cta_label' => 'Explore Operations',
-                    'cta_href' => '/pages/operations',
-                    'image_url' => $workSmarterImage['image_url'],
-                    'image_alt' => $workSmarterImage['image_alt'],
-                ],
-                [
-                    'id' => 'welcome-showcase-en-4',
-                    'label' => 'Protect revenue',
-                    'icon' => 'circle-dollar-sign',
-                    'title' => 'Turn completed work into invoices and payments with less admin overhead',
-                    'body' => '<p>Invoices, reminders, and payment flow stay linked to the work that was delivered so revenue is easier to collect and protect.</p>',
-                    'items' => ['Invoices', 'Payments', 'Reminders', 'Reporting'],
-                    'cta_label' => 'Explore Commerce',
-                    'cta_href' => '/pages/commerce',
-                    'image_url' => $boostProfitsImage['image_url'],
-                    'image_alt' => $boostProfitsImage['image_alt'],
-                ],
-            ],
-        ];
+        return WelcomeShowcaseSection::payload($locale);
     }
 }

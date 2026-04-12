@@ -1,0 +1,163 @@
+{
+  "planning": {
+    "absence_overview": {
+      "title": "Absences & congés",
+      "week_range": "Cette semaine",
+      "today": "Aujourd'hui",
+      "week": "Cette semaine",
+      "empty_today": "Aucune absence aujourd'hui.",
+      "empty_week": "Aucune absence cette semaine.",
+      "more_week": "+{count} autres"
+    },
+    "title": "Planning",
+    "subtitle": "Planifier les shifts et récurrences pour l'équipe de vente.",
+    "subtitle_services": "Planifier les interventions et tâches de l'équipe.",
+    "subtitle_owner_only": "Consulter votre calendrier dans une vue solo.",
+    "subtitle_owner_only_services": "Suivre vos jobs et tâches dans une vue planning solo.",
+    "calendar": {
+      "title": "Planning équipe",
+      "today": "Aujourd'hui",
+      "month": "Mois",
+      "week": "Semaine",
+      "day": "Jour",
+      "year": "Année"
+    },
+    "preview": {
+      "empty": "Aucun shift",
+      "empty_services": "Aucun evenement",
+      "count": "{count} shifts",
+      "count_services": "{count} événements",
+      "more": "{count} de plus"
+    },
+    "filters": {
+      "title": "Calendriers",
+      "member": "Employé",
+      "all_members": "Toute l'équipe",
+      "range": "Période",
+      "loading": "Chargement des shifts...",
+      "loading_services": "Chargement du planning...",
+      "empty": "Aucun shift sur cette periode.",
+      "empty_services": "Aucune intervention ni tache sur cette periode."
+    },
+    "kinds": {
+      "shift": "Shift",
+      "absence": "Absence",
+      "leave": "Congé"
+    },
+    "form": {
+      "title": "Ajouter un shift",
+      "title_absence": "Signaler une absence",
+      "title_leave": "Signaler un conge",
+      "kind": "Type",
+      "member": "Employé",
+      "date": "Date du shift",
+      "start_date": "Date de début",
+      "end_date": "Date de fin",
+      "duration": "Durée",
+      "full_day": "Journée entière",
+      "hours": "Quelques heures",
+      "start_time": "Heure de debut",
+      "end_time": "Heure de fin",
+      "break_minutes": "Pause (min)",
+      "shift_title": "Titre du shift",
+      "notes": "Notes",
+      "reason": "Motif / notes",
+      "recurring": "Shift recurrent",
+      "frequency": "Frequence",
+      "recurrence_end": "Repeter jusqu au",
+      "weekdays": "Jours de semaine",
+      "month_day": "Jour du mois",
+      "create": "Creer le shift",
+      "creating": "Creation...",
+      "scroll_to_form": "Ouvrir le formulaire planning",
+      "use_selected_day": "Utiliser le jour selectionne",
+      "save_time_off": "Enregistrer",
+      "saving_time_off": "Enregistrement..."
+    },
+    "all_day": "Toute la journee",
+    "frequency": {
+      "daily": "Quotidien",
+      "weekly": "Hebdomadaire",
+      "monthly": "Mensuel",
+      "yearly": "Annuel"
+    },
+    "weekdays": {
+      "mo": "Lun",
+      "tu": "Mar",
+      "we": "Mer",
+      "th": "Jeu",
+      "fr": "Ven",
+      "sa": "Sam",
+      "su": "Dim"
+    },
+    "errors": {
+      "load": "Impossible de charger les shifts.",
+      "save": "Impossible d enregistrer le shift.",
+      "delete": "Impossible de supprimer le shift.",
+      "status": "Impossible de mettre à jour le statut.",
+      "update": "Impossible de mettre a jour le shift.",
+      "conflict": "Conflit de planning detecte."
+    },
+    "notices": {
+      "created": "{count} shift(s) créé(s).",
+      "absence_created": "Absence enregistrée.",
+      "absence_created_many": "{count} jours d'absence enregistrés.",
+      "leave_created": "Congé enregistré.",
+      "leave_created_many": "{count} jours de congé enregistrés.",
+      "absence_deleted": "Absence supprimée.",
+      "leave_deleted": "Congé supprimé.",
+      "updated": "Shift mis à jour.",
+      "approved": "Demande approuvée.",
+      "rejected": "Demande refusée.",
+      "deleted": "Shift supprime."
+    },
+    "status": {
+      "label": "Statut",
+      "pending": "En attente",
+      "approved": "Approuvé",
+      "rejected": "Refusé",
+      "approve": "Approuver",
+      "approving": "Approbation...",
+      "reject": "Refuser",
+      "rejecting": "Refus..."
+    },
+    "pending": {
+      "title": "Demandes en attente",
+      "empty": "Aucune demande en attente.",
+      "count": "{count} en attente",
+      "more": "+{count} autres demandes"
+    },
+    "empty": {
+      "title": "Planning verrouillé",
+      "description": "Seuls les managers peuvent créer des shifts."
+    },
+    "empty_services": {
+      "title": "Vue planning",
+      "description": "Les événements viennent des interventions et tâches."
+    },
+    "empty_owner_only": {
+      "title": "Planning en lecture seule",
+      "description": "La création de shifts reste désactivée en mode solo tant qu'un planning propriétaire uniquement complet n'existe pas."
+    },
+    "empty_owner_only_services": {
+      "title": "Vue opérations solo",
+      "description": "Les jobs et tâches restent visibles ici, mais la planification équipe reste désactivée en mode solo."
+    },
+    "owner_only": {
+      "badge": "Vue owner-only",
+      "panel_title": "Planning solo",
+      "panel_description": "Ce forfait solo garde le planning en lecture seule tant que les membres d'équipe restent désactivés."
+    },
+    "delete": {
+      "title": "Supprimer le shift",
+      "absence_title": "Supprimer l'absence",
+      "leave_title": "Supprimer le conge",
+      "description": "Retirer ce shift du planning ?",
+      "absence_description": "Retirer cette absence du planning ?",
+      "leave_description": "Retirer ce conge du planning ?",
+      "confirm": "Supprimer",
+      "cancel": "Annuler",
+      "deleting": "Suppression..."
+    }
+  }
+}

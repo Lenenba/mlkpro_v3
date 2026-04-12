@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\LocalePreference;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,8 +38,10 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        $locale = LocalePreference::forRequest($request);
+
         $roleId = Role::where('name', 'owner')->value('id');
-        if (!$roleId) {
+        if (! $roleId) {
             $roleId = Role::create([
                 'name' => 'owner',
                 'description' => 'Account owner role',
@@ -48,6 +51,7 @@ class RegisteredUserController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'locale' => $locale,
             'password' => Hash::make($request->password),
             'role_id' => $roleId,
         ]);
@@ -55,6 +59,8 @@ class RegisteredUserController extends Controller
         event(new Registered($user));
 
         Auth::login($user);
+        app()->setLocale($locale);
+        $request->session()->put('locale', $locale);
 
         return redirect(route('onboarding.index', absolute: false));
     }

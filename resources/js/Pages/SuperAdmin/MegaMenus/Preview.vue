@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import MegaMenuDisplay from '@/Components/MegaMenu/MegaMenuDisplay.vue';
@@ -13,7 +14,10 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t } = useI18n();
 const currentLocaleCode = computed(() => String(page.props.locale || 'fr').toUpperCase());
+const tx = (key, params = {}) => t(`mega_menu.admin.${key}`, params);
+const headTitle = computed(() => tx('preview.head_title', { title: props.menu?.title || tx('common.mega_menu') }));
 
 const previewMedia = computed(() => {
     const items = Array.isArray(props.menu?.items) ? props.menu.items : [];
@@ -27,8 +31,8 @@ const previewMedia = computed(() => {
                     if (showcaseItem?.image_url) {
                         return {
                             imageUrl: showcaseItem.image_url,
-                            alt: showcaseItem.image_alt || showcaseItem.label || 'Mega menu preview image',
-                            label: showcaseItem.label || 'Mega menu preview',
+                            alt: showcaseItem.image_alt || showcaseItem.label || tx('preview.image_alt'),
+                            label: showcaseItem.label || tx('preview.image_label'),
                         };
                     }
                 }
@@ -36,24 +40,24 @@ const previewMedia = computed(() => {
                 if (block.type === 'promo_banner' && block.payload?.image_url) {
                     return {
                         imageUrl: block.payload.image_url,
-                        alt: block.payload.image_alt || block.payload.title || 'Mega menu preview image',
-                        label: block.payload.title || 'Mega menu preview',
+                        alt: block.payload.image_alt || block.payload.title || tx('preview.image_alt'),
+                        label: block.payload.title || tx('preview.image_label'),
                     };
                 }
 
                 if (block.type === 'featured_content' && block.payload?.image_url) {
                     return {
                         imageUrl: block.payload.image_url,
-                        alt: block.payload.image_alt || block.payload.title || 'Mega menu preview image',
-                        label: block.payload.title || 'Mega menu preview',
+                        alt: block.payload.image_alt || block.payload.title || tx('preview.image_alt'),
+                        label: block.payload.title || tx('preview.image_label'),
                     };
                 }
 
                 if (block.type === 'image' && block.payload?.image_url) {
                     return {
                         imageUrl: block.payload.image_url,
-                        alt: block.payload.image_alt || block.payload.caption || 'Mega menu preview image',
-                        label: block.payload.caption || 'Mega menu preview',
+                        alt: block.payload.image_alt || block.payload.caption || tx('preview.image_alt'),
+                        label: block.payload.caption || tx('preview.image_label'),
                     };
                 }
             }
@@ -65,7 +69,7 @@ const previewMedia = computed(() => {
 </script>
 
 <template>
-    <Head :title="`Preview ${menu.title || 'Mega Menu'}`" />
+    <Head :title="headTitle" />
 
     <AuthenticatedLayout>
         <div class="space-y-5">
@@ -73,24 +77,24 @@ const previewMedia = computed(() => {
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div class="space-y-1">
                         <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                            Mega Menu Preview
+                            {{ tx('preview.title') }}
                         </h1>
                         <p class="text-sm text-stone-600 dark:text-neutral-400">
-                            Review the published render shell before returning to the builder.
+                            {{ tx('preview.description') }}
                         </p>
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <Link :href="dashboard_url"
                             class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
-                            Dashboard
+                            {{ t('nav.dashboard') }}
                         </Link>
                         <Link :href="index_url"
                             class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
-                            Mega menus
+                            {{ tx('common.mega_menus') }}
                         </Link>
                         <Link :href="edit_url"
                             class="rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700">
-                            Back to builder
+                            {{ tx('preview.back_to_builder') }}
                         </Link>
                     </div>
                 </div>
@@ -120,13 +124,13 @@ const previewMedia = computed(() => {
                     <div class="grid gap-6 px-5 py-8 lg:grid-cols-[1.1fr_0.9fr]">
                         <div class="space-y-4">
                             <div class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
-                                Frontend shell
+                                {{ tx('preview.frontend_shell') }}
                             </div>
                             <h2 class="text-3xl font-semibold tracking-tight text-stone-900 dark:text-white">
-                                Validate the hover and panel composition in context.
+                                {{ tx('preview.headline') }}
                             </h2>
                             <p class="text-sm text-stone-600 dark:text-neutral-300">
-                                This preview uses the same reusable renderer that can be resolved by location or slug on the frontend.
+                                {{ tx('preview.body') }}
                             </p>
                         </div>
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-900">
@@ -138,7 +142,7 @@ const previewMedia = computed(() => {
                                     class="h-[220px] w-full object-cover"
                                 />
                                 <div v-else class="flex h-[220px] items-center justify-center px-6 text-sm text-stone-500 dark:text-neutral-400">
-                                    Add a preview image to the mega menu to display it here.
+                                    {{ tx('preview.image_placeholder') }}
                                 </div>
                             </div>
                         </div>

@@ -1,0 +1,50 @@
+{
+  "public_footer": {
+    "contact": "Contact",
+    "store": {
+      "google_play_prefix": "Get it on",
+      "app_store_prefix": "Download on the"
+    },
+    "support": {
+      "kicker": "Support",
+      "title": "Talk to our team",
+      "body": "<p>Need a sharper product journey or a custom public page setup? Our team can help.</p>",
+      "contact_cta": "Contact us",
+      "pricing_cta": "View pricing",
+      "meta": {
+        "one": "Public pages and business modules",
+        "two": "Product support and enablement",
+        "three": "Available in French, English, and Spanish"
+      }
+    },
+    "fallback_groups": {
+      "industries": {
+        "title": "Industries We Serve",
+        "plumbing": "Plumbing",
+        "hvac": "HVAC",
+        "electrical": "Electrical",
+        "cleaning": "Cleaning",
+        "salon_beauty": "Salon & Beauty",
+        "restaurant": "Restaurant"
+      },
+      "products": {
+        "title": "Products",
+        "sales_crm": "Sales & CRM",
+        "reservations": "Reservations",
+        "operations": "Operations",
+        "commerce": "Commerce",
+        "marketing_loyalty": "Marketing & Loyalty",
+        "ai_automation": "AI & Automation",
+        "command_center": "Command Center"
+      },
+      "resources": {
+        "title": "Resources",
+        "pricing": "Pricing",
+        "terms": "Terms",
+        "privacy": "Privacy",
+        "refund": "Refund",
+        "contact": "Contact"
+      }
+    }
+  }
+}

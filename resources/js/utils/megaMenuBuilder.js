@@ -2,7 +2,12 @@ const cloneDeep = (value) => JSON.parse(JSON.stringify(value ?? null));
 const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 const normalizeLocales = (locales = [], defaultLocale = 'fr') =>
-    Array.from(new Set([defaultLocale, ...(Array.isArray(locales) ? locales : [])].filter(Boolean).map((locale) => String(locale))));
+    Array.from(new Set(
+        [defaultLocale, ...(Array.isArray(locales) ? locales : [])]
+            .filter(Boolean)
+            .map((locale) => String(locale).trim().toLowerCase())
+            .filter(Boolean)
+    ));
 
 const ensureObject = (target, key) => {
     if (!isPlainObject(target[key])) {
@@ -342,21 +347,23 @@ export const normalizeMegaMenu = (menu = {}, defaults = {}, blockDefinitions = [
 
 export const cloneMegaMenu = (menu) => cloneDeep(menu);
 
-export const ensureMegaMenuTranslations = (menu, locales = ['fr', 'en'], defaultLocale = 'fr') => {
-    const fallbackLocale = defaultLocale || normalizeLocales(locales, defaultLocale)[0] || 'fr';
+export const ensureMegaMenuTranslations = (menu, locales = ['fr', 'en', 'es'], defaultLocale = 'fr') => {
+    const normalizedLocales = normalizeLocales(locales, defaultLocale);
 
-    bootstrapMenuLocale(menu, fallbackLocale);
-    walkItems(menu.items, {
-        item: (item) => bootstrapItemLocale(item, fallbackLocale),
-        column: (column) => bootstrapColumnLocale(column, fallbackLocale),
-        block: (block) => bootstrapBlockLocale(block, fallbackLocale),
+    normalizedLocales.forEach((locale) => {
+        bootstrapMenuLocale(menu, locale);
+        walkItems(menu.items, {
+            item: (item) => bootstrapItemLocale(item, locale),
+            column: (column) => bootstrapColumnLocale(column, locale),
+            block: (block) => bootstrapBlockLocale(block, locale),
+        });
     });
 
     return menu;
 };
 
-export const persistMegaMenuLocale = (menu, locale, defaultLocale = 'fr') => {
-    ensureMegaMenuTranslations(menu, [locale], defaultLocale);
+export const persistMegaMenuLocale = (menu, locale, defaultLocale = 'fr', locales = [locale]) => {
+    ensureMegaMenuTranslations(menu, locales, defaultLocale);
 
     persistMenuLocale(menu, locale);
     walkItems(menu.items, {
@@ -368,8 +375,8 @@ export const persistMegaMenuLocale = (menu, locale, defaultLocale = 'fr') => {
     return menu;
 };
 
-export const applyMegaMenuLocale = (menu, locale, defaultLocale = 'fr') => {
-    ensureMegaMenuTranslations(menu, [locale], defaultLocale);
+export const applyMegaMenuLocale = (menu, locale, defaultLocale = 'fr', locales = [locale]) => {
+    ensureMegaMenuTranslations(menu, locales, defaultLocale);
 
     applyMenuLocale(menu, locale, defaultLocale);
     walkItems(menu.items, {

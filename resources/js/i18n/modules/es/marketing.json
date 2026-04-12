@@ -1,0 +1,514 @@
+{
+  "marketing": {
+    "common": {
+      "reload": "Recargar",
+      "reset": "Restablecer",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "save_configuration": "Guardar configuracion",
+      "close": "Cerrar",
+      "cancel": "Cancelar",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "rows_per_page": "Filas / pagina",
+      "results_count": "{count} resultado(s)",
+      "page_of": "Pagina {page} / {total}"
+    },
+    "channels": {
+      "email": "Correo electronico",
+      "sms": "SMS",
+      "in_app": "En la app"
+    },
+    "campaign_types": {
+      "new_offer": "Nueva oferta",
+      "back_available": "Vuelve a estar disponible",
+      "promotion": "Promocion",
+      "cross_sell": "Venta cruzada",
+      "winback": "Reactivacion",
+      "announcement": "Anuncio"
+    },
+    "campaign_status": {
+      "draft": "Borrador",
+      "scheduled": "Programada",
+      "running": "En curso",
+      "completed": "Completada",
+      "failed": "Fallida",
+      "canceled": "Cancelada",
+      "active": "Activa",
+      "inactive": "Inactiva"
+    },
+    "campaign_directions": {
+      "customer_marketing": "Marketing a clientes",
+      "prospecting_outbound": "Prospeccion saliente",
+      "lead_generation_inbound": "Generacion de leads entrante"
+    },
+    "schedule_types": {
+      "manual": "Manual",
+      "scheduled": "Programada",
+      "automation": "Automatizacion"
+    },
+    "language_modes": {
+      "preferred": "Idioma preferido",
+      "fr": "Frances",
+      "en": "Ingles",
+      "es": "Espanol",
+      "both": "Frances e ingles"
+    },
+    "offer_modes": {
+      "products": "Productos",
+      "services": "Servicios",
+      "mixed": "Mixto"
+    },
+    "source_logic": {
+      "union": "Union",
+      "intersect": "Interseccion"
+    },
+    "campaign_index": {
+      "head_title": "Campanas de marketing",
+      "page_title": "Campanas de marketing",
+      "page_description": "Crea, sigue y gestiona tus campanas de marketing.",
+      "new_campaign": "Nueva campana",
+      "no_campaign": "No se encontro ninguna campana.",
+      "status_all": "Todos los estados",
+      "type_all": "Todos los tipos",
+      "page": "Pagina {page}",
+      "stats": {
+        "total": "Total",
+        "draft": "Borrador",
+        "scheduled": "Programada",
+        "running": "En curso",
+        "completed": "Completada"
+      },
+      "filters": {
+        "search": "Buscar",
+        "status": "Estado",
+        "type": "Tipo"
+      },
+      "table": {
+        "campaign": "Campana",
+        "type": "Tipo",
+        "status": "Estado",
+        "channels": "Canales",
+        "runs": "Ejecuciones",
+        "recipients": "Destinatarios",
+        "updated_at": "Actualizada",
+        "actions": "Acciones"
+      },
+      "actions": {
+        "view": "Ver",
+        "edit": "Editar",
+        "manage_templates": "Gestionar plantillas",
+        "manage_prospect_providers": "Proveedores de prospeccion"
+      },
+      "providers": {
+        "title": "Estado de los proveedores de prospectos",
+        "description": "Comprueba la disponibilidad del proveedor antes de cambiar la audiencia de la campana a una captacion basada en proveedores.",
+        "configured": "{count} configurado(s)",
+        "connected": "{count} conectado(s)",
+        "attention": "{count} necesitan atencion"
+      }
+    },
+    "template_manager": {
+      "title": "Plantillas",
+      "template_name": "Nombre de la plantilla",
+      "channel": "Canal",
+      "campaign_type": "Tipo de campana",
+      "language": "Idioma (FR/EN/ES)",
+      "tags": "Etiquetas",
+      "set_default": "Definir como predeterminada para este canal/tipo/idioma",
+      "subject": "Asunto",
+      "preview_text": "Texto de vista previa",
+      "html_body": "Cuerpo HTML",
+      "sms_text": "Texto SMS",
+      "enable_shortener": "Activar la opcion de acortador de URL",
+      "in_app_title": "Titulo en la app",
+      "in_app_body": "Contenido en la app",
+      "deep_link": "Enlace profundo",
+      "image_url": "URL de la imagen",
+      "update_template": "Actualizar plantilla",
+      "create_template": "Crear plantilla",
+      "preview": "Vista previa",
+      "search_template": "Buscar plantilla",
+      "name": "Nombre",
+      "type": "Tipo",
+      "default": "Predeterminada",
+      "actions": "Acciones",
+      "no_template_found": "No se encontro ninguna plantilla.",
+      "all": "TODOS",
+      "yes": "Si",
+      "no": "No",
+      "subject_label": "Asunto:",
+      "title_label": "Titulo:",
+      "body_label": "Contenido:",
+      "rendered_preview": "Vista previa renderizada",
+      "view_html": "Ver el HTML renderizado",
+      "invalid_tokens": "Tokens no validos: {tokens}",
+      "confirm_delete": "Eliminar la plantilla \"{name}\"?",
+      "info_created": "Plantilla creada.",
+      "info_updated": "Plantilla actualizada.",
+      "info_deleted": "Plantilla eliminada.",
+      "error_load": "No se pueden cargar las plantillas.",
+      "error_save": "No se puede guardar la plantilla.",
+      "error_delete": "No se puede eliminar la plantilla.",
+      "error_preview": "No se puede mostrar la vista previa de la plantilla."
+    },
+    "offer_selector": {
+      "selected_offers": "Ofertas seleccionadas",
+      "selected_description": "Elige los productos o servicios que quieres destacar ahora.",
+      "selected_count": "{count} seleccionada(s)",
+      "no_offer_selected": "No hay ninguna oferta seleccionada.",
+      "catalog_title": "Buscar ofertas en el catalogo",
+      "catalog_description": "Busca rapido primero y abre los filtros avanzados solo si necesitas afinar la seleccion.",
+      "catalog_browser_title": "Catalogo de ofertas",
+      "catalog_browser_summary": "{count} oferta(s) seleccionada(s). Abre el catalogo solo cuando quieras buscar o ajustar la seleccion.",
+      "catalog_modal_title": "Elegir ofertas del catalogo",
+      "catalog_modal_description": "Explora el catalogo en una ventana dedicada para que el paso principal siga siendo mas ligero.",
+      "open_catalog": "Abrir catalogo",
+      "done": "Listo",
+      "search_offers": "Buscar ofertas",
+      "offer_type": "Tipo de oferta",
+      "sort": "Ordenar",
+      "status": "Estado",
+      "availability": "Disponibilidad",
+      "all_categories": "Todas las categorias",
+      "category_filter": "Categoria",
+      "category_id": "ID de categoria",
+      "price_min": "Precio minimo",
+      "price_max": "Precio maximo",
+      "tags": "Etiquetas",
+      "no_category": "Sin categoria",
+      "no_offers_found": "No se encontro ninguna oferta.",
+      "loading": "Cargando...",
+      "results_count": "{count} resultado(s)",
+      "load_more": "Cargar mas",
+      "advanced_filters": "Filtros avanzados",
+      "advanced_filters_empty": "No hay filtros avanzados activos.",
+      "advanced_filters_active": "{count} filtro(s) avanzado(s) activo(s).",
+      "show_advanced_filters": "Mostrar filtros avanzados",
+      "hide_advanced_filters": "Ocultar filtros avanzados",
+      "snapshot_title": "Reglas automaticas del catalogo",
+      "snapshot_description": "Opcional. Agrega reglas si la campana debe complementar la seleccion manual con ofertas recalculadas en el momento del envio.",
+      "category_ids": "IDs de categoria para incluir automaticamente",
+      "tags_snapshot": "Etiquetas para incluir automaticamente",
+      "apply_snapshot": "Actualizar reglas automaticas",
+      "show_rules": "Mostrar reglas",
+      "hide_rules": "Ocultar reglas",
+      "rules_note": "Estas reglas complementan las ofertas seleccionadas arriba. Se usan para recalcular ofertas adicionales cuando se envia la campana.",
+      "rules_empty": "No hay reglas automaticas guardadas. Solo se usaran las ofertas seleccionadas manualmente.",
+      "rules_active_summary": "{categories} regla(s) de categoria y {tags} regla(s) de etiqueta estan activas.",
+      "clear_rules": "Borrar reglas",
+      "no_category_options": "Todavia no hay ninguna categoria disponible.",
+      "no_tag_options": "Todavia no hay ninguna etiqueta disponible.",
+      "error_search": "No se pueden buscar ofertas.",
+      "type_options": {
+        "all": "Todo",
+        "product": "Productos",
+        "service": "Servicios"
+      },
+      "sort_options": {
+        "relevance": "Relevancia",
+        "newest": "Mas recientes",
+        "best_sellers": "Mas vendidos",
+        "alphabetical": "Alfabetico"
+      },
+      "status_options": {
+        "active": "Activa",
+        "inactive": "Inactiva",
+        "all": "Todas"
+      },
+      "availability_options": {
+        "all": "Todo",
+        "in_stock": "En stock",
+        "bookable": "Reservable"
+      }
+    },
+    "mailing_list_manager": {
+      "title": "Listas de correo",
+      "list_name": "Nombre de la lista",
+      "description": "Descripcion",
+      "tags": "Etiquetas",
+      "update_list": "Actualizar lista",
+      "create_list": "Crear lista",
+      "search_list": "Buscar lista",
+      "customers": "Clientes",
+      "actions": "Acciones",
+      "no_list_found": "No se encontro ninguna lista de correo.",
+      "confirm_delete": "Eliminar la lista de correo \"{name}\"?",
+      "info_list_created": "Lista de correo creada.",
+      "info_list_updated": "Lista de correo actualizada.",
+      "info_list_deleted": "Lista de correo eliminada.",
+      "error_load_lists": "No se pueden cargar las listas de correo.",
+      "error_save_list": "No se puede guardar la lista de correo.",
+      "error_delete_list": "No se puede eliminar la lista de correo.",
+      "refresh_list": "Actualizar lista",
+      "bulk_import_title": "Importacion masiva (pega IDs, correos o telefonos)",
+      "paste_ids": "Pega IDs, correos o telefonos",
+      "import_paste": "Importar texto pegado",
+      "search_clients": "Buscar clientes",
+      "search_customer": "Buscar cliente",
+      "customer": "Cliente",
+      "email": "Correo electronico",
+      "phone": "Telefono",
+      "vip": "VIP",
+      "no_customer_in_list": "No hay clientes en esta lista.",
+      "remove_customer": "Eliminar",
+      "error_load_list": "No se puede cargar la lista de correo.",
+      "error_import_contacts": "No se pueden importar los contactos.",
+      "error_remove_customer": "No se puede eliminar el cliente.",
+      "info_import_completed": "Importacion completada. Anadidos {added}, total {total}.",
+      "info_import_selected_completed": "Importacion completada. Anadidos {added}, ya presentes {alreadyPresent}, total {total}.",
+      "info_customer_removed": "Cliente eliminado de la lista de correo.",
+      "dialog_title": "Buscar clientes",
+      "dialog_description": "Selecciona uno o varios clientes y luego importalos a esta lista de correo.",
+      "search_by_name_email_phone": "Buscar por nombre, correo o telefono",
+      "no_matching_client": "No se encontro ningun cliente coincidente.",
+      "available_customers_count": "{count} cliente(s) disponible(s)",
+      "selected_count": "{count} seleccionado(s)",
+      "select_page": "Seleccionar pagina",
+      "unselect_page": "Deseleccionar pagina",
+      "import_selected": "Importar seleccionados",
+      "error_search_customers": "No se pueden buscar los clientes.",
+      "error_import_selected": "No se pueden importar los clientes seleccionados.",
+      "customers_count_label": "{name} - {count} clientes",
+      "customers_count_footer": "{count} cliente(s)"
+    },
+    "prospect_provider_manager": {
+      "title": "Proveedores de prospectos",
+      "description": "Crea conexiones seguras propiedad del tenant antes de agregar a la audiencia de campanas las vistas previas e importaciones de proveedores.",
+      "summary": {
+        "configured": "Conexiones configuradas",
+        "connected": "Conectadas y listas",
+        "attention": "Necesitan atencion"
+      },
+      "fields": {
+        "provider": "Proveedor",
+        "label": "Etiqueta de la conexion",
+        "api_key": "Clave API"
+      },
+      "columns": {
+        "provider": "Proveedor",
+        "label": "Etiqueta",
+        "status": "Estado",
+        "last_validated": "Ultima validacion"
+      },
+      "statuses": {
+        "draft": "Borrador",
+        "connected": "Conectada",
+        "invalid": "Invalida",
+        "expired": "Caducada",
+        "rate_limited": "Limitada por cuota",
+        "disconnected": "Desconectada"
+      },
+      "create_connection": "Crear conexion",
+      "update_connection": "Actualizar conexion",
+      "validate_connection": "Validar",
+      "disconnect_connection": "Desconectar",
+      "search_connection": "Buscar conexion",
+      "credentials_saved": "Credenciales cifradas guardadas",
+      "no_credentials": "Todavia no hay credenciales guardadas",
+      "not_validated": "Todavia no validada",
+      "secret_store_hint": "Los secretos se almacenan cifrados. Despues de crear la conexion, usa Validar para confirmar su estado.",
+      "secret_update_hint": "Deja vacia la clave API para conservar el secreto actual. Rellenala solo si sustituyes el secreto guardado.",
+      "confirm_disconnect": "Desconectar la conexion del proveedor \"{name}\"?",
+      "info_created": "Conexion del proveedor creada.",
+      "info_updated": "Conexion del proveedor actualizada.",
+      "info_validated": "Conexion de {provider} validada.",
+      "info_disconnected": "Conexion del proveedor desconectada.",
+      "error_load": "No se pueden cargar las conexiones de proveedores.",
+      "error_save": "No se puede guardar la conexion del proveedor.",
+      "error_validate": "No se puede validar la conexion del proveedor.",
+      "error_disconnect": "No se puede desconectar la conexion del proveedor.",
+      "no_connection_found": "No se encontro ninguna conexion de proveedor.",
+      "read_only_title": "Acceso de solo lectura",
+      "read_only_description": "Solo el propietario de la cuenta puede agregar, sustituir, validar o desconectar credenciales de proveedores. Los miembros del equipo aun pueden revisar aqui el estado del proveedor antes de usar las conexiones disponibles en la audiencia de campanas.",
+      "view_only_actions": "Solo lectura"
+    },
+    "segment_manager": {
+      "title": "Segmentos",
+      "segment_name": "Nombre del segmento",
+      "description": "Descripcion",
+      "filters_json": "JSON de filtros",
+      "exclusions_json": "JSON de exclusiones",
+      "tags": "Etiquetas",
+      "update_segment": "Actualizar segmento",
+      "create_segment": "Crear segmento",
+      "preview_count": "Vista previa del conteo",
+      "search_segment": "Buscar segmento",
+      "eligible_cache": "Cache elegible",
+      "updated": "Actualizado",
+      "no_segment_found": "No se encontro ningun segmento.",
+      "confirm_delete": "Eliminar el segmento \"{name}\"?",
+      "info_created": "Segmento creado.",
+      "info_updated": "Segmento actualizado.",
+      "info_deleted": "Segmento eliminado.",
+      "info_eligible_contacts": "Contactos elegibles: {count}",
+      "error_load": "No se pueden cargar los segmentos.",
+      "error_save": "No se puede guardar el segmento.",
+      "error_delete": "No se puede eliminar el segmento.",
+      "error_preview": "No se puede mostrar la vista previa del conteo."
+    },
+    "settings": {
+      "page_title": "Configuracion de marketing",
+      "header_title": "Configuracion de marketing",
+      "header_description": "Configura canales, consentimiento, plantillas, seguimiento y estrategia de ofertas para las campanas.",
+      "open_form": "Abrir formulario",
+      "open_manager": "Abrir gestor",
+      "cards": {
+        "channels": {
+          "title": "Configuracion de canales",
+          "description": "Activa canales y define proveedores, horas tranquilas y limites antifatiga."
+        },
+        "consent": {
+          "title": "Consentimiento",
+          "description": "Configura los valores predeterminados de consentimiento y las exclusiones automaticas de audiencia."
+        },
+        "tracking": {
+          "title": "Configuracion de seguimiento",
+          "description": "Selecciona los eventos de conversion y el comportamiento del seguimiento de clics."
+        },
+        "offers": {
+          "title": "Configuracion de ofertas",
+          "description": "Configura modos de oferta, estrategia de seleccion y sobrescrituras de plantillas."
+        },
+        "vip_automation": {
+          "title": "Automatizacion VIP",
+          "description": "Configura reglas de asignacion automatica VIP y prioridades de niveles."
+        },
+        "template_manager": {
+          "title": "Gestor de plantillas",
+          "description": "Crea y mantiene plantillas de mensajes reutilizables."
+        },
+        "segment_manager": {
+          "title": "Gestor de segmentos",
+          "description": "Construye segmentos de audiencia con filtros inteligentes."
+        },
+        "mailing_list_manager": {
+          "title": "Gestor de listas de correo",
+          "description": "Crea listas e importa clientes a las listas de correo."
+        },
+        "vip_tiers_manager": {
+          "title": "Gestor de niveles VIP",
+          "description": "Define y actualiza niveles VIP y asignaciones de clientes."
+        },
+        "prospect_provider_manager": {
+          "title": "Proveedores de prospectos",
+          "description": "Conecta cuentas de Apollo, Lusha y UpLead para validar importaciones de prospeccion desde una base segura propiedad del tenant."
+        }
+      },
+      "channels": {
+        "title": "Configuracion de canales",
+        "enable_email": "Activar EMAIL",
+        "enable_sms": "Activar SMS",
+        "enable_in_app": "Activar IN_APP",
+        "sms_provider": "Proveedor SMS",
+        "sms_sender_id": "ID del remitente SMS",
+        "email_from_name": "Nombre del remitente del correo",
+        "quiet_hours_timezone": "Zona horaria de horas tranquilas",
+        "quiet_start": "Inicio de horas tranquilas",
+        "quiet_end": "Fin de horas tranquilas",
+        "max_messages": "Maximo de mensajes",
+        "window_days": "Dias de ventana",
+        "cooldown_hours": "Horas de enfriamiento",
+        "vip_max_messages_optional": "Maximo de mensajes VIP (opcional)",
+        "vip_window_days_optional": "Dias de ventana VIP (opcional)"
+      },
+      "consent": {
+        "title": "Consentimiento y audiencia",
+        "require_explicit": "Exigir consentimiento explicito",
+        "default_behavior": "Comportamiento predeterminado",
+        "stop_keywords": "Palabras clave STOP (separadas por coma)",
+        "exclude_contacted_last_days": "Excluir contactos de los ultimos N dias",
+        "behaviors": {
+          "deny_without_explicit": "Denegar sin consentimiento explicito",
+          "allow_without_explicit": "Permitir sin consentimiento explicito"
+        }
+      },
+      "tracking": {
+        "title": "Configuracion de seguimiento",
+        "enable_click_tracking": "Activar seguimiento de clics",
+        "reservation_created": "reservation_created",
+        "invoice_paid": "invoice_paid",
+        "quote_accepted": "quote_accepted",
+        "product_purchase": "product_purchase"
+      },
+      "offers": {
+        "title": "Configuracion de ofertas",
+        "allowed_offer_modes": "Modos de oferta permitidos",
+        "default_search_status": "Estado de busqueda predeterminado",
+        "selection_strategy": "Estrategia de seleccion",
+        "allow_template_override": "Permitir sobrescritura de plantilla a nivel de campana",
+        "statuses": {
+          "active": "Estado de busqueda predeterminado: activa",
+          "all": "Estado de busqueda predeterminado: todas"
+        },
+        "strategies": {
+          "snapshot_on_save": "snapshot_on_save"
+        },
+        "campaign_type_all": "Todos los tipos de campana"
+      },
+      "vip_automation": {
+        "title": "Automatizacion VIP",
+        "enabled": "Activar la asignacion automatica VIP a partir de compras pagadas",
+        "evaluation_window_days": "Ventana de evaluacion (dias)",
+        "minimum_total_spend": "Gasto total minimo",
+        "minimum_paid_orders": "Pedidos pagados minimos",
+        "default_tier_code_optional": "Codigo de nivel predeterminado (opcional)",
+        "preserve_existing_tier": "Conservar el nivel existente para clientes que ya son VIP",
+        "downgrade_when_not_eligible": "Bajar de nivel a los clientes cuando ya no cumplan los umbrales",
+        "excluded_customer_ids": "IDs de clientes excluidos (separados por coma)",
+        "tier_rules_title": "Reglas de nivel (orden de prioridad)",
+        "tier_rules_hint": "Haz coincidir `tier_code` con un codigo de nivel VIP activo (ej.: SILVER, GOLD, PLATINUM). La prioridad mas alta gana.",
+        "no_tier_rules": "Todavia no hay reglas de nivel. Se usaran los umbrales globales.",
+        "add_tier_rule": "Agregar regla de nivel",
+        "tier_code": "Codigo de nivel",
+        "min_spend": "Gasto minimo",
+        "min_paid_orders": "Pedidos pagados minimos",
+        "window_days": "Dias de ventana",
+        "priority": "Prioridad",
+        "remove_rule": "Eliminar"
+      }
+    },
+    "template_page": {
+      "head_title": "Espacio de trabajo de plantillas de marketing",
+      "page_title": "Plantillas de marketing",
+      "page_description": "Trabaja en las plantillas de correo en un espacio dedicado y mas amplio para que la creacion y la revision sean limpias y comodas.",
+      "actions": {
+        "back_to_settings": "Volver a configuracion",
+        "back_to_campaigns": "Volver a campanas"
+      }
+    },
+    "prospect_provider_page": {
+      "head_title": "Espacio de trabajo de proveedores de prospectos",
+      "page_title": "Proveedores de prospectos",
+      "page_description": "Conecta, valida y supervisa proveedores de datos de prospectos en un espacio dedicado antes de agregar importaciones de audiencia a las campanas.",
+      "actions": {
+        "back_to_settings": "Volver a configuracion",
+        "back_to_campaigns": "Volver a campanas"
+      }
+    },
+    "vip_tier_manager": {
+      "title": "Niveles VIP",
+      "vip_customers": "Clientes VIP: {count}",
+      "tier_code": "Codigo de nivel (GOLD)",
+      "tier_name": "Nombre del nivel",
+      "perks": "Beneficios",
+      "tier_active": "Nivel activo",
+      "update_tier": "Actualizar nivel",
+      "create_tier": "Crear nivel",
+      "search_tier": "Buscar nivel",
+      "code": "Codigo",
+      "name": "Nombre",
+      "status": "Estado",
+      "no_tier_found": "No se encontro ningun nivel VIP.",
+      "active": "activo",
+      "inactive": "inactivo",
+      "confirm_delete": "Eliminar el nivel VIP \"{name}\"?",
+      "info_created": "Nivel VIP creado.",
+      "info_updated": "Nivel VIP actualizado.",
+      "info_deleted": "Nivel VIP eliminado.",
+      "error_load": "No se pueden cargar los niveles VIP.",
+      "error_save": "No se puede guardar el nivel VIP.",
+      "error_delete": "No se puede eliminar el nivel VIP."
+    }
+  }
+}

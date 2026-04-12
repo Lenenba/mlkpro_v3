@@ -1,0 +1,158 @@
+{
+  "quotes": {
+    "title": "Devis",
+    "create_title": "Creer devis",
+    "show_title": "Voir le devis",
+    "company_fallback": "Entreprise",
+    "form": {
+      "quote_for": "Devis pour {customer}",
+      "quote_locked": "Ce devis est verrouille car il a ete accepte ou archive.",
+      "job_title": "Titre du job",
+      "property": "Propriete",
+      "no_property": "Aucune propriete",
+      "property_address": "Adresse du bien",
+      "no_property_selected": "Aucune propriete selectionnee.",
+      "contact_details": "Coordonnees",
+      "quote_details": "Details du devis",
+      "quote_label": "Devis",
+      "status": "Statut",
+      "rate_opportunity": "Evaluer l'opportunite",
+      "add_custom_fields": "Ajouter des champs",
+      "templates": "Modeles",
+      "template_default": "Modele par defaut",
+      "template_help": "Choisir un point de depart pour ce devis.",
+      "client_message": "Message client",
+      "subtotal": "Sous-total",
+      "discount": "Remise (%)",
+      "add_discount": "Ajouter une remise",
+      "tax": "Taxe",
+      "hide_taxes": "Masquer les taxes",
+      "add_tax": "Ajouter une taxe",
+      "no_taxes": "Aucune taxe configuree.",
+      "total_taxes": "Total taxes",
+      "total_amount": "Montant total",
+      "required_deposit": "Acompte requis",
+      "minimum_label": "Min: ${amount}",
+      "add_required_deposit": "Ajouter un acompte",
+      "terms": "Conditions",
+      "cancel": "Annuler",
+      "save_and_create_another": "Sauvegarder et creer un autre",
+      "save_quote": "Sauvegarder le devis"
+    },
+    "show": {
+      "timeline": "Chronologie",
+      "no_rating_yet": "Pas encore d'evaluation",
+      "table": {
+        "product_services": "Produits/Services",
+        "qty": "Qt.",
+        "unit_cost": "Cout unitaire",
+        "total": "Total"
+      },
+      "price_sources_title": "Sources de prix et justification",
+      "price_sources_subtitle": "Benchmarks fournisseurs, source choisie, et pourquoi chaque prix a ete choisi.",
+      "variant_label": "Variante {value}",
+      "basis_label": "Base {value}",
+      "selected_supplier": "Fournisseur selectionne",
+      "not_available": "Non disponible",
+      "supplier_unit_cost": "Cout unitaire fournisseur: ${price}",
+      "product_label": "Produit: {name}",
+      "quote_unit_price": "Prix unitaire du devis: ${price}",
+      "best_price": "Meilleur prix: {name} ${price}",
+      "preferred_supplier": "Fournisseur prefere: {name} ${price}",
+      "source_status_missing": "Aucun prix en direct trouve pour cette ligne.",
+      "source_status_skipped": "Prix en direct ignore pour garder le scan rapide.",
+      "open_source_link": "Ouvrir la source",
+      "selection_reason": "Raison de selection",
+      "query_label": "Requete: {query}",
+      "benchmarks_label": "Benchmarks: min ${min}, median ${median}, max ${max}",
+      "benchmarks_preferred": "min prefere ${value}",
+      "all_supplier_prices": "Tous les prix fournisseurs",
+      "source_link": "Lien source",
+      "tax_fallback": "Taxe"
+    },
+    "view": {
+      "table": "Table",
+      "cards": "Cartes"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher devis, client ou notes",
+      "status": {
+        "all": "Tous les statuts"
+      },
+      "customer": {
+        "all": "Tous les clients"
+      },
+      "total_min": "Total min",
+      "total_max": "Total max",
+      "created_from": "Cree du",
+      "created_to": "Cree au",
+      "deposit": {
+        "label": "Acompte",
+        "with": "Avec acompte",
+        "none": "Sans acompte"
+      },
+      "tax": {
+        "label": "Taxe",
+        "with": "Avec taxe",
+        "none": "Sans taxe"
+      }
+    },
+    "status": {
+      "draft": "Brouillon",
+      "sent": "Envoye",
+      "accepted": "Accepte",
+      "declined": "Refuse",
+      "archived": "Archive"
+    },
+    "table": {
+      "quote": "Devis",
+      "job": "Chantier",
+      "customer": "Client",
+      "status": "Statut",
+      "rating": "Note",
+      "total": "Total",
+      "created": "Cree",
+      "results": "resultats"
+    },
+    "actions": {
+      "filters": "Filtres",
+      "clear": "Effacer",
+      "new_quote_for": "Nouveau devis pour...",
+      "new_quote": "Nouveau devis",
+      "view": "Voir",
+      "edit": "Modifier",
+      "send_email": "Envoyer email",
+      "accept_quote": "Accepter devis",
+      "create_job": "Creer chantier",
+      "archive": "Archiver",
+      "restore": "Restaurer",
+      "archive_confirm": "Archiver le devis {number}?"
+    },
+    "labels": {
+      "unknown_customer": "Client inconnu",
+      "customer_fallback": "Client",
+      "quote_fallback": "Devis",
+      "quote_initial": "D",
+      "job_fallback": "Chantier"
+    },
+    "stats": {
+      "total": "Total devis",
+      "total_value": "Valeur totale",
+      "average_value": "Valeur moyenne",
+      "open": "Devis ouverts",
+      "accepted": "Acceptes",
+      "declined": "Refuses",
+      "top_by_value": "Top devis par valeur",
+      "based_on_filters": "Selon les filtres actifs",
+      "empty": "Aucune donnee de devis."
+    },
+    "empty": {
+      "quotes": "Aucun devis pour le moment."
+    },
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "of": "sur"
+    }
+  }
+}

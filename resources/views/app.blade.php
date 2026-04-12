@@ -4,8 +4,16 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
-        <link rel="icon" href="{{ asset('favicon-app.ico') }}">
-        <link rel="shortcut icon" href="{{ asset('favicon-app.ico') }}">
+        <meta name="application-name" content="{{ config('app.name', 'Malikia Pro') }}">
+        <meta name="apple-mobile-web-app-title" content="{{ config('app.name', 'Malikia Pro') }}">
+        <meta name="theme-color" content="#0f172a">
+        <meta name="msapplication-TileColor" content="#0f172a">
+        <link rel="icon" type="image/svg+xml" href="{{ asset('brand/bimi-logo.svg') }}">
+        <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+        <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
+        <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
+        <link rel="manifest" href="{{ asset('site.webmanifest') }}">
+        <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
 
         <title inertia>{{ config('app.name', 'Malikia pro') }}</title>
 

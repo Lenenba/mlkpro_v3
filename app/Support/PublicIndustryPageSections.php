@@ -46,7 +46,7 @@ class PublicIndustryPageSections
             'body' => $copy['body'],
             'feature_tabs_style' => 'editorial',
             'feature_tabs_font_size' => 28,
-            'feature_tabs' => self::showcaseTabs($slug, $locale, $getNoticedImage, $winJobsImage, $workSmarterImage, $boostProfitsImage),
+            'feature_tabs' => self::showcaseTabsLocalized($slug, $locale, $getNoticedImage, $winJobsImage, $workSmarterImage, $boostProfitsImage),
         ]);
     }
 
@@ -71,9 +71,9 @@ class PublicIndustryPageSections
             'image_alt' => $visual['image_alt'],
             'aside_image_url' => $asideVisual['image_url'],
             'aside_image_alt' => $asideVisual['image_alt'],
-            'primary_label' => $locale === 'fr' ? 'Nous contacter' : 'Talk to us',
+            'primary_label' => self::localizedLabel($locale, 'Nous contacter', 'Talk to us', 'Contactanos'),
             'primary_href' => '/pages/contact-us',
-            'aside_link_label' => $locale === 'fr' ? 'Voir la visite produit' : 'See the product tour',
+            'aside_link_label' => self::localizedLabel($locale, 'Voir la visite produit', 'See the product tour', 'Ver la visita del producto'),
             'aside_link_href' => '/demo',
             'showcase_divider_style' => 'round',
         ]);
@@ -84,7 +84,7 @@ class PublicIndustryPageSections
      */
     private static function showcaseCopy(string $slug, string $locale): array
     {
-        $copy = self::SHOWCASE_COPY[$slug][$locale] ?? self::SHOWCASE_COPY['industry-plumbing'][$locale];
+        $copy = self::localizedIndustryCopy(self::SHOWCASE_COPY, $slug, $locale);
 
         return [
             'kicker' => $copy['kicker'],
@@ -98,7 +98,34 @@ class PublicIndustryPageSections
      */
     private static function editorialCtaCopy(string $slug, string $locale): array
     {
-        return self::EDITORIAL_CTA_COPY[$slug][$locale] ?? self::EDITORIAL_CTA_COPY['industry-plumbing'][$locale];
+        return self::localizedIndustryCopy(self::EDITORIAL_CTA_COPY, $slug, $locale);
+    }
+
+    /**
+     * @param  array<string, array<string, array<string, string>>>  $copySet
+     * @return array<string, string>
+     */
+    private static function localizedIndustryCopy(array $copySet, string $slug, string $locale): array
+    {
+        $primary = $copySet[$slug] ?? $copySet['industry-plumbing'] ?? [];
+
+        return $primary[$locale]
+            ?? $primary['en']
+            ?? $copySet['industry-plumbing'][$locale]
+            ?? $copySet['industry-plumbing']['en'];
+    }
+
+    private static function localizedLabel(string $locale, string $french, string $english, ?string $spanish = null): string
+    {
+        if ($locale === 'fr') {
+            return $french;
+        }
+
+        if ($locale === 'es' && $spanish !== null) {
+            return $spanish;
+        }
+
+        return $english;
     }
 
     /**
@@ -410,6 +437,63 @@ class PublicIndustryPageSections
     }
 
     /**
+     * @param  array{image_alt:string,image_url:string}  $getNoticedImage
+     * @param  array{image_alt:string,image_url:string}  $winJobsImage
+     * @param  array{image_alt:string,image_url:string}  $workSmarterImage
+     * @param  array{image_alt:string,image_url:string}  $boostProfitsImage
+     * @return array<int, array<string, mixed>>
+     */
+    private static function showcaseTabsLocalized(
+        string $slug,
+        string $locale,
+        array $getNoticedImage,
+        array $winJobsImage,
+        array $workSmarterImage,
+        array $boostProfitsImage
+    ): array {
+        $childVisuals = self::showcaseChildVisuals($slug, $locale);
+        $tabs = self::localizedShowcaseTabs($locale);
+        $tabVisuals = [
+            'feature-tab-get-noticed' => $getNoticedImage,
+            'feature-tab-win-jobs' => $winJobsImage,
+            'feature-tab-work-smarter' => $workSmarterImage,
+            'feature-tab-boost-profits' => $boostProfitsImage,
+        ];
+        $childVisualGroups = [
+            'feature-tab-get-noticed' => $childVisuals['get_noticed'],
+            'feature-tab-win-jobs' => $childVisuals['win_jobs'],
+            'feature-tab-work-smarter' => $childVisuals['work_smarter'],
+            'feature-tab-boost-profits' => $childVisuals['boost_profits'],
+        ];
+
+        return array_map(function (array $tab) use ($tabVisuals, $childVisualGroups): array {
+            $visual = $tabVisuals[$tab['id']] ?? ['image_url' => '', 'image_alt' => ''];
+            $children = array_map(function (array $child, int $index) use ($tab, $childVisualGroups): array {
+                $childVisual = $childVisualGroups[$tab['id']][$index] ?? ['image_url' => '', 'image_alt' => ''];
+
+                return array_replace($child, [
+                    'image_url' => $childVisual['image_url'],
+                    'image_alt' => $childVisual['image_alt'],
+                ]);
+            }, $tab['children'] ?? [], array_keys($tab['children'] ?? []));
+
+            return array_replace($tab, [
+                'image_url' => $visual['image_url'],
+                'image_alt' => $visual['image_alt'],
+                'children' => $children,
+            ]);
+        }, $tabs);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private static function localizedShowcaseTabs(string $locale): array
+    {
+        return PublicIndustryShowcaseTabs::forLocale($locale);
+    }
+
+    /**
      * @return array{
      *     get_noticed: array<int, array{image_alt:string,image_url:string}>,
      *     win_jobs: array<int, array{image_alt:string,image_url:string}>,
@@ -484,7 +568,8 @@ class PublicIndustryPageSections
     private static function testimonialSection(string $slug, string $locale): array
     {
         $visual = PublicPageStockImages::slot($slug, 'header', $locale);
-        $quote = self::TESTIMONIAL_QUOTES[$slug][$locale] ?? self::TESTIMONIAL_QUOTES['industry-plumbing'][$locale];
+        $quoteSet = self::TESTIMONIAL_QUOTES[$slug] ?? self::TESTIMONIAL_QUOTES['industry-plumbing'];
+        $quote = $quoteSet[$locale] ?? $quoteSet['en'] ?? self::TESTIMONIAL_QUOTES['industry-plumbing']['en'];
 
         return self::baseSection('industry-testimonial', 'testimonial', [
             'background_color' => '#e5ecef',
@@ -494,7 +579,7 @@ class PublicIndustryPageSections
             'image_url' => $visual['image_url'],
             'image_alt' => $visual['image_alt'],
             'testimonial_author' => 'Jules BILITIK',
-            'testimonial_role' => $locale === 'fr' ? 'Cofondateur' : 'Co-founder',
+            'testimonial_role' => self::localizedLabel($locale, 'Cofondateur', 'Co-founder', 'Cofundador'),
         ]);
     }
 
@@ -573,26 +658,32 @@ class PublicIndustryPageSections
     private const TESTIMONIAL_QUOTES = [
         'industry-plumbing' => [
             'fr' => '<p>Ce n\'est pas juste une app de gestion des interventions. C\'est une façon plus fiable de piloter demandes, devis, interventions, et paiements en plomberie.</p>',
+            'es' => '<p>Esto es mas que una app para gestionar intervenciones. Es una forma mas fiable de coordinar solicitudes, presupuestos, trabajos y pagos en fontaneria.</p>',
             'en' => '<p>This is more than a work management app. It is a simple, customizable solution for running plumbing requests, quotes, and payments in one flow.</p>',
         ],
         'industry-hvac' => [
             'fr' => '<p>Ce n\'est pas juste un outil de planification HVAC. C\'est une façon plus claire de coordonner maintenance, interventions, et facturation dans un même flux.</p>',
+            'es' => '<p>Esto es mas que una herramienta de planificacion HVAC. Es una forma mas clara de coordinar mantenimiento, visitas de campo y facturacion dentro del mismo flujo.</p>',
             'en' => '<p>This is more than HVAC scheduling software. It is a clearer way to coordinate maintenance, field visits, and billing inside one operating flow.</p>',
         ],
         'industry-electrical' => [
             'fr' => '<p>Ce n\'est pas juste un outil pour gérer des jobs électriques. C\'est une façon plus claire de relier demande, devis, exécution, et encaissement.</p>',
+            'es' => '<p>Esto es mas que una herramienta para gestionar trabajos electricos. Es una forma mas clara de unir demanda, presupuesto, ejecucion y cobro.</p>',
             'en' => '<p>This is more than an electrical work tracker. It is a clearer way to connect demand, quoting, execution, and collection.</p>',
         ],
         'industry-cleaning' => [
             'fr' => '<p>Ce n\'est pas juste une app pour assigner des tâches. C\'est une façon plus fiable de piloter sites récurrents, équipes terrain, et suivi client dans un même flux.</p>',
+            'es' => '<p>Esto es mas que una app para asignar tareas. Es una forma mas fiable de coordinar sitios recurrentes, equipos de campo y seguimiento del cliente en un mismo flujo.</p>',
             'en' => '<p>This is more than a task assignment app. It is a more reliable way to run recurring sites, field teams, and customer follow-up in one flow.</p>',
         ],
         'industry-salon-beauty' => [
             'fr' => '<p>Ce n\'est pas juste un agenda de rendez-vous. C\'est une façon plus fluide de gérer réservations, rappels, no-show fees, et fidélisation dans une même expérience.</p>',
+            'es' => '<p>Esto es mas que una agenda de citas. Es una forma mas fluida de gestionar reservas, recordatorios, cargos por no presentacion y fidelizacion dentro de la misma experiencia.</p>',
             'en' => '<p>This is more than a booking calendar. It is a smoother way to run bookings, reminders, no-show handling, and loyalty in one connected experience.</p>',
         ],
         'industry-restaurant' => [
             'fr' => '<p>Ce n\'est pas juste un outil de réservation. C\'est une façon plus claire de gérer disponibilités, arrivées, flux client, et retour des habitués dans une même expérience connectée.</p>',
+            'es' => '<p>Esto es mas que una herramienta de reservas. Es una forma mas clara de gestionar disponibilidad, llegadas, flujo de clientes y visitas recurrentes dentro de la misma experiencia conectada.</p>',
             'en' => '<p>This is more than a reservation tool. It is a clearer way to run availability, arrivals, guest flow, and return visits in one connected experience.</p>',
         ],
     ];
@@ -603,6 +694,11 @@ class PublicIndustryPageSections
                 'kicker' => 'Un système sur tout le cycle plomberie',
                 'title' => 'Le système connecté pour les équipes plomberie',
                 'body' => '<p>De la demande entrante et du devis jusqu\'à l\'intervention, à la preuve de travail, puis au paiement, Malikia Pro aide les entreprises plomberie à garder le flux plus clair.</p>',
+            ],
+            'es' => [
+                'kicker' => 'Un sistema a lo largo de todo el flujo de fontaneria',
+                'title' => 'El sistema conectado para equipos de fontaneria',
+                'body' => '<p>Desde la solicitud entrante y el presupuesto hasta la intervencion, la prueba de trabajo y el pago, Malikia Pro ayuda a las empresas de fontaneria a mantener un flujo mas claro.</p>',
             ],
             'en' => [
                 'kicker' => 'One system across the full plumbing workflow',
@@ -616,6 +712,11 @@ class PublicIndustryPageSections
                 'title' => 'Le système connecté pour les équipes HVAC',
                 'body' => '<p>Des appels de service et de la planification d\'entretien jusqu\'au dispatch technicien, au compte rendu de visite, puis à la facturation finale, Malikia Pro aide les entreprises HVAC à faire tenir le flux dans un cadre plus clair.</p>',
             ],
+            'es' => [
+                'kicker' => 'Un sistema a lo largo de todo el flujo HVAC',
+                'title' => 'El sistema conectado para equipos HVAC',
+                'body' => '<p>Desde las solicitudes de servicio y la planificacion de mantenimiento hasta la asignacion del tecnico, el informe de visita y la facturacion final, Malikia Pro ayuda a las empresas HVAC a trabajar con un flujo mas claro.</p>',
+            ],
             'en' => [
                 'kicker' => 'One system across the full HVAC workflow',
                 'title' => 'The connected operating system for HVAC teams',
@@ -627,6 +728,11 @@ class PublicIndustryPageSections
                 'kicker' => 'Un système sur tout le cycle électrique',
                 'title' => 'Le système connecté pour les équipes électriques',
                 'body' => '<p>De la demande et du devis jusqu\'à la planification, à l\'exécution, puis à la facturation, Malikia Pro aide les entreprises électriques à garder un flux plus lisible entre bureau et terrain.</p>',
+            ],
+            'es' => [
+                'kicker' => 'Un sistema a lo largo de todo el flujo electrico',
+                'title' => 'El sistema conectado para equipos electricos',
+                'body' => '<p>Desde la demanda y el presupuesto hasta la planificacion, la ejecucion y la facturacion, Malikia Pro ayuda a las empresas electricas a mantener un flujo mas claro entre la oficina y el terreno.</p>',
             ],
             'en' => [
                 'kicker' => 'One system across the full electrical workflow',
@@ -640,6 +746,11 @@ class PublicIndustryPageSections
                 'title' => 'Le système connecté pour les entreprises de nettoyage',
                 'body' => '<p>De la planification des sites récurrents et de la présence jusqu\'au suivi qualité, à la communication client, puis à la facturation, Malikia Pro aide les équipes de nettoyage à garder l\'opération plus constante dans le temps.</p>',
             ],
+            'es' => [
+                'kicker' => 'Un sistema para todas las operaciones recurrentes',
+                'title' => 'El sistema conectado para empresas de limpieza',
+                'body' => '<p>Desde la planificacion de sitios recurrentes y la presencia hasta el seguimiento de calidad, la comunicacion con el cliente y la facturacion, Malikia Pro ayuda a los equipos de limpieza a mantener una operacion mas constante en el tiempo.</p>',
+            ],
             'en' => [
                 'kicker' => 'One system across recurring cleaning operations',
                 'title' => 'The connected operating system for cleaning businesses',
@@ -652,6 +763,11 @@ class PublicIndustryPageSections
                 'title' => 'Le système connecté pour les salons et équipes beauté',
                 'body' => '<p>De la réservation en ligne et des rappels jusqu\'au flux d\'accueil, au suivi de visite, puis à la fidélisation, Malikia Pro aide les activités beauté à garder l\'expérience plus fluide et plus simple à piloter.</p>',
             ],
+            'es' => [
+                'kicker' => 'Un sistema a lo largo de toda la experiencia con cita',
+                'title' => 'El sistema conectado para salones y equipos de belleza',
+                'body' => '<p>Desde la reserva online y los recordatorios hasta el flujo de recepcion, el seguimiento de la visita y la fidelizacion, Malikia Pro ayuda a los negocios de belleza a ofrecer una experiencia mas fluida y mas facil de coordinar.</p>',
+            ],
             'en' => [
                 'kicker' => 'One system across the full appointment-led journey',
                 'title' => 'The connected operating system for salons and beauty teams',
@@ -663,6 +779,11 @@ class PublicIndustryPageSections
                 'kicker' => 'Un système sur tout le parcours client',
                 'title' => 'Le système connecté pour les restaurants et équipes d\'accueil',
                 'body' => '<p>Des réservations en ligne et des dépôts jusqu\'au flux d\'arrivée, à la gestion de la file, à la communication client, puis au suivi après la visite, Malikia Pro aide les restaurants à garder l\'expérience plus fluide et plus simple à piloter.</p>',
+            ],
+            'es' => [
+                'kicker' => 'Un sistema a lo largo de toda la experiencia del cliente',
+                'title' => 'El sistema conectado para restaurantes y equipos de recepcion',
+                'body' => '<p>Desde las reservas online y los depositos hasta el flujo de llegada, la gestion de la lista de espera, la comunicacion con el cliente y el seguimiento posterior a la visita, Malikia Pro ayuda a los restaurantes a mantener una experiencia mas fluida y mas facil de gestionar.</p>',
             ],
             'en' => [
                 'kicker' => 'One system across the full guest journey',
@@ -678,6 +799,10 @@ class PublicIndustryPageSections
                 'title' => 'Vérifiez si Malikia Pro correspond à la façon dont votre activité plomberie fonctionne vraiment',
                 'body' => '<p>Découvrez comment demandes, devis, planification, preuve de travail, et paiements peuvent rester reliés dans un même système au lieu d\'être dispersés entre messages, feuilles de calcul, et outils séparés.</p>',
             ],
+            'es' => [
+                'title' => 'Comprueba si Malikia Pro encaja con la forma real en que funciona tu actividad de fontaneria',
+                'body' => '<p>Descubre como solicitudes, presupuestos, planificacion, pruebas de trabajo y pagos pueden mantenerse conectados en un mismo sistema en lugar de repartirse entre mensajes, hojas de calculo y herramientas separadas.</p>',
+            ],
             'en' => [
                 'title' => 'See if Malikia Pro fits the way your plumbing business actually runs',
                 'body' => '<p>Explore how requests, quotes, scheduling, proof of work, and payments can stay connected in one system instead of being split across messages, spreadsheets, and disconnected tools.</p>',
@@ -687,6 +812,10 @@ class PublicIndustryPageSections
             'fr' => [
                 'title' => 'Vérifiez si Malikia Pro correspond à la façon dont votre activité HVAC fonctionne vraiment',
                 'body' => '<p>Découvrez comment appels de service, planification d\'entretien, dispatch technicien, contexte de visite, et facturation peuvent rester reliés dans un même système au lieu d\'être dispersés entre outils bureau, messages terrain, et suivi manuel.</p>',
+            ],
+            'es' => [
+                'title' => 'Comprueba si Malikia Pro encaja con la forma real en que funciona tu actividad HVAC',
+                'body' => '<p>Descubre como llamadas de servicio, planificacion de mantenimiento, asignacion del tecnico, contexto de visita y facturacion pueden mantenerse conectados en un mismo sistema en lugar de repartirse entre herramientas de oficina y seguimientos manuales.</p>',
             ],
             'en' => [
                 'title' => 'See if Malikia Pro fits the way your HVAC business actually runs',
@@ -698,6 +827,10 @@ class PublicIndustryPageSections
                 'title' => 'Vérifiez si Malikia Pro correspond à la façon dont votre activité électrique fonctionne vraiment',
                 'body' => '<p>Découvrez comment demandes, devis, planification, exécution, et facturation peuvent rester reliés dans un même système au lieu d\'être dispersés entre échanges bureau, suivi chantier, et relances manuelles.</p>',
             ],
+            'es' => [
+                'title' => 'Comprueba si Malikia Pro encaja con la forma real en que funciona tu actividad electrica',
+                'body' => '<p>Descubre como demanda, presupuesto, planificacion, ejecucion y facturacion pueden mantenerse conectados en un mismo sistema en lugar de repartirse entre coordinacion de oficina, seguimiento de obra y cobros manuales.</p>',
+            ],
             'en' => [
                 'title' => 'See if Malikia Pro fits the way your electrical business actually runs',
                 'body' => '<p>Explore how demand, quoting, planning, execution, and billing can stay connected in one system instead of being split across office coordination, project follow-up, and manual billing steps.</p>',
@@ -707,6 +840,10 @@ class PublicIndustryPageSections
             'fr' => [
                 'title' => 'Vérifiez si Malikia Pro correspond à la façon dont votre activité nettoyage fonctionne vraiment',
                 'body' => '<p>Découvrez comment sites récurrents, présence, notes terrain, qualité de service, et suivi client peuvent rester reliés dans un même système au lieu d\'être dispersés entre feuilles de calcul, messages, et contrôles manuels.</p>',
+            ],
+            'es' => [
+                'title' => 'Comprueba si Malikia Pro encaja con la forma real en que funciona tu operacion de limpieza',
+                'body' => '<p>Descubre como sitios recurrentes, presencia, notas de campo, calidad de servicio y seguimiento del cliente pueden mantenerse conectados en un mismo sistema en lugar de repartirse entre hojas de calculo, mensajes y controles manuales.</p>',
             ],
             'en' => [
                 'title' => 'See if Malikia Pro fits the way your cleaning operation actually runs',
@@ -718,6 +855,10 @@ class PublicIndustryPageSections
                 'title' => 'Vérifiez si Malikia Pro correspond à la façon dont votre expérience salon fonctionne vraiment',
                 'body' => '<p>Découvrez comment réservations, rappels, flux d\'accueil, gestion des no-shows, et fidélisation peuvent rester reliés dans un même système au lieu d\'être dispersés entre messages, notes, et outils déconnectés.</p>',
             ],
+            'es' => [
+                'title' => 'Comprueba si Malikia Pro encaja con la forma real en que funciona tu experiencia de salon',
+                'body' => '<p>Descubre como reservas, recordatorios, flujo de recepcion, gestion de no-shows y fidelizacion pueden mantenerse conectados en un mismo sistema en lugar de repartirse entre mensajes, notas y herramientas desconectadas.</p>',
+            ],
             'en' => [
                 'title' => 'See if Malikia Pro fits the way your salon experience actually runs',
                 'body' => '<p>Explore how bookings, reminders, front-desk flow, no-show management, and loyalty can stay connected in one system instead of being split across inboxes, paper notes, and disconnected tools.</p>',
@@ -727,6 +868,10 @@ class PublicIndustryPageSections
             'fr' => [
                 'title' => 'Vérifiez si Malikia Pro correspond à la façon dont votre service restaurant fonctionne vraiment',
                 'body' => '<p>Découvrez comment réservations, dépôts, file d\'attente, check-in, et suivi client peuvent rester reliés dans un même système au lieu d\'être dispersés entre outils déconnectés, messages, et solutions de contournement à l\'accueil.</p>',
+            ],
+            'es' => [
+                'title' => 'Comprueba si Malikia Pro encaja con la forma real en que funciona tu servicio de restaurante',
+                'body' => '<p>Descubre como reservas, depositos, lista de espera, check-in y seguimiento del cliente pueden mantenerse conectados en un mismo sistema en lugar de repartirse entre herramientas desconectadas, mensajes y soluciones improvisadas en recepcion.</p>',
             ],
             'en' => [
                 'title' => 'See if Malikia Pro fits the way your restaurant service actually runs',

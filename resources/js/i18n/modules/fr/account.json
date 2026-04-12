@@ -1,0 +1,12 @@
+{
+  "account": {
+    "default_name": "Compte",
+    "company_label": "Entreprise",
+    "settings": "Paramètres",
+    "billing": "Facturation",
+    "profile": "Mon compte",
+    "dark_mode": "Mode sombre",
+    "logout": "Se déconnecter",
+    "language": "Langue"
+  }
+}

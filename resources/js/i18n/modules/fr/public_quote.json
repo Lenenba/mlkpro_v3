@@ -1,0 +1,33 @@
+{
+  "public_quote": {
+    "meta_title": "Revue du devis",
+    "document": "Devis",
+    "company_fallback": "Entreprise",
+    "customer_fallback": "Client",
+    "service_fallback": "Service",
+    "created": "Cree",
+    "customer": "Client",
+    "job": "Intervention",
+    "property": "Propriete",
+    "items": "Articles",
+    "no_property": "Aucune propriete selectionnee.",
+    "no_items": "Aucun article liste.",
+    "subtotal": "Sous-total",
+    "total": "Total",
+    "required_deposit": "Acompte requis : {amount}",
+    "respond_title": "Repondre a ce devis",
+    "deposit_amount": "Montant de l acompte",
+    "method_placeholder": "Moyen de paiement (optionnel)",
+    "reference_placeholder": "Reference (optionnel)",
+    "actions": {
+      "accept": "Accepter le devis",
+      "decline": "Refuser le devis"
+    },
+    "status": {
+      "draft": "Brouillon",
+      "sent": "Envoye",
+      "accepted": "Accepte",
+      "declined": "Refuse"
+    }
+  }
+}

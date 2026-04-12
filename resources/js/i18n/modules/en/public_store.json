@@ -1,0 +1,159 @@
+{
+  "public_store": {
+    "title": "{company} store",
+    "subtitle": "Browse available products.",
+    "company_fallback": "Store",
+    "search_placeholder": "Search products",
+    "empty": "No products available yet.",
+    "empty_description": "No description available.",
+    "filters": {
+      "all": "All categories",
+      "category": "Category",
+      "search": "Search",
+      "sort": "Sort",
+      "price_min": "Min price",
+      "price_max": "Max price",
+      "availability": "Availability",
+      "availability_all": "All stock levels",
+      "availability_in": "In stock",
+      "availability_out": "Out of stock",
+      "availability_low": "Low stock",
+      "promotions": "Promotions",
+      "promo_all": "All products",
+      "promo_only": "Promotions only",
+      "reset": "Reset filters"
+    },
+    "stock": {
+      "in": "In stock",
+      "low": "Low stock",
+      "out": "Out of stock"
+    },
+    "actions": {
+      "login": "Log in",
+      "register": "Create account",
+      "portal_hint": "Log in or create a client account to place orders.",
+      "shop_now": "Shop now",
+      "view_catalog": "View catalog",
+      "view_product": "View product",
+      "explore": "Explore",
+      "add_to_cart": "Add to cart",
+      "checkout": "Checkout"
+    },
+    "product": {
+      "details": "Product details",
+      "category": "Category",
+      "stock": "Stock",
+      "sku": "SKU",
+      "category_fallback": "Uncategorized"
+    },
+    "reviews": {
+      "label": "Reviews",
+      "empty": "No reviews yet",
+      "title": "Customer reviews",
+      "loading": "Loading reviews...",
+      "load_error": "Unable to load reviews.",
+      "anonymous": "Customer"
+    },
+    "hero": {
+      "eyebrow": "Public storefront",
+      "headline": "A brighter, faster way to shop {company}.",
+      "subheadline": "Best sellers, promotions, new arrivals, and the full catalog.",
+      "stat_products": "{count} products",
+      "stat_categories": "{count} categories",
+      "stat_new_arrivals": "{count} new arrivals"
+    },
+    "sections": {
+      "spotlight": "Featured pick",
+      "best_sellers": "Best sellers",
+      "promotions": "Promotions",
+      "new_arrivals": "New arrivals",
+      "catalog": "Full catalog",
+      "categories": "Shop by category"
+    },
+    "catalog": {
+      "results": "{count} results"
+    },
+    "badges": {
+      "best_seller": "Best seller",
+      "promo": "Promo",
+      "promo_with": "Promo -{percent}%",
+      "new": "New",
+      "low_stock": "Limited stock",
+      "hot": "Trending"
+    },
+    "sort": {
+      "label": "Sort by",
+      "featured": "Featured",
+      "newest": "Newest",
+      "price_asc": "Price: low to high",
+      "price_desc": "Price: high to low",
+      "name_asc": "Name A-Z",
+      "stock_desc": "Most stock"
+    },
+    "hints": {
+      "login_to_order": "Checkout creates a client account so you can track orders."
+    },
+    "promotions_hint": "Softer prices, limited quantities. Catch the current offers.",
+    "categories_hint": "Browse top categories picked from the catalog.",
+    "empty_collection": "Nothing to show yet.",
+    "cart_error": "Unable to update the cart.",
+    "checkout_error": "Unable to place the order.",
+    "cart": {
+      "title": "Your cart",
+      "item_count": "{count} items",
+      "summary": "Summary",
+      "subtotal": "Subtotal",
+      "taxes": "Taxes",
+      "delivery_fee": "Delivery fee",
+      "total": "Total",
+      "clear": "Clear cart",
+      "checkout": "Checkout",
+      "checkout_hint": "Complete your details to place the order.",
+      "name": "Full name",
+      "email": "Email",
+      "phone": "Phone",
+      "delivery_address": "Delivery address",
+      "submit": "Place order",
+      "empty": "Your cart is empty.",
+      "remove": "Remove",
+      "sku_fallback": "SKU pending",
+      "internal_notice": "You are logged in as an internal user. Please use a client account to place orders.",
+      "added": "Added to cart."
+    },
+    "fulfillment": {
+      "title": "Delivery or pickup",
+      "subtitle": "Choose a method",
+      "unavailable": "Delivery and pickup are not configured yet.",
+      "delivery": "Delivery",
+      "pickup": "Quick pickup",
+      "ready": "Ready soon",
+      "ready_in": "Ready in {minutes} min",
+      "delivery_address": "Delivery address",
+      "delivery_notes": "Instructions (optional)",
+      "delivery_zone": "Zone: {zone}",
+      "scheduled_for": "Preferred time (optional)",
+      "pickup_address": "Pickup: {address}",
+      "pickup_notes": "Pickup notes (optional)",
+      "pickup_time": "Pickup time (optional)"
+    },
+    "related": {
+      "title": "You might also like"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {current} / {total}"
+    },
+    "notes": {
+      "title": "Notes & substitutions",
+      "customer_notes": "Notes for the store",
+      "substitution_allowed": "Allow substitutions",
+      "substitution_notes": "Substitution preferences"
+    },
+    "a11y": {
+      "close_dialog": "Close dialog",
+      "open_cart": "Open cart",
+      "close_cart": "Close cart"
+    }
+  }
+}

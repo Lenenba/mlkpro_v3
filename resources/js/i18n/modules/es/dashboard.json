@@ -1,0 +1,226 @@
+{
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome_named": "Bienvenido de nuevo, {name}. Aquí tienes tu actividad más reciente.",
+    "welcome_generic": "Bienvenido de nuevo. Aquí tienes tu actividad más reciente.",
+    "meta": {
+      "quotes_month": "{count} cotizaciones este mes",
+      "payments_month": "{amount} recaudado este mes"
+    },
+    "usage": {
+      "title": "Alertas de uso",
+      "description": "Algunos módulos están llegando a sus límites{planSuffix}.",
+      "plan_suffix": " para el plan {plan}",
+      "view_limits": "Ver límites",
+      "unlimited": "Ilimitado",
+      "not_available": "No disponible"
+    },
+    "limits": {
+      "quotes": "Cotizaciones",
+      "requests": "Solicitudes",
+      "invoices": "Facturas",
+      "jobs": "Trabajos",
+      "products": "Productos",
+      "services": "Servicios",
+      "tasks": "Tareas",
+      "team_members": "Miembros del equipo"
+    },
+    "time": {
+      "any": "En cualquier momento"
+    },
+    "priority": {
+      "high": "Alto",
+      "medium": "Medio",
+      "low": "Bajo"
+    },
+    "auto": {
+      "started": "Inicio automático",
+      "completed": "Finalización automática"
+    },
+    "agenda": {
+      "task": "tarea",
+      "tasks": "tareas",
+      "job": "trabajo",
+      "jobs": "trabajos",
+      "auto_started": "{count} iniciado automáticamente",
+      "auto_completed": "{count} completado automáticamente",
+      "auto_completed_at": "{count} completado automáticamente a las {time}"
+    },
+    "labels": {
+      "unknown_customer": "Cliente desconocido",
+      "job": "Trabajo",
+      "task": "Tarea",
+      "assignee": "Asignado: {name}",
+      "quote_fallback": "Cotización",
+      "invoice_fallback": "Factura"
+    },
+    "timeline": {
+      "title": "Agenda de hoy",
+      "subtitle": "Trabajos y tareas que vencen hoy.",
+      "sync_calendar": "Sincronizar calendario",
+      "view_tasks": "Ver tareas",
+      "auto_alerts": "Alertas automáticas",
+      "empty": "No hay tareas ni trabajos programados para hoy."
+    },
+    "revenue": {
+      "title": "Tendencia de ingresos",
+      "subtitle": "Actividad de facturación de los últimos 30 días.",
+      "view_invoices": "Ver facturas",
+      "paid_to_date": "Pagado hasta la fecha",
+      "outstanding": "Pendiente",
+      "overdue": "Vencido"
+    },
+    "sections": {
+      "recent_quotes": "Cotizaciones recientes",
+      "upcoming_jobs": "Próximos trabajos",
+      "outstanding_invoices": "Facturas pendientes",
+      "recent_activity": "Actividad reciente"
+    },
+    "actions": {
+      "view_all": "Ver todo"
+    },
+    "table": {
+      "quote": "Cotización",
+      "customer": "Cliente",
+      "status": "Estado",
+      "total": "Total",
+      "created": "Creado"
+    },
+    "empty": {
+      "quotes": "Aún no hay cotizaciones.",
+      "jobs": "No hay trabajos programados.",
+      "invoices": "Todas las facturas están saldadas.",
+      "activity": "Aún no hay actividad reciente."
+    },
+    "quick_actions": {
+      "title": "Acciones rápidas",
+      "create": "Crear",
+      "suggested": "Sugerido: {label}",
+      "suggested_next": "Sugerido a continuación"
+    },
+    "kpi": {
+      "revenue_paid": "Ingresos pagados",
+      "revenue_billed": "Facturado {amount}",
+      "outstanding_balance": "Saldo pendiente",
+      "partial_invoices": "{count} facturas parciales",
+      "open_quotes": "Cotizaciones abiertas",
+      "accepted_quotes": "{count} cotizaciones aceptadas",
+      "jobs_in_progress": "Trabajos en curso",
+      "jobs_scheduled": "{count} programados",
+      "customers": "Clientes",
+      "customers_new": "{count} nuevos clientes",
+      "low_stock": "Stock bajo",
+      "out_of_stock": "{count} agotado",
+      "invoices_paid": "Facturas pagadas",
+      "invoices_total": "{count} total",
+      "inventory_value": "Valor de inventario",
+      "products_total": "{count} productos"
+    },
+    "announcements": {
+      "title": "Anuncios",
+      "subtitle": "Últimas actualizaciones de Malikia pro.",
+      "quick_title": "Actualizaciones rápidas",
+      "quick_subtitle": "Últimos momentos destacados de tu equipo.",
+      "updates_title": "Actualizaciones",
+      "updates_subtitle": "Novedades de Malikia pro.",
+      "valid_until": "Válido hasta el {date}",
+      "from": "Desde {date}",
+      "learn_more": "Más información"
+    },
+    "checklist": {
+      "title": "Primeros pasos",
+      "subtitle": "Completa estos pasos para configurar tu espacio de trabajo.",
+      "done": "Hecho",
+      "plan_scans_title": "Escaneos de planos",
+      "plan_scans_empty": "Aún no hay escaneos de planos.",
+      "plan_scans_count": "{count} escaneos importados",
+      "plan_scans_cta": "Importar plano"
+    },
+    "onboarding": {
+      "add_first_service": "Añade tu primer servicio",
+      "add_first_product": "Añade tu primer producto",
+      "add_first_customer": "Añade tu primer cliente",
+      "create_first_quote": "Crea tu primera cotización"
+    },
+    "suggestions": {
+      "create_customer": "Crear cliente",
+      "add_service": "Agregar servicio",
+      "add_product": "Añadir producto",
+      "create_quote": "Crear cotización",
+      "import_plan": "Importar escaneo del plan",
+      "create_request": "Crear solicitud",
+      "review_jobs": "Revisar trabajos"
+    },
+    "trend": {
+      "none": "Sin datos de tendencias",
+      "no_change": "Sin cambios",
+      "up": "En alza",
+      "down": "A la baja",
+      "new": "Nuevo",
+      "summary": "{direction} ({value})"
+    },
+    "status": {
+      "quote": {
+        "draft": "Borrador",
+        "sent": "Enviado",
+        "accepted": "Aceptado",
+        "declined": "Rechazado",
+        "archived": "Archivado"
+      },
+      "work": {
+        "to_schedule": "Para programar",
+        "scheduled": "Programado",
+        "en_route": "En ruta",
+        "in_progress": "En progreso",
+        "tech_complete": "Parte técnica completada",
+        "pending_review": "Pendiente de revisión",
+        "validated": "Validado",
+        "auto_validated": "Validado automáticamente",
+        "dispute": "Disputa",
+        "closed": "Cerrado",
+        "cancelled": "Cancelado",
+        "completed": "Completado"
+      },
+      "task": {
+        "todo": "Por hacer",
+        "in_progress": "En progreso",
+        "done": "Hecho"
+      },
+      "invoice": {
+        "draft": "Borrador",
+        "sent": "Enviado",
+        "awaiting_acceptance": "En espera de aceptación",
+        "accepted": "Aceptado",
+        "rejected": "Rechazado",
+        "partial": "Parcial",
+        "paid": "Pagado",
+        "overdue": "Vencido",
+        "void": "Anulada"
+      }
+    },
+    "marketing_panel": {
+      "title": "KPI de marketing",
+      "range": "Periodo: {label} ({start} -> {end})",
+      "open_campaigns": "Campañas activas",
+      "top_campaign": "Campaña destacada",
+      "no_data": "Sin datos",
+      "conversions_clicks": "{conversions} conversiones / {clicks} clics",
+      "audience_growth": "Crecimiento de audiencia",
+      "delta": "Variación",
+      "vip_customers": "Clientes VIP",
+      "mailing_lists": "Listas de correo",
+      "list_count": "{count} lista(s)",
+      "customers_count": "{count} clientes",
+      "reservations_created": "Reservas creadas: {count}",
+      "invoices_paid": "Facturas pagadas: {count}",
+      "quotes_accepted": "Cotizaciones aceptadas: {count}",
+      "cards": {
+        "campaigns_sent": "Campañas enviadas",
+        "delivery_success_rate": "Tasa de entrega",
+        "click_rate": "Tasa de clics",
+        "tracking_off": "Seguimiento desactivado",
+        "conversions_attributed": "Conversiones atribuidas"
+      }
+    }
+  }
+}

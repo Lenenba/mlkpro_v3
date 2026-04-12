@@ -1,0 +1,912 @@
+{
+  "settings": {
+    "groups": {
+      "account": "Account",
+      "platform": "Platform"
+    },
+    "items": {
+      "profile": {
+        "label": "Profile",
+        "description": "Identity and access"
+      },
+      "security": {
+        "label": "Security",
+        "description": "Password and 2FA",
+        "badge": "Soon"
+      },
+      "company": {
+        "label": "Company",
+        "description": "Info and categories"
+      },
+      "hr": {
+        "label": "HR",
+        "description": "Shift templates"
+      },
+      "reservations": {
+        "label": "Reservations",
+        "description": "Booking rules and availability"
+      },
+      "billing": {
+        "label": "Billing",
+        "description": "Plan and payments"
+      },
+      "marketing": {
+        "label": "Marketing",
+        "description": "Campaign channels and templates"
+      },
+      "loyalty": {
+        "label": "Loyalty",
+        "description": "Points program configuration"
+      },
+      "notifications": {
+        "label": "Notifications",
+        "description": "Emails and alerts",
+        "badge": "Soon"
+      },
+      "support": {
+        "label": "Support",
+        "description": "Incidents and help"
+      }
+    },
+    "reservations": {
+      "meta_title": "Reservations",
+      "title": "Reservation settings",
+      "subtitle": "Manage booking rules, team availability, and exceptions.",
+      "owner_only": {
+        "notice": "Owner-only solo mode keeps only global reservation settings and waitlist-ready resources. Staff schedules, staff overrides, and hybrid queue stay disabled until team members are enabled."
+      },
+      "summary": {
+        "timezone": "Timezone",
+        "team_members": "Team members",
+        "weekly_rules": "Weekly rules",
+        "exceptions": "Exceptions",
+        "resources": "Resources"
+      },
+      "company_rules": {
+        "title": "Company booking rules",
+        "description": "Default rules applied to all team members."
+      },
+      "presets": {
+        "service_general": "General services",
+        "salon": "Hair/beauty salon",
+        "restaurant": "Restaurant"
+      },
+      "team_settings": {
+        "title": "Team member overrides",
+        "description": "Optional overrides for specific team members.",
+        "select_member": "Team member",
+        "add": "Add override",
+        "empty": "No team-specific override."
+      },
+      "weekly": {
+        "title": "Weekly availability",
+        "description": "Define recurring opening hours per team member."
+      },
+      "exceptions": {
+        "title": "Availability exceptions",
+        "description": "Set one-time closures or special openings.",
+        "all_members": "All team members",
+        "all_day": "(all day)",
+        "types": {
+          "closed": "Closed",
+          "open": "Open"
+        }
+      },
+      "resources": {
+        "title": "Resources and capacity",
+        "description": "Define optional resources used to enforce slot capacity.",
+        "empty": "No resources configured.",
+        "fields": {
+          "name": "Resource name",
+          "type": "Resource type",
+          "capacity": "Capacity",
+          "is_active": "Active"
+        },
+        "types": {
+          "general": "General",
+          "chair": "Chair",
+          "wash_station": "Wash station",
+          "table": "Table",
+          "zone": "Zone"
+        },
+        "status": {
+          "active": "Active",
+          "inactive": "Inactive"
+        }
+      },
+      "notifications": {
+        "title": "Reservation notifications",
+        "description": "Configure emails, in-app alerts, reminders, and review requests.",
+        "fields": {
+          "enabled": "Enable reservation notifications",
+          "email": "Send emails",
+          "in_app": "Send in-app notifications",
+          "sms": "Send SMS notifications",
+          "notify_on_created": "Notify on created reservation",
+          "notify_on_rescheduled": "Notify on rescheduled reservation",
+          "notify_on_cancelled": "Notify on cancelled reservation",
+          "notify_on_completed": "Notify when reservation is completed",
+          "notify_on_reminder": "Send reminders before start",
+          "notify_on_review_submitted": "Notify when a review is submitted",
+          "review_request_on_completed": "Ask client for review after completion",
+          "notify_on_queue_pre_call": "Notify clients on queue pre-call",
+          "notify_on_queue_called": "Notify clients when called",
+          "notify_on_queue_grace_expired": "Notify when queue grace expires",
+          "notify_on_queue_ticket_created": "Send SMS when queue ticket is created",
+          "notify_on_queue_eta_10m": "Send alert around 10 minutes before turn",
+          "notify_on_queue_status_changed": "Notify on queue status changes (optional)",
+          "reminder_hours": "Reminder timings"
+        },
+        "reminders": {
+          "day_before": "24 hours before",
+          "two_hours": "2 hours before",
+          "one_hour": "1 hour before"
+        }
+      },
+      "queue": {
+        "assignment_modes": {
+          "per_staff": "Per staff queue",
+          "global_pull": "Global pull queue"
+        },
+        "dispatch_modes": {
+          "fifo": "FIFO",
+          "fifo_with_appointment_priority": "FIFO + appointment priority",
+          "skill_based": "Skill based"
+        }
+      },
+      "fields": {
+        "team_member": "Team member",
+        "day": "Day",
+        "date": "Date",
+        "start_time": "Start",
+        "end_time": "End",
+        "start_time_optional": "Start (optional)",
+        "end_time_optional": "End (optional)",
+        "type": "Type",
+        "reason": "Reason",
+        "buffer_minutes": "Buffer minutes",
+        "slot_interval_minutes": "Slot interval (minutes)",
+        "min_notice_minutes": "Minimum notice (minutes)",
+        "max_advance_days": "Max advance booking (days)",
+        "cancellation_cutoff_hours": "Cancellation cutoff (hours)",
+        "business_preset": "Business preset",
+        "late_release_minutes": "Late release (minutes)",
+        "waitlist_enabled": "Enable waitlist",
+        "queue_mode_enabled": "Enable hybrid queue mode",
+        "queue_assignment_mode": "Queue assignment mode",
+        "queue_dispatch_mode": "Queue dispatch mode",
+        "queue_grace_minutes": "Call grace period (minutes)",
+        "queue_pre_call_threshold": "Pre-call threshold (people ahead)",
+        "queue_no_show_on_grace_expiry": "Mark no-show when grace expires",
+        "deposit_required": "Require booking deposit",
+        "deposit_amount": "Deposit amount",
+        "no_show_fee_enabled": "Enable no-show fee",
+        "no_show_fee_amount": "No-show fee amount",
+        "allow_client_cancel": "Allow client cancellation",
+        "allow_client_reschedule": "Allow client reschedule"
+      },
+      "member_unknown": "Unknown member",
+      "add": "Add",
+      "remove": "Remove",
+      "save": "Save settings",
+      "saving": "Saving..."
+    },
+    "security": {
+      "meta_title": "Security",
+      "title": "Security",
+      "subtitle": "Manage two-factor authentication and account activity.",
+      "tabs": {
+        "auth": {
+          "label": "Authentication",
+          "description": "2FA and access"
+        },
+        "activity": {
+          "label": "Activity",
+          "description": "Recent sign-ins"
+        }
+      },
+      "two_factor": {
+        "title": "Two-factor authentication",
+        "description": "Adds an extra email code at login.",
+        "status_required": "Required",
+        "status_enabled": "Enabled",
+        "status_disabled": "Disabled",
+        "required_hint": "2FA is mandatory for account owners.",
+        "email_label": "Email",
+        "last_sent": "Last code sent",
+        "last_sent_empty": "No code sent yet",
+        "method_title": "Preferred 2FA method",
+        "method_email": "Email code",
+        "method_app": "Authenticator app",
+        "method_sms": "SMS code",
+        "method_ready": "App configured",
+        "sms_phone": "Phone used: {phone}",
+        "app_start": "Set up authenticator app",
+        "app_setup_hint": "Scan the QR code or enter the setup key in your authenticator app, then confirm the 6-digit code.",
+        "app_secret_label": "Setup key",
+        "app_code_placeholder": "Enter the 6-digit code",
+        "app_confirm": "Confirm app",
+        "app_cancel": "Cancel",
+        "app_qr_alt": "Authenticator QR code",
+        "switch_email": "Switch to email codes",
+        "switch_sms": "Switch to SMS codes",
+        "sms_disabled_company": "SMS 2FA must be enabled in company settings.",
+        "sms_missing_phone": "Add a phone number to your profile to enable SMS 2FA.",
+        "sms_missing_twilio": "SMS provider is not configured."
+      },
+      "password": {
+        "title": "Password",
+        "description": "Change your password from your profile page.",
+        "action": "Update password"
+      },
+      "rate_limit": {
+        "title": "API protection",
+        "description": "Rate limiting protects your API and automation.",
+        "value": "{limit} requests / min / user",
+        "unavailable": "Rate limit not configured"
+      },
+      "activity": {
+        "title": "Recent activity",
+        "description": "Latest sign-ins and security events.",
+        "empty": "No security events yet.",
+        "columns": {
+          "user": "User",
+          "event": "Event",
+          "channel": "Channel",
+          "ip": "IP",
+          "device": "Device",
+          "date": "Date"
+        },
+        "channels": {
+          "web": "Web",
+          "api": "API"
+        },
+        "unknown_device": "Unknown device",
+        "actions": {
+          "auth.login": "Signed in",
+          "auth.logout": "Signed out",
+          "auth.password_changed": "Password changed",
+          "auth.2fa.sent": "2FA code sent",
+          "auth.2fa.resend": "2FA code resent"
+        },
+        "badges": {
+          "two_factor": "2FA"
+        }
+      }
+    },
+    "company": {
+      "meta_title": "Company",
+      "title": "Company settings",
+      "subtitle": "Update your company information.",
+      "aria_sections": "Company settings sections",
+      "tabs": {
+        "company": {
+          "label": "Company",
+          "description": "Identity and activity"
+        },
+        "suppliers": {
+          "label": "Suppliers",
+          "description": "Active platforms"
+        },
+        "store": {
+          "label": "Store",
+          "description": "Store settings"
+        },
+        "showcase": {
+          "label": "Showcase",
+          "description": "Service showcase settings"
+        },
+        "categories": {
+          "label": "Categories",
+          "description": "Services and products"
+        },
+        "warehouses": {
+          "label": "Warehouses",
+          "description": "Stock locations"
+        },
+        "api": {
+          "label": "API access",
+          "description": "Tokens and permissions"
+        },
+        "limits": {
+          "label": "Limits",
+          "description": "Plan usage"
+        }
+      },
+      "profile": {
+        "title": "Company profile",
+        "description": "Identity, address, and company activity."
+      },
+      "store": {
+        "title": "Storefront settings",
+        "description": "Customize your public store header and featured product.",
+        "title_services": "Service showcase settings",
+        "description_services": "Customize your public service showcase.",
+        "header_color": "Header color",
+        "featured_product": "Featured product",
+        "featured_service": "Featured service",
+        "featured_placeholder": "Select a featured product",
+        "featured_placeholder_service": "Select a featured service",
+        "hero_images": "Hero background images",
+        "hero_images_hint": "Paste one image URL per line. These will rotate behind the featured product.",
+        "hero_images_upload": "Upload images (computer)",
+        "hero_images_upload_hint": "Select high-resolution images (min. 1280x720) to avoid pixelation.",
+        "hero_images_new": "New",
+        "ai_images_generate": "Generate AI image",
+        "ai_images_generate_busy": "Generating...",
+        "ai_images_modal_title": "Generate hero image",
+        "ai_images_modal_label": "Describe the image you want",
+        "ai_images_modal_hint": "Mention the product, mood, background, and style.",
+        "ai_images_prompt": "Describe the image to generate",
+        "ai_images_prompt_required": "Add a short description to generate the image.",
+        "ai_images_hint": "Daily limit: {limit} image(s). Remaining today: {remaining}.",
+        "ai_images_limit_reached": "Daily AI image limit reached. Buy an AI pack in Billing to generate more.",
+        "ai_images_disabled": "AI image generation is disabled. Add an AI pack in Billing or configure your AI key.",
+        "ai_images_error": "Unable to generate the AI image.",
+        "hero_captions_title": "Per-slide text (optional)",
+        "hero_captions_hint": "Add a caption per slide. Leave empty to use the global hero text.",
+        "hero_captions_fr": "Slide text (FR)",
+        "hero_captions_es": "Slide text (ES)",
+        "hero_captions_en": "Slide text (EN)",
+        "hero_captions_slide": "Slide {index}",
+        "hero_copy_fr": "Hero text (FR)",
+        "hero_copy_es": "Hero text (ES)",
+        "hero_copy_en": "Hero text (EN)",
+        "hero_copy_placeholder": "Write the hero text block here...",
+        "editor_labels": {
+          "heading2": "Heading",
+          "heading3": "Subheading",
+          "bold": "Bold",
+          "italic": "Italic",
+          "underline": "Underline",
+          "unorderedList": "Bullet list",
+          "orderedList": "Numbered list",
+          "quote": "Quote",
+          "codeBlock": "Code block",
+          "horizontalRule": "Divider",
+          "link": "Insert link",
+          "image": "Insert image",
+          "aiImage": "Generate image",
+          "clear": "Clear formatting"
+        }
+      },
+      "fields": {
+        "name": "Company name",
+        "public_slug": "Public slug (store)",
+        "public_slug_hint": "Used for the public URL: /{path}/{slug}.",
+        "logo_optional": "Logo (optional)",
+        "logo_upload": "Upload your logo",
+        "description_optional": "Description (optional)",
+        "country_optional": "Country (optional)",
+        "country_other": "Country (other)",
+        "province_optional": "Province / State (optional)",
+        "province_other": "Province / State (other)",
+        "city_optional": "City (optional)",
+        "city_other": "City (other)",
+        "timezone": "Time zone",
+        "timezone_placeholder": "Select a time zone",
+        "timezone_search_placeholder": "Search time zone",
+        "company_type": "Company type",
+        "type_services": "Service business",
+        "type_products": "Product business"
+      },
+      "select": {
+        "country": "Select a country",
+        "province": "Select a province",
+        "city": "Select a city",
+        "other": "Other..."
+      },
+      "countries": {
+        "canada": "Canada",
+        "france": "France",
+        "belgium": "Belgium",
+        "switzerland": "Switzerland",
+        "morocco": "Morocco",
+        "tunisia": "Tunisia"
+      },
+      "delivery": {
+        "title": "Delivery & pickup",
+        "description": "Configure delivery and pickup options for customers.",
+        "delivery_active": "Delivery active",
+        "pickup_active": "Store pickup",
+        "delivery_fee_optional": "Delivery fee (optional)",
+        "prep_time_minutes": "Prep time (minutes)",
+        "delivery_zone_optional": "Delivery zone (optional)",
+        "pickup_address": "Pickup address",
+        "delivery_notes_optional": "Delivery notes (optional)",
+        "pickup_notes_optional": "Pickup notes (optional)"
+      },
+      "notifications": {
+        "title": "Task-day notifications",
+        "description": "Choose how clients are notified on the day of the task.",
+        "email": "Email",
+        "sms": "SMS",
+        "whatsapp": "WhatsApp",
+        "two_factor_sms": "Allow SMS 2FA",
+        "two_factor_sms_hint": "If enabled, the account owner can choose SMS as the 2FA method in Security."
+      },
+      "presence": {
+        "title": "Attendance & presence",
+        "description": "Configure auto clock-in/out and manual time tracking.",
+        "auto_clock_in": "Auto clock-in on login",
+        "auto_clock_out": "Auto clock-out on logout",
+        "manual_clock": "Allow manual clock in/out",
+        "manual_hint": "Employees can clock in/out from the Presence page."
+      },
+      "actions": {
+        "save": "Save",
+        "remove": "Remove",
+        "cancel": "Cancel"
+      },
+      "categories": {
+        "title": "Service / product categories",
+        "description": "Add categories to organize services and products.",
+        "empty": "No categories yet.",
+        "new_label": "New category",
+        "add": "Add"
+      },
+      "api": {
+        "title": "API access",
+        "description": "Generate public or private tokens to connect external tools.",
+        "token_new": "New token:",
+        "token_hint": "Copy this token now; it will not be shown again.",
+        "empty": "No tokens yet.",
+        "revoke": "Revoke",
+        "scopes": "Scopes: {scopes}",
+        "created": "Created: {date}",
+        "expires": "Expires: {date}",
+        "create_title": "Create a token",
+        "fields": {
+          "name": "Token name",
+          "type": "Type",
+          "type_public": "Public (read)",
+          "type_private": "Private (read/write)",
+          "expires": "Expiration"
+        },
+        "generate": "Generate"
+      },
+      "warehouses": {
+        "title": "Warehouses",
+        "description": "Manage stock locations and choose a default warehouse.",
+        "empty": "No warehouses yet.",
+        "default_badge": "Default",
+        "no_code": "No code",
+        "set_default": "Set default",
+        "edit": "Edit",
+        "delete": "Delete",
+        "fields": {
+          "name": "Name",
+          "code": "Code",
+          "address": "Address",
+          "city": "City",
+          "state": "Province / State",
+          "postal_code": "Postal code",
+          "country": "Country"
+        },
+        "active": "Active warehouse",
+        "cancel": "Cancel",
+        "save": "Save",
+        "add_title": "Add a warehouse",
+        "default_checkbox": "Set as default",
+        "add": "Add"
+      },
+      "suppliers": {
+        "title": "Suppliers (Canada)",
+        "description": "Choose active platforms and up to {limit} preferred suppliers.",
+        "empty": "No suppliers available yet.",
+        "custom_badge": "Custom",
+        "visit_site": "Visit site",
+        "remove": "Remove",
+        "preferred": "Preferred",
+        "enable_hint": "Enable this supplier to recommend it.",
+        "add_title": "Add a supplier",
+        "add_description": "Add a supplier with a link to include it in searches.",
+        "fields": {
+          "name": "Supplier name",
+          "url": "Supplier link"
+        },
+        "add": "Add"
+      },
+      "limits": {
+        "title": "Plan limits",
+        "current_plan": "Current plan: {plan}",
+        "table": {
+          "module": "Module",
+          "used": "Used",
+          "limit": "Limit",
+          "remaining": "Remaining",
+          "usage": "Usage",
+          "empty": "No limit data available."
+        },
+        "alert": "Some limits are close or exceeded. Consider upgrading your plan.",
+        "labels": {
+          "quotes": "Quotes",
+          "requests": "Requests",
+          "plan_scan_quotes": "Plan scan quotes",
+          "invoices": "Invoices",
+          "jobs": "Jobs",
+          "products": "Products",
+          "services": "Services",
+          "tasks": "Tasks",
+          "team_members": "Team members",
+          "assistant_requests": "AI assistant (messages)"
+        },
+        "plan_fallback": "Plan"
+      },
+      "errors": {
+        "create_warehouse": "Unable to create warehouse.",
+        "update_warehouse": "Unable to update warehouse.",
+        "set_default_warehouse": "Unable to set default warehouse.",
+        "delete_warehouse": "Unable to delete warehouse.",
+        "create_token": "Unable to create token.",
+        "revoke_token": "Unable to revoke token."
+      },
+      "confirm": {
+        "delete_warehouse": "Delete warehouse \"{name}\"?",
+        "revoke_token": "Revoke this token?"
+      }
+    },
+    "hr": {
+      "meta_title": "HR settings",
+      "title": "HR settings",
+      "subtitle": "Define default shifts by position.",
+      "sections": {
+        "templates": {
+          "title": "Shift templates",
+          "description": "Create predefined shifts per position."
+        },
+        "defaults": {
+          "title": "Global default",
+          "description": "Used when no template exists for a position."
+        }
+      },
+      "form": {
+        "position": "Position",
+        "start_time": "Start time",
+        "end_time": "End time",
+        "breaks": "Breaks (min)",
+        "break_total": "Total break: {minutes} min (max 60)",
+        "days": "Working days",
+        "active": "Active template",
+        "add_break": "Add break",
+        "remove_break": "Remove",
+        "create": "Create template",
+        "update": "Update template",
+        "cancel": "Cancel"
+      },
+      "table": {
+        "position": "Position",
+        "time": "Time",
+        "breaks": "Breaks",
+        "days": "Days",
+        "status": "Status",
+        "actions": "Actions",
+        "global": "Global",
+        "company": "Company",
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "messages": {
+        "empty": "No templates yet."
+      },
+      "confirm": {
+        "delete": "Delete this shift template?"
+      }
+    },
+    "billing": {
+      "meta_title": "Billing",
+      "aria_sections": "Billing sections",
+      "tabs": {
+        "plans": {
+          "label": "Subscription",
+          "description": "Plans and status"
+        },
+        "payment": {
+          "label": "Payment",
+          "description": "Card and invoices"
+        }
+      },
+      "actions": {
+        "switch_plan": "Switch to this plan",
+        "choose_plan": "Choose this plan",
+        "contact_sales": "Contact sales",
+        "contact_phone": "Phone: {phone}",
+        "processing": "Processing..."
+      },
+      "status": {
+        "active": "Active",
+        "trialing": "Trialing",
+        "past_due": "Past due",
+        "paused": "Paused",
+        "canceled": "Canceled",
+        "unpaid": "Unpaid",
+        "inactive": "Inactive"
+      },
+      "errors": {
+        "paddle_not_configured": "Paddle is not configured.",
+        "no_active_subscription": "No active subscription.",
+        "paddle_not_ready": "Paddle.js is not ready. Refresh the page.",
+        "payment_update_failed": "Unable to start the payment update.",
+        "paddle_load_failed": "Unable to load Paddle.js. Check your connection.",
+        "paddle_unavailable": "Paddle.js is loaded but unavailable. Refresh the page.",
+        "paddle_missing_keys": "Paddle is not configured (missing token/seller).",
+        "missing_transaction": "Missing transaction id.",
+        "paddle_api_missing": "Paddle API not configured. Add `PADDLE_API_KEY` to `.env`.",
+        "paddle_js_missing": "Paddle.js not configured. Add `PADDLE_CLIENT_SIDE_TOKEN` (or `PADDLE_SELLER_ID`) to `.env`.",
+        "no_plans_configured": "No plans configured. Add your PRICE_ID in the environment.",
+        "provider_not_supported": "Billing provider is set to {provider}. Paddle actions are disabled.",
+        "stripe_not_configured": "Stripe is not configured. Check STRIPE_SECRET, STRIPE_PRICE_* and STRIPE_ENABLED=true.",
+        "stripe_checkout_failed": "Unable to start Stripe checkout.",
+        "stripe_portal_failed": "Unable to open Stripe customer portal.",
+        "plan_change_failed": "Unable to change plans right now."
+      },
+      "plans": {
+        "title": "Platform subscription",
+        "subtitle": "Review your active plan, adjust your subscription, and manage related AI usage.",
+        "catalog_title": "{audience} plans",
+        "catalog_subtitle_solo": "Same operating core for independent work, with room to move into Team later.",
+        "catalog_subtitle_team": "Same operating core with collaboration, permissions, and higher limits for shared execution.",
+        "advisor": {
+          "title": "Change plan",
+          "dialog_title": "Plan advisor",
+          "subtitle": "Answer a few quick questions and we will surface the plans that best fit your current operating needs.",
+          "trigger_change": "Change plan",
+          "trigger_choose": "Find a plan",
+          "close": "Close",
+          "back": "Back",
+          "next": "Next",
+          "show_results": "See suggestions",
+          "top_match": "Best match",
+          "alternative": "Alternative",
+          "current_match": "Your current plan already fits these answers well.",
+          "steps": {
+            "business": "Organization",
+            "focus": "Needs",
+            "ai": "AI",
+            "results": "Suggestions"
+          },
+          "questions": {
+            "business": "What does your organization look like today?",
+            "focus": "What do you need most right now?",
+            "ai": "How important should AI be in the package?"
+          },
+          "options": {
+            "business": {
+              "solo": {
+                "label": "Solo",
+                "description": "I work alone and want a plan designed for an independent operator."
+              },
+              "small_team": {
+                "label": "Small team",
+                "description": "We are a small crew and mainly need lightweight coordination."
+              },
+              "growing_team": {
+                "label": "Growing team",
+                "description": "We already have a real team and need more structure for operations."
+              },
+              "large_team": {
+                "label": "Structured team",
+                "description": "We handle a larger volume and need more coordination and support."
+              },
+              "custom_scale": {
+                "label": "Custom scale",
+                "description": "We have 50+ users or need a more tailored rollout and support model."
+              }
+            },
+            "focus": {
+              "quotes": {
+                "label": "Quotes and invoices",
+                "description": "I mainly want speed on quotes, invoicing, and client follow-up."
+              },
+              "operations": {
+                "label": "Field operations",
+                "description": "I want stronger jobs, tasks, scheduling, and day-to-day coordination."
+              },
+              "automation": {
+                "label": "Automation and AI",
+                "description": "I am looking for more automation, performance tooling, scan, and AI."
+              }
+            },
+            "ai": {
+              "light": {
+                "label": "Light usage",
+                "description": "I only need occasional AI help and a few scans each month."
+              },
+              "regular": {
+                "label": "Regular usage",
+                "description": "I want AI to support day-to-day execution without going into the highest volumes."
+              },
+              "advanced": {
+                "label": "Advanced usage",
+                "description": "I expect heavier AI, scan, and automation usage as part of the plan."
+              }
+            }
+          },
+          "reasons": {
+            "solo": "Fits a solo operation well.",
+            "small_team": "Good match for a small team.",
+            "growing_team": "Designed for a growing team.",
+            "large_team": "Better suited to a larger operation.",
+            "custom_scale": "Better suited to a tailored deployment.",
+            "room_to_grow": "Leaves room to grow without changing too quickly.",
+            "quotes": "Keeps the experience simple for quotes and invoicing.",
+            "operations": "Strengthens jobs, tasks, and scheduling day to day.",
+            "automation": "Unlocks more automation, performance tools, and advanced workflows.",
+            "ai_light": "Keeps AI access light and easy to control.",
+            "ai_growth": "Provides more AI and scan capacity for regular use.",
+            "ai_advanced": "Includes higher AI and scan headroom for advanced usage.",
+            "custom_support": "Allows for more tailored rollout, support, and commercial framing."
+          }
+        }
+      },
+      "checkout": {
+        "success_title": "Subscription activated. Thank you!",
+        "success_subtitle": "You are now on {plan}.",
+        "swapped": "Plan updated to {plan}.",
+        "payment_method": "Card updated. Thank you!",
+        "cancelled": "Payment canceled. Choose a plan to continue.",
+        "plan_fallback": "the new plan"
+      },
+      "summary": {
+        "active_plan": "You are on {plan} (Status: {status})",
+        "trialing": "Trial in progress",
+        "trialing_until": "Trial in progress until {date}",
+        "no_subscription": "No active subscription. Select a plan to get started."
+      },
+      "plan": {
+        "monthly": "Monthly plan",
+        "yearly": "Yearly plan",
+        "badge_active": "Active",
+        "badge_popular": "Popular",
+        "interval_month": "/month",
+        "interval_year": "/year",
+        "yearly_note": "Pay yearly and save {percent}%.",
+        "billed_yearly": "For 12 months, billed annually.",
+        "current_plan": "You are on this plan.",
+        "cta_active": "Active plan",
+        "custom_pricing": "Custom pricing",
+        "team_limit": "Up to {count} employees",
+        "team_limit_plus": "{count}+ employees"
+      },
+      "assistant_addon": {
+        "title": "AI assistant",
+        "subtitle": "Manage the AI assistant and pay only for additional usage.",
+        "subtitle_credit": "Manage the AI assistant and buy credit packs when needed.",
+        "included_badge": "Included",
+        "optional_badge": "Paid add-on",
+        "cta_enable": "Enable add-on",
+        "cta_disable": "Disable add-on",
+        "cta_included": "Included",
+        "usage_title": "Usage this month",
+        "usage_requests": "requests",
+        "usage_tokens_label": "Tokens",
+        "usage_tokens": "tokens",
+        "usage_units_label": "Units",
+        "usage_units": "billed units",
+        "credit_balance_label": "Credits remaining",
+        "credit_balance_suffix": "credits",
+        "credit_pack": "{count} credit pack",
+        "credit_cta": "Buy credits",
+        "credit_success": "Credits added. Thank you!",
+        "credit_cancel": "Credit purchase canceled.",
+        "credit_not_available": "AI credits are not available.",
+        "credit_enable_required": "Enable the AI option to buy credits.",
+        "credit_error": "Unable to start credit checkout.",
+        "not_available": "AI add-on unavailable. Configure Stripe and the usage or credit price.",
+        "error": "Unable to update AI add-on."
+      },
+      "payment": {
+        "title": "Payment method",
+        "subtitle": "Manage the card linked to your subscription.",
+        "update_card": "Update card",
+        "summary_active": "Active subscription: {plan} (Status: {status})",
+        "summary_none": "No active subscription at the moment."
+      },
+      "payment_methods": {
+        "title": "Accepted payment methods",
+        "subtitle": "Choose which methods clients can use for this business.",
+        "save": "Save payment settings",
+        "default_label": "Default payment method",
+        "default_hint_single": "Only one method is enabled, so this method is used automatically.",
+        "default_hint_multi": "When no method is pre-selected, this default is used.",
+        "cash_context_title": "Cash allowed contexts",
+        "cash_context_subtitle": "Restrict where cash can be selected when cash is enabled.",
+        "methods": {
+          "cash": {
+            "label": "Cash",
+            "description": "Collected in person and marked as pending until received."
+          },
+          "card": {
+            "label": "Card (Stripe)",
+            "description": "Online card payment processed through Stripe."
+          },
+          "bank_transfer": {
+            "label": "Bank transfer",
+            "description": "Manual transfer outside of card checkout."
+          },
+          "check": {
+            "label": "Check",
+            "description": "Payment collected by paper check."
+          }
+        },
+        "cash_contexts": {
+          "reservation": "Reservation",
+          "invoice": "Invoice",
+          "store_order": "Store order",
+          "tip": "Tip / extra",
+          "walk_in": "Walk-in / ticket"
+        }
+      },
+      "tips": {
+        "title": "Tips settings",
+        "subtitle": "Configure limits, split strategy, and partial refund behavior.",
+        "save": "Save tips settings",
+        "max_percent": "Maximum tip percent (%)",
+        "max_fixed_amount": "Maximum fixed tip amount ($)",
+        "default_percent": "Default tip percent (%)",
+        "allocation_strategy": "Allocation strategy",
+        "allocation_primary": "Primary assignee",
+        "allocation_split": "Split across assigned members",
+        "partial_refund_rule": "Partial refund rule",
+        "refund_prorata": "Pro-rata split",
+        "refund_manual": "Manual split"
+      },
+      "loyalty": {
+        "title": "Loyalty settings",
+        "subtitle": "Configure points earning and redemption for POS sales.",
+        "save": "Save loyalty settings",
+        "enabled": "Enable loyalty program",
+        "points_per_currency_unit": "Points earned per $1 spent",
+        "minimum_spend": "Minimum spend before earning points ($)",
+        "rounding_mode": "Rounding mode",
+        "points_label": "Points label",
+        "rounding_modes": {
+          "floor": "Round down",
+          "round": "Nearest",
+          "ceil": "Round up"
+        }
+      },
+      "connect": {
+        "title": "Stripe Connect",
+        "subtitle": "Connect your bank account to receive client payments directly.",
+        "status_connected": "Connected",
+        "status_pending": "Onboarding in progress",
+        "status_action_required": "Action required",
+        "status_not_connected": "Not connected",
+        "action_connect": "Connect Stripe",
+        "action_complete": "Complete details",
+        "action_resume": "Resume onboarding",
+        "action_required_hint": "{count} item(s) still required on Stripe.",
+        "action_required_hint_generic": "Some details are missing on Stripe.",
+        "fee_note": "Platform fee: {fee}%",
+        "success": "Stripe account linked.",
+        "error_start": "Unable to start Stripe Connect onboarding."
+      }
+    },
+    "loyalty": {
+      "meta_title": "Loyalty settings",
+      "title": "Loyalty module configuration",
+      "subtitle": "Configure point earning rules, redemption, and labels.",
+      "save": "Save loyalty settings",
+      "fields": {
+        "enabled": "Enable loyalty program",
+        "points_per_currency_unit": "Points earned per $1 spent",
+        "minimum_spend": "Minimum spend before points are earned ($)",
+        "rounding_mode": "Rounding mode",
+        "points_label": "Points label"
+      },
+      "status": {
+        "enabled": "Program enabled",
+        "disabled": "Program disabled"
+      },
+      "rounding_modes": {
+        "floor": "Round down",
+        "round": "Nearest",
+        "ceil": "Round up"
+      },
+      "preview": "Label preview: {label}",
+      "preview_title": "Quick preview"
+    },
+    "_label": "Settings"
+  }
+}

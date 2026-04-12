@@ -1,0 +1,78 @@
+{
+  "public_invoice": {
+    "meta_title": "Pago de factura",
+    "document": "Factura",
+    "company_fallback": "Empresa",
+    "customer_fallback": "Cliente",
+    "service_fallback": "Servicio",
+    "created": "Creada",
+    "customer": "Cliente",
+    "job": "Trabajo",
+    "total": "Total",
+    "paid": "Pagado",
+    "balance_due": "Saldo pendiente",
+    "pay_title": "Pagar esta factura",
+    "amount_placeholder": "Monto",
+    "amount_cannot_exceed": "El monto no puede superar {amount}.",
+    "payment_hint": "Puedes pagar el saldo completo o elegir un monto parcial.",
+    "reference_placeholder": "Referencia",
+    "notes_placeholder": "Notas",
+    "actions": {
+      "pay_full_balance": "Pagar el saldo completo",
+      "pay_invoice": "Pagar factura",
+      "pay_with_stripe": "Pagar con Stripe"
+    },
+    "tip": {
+      "title": "Agregar propina? (opcional)",
+      "subtitle": "La propina va directamente al miembro del equipo que te atiende.",
+      "enable": "Si, agregar propina",
+      "disable": "No gracias",
+      "percent_mode": "Porcentaje (%)",
+      "fixed_mode": "Monto fijo ($)",
+      "other_percent": "Otro %",
+      "other_amount": "Otro monto",
+      "max_percent": "Max: {value}%",
+      "max_amount": "Max: {amount}",
+      "change_hint": "Puedes cambiar o quitar la propina antes de pagar."
+    },
+    "summary": {
+      "subtotal": "Subtotal",
+      "tip": "Propina (opcional)",
+      "total_charge": "Cobro total",
+      "partial_remaining": "Pago parcial seleccionado. Saldo restante despues de este pago:",
+      "remaining": "Saldo restante despues de este pago:"
+    },
+    "details": {
+      "title": "Detalles del pago (opcional)",
+      "method": "Metodo de pago:"
+    },
+    "recent_payments": {
+      "title": "Pagos recientes",
+      "subtotal": "Subtotal",
+      "tip": "Propina",
+      "total_paid": "Total pagado",
+      "tip_assigned_to": "Propina asignada a: {name}"
+    },
+    "methods": {
+      "cash": "Efectivo",
+      "card": "Tarjeta (Stripe)",
+      "bank_transfer": "Transferencia bancaria",
+      "check": "Cheque"
+    },
+    "status": {
+      "draft": "Borrador",
+      "sent": "Enviada",
+      "accepted": "Aceptada",
+      "partial": "Parcial",
+      "paid": "Pagada",
+      "overdue": "Vencida",
+      "void": "Anulada"
+    },
+    "payment_status": {
+      "pending": "Pendiente",
+      "completed": "Completado",
+      "paid": "Pagado",
+      "failed": "Fallido"
+    }
+  }
+}

@@ -191,7 +191,7 @@
       "template_name": "Template name",
       "channel": "Channel",
       "campaign_type": "Campaign type",
-      "language": "Language (FR/EN)",
+      "language": "Language (FR/EN/ES)",
       "tags": "Tags",
       "set_default": "Set as default for this channel/type/language",
       "subject": "Subject",
@@ -373,6 +373,7 @@
       "preferred": "Preferred language",
       "fr": "French",
       "en": "English",
+      "es": "Spanish",
       "both": "French and English"
     },
     "campaign_directions": {
@@ -885,12 +886,12 @@
         "reviewed_at": "Reviewed at",
         "pending_review": "Pending review",
         "select_prospect": "Select a prospect to view the details.",
-          "loading_batch": "Loading batch review...",
-          "loading_prospect": "Loading prospect detail...",
-          "empty_prospects": "No prospects match the current review filters.",
-          "detail_title": "Prospect detail",
-          "timeline_title": "Activity timeline",
-          "empty_timeline": "No prospect activity recorded yet.",
+        "loading_batch": "Loading batch review...",
+        "loading_prospect": "Loading prospect detail...",
+        "empty_prospects": "No prospects match the current review filters.",
+        "detail_title": "Prospect detail",
+        "timeline_title": "Activity timeline",
+        "empty_timeline": "No prospect activity recorded yet.",
         "actions": {
           "create_draft": "Create draft",
           "analyze_batch": "Analyze batch",
@@ -917,7 +918,7 @@
           "mark_duplicate": "Mark duplicate",
           "mark_disqualified": "Mark rejected",
           "mark_do_not_contact": "Do not contact"
-          },
+        },
         "import_modes": {
           "manual": "Manual paste",
           "csv": "CSV import",
@@ -1072,49 +1073,49 @@
           "matched_customer": "Customer: {value}",
           "matched_lead": "Lead: {value}"
         },
-          "recommended_actions": {
-            "approve": "Approve for outreach",
-            "approved": "Ready for outreach",
-            "duplicate": "Keep excluded as duplicate",
-            "blocked": "Keep blocked",
-            "reject": "Reject from this batch",
-            "review": "Review manually"
-          },
-          "detail": {
-            "email": "Email",
-            "phone": "Phone",
-            "source": "Source",
-            "scores": "Scores",
-            "scores_value": "Priority {priority} | Fit {fit} | Intent {intent}",
-            "sequence": "Sequence",
-            "last_activity": "Last activity",
-            "match": "Dedupe match",
-            "matched_customer": "Matched customer: {value}",
-            "matched_lead": "Matched lead: {value}",
-            "qualification_summary": "Qualification summary",
-            "owner_notes": "Owner notes",
-            "no_owner_notes": "No owner notes.",
-            "link_existing_lead": "Link to existing lead",
-            "matched_lead_ready": "A matched lead is already available.",
-            "converted_lead": "Converted lead",
-            "open_lead": "Open lead"
-          },
-          "sequence": {
-            "not_started": "No outreach sent yet.",
-            "stopped": "Sequence stopped: {reason}",
-            "progress": "Step {step} | Phase {phase} | Next follow-up {next}"
-          },
+        "recommended_actions": {
+          "approve": "Approve for outreach",
+          "approved": "Ready for outreach",
+          "duplicate": "Keep excluded as duplicate",
+          "blocked": "Keep blocked",
+          "reject": "Reject from this batch",
+          "review": "Review manually"
+        },
+        "detail": {
+          "email": "Email",
+          "phone": "Phone",
+          "source": "Source",
+          "scores": "Scores",
+          "scores_value": "Priority {priority} | Fit {fit} | Intent {intent}",
+          "sequence": "Sequence",
+          "last_activity": "Last activity",
+          "match": "Dedupe match",
+          "matched_customer": "Matched customer: {value}",
+          "matched_lead": "Matched lead: {value}",
+          "qualification_summary": "Qualification summary",
+          "owner_notes": "Owner notes",
+          "no_owner_notes": "No owner notes.",
+          "link_existing_lead": "Link to existing lead",
+          "matched_lead_ready": "A matched lead is already available.",
+          "converted_lead": "Converted lead",
+          "open_lead": "Open lead"
+        },
+        "sequence": {
+          "not_started": "No outreach sent yet.",
+          "stopped": "Sequence stopped: {reason}",
+          "progress": "Step {step} | Phase {phase} | Next follow-up {next}"
+        },
         "messages": {
           "batch_analyzed": "Prospect batch analyzed.",
           "provider_preview_ready": "Provider preview loaded.",
           "provider_import_complete": "Selected preview rows imported into batch review.",
           "batch_approved": "Prospect batch approved.",
-            "batch_rejected": "Prospect batch rejected.",
-            "prospect_updated": "Prospect updated.",
-            "bulk_updated": "Selected prospects updated.",
-            "prospect_converted": "Prospect converted to lead.",
-            "prospect_linked": "Prospect linked to an existing lead."
-          },
+          "batch_rejected": "Prospect batch rejected.",
+          "prospect_updated": "Prospect updated.",
+          "bulk_updated": "Selected prospects updated.",
+          "prospect_converted": "Prospect converted to lead.",
+          "prospect_linked": "Prospect linked to an existing lead."
+        },
         "errors": {
           "load_batches": "Unable to load prospect batches.",
           "load_batch": "Unable to load batch review.",
@@ -1128,13 +1129,13 @@
           "manual_required": "Paste at least one prospect row to analyze.",
           "provider_preview_failed": "The provider preview could not be loaded right now.",
           "import_failed": "Unable to analyze the prospect batch.",
-            "review_failed": "Unable to review the prospect batch.",
-            "update_prospect": "Unable to update the prospect.",
-            "bulk_update": "Unable to update the selected prospects.",
-            "link_prospect": "Unable to link the prospect to a lead.",
-            "convert_prospect": "Unable to convert the prospect."
-          }
-        },
+          "review_failed": "Unable to review the prospect batch.",
+          "update_prospect": "Unable to update the prospect.",
+          "bulk_update": "Unable to update the selected prospects.",
+          "link_prospect": "Unable to link the prospect to a lead.",
+          "convert_prospect": "Unable to convert the prospect."
+        }
+      },
       "results_hint": "Detailed results are available on the campaign page.",
       "errors": {
         "select_offer": "Select at least one offer.",

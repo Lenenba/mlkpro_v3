@@ -1,0 +1,45 @@
+{
+  "presence": {
+    "title": "Presence",
+    "subtitle": "Track team attendance and clock-ins.",
+    "cards": {
+      "settings": "Presence settings",
+      "me": "My status",
+      "team": "Team presence"
+    },
+    "labels": {
+      "auto_clock_in": "Auto clock-in on login",
+      "auto_clock_out": "Auto clock-out on logout",
+      "manual_clock": "Manual clock in/out",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "status": "Status",
+      "last_in": "Last clock-in",
+      "last_out": "Last clock-out",
+      "method": "Method",
+      "jobs_today": "Jobs today",
+      "tasks_today": "Tasks today",
+      "none": "--",
+      "role_fallback": "Team member"
+    },
+    "status": {
+      "clocked_in": "Clocked in",
+      "clocked_out": "Clocked out",
+      "no_activity": "No activity"
+    },
+    "actions": {
+      "clock_in": "Clock in",
+      "clock_out": "Clock out",
+      "clocking_in": "Clocking in...",
+      "clocking_out": "Clocking out..."
+    },
+    "help": {
+      "manual_disabled": "Manual clocking is disabled by the owner."
+    },
+    "errors": {
+      "clock_in": "Unable to clock in.",
+      "clock_out": "Unable to clock out."
+    },
+    "empty": "No team members to show."
+  }
+}

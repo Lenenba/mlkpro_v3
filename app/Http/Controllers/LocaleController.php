@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\LocalePreference;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -10,7 +11,7 @@ class LocaleController extends Controller
     public function update(Request $request)
     {
         $validated = $request->validate([
-            'locale' => ['required', Rule::in(['fr', 'en'])],
+            'locale' => ['required', Rule::in(LocalePreference::supported())],
         ]);
 
         $locale = $validated['locale'];

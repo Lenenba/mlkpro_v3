@@ -1,0 +1,50 @@
+{
+  "public_footer": {
+    "contact": "Contact",
+    "store": {
+      "google_play_prefix": "Disponible sur",
+      "app_store_prefix": "Telecharger sur"
+    },
+    "support": {
+      "kicker": "Accompagnement",
+      "title": "Parlez a notre equipe",
+      "body": "<p>Besoin d un parcours produit plus precis ou d une page publique sur mesure ? On peut vous guider.</p>",
+      "contact_cta": "Nous contacter",
+      "pricing_cta": "Voir les tarifs",
+      "meta": {
+        "one": "Parcours public et modules metier",
+        "two": "Support produit et accompagnement",
+        "three": "Disponible en francais, en anglais et en espagnol"
+      }
+    },
+    "fallback_groups": {
+      "industries": {
+        "title": "Industries desservies",
+        "plumbing": "Plomberie",
+        "hvac": "HVAC",
+        "electrical": "Electricite",
+        "cleaning": "Entretien menager",
+        "salon_beauty": "Salon & beaute",
+        "restaurant": "Restaurant"
+      },
+      "products": {
+        "title": "Produits",
+        "sales_crm": "Sales & CRM",
+        "reservations": "Reservations",
+        "operations": "Operations",
+        "commerce": "Commerce",
+        "marketing_loyalty": "Marketing & Loyalty",
+        "ai_automation": "AI & Automation",
+        "command_center": "Command Center"
+      },
+      "resources": {
+        "title": "Ressources",
+        "pricing": "Tarification",
+        "terms": "Conditions",
+        "privacy": "Confidentialite",
+        "refund": "Remboursement",
+        "contact": "Contact"
+      }
+    }
+  }
+}

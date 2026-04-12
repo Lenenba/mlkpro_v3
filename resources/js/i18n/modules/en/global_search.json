@@ -1,0 +1,18 @@
+{
+  "global_search": {
+    "open": "Global search",
+    "placeholder": "Search customers, tasks, quotes, employees...",
+    "placeholder_solo": "Search customers, tasks, quotes...",
+    "quick_actions": "Quick actions",
+    "results": "Results",
+    "loading": "Searching...",
+    "no_results": "No results found.",
+    "hint": "Ctrl + K",
+    "groups": {
+      "customers": "Customers",
+      "tasks": "Tasks",
+      "quotes": "Quotes",
+      "employees": "Employees"
+    }
+  }
+}

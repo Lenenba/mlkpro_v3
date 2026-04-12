@@ -1,0 +1,140 @@
+{
+  "portal_shop": {
+    "page_title": {
+      "create": "Tienda",
+      "edit": "Editar orden"
+    },
+    "header": {
+      "section": "Tienda",
+      "logo_alt": "Logotipo de la tienda",
+      "edit_title": "Editar {order}",
+      "create_title": "Pedido desde {company}",
+      "create_subtitle": "Elija sus productos, entrega o recogida rápida.",
+      "edit_subtitle": "Actualice sus artículos antes de la entrega.",
+      "company_fallback": "nuestros socios"
+    },
+    "actions": {
+      "back_to_dashboard": "Volver al tablero",
+      "reset_filters": "Reiniciar",
+      "cancel_order": "Cancelar pedido",
+      "cancel_confirm": "¿Cancelar este pedido?"
+    },
+    "locked_notice": "Este pedido ya está en entrega o completado. Los cambios están bloqueados.",
+    "status": {
+      "order_status": "Estado del pedido",
+      "confirmed_at": "Confirmado el {date}",
+      "payment": "Pago: {status}",
+      "delivery_photo": "Foto de entrega",
+      "delivery_photo_alt": "Foto de entrega"
+    },
+    "payment": {
+      "deposit_required": "Depósito requerido",
+      "amount_paid": "Pagado",
+      "balance_due": "Saldo adeudado",
+      "pay_deposit": "Pagar deposito",
+      "pay_balance": "saldo de pago",
+      "processing": "Procesando...",
+      "error": "No se puede iniciar el pago."
+    },
+    "confirm_receipt": {
+      "title": "Confirmar recibo",
+      "subtitle": "Agregue una foto si es necesario y luego confirme.",
+      "action": "Confirmar"
+    },
+    "filters": {
+      "title": "Filtros",
+      "category_label": "categoría",
+      "category_all": "Todas las categorias",
+      "availability_label": "Disponibilidad",
+      "availability_all": "Todos",
+      "availability_in": "En stock",
+      "availability_low": "Bajo",
+      "availability_out": "Fuera",
+      "tracking_label": "Tipo",
+      "tracking_all": "Todos",
+      "tracking_standard": "Estándar",
+      "tracking_lot": "lote",
+      "tracking_serial": "Serie"
+    },
+    "timeline": {
+      "title": "Cronograma del pedido",
+      "pickup_qr_title": "QR de recogida",
+      "pickup_qr_note": "Muestre este código QR al momento de recogerlo para confirmar.",
+      "pickup_qr_alt": "QR de recogida {code}",
+      "pickup_code": "Código: {code}"
+    },
+    "search": {
+      "placeholder": "Buscar productos",
+      "results": "{count} productos"
+    },
+    "cart": {
+      "label": "Carrito ({count})",
+      "title": "Carrito",
+      "header_order": "tu pedido",
+      "header_cart": "tu carrito",
+      "items_count": "{count} artículos",
+      "items_title": "Artículos",
+      "items_empty": "Agregue productos para comenzar.",
+      "remove": "Quitar"
+    },
+    "empty": {
+      "no_products": "Ningún producto coincide con los filtros actuales.",
+      "no_description": "Sin descripción.",
+      "product_description": "No hay descripción disponible para este producto."
+    },
+    "product": {
+      "label": "Producto",
+      "sku_fallback": "SKU -",
+      "price_label": "Precio",
+      "supplier": "Proveedor",
+      "barcode": "código de barras",
+      "min_stock": "Stock mínimo",
+      "quantity": "Cantidad",
+      "add": "Añadir",
+      "add_another": "agregar otro",
+      "add_to_cart": "Añadir al carrito",
+      "go_to_cart": "Ir al carrito",
+      "description": "Descripción"
+    },
+    "labels": {
+      "stock": "Valores {count}"
+    },
+    "fulfillment": {
+      "title": "Entrega o recogida",
+      "delivery": "Entrega",
+      "delivery_fee": "Tarifa {amount}",
+      "delivery_free": "Gratis",
+      "pickup": "recogida rápida",
+      "pickup_ready": "Listo en {minutes} minutos",
+      "delivery_address": "Dirección de entrega",
+      "delivery_instructions": "Instrucciones (opcional)",
+      "delivery_zone": "Zona: {zone}",
+      "pickup_address_label": "Dirección de recogida",
+      "pickup_address_fallback": "Recogida en tienda",
+      "pickup_notes": "Notas (opcional)",
+      "scheduled": "Horario preferido (opcional)"
+    },
+    "notes": {
+      "title": "Notas y sustituciones",
+      "customer_notes": "notas para la tienda",
+      "substitution_allowed": "Permitir sustituciones",
+      "substitution_notes": "Preferencias de sustitución"
+    },
+    "summary": {
+      "title": "Resumen",
+      "subtotal": "Subtotal",
+      "taxes": "Impuestos",
+      "delivery": "Entrega",
+      "total": "Total",
+      "checkout_update": "Orden de actualización",
+      "checkout_create": "Realizar pedido"
+    },
+    "stock": {
+      "out": "Agotado",
+      "low": "Stock bajo",
+      "in": "En stock"
+    },
+    "order_number": "Orden #{id}",
+    "order_fallback": "Orden"
+  }
+}

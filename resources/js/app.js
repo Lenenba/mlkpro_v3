@@ -2,8 +2,9 @@ import '../css/app.css';
 import './bootstrap';
 import 'preline'; // Import de Preline.js
 import { createInertiaApp, router } from '@inertiajs/vue3';
-import { createApp, h } from 'vue';
+import { Fragment, createApp, defineComponent, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
+import AppSeo from './Components/Seo/AppSeo.vue';
 import { createI18nInstance } from './i18n';
 import { applyAccessibilityPreferences, readAccessibilityPreferences } from './utils/accessibility';
 
@@ -18,6 +19,14 @@ const setDocumentLang = (locale) => {
     if (typeof document !== 'undefined' && locale) {
         document.documentElement.lang = locale;
     }
+};
+
+const translate = (key, fallback, params = {}) => {
+    if (i18nInstance?.global?.t) {
+        return i18nInstance.global.t(key, params);
+    }
+
+    return fallback;
 };
 
 const dispatchToast = (type, message) => {
@@ -53,7 +62,7 @@ const handleSessionExpired = (status) => {
         return;
     }
     sessionReloading = true;
-    dispatchToast('warning', 'Session expirée. Veuillez réessayer.');
+    dispatchToast('warning', translate('session.expired_retry', 'Session expiree. Veuillez reessayer.'));
     setTimeout(() => {
         sessionReloading = false;
     }, 4000);
@@ -205,6 +214,46 @@ const normalizeInertiaPath = (path) => String(path || '')
     .replace(/\/+/g, '/')
     .toLowerCase();
 
+const SeoLayout = defineComponent({
+    name: 'SeoLayout',
+    setup(_, { slots }) {
+        return () => h(Fragment, null, [
+            h(AppSeo),
+            slots.default ? slots.default() : null,
+        ]);
+    },
+});
+
+const wrapWithLayouts = (layouts, page) => [...layouts, page]
+    .reverse()
+    .reduce((child, layout) => {
+        layout.inheritAttrs = !!layout.inheritAttrs;
+        return h(layout, { ...page.props }, () => child);
+    });
+
+const attachSeoLayout = (pageComponent) => {
+    if (!pageComponent || pageComponent.__mlkSeoLayoutApplied) {
+        return pageComponent;
+    }
+
+    const existingLayout = pageComponent.layout;
+
+    if (!existingLayout) {
+        pageComponent.layout = SeoLayout;
+    } else if (typeof existingLayout === 'function') {
+        pageComponent.layout = (render, page) => render(SeoLayout, null, {
+            default: () => existingLayout(render, page),
+        });
+    } else {
+        const layouts = Array.isArray(existingLayout) ? existingLayout : [existingLayout];
+        pageComponent.layout = (render, page) => wrapWithLayouts([SeoLayout, ...layouts], page);
+    }
+
+    pageComponent.__mlkSeoLayoutApplied = true;
+
+    return pageComponent;
+};
+
 const resolveInertiaPage = (name) => {
     const normalizedName = String(name || '')
         .replace(/\\/g, '/')
@@ -214,7 +263,10 @@ const resolveInertiaPage = (name) => {
     const pagePath = `./Pages/${normalizedName}.vue`;
     const directMatch = inertiaPages[pagePath];
     if (directMatch) {
-        return directMatch();
+        return directMatch().then((module) => {
+            attachSeoLayout(module.default || module);
+            return module;
+        });
     }
 
     // Fallback for inconsistent casing and path separators coming from backend names.
@@ -223,7 +275,10 @@ const resolveInertiaPage = (name) => {
         (key) => normalizeInertiaPath(key) === normalizedPath,
     );
     if (caseInsensitiveKey) {
-        return inertiaPages[caseInsensitiveKey]();
+        return inertiaPages[caseInsensitiveKey]().then((module) => {
+            attachSeoLayout(module.default || module);
+            return module;
+        });
     }
 
     return Promise.reject(new Error(`Page not found: ${pagePath}`));
@@ -303,5 +358,3 @@ if (window?.axios?.interceptors?.response) {
         },
     );
 }
-
-

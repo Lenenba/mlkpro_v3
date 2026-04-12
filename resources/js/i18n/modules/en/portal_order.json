@@ -1,0 +1,54 @@
+{
+  "portal_order": {
+    "title": "Order {number}",
+    "subtitle": "Order details",
+    "actions": {
+      "back_to_dashboard": "Back to dashboard",
+      "download_pdf": "Download invoice"
+    },
+    "sections": {
+      "items": "Items",
+      "summary": "Summary",
+      "payment": "Payment",
+      "fulfillment": "Delivery / pickup",
+      "customer": "Customer",
+      "payments": "Payment history",
+      "reviews": "Reviews"
+    },
+    "table": {
+      "product": "Product",
+      "sku": "SKU",
+      "unit": "Unit",
+      "quantity": "Qty",
+      "price": "Price",
+      "total": "Total"
+    },
+    "labels": {
+      "order_status": "Order status",
+      "payment_status": "Payment status",
+      "created_on": "Created on {date}",
+      "paid_on": "Paid on {date}",
+      "requested_time": "Requested time: {date}",
+      "delivery_address": "Address",
+      "notes": "Notes"
+    },
+    "reviews": {
+      "unavailable": "Reviews are available once the order is paid.",
+      "order_title": "Order review",
+      "order_subtitle": "Rate the overall delivery and service.",
+      "product_title": "Product review",
+      "rating_label": "Rating",
+      "title_label": "Title",
+      "comment_label": "Comment",
+      "submit_order": "Submit order review",
+      "submit_product": "Submit product review",
+      "status": {
+        "approved": "Published",
+        "blocked": "Blocked"
+      }
+    },
+    "empty": {
+      "payments": "No payments recorded."
+    }
+  }
+}

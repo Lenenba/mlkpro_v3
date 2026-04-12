@@ -1,0 +1,293 @@
+{
+  "sales": {
+    "index": {
+      "title": "Ventas pagadas",
+      "subtitle": "Realice un seguimiento de las ventas pagas de su tienda.",
+      "new_sale": "Nueva venta",
+      "filters": {
+        "all_sales": "Todas las ventas"
+      }
+    },
+    "stats": {
+      "total": "Ventas totales",
+      "revenue": "Ingresos",
+      "collected": "Recogido",
+      "pending": "Pendiente",
+      "draft": "Borradores",
+      "canceled": "Cancelado"
+    },
+    "status": {
+      "draft": "Borrador",
+      "pending": "Pendiente",
+      "paid": "Pagado",
+      "canceled": "Cancelado"
+    },
+    "payment": {
+      "unpaid": "Impagado",
+      "deposit_required": "Depósito requerido",
+      "partial": "Parcial",
+      "paid": "Pagado"
+    },
+    "payments": {
+      "title": "Pagos",
+      "history_title": "Historial de pagos",
+      "deposit_required": "Depósito requerido",
+      "paid": "Pagado",
+      "balance_due": "Saldo adeudado",
+      "amount_label": "Cantidad",
+      "method_label": "Método",
+      "cash": "Efectivo",
+      "card": "Tarjeta",
+      "record": "Registrar pago",
+      "recording": "Grabando...",
+      "mark_paid": "Marcar como pagado",
+      "marking_paid": "Marcando...",
+      "pending_cash": "Pago pendiente (efectivo)",
+      "empty": "No se registraron pagos.",
+      "status": {
+        "pending": "Pendiente",
+        "completed": "Pagado",
+        "paid": "Pagado",
+        "failed": "Fallido",
+        "refunded": "Reembolsado",
+        "reversed": "Revertido"
+      },
+      "timeline": {
+        "deposit": "Depósito",
+        "balance": "Saldo",
+        "payment": "Pago",
+        "deposit_balance": "Depósito + saldo",
+        "pending": "Cobro pendiente"
+      },
+      "bank_transfer": "Transferencia bancaria",
+      "check": "Cheque"
+    },
+    "fulfillment": {
+      "pending": "Pedido recibido",
+      "preparing": "En preparación",
+      "out_for_delivery": "Fuera para entrega",
+      "ready_for_pickup": "Listo para ser recogido",
+      "completed": "Entregado",
+      "confirmed": "Confirmado",
+      "method": {
+        "delivery": "Entrega",
+        "pickup": "Recogida",
+        "order": "Orden"
+      }
+    },
+    "stock": {
+      "out": "Agotado",
+      "low": "Stock bajo",
+      "available": "Disponible"
+    },
+    "labels": {
+      "no_code": "Sin código",
+      "stock": "Valores",
+      "customer": "Cliente",
+      "customer_anonymous": "Cliente anónimo"
+    },
+    "actions": {
+      "back_to_sales": "Volver a ventas",
+      "edit": "Editar",
+      "pay_with_stripe": "Paga con Stripe",
+      "pay_with_stripe_loading": "Redirigiendo...",
+      "receipt": "Descargar recibo",
+      "print": "Imprimir"
+    },
+    "errors": {
+      "stripe_start": "No se puede iniciar el pago de Stripe.",
+      "stripe_amount_invalid": "Importe no válido para Stripe."
+    },
+    "qr": {
+      "title": "Pago QR",
+      "subtitle": "Escanea el código QR para pagar rápidamente.",
+      "loading": "Preparando el pago...",
+      "image_alt": "Código QR de pago",
+      "order_label": "Venta {number}",
+      "view_sale": "Ver oferta",
+      "open_link": "Pago abierto"
+    },
+    "form": {
+      "search_label": "Búsqueda de productos",
+      "search_placeholder": "Nombre, SKU, código de barras",
+      "scan_label": "Escanear un código de barras",
+      "scan_placeholder": "Escanee aquí",
+      "customer_label": "Cliente",
+      "customer_placeholder": "Seleccione un cliente",
+      "new_customer": "Nuevo cliente",
+      "new_customer_title": "Nuevo cliente",
+      "create_customer": "Crear cliente",
+      "discount_badge": "Descuento {rate}%",
+      "type_label": "Tipo",
+      "payment_label": "Método de pago",
+      "payment_methods": {
+        "cash": {
+          "label": "Efectivo",
+          "description": "Pago inmediato en persona."
+        },
+        "card": {
+          "label": "Tarjeta",
+          "description": "Pago con tarjeta a través de Stripe.",
+          "disabled_hint": "Stripe no está configurado para pagos con tarjeta."
+        },
+        "bank_transfer": {
+          "label": "Transferencia bancaria",
+          "description": "Pago manual por transferencia bancaria."
+        },
+        "check": {
+          "label": "Cheque",
+          "description": "Pago manual mediante cheque."
+        }
+      },
+      "loyalty": {
+        "balance": "Saldo de fidelidad: {points} {label}",
+        "redeem_label": "Canjear puntos",
+        "hint": "Máx.: {max} {label} ({amount} desactivado)"
+      },
+      "status_label": "Estado",
+      "invoice_title": "Factura",
+      "lines": "{count} líneas",
+      "empty_items": "No se agregaron productos. Haga clic en un producto para comenzar.",
+      "remove_item": "Quitar",
+      "notes_label": "Notas (opcional)",
+      "errors": {
+        "out_of_stock": "El producto está agotado.",
+        "product_not_found": "No se encontró ningún producto para este código."
+      }
+    },
+    "summary": {
+      "subtotal": "Subtotal",
+      "taxes": "Impuestos",
+      "discount_rate": "Descuento ({rate}%)",
+      "loyalty_redeem": "Lealtad ({points} {label})",
+      "delivery": "Entrega",
+      "total": "Total",
+      "lines": "Líneas",
+      "items": "Artículos",
+      "created": "Creado",
+      "paid": "Pagado"
+    },
+    "table": {
+      "filters": {
+        "search_placeholder": "Buscar número o cliente",
+        "toggle": "Filtros",
+        "reset": "Reiniciar",
+        "all_statuses": "Todos los estados",
+        "all_customers": "Todos los clientes",
+        "total_min": "Total mínimo",
+        "total_max": "Total máximo",
+        "date_from": "De",
+        "date_to": "a"
+      },
+      "headings": {
+        "sale": "Venta",
+        "customer": "Cliente",
+        "status": "Estado",
+        "payment": "Estado de pago",
+        "items": "Artículos",
+        "total": "Total",
+        "date": "Fecha"
+      },
+      "sale_label": "Venta #{id}",
+      "items_count": "{count} artículos",
+      "payment_label": "Estado de pago: {status}",
+      "fulfillment_placeholder": "Estado del pedido",
+      "actions": {
+        "view": "Ver",
+        "edit": "Editar",
+        "mark_paid": "Marcar como pagado",
+        "cancel": "Cancelar"
+      },
+      "empty": {
+        "orders": {
+          "title": "Sin pedidos",
+          "description": "Los pedidos de los clientes aparecerán aquí."
+        },
+        "sales": {
+          "title": "Sin ventas",
+          "description": "Cree una venta o utilice POS para comenzar."
+        }
+      },
+      "pagination": {
+        "label": "Paginación",
+        "results": "resultados",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "of": "de"
+      }
+    },
+    "create": {
+      "title": "Nueva venta",
+      "subtitle": "Selecciona productos para generar la factura.",
+      "flash_saved": "Venta guardada.",
+      "flash_view": "Ver e imprimir",
+      "save_sale": "Guardar venta",
+      "save_order": "Guardar pedido",
+      "status": {
+        "pending": {
+          "label": "Orden",
+          "description": "Pague más tarde o en preparación"
+        },
+        "paid": {
+          "label": "Venta pagada",
+          "description": "Pago inmediato completado"
+        }
+      }
+    },
+    "edit": {
+      "meta_title": "Editar venta",
+      "title": "Editar {number}",
+      "subtitle": "Actualizar la venta y su estado.",
+      "view_sale": "Ver oferta",
+      "fulfillment_status_label": "Estado {method}",
+      "fulfillment_placeholder": "Seleccionar",
+      "schedule_label": "Hora solicitada (ETA)",
+      "update": "Actualizar"
+    },
+    "show": {
+      "meta_title": "Venta",
+      "invoice_number": "Factura {number}",
+      "company_fallback": "Empresa",
+      "seller_fallback": "Vendedor",
+      "seller_label": "Vendedor",
+      "order_label": "Orden: {status}",
+      "payment_label": "Estado de pago: {status}",
+      "created_on": "Creado el {date}",
+      "paid_on": "Pagado el {date}",
+      "products_title": "Productos",
+      "table": {
+        "product": "Producto",
+        "sku": "SKU",
+        "unit": "Unidad",
+        "quantity": "Cantidad",
+        "price": "Precio",
+        "total": "Total"
+      },
+      "product_alt": "Producto",
+      "customer_missing": "Ningún cliente adjunto.",
+      "summary_title": "Resumen",
+      "fulfillment_title": "Entrega",
+      "fulfillment_status": "Estado: {status}",
+      "address_label": "Dirección:",
+      "notes_label": "Notas:",
+      "requested_time": "Hora solicitada: {date}",
+      "confirmed_on": "Confirmado el {date}",
+      "pickup_title": "Recogida",
+      "pickup_code_label": "Código",
+      "pickup_code_pending": "Código de recogida pendiente.",
+      "pickup_confirmed_on": "Recogido el {date}",
+      "pickup_confirmed_by": "Confirmado por {name}",
+      "pickup_qr_alt": "QR {code}",
+      "delivery_proof_title": "Foto de entrega",
+      "customer_notes_title": "Notas del cliente",
+      "customer_notes_empty": "Sin notas específicas.",
+      "substitutions_label": "Sustituciones:",
+      "substitution_allowed": "Permitido",
+      "substitution_not_allowed": "No permitido",
+      "notes_title": "Notas",
+      "product_initial": "P",
+      "company_initials_fallback": "CO",
+      "confirm_pickup": "Confirmar recogida"
+    }
+  }
+}

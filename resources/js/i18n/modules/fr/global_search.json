@@ -1,0 +1,18 @@
+{
+  "global_search": {
+    "open": "Recherche globale",
+    "placeholder": "Rechercher clients, tâches, devis, employés...",
+    "placeholder_solo": "Rechercher clients, tâches, devis...",
+    "quick_actions": "Actions rapides",
+    "results": "Résultats",
+    "loading": "Recherche...",
+    "no_results": "Aucun resultat.",
+    "hint": "Ctrl + K",
+    "groups": {
+      "customers": "Clients",
+      "tasks": "Tâches",
+      "quotes": "Devis",
+      "employees": "Employés"
+    }
+  }
+}

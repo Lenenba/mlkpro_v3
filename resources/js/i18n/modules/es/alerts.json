@@ -1,0 +1,26 @@
+{
+  "alerts": {
+    "maintenance": {
+      "title": "Modo de mantenimiento",
+      "message": "La plataforma esta actualmente en modo de mantenimiento."
+    },
+    "impersonation": {
+      "title": "Suplantando",
+      "message": "Estas suplantando esta cuenta. Administrador original: {name}."
+    },
+    "success": {
+      "title": "Exito."
+    },
+    "error": {
+      "title": "Error."
+    },
+    "warning": {
+      "title": "Advertencia."
+    },
+    "validation_toast": {
+      "single": "1 error en el formulario. Revisa el campo resaltado.",
+      "plural": "{count} errores en el formulario. Revisa los campos resaltados.",
+      "generic": "Hay errores en el formulario. Revisa los campos resaltados."
+    }
+  }
+}

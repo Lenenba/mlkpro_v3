@@ -45,10 +45,27 @@ class PublicProductPageNarratives
     }
 
     /**
+     * @param  array<int, array<string, mixed>>  $sections
+     * @return array<int, array<string, mixed>>
+     */
+    private static function localizedEnglishSections(string $slug, string $locale, array $sections): array
+    {
+        $overrides = PublicProductPageLocalizedOverrides::for($slug, $locale);
+
+        return $overrides === []
+            ? $sections
+            : self::withOverrides($sections, $overrides);
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     private static function salesCrmSections(string $locale): array
     {
+        if ($locale === 'es') {
+            return self::localizedEnglishSections('sales-crm', $locale, self::salesCrmSections('en'));
+        }
+
         $isFrench = $locale === 'fr';
 
         return [
@@ -356,6 +373,10 @@ class PublicProductPageNarratives
      */
     private static function reservationsSections(string $locale): array
     {
+        if ($locale === 'es') {
+            return self::localizedEnglishSections('reservations', $locale, self::reservationsSections('en'));
+        }
+
         $isFrench = $locale === 'fr';
 
         return [
@@ -479,6 +500,10 @@ class PublicProductPageNarratives
      */
     private static function operationsSections(string $locale): array
     {
+        if ($locale === 'es') {
+            return self::localizedEnglishSections('operations', $locale, self::operationsSections('en'));
+        }
+
         $isFrench = $locale === 'fr';
 
         return [
@@ -602,6 +627,10 @@ class PublicProductPageNarratives
      */
     private static function commerceSections(string $locale): array
     {
+        if ($locale === 'es') {
+            return self::localizedEnglishSections('commerce', $locale, self::commerceSections('en'));
+        }
+
         $isFrench = $locale === 'fr';
 
         return [
@@ -725,6 +754,10 @@ class PublicProductPageNarratives
      */
     private static function marketingLoyaltySections(string $locale): array
     {
+        if ($locale === 'es') {
+            return self::localizedEnglishSections('marketing-loyalty', $locale, self::marketingLoyaltySections('en'));
+        }
+
         $isFrench = $locale === 'fr';
 
         return [
@@ -848,6 +881,10 @@ class PublicProductPageNarratives
      */
     private static function aiAutomationSections(string $locale): array
     {
+        if ($locale === 'es') {
+            return self::localizedEnglishSections('ai-automation', $locale, self::aiAutomationSections('en'));
+        }
+
         $isFrench = $locale === 'fr';
 
         return [
@@ -971,6 +1008,10 @@ class PublicProductPageNarratives
      */
     private static function commandCenterSections(string $locale): array
     {
+        if ($locale === 'es') {
+            return self::localizedEnglishSections('command-center', $locale, self::commandCenterSections('en'));
+        }
+
         $isFrench = $locale === 'fr';
 
         return [
@@ -1337,6 +1378,33 @@ class PublicProductPageNarratives
             'image_url' => $image['image_url'],
             'image_alt' => $image['image_alt'],
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function withOverrides(array $sections, array $overrides): array
+    {
+        foreach ($overrides as $path => $value) {
+            $segments = explode('.', (string) $path);
+            $target = &$sections;
+
+            foreach ($segments as $index => $segment) {
+                if ($index === count($segments) - 1) {
+                    $target[$segment] = $value;
+
+                    continue 2;
+                }
+
+                if (! isset($target[$segment]) || ! is_array($target[$segment])) {
+                    $target[$segment] = [];
+                }
+
+                $target = &$target[$segment];
+            }
+        }
+
+        return $sections;
     }
 
     /**

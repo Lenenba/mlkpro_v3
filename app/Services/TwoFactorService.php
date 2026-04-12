@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Notifications\TwoFactorCodeNotification;
+use App\Support\LocalePreference;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -11,11 +12,15 @@ use Illuminate\Support\Facades\Hash;
 class TwoFactorService
 {
     public const METHOD_EMAIL = 'email';
+
     public const METHOD_SMS = 'sms';
+
     public const METHOD_APP = 'app';
 
     public const CODE_LENGTH = 6;
+
     public const EXPIRY_MINUTES = 10;
+
     public const RESEND_COOLDOWN_SECONDS = 30;
 
     public function sendCode(User $user, bool $force = false, ?string $preferredMethod = null): array
@@ -25,7 +30,7 @@ class TwoFactorService
         $cooldown = self::RESEND_COOLDOWN_SECONDS;
         $resolvedMethod = $this->resolveEffectiveMethod($user, $preferredMethod);
 
-        if (!$force && $lastSent && $lastSent->diffInSeconds($now) < $cooldown) {
+        if (! $force && $lastSent && $lastSent->diffInSeconds($now) < $cooldown) {
             return [
                 'sent' => false,
                 'retry_after' => $cooldown - $lastSent->diffInSeconds($now),
@@ -49,11 +54,11 @@ class TwoFactorService
         $expiresAt = $now->copy()->addMinutes(self::EXPIRY_MINUTES);
 
         $delivery = $this->deliverCode($user, $resolvedMethod, $code, $expiresAt);
-        if (!$delivery['sent'] && $resolvedMethod === self::METHOD_SMS) {
+        if (! $delivery['sent'] && $resolvedMethod === self::METHOD_SMS) {
             $delivery = $this->deliverCode($user, self::METHOD_EMAIL, $code, $expiresAt);
         }
 
-        if (!$delivery['sent']) {
+        if (! $delivery['sent']) {
             return [
                 'sent' => false,
                 'retry_after' => 0,
@@ -81,11 +86,11 @@ class TwoFactorService
     public function verifyCode(User $user, string $code): bool
     {
         $expiresAt = $user->two_factor_expires_at;
-        if (!$user->two_factor_code || !$expiresAt || now()->greaterThan($expiresAt)) {
+        if (! $user->two_factor_code || ! $expiresAt || now()->greaterThan($expiresAt)) {
             return false;
         }
 
-        if (!Hash::check($code, $user->two_factor_code)) {
+        if (! Hash::check($code, $user->two_factor_code)) {
             return false;
         }
 
@@ -101,7 +106,7 @@ class TwoFactorService
     {
         $method = $preferredMethod ?: $user->twoFactorMethod();
         if ($method === self::METHOD_APP) {
-            return !empty($user->two_factor_secret) ? self::METHOD_APP : self::METHOD_EMAIL;
+            return ! empty($user->two_factor_secret) ? self::METHOD_APP : self::METHOD_EMAIL;
         }
 
         if ($method === self::METHOD_SMS) {
@@ -138,10 +143,10 @@ class TwoFactorService
         $digits = ltrim($phone, '+');
         $length = strlen($digits);
         if ($length <= 4) {
-            return $prefix . $digits;
+            return $prefix.$digits;
         }
 
-        return $prefix . str_repeat('*', $length - 4) . substr($digits, -4);
+        return $prefix.str_repeat('*', $length - 4).substr($digits, -4);
     }
 
     private function canUseSms(User $user): bool
@@ -163,7 +168,7 @@ class TwoFactorService
             ? $user
             : User::query()->find($ownerId);
 
-        if (!$owner) {
+        if (! $owner) {
             return false;
         }
 
@@ -182,8 +187,8 @@ class TwoFactorService
                 ];
             }
 
-            $smsResult = app(SmsNotificationService::class)->sendWithResult($phone, $this->smsMessage($code, $expiresAt));
-            if (!($smsResult['ok'] ?? false)) {
+            $smsResult = app(SmsNotificationService::class)->sendWithResult($phone, $this->smsMessage($user, $code, $expiresAt));
+            if (! ($smsResult['ok'] ?? false)) {
                 return [
                     'sent' => false,
                     'method' => self::METHOD_SMS,
@@ -213,12 +218,17 @@ class TwoFactorService
         ];
     }
 
-    private function smsMessage(string $code, CarbonInterface $expiresAt): string
+    private function smsMessage(User $user, string $code, CarbonInterface $expiresAt): string
     {
         $minutes = max(1, (int) ceil(now()->diffInSeconds($expiresAt) / 60));
         $appName = (string) config('app.name', 'App');
+        $locale = LocalePreference::forNotifiable($user);
 
-        return "{$appName}: code de verification {$code}. Expire dans {$minutes} min.";
+        return LocalePreference::trans('ui.auth.two_factor.sms_message', [
+            'app' => $appName,
+            'code' => $code,
+            'minutes' => $minutes,
+        ], $locale);
     }
 
     private function generateCode(): string

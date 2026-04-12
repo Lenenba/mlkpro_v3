@@ -1,0 +1,226 @@
+{
+  "dashboard": {
+    "title": "Tableau de bord",
+    "welcome_named": "Bon retour, {name}. Voici votre activité récente.",
+    "welcome_generic": "Bon retour. Voici votre activité récente.",
+    "meta": {
+      "quotes_month": "{count} devis ce mois-ci",
+      "payments_month": "{amount} encaissés ce mois-ci"
+    },
+    "usage": {
+      "title": "Alertes d'utilisation",
+      "description": "Certains modules approchent leurs limites{planSuffix}.",
+      "plan_suffix": " pour le forfait {plan}",
+      "view_limits": "Voir les limites",
+      "unlimited": "Illimité",
+      "not_available": "Non disponible"
+    },
+    "limits": {
+      "quotes": "Devis",
+      "requests": "Demandes",
+      "invoices": "Factures",
+      "jobs": "Chantiers",
+      "products": "Produits",
+      "services": "Services",
+      "tasks": "Tâches",
+      "team_members": "Membres d'équipe"
+    },
+    "time": {
+      "any": "N'importe quand"
+    },
+    "priority": {
+      "high": "Haute",
+      "medium": "Moyenne",
+      "low": "Basse"
+    },
+    "auto": {
+      "started": "Auto démarré",
+      "completed": "Auto terminé"
+    },
+    "agenda": {
+      "task": "tâche",
+      "tasks": "tâches",
+      "job": "chantier",
+      "jobs": "chantiers",
+      "auto_started": "{count} démarré auto",
+      "auto_completed": "{count} terminé auto",
+      "auto_completed_at": "{count} terminé auto à {time}"
+    },
+    "labels": {
+      "unknown_customer": "Client inconnu",
+      "job": "Chantier",
+      "task": "Tâche",
+      "assignee": "Assigné : {name}",
+      "quote_fallback": "Devis",
+      "invoice_fallback": "Facture"
+    },
+    "timeline": {
+      "title": "Planning du jour",
+      "subtitle": "Chantiers et tâches prévus aujourd'hui.",
+      "sync_calendar": "Synchroniser le calendrier",
+      "view_tasks": "Voir les tâches",
+      "auto_alerts": "Alertes auto",
+      "empty": "Aucune tâche ni aucun chantier prévu aujourd'hui."
+    },
+    "revenue": {
+      "title": "Tendance des revenus",
+      "subtitle": "Activité de facturation des 30 derniers jours.",
+      "view_invoices": "Voir les factures",
+      "paid_to_date": "Payé à ce jour",
+      "outstanding": "A recevoir",
+      "overdue": "En retard"
+    },
+    "sections": {
+      "recent_quotes": "Devis récents",
+      "upcoming_jobs": "Chantiers à venir",
+      "outstanding_invoices": "Factures en attente",
+      "recent_activity": "Activité récente"
+    },
+    "actions": {
+      "view_all": "Voir tout"
+    },
+    "table": {
+      "quote": "Devis",
+      "customer": "Client",
+      "status": "Statut",
+      "total": "Total",
+      "created": "Créé"
+    },
+    "empty": {
+      "quotes": "Aucun devis pour le moment.",
+      "jobs": "Aucun chantier planifié.",
+      "invoices": "Toutes les factures sont réglées.",
+      "activity": "Aucune activité récente."
+    },
+    "quick_actions": {
+      "title": "Actions rapides",
+      "create": "Créer",
+      "suggested": "Suggestion : {label}",
+      "suggested_next": "Suggestions suivantes"
+    },
+    "kpi": {
+      "revenue_paid": "Revenu encaissé",
+      "revenue_billed": "Facturé {amount}",
+      "outstanding_balance": "Solde en attente",
+      "partial_invoices": "{count} factures partielles",
+      "open_quotes": "Devis ouverts",
+      "accepted_quotes": "{count} devis acceptés",
+      "jobs_in_progress": "Chantiers en cours",
+      "jobs_scheduled": "{count} planifiés",
+      "customers": "Clients",
+      "customers_new": "{count} nouveaux clients",
+      "low_stock": "Stock faible",
+      "out_of_stock": "{count} en rupture",
+      "invoices_paid": "Factures payées",
+      "invoices_total": "{count} au total",
+      "inventory_value": "Valeur du stock",
+      "products_total": "{count} produits"
+    },
+    "announcements": {
+      "title": "Annonces",
+      "subtitle": "Dernières nouvelles de Malikia Pro.",
+      "quick_title": "Infos rapides",
+      "quick_subtitle": "Derniers points pour votre équipe.",
+      "updates_title": "Mises à jour",
+      "updates_subtitle": "Quoi de neuf sur Malikia Pro.",
+      "valid_until": "Valide jusqu'au {date}",
+      "from": "Depuis le {date}",
+      "learn_more": "En savoir plus"
+    },
+    "checklist": {
+      "title": "Prise en main",
+      "subtitle": "Terminez ces étapes pour configurer votre espace.",
+      "done": "Fait",
+      "plan_scans_title": "Scan de plans",
+      "plan_scans_empty": "Aucun scan pour le moment.",
+      "plan_scans_count": "{count} scans importés",
+      "plan_scans_cta": "Importer un scan"
+    },
+    "onboarding": {
+      "add_first_service": "Ajouter votre première prestation",
+      "add_first_product": "Ajouter votre premier produit",
+      "add_first_customer": "Ajouter votre premier client",
+      "create_first_quote": "Créer votre premier devis"
+    },
+    "suggestions": {
+      "create_customer": "Creer un client",
+      "add_service": "Ajouter une prestation",
+      "add_product": "Ajouter un produit",
+      "create_quote": "Creer un devis",
+      "import_plan": "Importer un plan",
+      "create_request": "Creer une demande",
+      "review_jobs": "Revoir les chantiers"
+    },
+    "trend": {
+      "none": "Aucune tendance",
+      "no_change": "Aucun changement",
+      "up": "En hausse",
+      "down": "En baisse",
+      "new": "Nouveau",
+      "summary": "{direction} ({value})"
+    },
+    "status": {
+      "quote": {
+        "draft": "Brouillon",
+        "sent": "Envoye",
+        "accepted": "Accepte",
+        "declined": "Refuse",
+        "archived": "Archive"
+      },
+      "work": {
+        "to_schedule": "A planifier",
+        "scheduled": "Planifie",
+        "en_route": "En route",
+        "in_progress": "En cours",
+        "tech_complete": "Tech termine",
+        "pending_review": "En attente de validation",
+        "validated": "Valide",
+        "auto_validated": "Auto valide",
+        "dispute": "Litige",
+        "closed": "Ferme",
+        "cancelled": "Annule",
+        "completed": "Termine"
+      },
+      "task": {
+        "todo": "A faire",
+        "in_progress": "En cours",
+        "done": "Termine"
+      },
+      "invoice": {
+        "draft": "Brouillon",
+        "sent": "Envoye",
+        "awaiting_acceptance": "En attente d'acceptation",
+        "accepted": "Accepte",
+        "rejected": "Refuse",
+        "partial": "Partiel",
+        "paid": "Paye",
+        "overdue": "En retard",
+        "void": "Annulee"
+      }
+    },
+    "marketing_panel": {
+      "title": "KPI marketing",
+      "range": "Periode : {label} ({start} -> {end})",
+      "open_campaigns": "Campagnes actives",
+      "top_campaign": "Campagne phare",
+      "no_data": "Aucune donnee",
+      "conversions_clicks": "{conversions} conversions / {clicks} clics",
+      "audience_growth": "Croissance de l'audience",
+      "delta": "Variation",
+      "vip_customers": "Clients VIP",
+      "mailing_lists": "Listes de diffusion",
+      "list_count": "{count} liste(s)",
+      "customers_count": "{count} clients",
+      "reservations_created": "Reservations creees : {count}",
+      "invoices_paid": "Factures payees : {count}",
+      "quotes_accepted": "Devis acceptes : {count}",
+      "cards": {
+        "campaigns_sent": "Campagnes envoyees",
+        "delivery_success_rate": "Taux de livraison",
+        "click_rate": "Taux de clic",
+        "tracking_off": "Suivi desactive",
+        "conversions_attributed": "Conversions attribuees"
+      }
+    }
+  }
+}

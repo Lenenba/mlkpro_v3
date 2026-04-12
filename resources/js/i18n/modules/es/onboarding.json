@@ -1,0 +1,259 @@
+{
+  "onboarding": {
+    "title": "Onboarding",
+    "header": {
+      "title": "Crea tu espacio",
+      "subtitle": "Termina la configuracion en {count} pasos.",
+      "step": "Paso {current} / {total}"
+    },
+    "pending_owner": {
+      "title": "Espacio en configuracion",
+      "description": "Tu cuenta esta vinculada a una empresa cuya configuracion aun no ha terminado. Pide al propietario que finalice el onboarding.",
+      "logout": "Cerrar sesion",
+      "dashboard": "Panel"
+    },
+    "progress": {
+      "title": "Progreso",
+      "note": "Mantiene esta informacion al dia para desbloquear todas las funciones del panel."
+    },
+    "steps": {
+      "account": {
+        "title": "Cuenta",
+        "description": "Credenciales y seguridad."
+      },
+      "company": {
+        "title": "Empresa",
+        "description": "Informacion principal e identidad."
+      },
+      "type": {
+        "title": "Tipo",
+        "description": "Servicios o productos."
+      },
+      "sector": {
+        "title": "Sector",
+        "description": "Tu actividad principal."
+      },
+      "team": {
+        "title": "Equipo",
+        "description": "Invita a tu equipo."
+      },
+      "team_solo": {
+        "title": "Configuracion",
+        "description": "Confirma tu espacio individual."
+      },
+      "plan": {
+        "title": "Plan",
+        "description": "Elige tu plan."
+      },
+      "security": {
+        "title": "Seguridad",
+        "description": "Elige tu metodo 2FA."
+      }
+    },
+    "account": {
+      "owner_notice": "Esta cuenta se convertira en la propietaria de la empresa.",
+      "full_name": "Nombre completo",
+      "email": "Email",
+      "password": "Contrasena",
+      "confirm_password": "Confirmar la contrasena",
+      "have_account": "Ya tienes una cuenta? Inicia sesion",
+      "create_account": "Crear mi cuenta"
+    },
+    "company": {
+      "name": "Nombre de la empresa",
+      "logo_optional": "Logo (opcional)",
+      "logo_upload": "Sube tu logo",
+      "description_optional": "Descripcion (opcional)",
+      "address": "Direccion de la empresa",
+      "address_search_placeholder": "Buscar una direccion",
+      "address_searching": "Buscando...",
+      "address_validated": "Direccion validada",
+      "address_label": "Direccion",
+      "street": "Calle",
+      "city": "Ciudad",
+      "province": "Provincia",
+      "province_region": "Provincia / Region",
+      "country": "Pais",
+      "postal_code": "Codigo postal",
+      "address_manual": "Direccion manual",
+      "address_hide": "Ocultar",
+      "address_show": "Introducir manualmente",
+      "address_error_key": "Falta la configuracion de Geoapify. Revisa la configuracion de la aplicacion.",
+      "address_error_failed": "La busqueda ha fallado. Revisa la clave de Geoapify o usa la entrada manual."
+    },
+    "type": {
+      "services": "Empresa de servicios",
+      "products": "Empresa de productos",
+      "modules_active": "Modulos activos: {label}"
+    },
+    "sector": {
+      "label_products": "Tipo de negocio",
+      "label_services": "Sector de actividad",
+      "other_label": "Otro",
+      "other_input": "Sector (otro)",
+      "hint": "Si tu sector no aparece en la lista, elige Otro para crearlo.",
+      "products_note": "El modulo Ventas se activara para vender tus productos a traves de la plataforma.",
+      "services_note": "Las categorias de servicios se crearan automaticamente, tambien para un sector personalizado."
+    },
+    "sectors": {
+      "service": {
+        "placeholder": "Elegir un sector",
+        "salon": "Salon de peluqueria / belleza",
+        "restaurant": "Restaurante",
+        "service_general": "Servicios generales",
+        "menuiserie": "Carpinteria",
+        "plomberie": "Fontaneria",
+        "electricite": "Electricidad",
+        "peinture": "Pintura",
+        "toiture": "Techos",
+        "renovation": "Renovacion",
+        "paysagisme": "Paisajismo",
+        "climatisation": "Climatizacion",
+        "nettoyage": "Limpieza"
+      },
+      "product": {
+        "placeholder": "Elegir un tipo de negocio",
+        "retail": "Retail",
+        "wholesale": "Mayorista",
+        "grocery": "Alimentacion",
+        "convenience": "Tienda de conveniencia",
+        "specialty": "Tienda especializada",
+        "pharmacy": "Farmacia / parafarmacia",
+        "electronics": "Electronica",
+        "home_hardware": "Hogar y ferreteria"
+      },
+      "other": "Otro..."
+    },
+    "team": {
+      "title": "Invitar al equipo (opcional)",
+      "subtitle": "Anade miembros ahora o mas tarde.",
+      "size_title": "Tamano del equipo",
+      "size_hint": "Indica cuantas personas usaran la plataforma.",
+      "size_label": "Numero de miembros",
+      "size_title_solo": "Perfil del espacio",
+      "size_hint_solo": "Deja 1 para un espacio individual. Aumentalo solo si piensas pasar a un modo equipo.",
+      "size_label_solo": "Tamano previsto del espacio",
+      "recommendation_title": "Plan recomendado",
+      "recommendation_subtitle": "Basado en {count} miembros",
+      "recommendation_solo_subtitle": "Recomendado para un espacio solo para el propietario",
+      "recommendation_limit": "Hasta {count} miembros",
+      "recommendation_unlimited": "Miembros ilimitados",
+      "recommendation_owner_only": "Solo propietario",
+      "solo_title": "Espacio individual",
+      "solo_subtitle": "Empiezas solo. Las invitaciones de equipo se mantienen desactivadas mientras sigas en un plan individual.",
+      "add": "+ Anadir",
+      "empty": "No se ha anadido ninguna invitacion.",
+      "name": "Nombre",
+      "email": "Email",
+      "role_admin": "Admin",
+      "role_member": "Miembro",
+      "remove": "Eliminar",
+      "summary": "Resumen",
+      "summary_company": "Empresa",
+      "summary_type": "Tipo",
+      "summary_sector": "Sector",
+      "terms_label": "Acepto las",
+      "terms_action": "condiciones de uso"
+    },
+    "plan": {
+      "title": "Elige tu plan",
+      "subtitle": "1 mes de prueba y luego facturacion automatica segun tu plan. Tarjeta requerida.",
+      "audience_label": "Contexto del plan",
+      "monthly": "Mensual",
+      "yearly": "Anual",
+      "interval_month": "/mes",
+      "interval_year": "/ano",
+      "charged_currency": "Moneda cobrada: {currency}",
+      "yearly_note": "Paga anualmente y ahorra {percent}%.",
+      "billed_yearly": "Para 12 meses, facturado anualmente.",
+      "trial_note": "Prueba hasta el {date}.",
+      "downgrade_note": "Puedes cambiar de plan durante la prueba.",
+      "selection_title": "Plan seleccionado",
+      "audiences": {
+        "solo": {
+          "title": "Planes Solo",
+          "description": "Mostramos los planes Solo porque tu espacio es solo para el propietario por ahora. Podras pasar a Team mas adelante sin reconstruir tu configuracion."
+        },
+        "team": {
+          "title": "Planes Team",
+          "description": "Mostramos los planes Team porque tu espacio incluye {count} personas. Team anade colaboracion, permisos y limites mas altos."
+        }
+      },
+      "catalog": {
+        "solo_essential": {
+          "description": "Plan base para operadores individuales que necesitan una base operativa clara.",
+          "features": [
+            "Solicitudes, presupuestos, facturas, trabajos y tareas",
+            "Planificacion, ventas y catalogo",
+            "Portal del cliente y pagina publica",
+            "Ejecucion individual simple sin modulos avanzados"
+          ]
+        },
+        "solo_pro": {
+          "description": "Plan de crecimiento para operadores individuales que necesitan mas estructura y capacidad de ejecucion.",
+          "features": [
+            "Todo lo de Solo Core",
+            "Mas capacidad para trabajos y tareas",
+            "Estructura individual mas clara sin logica de equipo",
+            "Plan individual recomendado"
+          ]
+        },
+        "solo_growth": {
+          "description": "Plan premium para operadores individuales que quieren mas automatizacion y margen operativo.",
+          "features": [
+            "Todo lo de Solo Growth",
+            "Reservas y planificacion en modo individual limitado",
+            "Asistente, escaneo de planos, campanas y fidelizacion",
+            "Capacidad premium para crecer en solitario",
+            "Pilotaje avanzado y soporte prioritario"
+          ]
+        },
+        "starter": {
+          "description": "Plan base para equipos con ejecucion compartida y mas colaboracion.",
+          "features": [
+            "Base compartida para solicitudes, presupuestos, trabajos y facturas",
+            "Planificacion de equipo, asistencia y colaboracion",
+            "Asistente y escaneo de planos en modo limitado",
+            "Hasta 5 miembros"
+          ]
+        },
+        "growth": {
+          "description": "Plan de crecimiento para equipos con permisos, automatizaciones y mas volumen operativo.",
+          "features": [
+            "Todo lo de Team Core",
+            "Mas permisos, campanas y fidelizacion",
+            "Automatizaciones avanzadas y mas volumen",
+            "Plan de equipo recomendado"
+          ]
+        },
+        "scale": {
+          "description": "Plan scale para equipos con operaciones avanzadas, mas IA y soporte premium.",
+          "features": [
+            "Todo lo de Team Growth",
+            "Capacidad premium, IA y limites de escaneo mas altos",
+            "Pilotaje avanzado y soporte premium",
+            "Onboarding dedicado y reporting mas profundo"
+          ]
+        }
+      },
+      "recommended": "Recomendado",
+      "unavailable": "Plan no disponible"
+    },
+    "security": {
+      "title": "Elige tu metodo 2FA",
+      "subtitle": "Anade una capa extra de proteccion para la cuenta propietaria.",
+      "method_email": "Codigo por email",
+      "method_email_hint": "Enviaremos un codigo de un solo uso a {email}.",
+      "method_app": "Aplicacion de autenticacion",
+      "method_app_hint": "Usa Google Authenticator, Authy o 1Password.",
+      "change_later": "Podras cambiarlo mas tarde en los ajustes de seguridad.",
+      "email_fallback": "tu email"
+    },
+    "actions": {
+      "back": "Atras",
+      "continue": "Continuar",
+      "finish": "Iniciar la prueba",
+      "close": "Cerrar"
+    }
+  }
+}

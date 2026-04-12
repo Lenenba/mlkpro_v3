@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import { ArrowRight, Facebook, Instagram, Linkedin, Mail, Phone, Play, Youtube } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 
@@ -19,10 +19,7 @@ const props = defineProps({
     },
 });
 
-const page = usePage();
 const { t } = useI18n();
-const currentLocale = computed(() => String(page.props.locale || 'fr').toLowerCase());
-const isFrench = computed(() => currentLocale.value.startsWith('fr'));
 
 const safeRoute = (name, params = {}, fallback = '#') => {
     try {
@@ -193,87 +190,44 @@ const menuProvidesNavigation = computed(() =>
     customGroups.value.length >= 3 || customGroups.value.some((group) => group.kind === 'mega' && group.columns.length > 0)
 );
 
-const fallbackGroups = computed(() => {
-    if (isFrench.value) {
-        return [
-            {
-                id: 'industries',
-                title: 'Industries desservies',
-                links: [
-                    toLink('Plomberie', '/pages/industry-plumbing'),
-                    toLink('HVAC', '/pages/industry-hvac'),
-                    toLink('Électricité', '/pages/industry-electrical'),
-                    toLink('Entretien ménager', '/pages/industry-cleaning'),
-                    toLink('Salon & beauté', '/pages/industry-salon-beauty'),
-                    toLink('Restaurant', '/pages/industry-restaurant'),
-                ],
-            },
-            {
-                id: 'products',
-                title: 'Produits',
-                links: [
-                    toLink('Sales & CRM', '/pages/sales-crm'),
-                    toLink('Reservations', '/pages/reservations'),
-                    toLink('Operations', '/pages/operations'),
-                    toLink('Commerce', '/pages/commerce'),
-                    toLink('Marketing & Loyalty', '/pages/marketing-loyalty'),
-                    toLink('AI & Automation', '/pages/ai-automation'),
-                    toLink('Command Center', '/pages/command-center'),
-                ],
-            },
-            {
-                id: 'resources',
-                title: 'Ressources',
-                links: [
-                    toLink('Tarification', safeRoute('pricing')),
-                    toLink('Conditions', safeRoute('terms')),
-                    toLink('Confidentialité', safeRoute('privacy')),
-                    toLink('Remboursement', safeRoute('refund')),
-                    toLink('Contact us', '/pages/contact-us'),
-                ],
-            },
-        ];
-    }
-
-    return [
-        {
-            id: 'industries',
-            title: 'Industries We Serve',
-            links: [
-                toLink('Plumbing', '/pages/industry-plumbing'),
-                toLink('HVAC', '/pages/industry-hvac'),
-                toLink('Electrical', '/pages/industry-electrical'),
-                toLink('Cleaning', '/pages/industry-cleaning'),
-                toLink('Salon & Beauty', '/pages/industry-salon-beauty'),
-                toLink('Restaurant', '/pages/industry-restaurant'),
-            ],
-        },
-        {
-            id: 'products',
-            title: 'Products',
-            links: [
-                toLink('Sales & CRM', '/pages/sales-crm'),
-                toLink('Reservations', '/pages/reservations'),
-                toLink('Operations', '/pages/operations'),
-                toLink('Commerce', '/pages/commerce'),
-                toLink('Marketing & Loyalty', '/pages/marketing-loyalty'),
-                toLink('AI & Automation', '/pages/ai-automation'),
-                toLink('Command Center', '/pages/command-center'),
-            ],
-        },
-        {
-            id: 'resources',
-            title: 'Resources',
-            links: [
-                toLink('Pricing', safeRoute('pricing')),
-                toLink('Terms', safeRoute('terms')),
-                toLink('Privacy', safeRoute('privacy')),
-                toLink('Refund', safeRoute('refund')),
-                toLink('Contact us', '/pages/contact-us'),
-            ],
-        },
-    ];
-});
+const fallbackGroups = computed(() => ([
+    {
+        id: 'industries',
+        title: t('public_footer.fallback_groups.industries.title'),
+        links: [
+            toLink(t('public_footer.fallback_groups.industries.plumbing'), '/pages/industry-plumbing'),
+            toLink(t('public_footer.fallback_groups.industries.hvac'), '/pages/industry-hvac'),
+            toLink(t('public_footer.fallback_groups.industries.electrical'), '/pages/industry-electrical'),
+            toLink(t('public_footer.fallback_groups.industries.cleaning'), '/pages/industry-cleaning'),
+            toLink(t('public_footer.fallback_groups.industries.salon_beauty'), '/pages/industry-salon-beauty'),
+            toLink(t('public_footer.fallback_groups.industries.restaurant'), '/pages/industry-restaurant'),
+        ],
+    },
+    {
+        id: 'products',
+        title: t('public_footer.fallback_groups.products.title'),
+        links: [
+            toLink(t('public_footer.fallback_groups.products.sales_crm'), '/pages/sales-crm'),
+            toLink(t('public_footer.fallback_groups.products.reservations'), '/pages/reservations'),
+            toLink(t('public_footer.fallback_groups.products.operations'), '/pages/operations'),
+            toLink(t('public_footer.fallback_groups.products.commerce'), '/pages/commerce'),
+            toLink(t('public_footer.fallback_groups.products.marketing_loyalty'), '/pages/marketing-loyalty'),
+            toLink(t('public_footer.fallback_groups.products.ai_automation'), '/pages/ai-automation'),
+            toLink(t('public_footer.fallback_groups.products.command_center'), '/pages/command-center'),
+        ],
+    },
+    {
+        id: 'resources',
+        title: t('public_footer.fallback_groups.resources.title'),
+        links: [
+            toLink(t('public_footer.fallback_groups.resources.pricing'), safeRoute('pricing')),
+            toLink(t('public_footer.fallback_groups.resources.terms'), safeRoute('terms')),
+            toLink(t('public_footer.fallback_groups.resources.privacy'), safeRoute('privacy')),
+            toLink(t('public_footer.fallback_groups.resources.refund'), safeRoute('refund')),
+            toLink(t('public_footer.fallback_groups.resources.contact'), '/pages/contact-us'),
+        ],
+    },
+]));
 
 const sectionGroups = computed(() => {
     const groups = footerSection.value?.footer_groups;
@@ -340,19 +294,17 @@ const legalLinks = computed(() => {
 });
 
 const defaultSupportCard = computed(() => ({
-    kicker: isFrench.value ? 'Accompagnement' : 'Support',
-    title: isFrench.value ? 'Parlez a notre equipe' : 'Talk to our team',
-    body: isFrench.value
-        ? '<p>Besoin d un parcours produit plus precis ou d une page publique sur mesure ? On peut vous guider.</p>'
-        : '<p>Need a sharper product journey or a custom public page setup? Our team can help.</p>',
+    kicker: t('public_footer.support.kicker'),
+    title: t('public_footer.support.title'),
+    body: t('public_footer.support.body'),
     actions: [
-        toLink(isFrench.value ? 'Nous contacter' : 'Contact us', '/pages/contact-us'),
-        toLink(isFrench.value ? 'Voir les tarifs' : 'View pricing', safeRoute('pricing')),
+        toLink(t('public_footer.support.contact_cta'), '/pages/contact-us'),
+        toLink(t('public_footer.support.pricing_cta'), safeRoute('pricing')),
     ],
     meta: [
-        { label: isFrench.value ? 'Parcours public et modules metier' : 'Public pages and business modules' },
-        { label: isFrench.value ? 'Support produit et accompagnement' : 'Product support and enablement' },
-        { label: isFrench.value ? 'Disponible en francais et en anglais' : 'Available in French and English' },
+        { label: t('public_footer.support.meta.one') },
+        { label: t('public_footer.support.meta.two') },
+        { label: t('public_footer.support.meta.three') },
     ],
 }));
 
@@ -398,14 +350,14 @@ const footerContact = computed(() => {
         {
             key: 'google-play',
             href: String(section.google_play_href || '').trim(),
-            eyebrow: isFrench.value ? 'Disponible sur' : 'Get it on',
+            eyebrow: t('public_footer.store.google_play_prefix'),
             label: 'Google Play',
             icon: Play,
         },
         {
             key: 'app-store',
             href: String(section.app_store_href || '').trim(),
-            eyebrow: isFrench.value ? 'Telecharger sur' : 'Download on the',
+            eyebrow: t('public_footer.store.app_store_prefix'),
             label: 'App Store',
             text: 'A',
         },
@@ -457,7 +409,7 @@ const footerCopy = computed(() => (
             <div class="public-site-footer__grid">
                 <aside v-if="hasFooterContact" class="public-site-footer__contact">
                     <div class="public-site-footer__eyebrow">
-                        {{ isFrench ? 'Contact' : 'Contact' }}
+                        {{ t('public_footer.contact') }}
                     </div>
 
                     <div class="public-site-footer__contact-stack">

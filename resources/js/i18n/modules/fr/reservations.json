@@ -1,0 +1,421 @@
+{
+  "reservations": {
+    "title": "Reservations",
+    "subtitle": "Suivez, confirmez ou refusez les reservations assignees a votre equipe.",
+    "empty": "Aucune reservation.",
+    "owner_only": {
+      "staff_notice": "Solo growth garde les réservations en mode limité : consultation de l'historique, gestion de la liste d'attente et réglages globaux, mais la réservation par membre reste désactivée.",
+      "client_notice": "Cet espace solo ne propose pas encore de créneaux en direct. Rejoignez plutôt la liste d'attente pour un suivi manuel.",
+      "client_waitlist_hint": "Les créneaux de réservation et les replanifications restent désactivés en mode solo propriétaire uniquement."
+    },
+    "stats": {
+      "total": "Total",
+      "pending": "En attente",
+      "confirmed": "Confirmées",
+      "completed": "Terminées",
+      "today": "Aujourd'hui",
+      "upcoming": "À venir"
+    },
+    "performance": {
+      "title": "Performance ({days} derniers jours)",
+      "occupancy_rate": "Taux d'occupation",
+      "no_show_rate": "Taux d'absence",
+      "reschedule_rate": "Taux de replanification",
+      "completion_rate": "Taux de complétion",
+      "avg_service_value": "Panier moyen service",
+      "tip_rate": "Taux de pourboire",
+      "resource_reservation_rate": "Utilisation des ressources",
+      "table_turnover": "Rotation des tables",
+      "party_size_avg": "Taille moyenne du groupe"
+    },
+    "filters": {
+      "search": "Recherche",
+      "search_placeholder": "Client, produit, contact...",
+      "status": "Statut",
+      "sort": "Tri",
+      "all_statuses": "Tous les statuts",
+      "date_from": "Du",
+      "date_to": "Au"
+    },
+    "scope": {
+      "mine": "Mes réservations",
+      "all": "Toutes les réservations"
+    },
+    "quick": {
+      "pending": "En attente",
+      "today": "Aujourd'hui",
+      "upcoming": "À venir",
+      "past": "Passées"
+    },
+    "sort": {
+      "date_asc": "Date (plus anciennes d'abord)",
+      "date_desc": "Date (plus récentes d'abord)",
+      "status": "Statut"
+    },
+    "actions": {
+      "new": "Nouvelle réservation",
+      "create": "Créer",
+      "update": "Mettre à jour",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "cancel": "Annuler",
+      "decline": "Refuser",
+      "confirm": "Confirmer",
+      "complete": "Marquer terminée",
+      "no_show": "Marquer absent",
+      "set_pending": "Mettre en attente",
+      "already_confirmed": "Déjà confirmée",
+      "view": "Voir",
+      "reschedule": "Replanifier",
+      "filters": "Filtres",
+      "clear_filters": "Réinitialiser",
+      "delete_confirm": "Supprimer cette réservation ?"
+    },
+    "form": {
+      "create_title": "Créer une réservation",
+      "edit_title": "Modifier la réservation",
+      "customer": "Client",
+      "item": "Produit ou service",
+      "status": "Statut",
+      "title": "Titre",
+      "starts_at": "Début",
+      "ends_at": "Fin",
+      "party_size": "Nombre de personnes",
+      "quantity": "Quantité",
+      "channel": "Canal",
+      "contact_name": "Nom du contact",
+      "contact_email": "Email",
+      "contact_phone": "Téléphone",
+      "notes": "Notes",
+      "internal_notes": "Notes internes",
+      "none": "Aucun"
+    },
+    "table": {
+      "when": "Date/heure",
+      "customer": "Client",
+      "item": "Produit/service",
+      "status": "Statut",
+      "size_qty": "Taille / Qt",
+      "contact": "Contact",
+      "actions": "Actions",
+      "party_size_value": "Personnes: {value}",
+      "quantity_value": "Quantité: {value}"
+    },
+    "waitlist": {
+      "title": "Liste d'attente",
+      "subtitle": "Suivez la demande en attente et libérez des créneaux rapidement.",
+      "empty": "Aucune entrée en liste d'attente.",
+      "cards": {
+        "pending": "En attente",
+        "released": "Diffusé",
+        "booked": "Réservé"
+      },
+      "status": {
+        "pending": "En attente",
+        "released": "Diffusé",
+        "booked": "Réservé",
+        "cancelled": "Annulé",
+        "expired": "Expiré"
+      },
+      "actions": {
+        "release": "Libérer le créneau",
+        "booked": "Marquer réservé",
+        "updated": "Entrée de liste d'attente mise à jour.",
+        "update_error": "Impossible de mettre à jour l'entrée de liste d'attente."
+      }
+    },
+    "queue": {
+      "title": "File hybride",
+      "subtitle": "Pilotez les walk-ins et rendez-vous dans une file unique.",
+      "empty": "Aucun élément dans la file pour le moment.",
+      "cards": {
+        "waiting": "En attente",
+        "called": "Appelés",
+        "in_service": "En service"
+      },
+      "columns": {
+        "ticket": "Ticket",
+        "origin": "Origine",
+        "position": "Position / ETA"
+      },
+      "types": {
+        "appointment": "Rendez-vous",
+        "ticket": "Ticket walk-in"
+      },
+      "origins": {
+        "booking": "RESERVATION",
+        "walk_in": "WALK-IN"
+      },
+      "assignment_mode": {
+        "per_staff": "File par employe",
+        "global_pull": "File globale (pull)"
+      },
+      "status": {
+        "not_arrived": "Non arrive",
+        "checked_in": "Check-in",
+        "pre_called": "Pre-appel",
+        "called": "Appele",
+        "skipped": "Ignore",
+        "in_service": "En service",
+        "done": "Termine",
+        "no_show": "Absent",
+        "cancelled": "Annule",
+        "left": "Parti"
+      },
+      "actions": {
+        "check_in": "Check-in",
+        "pre_call": "Pre-appel",
+        "call": "Appeler",
+        "start": "Demarrer",
+        "done": "Terminer",
+        "skip": "Ignorer",
+        "call_next": "Appeler le prochain",
+        "updated": "Element de file mis a jour.",
+        "update_error": "Impossible de mettre a jour l element de file.",
+        "call_next_empty": "Aucun element callable n est disponible pour le moment."
+      },
+      "client": {
+        "title": "File walk-in",
+        "subtitle": "Prenez un ticket, suivez votre position et confirmez votre presence.",
+        "estimated_duration": "Duree estimee (minutes)",
+        "notes": "Notes",
+        "create": "Prendre un ticket",
+        "created": "Ticket de file cree.",
+        "create_error": "Impossible de creer le ticket de file.",
+        "update_error": "Impossible de mettre a jour le ticket de file.",
+        "cancelled": "Ticket de file annule.",
+        "still_here": "Je suis toujours la",
+        "still_here_done": "Presence confirmee.",
+        "none": "Aucun ticket de file.",
+        "kiosk_only_notice": "La creation de ticket se fait maintenant sur le kiosque en salon."
+      },
+      "screen": {
+        "open": "Ouvrir ecran live",
+        "title": "Ecran file en direct",
+        "subtitle": "Affiche le service en cours et la file d attente pour les operations salon ou restaurant.",
+        "refresh": "Actualiser",
+        "refresh_error": "Impossible d actualiser les donnees de l ecran live.",
+        "updated_at": "Mis a jour",
+        "mode_tv": "Mode TV",
+        "mode_board": "Mode tableau",
+        "now_serving": "En cours",
+        "current": "En cours",
+        "timer": "Timer",
+        "up_next": "Prochain",
+        "no_next": "Aucun prochain client",
+        "overview": "Synthese",
+        "total_active": "Total actifs",
+        "no_chairs": "Aucun siege actif configure pour cet ecran.",
+        "waiting_list": "File d attente",
+        "call_expires": "Appel expire",
+        "show_names": "Afficher noms",
+        "hide_names": "Masquer noms",
+        "assignment_mode": "Mode de file",
+        "metrics": {
+          "seats_active": "Sieges actifs",
+          "occupied": "Occupes",
+          "ready": "Prets",
+          "avg_wait": "Attente moy.",
+          "next_booking": "Prochaine reservation"
+        },
+        "states": {
+          "available": "Disponible",
+          "available_ready": "Disponible - suivant pret",
+          "called": "Appele",
+          "in_service": "En service",
+          "check_in_needed": "Check-in requis",
+          "blocked": "Bloque"
+        },
+        "disabled": "Le mode file hybride est desactive. Activez-le dans les parametres reservations."
+      }
+    },
+    "kiosk": {
+      "title": "Kiosque salon",
+      "subtitle": "Prenez un ticket walk-in, enregistrez-vous en tant que client existant, ou suivez votre ticket.",
+      "open": "Ouvrir le kiosque",
+      "tabs": {
+        "walk_in": "Walk-in",
+        "known_client": "Deja client",
+        "track": "Suivre ticket"
+      },
+      "fields": {
+        "phone": "Numero de telephone",
+        "guest_name": "Prenom (optionnel)",
+        "code": "Code de verification",
+        "queue_number": "Numero de ticket (optionnel)",
+        "any_service": "N importe quel service",
+        "any_team_member": "N importe quel employe"
+      },
+      "labels": {
+        "ticket": "Ticket"
+      },
+      "walk_in": {
+        "title": "Prendre un ticket walk-in",
+        "subtitle": "Entrez votre telephone, choisissez service/employe si besoin, puis recevez position/ETA.",
+        "submit": "Prendre mon ticket"
+      },
+      "known_client": {
+        "title": "Je suis deja client",
+        "subtitle": "Retrouvez votre profil par telephone et continuez avec le meilleur parcours.",
+        "lookup": "Trouver mon profil",
+        "verify_prompt": "Un code de verification est requis pour ce compte.",
+        "verify": "Verifier le telephone",
+        "debug_code": "Code debug",
+        "reservation_ready": "Vous avez une reservation proche prete pour check-in.",
+        "check_in": "Faire le check-in",
+        "create_ticket_help": "Aucune reservation proche trouvee. Vous pouvez prendre un ticket a votre nom.",
+        "create_ticket": "Prendre un ticket",
+        "active_ticket": "Vous avez deja un ticket actif."
+      },
+      "track": {
+        "title": "Suivre mon ticket",
+        "subtitle": "Verifiez position et ETA avec votre telephone et, si besoin, le numero de ticket.",
+        "submit": "Suivre le ticket"
+      },
+      "messages": {
+        "ticket_created": "Ticket de file cree.",
+        "check_in_done": "Reservation enregistree (check-in).",
+        "client_not_found": "Aucun profil client existant trouve pour ce numero.",
+        "client_found": "Profil client trouve.",
+        "code_sent": "Code de verification envoye.",
+        "phone_verified": "Telephone verifie.",
+        "active_ticket_exists": "Vous avez deja un ticket actif pour ce numero."
+      },
+      "errors": {
+        "lookup": "Impossible de rechercher ce client.",
+        "lookup_first": "Veuillez d abord rechercher un client.",
+        "verify": "Impossible de verifier ce code.",
+        "check_in": "Impossible d effectuer le check-in de cette reservation.",
+        "create_ticket": "Impossible de creer le ticket.",
+        "track": "Impossible de suivre ce ticket.",
+        "track_not_found": "Aucun ticket trouve pour ces informations."
+      }
+    },
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "showing": "{from} - {to}"
+    },
+    "view": {
+      "list": "Liste"
+    },
+    "status": {
+      "pending": "En attente",
+      "confirmed": "Confirmee",
+      "rescheduled": "Replanifiee",
+      "completed": "Terminee",
+      "cancelled": "Annulee",
+      "no_show": "Absence client"
+    },
+    "legend": {
+      "title": "Legende des statuts",
+      "tip": "Les actions disponibles dependent du statut actuel.",
+      "pending": "En attente de validation. Vous pouvez confirmer ou refuser.",
+      "confirmed": "Confirmee et planifiee. Vous pouvez terminer, marquer absent ou annuler.",
+      "rescheduled": "Le creneau a ete modifie. Vous pouvez confirmer ou refuser.",
+      "completed": "Service termine. Aucune action de statut supplementaire.",
+      "cancelled": "Reservation annulee ou refusee.",
+      "no_show": "Le client ne s'est pas presente."
+    },
+    "errors": {
+      "load_events": "Impossible de charger les reservations.",
+      "load_slots": "Impossible de charger les creneaux disponibles.",
+      "cancel": "Impossible d annuler cette reservation.",
+      "create": "Impossible de creer la reservation.",
+      "reschedule": "Impossible de replanifier cette reservation.",
+      "update_status": "Impossible de mettre a jour le statut de reservation.",
+      "validation": "Merci de corriger les champs en erreur."
+    },
+    "item_type": {
+      "service": "Service",
+      "product": "Produit"
+    },
+    "payment_policy": {
+      "title": "Snapshot de politique de paiement",
+      "deposit": "Acompte",
+      "no_show_fee": "Frais d absence",
+      "none": "Aucun"
+    },
+    "client": {
+      "book": {
+        "title": "Reserver",
+        "subtitle": "Choisissez un creneau disponible.",
+        "my_reservations": "Mes reservations",
+        "summary_title": "Details de la reservation",
+        "selected_slot": "Creneau selectionne",
+        "loading_slots": "Chargement des creneaux disponibles...",
+        "no_availability": "Aucune disponibilite sur cette periode. Essayez une autre semaine ou un autre service.",
+        "upcoming_title": "Reservations a venir",
+        "default_service": "Reservation",
+        "no_upcoming": "Aucune reservation a venir.",
+        "select_slot_error": "Selectionnez un creneau disponible pour continuer.",
+        "deposit_notice": "Acompte de reservation requis : {amount}",
+        "no_show_notice": "Politique d absence : {amount}",
+        "fields": {
+          "team_member": "Membre d'equipe",
+          "service": "Service",
+          "duration": "Duree (minutes)",
+          "party_size": "Nombre de personnes",
+          "contact_name": "Nom du contact",
+          "contact_email": "Email du contact",
+          "contact_phone": "Telephone du contact",
+          "client_notes": "Notes"
+        },
+        "actions": {
+          "submit": "Confirmer la reservation",
+          "submitting": "Envoi...",
+          "submitted": "Demande de reservation envoyee."
+        },
+        "waitlist": {
+          "title": "Rejoindre la liste d attente",
+          "description": "Aucun creneau correspondant pour le moment. Rejoignez la liste d attente pour etre prioritaire quand un creneau se libere.",
+          "join_button": "Rejoindre la liste",
+          "created": "Demande de liste d attente envoyee.",
+          "create_error": "Impossible de creer la demande de liste d attente.",
+          "cancelled": "Entree de liste d attente annulee.",
+          "cancel_error": "Impossible d annuler l entree de liste d attente.",
+          "notes": "Details preferes",
+          "my_entries": "Mes entrees en liste d attente",
+          "none": "Aucune entree en liste d attente."
+        }
+      },
+      "index": {
+        "title": "Mes reservations",
+        "subtitle": "Suivez, annulez ou replanifiez vos reservations.",
+        "book_button": "Nouvelle reservation",
+        "empty": "Vous n'avez pas encore de reservation.",
+        "details_title": "Details de la reservation",
+        "reschedule_title": "Replanifier la reservation",
+        "reschedule_member": "Membre d'equipe",
+        "reschedule_notes": "Notes",
+        "any_available": "N'importe quel membre disponible",
+        "cancel_prompt": "Motif d'annulation (optionnel) :",
+        "select_slot_error": "Selectionnez un creneau avant validation.",
+        "cancellation_cutoff": "Delai d'annulation : {hours} heure(s) avant le debut.",
+        "review": {
+          "title": "Noter votre reservation",
+          "description": "Partagez votre retour apres la fin du service.",
+          "fields": {
+            "rating": "Note",
+            "feedback": "Commentaire"
+          },
+          "actions": {
+            "leave": "Laisser un avis",
+            "submit": "Envoyer l avis",
+            "submitting": "Envoi..."
+          },
+          "labels": {
+            "excellent": "Excellent",
+            "good": "Bien",
+            "okay": "Correct",
+            "poor": "Insuffisant",
+            "bad": "Mauvais"
+          },
+          "errors": {
+            "generic": "Impossible d envoyer l avis de reservation."
+          }
+        }
+      }
+    }
+  }
+}

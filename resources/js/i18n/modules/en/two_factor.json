@@ -1,0 +1,15 @@
+{
+  "two_factor": {
+    "title": "Two-factor verification",
+    "sent": "We sent a verification code to {email}.",
+    "sms_sent": "We sent a verification code to {phone}.",
+    "app_prompt": "Enter the code from your authenticator app.",
+    "expires": "This code expires in {minutes} minutes.",
+    "code_label": "Verification code",
+    "code_placeholder": "Enter the 6-digit code",
+    "submit": "Verify",
+    "resend": "Resend code",
+    "email_fallback": "your email",
+    "phone_fallback": "your phone"
+  }
+}
