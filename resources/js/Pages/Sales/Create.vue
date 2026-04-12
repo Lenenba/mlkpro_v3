@@ -76,8 +76,8 @@ const paymentMethodLabel = (method) => {
     return resolvePaymentMethodLabel(method, {
         cash: t('sales.form.payment_methods.cash.label'),
         card: t('sales.form.payment_methods.card.label'),
-        bankTransfer: 'Bank transfer',
-        check: 'Check',
+        bankTransfer: t('settings.billing.payment_methods.methods.bank_transfer.label'),
+        check: t('settings.billing.payment_methods.methods.check.label'),
     });
 };
 
@@ -85,8 +85,8 @@ const paymentMethodDescription = (method) => {
     return resolvePaymentMethodDescription(method, {
         cash: t('sales.form.payment_methods.cash.description'),
         card: t('sales.form.payment_methods.card.description'),
-        bankTransfer: 'Manual transfer payment.',
-        check: 'Manual check payment.',
+        bankTransfer: t('settings.billing.payment_methods.methods.bank_transfer.description'),
+        check: t('settings.billing.payment_methods.methods.check.description'),
     });
 };
 

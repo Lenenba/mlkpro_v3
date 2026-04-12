@@ -267,10 +267,10 @@ const paymentMethodLabel = (method) => {
         return t('sales.payments.card');
     }
     if (method === 'bank_transfer') {
-        return 'Bank transfer';
+        return t('public_invoice.methods.bank_transfer');
     }
     if (method === 'check') {
-        return 'Check';
+        return t('public_invoice.methods.check');
     }
     return method || '-';
 };

@@ -255,8 +255,8 @@ const paymentMethodLabel = (method) => {
     return resolvePaymentMethodLabel(method, {
         cash: t('sales.payments.cash'),
         card: t('sales.payments.card'),
-        bankTransfer: 'Bank transfer',
-        check: 'Check',
+        bankTransfer: t('public_invoice.methods.bank_transfer'),
+        check: t('public_invoice.methods.check'),
     });
 };
 

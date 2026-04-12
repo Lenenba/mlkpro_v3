@@ -75,24 +75,24 @@ const marketingCards = computed(() => {
     return [
         {
             key: 'campaigns_sent',
-            label: 'Campaigns sent',
+            label: t('dashboard.marketing_panel.cards.campaigns_sent'),
             value: formatNumber(marketingMetrics.value.campaigns_sent || 0),
         },
         {
             key: 'delivery_success_rate',
-            label: 'Delivery success rate',
+            label: t('dashboard.marketing_panel.cards.delivery_success_rate'),
             value: formatPercent(marketingMetrics.value.delivery_success_rate),
         },
         {
             key: 'click_rate',
-            label: 'Click rate',
+            label: t('dashboard.marketing_panel.cards.click_rate'),
             value: marketingMetrics.value.click_rate === null
-                ? 'Tracking off'
+                ? t('dashboard.marketing_panel.cards.tracking_off')
                 : formatPercent(marketingMetrics.value.click_rate),
         },
         {
             key: 'conversions_attributed',
-            label: 'Conversions',
+            label: t('dashboard.marketing_panel.cards.conversions_attributed'),
             value: formatNumber(marketingMetrics.value.conversions_attributed || 0),
         },
     ];
@@ -421,17 +421,21 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
             </div>
 
             <Card v-if="hasMarketingKpis" class="rise-in" :style="{ animationDelay: '95ms' }">
-                <template #title>Marketing KPI</template>
+                <template #title>{{ $t('dashboard.marketing_panel.title') }}</template>
                 <div class="space-y-3">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            Range: {{ marketingRange?.label || '30d' }} ({{ marketingRange?.start }} -> {{ marketingRange?.end }})
+                            {{ $t('dashboard.marketing_panel.range', {
+                                label: marketingRange?.label || '30d',
+                                start: marketingRange?.start || '-',
+                                end: marketingRange?.end || '-',
+                            }) }}
                         </p>
                         <Link
                             :href="route('campaigns.index')"
                             class="rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                         >
-                            Open campaigns
+                            {{ $t('dashboard.marketing_panel.open_campaigns') }}
                         </Link>
                     </div>
 
@@ -448,44 +452,54 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
 
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                         <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Top campaign</div>
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('dashboard.marketing_panel.top_campaign') }}</div>
                             <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ marketingMetrics?.top_performing_campaign?.name || 'No data' }}
+                                {{ marketingMetrics?.top_performing_campaign?.name || $t('dashboard.marketing_panel.no_data') }}
                             </div>
                         </div>
                         <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Audience growth</div>
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('dashboard.marketing_panel.audience_growth') }}</div>
                             <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                 {{ formatNumber(marketingMetrics?.audience_growth?.current || 0) }}
                             </div>
-                            <div class="mt-1 text-xs" :class="audienceGrowthDeltaClass">Delta: {{ audienceGrowthDelta }}</div>
+                            <div class="mt-1 text-xs" :class="audienceGrowthDeltaClass">{{ $t('dashboard.marketing_panel.delta') }}: {{ audienceGrowthDelta }}</div>
                         </div>
                         <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">VIP customers</div>
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('dashboard.marketing_panel.vip_customers') }}</div>
                             <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                 {{ formatNumber(marketingMetrics?.vip_count || 0) }}
                             </div>
                         </div>
                         <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Mailing lists</div>
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('dashboard.marketing_panel.mailing_lists') }}</div>
                             <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ formatNumber(marketingMetrics?.mailing_lists?.count || 0) }} list(s)
+                                {{ $t('dashboard.marketing_panel.list_count', {
+                                    count: formatNumber(marketingMetrics?.mailing_lists?.count || 0),
+                                }) }}
                             </div>
                             <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                {{ formatNumber(marketingMetrics?.mailing_lists?.customers_total || 0) }} customers
+                                {{ $t('dashboard.marketing_panel.customers_count', {
+                                    count: formatNumber(marketingMetrics?.mailing_lists?.customers_total || 0),
+                                }) }}
                             </div>
                         </div>
                     </div>
 
                     <div v-if="marketingCrossModule" class="grid grid-cols-1 gap-2 sm:grid-cols-3">
                         <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            Reservations: {{ formatNumber(marketingCrossModule.reservations_created || 0) }}
+                            {{ $t('dashboard.marketing_panel.reservations_created', {
+                                count: formatNumber(marketingCrossModule.reservations_created || 0),
+                            }) }}
                         </div>
                         <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            Invoices paid: {{ formatNumber(marketingCrossModule.invoices_paid || 0) }}
+                            {{ $t('dashboard.marketing_panel.invoices_paid', {
+                                count: formatNumber(marketingCrossModule.invoices_paid || 0),
+                            }) }}
                         </div>
                         <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            Quotes accepted: {{ formatNumber(marketingCrossModule.quotes_accepted || 0) }}
+                            {{ $t('dashboard.marketing_panel.quotes_accepted', {
+                                count: formatNumber(marketingCrossModule.quotes_accepted || 0),
+                            }) }}
                         </div>
                     </div>
                 </div>

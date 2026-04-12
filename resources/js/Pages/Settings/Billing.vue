@@ -97,10 +97,10 @@ const page = usePage();
 
 const ALLOWED_PAYMENT_METHOD_IDS = ['cash', 'card', 'bank_transfer', 'check'];
 const FALLBACK_PAYMENT_METHOD_OPTIONS = [
-    { id: 'cash', name: 'Cash' },
-    { id: 'card', name: 'Card' },
-    { id: 'bank_transfer', name: 'Bank transfer' },
-    { id: 'check', name: 'Check' },
+    { id: 'cash', name: t('settings.billing.payment_methods.methods.cash.label') },
+    { id: 'card', name: t('settings.billing.payment_methods.methods.card.label') },
+    { id: 'bank_transfer', name: t('settings.billing.payment_methods.methods.bank_transfer.label') },
+    { id: 'check', name: t('settings.billing.payment_methods.methods.check.label') },
 ];
 const DEFAULT_CASH_CONTEXTS = ['reservation', 'invoice', 'store_order', 'tip', 'walk_in'];
 const CASH_CONTEXT_OPTIONS = [
@@ -364,10 +364,10 @@ const paymentMethodDescription = (method) => {
     const id = normalizeId(method?.id);
     const key = paymentMethodLabelMap[id]?.description;
     const fallbackMap = {
-        cash: 'Payment collected on site.',
-        card: 'Card payment using Stripe.',
-        bank_transfer: 'Manual bank transfer payment.',
-        check: 'Payment by check.',
+        cash: t('settings.billing.payment_methods.methods.cash.description'),
+        card: t('settings.billing.payment_methods.methods.card.description'),
+        bank_transfer: t('settings.billing.payment_methods.methods.bank_transfer.description'),
+        check: t('settings.billing.payment_methods.methods.check.description'),
     };
     return key ? resolveTranslated(key, fallbackMap[id] || '') : (fallbackMap[id] || '');
 };
