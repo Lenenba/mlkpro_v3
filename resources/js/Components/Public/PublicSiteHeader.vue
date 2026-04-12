@@ -217,7 +217,29 @@ onBeforeUnmount(() => {
                 </Link>
 
                 <div class="public-site-header__menu">
-                    <MegaMenuDisplay :menu="megaMenu" :fallback-items="fallbackItems" />
+                    <MegaMenuDisplay :menu="megaMenu" :fallback-items="fallbackItems">
+                        <template #mobile-footer="{ closeMobileMenu }">
+                            <div v-if="showLogin || showRegister" class="public-site-header__mobile-auth">
+                                <Link
+                                    v-if="showLogin"
+                                    :href="safeRoute('login', '/login')"
+                                    class="public-site-header__mobile-auth-link public-site-header__mobile-auth-link--secondary"
+                                    @click="closeMobileMenu"
+                                >
+                                    {{ $t('legal.actions.sign_in') }}
+                                </Link>
+
+                                <Link
+                                    v-if="showRegister"
+                                    :href="safeRoute('onboarding.index', '/onboarding')"
+                                    class="public-site-header__mobile-auth-link public-site-header__mobile-auth-link--primary"
+                                    @click="closeMobileMenu"
+                                >
+                                    {{ $t('legal.actions.create_account') }}
+                                </Link>
+                            </div>
+                        </template>
+                    </MegaMenuDisplay>
                 </div>
 
                 <div class="public-site-header__actions">
@@ -441,6 +463,46 @@ onBeforeUnmount(() => {
     background: #15803d;
 }
 
+.public-site-header__mobile-auth {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.public-site-header__mobile-auth-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 3rem;
+    border-radius: 0.125rem;
+    padding: 0.8rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.public-site-header__mobile-auth-link--secondary {
+    border: 1px solid #d6d3d1;
+    background: #ffffff;
+    color: #292524;
+    box-shadow: 0 12px 24px -20px rgba(15, 23, 42, 0.4);
+}
+
+.public-site-header__mobile-auth-link--secondary:hover {
+    background: #fafaf9;
+}
+
+.public-site-header__mobile-auth-link--primary {
+    border: 1px solid transparent;
+    background: #16a34a;
+    color: #ffffff;
+    box-shadow: 0 18px 32px -24px rgba(22, 163, 74, 0.65);
+}
+
+.public-site-header__mobile-auth-link--primary:hover {
+    background: #15803d;
+}
+
 .public-site-header__locale {
     position: relative;
 }
@@ -513,6 +575,63 @@ onBeforeUnmount(() => {
 @media (min-width: 768px) {
     .public-site-header__button--secondary {
         display: inline-flex;
+    }
+}
+
+@media (max-width: 1023.98px) {
+    .public-site-header__inner {
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 0.85rem;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .public-site-header.is-scrolled .public-site-header__inner {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .public-site-header__brand {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .public-site-header__menu {
+        order: 3;
+        flex: 0 0 100%;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .public-site-header__actions {
+        margin-left: auto;
+        gap: 0.5rem;
+    }
+
+    .public-site-header__locale-toggle {
+        padding: 0.45rem 0.8rem;
+    }
+}
+
+@media (max-width: 639.98px) {
+    .public-site-header__inner {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .public-site-header__actions {
+        gap: 0.4rem;
+    }
+
+    .public-site-header__locale-toggle {
+        gap: 0.4rem;
+        padding: 0.45rem 0.7rem;
+    }
+
+    .public-site-header__mobile-auth-link {
+        width: 100%;
     }
 }
 

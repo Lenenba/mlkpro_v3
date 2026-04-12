@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useSlots, watch } from 'vue';
 import MegaMenuBlockRenderer from '@/Components/MegaMenu/MegaMenuBlockRenderer.vue';
 
 const props = defineProps({
@@ -25,6 +25,7 @@ const desktopOpenKey = ref(null);
 const mobileOpen = ref(false);
 const mobilePanelKeys = ref([]);
 const rootRef = ref(null);
+const slots = useSlots();
 const closeDesktopPanelTimer = ref(null);
 const desktopPanelMetrics = ref({
     left: 0,
@@ -176,6 +177,20 @@ const toggleMobilePanel = (item) => {
         : [...mobilePanelKeys.value, key];
 };
 
+const closeMobileMenu = () => {
+    mobileOpen.value = false;
+    mobilePanelKeys.value = [];
+};
+
+const toggleMobileMenu = () => {
+    if (mobileOpen.value) {
+        closeMobileMenu();
+        return;
+    }
+
+    mobileOpen.value = true;
+};
+
 const isDesktopOpen = (item) => desktopOpenKey.value === itemKey(item);
 const isMobileOpen = (item) => mobilePanelKeys.value.includes(itemKey(item));
 
@@ -186,6 +201,12 @@ const syncDesktopPanelMetrics = () => {
 
     const rootRect = rootRef.value.getBoundingClientRect();
     const headerRect = rootRef.value.closest('header')?.getBoundingClientRect() ?? rootRect;
+
+    if (window.innerWidth < 1024) {
+        desktopOpenKey.value = null;
+    } else if (mobileOpen.value) {
+        closeMobileMenu();
+    }
 
     desktopPanelMetrics.value = {
         left: -rootRect.left,
@@ -200,6 +221,20 @@ const handleWindowScroll = () => {
     }
 
     syncDesktopPanelMetrics();
+};
+
+const handleDocumentPointerDown = (event) => {
+    if (!rootRef.value?.contains(event.target)) {
+        closeDesktopPanel();
+        closeMobileMenu();
+    }
+};
+
+const handleEscape = (event) => {
+    if (event.key === 'Escape') {
+        closeDesktopPanel();
+        closeMobileMenu();
+    }
 };
 
 watch(
@@ -236,12 +271,16 @@ onMounted(() => {
     syncDesktopPanelMetrics();
     window.addEventListener('resize', syncDesktopPanelMetrics);
     window.addEventListener('scroll', handleWindowScroll, { passive: true });
+    document.addEventListener('pointerdown', handleDocumentPointerDown);
+    document.addEventListener('keydown', handleEscape);
 });
 
 onBeforeUnmount(() => {
     clearDesktopCloseTimer();
     window.removeEventListener('resize', syncDesktopPanelMetrics);
     window.removeEventListener('scroll', handleWindowScroll);
+    document.removeEventListener('pointerdown', handleDocumentPointerDown);
+    document.removeEventListener('keydown', handleEscape);
 });
 </script>
 
@@ -363,11 +402,11 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <div class="lg:hidden">
+        <div class="min-w-0 lg:hidden">
             <button
                 type="button"
-                class="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-800 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                @click="mobileOpen = !mobileOpen"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-sm border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-800 shadow-sm transition hover:bg-stone-50 sm:w-auto dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                @click="toggleMobileMenu"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M4 12h16" />
@@ -379,28 +418,28 @@ onBeforeUnmount(() => {
 
             <div
                 v-if="mobileOpen"
-                class="mt-3 overflow-hidden rounded-[20px] border border-stone-200 bg-white shadow-xl dark:border-neutral-700 dark:bg-neutral-900"
+                class="mt-3 max-h-[min(72vh,34rem)] w-full overflow-x-hidden overflow-y-auto overscroll-contain rounded-sm border border-stone-200 bg-white/95 shadow-[0_30px_70px_-40px_rgba(15,23,42,0.5)] backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/95"
             >
-                <div class="space-y-2 p-3">
+                <div class="space-y-2 p-3 sm:p-4">
                     <div
                         v-for="(item, index) in normalizedMenu.items"
                         :key="itemKey(item, index)"
-                        class="rounded-[18px] border border-stone-200/80 bg-white dark:border-neutral-700 dark:bg-neutral-900"
+                        class="overflow-hidden rounded-sm border border-stone-200/80 bg-white dark:border-neutral-700 dark:bg-neutral-900"
                     >
-                        <div class="flex items-center gap-2 p-3">
+                        <div class="flex items-start gap-2 p-3 sm:p-4">
                             <a
                                 :href="preview ? '#' : itemHref(item)"
                                 :target="itemTarget(item)"
                                 :rel="itemRel(item)"
-                                class="min-w-0 flex-1 text-sm font-semibold text-stone-900 dark:text-neutral-100"
-                                @click="preview ? $event.preventDefault() : null"
+                                class="min-w-0 flex-1 break-words text-sm font-semibold leading-6 text-stone-900 dark:text-neutral-100"
+                                @click="preview ? $event.preventDefault() : closeMobileMenu()"
                             >
                                 {{ item.label }}
                             </a>
                             <button
                                 v-if="hasPanel(item)"
                                 type="button"
-                                class="rounded-full p-1 text-stone-500 hover:bg-stone-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                                class="rounded-sm p-1 text-stone-500 hover:bg-stone-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
                                 @click="toggleMobilePanel(item)"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition" :class="isMobileOpen(item) ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
@@ -409,23 +448,23 @@ onBeforeUnmount(() => {
                             </button>
                         </div>
 
-                        <div v-if="isMobileOpen(item) && item.panel_type === 'classic'" class="space-y-2 border-t border-stone-200 p-3 dark:border-neutral-700">
+                        <div v-if="isMobileOpen(item) && item.panel_type === 'classic'" class="space-y-2 border-t border-stone-200 p-3 sm:p-4 dark:border-neutral-700">
                             <a
                                 v-for="(child, childIndex) in item.children"
                                 :key="itemKey(child, childIndex)"
                                 :href="preview ? '#' : itemHref(child)"
-                                class="block text-sm font-medium text-stone-800 dark:text-neutral-100"
-                                @click="preview ? $event.preventDefault() : null"
+                                class="block break-words text-sm font-medium leading-6 text-stone-800 dark:text-neutral-100"
+                                @click="preview ? $event.preventDefault() : closeMobileMenu()"
                             >
                                 {{ child.label }}
                             </a>
                         </div>
 
-                        <div v-if="isMobileOpen(item) && item.panel_type === 'mega'" class="space-y-5 border-t border-stone-200 p-3 dark:border-neutral-700">
+                        <div v-if="isMobileOpen(item) && item.panel_type === 'mega'" class="space-y-5 border-t border-stone-200 p-3 sm:p-4 dark:border-neutral-700">
                             <section
                                 v-for="(column, columnIndex) in mainColumns(item)"
                                 :key="column.builder_key || column.id || columnIndex"
-                                class="space-y-3"
+                                class="min-w-0 space-y-3"
                             >
                                 <div v-if="column.title" class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
                                     {{ column.title }}
@@ -442,7 +481,7 @@ onBeforeUnmount(() => {
                                 <section
                                     v-for="(column, columnIndex) in footerColumns(item)"
                                     :key="column.builder_key || column.id || `mobile-footer-${columnIndex}`"
-                                    class="space-y-3"
+                                    class="min-w-0 space-y-3"
                                 >
                                     <div v-if="column.title" class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
                                         {{ column.title }}
@@ -457,6 +496,13 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div
+                    v-if="slots['mobile-footer']"
+                    class="border-t border-stone-200 px-3 py-3 sm:px-4 sm:py-4 dark:border-neutral-700"
+                >
+                    <slot name="mobile-footer" :close-mobile-menu="closeMobileMenu" />
                 </div>
             </div>
         </div>

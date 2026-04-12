@@ -41,7 +41,7 @@ const wrapperClasses = computed(() => {
         return 'space-y-3';
     }
 
-    const base = 'overflow-hidden rounded-[22px] border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900';
+    const base = 'overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm lg:rounded-[22px] dark:border-neutral-700 dark:bg-neutral-900';
 
     if (props.block.type === 'promo_banner') {
         return `${base} text-white`;
@@ -77,7 +77,7 @@ watch(
 </script>
 
 <template>
-    <div :class="wrapperClasses">
+    <div :class="['min-w-0', wrapperClasses]">
         <template v-if="block.type === 'navigation_group'">
             <div v-if="block.payload?.title" class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
                 {{ block.payload.title }}
@@ -115,11 +115,11 @@ watch(
                         <div v-if="block.payload?.title" class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
                             {{ block.payload.title }}
                         </div>
-                        <div class="max-w-3xl">
-                            <h3 class="text-3xl font-semibold tracking-tight text-stone-900 dark:text-white">
+                        <div class="max-w-3xl min-w-0">
+                            <h3 class="break-words text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl dark:text-white">
                                 {{ showcaseHeading }}
                             </h3>
-                            <p v-if="showcaseSummary" class="mt-3 max-w-2xl text-sm leading-7 text-stone-600 dark:text-neutral-300">
+                            <p v-if="showcaseSummary" class="mt-3 max-w-2xl break-words text-sm leading-7 text-stone-600 dark:text-neutral-300">
                                 {{ showcaseSummary }}
                             </p>
                         </div>
@@ -138,10 +138,10 @@ watch(
                             @click="preview ? $event.preventDefault() : null"
                         >
                             <div class="min-w-0">
-                                <div class="text-[15px] font-semibold text-stone-900 transition group-hover:text-stone-700 dark:text-white dark:group-hover:text-neutral-200">
+                                <div class="break-words text-[15px] font-semibold text-stone-900 transition group-hover:text-stone-700 dark:text-white dark:group-hover:text-neutral-200">
                                     {{ item.label || 'Product' }}
                                 </div>
-                                <div v-if="item.note" class="mt-1 text-sm leading-6 text-stone-500 dark:text-neutral-400">
+                                <div v-if="item.note" class="mt-1 break-words text-sm leading-6 text-stone-500 dark:text-neutral-400">
                                     {{ item.note }}
                                 </div>
                             </div>
@@ -159,11 +159,11 @@ watch(
                             :src="activeShowcaseItem.image_url"
                             :alt="activeShowcaseItem.image_alt || activeShowcaseItem.label || 'Product preview'"
                             :title="activeShowcaseItem.image_title || undefined"
-                            class="h-[260px] w-full object-cover"
+                            class="h-[220px] w-full object-cover sm:h-[260px]"
                             loading="lazy"
                             decoding="async"
                         />
-                        <div v-else class="flex h-[260px] items-center justify-center px-6 text-sm font-medium text-stone-500 dark:text-neutral-400">
+                        <div v-else class="flex h-[220px] items-center justify-center px-6 text-sm font-medium text-stone-500 sm:h-[260px] dark:text-neutral-400">
                             {{ $t('mega_menu.preview_image_placeholder') }}
                         </div>
                     </div>
@@ -203,7 +203,7 @@ watch(
                     :href="preview ? '#' : safeHref(link.resolved_href || link.href)"
                     :target="linkTarget(link.target)"
                     :rel="linkRel(link.target)"
-                    class="inline-flex items-center rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-800 transition hover:border-stone-900 hover:bg-stone-50 dark:border-neutral-600 dark:text-neutral-100 dark:hover:border-neutral-300 dark:hover:bg-neutral-800"
+                    class="inline-flex items-center rounded-sm border border-stone-300 px-4 py-2 text-sm font-medium text-stone-800 transition hover:border-stone-900 hover:bg-stone-50 lg:rounded-full dark:border-neutral-600 dark:text-neutral-100 dark:hover:border-neutral-300 dark:hover:bg-neutral-800"
                     @click="preview ? $event.preventDefault() : null"
                 >
                     {{ link.label || 'Shortcut' }}
@@ -220,7 +220,7 @@ watch(
                     v-for="(card, index) in (block.payload?.cards || [])"
                     :key="`${block.id || block.title || 'card'}-${index}`"
                     :href="preview ? '#' : safeHref(card.resolved_href || card.href)"
-                    class="overflow-hidden rounded-[20px] border border-stone-200 bg-white transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-900"
+                    class="overflow-hidden rounded-sm border border-stone-200 bg-white transition hover:-translate-y-0.5 hover:shadow-md lg:rounded-[20px] dark:border-neutral-700 dark:bg-neutral-900"
                     @click="preview ? $event.preventDefault() : null"
                 >
                     <img
@@ -256,7 +256,7 @@ watch(
                     <a
                         v-if="block.payload?.cta_label"
                         :href="preview ? '#' : safeHref(block.payload.resolved_cta_href || block.payload.cta_href)"
-                        class="inline-flex rounded-full border border-stone-900 px-4 py-2 text-sm font-semibold text-stone-900 transition hover:bg-stone-900 hover:text-white dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-stone-900"
+                        class="inline-flex rounded-sm border border-stone-900 px-4 py-2 text-sm font-semibold text-stone-900 transition hover:bg-stone-900 hover:text-white lg:rounded-full dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-stone-900"
                         @click="preview ? $event.preventDefault() : null"
                     >
                         {{ block.payload.cta_label }}
@@ -308,7 +308,7 @@ watch(
                     <a
                         v-if="block.payload?.cta_label"
                         :href="preview ? '#' : safeHref(block.payload.resolved_cta_href || block.payload.cta_href)"
-                        class="inline-flex w-fit rounded-full border border-white/40 px-4 py-2 text-sm font-semibold text-white transition hover:border-white hover:bg-white hover:text-stone-950"
+                        class="inline-flex w-fit rounded-sm border border-white/40 px-4 py-2 text-sm font-semibold text-white transition hover:border-white hover:bg-white hover:text-stone-950 lg:rounded-full"
                         @click="preview ? $event.preventDefault() : null"
                     >
                         {{ block.payload.cta_label }}
@@ -333,7 +333,7 @@ watch(
                 <a
                     v-if="block.payload?.button_label"
                     :href="preview ? '#' : safeHref(block.payload.resolved_button_href || block.payload.button_href)"
-                    class="inline-flex rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-700 dark:bg-white dark:text-stone-900"
+                    class="inline-flex rounded-sm bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-700 lg:rounded-full dark:bg-white dark:text-stone-900"
                     @click="preview ? $event.preventDefault() : null"
                 >
                     {{ block.payload.button_label }}
@@ -351,7 +351,7 @@ watch(
                         v-for="(shortcut, index) in (block.payload?.shortcuts || [])"
                         :key="`${block.id || block.title || 'shortcut'}-${index}`"
                         :href="preview ? '#' : safeHref(shortcut.resolved_href)"
-                        class="rounded-full border border-stone-200 px-4 py-2 text-sm font-medium text-stone-800 transition hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                        class="rounded-sm border border-stone-200 px-4 py-2 text-sm font-medium text-stone-800 transition hover:bg-stone-50 lg:rounded-full dark:border-neutral-700 dark:text-neutral-100 dark:hover:bg-neutral-800"
                         @click="preview ? $event.preventDefault() : null"
                     >
                         {{ shortcut.label || 'Shortcut' }}
@@ -369,7 +369,7 @@ watch(
                     :src="block.payload.preview_image_url"
                     :alt="block.payload.preview_image_alt || block.payload.title || 'Demo preview'"
                     :title="block.payload.preview_image_title || undefined"
-                    class="h-36 w-full rounded-[18px] object-cover"
+                    class="h-36 w-full rounded-sm object-cover lg:rounded-[18px]"
                     loading="lazy"
                     decoding="async"
                 />
@@ -377,7 +377,7 @@ watch(
                     <div
                         v-for="(metric, index) in (block.payload?.metrics || [])"
                         :key="`${block.id || block.title || 'metric'}-${index}`"
-                        class="rounded-[18px] bg-stone-50 px-4 py-3 dark:bg-neutral-800"
+                        class="rounded-sm bg-stone-50 px-4 py-3 lg:rounded-[18px] dark:bg-neutral-800"
                     >
                         <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ metric.label || 'Metric' }}</div>
                         <div class="mt-1 text-lg font-semibold tracking-tight text-stone-900 dark:text-white">{{ metric.value || '-' }}</div>
