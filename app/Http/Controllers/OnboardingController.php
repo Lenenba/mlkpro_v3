@@ -117,11 +117,11 @@ class OnboardingController extends Controller
         if (! $creator->isAccountOwner()) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
-                    'message' => 'Only the account owner can complete onboarding.',
+                    'message' => __('ui.onboarding.only_owner'),
                 ], 403);
             }
 
-            return redirect()->route('dashboard')->with('error', 'Only the account owner can complete onboarding.');
+            return redirect()->route('dashboard')->with('error', __('ui.onboarding.only_owner'));
         }
 
         $wasOnboarded = (bool) $creator->onboarding_completed_at;
@@ -248,7 +248,7 @@ class OnboardingController extends Controller
             if ($request->hasSession()) {
                 $request->session()->forget('onboarding_invites');
             }
-            $messageParts = ['Onboarding completed.'];
+            $messageParts = [__('ui.onboarding.completed')];
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => implode(' ', $messageParts),
@@ -292,13 +292,13 @@ class OnboardingController extends Controller
             if ($this->shouldReturnJson($request)) {
                 return $this->onboardingBillingErrorResponse(
                     $user,
-                    'Only the account owner can complete onboarding.',
+                    __('ui.onboarding.only_owner'),
                     403,
                     'forbidden'
                 );
             }
 
-            return redirect()->route('dashboard')->with('error', 'Only the account owner can complete onboarding.');
+            return redirect()->route('dashboard')->with('error', __('ui.onboarding.only_owner'));
         }
 
         $status = (string) $request->query('status');
@@ -306,13 +306,13 @@ class OnboardingController extends Controller
             if ($this->shouldReturnJson($request)) {
                 return $this->onboardingBillingErrorResponse(
                     $user,
-                    'Checkout canceled.',
+                    __('ui.onboarding.checkout_canceled'),
                     409,
                     'canceled'
                 );
             }
 
-            return redirect()->route('onboarding.index')->with('error', 'Checkout canceled.');
+            return redirect()->route('onboarding.index')->with('error', __('ui.onboarding.checkout_canceled'));
         }
 
         $billingService = app(BillingSubscriptionService::class);
@@ -322,12 +322,12 @@ class OnboardingController extends Controller
                 if ($this->shouldReturnJson($request)) {
                     return $this->onboardingBillingErrorResponse(
                         $user,
-                        'Checkout session is missing.',
+                        __('ui.onboarding.checkout_session_missing'),
                         422
                     );
                 }
 
-                return redirect()->route('onboarding.index')->with('error', 'Checkout session is missing.');
+                return redirect()->route('onboarding.index')->with('error', __('ui.onboarding.checkout_session_missing'));
             }
 
             try {
@@ -337,12 +337,12 @@ class OnboardingController extends Controller
                 if ($this->shouldReturnJson($request)) {
                     return $this->onboardingBillingErrorResponse(
                         $user,
-                        'Unable to sync subscription.',
+                        __('ui.onboarding.sync_subscription_failed'),
                         422
                     );
                 }
 
-                return redirect()->route('onboarding.index')->with('error', 'Unable to sync subscription.');
+                return redirect()->route('onboarding.index')->with('error', __('ui.onboarding.sync_subscription_failed'));
             }
         } else {
             try {
@@ -372,7 +372,7 @@ class OnboardingController extends Controller
         $baseResponse = [
             'status' => $state,
             'message' => $state === 'pending_owner'
-                ? 'Only the account owner can complete onboarding.'
+                ? __('ui.onboarding.only_owner')
                 : null,
             'account' => [
                 'is_authenticated' => (bool) $user,
@@ -554,13 +554,13 @@ class OnboardingController extends Controller
         $billingService = app(BillingSubscriptionService::class);
         if (! $billingService->providerReady()) {
             throw ValidationException::withMessages([
-                'plan_key' => ['Billing is not configured yet.'],
+                'plan_key' => [__('ui.onboarding.billing_not_configured')],
             ]);
         }
 
         if (! $billingService->isStripe()) {
             throw ValidationException::withMessages([
-                'plan_key' => ['Onboarding checkout is only available with Stripe.'],
+                'plan_key' => [__('ui.onboarding.checkout_requires_stripe')],
             ]);
         }
 
@@ -583,7 +583,7 @@ class OnboardingController extends Controller
         $url = $session['url'] ?? null;
         if (! $url) {
             throw ValidationException::withMessages([
-                'plan_key' => ['Unable to start checkout.'],
+                'plan_key' => [__('ui.onboarding.checkout_start_failed')],
             ]);
         }
 
@@ -652,9 +652,11 @@ class OnboardingController extends Controller
             }
         }
 
-        $messageParts = ['Onboarding completed.'];
+        $messageParts = [__('ui.onboarding.completed')];
         if ($invitePasswords) {
-            $messageParts[] = 'Team passwords: '.implode(', ', $invitePasswords);
+            $messageParts[] = __('ui.onboarding.team_passwords', [
+                'credentials' => implode(', ', $invitePasswords),
+            ]);
         }
 
         return implode(' ', $messageParts);

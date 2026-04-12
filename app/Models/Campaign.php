@@ -73,6 +73,8 @@ class Campaign extends Model
 
     public const LANGUAGE_MODE_EN = CampaignLanguageMode::EN->value;
 
+    public const LANGUAGE_MODE_ES = CampaignLanguageMode::ES->value;
+
     public const LANGUAGE_MODE_BOTH = CampaignLanguageMode::BOTH->value;
 
     public const DIRECTION_CUSTOMER_MARKETING = 'customer_marketing';

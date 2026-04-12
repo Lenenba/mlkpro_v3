@@ -6,6 +6,7 @@ use App\Enums\CampaignType;
 use App\Models\Campaign;
 use App\Models\MessageTemplate;
 use App\Models\User;
+use App\Support\CampaignTemplateLanguage;
 
 class TemplateSeederService
 {
@@ -71,7 +72,7 @@ class TemplateSeederService
      */
     private function defaultTemplates(): array
     {
-        $languages = ['FR', 'EN'];
+        $languages = CampaignTemplateLanguage::supported();
         $rows = [];
 
         foreach ($this->emailTemplateComposer->presetCatalog() as $preset) {
@@ -116,20 +117,28 @@ class TemplateSeederService
      */
     private function templateContent(string $campaignType, string $channel, string $language): array
     {
-        $isFrench = strtoupper($language) === 'FR';
+        $language = CampaignTemplateLanguage::normalize($language);
+        $isFrench = $language === 'FR';
+        $isSpanish = $language === 'ES';
         $campaignLabel = str_replace('_', ' ', strtolower($campaignType));
 
         if (strtoupper($channel) === Campaign::CHANNEL_EMAIL) {
             return [
                 'subject' => $isFrench
                     ? "Mise a jour {$campaignLabel} pour {firstName}"
-                    : ucfirst($campaignLabel).' update for {firstName}',
+                    : ($isSpanish
+                        ? "Actualizacion {$campaignLabel} para {firstName}"
+                        : ucfirst($campaignLabel).' update for {firstName}'),
                 'previewText' => $isFrench
                     ? 'Decouvrez votre offre: {offerName}'
-                    : 'Discover your offer: {offerName}',
+                    : ($isSpanish
+                        ? 'Descubre tu oferta: {offerName}'
+                        : 'Discover your offer: {offerName}'),
                 'html' => $isFrench
                     ? '<p>Bonjour {firstName},</p><p>Profitez de {offerName} a {offerPrice}.</p><p><a href="{ctaUrl}">Voir l offre</a></p>'
-                    : '<p>Hello {firstName},</p><p>Enjoy {offerName} at {offerPrice}.</p><p><a href="{ctaUrl}">View offer</a></p>',
+                    : ($isSpanish
+                        ? '<p>Hola {firstName},</p><p>Aprovecha {offerName} a {offerPrice}.</p><p><a href="{ctaUrl}">Ver la oferta</a></p>'
+                        : '<p>Hello {firstName},</p><p>Enjoy {offerName} at {offerPrice}.</p><p><a href="{ctaUrl}">View offer</a></p>'),
             ];
         }
 
@@ -137,16 +146,22 @@ class TemplateSeederService
             return [
                 'text' => $isFrench
                     ? '{firstName}, offre {offerName} disponible: {ctaUrl}'
-                    : '{firstName}, {offerName} is available now: {ctaUrl}',
+                    : ($isSpanish
+                        ? '{firstName}, {offerName} ya esta disponible: {ctaUrl}'
+                        : '{firstName}, {offerName} is available now: {ctaUrl}'),
                 'shortener' => true,
             ];
         }
 
         return [
-            'title' => $isFrench ? 'Nouveaute pour vous' : 'New update for you',
+            'title' => $isFrench
+                ? 'Nouveaute pour vous'
+                : ($isSpanish ? 'Novedad para ti' : 'New update for you'),
             'body' => $isFrench
                 ? 'Profitez de {offerName} ({offerAvailability}).'
-                : 'Enjoy {offerName} ({offerAvailability}).',
+                : ($isSpanish
+                    ? 'Aprovecha {offerName} ({offerAvailability}).'
+                    : 'Enjoy {offerName} ({offerAvailability}).'),
             'deepLink' => '/campaigns/{campaignId}',
             'image' => '{offerImageUrl}',
         ];

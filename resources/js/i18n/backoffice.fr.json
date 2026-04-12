@@ -1,0 +1,28 @@
+{
+  "dashboard": {
+    "marketing_panel": {
+      "title": "KPI marketing",
+      "range": "Periode : {label} ({start} -> {end})",
+      "open_campaigns": "Campagnes actives",
+      "top_campaign": "Campagne phare",
+      "no_data": "Aucune donnee",
+      "conversions_clicks": "{conversions} conversions / {clicks} clics",
+      "audience_growth": "Croissance de l'audience",
+      "delta": "Variation",
+      "vip_customers": "Clients VIP",
+      "mailing_lists": "Listes de diffusion",
+      "list_count": "{count} liste(s)",
+      "customers_count": "{count} clients",
+      "reservations_created": "Reservations creees : {count}",
+      "invoices_paid": "Factures payees : {count}",
+      "quotes_accepted": "Devis acceptes : {count}",
+      "cards": {
+        "campaigns_sent": "Campagnes envoyees",
+        "delivery_success_rate": "Taux de livraison",
+        "click_rate": "Taux de clic",
+        "tracking_off": "Suivi desactive",
+        "conversions_attributed": "Conversions attribuees"
+      }
+    }
+  }
+}

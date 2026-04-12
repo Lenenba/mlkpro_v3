@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Notifications\TwoFactorCodeNotification;
+use App\Support\LocalePreference;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -182,7 +183,7 @@ class TwoFactorService
                 ];
             }
 
-            $smsResult = app(SmsNotificationService::class)->sendWithResult($phone, $this->smsMessage($code, $expiresAt));
+            $smsResult = app(SmsNotificationService::class)->sendWithResult($phone, $this->smsMessage($user, $code, $expiresAt));
             if (!($smsResult['ok'] ?? false)) {
                 return [
                     'sent' => false,
@@ -213,12 +214,17 @@ class TwoFactorService
         ];
     }
 
-    private function smsMessage(string $code, CarbonInterface $expiresAt): string
+    private function smsMessage(User $user, string $code, CarbonInterface $expiresAt): string
     {
         $minutes = max(1, (int) ceil(now()->diffInSeconds($expiresAt) / 60));
         $appName = (string) config('app.name', 'App');
+        $locale = LocalePreference::forNotifiable($user);
 
-        return "{$appName}: code de verification {$code}. Expire dans {$minutes} min.";
+        return LocalePreference::trans('ui.auth.two_factor.sms_message', [
+            'app' => $appName,
+            'code' => $code,
+            'minutes' => $minutes,
+        ], $locale);
     }
 
     private function generateCode(): string

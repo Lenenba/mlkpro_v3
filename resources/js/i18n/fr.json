@@ -447,7 +447,9 @@
     "code_label": "Code de vérification",
     "code_placeholder": "Entrez le code à 6 chiffres",
     "submit": "Vérifier",
-    "resend": "Renvoyer le code"
+    "resend": "Renvoyer le code",
+    "email_fallback": "votre email",
+    "phone_fallback": "votre telephone"
   },
   "global_search": {
     "open": "Recherche globale",
@@ -2801,6 +2803,12 @@
       "subtitle": "Terminez la configuration en {count} étapes.",
       "step": "Étape {current} / {total}"
     },
+    "pending_owner": {
+      "title": "Espace en cours de configuration",
+      "description": "Votre compte est rattaché à une entreprise dont la configuration n est pas terminée. Demandez au propriétaire de finaliser l onboarding.",
+      "logout": "Se déconnecter",
+      "dashboard": "Tableau de bord"
+    },
     "progress": {
       "title": "Progression",
       "note": "Gardez ces infos à jour pour débloquer toutes les fonctions du tableau de bord."
@@ -2952,6 +2960,7 @@
       "yearly": "Annuel",
       "interval_month": "/mois",
       "interval_year": "/an",
+      "charged_currency": "Devise facturée : {currency}",
       "yearly_note": "Payez à l'année et économisez {percent}%.",
       "billed_yearly": "Pour 12 mois, facturé annuellement.",
       "trial_note": "Essai jusqu'au {date}.",
@@ -2965,6 +2974,63 @@
         "team": {
           "title": "Forfaits Team",
           "description": "Nous affichons les forfaits Team parce que votre espace inclut {count} personnes. Team ajoute collaboration, permissions et limites plus elevees."
+        }
+      },
+      "catalog": {
+        "solo_essential": {
+          "description": "Forfait socle pour les operateurs solo qui veulent une base de fonctionnement claire.",
+          "features": [
+            "Demandes, devis, factures, jobs et taches",
+            "Planning, ventes et catalogue",
+            "Portail client et page publique",
+            "Execution solo simple sans modules avances"
+          ]
+        },
+        "solo_pro": {
+          "description": "Forfait croissance pour les operateurs solo qui ont besoin de plus de structure et de capacite d execution.",
+          "features": [
+            "Tout Solo Core",
+            "Plus de volume pour jobs et taches",
+            "Structure solo plus claire sans logique equipe",
+            "Forfait solo recommande"
+          ]
+        },
+        "solo_growth": {
+          "description": "Forfait premium pour les operateurs solo qui veulent plus d automatisation et de marge de manoeuvre.",
+          "features": [
+            "Tout Solo Growth",
+            "Reservations et planning en mode solo limite",
+            "Assistant, scan de plan, campagnes et fidelite",
+            "Capacite premium pour scaler seul",
+            "Pilotage avance et support prioritaire"
+          ]
+        },
+        "starter": {
+          "description": "Forfait equipe socle pour une execution partagee et plus de collaboration.",
+          "features": [
+            "Base partagee pour demandes, devis, jobs et factures",
+            "Planning d equipe, presence et collaboration",
+            "Assistant et scan de plan en mode limite",
+            "Jusqu a 5 membres"
+          ]
+        },
+        "growth": {
+          "description": "Forfait croissance equipe pour les permissions, les automatismes et plus de volume operationnel.",
+          "features": [
+            "Tout Team Core",
+            "Plus de permissions, campagnes et fidelite",
+            "Automatisations avancees et plus de volume",
+            "Forfait equipe recommande"
+          ]
+        },
+        "scale": {
+          "description": "Forfait scale equipe pour des operations avancees, plus d IA et un support premium.",
+          "features": [
+            "Tout Team Growth",
+            "Capacite premium, IA et scans renforces",
+            "Pilotage avance et support premium",
+            "Onboarding dedie et reporting approfondi"
+          ]
         }
       },
       "recommended": "Recommandé",
@@ -2985,6 +3051,51 @@
       "continue": "Continuer",
       "finish": "Demarrer l'essai",
       "close": "Fermer"
+    }
+  },
+  "auth_pages": {
+    "login": {
+      "title": "Se connecter",
+      "email": "Email",
+      "password": "Mot de passe",
+      "remember": "Se souvenir de moi",
+      "forgot_password": "Mot de passe oublié ?",
+      "submit": "Se connecter"
+    },
+    "register": {
+      "title": "Créer un compte",
+      "name": "Nom complet",
+      "email": "Email",
+      "password": "Mot de passe",
+      "password_confirmation": "Confirmer le mot de passe",
+      "already_registered": "Déjà inscrit ?",
+      "submit": "Créer le compte"
+    },
+    "forgot_password": {
+      "title": "Mot de passe oublié",
+      "description": "Mot de passe oublié ? Aucun souci. Saisissez votre adresse email et nous vous enverrons un lien de réinitialisation pour choisir un nouveau mot de passe.",
+      "email": "Email",
+      "submit": "Envoyer le lien de réinitialisation"
+    },
+    "reset_password": {
+      "title": "Réinitialiser le mot de passe",
+      "email": "Email",
+      "password": "Mot de passe",
+      "password_confirmation": "Confirmer le mot de passe",
+      "submit": "Réinitialiser le mot de passe"
+    },
+    "verify_email": {
+      "title": "Vérification de l'email",
+      "description": "Merci pour votre inscription. Avant de commencer, vérifiez votre adresse email en cliquant sur le lien que nous venons de vous envoyer. Si vous ne l'avez pas reçu, nous pouvons en envoyer un autre.",
+      "resent": "Un nouveau lien de vérification a été envoyé à l'adresse email fournie lors de l'inscription.",
+      "submit": "Renvoyer l'email de vérification",
+      "logout": "Se déconnecter"
+    },
+    "confirm_password": {
+      "title": "Confirmer le mot de passe",
+      "description": "Il s'agit d'une zone sécurisée de l'application. Veuillez confirmer votre mot de passe pour continuer.",
+      "password": "Mot de passe",
+      "submit": "Confirmer"
     }
   },
   "portal_shop": {

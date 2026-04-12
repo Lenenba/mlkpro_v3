@@ -13,13 +13,16 @@ class ResetPasswordLinkNotification extends ResetPassword
 
     public function __construct(
         string $token,
+        private readonly ?string $localeOverride = null,
     ) {
         parent::__construct($token);
     }
 
     public function toMail($notifiable): MailMessage
     {
-        $locale = LocalePreference::forNotifiable($notifiable);
+        $locale = LocalePreference::isSupported($this->localeOverride)
+            ? LocalePreference::normalize($this->localeOverride)
+            : LocalePreference::forNotifiable($notifiable);
         $broker = (string) config('auth.defaults.passwords', 'users');
         $expires = (int) config("auth.passwords.{$broker}.expire", 60);
 
@@ -29,7 +32,13 @@ class ResetPasswordLinkNotification extends ResetPassword
                 'companyName' => config('app.name'),
                 'companyLogo' => null,
                 'recipientName' => (string) ($notifiable->name ?? ''),
-                'resetUrl' => $this->resetUrl($notifiable),
+                'resetUrl' => route('password.reset', [
+                    'token' => $this->token,
+                    'email' => method_exists($notifiable, 'getEmailForPasswordReset')
+                        ? $notifiable->getEmailForPasswordReset()
+                        : (string) ($notifiable->email ?? ''),
+                    'locale' => $locale,
+                ]),
                 'expiresInMinutes' => $expires,
             ]);
     }

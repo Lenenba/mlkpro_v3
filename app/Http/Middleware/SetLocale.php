@@ -10,25 +10,7 @@ class SetLocale
 {
     public function handle(Request $request, Closure $next)
     {
-        $supportedLocales = LocalePreference::supported();
-        $locale = null;
-
-        $userLocale = $request->user()?->locale;
-        if ($userLocale) {
-            $locale = $userLocale;
-        }
-
-        if (!$locale) {
-            $locale = $request->session()->get('locale');
-        }
-
-        if (!$locale) {
-            $locale = $request->getPreferredLanguage($supportedLocales);
-        }
-
-        if (!$locale || !in_array($locale, $supportedLocales, true)) {
-            $locale = LocalePreference::default();
-        }
+        $locale = LocalePreference::forRequest($request);
 
         app()->setLocale($locale);
         $request->session()->put('locale', $locale);

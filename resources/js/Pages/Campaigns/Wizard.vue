@@ -169,7 +169,7 @@ const channels = (props.enums?.channels || ['EMAIL', 'SMS', 'IN_APP']).map((v) =
 const types = props.enums?.types || ['PROMOTION'];
 const directions = props.enums?.directions || ['customer_marketing', 'prospecting_outbound', 'lead_generation_inbound'];
 const offerModes = props.enums?.offer_modes || ['PRODUCTS', 'SERVICES', 'MIXED'];
-const languageModes = props.enums?.language_modes || ['PREFERRED', 'FR', 'EN', 'BOTH'];
+const languageModes = props.enums?.language_modes || ['PREFERRED', 'FR', 'EN', 'ES', 'BOTH'];
 const audienceSourceLogicOptions = props.enums?.audience_source_logic || ['UNION', 'INTERSECT'];
 const scheduleTypeOptions = computed(() => ([
     { value: 'manual', label: 'manual' },

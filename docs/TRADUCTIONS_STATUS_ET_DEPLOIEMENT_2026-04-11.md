@@ -240,7 +240,7 @@ Progression recente:
 - [resources/js/Pages/SuperAdmin/Pages/Edit.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/SuperAdmin/Pages/Edit.vue) et [resources/js/utils/publicPageTemplates.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/publicPageTemplates.js) creent maintenant sections, bibliotheque et templates avec un seeding propre par locale.
 
 ### Phase 4 - Sources editoriales backend Welcome / produits / industries
-Status: `en cours`
+Status: `terminee`
 
 Perimetre:
 - [app/Support/WelcomeEditorialSections.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/WelcomeEditorialSections.php)
@@ -257,23 +257,33 @@ Definition of done:
 Progression recente:
 - [app/Support/PublicIndustryPageSections.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicIndustryPageSections.php) et [app/Support/PublicIndustryShowcaseTabs.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicIndustryShowcaseTabs.php) couvrent maintenant les sections editoriales industries en `es`.
 - [app/Support/PublicProductPageNarratives.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicProductPageNarratives.php) couvre maintenant les 7 narratives produits en `es` sans fallback visible vers `en`.
+- [app/Support/PublicProductPageLocalizedOverrides.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicProductPageLocalizedOverrides.php) centralise maintenant les overrides editoriaux `es` des 7 narratives produits, et [app/Support/PublicProductPageNarratives.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicProductPageNarratives.php) ne garde plus que la composition structurelle et le fallback `en`.
 - [database/seeders/MegaMenuSeeder.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/database/seeders/MegaMenuSeeder.php) regenere les payloads publics `es` des produits, solutions, industries, contact et partners.
 - [app/Support/WelcomeEditorialSections.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/WelcomeEditorialSections.php) range maintenant les sections welcome dans des payloads localises explicites avec fallback `en`.
 - [app/Support/WelcomeStockImages.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/WelcomeStockImages.php) centralise maintenant les alt texts par locale dans des definitions lisibles, sans cascade `if / else` par image.
+- [app/Support/WelcomeShowcaseSection.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/WelcomeShowcaseSection.php) centralise maintenant le payload source `Welcome Showcase`, reutilise par [app/Services/PublicCopySyncService.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Services/PublicCopySyncService.php) et [app/Services/PlatformWelcomePageService.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Services/PlatformWelcomePageService.php) pour eviter toute derive de copy entre sync et rendu public.
+- Verification terminee via `php artisan test tests/Feature/SpanishLocaleSupportTest.php tests/Feature/PublicProductPagesTest.php tests/Feature/PublicCopySyncCommandTest.php tests/Feature/LegalPagesTest.php` avec 60 tests verts et 1027 assertions.
 
 ### Phase 5 - Emails et campagnes
-Status: `dernier bloc`
+Status: `terminee`
 
 Perimetre:
 - [app/Services/Campaigns/EmailTemplateComposer.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Services/Campaigns/EmailTemplateComposer.php)
 - [app/Services/Campaigns/TemplateSeederService.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Services/Campaigns/TemplateSeederService.php)
 
-Decision attendue:
-- choisir si ce module suit les memes cles i18n ou des templates localises par canal
+Decision retenue:
+- ce module suit des templates localises par canal, avec fallback `en` quand aucune variante locale n existe encore
+
+Progression recente:
+- [app/Support/CampaignTemplateLanguage.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/CampaignTemplateLanguage.php) centralise maintenant les langues supportees des templates campagnes (`FR`, `EN`, `ES`), la normalisation et la resolution locale -> mode.
+- [app/Services/Campaigns/EmailTemplateComposer.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Services/Campaigns/EmailTemplateComposer.php) expose maintenant aussi les presets email `ES`, reutilises dans le catalogue de templates.
+- [app/Services/Campaigns/TemplateSeederService.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Services/Campaigns/TemplateSeederService.php) seed maintenant les templates starter `FR`, `EN` et `ES` pour EMAIL, SMS et IN_APP.
+- [app/Services/Assistant/AssistantCampaignService.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Services/Assistant/AssistantCampaignService.php) et [app/Services/Demo/DemoWorkspaceProvisioner.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Services/Demo/DemoWorkspaceProvisioner.php) resolvent maintenant correctement `ES` pour les tenants espagnols, sans forcer un mode `FR/EN` incoherent.
+- Verification terminee via `php artisan test tests/Feature/CampaignsMarketingModuleTest.php tests/Feature/AssistantCampaignPhaseOneTest.php` avec 58 tests verts et 473 assertions.
 
 ### Ordre de travail recommande a partir d ici
-1. Finir la verification fonctionnelle de la Phase 4 autour de `public-copy:sync` et des payloads regenerees.
-2. Garder la Phase 5 pour la fin une fois le site public stabilise.
+1. Consolider par une passe QA fonctionnelle globale si vous voulez valider tout le parcours multilingue avant de deployer.
+2. Garder le meme schema `fallback en + payloads localises lisibles` sur les futurs blocs editoriaux ou templates additionnels.
 
 ## 5. Convention d implementation recommandee
 

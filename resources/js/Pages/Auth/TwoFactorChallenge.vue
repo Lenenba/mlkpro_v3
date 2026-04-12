@@ -79,8 +79,8 @@ const resend = () => {
                         isAppMethod
                             ? t('two_factor.app_prompt')
                             : isSmsMethod
-                                ? t('two_factor.sms_sent', { phone: phone_hint || 'phone' })
-                                : t('two_factor.sent', { email: email || 'email' })
+                                ? t('two_factor.sms_sent', { phone: phone_hint || t('two_factor.phone_fallback') })
+                                : t('two_factor.sent', { email: email || t('two_factor.email_fallback') })
                     }}
                 </p>
                 <p v-if="expiresInMinutes" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">

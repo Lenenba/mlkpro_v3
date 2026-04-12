@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\User;
 use App\Services\Campaigns\CampaignService;
 use App\Services\Campaigns\TemplateRenderer;
+use App\Support\CampaignTemplateLanguage;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -990,22 +991,20 @@ class AssistantCampaignService
             return $hint;
         }
 
-        $tenantLocale = Str::lower(trim((string) ($campaignContext['tenant']['locale'] ?? 'fr')));
-
-        return str_starts_with($tenantLocale, 'en')
-            ? Campaign::LANGUAGE_MODE_EN
-            : Campaign::LANGUAGE_MODE_FR;
+        return CampaignTemplateLanguage::defaultModeForLocale(
+            (string) ($campaignContext['tenant']['locale'] ?? 'fr')
+        );
     }
 
     private function resolveLocale(string $languageMode, array $campaignContext): string
     {
         if ($languageMode === Campaign::LANGUAGE_MODE_BOTH || $languageMode === Campaign::LANGUAGE_MODE_PREFERRED) {
-            $tenantLocale = Str::lower(trim((string) ($campaignContext['tenant']['locale'] ?? 'fr')));
-
-            return str_starts_with($tenantLocale, 'en') ? 'EN' : 'FR';
+            return CampaignTemplateLanguage::fromLocale(
+                (string) ($campaignContext['tenant']['locale'] ?? 'fr')
+            );
         }
 
-        return $languageMode;
+        return CampaignTemplateLanguage::normalize($languageMode);
     }
 
     /**

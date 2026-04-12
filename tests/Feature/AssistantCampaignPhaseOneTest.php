@@ -224,6 +224,31 @@ test('assistant interpreter normalizes draft campaign payload', function () {
         ->and($result['campaign']['language_hint'])->toBe(Campaign::LANGUAGE_MODE_FR);
 });
 
+test('assistant interpreter keeps spanish campaign language hints', function () {
+    $client = \Mockery::mock(OpenAiClient::class);
+    $client->shouldReceive('chat')->once()->andReturn(['model' => 'test-model']);
+    $client->shouldReceive('extractMessage')->once()->andReturn(json_encode([
+        'intent' => 'draft_campaign',
+        'confidence' => 0.91,
+        'campaign' => [
+            'objective' => 'Reactivar clientes',
+            'campaign_type' => 'winback',
+            'offer_mode_hint' => 'services',
+            'audience_hint' => 'clientes inactivos',
+            'timing_hint' => 'esta semana',
+            'channel_hints' => ['email'],
+            'language_hint' => 'es',
+            'name_hint' => 'Reactivacion',
+        ],
+    ]));
+    $client->shouldReceive('extractUsage')->once()->andReturn([]);
+
+    $interpreter = new AssistantInterpreter($client);
+    $result = $interpreter->interpret('Quiero reactivar clientes inactivos.');
+
+    expect($result['campaign']['language_hint'])->toBe(Campaign::LANGUAGE_MODE_ES);
+});
+
 test('campaign assistant context service returns compact tenant marketing context', function () {
     $owner = assistantCampaignOwner();
 
@@ -380,6 +405,55 @@ test('assistant message routes draft campaign intent to campaign assistant flow'
             'test_send_campaign',
             'view_campaign',
         );
+});
+
+test('assistant campaign flow resolves spanish locale for spanish tenants', function () {
+    $owner = assistantCampaignOwner([
+        'locale' => 'es',
+    ]);
+    assistantCampaignProduct($owner, [
+        'name' => 'Oferta de fin de semana',
+    ]);
+    $customer = assistantCampaignCustomer($owner);
+    assistantGrantCampaignConsents($owner, $customer, [Campaign::CHANNEL_EMAIL]);
+
+    $interpreter = \Mockery::mock(AssistantInterpreter::class);
+    $interpreter->shouldReceive('interpret')->once()->andReturn([
+        'intent' => 'draft_campaign',
+        'confidence' => 0.95,
+        'campaign' => [
+            'objective' => 'Reactivar clientes inactivos',
+            'campaign_type' => Campaign::TYPE_WINBACK,
+            'offer_hint' => '',
+            'offer_mode_hint' => '',
+            'audience_hint' => '',
+            'timing_hint' => '',
+            'channel_hints' => [Campaign::CHANNEL_EMAIL],
+            'kpi_hint' => '',
+            'language_hint' => '',
+            'name_hint' => '',
+            'notes' => '',
+        ],
+    ]);
+    $this->app->instance(AssistantInterpreter::class, $interpreter);
+
+    $response = $this->actingAs($owner)->postJson(route('assistant.message'), [
+        'message' => 'Quiero reactivar clientes inactivos por email.',
+        'context' => [],
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('status', 'created')
+        ->assertJsonPath('action.type', 'campaign_draft_ready');
+
+    $campaign = Campaign::query()
+        ->latest('id')
+        ->with('channels')
+        ->firstOrFail();
+
+    expect($campaign->locale)->toBe('ES')
+        ->and($campaign->language_mode)->toBe(Campaign::LANGUAGE_MODE_ES)
+        ->and($campaign->channels->firstWhere('channel', Campaign::CHANNEL_EMAIL)?->subject_template)->not->toBe('');
 });
 
 test('assistant campaign flow regenerates invalid default template content before returning ready', function () {

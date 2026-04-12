@@ -4,13 +4,14 @@ namespace App\Support;
 
 use App\Models\Customer;
 use App\Models\User;
+use Illuminate\Http\Request;
 
 class LocalePreference
 {
     /**
      * @var array<int, string>
      */
-    private const DEFAULT_SUPPORTED = ['fr', 'en'];
+    private const DEFAULT_SUPPORTED = ['fr', 'en', 'es'];
 
     /**
      * @return array<int, string>
@@ -86,9 +87,45 @@ class LocalePreference
     {
         $value = strtolower(trim((string) $locale));
 
-        return in_array($value, self::supported(), true)
+        return self::isSupported($value)
             ? $value
             : self::default();
+    }
+
+    public static function isSupported(?string $locale): bool
+    {
+        $value = strtolower(trim((string) $locale));
+
+        return $value !== '' && in_array($value, self::supported(), true);
+    }
+
+    public static function forRequest(?Request $request, ?User $preferredUser = null): string
+    {
+        $userLocale = $preferredUser?->locale ?? $request?->user()?->locale;
+        if (self::isSupported($userLocale)) {
+            return strtolower(trim((string) $userLocale));
+        }
+
+        $requestedLocale = $request?->input('locale', $request?->query('locale'));
+        if (self::isSupported($requestedLocale)) {
+            return strtolower(trim((string) $requestedLocale));
+        }
+
+        if ($request?->hasSession()) {
+            $sessionLocale = $request->session()->get('locale');
+            if (self::isSupported($sessionLocale)) {
+                return strtolower(trim((string) $sessionLocale));
+            }
+        }
+
+        if ($request) {
+            $preferred = $request->getPreferredLanguage(self::supported());
+            if (self::isSupported($preferred)) {
+                return strtolower(trim((string) $preferred));
+            }
+        }
+
+        return self::default();
     }
 
     public static function forUser(?User $user): string

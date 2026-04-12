@@ -2,6 +2,9 @@ import { createI18n } from 'vue-i18n';
 import en from './en.json';
 import es from './es.json';
 import fr from './fr.json';
+import backofficeEn from './backoffice.en.json';
+import backofficeEs from './backoffice.es.json';
+import backofficeFr from './backoffice.fr.json';
 import marketingEn from './marketing.en.json';
 import marketingEs from './marketing.es.json';
 import marketingFr from './marketing.fr.json';
@@ -34,6 +37,9 @@ const deepMerge = (target, source) => {
     return output;
 };
 
+const mergeMessages = (...sources) =>
+    sources.reduce((accumulator, source) => deepMerge(accumulator, source), {});
+
 export const createI18nInstance = (locale) =>
     createI18n({
         legacy: false,
@@ -41,11 +47,8 @@ export const createI18nInstance = (locale) =>
         locale: normalizeLocale(locale),
         fallbackLocale: 'en',
         messages: {
-            fr: deepMerge(fr, marketingFr),
-            en: deepMerge(en, marketingEn),
-            es: deepMerge(
-                deepMerge(en, marketingEn),
-                deepMerge(es, marketingEs),
-            ),
+            fr: mergeMessages(fr, marketingFr, backofficeFr),
+            en: mergeMessages(en, marketingEn, backofficeEn),
+            es: mergeMessages(en, marketingEn, backofficeEn, es, marketingEs, backofficeEs),
         },
     });

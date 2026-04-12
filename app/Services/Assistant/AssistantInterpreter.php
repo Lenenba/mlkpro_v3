@@ -211,7 +211,7 @@ Output JSON schema:
     "timing_hint": "",
     "channel_hints": ["EMAIL|SMS|IN_APP"],
     "kpi_hint": "",
-    "language_hint": "PREFERRED|FR|EN|BOTH",
+    "language_hint": "PREFERRED|FR|EN|ES|BOTH",
     "name_hint": "",
     "notes": ""
   },
@@ -233,7 +233,7 @@ Rules:
 - For team_member.permissions, only use permission ids: quotes.view, quotes.create, quotes.edit, quotes.send, jobs.view, jobs.edit, tasks.view, tasks.create, tasks.edit, tasks.delete, reservations.view, reservations.queue, reservations.manage, sales.manage, sales.pos.
 - For campaign.channel_hints, only use EMAIL, SMS, or IN_APP.
 - For campaign.offer_mode_hint, only use PRODUCTS, SERVICES, or MIXED.
-- For campaign.language_hint, only use PREFERRED, FR, EN, or BOTH.
+- For campaign.language_hint, only use PREFERRED, FR, EN, ES, or BOTH.
 - If intent is not clear, set intent to "unknown".
 PROMPT;
     }
@@ -557,7 +557,7 @@ PROMPT;
         }
 
         $languageHint = strtoupper($this->cleanString($campaign['language_hint'] ?? null));
-        if (! in_array($languageHint, ['PREFERRED', 'FR', 'EN', 'BOTH'], true)) {
+        if (! in_array($languageHint, ['PREFERRED', 'FR', 'EN', 'ES', 'BOTH'], true)) {
             $languageHint = '';
         }
 

@@ -447,7 +447,9 @@
     "code_label": "Verification code",
     "code_placeholder": "Enter the 6-digit code",
     "submit": "Verify",
-    "resend": "Resend code"
+    "resend": "Resend code",
+    "email_fallback": "your email",
+    "phone_fallback": "your phone"
   },
   "global_search": {
     "open": "Global search",
@@ -2801,6 +2803,12 @@
       "subtitle": "Finish setup in {count} steps.",
       "step": "Step {current} / {total}"
     },
+    "pending_owner": {
+      "title": "Workspace setup in progress",
+      "description": "Your account is linked to a company that is still being configured. Ask the owner to finish onboarding.",
+      "logout": "Sign out",
+      "dashboard": "Dashboard"
+    },
     "progress": {
       "title": "Progress",
       "note": "Keep this info up to date to unlock all dashboard features."
@@ -2952,6 +2960,7 @@
       "yearly": "Yearly",
       "interval_month": "/month",
       "interval_year": "/year",
+      "charged_currency": "Charged currency: {currency}",
       "yearly_note": "Pay yearly and save {percent}%.",
       "billed_yearly": "For 12 months, billed annually.",
       "trial_note": "Trial until {date}.",
@@ -2965,6 +2974,63 @@
         "team": {
           "title": "Team plans",
           "description": "We are showing team plans because your workspace includes {count} people. Team adds collaboration, permissions, and higher limits."
+        }
+      },
+      "catalog": {
+        "solo_essential": {
+          "description": "Core plan for solo operators who need a clear operating foundation.",
+          "features": [
+            "Requests, quotes, invoices, jobs, and tasks",
+            "Scheduling, sales, and catalog",
+            "Client portal and public page",
+            "Simple solo execution without advanced modules"
+          ]
+        },
+        "solo_pro": {
+          "description": "Growth plan for solo operators who need more structure and execution capacity.",
+          "features": [
+            "Everything in Solo Core",
+            "More capacity for jobs and tasks",
+            "Clearer solo structure without team logic",
+            "Recommended solo plan"
+          ]
+        },
+        "solo_growth": {
+          "description": "Scale plan for solo operators who want automation and premium headroom.",
+          "features": [
+            "Everything in Solo Growth",
+            "Bookings and scheduling in limited solo mode",
+            "Assistant, plan scan, campaigns, and loyalty",
+            "Premium capacity to scale solo",
+            "Advanced oversight and priority support"
+          ]
+        },
+        "starter": {
+          "description": "Core team plan for shared execution and collaboration.",
+          "features": [
+            "Shared foundation for requests, quotes, jobs, and invoices",
+            "Team scheduling, attendance, and collaboration",
+            "Assistant and plan scan in limited mode",
+            "Up to 5 members"
+          ]
+        },
+        "growth": {
+          "description": "Growth team plan for permissions, automation, and higher operating volume.",
+          "features": [
+            "Everything in Team Core",
+            "More permissions, campaigns, and loyalty",
+            "Advanced automations and higher volume",
+            "Recommended team plan"
+          ]
+        },
+        "scale": {
+          "description": "Scale team plan for advanced operations, AI, and premium support.",
+          "features": [
+            "Everything in Team Growth",
+            "Premium capacity, AI, and stronger scan limits",
+            "Advanced oversight and premium support",
+            "Dedicated onboarding and deeper reporting"
+          ]
         }
       },
       "recommended": "Recommended",
@@ -2985,6 +3051,51 @@
       "continue": "Continue",
       "finish": "Start trial",
       "close": "Close"
+    }
+  },
+  "auth_pages": {
+    "login": {
+      "title": "Log in",
+      "email": "Email",
+      "password": "Password",
+      "remember": "Remember me",
+      "forgot_password": "Forgot your password?",
+      "submit": "Log in"
+    },
+    "register": {
+      "title": "Create account",
+      "name": "Full name",
+      "email": "Email",
+      "password": "Password",
+      "password_confirmation": "Confirm password",
+      "already_registered": "Already registered?",
+      "submit": "Create account"
+    },
+    "forgot_password": {
+      "title": "Forgot password",
+      "description": "Forgot your password? No problem. Enter your email address and we'll send you a reset link so you can choose a new one.",
+      "email": "Email",
+      "submit": "Email password reset link"
+    },
+    "reset_password": {
+      "title": "Reset password",
+      "email": "Email",
+      "password": "Password",
+      "password_confirmation": "Confirm password",
+      "submit": "Reset password"
+    },
+    "verify_email": {
+      "title": "Email verification",
+      "description": "Thanks for signing up. Before getting started, verify your email address by clicking the link we just sent you. If you didn't receive it, we can send another.",
+      "resent": "A new verification link has been sent to the email address you provided during registration.",
+      "submit": "Resend verification email",
+      "logout": "Log out"
+    },
+    "confirm_password": {
+      "title": "Confirm password",
+      "description": "This is a secure area of the application. Please confirm your password before continuing.",
+      "password": "Password",
+      "submit": "Confirm"
     }
   },
   "portal_shop": {

@@ -8,6 +8,7 @@ use App\Services\AttendanceService;
 use App\Services\Demo\DemoWorkspaceTimelineService;
 use App\Services\SecurityEventService;
 use App\Services\TwoFactorService;
+use App\Support\LocalePreference;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -38,6 +39,17 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         $user = $request->user();
+        $resolvedLocale = $user
+            ? LocalePreference::forRequest($request, $user)
+            : LocalePreference::forRequest($request);
+
+        if ($user && ! LocalePreference::isSupported($user->locale)) {
+            $user->forceFill(['locale' => $resolvedLocale])->save();
+        }
+
+        app()->setLocale($resolvedLocale);
+        $request->session()->put('locale', $resolvedLocale);
+
         if ($user?->is_suspended) {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
@@ -45,7 +57,7 @@ class AuthenticatedSessionController extends Controller
 
             return redirect()
                 ->back()
-                ->withErrors(['email' => 'Account suspended. Please contact support.']);
+                ->withErrors(['email' => __('ui.auth.account_suspended')]);
         }
 
         if ($user?->requiresTwoFactor()) {
@@ -61,7 +73,7 @@ class AuthenticatedSessionController extends Controller
 
                     return redirect()
                         ->back()
-                        ->withErrors(['email' => 'Unable to deliver a verification code. Please try again.']);
+                        ->withErrors(['email' => __('ui.auth.two_factor_delivery_failed')]);
                 }
 
                 $effectiveMethod = (string) ($result['method'] ?? $effectiveMethod);
@@ -97,7 +109,7 @@ class AuthenticatedSessionController extends Controller
         if ($user?->must_change_password) {
             return redirect()
                 ->route('profile.edit')
-                ->with('warning', 'Please update your temporary password.');
+                ->with('warning', __('ui.auth.update_temporary_password'));
         }
 
         return redirect()->intended(route('dashboard', absolute: false));

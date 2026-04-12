@@ -5,6 +5,9 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const form = useForm({
     name: '',
@@ -22,11 +25,11 @@ const submit = () => {
 
 <template>
     <GuestLayout>
-        <Head title="Register" />
+        <Head :title="t('auth_pages.register.title')" />
 
         <form @submit.prevent="submit">
             <div>
-                <InputLabel for="name" value="Name" />
+                <InputLabel for="name" :value="t('auth_pages.register.name')" />
 
                 <TextInput
                     id="name"
@@ -42,7 +45,7 @@ const submit = () => {
             </div>
 
             <div class="mt-4">
-                <InputLabel for="email" value="Email" />
+                <InputLabel for="email" :value="t('auth_pages.register.email')" />
 
                 <TextInput
                     id="email"
@@ -57,7 +60,7 @@ const submit = () => {
             </div>
 
             <div class="mt-4">
-                <InputLabel for="password" value="Password" />
+                <InputLabel for="password" :value="t('auth_pages.register.password')" />
 
                 <TextInput
                     id="password"
@@ -74,7 +77,7 @@ const submit = () => {
             <div class="mt-4">
                 <InputLabel
                     for="password_confirmation"
-                    value="Confirm Password"
+                    :value="t('auth_pages.register.password_confirmation')"
                 />
 
                 <TextInput
@@ -97,7 +100,7 @@ const submit = () => {
                     :href="route('login')"
                     class="rounded-sm text-sm text-stone-600 underline hover:text-stone-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-stone-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:focus:ring-indigo-400 dark:focus:ring-offset-neutral-900"
                 >
-                    Already registered?
+                    {{ t('auth_pages.register.already_registered') }}
                 </Link>
 
                 <PrimaryButton
@@ -105,7 +108,7 @@ const submit = () => {
                     :class="{ 'opacity-25': form.processing }"
                     :disabled="form.processing"
                 >
-                    Register
+                    {{ t('auth_pages.register.submit') }}
                 </PrimaryButton>
             </div>
         </form>

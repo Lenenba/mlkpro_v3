@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Support\LocalePreference;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,13 @@ class NewPasswordController extends Controller
      */
     public function create(Request $request): Response
     {
+        $requestedLocale = $request->query('locale');
+        if (LocalePreference::isSupported($requestedLocale)) {
+            $locale = LocalePreference::normalize($requestedLocale);
+            app()->setLocale($locale);
+            $request->session()->put('locale', $locale);
+        }
+
         return Inertia::render('Auth/ResetPassword', [
             'email' => $request->email,
             'token' => $request->route('token'),

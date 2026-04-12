@@ -28,6 +28,7 @@ use App\Models\TeamMember;
 use App\Models\TeamMemberShift;
 use App\Models\User;
 use App\Models\VipTier;
+use App\Support\CampaignTemplateLanguage;
 use App\Models\WeeklyAvailability;
 use App\Models\Work;
 use App\Services\AccountDeletionService;
@@ -1957,7 +1958,7 @@ class DemoWorkspaceProvisioner
             'campaign_direction' => Campaign::DIRECTION_CUSTOMER_MARKETING,
             'prospecting_enabled' => false,
             'offer_mode' => $owner->company_type === 'products' ? Campaign::OFFER_MODE_PRODUCTS : Campaign::OFFER_MODE_SERVICES,
-            'language_mode' => $owner->locale === 'fr' ? Campaign::LANGUAGE_MODE_FR : Campaign::LANGUAGE_MODE_EN,
+            'language_mode' => CampaignTemplateLanguage::defaultModeForLocale($owner->locale),
             'type' => Campaign::TYPE_PROMOTION,
             'status' => Campaign::STATUS_DRAFT,
             'schedule_type' => Campaign::SCHEDULE_SCHEDULED,

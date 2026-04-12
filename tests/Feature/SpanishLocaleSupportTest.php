@@ -10,7 +10,9 @@ use App\Services\PlatformSectionContentService;
 use App\Services\WelcomeContentService;
 use App\Support\LocalePreference;
 use App\Support\PublicPageStockImages;
+use App\Support\PublicProductPageLocalizedOverrides;
 use App\Support\PublicProductPageNarratives;
+use App\Support\WelcomeShowcaseSection;
 
 it('accepts spanish as a locale preference', function () {
     $user = User::factory()->create();
@@ -27,6 +29,13 @@ it('accepts spanish as a locale preference', function () {
     expect($user->fresh()->locale)->toBe('es')
         ->and(session('locale'))->toBe('es')
         ->and(LocalePreference::supported())->toContain('es');
+});
+
+it('keeps spanish in locale fallback defaults when config is unavailable', function () {
+    config()->set('app.supported_locales', null);
+
+    expect(LocalePreference::supported())->toContain('es')
+        ->and(LocalePreference::normalize('es'))->toBe('es');
 });
 
 it('falls back to english section content when spanish content is only partial', function () {
@@ -206,6 +215,17 @@ it('loads spanish welcome defaults from dedicated locale files', function () {
         ->and($resolved['features']['items'][0]['title'])->toBe('Clientes y solicitudes');
 });
 
+it('builds localized welcome showcase payloads with english fallback', function () {
+    $esPayload = WelcomeShowcaseSection::payload('es');
+    $fallbackPayload = WelcomeShowcaseSection::payload('pt-BR');
+
+    expect($esPayload['title'])->toBe('Descubre como Malikia Pro impulsa el crecimiento desde el primer clic hasta el pago final')
+        ->and($esPayload['feature_tabs'][0]['label'])->toBe('Hazte visible')
+        ->and($esPayload['feature_tabs'][0]['image_alt'])->toBe('Profesional gestionando mensajes y solicitudes desde su escritorio')
+        ->and($fallbackPayload['title'])->toBe('See how Malikia Pro supports growth from first click to final payment')
+        ->and($fallbackPayload['feature_tabs'][1]['label'])->toBe('Win work');
+});
+
 it('renders spanish helper labels for transactional emails', function () {
     app()->setLocale('es');
 
@@ -311,4 +331,74 @@ it('returns dedicated spanish narratives for public product pages', function () 
 
         expect(data_get($esSections, '0.title'))->not->toBe(data_get($enSections, '0.title'));
     }
+});
+
+it('exposes extracted spanish override maps for all product narratives', function () {
+    $expectations = [
+        'sales-crm' => [
+            '0.title' => 'Convierte la demanda entrante en trabajo aprobado con menos friccion',
+            '1.primary_label' => 'Ver la solucion Ventas y presupuestos',
+        ],
+        'reservations' => [
+            '0.title' => 'Convierte la reserva en un recorrido completo del cliente',
+            '1.primary_label' => 'Ver la solucion Reservas y filas',
+        ],
+        'operations' => [
+            '0.title' => 'Planifica, asigna, ejecuta y cierra el trabajo desde una misma vista operativa',
+            '1.primary_label' => 'Ver la solucion Servicios de campo',
+        ],
+        'commerce' => [
+            '0.title' => 'Convierte tu catalogo en ingresos sin fragmentar la experiencia',
+            '1.secondary_label' => 'Ver la solucion Comercio y catalogo',
+        ],
+        'marketing-loyalty' => [
+            '0.title' => 'Convierte la actividad del cliente en acciones de retencion que realmente lo hagan volver',
+            '0.feature_tabs.0.label' => 'Escuchar',
+        ],
+        'ai-automation' => [
+            '0.title' => 'Pon la IA donde los equipos ya necesitan ayuda, velocidad y contexto',
+            '0.feature_tabs.3.label' => 'Mantener control',
+        ],
+        'command-center' => [
+            '0.title' => 'Convierte la visibilidad transversal en prioridades mas claras y accion mas rapida',
+            '1.primary_label' => 'Ver la solucion Supervision multiempresa',
+        ],
+    ];
+
+    foreach ($expectations as $slug => $pairs) {
+        $overrides = PublicProductPageLocalizedOverrides::for($slug, 'es');
+
+        foreach ($pairs as $path => $expected) {
+            expect($overrides[$path] ?? null)->toBe($expected);
+        }
+    }
+
+    expect(PublicProductPageLocalizedOverrides::for('sales-crm', 'en'))->toBe([]);
+});
+
+it('covers missing spanish backoffice groups with supplemental locale files', function () {
+    $en = json_decode(file_get_contents(resource_path('js/i18n/en.json')), true, 512, JSON_THROW_ON_ERROR);
+    $es = json_decode(file_get_contents(resource_path('js/i18n/es.json')), true, 512, JSON_THROW_ON_ERROR);
+    $backofficeEs = json_decode(file_get_contents(resource_path('js/i18n/backoffice.es.json')), true, 512, JSON_THROW_ON_ERROR);
+    $backofficeEn = json_decode(file_get_contents(resource_path('js/i18n/backoffice.en.json')), true, 512, JSON_THROW_ON_ERROR);
+    $backofficeFr = json_decode(file_get_contents(resource_path('js/i18n/backoffice.fr.json')), true, 512, JSON_THROW_ON_ERROR);
+
+    $missingTopLevel = array_values(array_filter(
+        array_keys($en),
+        fn (string $key) => ! array_key_exists($key, $es)
+    ));
+
+    expect($missingTopLevel)->toContain('dashboard', 'customers', 'sales', 'client_dashboard');
+
+    foreach ($missingTopLevel as $key) {
+        expect(array_key_exists($key, $backofficeEs))->toBeTrue();
+    }
+
+    expect(data_get($backofficeEs, 'dashboard.title'))->toBe('Dashboard')
+        ->and(data_get($backofficeEs, 'customers.stats.total'))->toBe('Clientes totales')
+        ->and(data_get($backofficeEs, 'client_dashboard.title'))->toBe('Portal del cliente')
+        ->and(data_get($backofficeEs, 'dashboard_products.owner.title'))->toBe('Dashboard de productos')
+        ->and(data_get($backofficeEs, 'dashboard_tasks.timeline.title'))->toBe('Agenda de hoy')
+        ->and(data_get($backofficeEn, 'dashboard.marketing_panel.title'))->toBe('Marketing KPI')
+        ->and(data_get($backofficeFr, 'dashboard.marketing_panel.title'))->toBe('KPI marketing');
 });

@@ -60,9 +60,19 @@ test('non-owners cannot complete onboarding from the web', function () {
     $this->actingAs($user)
         ->post(route('onboarding.store'), $payload)
         ->assertRedirect(route('dashboard'))
-        ->assertSessionHas('error', 'Only the account owner can complete onboarding.');
+        ->assertSessionHas('error', __('ui.onboarding.only_owner'));
 
     expect($user->refresh()->onboarding_completed_at)->toBeNull();
+});
+
+test('guest onboarding page inherits the selected public locale', function () {
+    $this->withSession(['locale' => 'es'])
+        ->get(route('onboarding.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Onboarding/Index')
+            ->where('locale', 'es')
+        );
 });
 
 test('owner cannot select a solo plan when invites or extra team size are provided', function () {

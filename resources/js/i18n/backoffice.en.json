@@ -1,0 +1,28 @@
+{
+  "dashboard": {
+    "marketing_panel": {
+      "title": "Marketing KPI",
+      "range": "Range: {label} ({start} -> {end})",
+      "open_campaigns": "Open campaigns",
+      "top_campaign": "Top campaign",
+      "no_data": "No data",
+      "conversions_clicks": "{conversions} conversions / {clicks} clicks",
+      "audience_growth": "Audience growth",
+      "delta": "Delta",
+      "vip_customers": "VIP customers",
+      "mailing_lists": "Mailing lists",
+      "list_count": "{count} list(s)",
+      "customers_count": "{count} customers",
+      "reservations_created": "Reservations created: {count}",
+      "invoices_paid": "Invoices paid: {count}",
+      "quotes_accepted": "Quotes accepted: {count}",
+      "cards": {
+        "campaigns_sent": "Campaigns sent",
+        "delivery_success_rate": "Delivery success rate",
+        "click_rate": "Click rate",
+        "tracking_off": "Tracking off",
+        "conversions_attributed": "Conversions attributed"
+      }
+    }
+  }
+}

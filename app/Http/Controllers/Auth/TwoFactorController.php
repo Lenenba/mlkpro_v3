@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\AttendanceService;
 use App\Services\Demo\DemoWorkspaceTimelineService;
 use App\Services\SecurityEventService;
 use App\Services\TotpService;
 use App\Services\TwoFactorService;
+use App\Support\LocalePreference;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +25,8 @@ class TwoFactorController extends Controller
         if (! $user || ! $user->requiresTwoFactor()) {
             return redirect()->route('dashboard');
         }
+
+        $this->syncLocale($request, $user);
 
         $service = app(TwoFactorService::class);
         $sessionMethod = $request->session()->get('two_factor_delivery_method');
@@ -40,7 +44,7 @@ class TwoFactorController extends Controller
                     $request->session()->regenerateToken();
 
                     return redirect()->route('login')->withErrors([
-                        'email' => 'Unable to deliver a verification code. Please try again.',
+                        'email' => __('ui.auth.two_factor.challenge_delivery_failed'),
                     ]);
                 }
 
@@ -69,6 +73,8 @@ class TwoFactorController extends Controller
             return redirect()->route('dashboard');
         }
 
+        $this->syncLocale($request, $user);
+
         $validated = $request->validate([
             'code' => 'required|string|min:6|max:10',
         ]);
@@ -78,7 +84,7 @@ class TwoFactorController extends Controller
             $seconds = RateLimiter::availableIn($limiterKey);
 
             return back()->withErrors([
-                'code' => "Trop de tentatives. Reessayez dans {$seconds} secondes.",
+                'code' => __('ui.auth.two_factor.too_many_attempts', ['seconds' => $seconds]),
             ]);
         }
 
@@ -101,7 +107,7 @@ class TwoFactorController extends Controller
             RateLimiter::hit($limiterKey);
 
             return back()->withErrors([
-                'code' => 'Code invalide ou expire.',
+                'code' => __('ui.auth.two_factor.invalid_or_expired'),
             ]);
         }
 
@@ -130,7 +136,7 @@ class TwoFactorController extends Controller
         if ($user->must_change_password) {
             return redirect()
                 ->route('profile.edit')
-                ->with('warning', 'Please update your temporary password.');
+                ->with('warning', __('ui.auth.update_temporary_password'));
         }
 
         return redirect()->intended(route('dashboard'));
@@ -143,12 +149,14 @@ class TwoFactorController extends Controller
             return redirect()->route('dashboard');
         }
 
+        $this->syncLocale($request, $user);
+
         $limiterKey = 'two-factor-resend:'.$user->id.'|'.$request->ip();
         if (RateLimiter::tooManyAttempts($limiterKey, 3)) {
             $seconds = RateLimiter::availableIn($limiterKey);
 
             return back()->withErrors([
-                'code' => "Veuillez patienter {$seconds} secondes avant de demander un nouveau code.",
+                'code' => __('ui.auth.two_factor.resend_wait', ['seconds' => $seconds]),
             ]);
         }
 
@@ -161,7 +169,7 @@ class TwoFactorController extends Controller
 
         if ($effectiveMethod === TwoFactorService::METHOD_APP) {
             return back()->withErrors([
-                'code' => 'Les codes applicatifs ne peuvent pas etre renvoyes.',
+                'code' => __('ui.auth.two_factor.app_resend_unavailable'),
             ]);
         }
 
@@ -169,12 +177,12 @@ class TwoFactorController extends Controller
         if (! $result['sent']) {
             if (($result['reason'] ?? null) === 'cooldown') {
                 return back()->withErrors([
-                    'code' => "Veuillez patienter {$result['retry_after']} secondes avant de demander un nouveau code.",
+                    'code' => __('ui.auth.two_factor.resend_wait', ['seconds' => $result['retry_after']]),
                 ]);
             }
 
             return back()->withErrors([
-                'code' => 'Impossible d envoyer un nouveau code pour le moment.',
+                'code' => __('ui.auth.two_factor.resend_failed'),
             ]);
         }
 
@@ -186,6 +194,20 @@ class TwoFactorController extends Controller
             'method' => $result['method'] ?? $effectiveMethod,
         ]);
 
-        return back()->with('status', 'Nouveau code envoye.');
+        return back()->with('status', __('ui.auth.two_factor.resent'));
+    }
+
+    private function syncLocale(Request $request, User $user): void
+    {
+        $locale = LocalePreference::forRequest($request, $user);
+
+        app()->setLocale($locale);
+        $request->session()->put('locale', $locale);
+
+        if (! LocalePreference::isSupported($user->locale)) {
+            $user->forceFill([
+                'locale' => $locale,
+            ])->save();
+        }
     }
 }

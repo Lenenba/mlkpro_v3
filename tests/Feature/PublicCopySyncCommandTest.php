@@ -6,6 +6,7 @@ use App\Services\MegaMenus\MegaMenuRenderer;
 use App\Services\PlatformSectionContentService;
 use App\Support\PublicProductPageNarratives;
 use App\Support\WelcomeEditorialSections;
+use App\Support\WelcomeShowcaseSection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -193,9 +194,16 @@ it('rewrites stale welcome and footer copy from repo source files', function () 
 
     $heroSection = PlatformSection::query()->where('type', 'welcome_hero')->firstOrFail();
     $hero = app(PlatformSectionContentService::class)->resolveForLocale($heroSection, 'fr');
+    $showcaseSection = PlatformSection::query()->where('name', 'Welcome Showcase')->firstOrFail();
+    $showcaseEs = app(PlatformSectionContentService::class)->resolveForLocale($showcaseSection, 'es');
+    $expectedShowcaseEs = WelcomeShowcaseSection::payload('es');
 
     expect($hero['title'])->toBe(trans('welcome.hero.title', [], 'fr'))
         ->and($hero['body'])->toContain('entreprises de services');
+    expect($showcaseEs['title'])->toBe($expectedShowcaseEs['title'])
+        ->and($showcaseEs['feature_tabs'])->toHaveCount(4)
+        ->and($showcaseEs['feature_tabs'][0]['label'])->toBe($expectedShowcaseEs['feature_tabs'][0]['label'])
+        ->and($showcaseEs['feature_tabs'][0]['image_alt'])->toBe($expectedShowcaseEs['feature_tabs'][0]['image_alt']);
 
     $footerSection = PlatformSection::query()->where('type', 'footer')->firstOrFail();
     $footer = app(PlatformSectionContentService::class)->resolveForLocale($footerSection, 'fr');
