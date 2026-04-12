@@ -7,8 +7,8 @@ use App\Models\PlatformSetting;
 use App\Models\TeamMemberShift;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
-use App\Support\LocalePreference;
 use App\Support\Database\UserSelects;
+use App\Support\LocalePreference;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 

@@ -8,11 +8,11 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
-use App\Support\NotificationDispatcher;
 use App\Services\TaskBillingService;
 use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
 use App\Services\WorkScheduleService;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\URL;
@@ -105,7 +105,7 @@ class PublicWorkController extends Controller
                 'validate' => $allowValidation,
                 'dispute' => $allowDispute,
                 'schedule' => $allowSchedule,
-                'proofs' => !(bool) ($customer?->auto_validate_tasks ?? false),
+                'proofs' => ! (bool) ($customer?->auto_validate_tasks ?? false),
             ],
             'actions' => [
                 'validateUrl' => $validateUrl,
@@ -131,7 +131,7 @@ class PublicWorkController extends Controller
         }
 
         $allowed = [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE];
-        if (!in_array($work->status, $allowed, true)) {
+        if (! in_array($work->status, $allowed, true)) {
             return redirect()->back()->withErrors([
                 'status' => __('public.work.messages.not_ready_for_validation'),
             ]);
@@ -154,11 +154,11 @@ class PublicWorkController extends Controller
         $owner = User::find($work->user_id);
         if ($owner && $owner->email) {
             $customerLabel = $customer?->company_name
-                ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+                ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Job validated by client',
-                $customerLabel ? $customerLabel . ' validated a job.' : 'A client validated a job.',
+                $customerLabel ? $customerLabel.' validated a job.' : 'A client validated a job.',
                 [
                     ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
                     ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
@@ -189,7 +189,7 @@ class PublicWorkController extends Controller
         }
 
         $allowed = [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE];
-        if (!in_array($work->status, $allowed, true)) {
+        if (! in_array($work->status, $allowed, true)) {
             return redirect()->back()->withErrors([
                 'status' => __('public.work.messages.cannot_dispute_now'),
             ]);
@@ -207,11 +207,11 @@ class PublicWorkController extends Controller
         $owner = User::find($work->user_id);
         if ($owner && $owner->email) {
             $customerLabel = $customer?->company_name
-                ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+                ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Job disputed by client',
-                $customerLabel ? $customerLabel . ' disputed a job.' : 'A client disputed a job.',
+                $customerLabel ? $customerLabel.' disputed a job.' : 'A client disputed a job.',
                 [
                     ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
                     ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
@@ -237,7 +237,7 @@ class PublicWorkController extends Controller
         }
 
         $assigneeIds = $work->teamMembers()->pluck('team_members.id')->all();
-        if (!$assigneeIds) {
+        if (! $assigneeIds) {
             $assigneeIds = TeamMember::query()
                 ->forAccount($work->user_id)
                 ->active()
@@ -245,7 +245,7 @@ class PublicWorkController extends Controller
                 ->all();
         }
 
-        if (!$assigneeIds) {
+        if (! $assigneeIds) {
             return redirect()->back()->withErrors([
                 'schedule' => __('public.work.messages.add_team_member'),
             ]);
@@ -325,11 +325,11 @@ class PublicWorkController extends Controller
         if ($owner && $owner->email) {
             $customer = $work->customer;
             $customerLabel = $customer?->company_name
-                ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+                ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Schedule rejected by client',
-                $customerLabel ? $customerLabel . ' rejected a schedule.' : 'A client rejected a schedule.',
+                $customerLabel ? $customerLabel.' rejected a schedule.' : 'A client rejected a schedule.',
                 [
                     ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
                     ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],

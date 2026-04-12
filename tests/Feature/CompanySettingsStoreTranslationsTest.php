@@ -51,16 +51,18 @@ test('company settings update stores spanish store hero translations', function 
         ->assertSessionHas('success', 'Company settings updated.');
 
     $settings = $owner->fresh()->company_store_settings;
+    $heroCopy = $settings['hero_copy'];
+    ksort($heroCopy);
 
     expect($settings['header_color'])->toBe('#123456')
         ->and($settings['hero_images'])->toBe([
             'https://example.com/hero-1.jpg',
             'https://example.com/hero-2.jpg',
         ])
-        ->and($settings['hero_copy'])->toBe([
-            'fr' => '<p>Bonjour {company}</p>',
-            'es' => '<p>Hola {company}</p>',
+        ->and($heroCopy)->toBe([
             'en' => '<p>Hello {company}</p>',
+            'es' => '<p>Hola {company}</p>',
+            'fr' => '<p>Bonjour {company}</p>',
         ])
         ->and($settings['hero_captions']['fr'])->toBe([
             '<p>Slide FR 1</p>',

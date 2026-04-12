@@ -41,7 +41,7 @@ class RegisteredUserController extends Controller
         $locale = LocalePreference::forRequest($request);
 
         $roleId = Role::where('name', 'owner')->value('id');
-        if (!$roleId) {
+        if (! $roleId) {
             $roleId = Role::create([
                 'name' => 'owner',
                 'description' => 'Account owner role',

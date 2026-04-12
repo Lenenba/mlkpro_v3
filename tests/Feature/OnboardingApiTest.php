@@ -73,7 +73,7 @@ test('onboarding api returns a pending owner state for team members', function (
     $this->getJson('/api/v1/onboarding')
         ->assertOk()
         ->assertJsonPath('status', 'pending_owner')
-        ->assertJsonPath('message', 'Only the account owner can complete onboarding.')
+        ->assertJsonPath('message', __('ui.onboarding.only_owner'))
         ->assertJsonPath('account.is_owner', false)
         ->assertJsonPath('account.onboarding_completed', false)
         ->assertJsonPath('onboarding.state', 'pending_owner')

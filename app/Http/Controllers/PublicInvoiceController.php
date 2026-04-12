@@ -269,11 +269,11 @@ class PublicInvoiceController extends Controller
         $amount = null;
         if (isset($validated['amount'])) {
             $amount = (float) $validated['amount'];
-        if ($amount > (float) $invoice->balance_due) {
-            return redirect()->back()->withErrors([
-                'amount' => __('public.invoice.messages.amount_exceeds_balance_due'),
-            ]);
-        }
+            if ($amount > (float) $invoice->balance_due) {
+                return redirect()->back()->withErrors([
+                    'amount' => __('public.invoice.messages.amount_exceeds_balance_due'),
+                ]);
+            }
         }
 
         $baseAmount = $amount !== null ? $amount : (float) $invoice->balance_due;
