@@ -1,0 +1,150 @@
+{
+  "welcome": {
+    "meta": {
+      "title": "Logiciel de gestion pour entreprises de services"
+    },
+    "nav": {
+      "tagline": "Suite de gestion",
+      "contact": "Nous contacter"
+    },
+    "hero": {
+      "eyebrow": "Conçu pour les entreprises de services qui veulent plus de contrôle",
+      "title": "Gérez devis, planning, jobs et facturation dans une plateforme connectée.",
+      "subtitle": "Malikia Pro aide les entreprises de services à piloter tout le flux, de la première demande au paiement final, avec plus de visibilité, moins de friction et un meilleur suivi.",
+      "primary_cta": "Demarrer l'essai",
+      "secondary_cta": "Voir les tarifs",
+      "note": "Une seule plateforme pour gérer clients, devis, interventions, réservations, facturation et coordination quotidienne.",
+      "highlights": {
+        "one": "Devis rapides avec marges",
+        "two": "Scan de plan vers prix en quelques minutes",
+        "three": "Portail client pour validation"
+      },
+      "stats": {
+        "one_label": "pour gérer tout le flux",
+        "two_label": "de la demande au paiement",
+        "three_label": "sur les équipes et les revenus"
+      },
+      "preview": {
+        "one": "Devis prêts",
+        "one_desc": "Marges, sources et validation sur un seul écran.",
+        "two": "Signaux du scan de plan",
+        "two_desc": "Benchmarks et liens fournisseurs intégrés."
+      }
+    },
+    "trust": {
+      "title": "Conçu pour des entreprises de services qui gèrent de vraies opérations au quotidien",
+      "items": {
+        "one": "Plomberie",
+        "two": "Électricité",
+        "three": "HVAC",
+        "four": "Nettoyage",
+        "five": "Salons & beauté",
+        "six": "Restaurants"
+      }
+    },
+    "features": {
+      "kicker": "Plateforme",
+      "title": "Tout ce qu'il faut pour gérer clients, travail et revenus au même endroit",
+      "subtitle": "Des devis et du planning jusqu'aux réservations, à la facturation et à la coordination d'équipe, Malikia Pro aide l'activité à tourner avec moins de friction.",
+      "items": {
+        "quotes": {
+          "title": "Clients et demandes",
+          "desc": "Gardez l'historique client, les demandes entrantes et le suivi visibles dès le premier contact."
+        },
+        "plans": {
+          "title": "Devis et validations",
+          "desc": "Préparez des devis plus propres, gérez les options et faites avancer les validations avec plus de structure."
+        },
+        "catalog": {
+          "title": "Planning et jobs",
+          "desc": "Planifiez le travail, assignez les équipes et suivez l'exécution sans perdre le contexte entre bureau et terrain."
+        },
+        "ops": {
+          "title": "Réservations et flux client",
+          "desc": "Offrez une expérience de réservation plus simple tout en gardant la maîtrise sur les arrivées, les disponibilités et la file."
+        },
+        "portal": {
+          "title": "Facturation et paiements",
+          "desc": "Transformez le travail approuvé en facturation, rappels et paiements avec un flux de revenus plus propre."
+        },
+        "multi": {
+          "title": "Pilotage et visibilité",
+          "desc": "Donnez aux dirigeants et responsables une vue plus claire sur l'activité, les priorités et les revenus."
+        }
+      }
+    },
+    "new_features": {
+      "kicker": "Conçu pour aller plus vite",
+      "title": "Ajoutez automatisation, paiements connectés et vente plus intelligente à votre flux",
+      "subtitle": "Ces ajouts aident l'équipe à gagner du temps, à réduire l'administration et à rendre la plateforme encore plus utile au quotidien.",
+      "badge": "Nouveau",
+      "items": {
+        "assistant": {
+          "title": "Assistant IA",
+          "desc": "Accélérez la création de devis, de jobs et d'actions administratives avec moins de répétition manuelle."
+        },
+        "connect": {
+          "title": "Paiements connectés",
+          "desc": "Encaissez avec un flux plus propre, directement relié aux factures et à l'activité client."
+        },
+        "store": {
+          "title": "Vitrine produits",
+          "desc": "Vendez des produits ou des offres mixtes dans la même expérience que celle utilisée pour gérer le travail."
+        }
+      }
+    },
+    "workflow": {
+      "kicker": "Flux de travail",
+      "title": "De la demande au paiement, sans changer de système",
+      "subtitle": "Un flux plus propre aide chaque équipe à avancer plus vite avec moins d'erreurs de transmission.",
+      "steps": {
+        "one": {
+          "title": "Capturer la demande",
+          "desc": "Partez du besoin client, du contexte et du travail à chiffrer ou à planifier."
+        },
+        "two": {
+          "title": "Construire le devis",
+          "desc": "Préparez l'offre, gérez les options et faites avancer les validations avec plus de contrôle."
+        },
+        "three": {
+          "title": "Planifier et coordonner",
+          "desc": "Organisez le travail, assignez l'équipe et gardez les détails visibles avant l'exécution."
+        },
+        "four": {
+          "title": "Réaliser le travail",
+          "desc": "Suivez l'avancement, les checklists, les notes, les preuves et le contexte client pendant l'intervention ou le service."
+        },
+        "five": {
+          "title": "Facturez et encaissez",
+          "desc": "Transformez le travail terminé en facturation, rappels et paiements sans reconstruire le dossier à la main."
+        }
+      }
+    },
+    "field": {
+      "kicker": "Exécution",
+      "title": "Gardez les équipes alignées au bureau, sur le terrain et au point de service",
+      "subtitle": "Malikia Pro donne à chacun le contexte nécessaire pour faire avancer le travail sans supposition, sans notes dispersées et avec moins d'aller-retour.",
+      "items": {
+        "one": "Vues quotidiennes du travail avec priorités et statuts",
+        "two": "Checklists, notes et preuves liées au job",
+        "three": "Historique client et consignes visibles dans le bon contexte",
+        "four": "Validations, signatures et passage à la facturation avec moins de friction"
+      }
+    },
+    "cta": {
+      "title": "Commencez aujourd'hui avec un flux plus clair",
+      "subtitle": "Créez votre espace, explorez la plateforme, puis évoluez vers une coordination plus poussée à mesure que l'activité se complexifie.",
+      "primary": "Demarrer l'essai",
+      "secondary": "Voir les tarifs"
+    },
+    "images": {
+      "hero_alt": "Équipe de chantier en coordination sur site",
+      "workflow_alt": "Professionnels qui relisent des plans sur un chantier",
+      "mobile_alt": "Technicien terrain avec checklist sur place"
+    },
+    "footer": {
+      "terms": "Conditions d’utilisation",
+      "copy": "Malikia Pro. Tous droits réservés."
+    }
+  }
+}

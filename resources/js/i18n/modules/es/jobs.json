@@ -1,0 +1,277 @@
+{
+  "jobs": {
+    "title": "Trabajos",
+    "create_title": "crear trabajo",
+    "show_title": "Ver trabajo",
+    "proofs_title": "Pruebas de trabajo",
+    "company_fallback": "Empresa",
+    "badges": {
+      "overdue": "Vencido ({count})"
+    },
+    "form": {
+      "customer_fallback": "Cliente",
+      "job_for": "Trabajo para: {customer}",
+      "job_title": "Título del trabajo",
+      "instructions": "Instrucciones",
+      "locked_notice": "Este trabajo está bloqueado porque proviene de una cotización aceptada. Sólo se puede actualizar la programación.",
+      "property_address": "Dirección de la propiedad",
+      "contact_details": "Detalles de contacto",
+      "job_details": "Detalles del trabajo",
+      "job_label": "Trabajo",
+      "rating_label": "Calificación",
+      "status_label": "Estado",
+      "add_custom_fields": "Agregar campos personalizados",
+      "tabs": {
+        "single": {
+          "title": "TRABAJO ÚNICO",
+          "subtitle": "Un trabajo puntual con una o más visitas."
+        },
+        "recurring": {
+          "title": "TRABAJO RECURRENTE",
+          "subtitle": "Un trabajo por contrato con visitas repetidas."
+        }
+      },
+      "planning_title": "PROGRAMACIÓN",
+      "start_date": "Fecha de inicio",
+      "end_date": "Fecha de finalización",
+      "start_time": "Hora de inicio",
+      "end_time": "Hora de finalización",
+      "pick_date": "Elige una fecha",
+      "pick_time": "Elige una hora",
+      "quick_summary": "Resumen rápido",
+      "summary_date": "Fecha",
+      "summary_time": "Hora",
+      "calendar_tip": "Haga clic en un día en el calendario para completar la fecha.",
+      "plan_later": "Programar más tarde",
+      "team": {
+        "title": "EQUIPO",
+        "solo_panel_title": "ASIGNACIÓN",
+        "empty": "Aún no hay miembros del equipo.",
+        "member_fallback": "Miembro del equipo",
+        "filter_hint": "Seleccione un miembro para filtrar el calendario.",
+        "search_label": "Buscar miembros del equipo",
+        "selected_title": "Miembros seleccionados",
+        "selected_badge": "Seleccionado",
+        "search_empty": "No hay miembros del equipo que coincidan.",
+        "solo_title": "Trabajo exclusivo para propietarios",
+        "solo_subtitle": "Este espacio de trabajo individual no asigna trabajos a los miembros del equipo. Las tareas creadas a partir de este trabajo permanecen sin asignar hasta que pase a un plan de equipo.",
+        "availability": {
+          "available": "Disponible",
+          "busy": "No disponible",
+          "unknown": "Selecciona una fecha para comprobar disponibilidad"
+        }
+      },
+      "calendar": {
+        "title": "Calendario",
+        "subtitle": "El calendario muestra las visitas ya programadas.",
+        "all_members": "Todos los miembros",
+        "filter_label": "Filtro de equipo"
+      },
+      "recurrence": {
+        "title": "RECURRENCIA",
+        "subtitle": "Definir el ritmo de visitas recurrentes.",
+        "repeat_every": "Repetir cada:",
+        "repeat_on": "Repetir en:",
+        "repeat_hint": "Elige los días en los que se repiten las visitas.",
+        "count_label": "contar",
+        "times_suffix": "veces",
+        "preview_title": "Visita previa",
+        "preview_first": "primero",
+        "preview_last": "último",
+        "preview_total": "Total"
+      },
+      "billing": {
+        "title": "FACTURACIÓN",
+        "mode": "Modo de facturación",
+        "grouping": "Agrupación",
+        "cycle": "ciclo",
+        "delay": "Retraso (días)",
+        "date_rule": "Regla de fecha (por ejemplo: 1.º del mes)",
+        "reminder": "Recuérdame facturar cuando se cierre el trabajo."
+      },
+      "actions": {
+        "cancel": "Cancelar",
+        "save_and_create_another": "Guardar y crear otro",
+        "save_job": "Guardar trabajo"
+      }
+    },
+    "recurrence": {
+      "frequency": {
+        "label": "Frecuencia",
+        "daily": "Diariamente",
+        "weekly": "Semanal",
+        "monthly": "Mensual",
+        "yearly": "Anual"
+      },
+      "ends": {
+        "label": "Fin",
+        "never": "nunca",
+        "on": "encendido",
+        "after": "después"
+      },
+      "weekdays": {
+        "mo": "lun",
+        "tu": "mar",
+        "we": "mié",
+        "th": "jueves",
+        "fr": "viernes",
+        "sa": "sábado",
+        "su": "sol"
+      }
+    },
+    "billing": {
+      "modes": {
+        "per_task": "Por tarea",
+        "per_segment": "Por segmento",
+        "end_of_job": "Fin del trabajo",
+        "deferred": "diferido"
+      },
+      "groupings": {
+        "single": "Factura única",
+        "periodic": "Agrupados"
+      },
+      "cycles": {
+        "weekly": "Semanal",
+        "biweekly": "Cada 2 semanas",
+        "monthly": "Mensual",
+        "every_n_tasks": "Cada N tareas"
+      }
+    },
+    "show": {
+      "timeline": "Línea de tiempo",
+      "edit_job": "Editar trabajo",
+      "locked_notice": "Trabajo bloqueado después de la validación.",
+      "proofs": "Pruebas",
+      "view_invoice": "Ver factura",
+      "create_invoice": "Crear factura",
+      "no_rating": "Aún no hay calificación",
+      "locked_from_quote": "Este trabajo está bloqueado porque proviene de una cotización aceptada.",
+      "cards": {
+        "customer": "Cliente",
+        "dates": "Fechas",
+        "start": "Empezar",
+        "end": "Fin",
+        "totals": "Totales",
+        "subtotal": "Subtotal",
+        "total": "Total",
+        "rating": "Calificación"
+      },
+      "table": {
+        "product_service": "Producto/Servicio",
+        "qty": "Cantidad",
+        "unit_price": "Precio unitario",
+        "total": "Total",
+        "empty": "No hay productos/servicios adjuntos."
+      }
+    },
+    "proofs": {
+      "title": "Pruebas de trabajo",
+      "job_fallback": "Trabajo",
+      "view_job": "Ver trabajo",
+      "back_to_dashboard": "Volver al tablero",
+      "cards": {
+        "customer": "Cliente",
+        "period": "Periodo",
+        "status": "Estado"
+      },
+      "task_fallback": "Tarea",
+      "assigned": "Asignado",
+      "materials": "Materiales",
+      "billable": "facturable",
+      "proof_fallback": "Prueba",
+      "media": {
+        "type": "Tipo",
+        "source": "Fuente",
+        "by": "Por",
+        "note": "Nota"
+      },
+      "empty_task": "No hay pruebas disponibles para esta tarea.",
+      "empty": "No hay tareas disponibles.",
+      "status": {
+        "todo": "hacer",
+        "in_progress": "En progreso",
+        "done": "Hecho"
+      },
+      "source": {
+        "client": "Cliente",
+        "team": "Equipo",
+        "internal": "Interno"
+      },
+      "type": {
+        "execution": "Ejecución",
+        "completion": "Finalización",
+        "other": "Otro"
+      }
+    },
+    "stats": {
+      "total": "Empleos totales",
+      "scheduled": "Programado",
+      "in_progress": "En progreso",
+      "completed": "Completado",
+      "cancelled": "Cancelado"
+    },
+    "filters": {
+      "search_placeholder": "Buscar trabajos, instrucciones o tipos",
+      "status": {
+        "all": "Todo el estado"
+      },
+      "customer": {
+        "all": "Todos los clientes"
+      },
+      "start_from": "Empezar desde",
+      "start_to": "Empezar a"
+    },
+    "status": {
+      "to_schedule": "Para programar",
+      "scheduled": "Programado",
+      "en_route": "En ruta",
+      "in_progress": "En progreso",
+      "tech_complete": "Tecnología completa",
+      "pending_review": "Pendiente de revisión",
+      "validated": "Validado",
+      "auto_validated": "Validado automáticamente",
+      "dispute": "Disputa",
+      "closed": "Cerrado",
+      "cancelled": "Cancelado",
+      "completed": "Completado (heredado)"
+    },
+    "table": {
+      "job": "Trabajo",
+      "customer": "Cliente",
+      "status": "Estado",
+      "rating": "Calificación",
+      "total": "Total",
+      "start_date": "Fecha de inicio",
+      "created_at": "Creado",
+      "results": "resultados"
+    },
+    "actions": {
+      "filters": "Filtros",
+      "reset": "Reiniciar",
+      "create": "crear trabajo",
+      "view": "Ver",
+      "edit": "Editar",
+      "schedule": "Horario",
+      "view_invoice": "Ver factura",
+      "create_invoice": "Crear factura"
+    },
+    "create_modal": {
+      "title": "crear trabajo",
+      "subtitle": "Elija un cliente para comenzar un trabajo sin cotización.",
+      "customer_label": "Cliente",
+      "customer_required": "Seleccione un cliente para continuar.",
+      "empty": "Aún no hay clientes disponibles.",
+      "add_customer": "Añadir un cliente",
+      "cancel": "Cancelar",
+      "create": "crear trabajo"
+    },
+    "labels": {
+      "unknown_customer": "Desconocido"
+    },
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "of": "de"
+    }
+  }
+}

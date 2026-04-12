@@ -1,0 +1,50 @@
+{
+  "public_footer": {
+    "contact": "Contacto",
+    "store": {
+      "google_play_prefix": "Disponible en",
+      "app_store_prefix": "Descargar en"
+    },
+    "support": {
+      "kicker": "Acompanamiento",
+      "title": "Habla con nuestro equipo",
+      "body": "<p>Necesitas un recorrido de producto mas claro o una pagina publica mas personalizada? Podemos ayudarte.</p>",
+      "contact_cta": "Contactanos",
+      "pricing_cta": "Ver precios",
+      "meta": {
+        "one": "Paginas publicas y modulos del negocio",
+        "two": "Soporte de producto y acompanamiento",
+        "three": "Disponible en frances, ingles y espanol"
+      }
+    },
+    "fallback_groups": {
+      "industries": {
+        "title": "Sectores que atendemos",
+        "plumbing": "Fontaneria",
+        "hvac": "HVAC",
+        "electrical": "Electricidad",
+        "cleaning": "Limpieza",
+        "salon_beauty": "Salon y belleza",
+        "restaurant": "Restaurantes"
+      },
+      "products": {
+        "title": "Productos",
+        "sales_crm": "Sales & CRM",
+        "reservations": "Reservas",
+        "operations": "Operations",
+        "commerce": "Commerce",
+        "marketing_loyalty": "Marketing & Loyalty",
+        "ai_automation": "AI & Automation",
+        "command_center": "Command Center"
+      },
+      "resources": {
+        "title": "Recursos",
+        "pricing": "Precios",
+        "terms": "Terminos",
+        "privacy": "Privacidad",
+        "refund": "Reembolso",
+        "contact": "Contacto"
+      }
+    }
+  }
+}

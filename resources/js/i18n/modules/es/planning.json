@@ -1,0 +1,163 @@
+{
+  "planning": {
+    "absence_overview": {
+      "title": "Resumen de tiempo libre",
+      "week_range": "esta semana",
+      "today": "hoy",
+      "week": "esta semana",
+      "empty_today": "No hay tiempo libre hoy.",
+      "empty_week": "No hay tiempo libre esta semana.",
+      "more_week": "+{count} más"
+    },
+    "title": "Planificación",
+    "subtitle": "Programe turnos recurrentes para el equipo de ventas.",
+    "subtitle_services": "Programe trabajos y tareas en todo el equipo.",
+    "subtitle_owner_only": "Revise su calendario en una vista de planificación individual.",
+    "subtitle_owner_only_services": "Realice un seguimiento de los trabajos y tareas en una vista de planificación individual.",
+    "calendar": {
+      "title": "Horario del equipo",
+      "today": "hoy",
+      "month": "Mes",
+      "week": "Semana",
+      "day": "Día",
+      "year": "Año"
+    },
+    "preview": {
+      "empty": "Sin turnos",
+      "empty_services": "Sin eventos",
+      "count": "{count} turnos",
+      "count_services": "{count} eventos",
+      "more": "{count} más"
+    },
+    "filters": {
+      "title": "Calendarios",
+      "member": "Miembro del equipo",
+      "all_members": "Todos los miembros del equipo",
+      "range": "Rango",
+      "loading": "Cargando turnos...",
+      "loading_services": "Cargando horarios...",
+      "empty": "No hay turnos programados para este rango.",
+      "empty_services": "No hay trabajos ni tareas programadas para este rango."
+    },
+    "kinds": {
+      "shift": "turno",
+      "absence": "Ausencia",
+      "leave": "salir"
+    },
+    "form": {
+      "title": "Agregar turno",
+      "title_absence": "Reportar una ausencia",
+      "title_leave": "Solicitar permiso",
+      "kind": "Tipo",
+      "member": "Miembro del equipo",
+      "date": "fecha de turno",
+      "start_date": "Fecha de inicio",
+      "end_date": "Fecha de finalización",
+      "duration": "Duración",
+      "full_day": "dia completo",
+      "hours": "unas horas",
+      "start_time": "Hora de inicio",
+      "end_time": "Hora de finalización",
+      "break_minutes": "Descanso (minutos)",
+      "shift_title": "Título del turno",
+      "notes": "Notas",
+      "reason": "Razón / notas",
+      "recurring": "turno recurrente",
+      "frequency": "Frecuencia",
+      "recurrence_end": "Repita hasta",
+      "weekdays": "dias de la semana",
+      "month_day": "Día del mes",
+      "create": "Crear turno",
+      "creating": "Creando...",
+      "scroll_to_form": "Formulario de planificación abierto",
+      "use_selected_day": "Usar el día seleccionado",
+      "save_time_off": "Guardar",
+      "saving_time_off": "Guardando..."
+    },
+    "all_day": "todo el dia",
+    "frequency": {
+      "daily": "Diariamente",
+      "weekly": "Semanal",
+      "monthly": "Mensual",
+      "yearly": "Anual"
+    },
+    "weekdays": {
+      "mo": "lun",
+      "tu": "mar",
+      "we": "mié",
+      "th": "jueves",
+      "fr": "viernes",
+      "sa": "sábado",
+      "su": "sol"
+    },
+    "errors": {
+      "load": "No se pueden cargar turnos.",
+      "save": "No se puede guardar el turno.",
+      "delete": "No se puede eliminar el turno.",
+      "status": "No se puede actualizar el estado.",
+      "update": "No se puede actualizar el turno.",
+      "conflict": "Se detectó un conflicto de programación."
+    },
+    "notices": {
+      "created": "{count} turno(s) creado(s).",
+      "absence_created": "Ausencia salvada.",
+      "absence_created_many": "{count} días de ausencia guardados.",
+      "leave_created": "Dejar guardado.",
+      "leave_created_many": "{count} día(s) de licencia guardados.",
+      "absence_deleted": "Ausencia eliminada.",
+      "leave_deleted": "Dejar eliminado.",
+      "updated": "Turno actualizado.",
+      "approved": "Solicitud aprobada.",
+      "rejected": "Solicitud rechazada.",
+      "deleted": "Turno eliminado."
+    },
+    "status": {
+      "label": "Estado",
+      "pending": "Pendiente",
+      "approved": "Aprobado",
+      "rejected": "Rechazado",
+      "approve": "Aprobar",
+      "approving": "Aprobando...",
+      "reject": "Rechazar",
+      "rejecting": "Rechazando..."
+    },
+    "pending": {
+      "title": "Solicitudes pendientes",
+      "empty": "No hay solicitudes pendientes.",
+      "count": "{count} pendiente",
+      "more": "+{count} solicitudes más"
+    },
+    "empty": {
+      "title": "Programación bloqueada",
+      "description": "Sólo los gerentes pueden crear turnos."
+    },
+    "empty_services": {
+      "title": "Resumen de planificación",
+      "description": "Los horarios se derivan de trabajos y tareas."
+    },
+    "empty_owner_only": {
+      "title": "La planificación es de solo visualización",
+      "description": "La creación de turnos permanece deshabilitada en el modo individual hasta que la programación del propietario esté disponible."
+    },
+    "empty_owner_only_services": {
+      "title": "Vista de operaciones en solitario",
+      "description": "Los trabajos y tareas permanecen visibles aquí, pero la programación en equipo permanece deshabilitada en el modo individual."
+    },
+    "owner_only": {
+      "badge": "Vista solo para propietarios",
+      "panel_title": "Planificación en solitario",
+      "panel_description": "Este plan individual mantiene la planificación en modo de solo lectura mientras los miembros del equipo permanecen deshabilitados."
+    },
+    "delete": {
+      "title": "Eliminar turno",
+      "absence_title": "Eliminar ausencia",
+      "leave_title": "Eliminar licencia",
+      "description": "¿Quitar este turno del calendario?",
+      "absence_description": "¿Eliminar esta ausencia del calendario?",
+      "leave_description": "¿Eliminar este permiso del calendario?",
+      "confirm": "Eliminar",
+      "cancel": "Cancelar",
+      "deleting": "Eliminando..."
+    }
+  }
+}

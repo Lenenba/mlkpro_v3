@@ -1,0 +1,49 @@
+{
+  "work_proofs": {
+    "title": "Pruebas de trabajo",
+    "company_fallback": "Empresa",
+    "labels": {
+      "customer": "Cliente",
+      "period": "Periodo",
+      "status": "Estado",
+      "assigned": "Asignado",
+      "task": "Tarea",
+      "type": "Tipo",
+      "source": "Fuente",
+      "by": "Por",
+      "note": "Nota",
+      "proof": "Prueba"
+    },
+    "actions": {
+      "upload_proof": "Subir prueba",
+      "close": "Cerrar",
+      "cancel": "Cancelar",
+      "upload": "Subir"
+    },
+    "empty": {
+      "task_proofs": "No hay pruebas disponibles para esta tarea.",
+      "tasks": "No hay tareas disponibles."
+    },
+    "proof": {
+      "title": "Subir prueba",
+      "type": "Tipo",
+      "file_label": "Archivo (foto o vídeo)",
+      "note_optional": "Nota (opcional)"
+    },
+    "status": {
+      "todo": "hacer",
+      "in_progress": "En progreso",
+      "done": "Hecho"
+    },
+    "source": {
+      "client": "Cliente",
+      "team": "Equipo",
+      "internal": "Interno"
+    },
+    "type": {
+      "execution": "Ejecución",
+      "completion": "Finalización",
+      "other": "Otro"
+    }
+  }
+}

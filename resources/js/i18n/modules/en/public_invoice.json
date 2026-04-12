@@ -1,0 +1,78 @@
+{
+  "public_invoice": {
+    "meta_title": "Invoice payment",
+    "document": "Invoice",
+    "company_fallback": "Company",
+    "customer_fallback": "Customer",
+    "service_fallback": "Service",
+    "created": "Created",
+    "customer": "Customer",
+    "job": "Job",
+    "total": "Total",
+    "paid": "Paid",
+    "balance_due": "Balance due",
+    "pay_title": "Pay this invoice",
+    "amount_placeholder": "Amount",
+    "amount_cannot_exceed": "Amount cannot exceed {amount}.",
+    "payment_hint": "You can pay the full balance or choose a partial amount.",
+    "reference_placeholder": "Reference",
+    "notes_placeholder": "Notes",
+    "actions": {
+      "pay_full_balance": "Pay full balance",
+      "pay_invoice": "Pay invoice",
+      "pay_with_stripe": "Pay with Stripe"
+    },
+    "tip": {
+      "title": "Add a tip? (optional)",
+      "subtitle": "The tip goes directly to the team member serving you.",
+      "enable": "Yes, add a tip",
+      "disable": "No thanks",
+      "percent_mode": "Percentage (%)",
+      "fixed_mode": "Fixed amount ($)",
+      "other_percent": "Other %",
+      "other_amount": "Other amount",
+      "max_percent": "Max: {value}%",
+      "max_amount": "Max: {amount}",
+      "change_hint": "You can change or remove tip before paying."
+    },
+    "summary": {
+      "subtotal": "Subtotal",
+      "tip": "Tip (optional)",
+      "total_charge": "Total charge",
+      "partial_remaining": "Partial payment selected. Remaining balance after this payment:",
+      "remaining": "Remaining balance after this payment:"
+    },
+    "details": {
+      "title": "Payment details (optional)",
+      "method": "Payment method:"
+    },
+    "recent_payments": {
+      "title": "Recent payments",
+      "subtotal": "Subtotal",
+      "tip": "Tip",
+      "total_paid": "Total paid",
+      "tip_assigned_to": "Tip assigned to: {name}"
+    },
+    "methods": {
+      "cash": "Cash",
+      "card": "Card (Stripe)",
+      "bank_transfer": "Bank transfer",
+      "check": "Check"
+    },
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted",
+      "partial": "Partial",
+      "paid": "Paid",
+      "overdue": "Overdue",
+      "void": "Void"
+    },
+    "payment_status": {
+      "pending": "Pending",
+      "completed": "Completed",
+      "paid": "Paid",
+      "failed": "Failed"
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "auth_pages": {
+    "login": {
+      "title": "Se connecter",
+      "email": "Email",
+      "password": "Mot de passe",
+      "remember": "Se souvenir de moi",
+      "forgot_password": "Mot de passe oublié ?",
+      "submit": "Se connecter"
+    },
+    "register": {
+      "title": "Créer un compte",
+      "name": "Nom complet",
+      "email": "Email",
+      "password": "Mot de passe",
+      "password_confirmation": "Confirmer le mot de passe",
+      "already_registered": "Déjà inscrit ?",
+      "submit": "Créer le compte"
+    },
+    "forgot_password": {
+      "title": "Mot de passe oublié",
+      "description": "Mot de passe oublié ? Aucun souci. Saisissez votre adresse email et nous vous enverrons un lien de réinitialisation pour choisir un nouveau mot de passe.",
+      "email": "Email",
+      "submit": "Envoyer le lien de réinitialisation"
+    },
+    "reset_password": {
+      "title": "Réinitialiser le mot de passe",
+      "email": "Email",
+      "password": "Mot de passe",
+      "password_confirmation": "Confirmer le mot de passe",
+      "submit": "Réinitialiser le mot de passe"
+    },
+    "verify_email": {
+      "title": "Vérification de l'email",
+      "description": "Merci pour votre inscription. Avant de commencer, vérifiez votre adresse email en cliquant sur le lien que nous venons de vous envoyer. Si vous ne l'avez pas reçu, nous pouvons en envoyer un autre.",
+      "resent": "Un nouveau lien de vérification a été envoyé à l'adresse email fournie lors de l'inscription.",
+      "submit": "Renvoyer l'email de vérification",
+      "logout": "Se déconnecter"
+    },
+    "confirm_password": {
+      "title": "Confirmer le mot de passe",
+      "description": "Il s'agit d'une zone sécurisée de l'application. Veuillez confirmer votre mot de passe pour continuer.",
+      "password": "Mot de passe",
+      "submit": "Confirmer"
+    }
+  }
+}

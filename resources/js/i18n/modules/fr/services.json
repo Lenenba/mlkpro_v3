@@ -1,0 +1,144 @@
+{
+  "services": {
+    "title": "Services",
+    "stats": {
+      "total": "Total services",
+      "active": "Actifs",
+      "archived": "Archives",
+      "avg_price": "Prix moyen"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher services",
+      "category": "Categorie",
+      "status": "Statut",
+      "price_min": "Prix min",
+      "price_max": "Prix max",
+      "created_from": "Cree a partir de",
+      "created_to": "Cree jusqu'a"
+    },
+    "aria": {
+      "dropdown": "Menu deroulant"
+    },
+    "actions": {
+      "filters": "Filtres",
+      "clear": "Effacer",
+      "add_service": "Ajouter service",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "delete_confirm": "Supprimer \"{name}\" ?",
+      "new_service": "Nouveau service",
+      "edit_service": "Modifier service",
+      "cancel": "Annuler",
+      "create_service": "Creer service",
+      "update_service": "Mettre a jour service",
+      "archive": "Archiver",
+      "restore": "Restaurer"
+    },
+    "table": {
+      "service": "Service",
+      "price": "Prix",
+      "category": "Categorie",
+      "status": "Statut",
+      "created": "Cree"
+    },
+    "labels": {
+      "uncategorized": "Sans categorie"
+    },
+    "status": {
+      "active": "Actif",
+      "archived": "Archive"
+    },
+    "empty": "Aucun service trouve.",
+    "pagination": {
+      "results": "resultats",
+      "previous": "Precedent",
+      "next": "Suivant",
+      "of": "sur",
+      "label": "Pagination"
+    },
+    "form": {
+      "name": "Nom",
+      "category": "Categorie",
+      "category_hint": "Besoin d'une nouvelle categorie ?",
+      "category_hide": "Masquer",
+      "category_add": "Ajouter categorie",
+      "category_empty": "Aucune categorie pour l'instant. Creez-en une ci-dessous.",
+      "category_new": "Nom nouvelle categorie",
+      "category_create": "Creer",
+      "unit": "Unite",
+      "tax_rate": "Taux taxe (%)",
+      "price": "Prix",
+      "description": "Description",
+      "errors": {
+        "category_name_required": "Entrez un nom de categorie.",
+        "category_create_failed": "Impossible de creer la categorie.",
+        "required_fields": "Veuillez remplir tous les champs requis.",
+        "save_failed": "Impossible d'enregistrer le service. Reessayez."
+      }
+    },
+    "materials": {
+      "title": "Materiaux",
+      "add": "Ajouter materiau",
+      "custom": "Personnalise",
+      "product": "Produit",
+      "label": "Libelle",
+      "quantity": "Quantite",
+      "unit_price": "Prix unitaire",
+      "unit": "Unite",
+      "billable": "Facturable",
+      "description_optional": "Description (optionnel)",
+      "remove": "Retirer",
+      "empty": "Aucun materiau pour l'instant."
+    },
+    "units": {
+      "piece": "Piece",
+      "hour": "Heure",
+      "m2": "m2",
+      "other": "Autre"
+    },
+    "categories": {
+      "title": "Categories",
+      "subtitle": "Gere les categories utilisees pour les services et produits.",
+      "stats": {
+        "total": "Total categories",
+        "active": "Actives",
+        "archived": "Archives",
+        "in_use": "Utilisees"
+      },
+      "form": {
+        "edit_label": "Modifier categorie",
+        "new_label": "Nouvelle categorie",
+        "editing": "Modification: {name}",
+        "update": "Mettre a jour",
+        "add": "Ajouter"
+      },
+      "filters": {
+        "search_placeholder": "Rechercher categories",
+        "status": "Statut",
+        "created_by": "Cree par",
+        "created_from": "Cree a partir de",
+        "created_to": "Cree jusqu'a"
+      },
+      "table": {
+        "category": "Categorie",
+        "items": "Elements",
+        "created_by": "Cree par",
+        "status": "Statut",
+        "created": "Cree",
+        "system_category": "Categorie systeme",
+        "products": "Produits",
+        "services": "Services",
+        "locked": "Verrouille"
+      },
+      "empty": "Aucune categorie trouvee.",
+      "creator": {
+        "owner": "Proprietaire",
+        "system": "Systeme",
+        "team_member": "Membre equipe"
+      },
+      "actions": {
+        "archive_confirm": "Archiver \"{name}\" ?"
+      }
+    }
+  }
+}

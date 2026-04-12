@@ -1,0 +1,134 @@
+{
+  "invoices": {
+    "title": "Factures",
+    "company_fallback": "Entreprise",
+    "view": {
+      "table": "Table",
+      "cards": "Cartes"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher facture ou client",
+      "status": {
+        "all": "Tous les statuts"
+      },
+      "customer": {
+        "all": "Tous les clients"
+      },
+      "total_min": "Total min",
+      "total_max": "Total max",
+      "created_from": "Cree du",
+      "created_to": "Cree au"
+    },
+    "status": {
+      "draft": "Brouillon",
+      "sent": "Envoye",
+      "partial": "Partiel",
+      "paid": "Payee",
+      "overdue": "En retard",
+      "void": "Annulee"
+    },
+    "table": {
+      "invoice": "Facture",
+      "customer": "Client",
+      "status": "Statut",
+      "rating": "Note",
+      "total": "Total",
+      "balance_due": "Solde du",
+      "created": "Cree",
+      "results": "resultats"
+    },
+    "stats": {
+      "total": "Total factures",
+      "total_value": "Valeur totale",
+      "outstanding": "Impayes",
+      "open": "Ouvertes",
+      "paid": "Payees",
+      "partial": "Partielles"
+    },
+    "actions": {
+      "filters": "Filtres",
+      "clear": "Effacer",
+      "send_invoice": "Envoyer la facture",
+      "resend_invoice": "Renvoyer la facture",
+      "sending_invoice": "Envoi...",
+      "view_invoice": "Voir la facture",
+      "view_job": "Voir le chantier",
+      "view_customer": "Voir le client"
+    },
+    "labels": {
+      "invoice_number": "Facture #{id}",
+      "unknown_customer": "Inconnu",
+      "customer_fallback": "Client",
+      "job_fallback": "Job",
+      "method_fallback": "methode"
+    },
+    "show": {
+      "title": "Facture {number}",
+      "invoice_for": "Facture pour {customer}",
+      "timeline": "Chronologie",
+      "download_pdf": "Telecharger PDF",
+      "property_address": "Adresse du bien",
+      "no_property": "Aucune propriete selectionnee.",
+      "contact_details": "Coordonnees",
+      "invoice_details": "Details de la facture",
+      "invoice_label": "Facture",
+      "issued": "Emise",
+      "balance_due": "Solde du",
+      "job_rating": "Note du job",
+      "no_rating": "Aucune note",
+      "table": {
+        "tasks": "Taches",
+        "products_services": "Produits/Services",
+        "date": "Date",
+        "time": "Heure",
+        "assignee": "Assigne",
+        "qty": "Qt.",
+        "unit_cost": "Cout unitaire",
+        "total": "Total"
+      },
+      "line_items_empty": "Aucun element.",
+      "summary": {
+        "subtotal": "Sous-total",
+        "paid": "Payee",
+        "total_amount": "Montant total",
+        "balance_due": "Solde du"
+      },
+      "payments": {
+        "title": "Paiements",
+        "empty": "Aucun paiement pour le moment.",
+        "subtotal": "Sous-total",
+        "tip": "Pourboire",
+        "total_paid": "Total paye",
+        "tip_assigned_to": "Pourboire attribue a",
+        "pending_cash": "Paiement en attente (cash)",
+        "mark_paid": "Marquer comme paye",
+        "marking_paid": "Mise a jour...",
+        "status": {
+          "pending": "En attente",
+          "completed": "Paye",
+          "paid": "Paye",
+          "failed": "Echoue",
+          "refunded": "Rembourse",
+          "reversed": "Inverse"
+        }
+      },
+      "add_payment": {
+        "title": "Ajouter un paiement",
+        "amount": "Montant",
+        "method": "Methode (carte, virement)",
+        "reference": "Reference",
+        "paid_at": "Date de paiement",
+        "notes": "Notes",
+        "submit": "Enregistrer le paiement"
+      }
+    },
+    "empty": {
+      "invoices": "Aucune facture pour le moment."
+    },
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "of": "sur"
+    }
+  }
+}

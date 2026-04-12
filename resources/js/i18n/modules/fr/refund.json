@@ -1,0 +1,44 @@
+{
+  "refund": {
+    "meta": {
+      "title": "Politique de remboursement"
+    },
+    "intro": {
+      "eyebrow": "Politique de remboursement",
+      "title": "Politique de remboursement pour Malikia pro",
+      "updated": "Derniere mise a jour: {date}.",
+      "summary": "Cette politique explique comment les remboursements et credits sont geres pour les abonnements Malikia pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Portee",
+        "body": "Les abonnements sont factures a l avance et donnent acces aux fonctionnalites Malikia pro."
+      },
+      "eligibility": {
+        "title": "2. Eligibilite",
+        "body": "Les remboursements peuvent etre consideres pour doublons ou erreurs de facturation verifiees."
+      },
+      "exclusions": {
+        "title": "3. Cas exclus",
+        "bullets": {
+          "one": "Changement d avis apres usage significatif.",
+          "two": "Frais tiers ou frais du processeur de paiement.",
+          "three": "Services sur mesure ou onboarding."
+        }
+      },
+      "process": {
+        "title": "4. Demande",
+        "body": "Soumettez une demande via le support dans l application avec la facture et la raison."
+      },
+      "timeline": {
+        "title": "5. Delai de traitement",
+        "body": "Si approuve, le remboursement est emis sur le moyen de paiement d origine. Le delai depend du fournisseur de paiement."
+      },
+      "chargebacks": {
+        "title": "6. Retrofacturations",
+        "body": "Les retrofacturations peuvent suspendre l acces pendant l examen."
+      }
+    },
+    "note": "Contactez le support si vous avez besoin d aide pour la facturation."
+  }
+}

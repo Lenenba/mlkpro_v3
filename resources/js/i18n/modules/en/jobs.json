@@ -1,0 +1,277 @@
+{
+  "jobs": {
+    "title": "Jobs",
+    "create_title": "Create job",
+    "show_title": "View job",
+    "proofs_title": "Job proofs",
+    "company_fallback": "Company",
+    "badges": {
+      "overdue": "Overdue ({count})"
+    },
+    "form": {
+      "customer_fallback": "Customer",
+      "job_for": "Job for: {customer}",
+      "job_title": "Job title",
+      "instructions": "Instructions",
+      "locked_notice": "This job is locked because it comes from an accepted quote. Only scheduling can be updated.",
+      "property_address": "Property address",
+      "contact_details": "Contact details",
+      "job_details": "Job details",
+      "job_label": "Job",
+      "rating_label": "Rating",
+      "status_label": "Status",
+      "add_custom_fields": "Add custom fields",
+      "tabs": {
+        "single": {
+          "title": "ONE-TIME JOB",
+          "subtitle": "A one-time job with one or more visits"
+        },
+        "recurring": {
+          "title": "RECURRING JOB",
+          "subtitle": "A contract job with repeated visits"
+        }
+      },
+      "planning_title": "SCHEDULING",
+      "start_date": "Start date",
+      "end_date": "End date",
+      "start_time": "Start time",
+      "end_time": "End time",
+      "pick_date": "Choose a date",
+      "pick_time": "Choose a time",
+      "quick_summary": "Quick summary",
+      "summary_date": "Date",
+      "summary_time": "Time",
+      "calendar_tip": "Click a day on the calendar to fill the date.",
+      "plan_later": "Schedule later",
+      "team": {
+        "title": "TEAM",
+        "solo_panel_title": "ASSIGNMENT",
+        "empty": "No team members yet.",
+        "member_fallback": "Team member",
+        "filter_hint": "Select a member to filter the calendar.",
+        "search_label": "Search team members",
+        "selected_title": "Selected members",
+        "selected_badge": "Selected",
+        "search_empty": "No matching team members.",
+        "solo_title": "Owner-only job",
+        "solo_subtitle": "This solo workspace does not assign jobs to team members. Tasks created from this job stay unassigned until you move to a team plan.",
+        "availability": {
+          "available": "Available",
+          "busy": "Unavailable",
+          "unknown": "Select a date to check availability"
+        }
+      },
+      "calendar": {
+        "title": "Calendar",
+        "subtitle": "The calendar shows already scheduled visits.",
+        "all_members": "All members",
+        "filter_label": "Team filter"
+      },
+      "recurrence": {
+        "title": "RECURRENCE",
+        "subtitle": "Define the rhythm of recurring visits.",
+        "repeat_every": "Repeat every:",
+        "repeat_on": "Repeat on:",
+        "repeat_hint": "Choose the days when visits repeat.",
+        "count_label": "Count",
+        "times_suffix": "times",
+        "preview_title": "Visit preview",
+        "preview_first": "First",
+        "preview_last": "Last",
+        "preview_total": "Total"
+      },
+      "billing": {
+        "title": "BILLING",
+        "mode": "Billing mode",
+        "grouping": "Grouping",
+        "cycle": "Cycle",
+        "delay": "Delay (days)",
+        "date_rule": "Date rule (ex: 1st of month)",
+        "reminder": "Remind me to invoice when the job closes"
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "save_and_create_another": "Save and create another",
+        "save_job": "Save job"
+      }
+    },
+    "recurrence": {
+      "frequency": {
+        "label": "Frequency",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "yearly": "Yearly"
+      },
+      "ends": {
+        "label": "End",
+        "never": "Never",
+        "on": "On",
+        "after": "After"
+      },
+      "weekdays": {
+        "mo": "Mon",
+        "tu": "Tue",
+        "we": "Wed",
+        "th": "Thu",
+        "fr": "Fri",
+        "sa": "Sat",
+        "su": "Sun"
+      }
+    },
+    "billing": {
+      "modes": {
+        "per_task": "Per task",
+        "per_segment": "Per segment",
+        "end_of_job": "End of job",
+        "deferred": "Deferred"
+      },
+      "groupings": {
+        "single": "Single invoice",
+        "periodic": "Grouped"
+      },
+      "cycles": {
+        "weekly": "Weekly",
+        "biweekly": "Every 2 weeks",
+        "monthly": "Monthly",
+        "every_n_tasks": "Every N tasks"
+      }
+    },
+    "show": {
+      "timeline": "Timeline",
+      "edit_job": "Edit job",
+      "locked_notice": "Job locked after validation.",
+      "proofs": "Proofs",
+      "view_invoice": "View invoice",
+      "create_invoice": "Create invoice",
+      "no_rating": "No rating yet",
+      "locked_from_quote": "This job is locked because it comes from an accepted quote.",
+      "cards": {
+        "customer": "Customer",
+        "dates": "Dates",
+        "start": "Start",
+        "end": "End",
+        "totals": "Totals",
+        "subtotal": "Subtotal",
+        "total": "Total",
+        "rating": "Rating"
+      },
+      "table": {
+        "product_service": "Product/Service",
+        "qty": "Qty",
+        "unit_price": "Unit price",
+        "total": "Total",
+        "empty": "No products/services attached."
+      }
+    },
+    "proofs": {
+      "title": "Job proofs",
+      "job_fallback": "Job",
+      "view_job": "View job",
+      "back_to_dashboard": "Back to dashboard",
+      "cards": {
+        "customer": "Customer",
+        "period": "Period",
+        "status": "Status"
+      },
+      "task_fallback": "Task",
+      "assigned": "Assigned",
+      "materials": "Materials",
+      "billable": "Billable",
+      "proof_fallback": "Proof",
+      "media": {
+        "type": "Type",
+        "source": "Source",
+        "by": "By",
+        "note": "Note"
+      },
+      "empty_task": "No proof available for this task.",
+      "empty": "No tasks available.",
+      "status": {
+        "todo": "To do",
+        "in_progress": "In progress",
+        "done": "Done"
+      },
+      "source": {
+        "client": "Client",
+        "team": "Team",
+        "internal": "Internal"
+      },
+      "type": {
+        "execution": "Execution",
+        "completion": "Completion",
+        "other": "Other"
+      }
+    },
+    "stats": {
+      "total": "Total jobs",
+      "scheduled": "Scheduled",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "filters": {
+      "search_placeholder": "Search jobs, instructions, or types",
+      "status": {
+        "all": "All status"
+      },
+      "customer": {
+        "all": "All customers"
+      },
+      "start_from": "Start from",
+      "start_to": "Start to"
+    },
+    "status": {
+      "to_schedule": "To schedule",
+      "scheduled": "Scheduled",
+      "en_route": "En route",
+      "in_progress": "In progress",
+      "tech_complete": "Tech complete",
+      "pending_review": "Pending review",
+      "validated": "Validated",
+      "auto_validated": "Auto validated",
+      "dispute": "Dispute",
+      "closed": "Closed",
+      "cancelled": "Cancelled",
+      "completed": "Completed (legacy)"
+    },
+    "table": {
+      "job": "Job",
+      "customer": "Customer",
+      "status": "Status",
+      "rating": "Rating",
+      "total": "Total",
+      "start_date": "Start date",
+      "created_at": "Created",
+      "results": "results"
+    },
+    "actions": {
+      "filters": "Filters",
+      "reset": "Reset",
+      "create": "Create job",
+      "view": "View",
+      "edit": "Edit",
+      "schedule": "Schedule",
+      "view_invoice": "View invoice",
+      "create_invoice": "Create invoice"
+    },
+    "create_modal": {
+      "title": "Create job",
+      "subtitle": "Choose a customer to start a job without a quote.",
+      "customer_label": "Customer",
+      "customer_required": "Select a customer to continue.",
+      "empty": "No customers available yet.",
+      "add_customer": "Add a customer",
+      "cancel": "Cancel",
+      "create": "Create job"
+    },
+    "labels": {
+      "unknown_customer": "Unknown"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "of": "of"
+    }
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "dashboard_products": {
+    "common": {
+      "customer_fallback": "Cliente",
+      "confirm_supplier_request": "¿Enviar una solicitud de stock al proveedor?",
+      "recent_sales_title": "Ventas recientes",
+      "recent_sales_empty": "No hay ventas recientes.",
+      "sale_label": "Venta #{id}",
+      "stock_alerts_title": "Alertas de stock",
+      "stock_alerts_empty": "Sin alertas de stock.",
+      "stock_line": "Existencias: {stock} / Mín.: {min}",
+      "stock_out": "Agotado",
+      "stock_low": "Stock bajo",
+      "supplier_unknown": "Proveedor",
+      "request_stock": "Solicitar stock",
+      "top_products_title": "Productos destacados",
+      "top_products_empty": "Aún no hay productos destacados.",
+      "quantity": "Cantidad: {count}"
+    },
+    "owner": {
+      "page_title": "Dashboard de productos",
+      "title": "Dashboard de productos",
+      "subtitle": "Resumen de ventas e inventario.",
+      "actions": {
+        "new_sale": "Nueva venta",
+        "products": "Productos",
+        "customers": "Clientes"
+      },
+      "kpi": {
+        "sales_today": "Ventas hoy",
+        "revenue_today": "Ingresos hoy",
+        "sales_month": "Ventas este mes",
+        "inventory_value": "Valor de inventario",
+        "low_stock": "Stock bajo",
+        "out_of_stock": "Agotado"
+      },
+      "stock_signals": {
+        "reserved": "Reservado {count}",
+        "damaged": "Dañado {count}",
+        "expired": "Caducado {count}",
+        "expiring": "Venciendo {count}"
+      },
+      "performance": {
+        "title": "Rendimiento del vendedor",
+        "range": "{start} - {end}",
+        "export": "Exportar ranking",
+        "active_sellers": "{count} vendedores activos",
+        "online_label": "Tienda online",
+        "online_badge": "En línea",
+        "seller_fallback": "Vendedor",
+        "period": {
+          "day": "Hoy",
+          "week": "Esta semana",
+          "month": "Este mes",
+          "year": "Este año"
+        },
+        "kpi": {
+          "revenue": "Ingresos",
+          "orders": "Órdenes",
+          "items_sold": "Artículos vendidos",
+          "avg_order": "Valor medio del pedido",
+          "customers": "Clientes",
+          "revenue_per_seller": "Ingresos por vendedor"
+        },
+        "top_sellers": "Los más vendidos",
+        "top_products": "Productos destacados",
+        "seller_of_year": "Vendedor del año",
+        "seller_line": "{revenue} · {orders} pedidos · {items} artículos",
+        "product_line": "{revenue} · {quantity} artículos",
+        "no_sellers": "Aún no hay rendimiento del vendedor.",
+        "no_products": "Aún no hay rendimiento del producto.",
+        "no_seller_year": "Aún no hay datos de vendedores para el año."
+      }
+    },
+    "team": {
+      "page_title": "Panel de productos",
+      "title": "Dashboard de productos",
+      "subtitle": "Resumen de ventas y stock.",
+      "actions": {
+        "new_sale": "Nueva venta"
+      },
+      "kpi": {
+        "sales_today": "Ventas hoy",
+        "revenue_today": "Ingresos hoy",
+        "low_stock": "Stock bajo",
+        "out_of_stock": "Agotado"
+      }
+    }
+  }
+}

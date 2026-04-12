@@ -1,0 +1,33 @@
+{
+  "public_quote": {
+    "meta_title": "Revision de cotizacion",
+    "document": "Cotizacion",
+    "company_fallback": "Empresa",
+    "customer_fallback": "Cliente",
+    "service_fallback": "Servicio",
+    "created": "Creada",
+    "customer": "Cliente",
+    "job": "Trabajo",
+    "property": "Propiedad",
+    "items": "Articulos",
+    "no_property": "No se ha seleccionado ninguna propiedad.",
+    "no_items": "No hay articulos listados.",
+    "subtotal": "Subtotal",
+    "total": "Total",
+    "required_deposit": "Deposito requerido: {amount}",
+    "respond_title": "Responder a esta cotizacion",
+    "deposit_amount": "Monto del deposito",
+    "method_placeholder": "Metodo de pago (opcional)",
+    "reference_placeholder": "Referencia (opcional)",
+    "actions": {
+      "accept": "Aceptar cotizacion",
+      "decline": "Rechazar cotizacion"
+    },
+    "status": {
+      "draft": "Borrador",
+      "sent": "Enviada",
+      "accepted": "Aceptada",
+      "declined": "Rechazada"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "dashboard_tasks": {
+    "fallback_name": "equipe",
+    "subtitle_admin": "Bienvenue {name}. Voici la vue d'ensemble des taches de l'equipe.",
+    "subtitle_member": "Bienvenue {name}. Voici vos taches a venir.",
+    "kpi": {
+      "total": "Total taches"
+    },
+    "announcements": {
+      "title": "Annonces",
+      "subtitle": "Dernieres nouvelles pour votre equipe."
+    },
+    "timeline": {
+      "title": "Planning du jour",
+      "subtitle": "Taches et chantiers prevus aujourd'hui.",
+      "auto_alerts": "Alertes auto",
+      "empty": "Aucune tache ni chantier prevu aujourd'hui."
+    },
+    "upcoming": {
+      "title": "Taches a venir",
+      "manage": "Gerer les taches",
+      "empty": "Aucune tache a venir."
+    },
+    "my_tasks": {
+      "title": "Mes taches",
+      "view_all": "Voir tout",
+      "empty": "Aucune tache assignee pour le moment."
+    },
+    "labels": {
+      "due": "Echeance {date}"
+    }
+  }
+}

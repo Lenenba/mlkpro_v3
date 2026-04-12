@@ -1,0 +1,259 @@
+{
+  "onboarding": {
+    "title": "Onboarding",
+    "header": {
+      "title": "Créez votre espace",
+      "subtitle": "Terminez la configuration en {count} étapes.",
+      "step": "Étape {current} / {total}"
+    },
+    "pending_owner": {
+      "title": "Espace en cours de configuration",
+      "description": "Votre compte est rattaché à une entreprise dont la configuration n est pas terminée. Demandez au propriétaire de finaliser l onboarding.",
+      "logout": "Se déconnecter",
+      "dashboard": "Tableau de bord"
+    },
+    "progress": {
+      "title": "Progression",
+      "note": "Gardez ces infos à jour pour débloquer toutes les fonctions du tableau de bord."
+    },
+    "steps": {
+      "account": {
+        "title": "Compte",
+        "description": "Identifiants et sécurité."
+      },
+      "company": {
+        "title": "Entreprise",
+        "description": "Infos principales et identite."
+      },
+      "type": {
+        "title": "Type",
+        "description": "Services ou produits."
+      },
+      "sector": {
+        "title": "Secteur",
+        "description": "Votre activité principale."
+      },
+      "team": {
+        "title": "Équipe",
+        "description": "Invitez votre équipe."
+      },
+      "team_solo": {
+        "title": "Configuration",
+        "description": "Confirmez votre espace solo."
+      },
+      "plan": {
+        "title": "Forfait",
+        "description": "Choisissez votre plan."
+      },
+      "security": {
+        "title": "Sécurité",
+        "description": "Choisissez votre méthode 2FA."
+      }
+    },
+    "account": {
+      "owner_notice": "Ce compte deviendra le propriétaire de l'entreprise.",
+      "full_name": "Nom complet",
+      "email": "Email",
+      "password": "Mot de passe",
+      "confirm_password": "Confirmer le mot de passe",
+      "have_account": "Déjà un compte ? Se connecter",
+      "create_account": "Créer mon compte"
+    },
+    "company": {
+      "name": "Nom de l'entreprise",
+      "logo_optional": "Logo (optionnel)",
+      "logo_upload": "Téléverser votre logo",
+      "description_optional": "Description (optionnel)",
+      "address": "Adresse de l'entreprise",
+      "address_search_placeholder": "Rechercher une adresse",
+      "address_searching": "Recherche...",
+      "address_validated": "Adresse validée",
+      "address_label": "Adresse",
+      "street": "Rue",
+      "city": "Ville",
+      "province": "Province",
+      "province_region": "Province / Region",
+      "country": "Pays",
+      "postal_code": "Code postal",
+      "address_manual": "Adresse manuelle",
+      "address_hide": "Masquer",
+      "address_show": "Saisir manuellement",
+      "address_error_key": "Configuration Geoapify manquante. Vérifiez la configuration de l'application.",
+      "address_error_failed": "Échec de recherche. Vérifiez la clé Geoapify ou utilisez la saisie manuelle."
+    },
+    "type": {
+      "services": "Entreprise de services",
+      "products": "Entreprise de produits",
+      "modules_active": "Modules actifs : {label}"
+    },
+    "sector": {
+      "label_products": "Type d'activité",
+      "label_services": "Secteur d'activité",
+      "other_label": "Autre",
+      "other_input": "Secteur (autre)",
+      "hint": "Si votre secteur n'est pas listé, choisissez Autre pour le créer.",
+      "products_note": "Le module Ventes sera activé pour vendre vos produits via la plateforme.",
+      "services_note": "Les catégories de services seront créées automatiquement, y compris pour un secteur personnalisé."
+    },
+    "sectors": {
+      "service": {
+        "placeholder": "Choisir un secteur",
+        "salon": "Salon de coiffure / beauté",
+        "restaurant": "Restaurant",
+        "service_general": "Services généraux",
+        "menuiserie": "Menuiserie",
+        "plomberie": "Plomberie",
+        "electricite": "Électricité",
+        "peinture": "Peinture",
+        "toiture": "Toiture",
+        "renovation": "Rénovation",
+        "paysagisme": "Paysagisme",
+        "climatisation": "Climatisation",
+        "nettoyage": "Nettoyage"
+      },
+      "product": {
+        "placeholder": "Choisir un type d'activité",
+        "retail": "Détail",
+        "wholesale": "Grossiste",
+        "grocery": "Épicerie",
+        "convenience": "Dépanneur",
+        "specialty": "Boutique spécialisée",
+        "pharmacy": "Pharmacie / parapharmacie",
+        "electronics": "Électronique",
+        "home_hardware": "Maison et quincaillerie"
+      },
+      "other": "Autre..."
+    },
+    "team": {
+      "title": "Inviter l'équipe (optionnel)",
+      "subtitle": "Ajoutez des membres maintenant ou plus tard.",
+      "size_title": "Taille de l'équipe",
+      "size_hint": "Indiquez combien de personnes utiliseront la plateforme.",
+      "size_label": "Nombre de membres",
+      "size_title_solo": "Profil de l'espace",
+      "size_hint_solo": "Laissez 1 pour un espace solo. Augmentez seulement si vous prévoyez passer à un mode équipe.",
+      "size_label_solo": "Taille prévue de l'espace",
+      "recommendation_title": "Forfait recommandé",
+      "recommendation_subtitle": "Basé sur {count} membres",
+      "recommendation_solo_subtitle": "Recommandé pour un accès propriétaire uniquement",
+      "recommendation_limit": "Jusqu'à {count} membres",
+      "recommendation_unlimited": "Membres illimités",
+      "recommendation_owner_only": "Propriétaire uniquement",
+      "solo_title": "Espace solo",
+      "solo_subtitle": "Vous démarrez seul. Les invitations d'équipe restent désactivées tant que vous restez sur un forfait solo.",
+      "add": "+ Ajouter",
+      "empty": "Aucune invitation ajoutée.",
+      "name": "Nom",
+      "email": "Email",
+      "role_admin": "Admin",
+      "role_member": "Membre",
+      "remove": "Supprimer",
+      "summary": "Résumé",
+      "summary_company": "Entreprise",
+      "summary_type": "Type",
+      "summary_sector": "Secteur",
+      "terms_label": "J'accepte les",
+      "terms_action": "conditions d'utilisation"
+    },
+    "plan": {
+      "title": "Choisissez votre forfait",
+      "subtitle": "1 mois d'essai, puis facturation automatique selon votre forfait. Carte requise.",
+      "audience_label": "Contexte du forfait",
+      "monthly": "Mensuel",
+      "yearly": "Annuel",
+      "interval_month": "/mois",
+      "interval_year": "/an",
+      "charged_currency": "Devise facturée : {currency}",
+      "yearly_note": "Payez à l'année et économisez {percent}%.",
+      "billed_yearly": "Pour 12 mois, facturé annuellement.",
+      "trial_note": "Essai jusqu'au {date}.",
+      "downgrade_note": "Vous pouvez changer de forfait pendant l'essai.",
+      "selection_title": "Forfait selectionne",
+      "audiences": {
+        "solo": {
+          "title": "Forfaits Solo",
+          "description": "Nous affichons les forfaits Solo parce que votre espace est proprietaire uniquement pour l instant. Vous pourrez passer sur Team plus tard sans tout reconstruire."
+        },
+        "team": {
+          "title": "Forfaits Team",
+          "description": "Nous affichons les forfaits Team parce que votre espace inclut {count} personnes. Team ajoute collaboration, permissions et limites plus elevees."
+        }
+      },
+      "catalog": {
+        "solo_essential": {
+          "description": "Forfait socle pour les operateurs solo qui veulent une base de fonctionnement claire.",
+          "features": [
+            "Demandes, devis, factures, jobs et taches",
+            "Planning, ventes et catalogue",
+            "Portail client et page publique",
+            "Execution solo simple sans modules avances"
+          ]
+        },
+        "solo_pro": {
+          "description": "Forfait croissance pour les operateurs solo qui ont besoin de plus de structure et de capacite d execution.",
+          "features": [
+            "Tout Solo Core",
+            "Plus de volume pour jobs et taches",
+            "Structure solo plus claire sans logique equipe",
+            "Forfait solo recommande"
+          ]
+        },
+        "solo_growth": {
+          "description": "Forfait premium pour les operateurs solo qui veulent plus d automatisation et de marge de manoeuvre.",
+          "features": [
+            "Tout Solo Growth",
+            "Reservations et planning en mode solo limite",
+            "Assistant, scan de plan, campagnes et fidelite",
+            "Capacite premium pour scaler seul",
+            "Pilotage avance et support prioritaire"
+          ]
+        },
+        "starter": {
+          "description": "Forfait equipe socle pour une execution partagee et plus de collaboration.",
+          "features": [
+            "Base partagee pour demandes, devis, jobs et factures",
+            "Planning d equipe, presence et collaboration",
+            "Assistant et scan de plan en mode limite",
+            "Jusqu a 5 membres"
+          ]
+        },
+        "growth": {
+          "description": "Forfait croissance equipe pour les permissions, les automatismes et plus de volume operationnel.",
+          "features": [
+            "Tout Team Core",
+            "Plus de permissions, campagnes et fidelite",
+            "Automatisations avancees et plus de volume",
+            "Forfait equipe recommande"
+          ]
+        },
+        "scale": {
+          "description": "Forfait scale equipe pour des operations avancees, plus d IA et un support premium.",
+          "features": [
+            "Tout Team Growth",
+            "Capacite premium, IA et scans renforces",
+            "Pilotage avance et support premium",
+            "Onboarding dedie et reporting approfondi"
+          ]
+        }
+      },
+      "recommended": "Recommandé",
+      "unavailable": "Forfait indisponible"
+    },
+    "security": {
+      "title": "Choisissez votre méthode 2FA",
+      "subtitle": "Ajoutez une protection supplémentaire pour le compte propriétaire.",
+      "method_email": "Code par email",
+      "method_email_hint": "Nous enverrons un code à usage unique à {email}.",
+      "method_app": "Application d'authentification",
+      "method_app_hint": "Google Authenticator, Authy ou 1Password.",
+      "change_later": "Vous pourrez changer plus tard dans les parametres de securite.",
+      "email_fallback": "votre email"
+    },
+    "actions": {
+      "back": "Retour",
+      "continue": "Continuer",
+      "finish": "Demarrer l'essai",
+      "close": "Fermer"
+    }
+  }
+}

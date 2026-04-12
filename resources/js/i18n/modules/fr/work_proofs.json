@@ -1,0 +1,49 @@
+{
+  "work_proofs": {
+    "title": "Preuves chantier",
+    "company_fallback": "Entreprise",
+    "labels": {
+      "customer": "Client",
+      "period": "Periode",
+      "status": "Statut",
+      "assigned": "Assigne",
+      "task": "Tache",
+      "type": "Type",
+      "source": "Source",
+      "by": "Par",
+      "note": "Note",
+      "proof": "Preuve"
+    },
+    "actions": {
+      "upload_proof": "Ajouter preuve",
+      "close": "Fermer",
+      "cancel": "Annuler",
+      "upload": "Televerser"
+    },
+    "empty": {
+      "task_proofs": "Aucune preuve pour cette tache.",
+      "tasks": "Aucune tache disponible."
+    },
+    "proof": {
+      "title": "Ajouter preuve",
+      "type": "Type",
+      "file_label": "Fichier (photo ou video)",
+      "note_optional": "Note (optionnel)"
+    },
+    "status": {
+      "todo": "A faire",
+      "in_progress": "En cours",
+      "done": "Termine"
+    },
+    "source": {
+      "client": "Client",
+      "team": "Equipe",
+      "internal": "Interne"
+    },
+    "type": {
+      "execution": "Execution",
+      "completion": "Completion",
+      "other": "Autre"
+    }
+  }
+}

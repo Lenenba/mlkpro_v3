@@ -1,0 +1,134 @@
+{
+  "invoices": {
+    "title": "Invoices",
+    "company_fallback": "Company",
+    "view": {
+      "table": "Table",
+      "cards": "Cards"
+    },
+    "filters": {
+      "search_placeholder": "Search invoice number or customer",
+      "status": {
+        "all": "All statuses"
+      },
+      "customer": {
+        "all": "All customers"
+      },
+      "total_min": "Min total",
+      "total_max": "Max total",
+      "created_from": "Created from",
+      "created_to": "Created to"
+    },
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "partial": "Partial",
+      "paid": "Paid",
+      "overdue": "Overdue",
+      "void": "Void"
+    },
+    "table": {
+      "invoice": "Invoice",
+      "customer": "Customer",
+      "status": "Status",
+      "rating": "Rating",
+      "total": "Total",
+      "balance_due": "Balance due",
+      "created": "Created",
+      "results": "results"
+    },
+    "stats": {
+      "total": "Total invoices",
+      "total_value": "Total value",
+      "outstanding": "Outstanding",
+      "open": "Open",
+      "paid": "Paid",
+      "partial": "Partial"
+    },
+    "actions": {
+      "filters": "Filters",
+      "clear": "Clear",
+      "send_invoice": "Send invoice",
+      "resend_invoice": "Resend invoice",
+      "sending_invoice": "Sending...",
+      "view_invoice": "View invoice",
+      "view_job": "View job",
+      "view_customer": "View customer"
+    },
+    "labels": {
+      "invoice_number": "Invoice #{id}",
+      "unknown_customer": "Unknown",
+      "customer_fallback": "Customer",
+      "job_fallback": "Job",
+      "method_fallback": "method"
+    },
+    "show": {
+      "title": "Invoice {number}",
+      "invoice_for": "Invoice for {customer}",
+      "timeline": "Timeline",
+      "download_pdf": "Download PDF",
+      "property_address": "Property address",
+      "no_property": "No property selected.",
+      "contact_details": "Contact details",
+      "invoice_details": "Invoice details",
+      "invoice_label": "Invoice",
+      "issued": "Issued",
+      "balance_due": "Balance due",
+      "job_rating": "Job rating",
+      "no_rating": "No rating yet",
+      "table": {
+        "tasks": "Tasks",
+        "products_services": "Product/Services",
+        "date": "Date",
+        "time": "Time",
+        "assignee": "Assignee",
+        "qty": "Qty.",
+        "unit_cost": "Unit cost",
+        "total": "Total"
+      },
+      "line_items_empty": "No line items.",
+      "summary": {
+        "subtotal": "Subtotal",
+        "paid": "Paid",
+        "total_amount": "Total amount",
+        "balance_due": "Balance due"
+      },
+      "payments": {
+        "title": "Payments",
+        "empty": "No payments yet.",
+        "subtotal": "Subtotal",
+        "tip": "Tip",
+        "total_paid": "Total paid",
+        "tip_assigned_to": "Tip assigned to",
+        "pending_cash": "Payment pending (cash)",
+        "mark_paid": "Mark paid",
+        "marking_paid": "Marking...",
+        "status": {
+          "pending": "Pending",
+          "completed": "Paid",
+          "paid": "Paid",
+          "failed": "Failed",
+          "refunded": "Refunded",
+          "reversed": "Reversed"
+        }
+      },
+      "add_payment": {
+        "title": "Add payment",
+        "amount": "Amount",
+        "method": "Method (card, transfer)",
+        "reference": "Reference",
+        "paid_at": "Payment date",
+        "notes": "Notes",
+        "submit": "Record payment"
+      }
+    },
+    "empty": {
+      "invoices": "No invoices yet."
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "of": "of"
+    }
+  }
+}

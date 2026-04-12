@@ -1,0 +1,204 @@
+{
+  "pricing": {
+    "meta": {
+      "title": "Tarifs du logiciel pour entreprises de services"
+    },
+    "badges": {
+      "recommended": "Recommandé"
+    },
+    "switch": {
+      "label": "Choisissez votre contexte d'exploitation"
+    },
+    "currency": {
+      "label": "Devise"
+    },
+    "billing_cycle": {
+      "label": "Cycle de facturation",
+      "monthly": "Mensuel",
+      "yearly": "Annuel",
+      "interval_month": "/mois",
+      "interval_year": "/an",
+      "save_badge": "Économisez {percent}% avec la facturation annuelle",
+      "yearly_note": "Facturé annuellement avec {percent}% de réduction.",
+      "billed_yearly": "Pour 12 mois, facturé annuellement."
+    },
+    "audiences": {
+      "solo": "Solo",
+      "team": "Équipe"
+    },
+    "hero": {
+      "solo": {
+        "eyebrow": "Tarification pour les opérateurs indépendants",
+        "title": "Commencez avec la configuration qui correspond à votre façon de travailler aujourd'hui",
+        "subtitle": "Choisissez un forfait solo qui garde devis, facturation, jobs et outils de croissance alignés, sans ajouter de complexité inutile.",
+        "note": "Démarrez avec une base simple maintenant, puis évoluez seulement quand votre activité demande plus de coordination."
+      },
+      "team": {
+        "eyebrow": "Tarification pour les équipes qui ont besoin de coordination",
+        "title": "Choisissez le forfait qui correspond à votre équipe, à votre façon de travailler et à votre stade de croissance",
+        "subtitle": "Des opérations de base jusqu'à une organisation plus avancée, chaque plan apporte le niveau de structure dont votre équipe a vraiment besoin.",
+        "note": "Vous pouvez commencer avec le bon niveau aujourd'hui, puis monter progressivement quand le volume, l'équipe et la complexité augmentent."
+      }
+    },
+    "plan_cards": {
+      "solo_essential": {
+        "features": {
+          "one": "Base propre pour devis, facturation et suivi client.",
+          "two": "Gardez demandes et historique client essentiels au même endroit.",
+          "three": "Présentez vos services clairement avec catalogue et page publique.",
+          "four": "Pensé pour les indépendants qui veulent de la structure sans surcharge."
+        }
+      },
+      "solo_pro": {
+        "features": {
+          "one": "Tout Solo Core.",
+          "two": "Ajoutez jobs et tâches pour mieux suivre l'exécution.",
+          "three": "Plus de contrôle au quotidien sans complexité d'équipe.",
+          "four": "Le meilleur choix pour les opérateurs solo actifs."
+        }
+      },
+      "solo_growth": {
+        "features": {
+          "one": "Tout Solo Growth.",
+          "two": "Ajoutez planning et réservations limitées pour gérer plus de flux.",
+          "three": "Utilisez IA, campagnes et fidélité dans le même système.",
+          "four": "Conçu pour les activités solo avec plus de volume et d'ambition."
+        }
+      },
+      "starter": {
+        "features": {
+          "one": "Base solide pour devis, jobs, planning et facturation.",
+          "two": "Pensé pour les petites équipes qui ont besoin d'un cadre partagé.",
+          "three": "Gardez bureau et terrain alignés dans un seul système.",
+          "four": "Un point de départ pratique pour coordonner l'équipe."
+        }
+      },
+      "growth": {
+        "features": {
+          "one": "Tout Team Core.",
+          "two": "Ajoutez plus de permissions et de profondeur opérationnelle.",
+          "three": "Pensé pour les équipes en croissance qui ont besoin de structure.",
+          "four": "Le meilleur équilibre pour grandir sans lourdeur inutile."
+        }
+      },
+      "scale": {
+        "features": {
+          "one": "Tout Team Growth.",
+          "two": "Rapports avancés et pilotage plus large pour les équipes matures.",
+          "three": "Onboarding dédié et support renforcé quand la complexité augmente.",
+          "four": "Conçu pour les équipes qui ont besoin de plus de profondeur métier."
+        }
+      },
+      "enterprise": {
+        "features": {
+          "one": "Déploiement sur mesure pour les organisations plus grandes ou plus complexes.",
+          "two": "Limites adaptées, contrôles avancés et implémentation guidée.",
+          "three": "Pensé pour les besoins multi-entités, sécurité ou SLA.",
+          "four": "Contactez-nous pour une configuration plus personnalisée."
+        }
+      }
+    },
+    "plans": {
+      "starter": {
+        "label": "Team Core",
+        "price": "Contactez-nous",
+        "desc": "Pour les petites équipes qui mettent en place une organisation plus structurée."
+      },
+      "pro": {
+        "label": "Team Growth",
+        "badge": "Recommandé",
+        "price": "Contactez-nous",
+        "desc": "Pour les équipes en croissance qui ont besoin de plus de pilotage."
+      },
+      "enterprise": {
+        "label": "Entreprise",
+        "price": "Sur mesure",
+        "desc": "Pour les organisations avec besoins avancés, multi-entités ou SLA."
+      }
+    },
+    "features": {
+      "solo": {
+        "title": "Pensé pour les opérateurs solo qui veulent du contrôle sans surcharge",
+        "items": {
+          "one": "Gardez devis, factures et demandes clients dans un seul espace dès le premier jour.",
+          "two": "Présentez vos services clairement avec un catalogue et une page publique qui restent professionnels.",
+          "three": "Passez aux jobs et au suivi des tâches quand l'exécution devient plus exigeante.",
+          "four": "Débloquez planning, réservations, IA et outils de croissance seulement quand votre activité en a besoin.",
+          "five": "Passez plus tard vers une offre équipe sans reconstruire votre façon de travailler."
+        }
+      },
+      "team": {
+        "title": "Inclus dans chaque plan équipe",
+        "items": {
+          "one": "Devis, jobs, tâches et facturation dans un cadre partagé.",
+          "two": "Un seul catalogue pour les services et les produits.",
+          "three": "De meilleurs signaux opérationnels, y compris le contexte issu du scan de plan quand il est pertinent.",
+          "four": "Des validations et plus de visibilité client via le portail.",
+          "five": "Des rôles et permissions qui rendent l'exécution plus propre."
+        }
+      }
+    },
+    "enterprise": {
+      "solo": {
+        "title": "Commencez simple aujourd'hui, passez à plus de structure plus tard",
+        "body": "Démarrez avec un forfait solo adapté à votre réalité actuelle, puis évoluez vers plus de coordination seulement quand les embauches, le volume ou la complexité de l'organisation le rendent nécessaire."
+      },
+      "team": {
+        "title": "Besoin d'un déploiement plus adapté ?",
+        "body": "Si votre équipe a besoin de limites sur mesure, d'une revue sécurité, d'un onboarding dédié ou d'un accompagnement plus guidé, nous pouvons vous aider à cadrer la bonne configuration."
+      }
+    },
+    "actions": {
+      "plan_trial": "Demarrer l'essai",
+      "plan_trial_note": "Inclut 1 mois d'essai pendant l'onboarding.",
+      "primary": "Démarrer l'onboarding",
+      "secondary": "Se connecter"
+    },
+    "comparison": {
+      "title": "Comparez ce qui compte vraiment avant de choisir",
+      "subtitle": "Retrouvez les capacités, limites et niveaux de profondeur opérationnelle inclus dans chaque forfait.",
+      "columns": {
+        "feature": "Fonctionnalités"
+      },
+      "sections": {
+        "fundamentals": "Fondamentaux",
+        "operations": "Opérations terrain",
+        "growth": "Croissance et automatisation"
+      },
+      "rows": {
+        "team_members": "Employés inclus",
+        "account_access": "Accès compte",
+        "clients": "Clients",
+        "requests": "Demandes / leads",
+        "estimates": "Devis",
+        "invoices": "Factures",
+        "catalog": "Catalogue produits et services",
+        "catalog_items": "Articles au catalogue",
+        "client_portal": "Portail client",
+        "jobs": "Jobs",
+        "tasks": "Tâches",
+        "planning": "Planning",
+        "team_planning": "Planning d'équipe",
+        "time_tracking": "Présence et pointage",
+        "reservations": "Réservations et check-in",
+        "recurring_jobs": "Jobs récurrents",
+        "reports": "Rapports intégrés",
+        "permissions": "Équipe et permissions",
+        "automations": "Automatisations avancées",
+        "plan_scan": "Scan de plan et devis IA",
+        "ai_assistant": "Assistant IA",
+        "campaigns": "Campagnes",
+        "loyalty": "Fidélité",
+        "onboarding": "Onboarding dédié",
+        "custom_integrations": "Intégrations et SLA sur mesure"
+      },
+      "values": {
+        "unlimited": "Illimité",
+        "optional": "Option",
+        "owner_only": "1 propriétaire",
+        "limited": "Mode limité",
+        "contact": "Contactez-nous"
+      }
+    }
+  }
+}

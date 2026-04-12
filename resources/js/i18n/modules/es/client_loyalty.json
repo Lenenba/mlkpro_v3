@@ -1,0 +1,25 @@
+{
+  "client_loyalty": {
+    "title": "Mis puntos de fidelidad",
+    "subtitle": "Realice un seguimiento de su saldo disponible y del historial de actividad de sus puntos.",
+    "kpi": {
+      "balance": "Saldo disponible",
+      "earned_period": "Puntos ganados (período)",
+      "spent_period": "Puntos canjeados (período)",
+      "movements": "Movimientos (período)",
+      "earned_lifetime": "Total ganado",
+      "spent_lifetime": "Total canjeado",
+      "movements_lifetime": "Movimientos totales"
+    },
+    "program": {
+      "title": "Reglas del programa",
+      "status": "Estado",
+      "rate": "Tasa de ganancia (pts / $1)",
+      "minimum_spend": "Gasto mínimo",
+      "label": "Etiqueta"
+    },
+    "ledger": {
+      "title": "Historial de puntos"
+    }
+  }
+}

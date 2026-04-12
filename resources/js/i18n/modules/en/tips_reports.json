@@ -1,0 +1,69 @@
+{
+  "tips_reports": {
+    "owner": {
+      "title": "Tips dashboard",
+      "subtitle": "Track optional tips paid by customers."
+    },
+    "member": {
+      "title": "My tips",
+      "subtitle": "Track your tips for completed services."
+    },
+    "actions": {
+      "apply_filters": "Apply filters",
+      "clear_filters": "Clear filters",
+      "export_csv": "Export CSV"
+    },
+    "filters": {
+      "all_team_members": "All team members",
+      "all_services": "All services",
+      "all_statuses": "All statuses",
+      "anonymize_customers": "Anonymize customers"
+    },
+    "period": {
+      "last_7_days": "Last 7 days",
+      "last_30_days": "Last 30 days",
+      "last_90_days": "Last 90 days",
+      "this_month": "This month",
+      "custom": "Custom range"
+    },
+    "kpi": {
+      "total_tips": "Total tips",
+      "average_tip_per_reservation": "Average tip per reservation",
+      "top_members": "Top 3 team members",
+      "top_collectors": "Top collectors",
+      "current_month_tips": "Current month tips",
+      "period_total": "Period total",
+      "average_tip_per_service": "Average tip per service"
+    },
+    "table": {
+      "datetime": "Date and time",
+      "date": "Date",
+      "invoice": "Invoice",
+      "customer": "Customer",
+      "team_member": "Team member",
+      "collected_by": "Collected by",
+      "owner": "Owner",
+      "mode": "Tip mode",
+      "tip_amount": "Tip amount",
+      "total_charged": "Total charged",
+      "status": "Status"
+    },
+    "mode": {
+      "percent": "Percent",
+      "fixed": "Fixed",
+      "none": "None"
+    },
+    "status": {
+      "pending": "Pending",
+      "completed": "Paid",
+      "reversed": "Partially reversed",
+      "failed": "Failed",
+      "refunded": "Reversed"
+    },
+    "empty": {
+      "rows": "No tips found for this filter.",
+      "top_members": "No team member ranking yet.",
+      "top_collectors": "No tip breakdown yet."
+    }
+  }
+}

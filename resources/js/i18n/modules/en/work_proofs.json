@@ -1,0 +1,49 @@
+{
+  "work_proofs": {
+    "title": "Job proofs",
+    "company_fallback": "Company",
+    "labels": {
+      "customer": "Customer",
+      "period": "Period",
+      "status": "Status",
+      "assigned": "Assigned",
+      "task": "Task",
+      "type": "Type",
+      "source": "Source",
+      "by": "By",
+      "note": "Note",
+      "proof": "Proof"
+    },
+    "actions": {
+      "upload_proof": "Upload proof",
+      "close": "Close",
+      "cancel": "Cancel",
+      "upload": "Upload"
+    },
+    "empty": {
+      "task_proofs": "No proofs available for this task.",
+      "tasks": "No tasks available."
+    },
+    "proof": {
+      "title": "Upload proof",
+      "type": "Type",
+      "file_label": "File (photo or video)",
+      "note_optional": "Note (optional)"
+    },
+    "status": {
+      "todo": "To do",
+      "in_progress": "In progress",
+      "done": "Done"
+    },
+    "source": {
+      "client": "Client",
+      "team": "Team",
+      "internal": "Internal"
+    },
+    "type": {
+      "execution": "Execution",
+      "completion": "Completion",
+      "other": "Other"
+    }
+  }
+}

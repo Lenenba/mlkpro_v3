@@ -1,0 +1,22 @@
+{
+  "cookies": {
+    "title": "Cookies",
+    "banner": {
+      "body": "Usamos cookies esenciales para que la plataforma funcione. Puedes aceptar o rechazar las cookies de analitica."
+    },
+    "actions": {
+      "accept_all": "Aceptar todo",
+      "reject_all": "Rechazar todo",
+      "customize": "Personalizar",
+      "save": "Guardar"
+    },
+    "modal": {
+      "title": "Configuracion de cookies",
+      "description": "Elige las cookies que quieres activar. Las cookies esenciales siempre estan activas.",
+      "essential_title": "Esenciales",
+      "essential_description": "Necesarias para el inicio de sesion, la seguridad y las funciones principales del sitio.",
+      "analytics_title": "Analitica (Google Analytics)",
+      "analytics_description": "Nos ayuda a entender el uso para mejorar la plataforma."
+    }
+  }
+}

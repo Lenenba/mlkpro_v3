@@ -1,0 +1,421 @@
+{
+  "reservations": {
+    "title": "Reservations",
+    "subtitle": "Review, confirm, or decline reservations assigned to your team.",
+    "empty": "No reservations yet.",
+    "owner_only": {
+      "staff_notice": "Solo growth keeps reservations in limited mode: view existing reservations, manage the waitlist, and configure global settings, but staff-based booking stays disabled.",
+      "client_notice": "This solo workspace does not offer live appointment slots yet. Join the waitlist instead and the business can follow up manually.",
+      "client_waitlist_hint": "Booking slots and rescheduling stay off in owner-only solo mode."
+    },
+    "stats": {
+      "total": "Total",
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "today": "Today",
+      "upcoming": "Upcoming"
+    },
+    "performance": {
+      "title": "Performance (last {days} days)",
+      "occupancy_rate": "Occupancy rate",
+      "no_show_rate": "No-show rate",
+      "reschedule_rate": "Reschedule rate",
+      "completion_rate": "Completion rate",
+      "avg_service_value": "Avg service value",
+      "tip_rate": "Tip rate",
+      "resource_reservation_rate": "Resource usage",
+      "table_turnover": "Table turnover",
+      "party_size_avg": "Avg party size"
+    },
+    "filters": {
+      "search": "Search",
+      "search_placeholder": "Customer, product, contact...",
+      "status": "Status",
+      "sort": "Sort",
+      "all_statuses": "All statuses",
+      "date_from": "From",
+      "date_to": "To"
+    },
+    "scope": {
+      "mine": "My reservations",
+      "all": "All reservations"
+    },
+    "quick": {
+      "pending": "Pending",
+      "today": "Today",
+      "upcoming": "Upcoming",
+      "past": "Past"
+    },
+    "sort": {
+      "date_asc": "Date (oldest first)",
+      "date_desc": "Date (newest first)",
+      "status": "Status"
+    },
+    "actions": {
+      "new": "New reservation",
+      "create": "Create",
+      "update": "Update",
+      "edit": "Edit",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "decline": "Decline",
+      "confirm": "Confirm",
+      "complete": "Mark completed",
+      "no_show": "Mark no show",
+      "set_pending": "Set pending",
+      "already_confirmed": "Already confirmed",
+      "view": "View",
+      "reschedule": "Reschedule",
+      "filters": "Filters",
+      "clear_filters": "Clear filters",
+      "delete_confirm": "Delete this reservation?"
+    },
+    "form": {
+      "create_title": "Create reservation",
+      "edit_title": "Edit reservation",
+      "customer": "Customer",
+      "item": "Product or service",
+      "status": "Status",
+      "title": "Title",
+      "starts_at": "Starts at",
+      "ends_at": "Ends at",
+      "party_size": "Party size",
+      "quantity": "Quantity",
+      "channel": "Channel",
+      "contact_name": "Contact name",
+      "contact_email": "Email",
+      "contact_phone": "Phone",
+      "notes": "Notes",
+      "internal_notes": "Internal notes",
+      "none": "None"
+    },
+    "table": {
+      "when": "Date/time",
+      "customer": "Customer",
+      "item": "Product/service",
+      "status": "Status",
+      "size_qty": "Size / Qty",
+      "contact": "Contact",
+      "actions": "Actions",
+      "party_size_value": "Party: {value}",
+      "quantity_value": "Qty: {value}"
+    },
+    "waitlist": {
+      "title": "Waitlist",
+      "subtitle": "Track pending demand and release slots quickly.",
+      "empty": "No waitlist entries.",
+      "cards": {
+        "pending": "Pending",
+        "released": "Released",
+        "booked": "Booked"
+      },
+      "status": {
+        "pending": "Pending",
+        "released": "Released",
+        "booked": "Booked",
+        "cancelled": "Cancelled",
+        "expired": "Expired"
+      },
+      "actions": {
+        "release": "Release slot",
+        "booked": "Mark booked",
+        "updated": "Waitlist entry updated.",
+        "update_error": "Unable to update waitlist entry."
+      }
+    },
+    "queue": {
+      "title": "Hybrid queue",
+      "subtitle": "Operate walk-ins and appointments in a single queue.",
+      "empty": "No queue items right now.",
+      "cards": {
+        "waiting": "Waiting",
+        "called": "Called",
+        "in_service": "In service"
+      },
+      "columns": {
+        "ticket": "Ticket",
+        "origin": "Origin",
+        "position": "Position / ETA"
+      },
+      "types": {
+        "appointment": "Appointment",
+        "ticket": "Walk-in ticket"
+      },
+      "origins": {
+        "booking": "BOOKING",
+        "walk_in": "WALK-IN"
+      },
+      "assignment_mode": {
+        "per_staff": "Per staff queue",
+        "global_pull": "Global pull queue"
+      },
+      "status": {
+        "not_arrived": "Not arrived",
+        "checked_in": "Checked-in",
+        "pre_called": "Pre-call",
+        "called": "Called",
+        "skipped": "Skipped",
+        "in_service": "In service",
+        "done": "Done",
+        "no_show": "No show",
+        "cancelled": "Cancelled",
+        "left": "Left"
+      },
+      "actions": {
+        "check_in": "Check-in",
+        "pre_call": "Pre-call",
+        "call": "Call",
+        "start": "Start",
+        "done": "Done",
+        "skip": "Skip",
+        "call_next": "Call next",
+        "updated": "Queue item updated.",
+        "update_error": "Unable to update queue item.",
+        "call_next_empty": "No callable queue item is available right now."
+      },
+      "client": {
+        "title": "Walk-in queue",
+        "subtitle": "Take a ticket, track your position, and confirm presence.",
+        "estimated_duration": "Estimated duration (minutes)",
+        "notes": "Notes",
+        "create": "Take a ticket",
+        "created": "Queue ticket created.",
+        "create_error": "Unable to create queue ticket.",
+        "update_error": "Unable to update queue ticket.",
+        "cancelled": "Queue ticket cancelled.",
+        "still_here": "Still here",
+        "still_here_done": "Presence confirmed.",
+        "none": "No queue tickets.",
+        "kiosk_only_notice": "Ticket creation is now done on the in-salon kiosk."
+      },
+      "screen": {
+        "open": "Open live screen",
+        "title": "Live queue screen",
+        "subtitle": "Display now serving and waiting flow for salon or restaurant operations.",
+        "refresh": "Refresh",
+        "refresh_error": "Unable to refresh live screen data.",
+        "updated_at": "Updated",
+        "mode_tv": "TV mode",
+        "mode_board": "Board mode",
+        "now_serving": "Now serving",
+        "current": "Current",
+        "timer": "Timer",
+        "up_next": "Up next",
+        "no_next": "No next client",
+        "overview": "Overview",
+        "total_active": "Total active",
+        "no_chairs": "No active chair is configured for this screen.",
+        "waiting_list": "Waiting list",
+        "call_expires": "Call expires",
+        "show_names": "Show names",
+        "hide_names": "Hide names",
+        "assignment_mode": "Queue mode",
+        "metrics": {
+          "seats_active": "Seats active",
+          "occupied": "Occupied",
+          "ready": "Ready",
+          "avg_wait": "Avg wait",
+          "next_booking": "Next booking"
+        },
+        "states": {
+          "available": "Available",
+          "available_ready": "Available - next ready",
+          "called": "Called",
+          "in_service": "In service",
+          "check_in_needed": "Check-in needed",
+          "blocked": "Blocked"
+        },
+        "disabled": "Hybrid queue mode is disabled. Enable it in reservation settings."
+      }
+    },
+    "kiosk": {
+      "title": "Salon kiosk",
+      "subtitle": "Take a walk-in ticket, check in as an existing client, or track your ticket.",
+      "open": "Open kiosk",
+      "tabs": {
+        "walk_in": "Walk-in",
+        "known_client": "Already a client",
+        "track": "Track ticket"
+      },
+      "fields": {
+        "phone": "Phone number",
+        "guest_name": "First name (optional)",
+        "code": "Verification code",
+        "queue_number": "Ticket number (optional)",
+        "any_service": "Any service",
+        "any_team_member": "Any team member"
+      },
+      "labels": {
+        "ticket": "Ticket"
+      },
+      "walk_in": {
+        "title": "Take a walk-in ticket",
+        "subtitle": "Enter your phone, choose service/member if needed, and receive your position/ETA.",
+        "submit": "Take my ticket"
+      },
+      "known_client": {
+        "title": "I am already a client",
+        "subtitle": "Find your profile by phone and continue with the best path.",
+        "lookup": "Find my profile",
+        "verify_prompt": "A verification code is required for this account.",
+        "verify": "Verify phone",
+        "debug_code": "Debug code",
+        "reservation_ready": "You have a nearby reservation ready for check-in.",
+        "check_in": "Check-in now",
+        "create_ticket_help": "No nearby reservation found. You can take a ticket in your name.",
+        "create_ticket": "Take a ticket",
+        "active_ticket": "You already have an active ticket."
+      },
+      "track": {
+        "title": "Track my ticket",
+        "subtitle": "Check position and ETA using your phone and optional ticket number.",
+        "submit": "Track ticket"
+      },
+      "messages": {
+        "ticket_created": "Queue ticket created.",
+        "check_in_done": "Reservation checked in.",
+        "client_not_found": "No existing client profile found for this phone.",
+        "client_found": "Client profile found.",
+        "code_sent": "Verification code sent.",
+        "phone_verified": "Phone verified.",
+        "active_ticket_exists": "You already have an active ticket for this phone number."
+      },
+      "errors": {
+        "lookup": "Unable to search this client.",
+        "lookup_first": "Please search a client first.",
+        "verify": "Unable to verify this code.",
+        "check_in": "Unable to check in this reservation.",
+        "create_ticket": "Unable to create ticket.",
+        "track": "Unable to track this ticket.",
+        "track_not_found": "No ticket found for these details."
+      }
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "showing": "{from} - {to}"
+    },
+    "view": {
+      "list": "List"
+    },
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "rescheduled": "Rescheduled",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "no_show": "No show"
+    },
+    "legend": {
+      "title": "Status legend",
+      "tip": "Actions depend on current status.",
+      "pending": "Waiting for confirmation. You can confirm or decline.",
+      "confirmed": "Confirmed and planned. You can complete, mark no-show, or cancel.",
+      "rescheduled": "Time was changed. You can confirm or decline.",
+      "completed": "Service finished. No further status action is required.",
+      "cancelled": "Reservation was cancelled or declined.",
+      "no_show": "Client did not attend."
+    },
+    "errors": {
+      "load_events": "Unable to load reservation events.",
+      "load_slots": "Unable to load available slots.",
+      "cancel": "Unable to cancel this reservation.",
+      "create": "Unable to create reservation.",
+      "reschedule": "Unable to reschedule this reservation.",
+      "update_status": "Unable to update reservation status.",
+      "validation": "Please correct the highlighted fields."
+    },
+    "item_type": {
+      "service": "Service",
+      "product": "Product"
+    },
+    "payment_policy": {
+      "title": "Payment policy snapshot",
+      "deposit": "Deposit",
+      "no_show_fee": "No-show fee",
+      "none": "None"
+    },
+    "client": {
+      "book": {
+        "title": "Book reservation",
+        "subtitle": "Choose a slot that works best for you.",
+        "my_reservations": "My reservations",
+        "summary_title": "Booking details",
+        "selected_slot": "Selected slot",
+        "loading_slots": "Loading available slots...",
+        "no_availability": "No availability for this range. Try another week or service.",
+        "upcoming_title": "Upcoming reservations",
+        "default_service": "Reservation",
+        "no_upcoming": "No upcoming reservations.",
+        "select_slot_error": "Select an available slot to continue.",
+        "deposit_notice": "Booking deposit required: {amount}",
+        "no_show_notice": "No-show fee policy: {amount}",
+        "fields": {
+          "team_member": "Team member",
+          "service": "Service",
+          "duration": "Duration (minutes)",
+          "party_size": "Party size",
+          "contact_name": "Contact name",
+          "contact_email": "Contact email",
+          "contact_phone": "Contact phone",
+          "client_notes": "Notes"
+        },
+        "actions": {
+          "submit": "Submit reservation",
+          "submitting": "Submitting...",
+          "submitted": "Reservation request submitted."
+        },
+        "waitlist": {
+          "title": "Join the waitlist",
+          "description": "No matching slot right now. Join the waitlist and get priority when a slot is released.",
+          "join_button": "Join waitlist",
+          "created": "Waitlist request submitted.",
+          "create_error": "Unable to create waitlist request.",
+          "cancelled": "Waitlist entry cancelled.",
+          "cancel_error": "Unable to cancel waitlist entry.",
+          "notes": "Preferred details",
+          "my_entries": "My waitlist entries",
+          "none": "No waitlist entries."
+        }
+      },
+      "index": {
+        "title": "My reservations",
+        "subtitle": "Track, cancel, or reschedule your bookings.",
+        "book_button": "Book a reservation",
+        "empty": "You don't have reservations yet.",
+        "details_title": "Reservation details",
+        "reschedule_title": "Reschedule reservation",
+        "reschedule_member": "Team member",
+        "reschedule_notes": "Notes",
+        "any_available": "Any available",
+        "cancel_prompt": "Optional cancellation reason:",
+        "select_slot_error": "Select a slot before submitting.",
+        "cancellation_cutoff": "Cancellation cutoff: {hours} hour(s) before start.",
+        "review": {
+          "title": "Rate your reservation",
+          "description": "Share your feedback after the service is completed.",
+          "fields": {
+            "rating": "Rating",
+            "feedback": "Feedback"
+          },
+          "actions": {
+            "leave": "Leave a review",
+            "submit": "Submit review",
+            "submitting": "Submitting..."
+          },
+          "labels": {
+            "excellent": "Excellent",
+            "good": "Good",
+            "okay": "Okay",
+            "poor": "Poor",
+            "bad": "Bad"
+          },
+          "errors": {
+            "generic": "Unable to submit reservation review."
+          }
+        }
+      }
+    }
+  }
+}

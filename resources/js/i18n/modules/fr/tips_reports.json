@@ -1,0 +1,69 @@
+{
+  "tips_reports": {
+    "owner": {
+      "title": "Dashboard pourboires",
+      "subtitle": "Suivi des pourboires optionnels payes par les clients."
+    },
+    "member": {
+      "title": "Mes pourboires",
+      "subtitle": "Suivi de vos pourboires sur les services termines."
+    },
+    "actions": {
+      "apply_filters": "Appliquer filtres",
+      "clear_filters": "Effacer filtres",
+      "export_csv": "Exporter CSV"
+    },
+    "filters": {
+      "all_team_members": "Toute l equipe",
+      "all_services": "Tous les services",
+      "all_statuses": "Tous les statuts",
+      "anonymize_customers": "Anonymiser clients"
+    },
+    "period": {
+      "last_7_days": "7 derniers jours",
+      "last_30_days": "30 derniers jours",
+      "last_90_days": "90 derniers jours",
+      "this_month": "Ce mois-ci",
+      "custom": "Periode personnalisee"
+    },
+    "kpi": {
+      "total_tips": "Total pourboires",
+      "average_tip_per_reservation": "Moyenne pourboire / reservation",
+      "top_members": "Top 3 membres",
+      "top_collectors": "Principaux collecteurs",
+      "current_month_tips": "Pourboires du mois",
+      "period_total": "Total periode",
+      "average_tip_per_service": "Moyenne pourboire / service"
+    },
+    "table": {
+      "datetime": "Date et heure",
+      "date": "Date",
+      "invoice": "Facture",
+      "customer": "Client",
+      "team_member": "Membre equipe",
+      "collected_by": "Collecte par",
+      "owner": "Proprietaire",
+      "mode": "Mode pourboire",
+      "tip_amount": "Montant pourboire",
+      "total_charged": "Total encaisse",
+      "status": "Statut"
+    },
+    "mode": {
+      "percent": "Pourcentage",
+      "fixed": "Fixe",
+      "none": "Aucun"
+    },
+    "status": {
+      "pending": "En attente",
+      "completed": "Paye",
+      "reversed": "Partiellement inverse",
+      "failed": "Echoue",
+      "refunded": "Inverse"
+    },
+    "empty": {
+      "rows": "Aucun pourboire pour ce filtre.",
+      "top_members": "Aucun classement membre pour le moment.",
+      "top_collectors": "Aucune repartition disponible pour le moment."
+    }
+  }
+}

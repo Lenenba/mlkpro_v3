@@ -1,0 +1,69 @@
+{
+  "tips_reports": {
+    "owner": {
+      "title": "Panel de consejos",
+      "subtitle": "Realice un seguimiento de las propinas opcionales pagadas por los clientes."
+    },
+    "member": {
+      "title": "Mis consejos",
+      "subtitle": "Realice un seguimiento de sus propinas para los servicios completados."
+    },
+    "actions": {
+      "apply_filters": "Aplicar filtros",
+      "clear_filters": "Limpiar filtros",
+      "export_csv": "Exportar CSV"
+    },
+    "filters": {
+      "all_team_members": "Todos los miembros del equipo",
+      "all_services": "Todos los servicios",
+      "all_statuses": "Todos los estados",
+      "anonymize_customers": "Anonimizar a los clientes"
+    },
+    "period": {
+      "last_7_days": "últimos 7 días",
+      "last_30_days": "últimos 30 días",
+      "last_90_days": "últimos 90 días",
+      "this_month": "este mes",
+      "custom": "Rango personalizado"
+    },
+    "kpi": {
+      "total_tips": "propinas totales",
+      "average_tip_per_reservation": "Propina media por reserva",
+      "top_members": "Los 3 mejores miembros del equipo",
+      "top_collectors": "Mejores coleccionistas",
+      "current_month_tips": "Consejos del mes actual",
+      "period_total": "Total del período",
+      "average_tip_per_service": "Propina promedio por servicio"
+    },
+    "table": {
+      "datetime": "Fecha y hora",
+      "date": "Fecha",
+      "invoice": "Factura",
+      "customer": "Cliente",
+      "team_member": "Miembro del equipo",
+      "collected_by": "Recogido por",
+      "owner": "propietario",
+      "mode": "Modo propina",
+      "tip_amount": "Monto de propina",
+      "total_charged": "Total cobrado",
+      "status": "Estado"
+    },
+    "mode": {
+      "percent": "Porcentaje",
+      "fixed": "Fijo",
+      "none": "Ninguno"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "completed": "Pagado",
+      "reversed": "Parcialmente invertido",
+      "failed": "Fallido",
+      "refunded": "Revertido"
+    },
+    "empty": {
+      "rows": "No se encontraron sugerencias para este filtro.",
+      "top_members": "Aún no hay clasificación de miembros del equipo.",
+      "top_collectors": "Aún no hay desglose de las propinas."
+    }
+  }
+}

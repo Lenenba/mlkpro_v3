@@ -1,0 +1,20 @@
+{
+  "quick_create": {
+    "customer": "Cliente",
+    "service": "Servicio",
+    "request": "Solicitud",
+    "quote": "Cotizacion",
+    "product": "Producto",
+    "new_customer": "Nuevo cliente",
+    "create_customer": "Crear cliente",
+    "new_product": "Nuevo producto",
+    "new_service": "Nuevo servicio",
+    "new_quote": "Nueva cotizacion",
+    "new_request": "Nueva solicitud",
+    "loading_categories": "Cargando categorias...",
+    "errors": {
+      "load_customers": "No se pueden cargar los clientes.",
+      "load_categories": "No se pueden cargar las categorias."
+    }
+  }
+}

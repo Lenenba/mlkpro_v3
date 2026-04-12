@@ -1,0 +1,26 @@
+{
+  "public_pages": {
+    "actions": {
+      "home": "Accueil",
+      "login": "Se connecter"
+    },
+    "hero_eyebrow": {
+      "contact": "Contact",
+      "solutions": "Solutions",
+      "industries": "Industries",
+      "products": "Produits"
+    },
+    "fallbacks": {
+      "hero_image_alt": "Hero de page",
+      "embedded_form_title": "Formulaire integre"
+    },
+    "fallback_menu": {
+      "industries": "Industries",
+      "plumbing": "Plomberie",
+      "electrical": "Electricite",
+      "cleaning": "Nettoyage",
+      "salon_beauty": "Salon & beaute",
+      "restaurant": "Restaurant"
+    }
+  }
+}

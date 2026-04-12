@@ -1,0 +1,137 @@
+{
+  "invoices": {
+    "title": "Facturas",
+    "company_fallback": "Empresa",
+    "view": {
+      "table": "Tabla",
+      "cards": "Tarjetas"
+    },
+    "filters": {
+      "search_placeholder": "Buscar número de factura o cliente",
+      "status": {
+        "all": "Todos los estados"
+      },
+      "customer": {
+        "all": "Todos los clientes"
+      },
+      "total_min": "Total mínimo",
+      "total_max": "total máximo",
+      "created_from": "Creado a partir de",
+      "created_to": "Creado para"
+    },
+    "status": {
+      "draft": "Borrador",
+      "sent": "Enviado",
+      "partial": "Parcial",
+      "paid": "Pagado",
+      "overdue": "Vencido",
+      "void": "vacío"
+    },
+    "table": {
+      "invoice": "Factura",
+      "customer": "Cliente",
+      "status": "Estado",
+      "rating": "Calificación",
+      "total": "Total",
+      "balance_due": "Saldo adeudado",
+      "created": "Creado",
+      "results": "resultados"
+    },
+    "stats": {
+      "total": "Facturas totales",
+      "total_value": "Valor total",
+      "outstanding": "Sobresaliente",
+      "open": "Abierto",
+      "paid": "Pagado",
+      "partial": "Parcial"
+    },
+    "actions": {
+      "filters": "Filtros",
+      "clear": "Borrar",
+      "send_invoice": "Enviar factura",
+      "resend_invoice": "Reenviar factura",
+      "sending_invoice": "Enviando...",
+      "view_invoice": "Ver factura",
+      "view_job": "Ver trabajo",
+      "view_customer": "Ver cliente"
+    },
+    "labels": {
+      "invoice_number": "Factura #{id}",
+      "unknown_customer": "Desconocido",
+      "customer_fallback": "Cliente",
+      "job_fallback": "Trabajo",
+      "method_fallback": "método"
+    },
+    "show": {
+      "title": "Factura {number}",
+      "invoice_for": "Factura de {customer}",
+      "timeline": "Línea de tiempo",
+      "download_pdf": "Descargar PDF",
+      "property_address": "Dirección de la propiedad",
+      "no_property": "Ninguna propiedad seleccionada.",
+      "contact_details": "Detalles de contacto",
+      "invoice_details": "Detalles de la factura",
+      "invoice_label": "Factura",
+      "issued": "Emitido",
+      "balance_due": "Saldo adeudado",
+      "job_rating": "Calificación del trabajo",
+      "no_rating": "Aún no hay calificación",
+      "table": {
+        "tasks": "Tareas",
+        "products_services": "Producto/Servicios",
+        "date": "Fecha",
+        "time": "Hora",
+        "assignee": "Cesionario",
+        "qty": "Cant.",
+        "unit_cost": "Costo unitario",
+        "total": "Total"
+      },
+      "line_items_empty": "Sin líneas de pedido.",
+      "summary": {
+        "subtotal": "Subtotal",
+        "paid": "Pagado",
+        "total_amount": "Monto total",
+        "balance_due": "Saldo adeudado"
+      },
+      "payments": {
+        "title": "Pagos",
+        "empty": "Aún no hay pagos.",
+        "subtotal": "Subtotal",
+        "tip": "consejo",
+        "total_paid": "Total pagado",
+        "tip_assigned_to": "Consejo asignado a",
+        "pending_cash": "Pago pendiente (efectivo)",
+        "mark_paid": "Marcar como pagado",
+        "marking_paid": "Marcando...",
+        "status": {
+          "pending": "Pendiente",
+          "completed": "Pagado",
+          "paid": "Pagado",
+          "failed": "Fallido",
+          "refunded": "Reembolsado",
+          "reversed": "Revertido"
+        }
+      },
+      "add_payment": {
+        "title": "Agregar pago",
+        "amount": "Cantidad",
+        "method": "Método (tarjeta, transferencia)",
+        "reference": "Referencia",
+        "paid_at": "fecha de pago",
+        "notes": "Notas",
+        "submit": "Pago récord"
+      },
+      "actions": {
+        "record_payment": "Registrar pago"
+      }
+    },
+    "empty": {
+      "invoices": "Aún no hay facturas."
+    },
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "of": "de"
+    }
+  }
+}

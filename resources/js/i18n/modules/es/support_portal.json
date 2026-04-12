@@ -1,0 +1,126 @@
+{
+  "support_portal": {
+    "page_title": "Solicitudes de soporte",
+    "title": "Soporte e incidencias",
+    "subtitle": "Reportar errores o incidencias al equipo de la plataforma.",
+    "actions": {
+      "new_ticket": "Nueva solicitud",
+      "submit": "Enviar solicitud",
+      "close": "Cerrar",
+      "update": "Actualizar",
+      "save": "Guardar cambios",
+      "view": "Ver",
+      "back": "Atrás",
+      "send": "enviar mensaje"
+    },
+    "stats": {
+      "total": "Total",
+      "open": "Abierto",
+      "assigned": "Asignado",
+      "pending": "Pendiente",
+      "resolved": "Resuelto",
+      "closed": "Cerrado"
+    },
+    "filters": {
+      "search_placeholder": "Solicitudes de búsqueda",
+      "status": "Estado",
+      "priority": "Prioridad",
+      "toggle": "Filtros",
+      "clear": "Borrar",
+      "apply": "Aplicar"
+    },
+    "table": {
+      "title": "Título",
+      "category": "categoría",
+      "status": "Estado",
+      "priority": "Prioridad",
+      "created": "Creado",
+      "empty": "Aún no hay solicitudes de soporte."
+    },
+    "form": {
+      "category": "categoría",
+      "title": "Título",
+      "description": "Describe el problema",
+      "priority": "Prioridad",
+      "status": "Estado",
+      "message": "Escribe un mensaje"
+    },
+    "editor": {
+      "heading_2": "Título 2",
+      "heading_3": "Título 3",
+      "bold": "Negrita",
+      "italic": "cursiva",
+      "underline": "subrayado",
+      "unordered_list": "Lista con viñetas",
+      "ordered_list": "lista numerada",
+      "quote": "Cotización",
+      "code_block": "bloque de código",
+      "horizontal_rule": "Divisor",
+      "link": "Enlace",
+      "image": "Imagen",
+      "ai_image": "imagen de IA",
+      "clear": "Borrar formato",
+      "link_prompt": "Introduzca una URL de enlace",
+      "image_prompt": "Introduzca una URL de imagen",
+      "ai_prompt": "Describe la imagen a generar."
+    },
+    "labels": {
+      "ticket": "ticket de soporte",
+      "assigned_to": "Asignado a",
+      "not_assigned": "No asignado",
+      "created_at": "Creado",
+      "priority": "Prioridad",
+      "sla_due": "SLA vencido",
+      "system": "Sistema",
+      "unknown": "Desconocido"
+    },
+    "sections": {
+      "conversation": "Conversación",
+      "history": "Historia",
+      "update": "Actualizar ticket",
+      "details": "Detalles",
+      "attachments": "Adjuntos"
+    },
+    "attachments": {
+      "label": "Adjuntos",
+      "help": "Agregue capturas de pantalla o archivos PDF (máximo 4, 10 MB cada uno).",
+      "file": "Adjunto"
+    },
+    "audit": {
+      "actions": {
+        "support_ticket.created": "Boleto creado",
+        "support_ticket.updated": "Boleto actualizado",
+        "support_ticket.assigned": "Boleto asignado",
+        "support_ticket.status_changed": "Estado actualizado",
+        "support_ticket.message_added": "Mensaje agregado",
+        "support_ticket.sla_due_soon_sent": "Recordatorio de SLA enviado",
+        "support_ticket.sla_overdue_sent": "Se envió un recordatorio de SLA vencido",
+        "support_ticket.unassigned_reminder_sent": "Recordatorio no asignado enviado"
+      }
+    },
+    "empty": {
+      "conversation": "Aún no hay mensajes.",
+      "history": "Aún no hay actividad.",
+      "attachments": "Aún no hay archivos adjuntos."
+    },
+    "categories": {
+      "incident": "Incidente",
+      "bug": "Error",
+      "feature": "Solicitud de función",
+      "other": "Otro"
+    },
+    "priorities": {
+      "low": "Bajo",
+      "normal": "normales",
+      "high": "Alto",
+      "urgent": "Urgente"
+    },
+    "statuses": {
+      "open": "Abierto",
+      "assigned": "Asignado",
+      "pending": "Pendiente",
+      "resolved": "Resuelto",
+      "closed": "Cerrado"
+    }
+  }
+}

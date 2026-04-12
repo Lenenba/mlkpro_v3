@@ -1,0 +1,20 @@
+{
+  "quick_create": {
+    "customer": "Customer",
+    "service": "Service",
+    "request": "Request",
+    "quote": "Quote",
+    "product": "Product",
+    "new_customer": "New customer",
+    "create_customer": "Create customer",
+    "new_product": "New product",
+    "new_service": "New service",
+    "new_quote": "New quote",
+    "new_request": "New request",
+    "loading_categories": "Loading categories...",
+    "errors": {
+      "load_customers": "Unable to load customers.",
+      "load_categories": "Unable to load categories."
+    }
+  }
+}

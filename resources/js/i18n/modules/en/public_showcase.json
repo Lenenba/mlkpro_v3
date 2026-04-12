@@ -1,0 +1,37 @@
+{
+  "public_showcase": {
+    "title": "{company} services",
+    "company_fallback": "Company",
+    "eyebrow": "Service showcase",
+    "headline": "Services by {company}.",
+    "subheadline": "Browse the services we deliver for your projects.",
+    "cta_request": "Request a quote",
+    "cta_contact": "Contact us",
+    "featured": "Featured service",
+    "empty": "No services available yet.",
+    "empty_description": "No description available.",
+    "category_fallback": "Uncategorized",
+    "price_from": "From",
+    "price_quote": "Quote required",
+    "stats_services": "{count} services",
+    "stats_categories": "{count} categories",
+    "filters": {
+      "search": "Search",
+      "search_placeholder": "Search services",
+      "category": "Category",
+      "all": "All categories"
+    },
+    "sections": {
+      "services": "Services",
+      "services_hint": "Pick a service and request a quote in minutes."
+    },
+    "contact": {
+      "title": "Contact us",
+      "subtitle": "Tell us about your project and we will respond quickly.",
+      "phone": "Phone",
+      "email": "Email",
+      "location": "Location",
+      "empty": "Contact details are coming soon."
+    }
+  }
+}

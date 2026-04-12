@@ -1,22 +1,4 @@
-import en from '../i18n/en.json';
-import es from '../i18n/es.json';
-import fr from '../i18n/fr.json';
-
-const localeMessages = { fr, en, es };
-
-const normalizeLocale = (locale = 'fr') => {
-    const value = String(locale || 'fr').toLowerCase();
-
-    if (value.startsWith('fr')) {
-        return 'fr';
-    }
-
-    if (value.startsWith('es')) {
-        return 'es';
-    }
-
-    return 'en';
-};
+import { localeMessages, normalizeLocale } from '../i18n/catalog';
 
 const getMessageValue = (locale, path) => {
     const segments = String(path || '')
@@ -28,7 +10,7 @@ const getMessageValue = (locale, path) => {
         return '';
     }
 
-    const resolvedLocale = normalizeLocale(locale);
+    const resolvedLocale = normalizeLocale(String(locale || 'fr').toLowerCase().slice(0, 2));
     const sources = [
         localeMessages[resolvedLocale],
         localeMessages.en,

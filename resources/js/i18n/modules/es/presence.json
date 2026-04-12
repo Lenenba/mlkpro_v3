@@ -1,0 +1,45 @@
+{
+  "presence": {
+    "title": "Presencia",
+    "subtitle": "Realice un seguimiento de la asistencia y los registros del equipo.",
+    "cards": {
+      "settings": "Configuración de presencia",
+      "me": "mi estado",
+      "team": "Presencia del equipo"
+    },
+    "labels": {
+      "auto_clock_in": "Registro automático al iniciar sesión",
+      "auto_clock_out": "Salida automática al cerrar sesión",
+      "manual_clock": "Entrada/salida manual",
+      "enabled": "Habilitado",
+      "disabled": "Discapacitado",
+      "status": "Estado",
+      "last_in": "Último fichaje",
+      "last_out": "último reloj de salida",
+      "method": "Método",
+      "jobs_today": "Empleos hoy",
+      "tasks_today": "Tareas hoy",
+      "none": "--",
+      "role_fallback": "Miembro del equipo"
+    },
+    "status": {
+      "clocked_in": "Marcado en",
+      "clocked_out": "marcado fuera",
+      "no_activity": "Sin actividad"
+    },
+    "actions": {
+      "clock_in": "Regístrese",
+      "clock_out": "Reloj de salida",
+      "clocking_in": "Fichando...",
+      "clocking_out": "Fichando la salida..."
+    },
+    "help": {
+      "manual_disabled": "El propietario desactiva el marcado manual."
+    },
+    "errors": {
+      "clock_in": "No se puede registrar la entrada.",
+      "clock_out": "No se puede marcar la salida."
+    },
+    "empty": "No hay miembros del equipo para mostrar."
+  }
+}

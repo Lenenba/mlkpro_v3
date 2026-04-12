@@ -1,0 +1,398 @@
+{
+  "products": {
+    "title": "Products",
+    "single": "Product",
+    "stats": {
+      "total": "Total products",
+      "inventory_value": "Inventory value",
+      "in_stock": "In stock",
+      "low_stock": "Low stock",
+      "out_of_stock": "Out of stock",
+      "rotation": "Stock rotation"
+    },
+    "usage": {
+      "title": "Most used products",
+      "subtitle": "Based on quotes and jobs",
+      "used": "{count} used",
+      "empty": "No usage data yet."
+    },
+    "aria": {
+      "dropdown": "Dropdown"
+    },
+    "labels": {
+      "no_sku": "No SKU",
+      "barcode": "Barcode",
+      "unit": "Unit",
+      "category": "Category",
+      "tracking": "Tracking",
+      "stock": "Stock",
+      "available": "Available",
+      "minimum": "Minimum",
+      "minimum_short": "Min",
+      "reserved": "Reserved",
+      "damaged": "Damaged",
+      "cost": "Cost",
+      "margin": "Margin",
+      "value": "Value",
+      "warehouse_short": "wh",
+      "warehouse": "Warehouse",
+      "bin": "Bin",
+      "on_hand": "On hand",
+      "quantity": "Qty",
+      "received": "Received",
+      "expires": "Expires",
+      "next_expiry": "Next expiry",
+      "status": "Status",
+      "created": "Created",
+      "no_supplier": "No supplier",
+      "main_warehouse": "Main warehouse",
+      "no_location": "No location set",
+      "uncategorized": "Uncategorized",
+      "supplier": "Supplier",
+      "supplier_email": "Supplier email",
+      "product_image_alt": "Product image",
+      "no_note": "No note"
+    },
+    "status": {
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "stock_status": {
+      "in_stock": "In stock",
+      "low_stock": "Low stock",
+      "out_of_stock": "Out of stock"
+    },
+    "tracking": {
+      "standard": "Standard",
+      "lot": "Lot",
+      "serial": "Serial",
+      "standard_full": "Standard (no lot/serial)",
+      "lot_tracked": "Lot tracked",
+      "serial_tracked": "Serial tracked",
+      "lots": "Lots",
+      "serials": "Serials",
+      "none": "No lots"
+    },
+    "alerts": {
+      "out_of_stock": "Out of stock",
+      "low_stock": "Low stock",
+      "in_stock": "Stock OK",
+      "damaged_count": "Damaged {count}",
+      "reserved_count": "Reserved {count}",
+      "expired_lots_count": "Expired {count}",
+      "expiring_lots_count": "Expiring {count}",
+      "damaged_items": "Damaged items",
+      "reserved_orders": "Reserved orders",
+      "expired_lots": "Expired lots",
+      "expiring_lots": "Expiring lots",
+      "damaged": "Damaged",
+      "reserved": "Reserved",
+      "expiring": "Expiring soon",
+      "expired": "Expired",
+      "reorder": "Reorder point",
+      "none": "No alerts",
+      "details_title": "Alert details",
+      "open_details": "Open {label} details",
+      "select_alert": "Select an alert to view details.",
+      "select_alert_badge": "Select an alert badge to view its details.",
+      "stock_depleted": "Stock is depleted.",
+      "stock_below_min": "Stock is below minimum threshold.",
+      "damaged_stock": "Damaged stock",
+      "no_damaged_stock": "No damaged stock recorded for this product.",
+      "recent_damage_movements": "Recent damage movements",
+      "no_damage_movements": "No damage movements yet.",
+      "loading_reserved_orders": "Loading reserved orders...",
+      "reserved_orders_error": "Unable to load reserved orders.",
+      "no_reserved_orders": "No reserved orders for this product.",
+      "no_lots_for_alert": "No lots to show for this alert."
+    },
+    "orders": {
+      "status": {
+        "pending": "Pending",
+        "draft": "Draft",
+        "paid": "Paid",
+        "canceled": "Canceled"
+      },
+      "fulfillment": {
+        "pending": "Pending",
+        "preparing": "Preparing",
+        "out_for_delivery": "Out for delivery",
+        "ready_for_pickup": "Ready for pickup",
+        "completed": "Completed",
+        "confirmed": "Confirmed"
+      },
+      "order_label": "Order {number}",
+      "customer_fallback": "Customer",
+      "fulfillment_label": "Fulfillment",
+      "method": "Method",
+      "scheduled": "Scheduled",
+      "view_order": "View order"
+    },
+    "filters": {
+      "search_placeholder": "Search products, SKU, or barcode",
+      "stock": {
+        "all": "All stock"
+      },
+      "alerts": {
+        "all": "All alerts",
+        "label": "Alerts"
+      },
+      "tracking": {
+        "all": "All tracking"
+      },
+      "warehouse": {
+        "all": "All warehouses",
+        "default": "Default"
+      },
+      "status": {
+        "all": "All status"
+      },
+      "media": {
+        "all": "All media",
+        "label": "Media",
+        "with_image": "With image",
+        "without_image": "Without image"
+      },
+      "price_min": "Price min",
+      "price_max": "Price max",
+      "stock_min": "Stock min",
+      "stock_max": "Stock max",
+      "supplier_name": "Supplier name",
+      "barcodes": {
+        "all": "All barcodes",
+        "label": "Barcodes",
+        "with": "With barcode",
+        "without": "Without barcode"
+      },
+      "created_from": "Created from",
+      "created_to": "Created to"
+    },
+    "actions": {
+      "filters": "Filters",
+      "export_csv": "Export CSV",
+      "import_csv": "Import CSV",
+      "add_product": "Add product",
+      "clear": "Clear",
+      "archive": "Archive",
+      "restore": "Restore",
+      "delete": "Delete",
+      "edit": "Edit",
+      "view": "View",
+      "quick_edit": "Quick edit",
+      "adjust_stock": "Adjust stock",
+      "duplicate": "Duplicate",
+      "save": "Save",
+      "cancel": "Cancel",
+      "import": "Import",
+      "update_product": "Update product",
+      "create_product": "Create product",
+      "delete_confirm": "Delete \"{name}\"?",
+      "archive_confirm": "{action} \"{name}\"?",
+      "edit_product": "Edit product",
+      "view_product": "View product",
+      "request_supplier": "Request supplier stock",
+      "request_supplier_confirm": "Request stock replenishment from supplier?",
+      "back_to_list": "Back to products",
+      "remove": "Remove"
+    },
+    "bulk": {
+      "selected": "{count} selected",
+      "actions": "Bulk actions",
+      "delete_confirm": "Delete selected products?"
+    },
+    "table": {
+      "name": "Name",
+      "state": "State",
+      "stock_status": "Stock status",
+      "pricing": "Pricing",
+      "inventory": "Inventory",
+      "tracking": "Tracking / Lots",
+      "alerts": "Alerts",
+      "supplier_location": "Supplier / Location",
+      "category": "Category"
+    },
+    "empty": {
+      "title": "No products",
+      "subtitle": "Add a product to start your catalog.",
+      "add_action": "Add product"
+    },
+    "pagination": {
+      "results": "results",
+      "previous": "Previous",
+      "next": "Next",
+      "of": "of",
+      "label": "Pagination"
+    },
+    "import": {
+      "title": "Import products",
+      "csv_file": "CSV file"
+    },
+    "adjust": {
+      "title": "Adjust stock",
+      "product": "Product",
+      "type_label": "Adjustment type",
+      "warehouse_label": "Warehouse",
+      "reason_label": "Reason",
+      "low_stock_alert": "Low stock alert. Minimum is {min}.",
+      "types": {
+        "in": "Stock in",
+        "out": "Stock out",
+        "adjust": "Adjust",
+        "damage": "Damage",
+        "spoilage": "Spoilage"
+      },
+      "quantity_change": "Quantity change",
+      "select_warehouse": "Select warehouse",
+      "unit_cost_optional": "Unit cost (optional)",
+      "note_optional": "Note (optional)",
+      "lot_number": "Lot number",
+      "serial_number": "Serial number",
+      "serial_note": "Serial-tracked items are adjusted one at a time.",
+      "serial_mode_single": "Single",
+      "serial_mode_batch": "Batch",
+      "serial_batch_placeholder": "Paste one serial per line, or separate by commas.",
+      "serial_batch_hint": "Quantity is calculated automatically from the list.",
+      "serial_batch_count": "{count} serials",
+      "serial_batch_duplicates": "{count} duplicate(s) detected in the list.",
+      "serial_range_placeholder": "Ex: EQP-001..050",
+      "serial_range_add": "Generate range",
+      "serial_range_help": "Generates a list from a range.",
+      "serial_range_invalid": "Invalid format. Use e.g. EQP-001..050.",
+      "serial_range_too_many": "Too many serials ({count}).",
+      "no_warehouse_hint": "Add a warehouse in settings before adjusting stock.",
+      "recent_movements": "Recent movements",
+      "no_movements": "No movements yet.",
+      "select_product": "Select a product to adjust stock.",
+      "reasons": {
+        "manual": "Manual",
+        "purchase": "Purchase",
+        "sale": "Sale",
+        "return": "Return",
+        "audit": "Audit",
+        "transfer": "Transfer"
+      }
+    },
+    "form": {
+      "details": "Details",
+      "name": "Name",
+      "category": "Category",
+      "category_hint": "Need a new category?",
+      "category_hide": "Hide",
+      "category_add": "Add category",
+      "category_empty": "No categories yet. Create one below.",
+      "category_new": "New category name",
+      "category_create": "Create",
+      "sku": "SKU",
+      "barcode": "Barcode",
+      "tracking": "Tracking",
+      "unit": "Unit",
+      "supplier": "Supplier",
+      "supplier_email": "Supplier email",
+      "tax_rate": "Tax rate (%)",
+      "description": "Description",
+      "primary_image": "Primary image",
+      "pricing": "Pricing",
+      "price": "Price",
+      "cost_price": "Cost price",
+      "margin": "Margin (%)",
+      "stock": "Stock",
+      "minimum_stock": "Minimum stock",
+      "inventory": "Inventory",
+      "lots_title": "Lots & Serials",
+      "lots_empty": "No lots or serials yet.",
+      "errors": {
+        "category_name_required": "Enter a category name.",
+        "category_create_failed": "Unable to create category.",
+        "required_fields": "Please fill all required fields.",
+        "save_failed": "Unable to save product. Please try again."
+      },
+      "promo_title": "Promotion",
+      "promo_hint": "Set a discount and optional start/end dates.",
+      "promo_discount": "Discount (%)",
+      "promo_start": "Promo start",
+      "promo_end": "Promo end"
+    },
+    "ai": {
+      "generate": "Generate AI image",
+      "generate_busy": "Generating...",
+      "prompt": "Describe the product image to generate",
+      "hint": "Daily limit: {limit} image(s). Remaining today: {remaining}.",
+      "disabled": "AI image generation is disabled. Add an AI pack in Billing or configure your AI key.",
+      "limit_reached": "Daily AI image limit reached. Buy an AI pack in Billing to generate more.",
+      "error": "Unable to generate the AI image."
+    },
+    "ai_bulk": {
+      "generate": "Generate AI images",
+      "generate_busy": "Generating images...",
+      "confirm": "Generate AI images for {count} products without images? This will use your daily limit/credits.",
+      "loading": "Checking products without images...",
+      "missing_count": "{count} products without images.",
+      "progress": "{done}/{total} generated",
+      "none_missing": "All products already have images.",
+      "limit_reached": "Daily AI image limit reached. Buy an AI pack to continue.",
+      "disabled": "AI image generation is disabled.",
+      "error": "Unable to generate one or more AI images."
+    },
+    "price_lookup": {
+      "title": "Price lookup",
+      "search_term": "Search term",
+      "search_action": "Search prices",
+      "apply_best": "Apply best price",
+      "clear": "Clear",
+      "provider": "Provider",
+      "provider_not_configured": "(not configured)",
+      "preferred": "Preferred",
+      "enabled": "Enabled",
+      "searching": "Searching suppliers...",
+      "best_price": "Best price",
+      "open_link": "Open link",
+      "use_cost": "Use as cost",
+      "use_price": "Use as price",
+      "use_image": "Use image",
+      "search_required": "Enter a product name to search.",
+      "no_live_prices": "No live prices found.",
+      "search_failed": "Price lookup failed.",
+      "selected_image": "Selected image"
+    },
+    "images": {
+      "primary": "Primary",
+      "set_primary": "Set as primary"
+    },
+    "lots": {
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "expiring": "Expiring soon"
+      },
+      "serial_label": "Serial {number}",
+      "lot_label": "Lot {number}",
+      "lot_fallback": "Lot",
+      "serial_short": "SN {number}",
+      "lot_short": "Lot {number}"
+    },
+    "show": {
+      "kpi": {
+        "in_stock": "In stock",
+        "stock_value": "Stock value",
+        "reserved": "Reserved",
+        "damaged": "Damaged",
+        "lots_serials": "Lots/serials",
+        "minimum": "Minimum"
+      },
+      "alerts_title": "Alerts",
+      "request_supplier_hint": "Add a supplier email to send the request.",
+      "warehouses_title": "Warehouses",
+      "lots_title": "Lots & Serials",
+      "general_title": "General",
+      "pricing_title": "Pricing",
+      "inventory_title": "Inventory",
+      "gallery_title": "Gallery"
+    },
+    "units": {
+      "piece": "Piece",
+      "hour": "Hour",
+      "m2": "m2",
+      "other": "Other"
+    }
+  }
+}

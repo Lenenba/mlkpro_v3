@@ -1,0 +1,26 @@
+{
+  "alerts": {
+    "maintenance": {
+      "title": "Maintenance en cours",
+      "message": "La plateforme est actuellement en maintenance. Merci de réessayer un peu plus tard."
+    },
+    "impersonation": {
+      "title": "Impersonation",
+      "message": "Vous utilisez ce compte en mode impersonation. Administrateur d’origine : {name}."
+    },
+    "success": {
+      "title": "Succès"
+    },
+    "error": {
+      "title": "Erreur"
+    },
+    "warning": {
+      "title": "Attention"
+    },
+    "validation_toast": {
+      "single": "1 erreur dans le formulaire. Vérifiez le champ surligné.",
+      "plural": "{count} erreurs dans le formulaire. Vérifiez les champs surlignés.",
+      "generic": "Le formulaire contient des erreurs. Vérifiez les champs surlignés."
+    }
+  }
+}

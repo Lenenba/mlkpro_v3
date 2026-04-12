@@ -1,0 +1,1421 @@
+{
+  "super_admin": {
+    "common": {
+      "not_available": "N/A",
+      "unknown": "Unknown",
+      "actions": "Actions",
+      "edit": "Edit",
+      "delete": "Delete",
+      "view": "View",
+      "close": "Close",
+      "cancel": "Cancel",
+      "save_changes": "Save changes",
+      "filters": "Filters",
+      "clear": "Clear",
+      "apply_filters": "Apply filters",
+      "apply": "Apply",
+      "all": "All",
+      "unlimited": "Unlimited",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "dashboard": {
+      "page_title": "Super Admin Dashboard",
+      "title": "Platform dashboard",
+      "subtitle": "Global KPIs and platform health across all companies.",
+      "kpi": {
+        "total_companies": "Total companies",
+        "onboarded": "Onboarded: {count} ({percent})",
+        "new_companies_30d": "New companies (30d)",
+        "onboarding_conversion_30d": "Onboarding conversion: {percent}",
+        "active_companies": "Active companies",
+        "active_wau_mau": "WAU {wau} / MAU {mau}",
+        "activation_rates": "Activation J7 {j7} | J30 {j30}",
+        "platform_health": "Platform health",
+        "health_hint": "{failed} failed jobs · {pending} pending"
+      },
+      "actions": {
+        "tenants": "Tenants",
+        "support": "Support",
+        "announcements": "Announcements",
+        "admins": "Admins",
+        "notifications": "Notifications",
+        "settings": "Settings"
+      },
+      "action_center": {
+        "title": "Action center",
+        "support": "Support",
+        "announcements": "Announcements",
+        "notifications": "Notifications",
+        "tenants": "Tenants",
+        "admins": "Admins",
+        "settings": "Settings"
+      },
+      "acquisition": {
+        "title": "Acquisition (last 7 days)",
+        "empty": "No acquisition data."
+      },
+      "site_traffic": {
+        "title": "Website traffic",
+        "last_24h": "Last 24h",
+        "last_7d": "Last 7 days",
+        "last_30d": "Last 30 days",
+        "unique_label": "{count} unique",
+        "legend_total": "Total",
+        "legend_unique": "Unique",
+        "empty": "No traffic data yet."
+      },
+      "alerts": {
+        "title": "Platform alerts",
+        "last_24h": "Last 24h",
+        "limits": "Tenants near limits",
+        "limit_list": "Limit alerts",
+        "limit_empty": "No tenants are near their limits.",
+        "stripe_failures": "Stripe failures",
+        "smtp_failures": "SMTP failures",
+        "jobs_backlog": "Jobs backlog",
+        "jobs_backlog_detail": "{pending} pending · oldest {oldest} min",
+        "storage": "Storage usage"
+      },
+      "risk": {
+        "title": "Tenants at risk",
+        "view_all": "View all",
+        "empty": "No tenants flagged.",
+        "last_activity": "Last activity: {date}",
+        "inactive_days": "{count} days inactive",
+        "flags": {
+          "onboarding": "Onboarding blocked",
+          "churn": "Churn risk",
+          "inactive_14": "Inactive 14d",
+          "inactive_30": "Inactive 30d"
+        }
+      },
+      "usage": {
+        "title": "Usage (last 30 days)",
+        "quotes": "Quotes",
+        "invoices": "Invoices",
+        "jobs": "Jobs",
+        "products": "Products",
+        "services": "Services",
+        "avg_days_to_first": "Avg days to first: Quote {quote}, Invoice {invoice}, Product {product}, Service {service}, Job {job}",
+        "service_mix": "Service mix: {services} services / {products} products ({percent}% services)"
+      },
+      "usage_trends": {
+        "title": "Usage by module (7d / 30d)",
+        "module": "Module",
+        "last_7d": "7d",
+        "last_30d": "30d",
+        "trend": "Trend",
+        "empty": "No usage data."
+      },
+      "revenue": {
+        "title": "Revenue & retention",
+        "mrr": "MRR",
+        "arpu": "ARPU",
+        "active_subs": "Active subs",
+        "trialing": "Trialing",
+        "payment_failed": "Payment failed",
+        "trial_conversion": "Trial conversion",
+        "churn_30d": "Churn (30d)",
+        "churn_rate": "Churn rate"
+      },
+      "cohorts": {
+        "title": "Cohorts (30d retention)",
+        "month": "Month",
+        "new": "New",
+        "retained": "Retained",
+        "empty": "No cohort data yet."
+      },
+      "health": {
+        "title": "Health",
+        "failed_jobs_24h": "Failed jobs 24h",
+        "failed_jobs_7d": "Failed jobs 7d",
+        "email_failures_24h": "Email failures 24h",
+        "pending_jobs": "Pending jobs",
+        "oldest_job_minutes": "Oldest job age (min)",
+        "public_storage": "Public storage"
+      },
+      "data_quality": {
+        "title": "Data quality",
+        "customer_email_duplicates": "Customer email duplicates",
+        "customer_name_duplicates": "Customer name duplicates",
+        "product_name_duplicates": "Product name duplicates"
+      },
+      "limits": {
+        "quotes": "Quotes",
+        "requests": "Requests",
+        "plan_scan_quotes": "Plan scan quotes",
+        "invoices": "Invoices",
+        "jobs": "Jobs",
+        "products": "Products",
+        "services": "Services",
+        "tasks": "Tasks",
+        "team_members": "Team members",
+        "assistant_requests": "AI assistant requests"
+      },
+      "trend": {
+        "none": "No trend",
+        "flat": "No change",
+        "up": "Up",
+        "down": "Down",
+        "new": "New"
+      },
+      "audit": {
+        "title": "Impersonation & audit",
+        "impersonate_cta": "Impersonate a tenant",
+        "filters": {
+          "admin": "Admin",
+          "tenant": "Tenant",
+          "action": "Action"
+        },
+        "empty": "No audit logs found.",
+        "action_by": "By {user}",
+        "actions": {
+          "tenant.limits_updated": "Tenant limits updated",
+          "tenant.features_updated": "Tenant features updated",
+          "tenant.plan_updated": "Tenant plan updated",
+          "tenant.suspended": "Tenant suspended",
+          "tenant.restored": "Tenant restored",
+          "tenant.onboarding_reset": "Onboarding reset",
+          "tenant.impersonate": "Tenant impersonation",
+          "tenant.export": "Tenant data export",
+          "platform_settings.updated": "Platform settings updated",
+          "notifications.updated": "Platform notifications updated",
+          "platform_announcement.created": "Platform announcement created",
+          "platform_announcement.updated": "Platform announcement updated",
+          "platform_announcement.deleted": "Platform announcement deleted",
+          "platform_page.created": "Public page created",
+          "platform_page.updated": "Public page updated",
+          "platform_page.deleted": "Public page deleted",
+          "platform_section.created": "Public section created",
+          "platform_section.updated": "Public section updated",
+          "platform_section.deleted": "Public section deleted",
+          "platform_admin.created": "Platform admin created",
+          "platform_admin.updated": "Platform admin updated",
+          "welcome_builder.updated": "Welcome page updated"
+        }
+      },
+      "recent_activity": {
+        "title": "Recent admin activity",
+        "empty": "No recent admin actions.",
+        "action_by": "{action} by {user}"
+      }
+    },
+    "admins": {
+      "page_title": "Platform Admins",
+      "title": "Platform admins",
+      "subtitle": "Create and manage delegated admin accounts.",
+      "actions": {
+        "add": "Add admin",
+        "create": "Create admin",
+        "edit": "Edit admin"
+      },
+      "stats": {
+        "total": "Total admins",
+        "active": "Active",
+        "inactive": "Inactive",
+        "require_2fa": "Require 2FA"
+      },
+      "table": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "status": "Status"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "empty": "No platform admins yet.",
+      "form": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "permissions": "Permissions",
+        "require_2fa": "Require 2FA"
+      }
+    },
+    "tenants": {
+      "page_title": "Tenants",
+      "title": "Tenants",
+      "subtitle": "Search and manage all companies on the platform.",
+      "stats": {
+        "total_companies": "Total companies",
+        "active": "Active",
+        "suspended": "Suspended",
+        "new_30d": "New (30d)",
+        "onboarded": "Onboarded"
+      },
+      "filters": {
+        "search_placeholder": "Search company, owner, or email",
+        "company_type": "Company type",
+        "status": "Status",
+        "plan": "Plan",
+        "created_from": "Created from",
+        "created_to": "Created to"
+      },
+      "company_types": {
+        "services": "Services",
+        "products": "Products"
+      },
+      "table": {
+        "company": "Company",
+        "owner": "Owner",
+        "type": "Type",
+        "plan": "Plan",
+        "status": "Status",
+        "created": "Created",
+        "unnamed_company": "Unnamed company"
+      },
+      "status": {
+        "active": "Active",
+        "suspended": "Suspended"
+      },
+      "empty": "No tenants found.",
+      "detail": {
+        "fallback_title": "Tenant",
+        "export_data": "Export data",
+        "impersonate": "Impersonate",
+        "company_details": "Company details",
+        "owner": "Owner",
+        "type": "Type",
+        "location": "Location",
+        "created": "Created",
+        "onboarding": "Onboarding",
+        "onboarding_completed": "Completed",
+        "onboarding_pending": "Pending",
+        "status": "Status",
+        "subscription": "Subscription",
+        "plan_label": "Plan",
+        "subscription_status": "Status",
+        "comped_badge": "Comped (100% off)",
+        "plan_management": "Plan management",
+        "plan_select": "Plan",
+        "plan_comped_label": "Comped (100% discount)",
+        "plan_comped_help": "Stripe records an active paid plan but no charge is made.",
+        "plan_update": "Update plan",
+        "plan_unavailable": "Plan updates are only available when Stripe billing is configured.",
+        "plan_no_plans": "No paid plans are configured.",
+        "usage": "Usage",
+        "usage_customers": "Customers",
+        "usage_quotes": "Quotes",
+        "usage_plan_scan_quotes": "Plan scan quotes",
+        "usage_invoices": "Invoices",
+        "usage_jobs": "Jobs",
+        "usage_products": "Products",
+        "usage_services": "Services",
+        "usage_tasks": "Tasks",
+        "usage_team_members": "Team members",
+        "account_actions": "Account actions",
+        "security_overrides": "Security overrides",
+        "security_disable_2fa": "Disable 2FA for this tenant",
+        "security_disable_2fa_help": "Use only to unblock access if the owner cannot receive 2FA codes.",
+        "security_save": "Save security",
+        "suspended_label": "Suspended",
+        "suspended_reason_empty": "No reason provided.",
+        "suspension_reason": "Suspension reason",
+        "suspend_tenant": "Suspend tenant",
+        "restore_tenant": "Restore tenant",
+        "reset_onboarding": "Reset onboarding",
+        "no_manage_permission": "You do not have permission to manage tenant actions.",
+        "feature_flags": "Feature flags",
+        "update_features": "Update features",
+        "no_feature_permission": "You do not have permission to update feature flags.",
+        "usage_vs_limits": "Usage vs limits",
+        "usage_table": {
+          "module": "Module",
+          "used": "Used",
+          "limit": "Limit",
+          "usage": "Usage"
+        },
+        "usage_empty": "No usage data available.",
+        "usage_warning": "Some modules are close to or above their limits.",
+        "manual_overrides": "Manual limit overrides",
+        "save_overrides": "Save overrides",
+        "no_limits_permission": "You do not have permission to update limits."
+      }
+    },
+    "support": {
+      "page_title": "Support Tickets",
+      "title": "Support tickets",
+      "subtitle": "Track SLA, status, and tags for platform support requests.",
+      "actions": {
+        "new_ticket": "New ticket",
+        "create_ticket": "Create ticket",
+        "update_ticket": "Update ticket",
+        "save_ticket": "Save ticket",
+        "back": "Back to tickets",
+        "send_message": "Send message"
+      },
+      "stats": {
+        "total": "Total tickets",
+        "open": "Open",
+        "assigned": "Assigned",
+        "pending": "Pending",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      },
+      "filters": {
+        "search_placeholder": "Search tickets or tenants",
+        "status": "Status",
+        "priority": "Priority",
+        "tenant": "Tenant"
+      },
+      "table": {
+        "title": "Title",
+        "tenant": "Tenant",
+        "assigned": "Assigned",
+        "status": "Status",
+        "priority": "Priority",
+        "sla": "SLA",
+        "tags": "Tags"
+      },
+      "labels": {
+        "internal": "Internal",
+        "tenant": "Tenant",
+        "created_at": "Created",
+        "assigned_to": "Assigned to",
+        "sla_due": "SLA due"
+      },
+      "audit": {
+        "actions": {
+          "support_ticket.created": "Ticket created",
+          "support_ticket.updated": "Ticket updated",
+          "support_ticket.assigned": "Ticket assigned",
+          "support_ticket.status_changed": "Status updated",
+          "support_ticket.message_added": "Message added",
+          "support_ticket.sla_due_soon_sent": "SLA reminder sent",
+          "support_ticket.sla_overdue_sent": "SLA overdue reminder sent",
+          "support_ticket.unassigned_reminder_sent": "Unassigned reminder sent"
+        }
+      },
+      "sections": {
+        "conversation": "Conversation",
+        "history": "History",
+        "update": "Update ticket",
+        "details": "Details",
+        "attachments": "Attachments"
+      },
+      "attachments": {
+        "file": "Attachment"
+      },
+      "empty": "No tickets found.",
+      "empty_states": {
+        "conversation": "No messages yet.",
+        "history": "No activity yet.",
+        "attachments": "No attachments yet."
+      },
+      "form": {
+        "tenant": "Tenant",
+        "select_tenant": "Select tenant",
+        "title": "Title",
+        "description": "Description",
+        "status": "Status",
+        "priority": "Priority",
+        "sla_due": "SLA due",
+        "tags": "Tags (comma separated)",
+        "assigned": "Assigned to",
+        "select_assignee": "Select assignee",
+        "message": "Write a reply",
+        "internal_message": "Internal note (not visible to client)"
+      },
+      "editor": {
+        "heading_2": "Heading 2",
+        "heading_3": "Heading 3",
+        "bold": "Bold",
+        "italic": "Italic",
+        "underline": "Underline",
+        "unordered_list": "Bulleted list",
+        "ordered_list": "Numbered list",
+        "quote": "Quote",
+        "code_block": "Code block",
+        "horizontal_rule": "Divider",
+        "link": "Link",
+        "image": "Image",
+        "ai_image": "AI image",
+        "clear": "Clear formatting",
+        "link_prompt": "Enter a link URL",
+        "image_prompt": "Enter an image URL",
+        "ai_prompt": "Describe the image to generate"
+      },
+      "show": {
+        "title": "Support ticket"
+      }
+    },
+    "announcements": {
+      "page_title": "Announcements",
+      "title": "Client dashboard announcements",
+      "subtitle": "Manage videos or flyers shown on tenant/client dashboards.",
+      "actions": {
+        "preview": "Preview placement",
+        "add": "Add announcement",
+        "confirm_delete": "Delete this announcement?",
+        "create": "Create announcement"
+      },
+      "stats": {
+        "total": "Total",
+        "active": "Active",
+        "drafts": "Drafts",
+        "with_media": "With media",
+        "targeted": "Targeted"
+      },
+      "filters": {
+        "search_placeholder": "Search announcements",
+        "status": "Status",
+        "audience": "Audience",
+        "placement": "Placement",
+        "media": "Media"
+      },
+      "status": {
+        "active": "Active",
+        "draft": "Draft"
+      },
+      "audience": {
+        "tenants": "Specific tenants",
+        "new_tenants": "New tenants",
+        "all": "All tenants"
+      },
+      "placement": {
+        "internal": "Dashboard top",
+        "quick_actions": "Quick actions slot"
+      },
+      "media": {
+        "image": "Image",
+        "video": "Video",
+        "none": "No media"
+      },
+      "display_style": {
+        "media_only": "Media only",
+        "standard": "Standard card"
+      },
+      "window": {
+        "range": "{start} to {end}",
+        "until": "Until {end}",
+        "from": "From {start}"
+      },
+      "table": {
+        "title": "Title",
+        "audience": "Audience",
+        "status": "Status",
+        "window": "Window",
+        "media": "Media",
+        "priority": "Priority",
+        "targets": "Targets",
+        "new_tenants": "New tenants: {days} days",
+        "attached": "Attached"
+      },
+      "empty": "No announcements found.",
+      "form": {
+        "edit_title": "Edit announcement",
+        "new_title": "New announcement",
+        "title": "Title",
+        "status": "Status",
+        "message": "Message",
+        "display_style": "Display style",
+        "display_style_hint": "Media only hides the title, message, and link.",
+        "card_background": "Card background",
+        "audience": "Audience",
+        "placement": "Placement",
+        "priority": "Priority",
+        "target_tenants": "Target tenants",
+        "new_tenant_window": "New tenant window (days)",
+        "start_date": "Start date",
+        "end_date": "End date",
+        "media_section": "Media",
+        "media_type": "Media type",
+        "media_url": "Media URL",
+        "upload_file": "Upload file",
+        "remove_media": "Remove existing media",
+        "current_media": "Current media",
+        "link_label": "Link label",
+        "link_url": "Link URL"
+      }
+    },
+    "announcements_preview": {
+      "page_title": "Announcement Preview",
+      "title": "Announcement preview",
+      "subtitle": "Preview how announcements appear on the company dashboard.",
+      "manage": "Manage announcements",
+      "example_view": "Example view",
+      "top": {
+        "title": "Top placement",
+        "subtitle": "Shown next to KPI cards at the top of the dashboard.",
+        "panel_title": "Top placement",
+        "empty": "No active announcements for the top placement."
+      },
+      "quick": {
+        "title": "Quick actions placement",
+        "subtitle": "Replaces the quick actions card on the right side of the dashboard.",
+        "panel_title": "Quick actions slot",
+        "empty": "No active announcements for the quick actions placement."
+      }
+    },
+    "notifications": {
+      "page_title": "Notification Preferences",
+      "title": "Notification preferences",
+      "subtitle": "Choose what alerts you receive and how you receive them.",
+      "channels": "Channels",
+      "categories": "Categories",
+      "digest_frequency": "Digest frequency",
+      "quiet_start": "Quiet hours start (HH:MM)",
+      "quiet_end": "Quiet hours end (HH:MM)",
+      "alert_thresholds": "Alert thresholds",
+      "rules": {
+        "error_spike": "Error spike",
+        "payment_failed": "Payment failed",
+        "churn_risk": "Churn risk"
+      },
+      "save": "Save preferences"
+    },
+    "settings": {
+      "page_title": "Platform Settings",
+      "title": "Platform settings",
+      "subtitle": "Configure global platform preferences.",
+      "maintenance": {
+        "title": "Maintenance mode",
+        "enable": "Enable maintenance banner",
+        "message": "Maintenance message",
+        "save": "Save settings"
+      },
+      "templates": {
+        "title": "Global templates",
+        "email_default": "Default email template",
+        "quote_default": "Default quote template",
+        "invoice_default": "Default invoice template",
+        "save": "Save templates"
+      },
+      "plan_limits": {
+        "title": "Plan limits",
+        "subtitle": "Set default usage caps per plan (leave blank for unlimited).",
+        "empty": "No plans configured.",
+        "edit_limits": "Edit limits",
+        "helper": "Click a plan card to edit its limits (leave blank for unlimited).",
+        "save": "Save limits",
+        "edit_limits_title": "Edit limits - {plan}",
+        "modal_hint": "Leave a field blank to keep it unlimited."
+      },
+      "plan_modules": {
+        "title": "Plan modules",
+        "subtitle": "Choose which modules are enabled per plan.",
+        "empty": "No plans configured.",
+        "edit_modules": "Edit modules",
+        "helper": "Click a plan card to edit its enabled modules.",
+        "save": "Save modules",
+        "edit_modules_title": "Edit modules - {plan}",
+        "modal_hint": "Disable modules to hide them from this plan."
+      },
+      "plan_display": {
+        "title": "Plan display",
+        "subtitle": "Edit the content shown on plan cards (name, price label, badge, features).",
+        "empty": "No plans configured.",
+        "edit_display": "Edit display",
+        "helper": "Click a plan card to edit what is shown to companies.",
+        "save": "Save display",
+        "edit_display_title": "Edit display - {plan}",
+        "fields": {
+          "name": "Plan name",
+          "price": "Price label",
+          "badge": "Badge label",
+          "features": "Features",
+          "add_feature": "Add feature",
+          "remove": "Remove"
+        }
+      },
+      "limits": {
+        "quotes": "Quotes",
+        "requests": "Requests",
+        "plan_scan_quotes": "Plan scan quotes",
+        "invoices": "Invoices",
+        "jobs": "Jobs",
+        "products": "Products",
+        "services": "Services",
+        "tasks": "Tasks",
+        "team_members": "Team members",
+        "assistant_requests": "AI assistant (messages)"
+      },
+      "modules": {
+        "quotes": "Quotes",
+        "requests": "Requests",
+        "reservations": "Reservations",
+        "plan_scans": "Plan scans",
+        "invoices": "Invoices",
+        "jobs": "Jobs",
+        "products": "Products",
+        "performance": "Performance",
+        "presence": "Presence",
+        "planning": "Planning",
+        "services": "Services",
+        "tasks": "Tasks",
+        "team_members": "Team members",
+        "assistant": "AI assistant",
+        "loyalty": "Loyalty",
+        "campaigns": "Campaigns"
+      }
+    },
+    "welcome_builder": {
+      "title": "Welcome Builder",
+      "subtitle": "Edit the public welcome page like a mini CMS.",
+      "meta": {
+        "updated_at": "Last update",
+        "never": "Never"
+      },
+      "actions": {
+        "preview": "Preview",
+        "back_dashboard": "Back to dashboard",
+        "save": "Save welcome page"
+      },
+      "locale": {
+        "label": "Language",
+        "hint": "Changes apply to the selected locale only."
+      },
+      "sections": {
+        "navigation": {
+          "title": "Navigation",
+          "tagline": "Tagline",
+          "menu_hint": "Top-right buttons and links.",
+          "add_menu": "Add menu item"
+        },
+        "hero": {
+          "title": "Hero",
+          "eyebrow": "Eyebrow",
+          "note": "Note",
+          "title_label": "Title",
+          "subtitle": "Subtitle",
+          "primary_label": "Primary CTA label",
+          "primary_href": "Primary CTA href/route",
+          "secondary_label": "Secondary CTA label",
+          "secondary_href": "Secondary CTA href/route",
+          "stat_value": "Stat value",
+          "stat_label": "Stat label",
+          "highlights": "Highlights (one per line)",
+          "preview_title": "Preview title",
+          "preview_desc": "Preview description"
+        },
+        "trust": {
+          "title": "Trust band",
+          "title_label": "Title",
+          "items": "Items (one per line)"
+        },
+        "features": {
+          "title": "Features",
+          "kicker": "Kicker",
+          "title_label": "Title",
+          "subtitle": "Subtitle",
+          "add_item": "Add feature"
+        },
+        "new_features": {
+          "title": "New features",
+          "kicker": "Kicker",
+          "title_label": "Title",
+          "subtitle": "Subtitle",
+          "badge": "Badge",
+          "add_item": "Add new feature"
+        },
+        "workflow": {
+          "title": "Workflow",
+          "kicker": "Kicker",
+          "title_label": "Title",
+          "subtitle": "Subtitle",
+          "add_step": "Add step"
+        },
+        "field": {
+          "title": "Field section",
+          "kicker": "Kicker",
+          "title_label": "Title",
+          "subtitle": "Subtitle",
+          "items": "Bullets (one per line)"
+        },
+        "cta": {
+          "title": "Bottom CTA",
+          "title_label": "Title",
+          "subtitle": "Subtitle",
+          "primary_label": "Primary label",
+          "primary_href": "Primary href/route",
+          "secondary_label": "Secondary label",
+          "secondary_href": "Secondary href/route"
+        },
+        "custom": {
+          "title": "Custom sections",
+          "add": "Add section",
+          "empty": "No custom sections yet.",
+          "section_label": "Section"
+        },
+        "footer": {
+          "title": "Footer",
+          "terms_label": "Terms label",
+          "terms_href": "Terms href/route",
+          "copy": "Copyright"
+        }
+      },
+      "common": {
+        "enabled": "Enabled",
+        "label": "Label",
+        "href": "Href or route name",
+        "style": "Style",
+        "background": "Background",
+        "background_hex": "Background color (#hex)",
+        "background_preset": "Background preset",
+        "background_presets": {
+          "none": "No preset",
+          "welcome_hero": "Welcome hero gradient",
+          "graphite_crimson": "Black and red",
+          "obsidian_amber": "Black and amber",
+          "midnight_cobalt": "Midnight blue",
+          "deep_ocean": "Deep ocean"
+        },
+        "move_up": "Up",
+        "move_down": "Down",
+        "remove": "Remove",
+        "preview": "Preview",
+        "remove_image": "Remove image",
+        "image_hint": "Upload replaces the current image.",
+        "image_url": "Image URL",
+        "image_alt": "Image alt text",
+        "key": "Key",
+        "title": "Title",
+        "description": "Description",
+        "kicker": "Kicker",
+        "body": "Body",
+        "primary_label": "Primary label",
+        "primary_href": "Primary href/route",
+        "secondary_label": "Secondary label",
+        "secondary_href": "Secondary href/route"
+      },
+      "styles": {
+        "outline": "Outline",
+        "solid": "Solid",
+        "ghost": "Ghost"
+      }
+    },
+    "pages": {
+      "title": "Pages Builder",
+      "subtitle": "Create, edit, and publish public pages.",
+      "empty": "No pages yet. Create your first one.",
+      "meta": {
+        "updated_at": "Last update",
+        "never": "Never"
+      },
+      "actions": {
+        "back_dashboard": "Back to dashboard",
+        "back_list": "Back to pages",
+        "create": "New page",
+        "edit": "Edit",
+        "delete": "Delete",
+        "view": "View",
+        "preview": "Preview page",
+        "save": "Save page",
+        "confirm_delete": "Delete /pages/{slug}?"
+      },
+      "status": {
+        "active": "Active",
+        "draft": "Draft"
+      },
+      "filters": {
+        "search": "Search",
+        "search_placeholder": "Title or slug",
+        "status": "Status",
+        "all_statuses": "All statuses",
+        "clear": "Clear",
+        "apply": "Apply",
+        "results": "{count} page(s)"
+      },
+      "table": {
+        "slug": "Slug",
+        "title": "Title",
+        "status": "Status",
+        "updated": "Updated",
+        "actions": "Actions"
+      },
+      "locale": {
+        "label": "Language",
+        "hint": "Edits apply to the selected locale only."
+      },
+      "header": {
+        "title": "Header",
+        "subtitle": "Configure the hero background and public title alignment.",
+        "alignment": "Text alignment",
+        "background_type": "Background type",
+        "background_color": "Background color",
+        "background_image_url": "Background image",
+        "background_image_alt": "Background image alt text",
+        "background": {
+          "none": "None",
+          "color": "Color",
+          "image": "Image"
+        }
+      },
+      "templates": {
+        "title": "Templates",
+        "hint": "Choose a template to pre-fill the page.",
+        "select": "Choose a template",
+        "apply": "Apply template",
+        "pricing": {
+          "label": "Pricing page",
+          "description": "Plans and pricing for your offers.",
+          "page_title": "Pricing",
+          "page_subtitle": "Pick the plan that fits your business.",
+          "sections": {
+            "hero": {
+              "kicker": "Plans",
+              "title": "Simple, clear options",
+              "body": "Compare plans and choose the pace that fits.",
+              "items": {
+                "one": "Clear monthly billing",
+                "two": "Cancel anytime",
+                "three": "Priority support"
+              },
+              "primary_label": "See plans",
+              "secondary_label": "Contact the team"
+            },
+            "plans": {
+              "kicker": "What's included",
+              "title": "Everything to launch fast",
+              "body": "Each plan includes the essentials to start, then scale.",
+              "items": {
+                "one": "Clients, quotes, jobs, invoices",
+                "two": "Built-in client portal",
+                "three": "Simple, clear reporting"
+              }
+            }
+          }
+        },
+        "about": {
+          "label": "About page",
+          "description": "Mission, values, and team.",
+          "page_title": "About",
+          "page_subtitle": "Our mission and how we help customers.",
+          "sections": {
+            "mission": {
+              "kicker": "Mission",
+              "title": "Simplify field operations",
+              "body": "We help teams manage clients, quotes, and jobs without friction."
+            },
+            "values": {
+              "kicker": "Values",
+              "title": "What guides us",
+              "body": "Simple principles to deliver better, faster.",
+              "items": {
+                "one": "Clarity and transparency",
+                "two": "Customer focus",
+                "three": "Continuous improvement"
+              }
+            },
+            "team": {
+              "kicker": "Team",
+              "title": "A team close to the field",
+              "body": "We build with and for service pros.",
+              "primary_label": "Contact us"
+            }
+          }
+        }
+      },
+      "sections": {
+        "title": "Sections",
+        "add": "Add section",
+        "add_type": "Section type to add",
+        "section_label": "Section",
+        "empty_title": "No sections on this page",
+        "empty_subtitle": "You can start from scratch and add a new section or insert a block from the library.",
+        "edit": "Edit",
+        "close_editor": "Close",
+        "cards_count": "{count} cards",
+        "tabs_count": "{count} tabs",
+        "items_count": "{count} bullets",
+        "images_count": "{count} images"
+      },
+      "library": {
+        "select": "Library block",
+        "add": "Add from library",
+        "manage": "Manage library",
+        "source": "Source block",
+        "use_source": "Use library content",
+        "copy": "Copy from library",
+        "draft": "Draft"
+      },
+      "shared_footer": {
+        "title": "Shared footer",
+        "subtitle": "This footer is applied automatically across all public pages. Update it once here and the change will flow everywhere.",
+        "edit": "Edit footer",
+        "manage": "Open library",
+        "navigation": "Columns",
+        "legal_links": "Legal links",
+        "contact": "Contact",
+        "note": "The footer is not managed like a regular body section. It stays global and shared across public pages.",
+        "empty_title": "Shared footer"
+      },
+      "layouts": {
+        "split": "Split (text + image)",
+        "duo": "2 blocks (image + color panel)",
+        "testimonial": "Testimonial (quote + image)",
+        "feature_pairs": "2 images + 2 text blocks",
+        "showcase_cta": "Showcase CTA (hero + layered media)",
+        "industry_grid": "Industries (card grid)",
+        "story_grid": "Visual triptych (3 cards)",
+        "feature_tabs": "Feature tabs (accordion + media)",
+        "testimonial_grid": "Testimonials (card grid)",
+        "footer": "Reusable footer",
+        "stack": "Stack (centered)",
+        "contact": "Contact (3 columns)"
+      },
+      "alignments": {
+        "left": "Left",
+        "center": "Center",
+        "right": "Right"
+      },
+      "image_positions": {
+        "left": "Image left",
+        "right": "Image right"
+      },
+      "showcase_divider_styles": {
+        "diagonal": "Diagonal",
+        "vertical": "Vertical",
+        "round": "Round",
+        "curve": "Curve",
+        "notch": "Notch",
+        "glow": "Glow"
+      },
+      "densities": {
+        "compact": "Compact",
+        "normal": "Normal",
+        "spacious": "Spacious"
+      },
+      "tones": {
+        "default": "Default",
+        "muted": "Muted",
+        "contrast": "High contrast"
+      },
+      "edit": {
+        "title_create": "Create Page",
+        "title_edit": "Edit Page"
+      },
+      "fields": {
+        "title": "Page title (admin)",
+        "slug": "Slug (URL)",
+        "is_active": "Publicly visible",
+        "page_title": "Public title",
+        "page_subtitle": "Public subtitle",
+        "layout": "Layout",
+        "items": "Bullets (one per line)",
+        "image_position": "Image position"
+      },
+      "common": {
+        "enabled": "Enabled",
+        "move_up": "Up",
+        "move_down": "Down",
+        "remove": "Remove",
+        "key": "Key",
+        "description": "Description",
+        "background": "Background",
+        "background_hex": "Background color (#hex)",
+        "background_preset": "Background preset",
+        "background_presets": {
+          "none": "No preset",
+          "welcome_hero": "Welcome hero gradient",
+          "graphite_crimson": "Black and red",
+          "obsidian_amber": "Black and amber",
+          "midnight_cobalt": "Midnight blue",
+          "deep_ocean": "Deep ocean"
+        },
+        "panel_background": "Content panel background",
+        "panel_background_hex": "Content panel color (#hex)",
+        "image_position": "Image position",
+        "alignment": "Alignment",
+        "density": "Density",
+        "tone": "Tone",
+        "kicker": "Kicker",
+        "title": "Title",
+        "body": "Body",
+        "copy": "Footer copy",
+        "card_label": "Card title",
+        "card_href": "Card href/route",
+        "card_icon": "Card icon",
+        "story_card_title": "Visual card title",
+        "story_card_body": "Visual card copy",
+        "story_card_image_url": "Visual card image URL",
+        "story_card_image_alt": "Visual card image alt text",
+        "tab_label": "Tab label",
+        "tab_icon": "Tab icon",
+        "tab_title": "Panel title",
+        "tab_body": "Panel body",
+        "tab_metric": "Featured metric",
+        "tab_story": "Quote / social proof",
+        "tab_person": "Person name",
+        "tab_role": "Person role",
+        "tab_avatar_url": "Person avatar URL",
+        "tab_avatar_alt": "Avatar alt text",
+        "tab_items": "Tab sub-points (one per line)",
+        "tab_image_url": "Panel image URL",
+        "tab_image_alt": "Panel image alt text",
+        "tab_cta_label": "Panel CTA label",
+        "tab_cta_href": "Panel CTA href/route",
+        "feature_item_label": "Clickable item label",
+        "feature_item_title": "Clickable item panel title",
+        "feature_item_body": "Clickable item panel body",
+        "feature_item_image_url": "Clickable item image URL",
+        "feature_item_image_alt": "Clickable item image alt text",
+        "feature_item_cta_label": "Clickable item CTA label",
+        "feature_item_cta_href": "Clickable item CTA href/route",
+        "testimonial_card_quote": "Quote",
+        "testimonial_card_author_name": "Name",
+        "testimonial_card_author_role": "Role",
+        "testimonial_card_author_company": "Company",
+        "testimonial_card_image_url": "Photo URL",
+        "testimonial_card_image_alt": "Photo alt text",
+        "testimonial_author": "Testimonial author",
+        "testimonial_role": "Testimonial role",
+        "aside_kicker": "Right column kicker",
+        "aside_title": "Right column title",
+        "aside_body": "Right column body",
+        "aside_items": "Right column bullets (one per line)",
+        "aside_link_label": "Right column link label",
+        "aside_link_href": "Right column href/route",
+        "aside_image_url": "Block 2 image URL",
+        "aside_image_alt": "Block 2 image alt text",
+        "showcase_overlay_label": "Media overlay label",
+        "showcase_overlay_href": "Media overlay href/route",
+        "showcase_badge_label": "Badge label",
+        "showcase_badge_value": "Badge highlight",
+        "showcase_badge_note": "Badge note",
+        "showcase_divider_style": "Showcase divider shape",
+        "showcase_floating_image_url": "Floating image URL",
+        "showcase_floating_image_alt": "Floating image alt text",
+        "image_url": "Image URL",
+        "image_alt": "Image alt text",
+        "embed_url": "Embedded form URL",
+        "embed_title": "Embedded form title",
+        "embed_height": "Embedded form height (px)",
+        "primary_label": "Primary label",
+        "primary_href": "Primary href/route",
+        "secondary_label": "Secondary label",
+        "secondary_href": "Secondary href/route",
+        "contact_phone": "Contact phone",
+        "contact_email": "Contact email",
+        "social_facebook_href": "Facebook link",
+        "social_x_href": "X link",
+        "social_instagram_href": "Instagram link",
+        "social_youtube_href": "YouTube link",
+        "social_linkedin_href": "LinkedIn link",
+        "google_play_href": "Google Play link",
+        "app_store_href": "App Store link",
+        "brand_logo_url": "Footer logo URL",
+        "brand_logo_alt": "Footer logo alt text",
+        "brand_href": "Footer logo href/route",
+        "footer_group_title": "Column title",
+        "footer_group_layout": "Link layout",
+        "footer_link_label": "Link label",
+        "footer_link_href": "Link href/route",
+        "footer_link_note": "Optional note"
+      },
+      "contact_aside": {
+        "title": "Details column",
+        "subtitle": "Add office, support, or contact-point details for the third column."
+      },
+      "testimonial": {
+        "title": "Testimonial attribution",
+        "subtitle": "Add the name and role shown below the quote."
+      },
+      "feature_pairs": {
+        "secondary_title": "Text + image block 2",
+        "secondary_subtitle": "Configure the alternate secondary content and image."
+      },
+      "showcase_cta": {
+        "title": "Layered media showcase",
+        "subtitle": "Configure the main visual, floating device mockup, media overlay, and trust badge."
+      },
+      "industry_grid": {
+        "cards_title": "Industry cards",
+        "cards_subtitle": "Add the industries shown in the grid and an optional link for each card.",
+        "icon_auto": "Automatic icon",
+        "add_card": "Add card",
+        "card_label": "Card {number}"
+      },
+      "story_grid": {
+        "title": "Visual triptych",
+        "subtitle": "Add cards with a strong visual up top and supporting proof or explanation underneath.",
+        "add_card": "Add card",
+        "card_label": "Visual card {number}"
+      },
+      "testimonial_grid": {
+        "title": "Testimonial grid",
+        "subtitle": "Add the quotes, names, and photos displayed in the card grid.",
+        "add_card": "Add testimonial",
+        "card_label": "Testimonial {number}"
+      },
+      "feature_tabs": {
+        "title": "Feature tabs",
+        "subtitle": "Add the accordion groups on the left and the detailed content shown on the right.",
+        "add_tab": "Add tab",
+        "tab_label": "Tab {number}",
+        "style_label": "Accordion style",
+        "styles": {
+          "editorial": "Editorial + media panel",
+          "workflow": "Stacked workflow"
+        },
+        "font_size_label": "Accordion title size (px)",
+        "icon_auto": "Select an icon",
+        "children_title": "Clickable items",
+        "children_subtitle": "Each item can control its own text, image, and CTA in the right-side panel.",
+        "add_child": "Add clickable item",
+        "child_label": "Item {number}"
+      },
+      "footer": {
+        "title": "Reusable footer content",
+        "subtitle": "Configure the logo, navigation columns, legal links, shared support card, contact details, social links, store badges, and footer copy.",
+        "preview_title": "Display order",
+        "preview_subtitle": "This summary follows the same order as the public footer: brand, contact, navigation, support, then bottom row.",
+        "order_brand": "Brand",
+        "order_contact": "Contact",
+        "order_navigation": "Navigation",
+        "order_support": "Support",
+        "order_bottom": "Bottom row",
+        "preview_groups": "groups",
+        "preview_links": "links",
+        "preview_items": "items",
+        "preview_socials": "socials",
+        "preview_stores": "stores",
+        "appearance_title": "Brand and appearance",
+        "appearance_subtitle": "Set the footer background and top brand row first.",
+        "contact_title": "Contact and apps",
+        "contact_subtitle": "These items render in the left column of the public footer.",
+        "items_label": "Support bullets",
+        "brand_title": "Brand",
+        "brand_subtitle": "Logo and primary link displayed at the start of the footer.",
+        "navigation_title": "Navigation columns",
+        "navigation_subtitle": "Manage each footer column here without relying on the mega menu.",
+        "support_title": "Support panel",
+        "support_subtitle": "This block maps to the right-side support panel in the public footer.",
+        "add_group": "Add column",
+        "group_label": "Column {number}",
+        "link_label": "Link {number}",
+        "add_link": "Add link",
+        "bottom_title": "Bottom row",
+        "bottom_subtitle": "Configure the copyright text and legal links shown at the very bottom.",
+        "legal_title": "Legal links",
+        "legal_subtitle": "These links are shown in the footer bottom row.",
+        "add_legal_link": "Add legal link",
+        "legal_label": "Legal link {number}",
+        "group_layout_stack": "Single column",
+        "group_layout_split": "Two columns"
+      },
+      "theme": {
+        "title": "Theme",
+        "subtitle": "Global style settings for this page.",
+        "fields": {
+          "font_heading": "Heading font",
+          "font_body": "Body font",
+          "button_style": "Button style",
+          "radius": "Corner radius",
+          "shadow": "Card shadow",
+          "background_style": "Background style"
+        },
+        "fonts": {
+          "montserrat": "Montserrat",
+          "work_sans": "Work Sans",
+          "space_grotesk": "Space Grotesk",
+          "sora": "Sora",
+          "dm_sans": "DM Sans"
+        },
+        "radius": {
+          "sm": "Small",
+          "md": "Medium",
+          "lg": "Large",
+          "xl": "Extra large"
+        },
+        "shadow": {
+          "none": "None",
+          "soft": "Soft",
+          "deep": "Deep"
+        },
+        "buttons": {
+          "solid": "Solid",
+          "outline": "Outline",
+          "soft": "Soft",
+          "ghost": "Ghost"
+        },
+        "background": {
+          "solid": "Solid",
+          "gradient": "Gradient"
+        },
+        "colors": {
+          "primary": "Primary",
+          "primary_soft": "Primary soft",
+          "primary_contrast": "Primary contrast",
+          "background": "Background",
+          "background_alt": "Background (alt)",
+          "surface": "Surface",
+          "text": "Text",
+          "muted": "Muted text",
+          "border": "Border"
+        }
+      },
+      "visibility": {
+        "title": "Visibility",
+        "subtitle": "Limit this section to a specific audience.",
+        "auth_label": "Audience",
+        "auth_any": "Everyone",
+        "auth_only": "Authenticated users",
+        "guest_only": "Guests only",
+        "device_label": "Device",
+        "device_all": "All devices",
+        "device_desktop": "Desktop",
+        "device_mobile": "Mobile",
+        "locales": "Locales",
+        "roles": "Roles (comma separated)",
+        "roles_placeholder": "owner, admin, client",
+        "plans": "Plans (comma separated)",
+        "plans_placeholder": "free, pro, scale",
+        "start_at": "Start date",
+        "end_at": "End date"
+      },
+      "assets": {
+        "title": "Asset library",
+        "subtitle": "Select an asset to insert.",
+        "choose": "Choose from library",
+        "preview": "Preview",
+        "search": "Search",
+        "search_placeholder": "Search assets",
+        "tag": "Tag",
+        "tag_placeholder": "Filter by tag",
+        "loading": "Loading assets...",
+        "empty": "No assets found.",
+        "use": "Use this asset"
+      }
+    },
+    "sections": {
+      "title": "Section library",
+      "subtitle": "Create reusable blocks for your public pages.",
+      "empty": "No sections yet. Create your first block.",
+      "meta": {
+        "updated_at": "Last update",
+        "never": "Never"
+      },
+      "actions": {
+        "back_dashboard": "Back to dashboard",
+        "back_list": "Back to sections",
+        "create": "New section",
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "delete": "Delete",
+        "save": "Save section",
+        "confirm_delete": "Delete {name}?"
+      },
+      "status": {
+        "active": "Active",
+        "draft": "Draft"
+      },
+      "table": {
+        "name": "Name",
+        "type": "Type",
+        "status": "Status",
+        "updated": "Updated",
+        "actions": "Actions"
+      },
+      "locale": {
+        "label": "Language",
+        "hint": "Edits apply to the selected locale only."
+      },
+      "edit": {
+        "title_create": "Create Section",
+        "title_edit": "Edit Section"
+      },
+      "fields": {
+        "name": "Name",
+        "type": "Type",
+        "is_active": "Active"
+      },
+      "layout": {
+        "subtitle": "Configure the reusable block visuals before inserting it into a page."
+      },
+      "types": {
+        "generic": "Generic",
+        "hero": "Hero",
+        "features": "Features",
+        "faq": "FAQ",
+        "testimonials": "Testimonials",
+        "cta": "Call to action",
+        "gallery": "Gallery",
+        "duo": "Reusable 2-block",
+        "testimonial": "Reusable testimonial",
+        "feature_pairs": "Reusable 2 images + 2 text blocks",
+        "showcase_cta": "Reusable showcase CTA",
+        "industry_grid": "Reusable industries",
+        "story_grid": "Reusable visual triptych",
+        "feature_tabs": "Reusable feature tabs",
+        "testimonial_grid": "Reusable testimonials",
+        "footer": "Reusable footer",
+        "welcome_hero": "Welcome hero",
+        "welcome_trust": "Welcome trust strip",
+        "welcome_features": "Welcome features",
+        "welcome_workflow": "Welcome workflow",
+        "welcome_field": "Welcome field block",
+        "welcome_cta": "Welcome CTA",
+        "welcome_custom": "Welcome custom block"
+      },
+      "welcome": {
+        "hero": {
+          "highlights": "Highlights (one per line)",
+          "note": "Supporting note",
+          "typography_title": "Hero typography",
+          "typography_subtitle": "Adjust the title and body colors, plus the title size.",
+          "title_color": "Title color",
+          "body_color": "Text color",
+          "title_font_size": "Title size (px)",
+          "stats_title": "Hero stats",
+          "stats_subtitle": "Add the compact metrics shown under the CTAs.",
+          "add_stat": "Add stat",
+          "stat_value": "Metric value",
+          "stat_label": "Metric label",
+          "preview_title": "Preview cards",
+          "preview_subtitle": "Short cards displayed beside the hero visual.",
+          "add_preview": "Add preview card",
+          "slides_title": "Slider slides",
+          "slides_subtitle": "Define the photos that rotate inside the hero visual.",
+          "add_slide": "Add slide",
+          "slide_label": "Slide {number}",
+          "slide_image_url": "Slide image",
+          "slide_image_alt": "Slide alt text",
+          "choose_asset": "Choose from assets"
+        },
+        "features": {
+          "items_title": "Primary feature cards",
+          "items_subtitle": "Cards shown in the first feature grid.",
+          "add_item": "Add feature card",
+          "secondary_enabled": "Show the secondary feature row",
+          "secondary_badge": "Secondary badge",
+          "secondary_body": "Secondary subtitle",
+          "add_secondary_item": "Add secondary card"
+        },
+        "workflow": {
+          "steps_title": "Workflow steps",
+          "steps_subtitle": "Ordered cards shown beside the workflow visual.",
+          "add_step": "Add step"
+        }
+      }
+    },
+    "assets": {
+      "title": "Assets",
+      "subtitle": "Manage shared uploads for public pages.",
+      "empty": "No assets yet. Upload your first files.",
+      "actions": {
+        "back_dashboard": "Back to dashboard",
+        "upload": "Upload",
+        "delete": "Delete",
+        "copy": "Copy URL",
+        "confirm_delete": "Delete {name}?"
+      },
+      "fields": {
+        "files": "Files",
+        "tags": "Tags",
+        "tags_placeholder": "marketing, hero, pdf",
+        "alt": "Alt text",
+        "alt_placeholder": "Optional alt text"
+      },
+      "filters": {
+        "search": "Search",
+        "search_placeholder": "Search by name or mime",
+        "tag": "Tag",
+        "tag_placeholder": "Filter by tag"
+      }
+    }
+  }
+}

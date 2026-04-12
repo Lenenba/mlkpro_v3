@@ -1,0 +1,48 @@
+{
+  "privacy": {
+    "meta": {
+      "title": "Privacy policy"
+    },
+    "intro": {
+      "eyebrow": "Privacy policy",
+      "title": "Privacy policy for Malikia pro",
+      "updated": "Last update: {date}.",
+      "summary": "This policy explains how Malikia Pro collects, uses, and protects data on Malikia pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Scope",
+        "body": "This policy applies to the Malikia pro platform and related services."
+      },
+      "data": {
+        "title": "2. Data we collect",
+        "body": "We collect account details, company information, usage data, and files you upload."
+      },
+      "usage": {
+        "title": "3. How we use data",
+        "body": "We use data to provide the service, improve features, and support your team."
+      },
+      "sharing": {
+        "title": "4. Data sharing",
+        "body": "We share data with service providers only as needed to operate the platform. We do not sell personal data."
+      },
+      "security": {
+        "title": "5. Security",
+        "body": "We use reasonable safeguards, access controls, and logging to protect your data."
+      },
+      "retention": {
+        "title": "6. Retention",
+        "body": "We keep data while your account is active or as required by law."
+      },
+      "rights": {
+        "title": "7. Your rights",
+        "body": "You can request access, correction, or deletion of data through your account owner."
+      },
+      "contact": {
+        "title": "8. Contact",
+        "body": "For privacy questions, contact support in the app."
+      }
+    },
+    "note": "If you have questions, contact support in the app."
+  }
+}

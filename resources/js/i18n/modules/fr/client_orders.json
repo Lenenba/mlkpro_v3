@@ -1,0 +1,59 @@
+{
+  "client_orders": {
+    "title": "Mes achats",
+    "subtitle_company": "Ventes chez {name}",
+    "subtitle_default": "Vos ventes recentes",
+    "actions": {
+      "order": "Commander",
+      "reorder": "Recommander",
+      "confirm_delivery": "Confirmer",
+      "edit": "Modifier",
+      "view": "Voir",
+      "view_invoice": "Voir la facture",
+      "pay_deposit": "Payer l acompte"
+    },
+    "kpi": {
+      "orders": "Commandes",
+      "pending": "En attente",
+      "paid": "Payees",
+      "amount_paid": "Total paye"
+    },
+    "sections": {
+      "pending_orders": "Commandes en attente",
+      "deliveries": "Livraisons en cours",
+      "delivery_alerts": "Alertes livraison",
+      "recent_sales": "Dernieres ventes"
+    },
+    "empty": {
+      "pending_orders": "Aucune commande en attente.",
+      "deliveries": "Aucune livraison en cours.",
+      "delivery_alerts": "Aucune alerte de livraison.",
+      "recent_sales": "Aucune vente recente."
+    },
+    "labels": {
+      "scheduled_delivery": "Livraison prevue: {date}",
+      "delivery_in_progress": "Livraison en cours",
+      "in_transit": "En cours",
+      "order_label": "Commande #{id}",
+      "sale_label": "Vente #{id}"
+    },
+    "status": {
+      "draft": "Brouillon",
+      "pending": "En attente",
+      "unpaid": "Non payée",
+      "deposit_required": "Acompte requis",
+      "partial": "Partiel",
+      "paid": "Payée",
+      "canceled": "Annulée"
+    },
+    "fulfillment": {
+      "pending": "Commande reçue",
+      "preparing": "Préparation",
+      "out_for_delivery": "En cours de livraison",
+      "ready_for_pickup": "Prête à retirer",
+      "completed": "Livrée",
+      "confirmed": "Confirmée",
+      "completed_unconfirmed": "Livrée - à confirmer"
+    }
+  }
+}

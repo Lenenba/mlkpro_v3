@@ -1,0 +1,33 @@
+{
+  "public_work": {
+    "meta_title": "Revision del trabajo",
+    "document": "Trabajo",
+    "company_fallback": "Empresa",
+    "customer_fallback": "Cliente",
+    "schedule": "Programacion",
+    "customer": "Cliente",
+    "contact": "Contacto",
+    "actions": {
+      "title": "Acciones",
+      "validate": "Validar trabajo",
+      "dispute": "Disputar trabajo",
+      "proofs": "Ver evidencias",
+      "none": "No hay acciones de validacion disponibles para este trabajo."
+    },
+    "schedule_confirmation": {
+      "title": "Confirmacion de programacion",
+      "description": "Aceptar la programacion generara tareas para cada visita.",
+      "request_changes": "Solicitar cambios",
+      "accept": "Aceptar programacion"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "scheduled": "Programado",
+      "confirmed": "Confirmado",
+      "validated": "Validado",
+      "completed": "Completado",
+      "closed": "Cerrado",
+      "disputed": "Disputado"
+    }
+  }
+}

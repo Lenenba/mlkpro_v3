@@ -1,0 +1,259 @@
+{
+  "onboarding": {
+    "title": "Onboarding",
+    "header": {
+      "title": "Create your workspace",
+      "subtitle": "Finish setup in {count} steps.",
+      "step": "Step {current} / {total}"
+    },
+    "pending_owner": {
+      "title": "Workspace setup in progress",
+      "description": "Your account is linked to a company that is still being configured. Ask the owner to finish onboarding.",
+      "logout": "Sign out",
+      "dashboard": "Dashboard"
+    },
+    "progress": {
+      "title": "Progress",
+      "note": "Keep this info up to date to unlock all dashboard features."
+    },
+    "steps": {
+      "account": {
+        "title": "Account",
+        "description": "Credentials and security."
+      },
+      "company": {
+        "title": "Company",
+        "description": "Core info and identity."
+      },
+      "type": {
+        "title": "Type",
+        "description": "Services or products."
+      },
+      "sector": {
+        "title": "Sector",
+        "description": "Your main activity."
+      },
+      "team": {
+        "title": "Team",
+        "description": "Invite your team."
+      },
+      "team_solo": {
+        "title": "Setup",
+        "description": "Confirm your solo workspace."
+      },
+      "plan": {
+        "title": "Plan",
+        "description": "Choose your plan."
+      },
+      "security": {
+        "title": "Security",
+        "description": "Choose your 2FA method."
+      }
+    },
+    "account": {
+      "owner_notice": "This account will become the company owner.",
+      "full_name": "Full name",
+      "email": "Email",
+      "password": "Password",
+      "confirm_password": "Confirm password",
+      "have_account": "Already have an account? Sign in",
+      "create_account": "Create my account"
+    },
+    "company": {
+      "name": "Company name",
+      "logo_optional": "Logo (optional)",
+      "logo_upload": "Upload your logo",
+      "description_optional": "Description (optional)",
+      "address": "Company address",
+      "address_search_placeholder": "Search for an address",
+      "address_searching": "Searching...",
+      "address_validated": "Validated address",
+      "address_label": "Address",
+      "street": "Street",
+      "city": "City",
+      "province": "Province",
+      "province_region": "Province / Region",
+      "country": "Country",
+      "postal_code": "Postal code",
+      "address_manual": "Manual address",
+      "address_hide": "Hide",
+      "address_show": "Enter manually",
+      "address_error_key": "Geoapify configuration missing. Check application configuration.",
+      "address_error_failed": "Search failed. Check the Geoapify key or use manual entry."
+    },
+    "type": {
+      "services": "Service business",
+      "products": "Product business",
+      "modules_active": "Active modules: {label}"
+    },
+    "sector": {
+      "label_products": "Business type",
+      "label_services": "Activity sector",
+      "other_label": "Other",
+      "other_input": "Sector (other)",
+      "hint": "If your sector is not listed, choose Other to create it.",
+      "products_note": "The Sales module will be enabled to sell your products through the platform.",
+      "services_note": "Service categories will be created automatically, including for a custom sector."
+    },
+    "sectors": {
+      "service": {
+        "placeholder": "Select a sector",
+        "salon": "Hair/beauty salon",
+        "restaurant": "Restaurant",
+        "service_general": "General services",
+        "menuiserie": "Carpentry",
+        "plomberie": "Plumbing",
+        "electricite": "Electrical",
+        "peinture": "Painting",
+        "toiture": "Roofing",
+        "renovation": "Renovation",
+        "paysagisme": "Landscaping",
+        "climatisation": "HVAC",
+        "nettoyage": "Cleaning"
+      },
+      "product": {
+        "placeholder": "Select a business type",
+        "retail": "Retail",
+        "wholesale": "Wholesale",
+        "grocery": "Grocery",
+        "convenience": "Convenience store",
+        "specialty": "Specialty boutique",
+        "pharmacy": "Pharmacy / parapharmacy",
+        "electronics": "Electronics",
+        "home_hardware": "Home & hardware"
+      },
+      "other": "Other..."
+    },
+    "team": {
+      "title": "Invite the team (optional)",
+      "subtitle": "Add members now or later.",
+      "size_title": "Team size",
+      "size_hint": "Tell us how many people will use the platform.",
+      "size_label": "Number of team members",
+      "size_title_solo": "Workspace profile",
+      "size_hint_solo": "Stay at 1 for a solo workspace. Increase this only if you plan to move to a team setup.",
+      "size_label_solo": "Planned workspace size",
+      "recommendation_title": "Recommended plan",
+      "recommendation_subtitle": "Based on {count} team members",
+      "recommendation_solo_subtitle": "Recommended for an owner-only workspace",
+      "recommendation_limit": "Up to {count} members",
+      "recommendation_unlimited": "Unlimited members",
+      "recommendation_owner_only": "Owner only",
+      "solo_title": "Solo workspace",
+      "solo_subtitle": "You are starting alone. Team invitations stay off until you move to a team plan.",
+      "add": "+ Add",
+      "empty": "No invitations added.",
+      "name": "Name",
+      "email": "Email",
+      "role_admin": "Admin",
+      "role_member": "Member",
+      "remove": "Remove",
+      "summary": "Summary",
+      "summary_company": "Company",
+      "summary_type": "Type",
+      "summary_sector": "Sector",
+      "terms_label": "I accept the",
+      "terms_action": "terms of use"
+    },
+    "plan": {
+      "title": "Choose your plan",
+      "subtitle": "1 month trial, then automatic billing based on your plan. Card required.",
+      "audience_label": "Plan context",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "interval_month": "/month",
+      "interval_year": "/year",
+      "charged_currency": "Charged currency: {currency}",
+      "yearly_note": "Pay yearly and save {percent}%.",
+      "billed_yearly": "For 12 months, billed annually.",
+      "trial_note": "Trial until {date}.",
+      "downgrade_note": "You can change plans during the trial.",
+      "selection_title": "Selected plan",
+      "audiences": {
+        "solo": {
+          "title": "Solo plans",
+          "description": "We are showing solo plans because your workspace is owner-only today. You can move to Team later without rebuilding your setup."
+        },
+        "team": {
+          "title": "Team plans",
+          "description": "We are showing team plans because your workspace includes {count} people. Team adds collaboration, permissions, and higher limits."
+        }
+      },
+      "catalog": {
+        "solo_essential": {
+          "description": "Core plan for solo operators who need a clear operating foundation.",
+          "features": [
+            "Requests, quotes, invoices, jobs, and tasks",
+            "Scheduling, sales, and catalog",
+            "Client portal and public page",
+            "Simple solo execution without advanced modules"
+          ]
+        },
+        "solo_pro": {
+          "description": "Growth plan for solo operators who need more structure and execution capacity.",
+          "features": [
+            "Everything in Solo Core",
+            "More capacity for jobs and tasks",
+            "Clearer solo structure without team logic",
+            "Recommended solo plan"
+          ]
+        },
+        "solo_growth": {
+          "description": "Scale plan for solo operators who want automation and premium headroom.",
+          "features": [
+            "Everything in Solo Growth",
+            "Bookings and scheduling in limited solo mode",
+            "Assistant, plan scan, campaigns, and loyalty",
+            "Premium capacity to scale solo",
+            "Advanced oversight and priority support"
+          ]
+        },
+        "starter": {
+          "description": "Core team plan for shared execution and collaboration.",
+          "features": [
+            "Shared foundation for requests, quotes, jobs, and invoices",
+            "Team scheduling, attendance, and collaboration",
+            "Assistant and plan scan in limited mode",
+            "Up to 5 members"
+          ]
+        },
+        "growth": {
+          "description": "Growth team plan for permissions, automation, and higher operating volume.",
+          "features": [
+            "Everything in Team Core",
+            "More permissions, campaigns, and loyalty",
+            "Advanced automations and higher volume",
+            "Recommended team plan"
+          ]
+        },
+        "scale": {
+          "description": "Scale team plan for advanced operations, AI, and premium support.",
+          "features": [
+            "Everything in Team Growth",
+            "Premium capacity, AI, and stronger scan limits",
+            "Advanced oversight and premium support",
+            "Dedicated onboarding and deeper reporting"
+          ]
+        }
+      },
+      "recommended": "Recommended",
+      "unavailable": "Plan unavailable"
+    },
+    "security": {
+      "title": "Choose your 2FA method",
+      "subtitle": "Add an extra layer of protection for the owner account.",
+      "method_email": "Email code",
+      "method_email_hint": "We'll send a one-time code to {email}.",
+      "method_app": "Authenticator app",
+      "method_app_hint": "Use Google Authenticator, Authy, or 1Password.",
+      "change_later": "You can change this later in Security settings.",
+      "email_fallback": "your email"
+    },
+    "actions": {
+      "back": "Back",
+      "continue": "Continue",
+      "finish": "Start trial",
+      "close": "Close"
+    }
+  }
+}

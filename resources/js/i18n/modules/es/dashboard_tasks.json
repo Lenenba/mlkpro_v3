@@ -1,0 +1,33 @@
+{
+  "dashboard_tasks": {
+    "fallback_name": "Equipo",
+    "subtitle_admin": "Bienvenido, {name}. Aquí tienes la vista general de tareas del equipo.",
+    "subtitle_member": "Bienvenido, {name}. Aquí tienes tu vista general de tareas.",
+    "kpi": {
+      "total": "Tareas totales"
+    },
+    "announcements": {
+      "title": "Anuncios",
+      "subtitle": "Últimas actualizaciones para tu equipo."
+    },
+    "timeline": {
+      "title": "Agenda de hoy",
+      "subtitle": "Tareas y trabajos que vencen hoy.",
+      "auto_alerts": "Alertas automáticas",
+      "empty": "No hay tareas ni trabajos programados para hoy."
+    },
+    "upcoming": {
+      "title": "Próximas tareas",
+      "manage": "Administrar tareas",
+      "empty": "No hay tareas próximas."
+    },
+    "my_tasks": {
+      "title": "Mis tareas",
+      "view_all": "Ver todo",
+      "empty": "Aún no hay tareas asignadas."
+    },
+    "labels": {
+      "due": "Vence {date}"
+    }
+  }
+}

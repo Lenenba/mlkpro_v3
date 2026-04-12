@@ -1,0 +1,385 @@
+{
+  "customers": {
+    "title": "Clientes",
+    "stats": {
+      "total": "Clientes totales",
+      "new": "Nuevos (30 días)",
+      "active": "Activos (30 días)",
+      "with_quotes": "Con cotizaciones",
+      "with_jobs": "Con trabajos"
+    },
+    "activity": {
+      "title": "Actividad principal de clientes",
+      "subtitle": "Actividad de cotizaciones y trabajos",
+      "actions": "{count} acciones",
+      "empty": "Aún no hay actividad del cliente.",
+      "quotes_short": "q",
+      "jobs_short": "j"
+    },
+    "view": {
+      "table": "Tabla",
+      "cards": "Tarjetas"
+    },
+    "filters": {
+      "search_placeholder": "Buscar por nombre, empresa, correo o teléfono",
+      "city": "Ciudad",
+      "country": "País",
+      "quotes": "Cotizaciones",
+      "requests": "Solicitudes",
+      "jobs": "Trabajos",
+      "status": "Estado",
+      "created_from": "Creado a partir de",
+      "created_to": "Creado para",
+      "with_quotes": "Con cotizaciones",
+      "no_quotes": "Sin cotizaciones",
+      "with_jobs": "Con trabajos",
+      "no_jobs": "Sin trabajos"
+    },
+    "actions": {
+      "filters": "Filtros",
+      "clear": "Borrar",
+      "add_customer": "Agregar cliente",
+      "archive": "Archivo",
+      "restore": "Restaurar",
+      "delete": "Eliminar",
+      "delete_confirm": "¿Eliminar \"{name}\"?",
+      "archive_confirm": "{action} \"{name}\"?",
+      "view": "Ver",
+      "edit": "Editar",
+      "back_to_list": "Volver a la lista",
+      "more_actions": "... Más acciones",
+      "create_quote": "Crear cotización",
+      "create_request": "Crear solicitud",
+      "create_job": "Crear trabajo",
+      "create_invoice": "Crear factura",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "save_changes": "Guardar cambios"
+    },
+    "bulk": {
+      "title": "Acciones masivas",
+      "enable_portal": "Habilitar el acceso al portal",
+      "disable_portal": "Deshabilitar el acceso al portal",
+      "delete_confirm": "¿Eliminar clientes seleccionados?"
+    },
+    "table": {
+      "company": "Empresa",
+      "contact": "Contacto",
+      "phone": "Teléfono",
+      "city": "Ciudad",
+      "quotes": "Cotizaciones",
+      "jobs": "Trabajos",
+      "created": "Creado"
+    },
+    "labels": {
+      "selected": "{count} seleccionados",
+      "customer_fallback": "Cliente",
+      "customer_initial": "C",
+      "unknown_city": "Ciudad desconocida",
+      "logo_alt": "Logotipo del cliente",
+      "quotes": "Cotizaciones",
+      "jobs": "Trabajos",
+      "created": "Creado",
+      "no_phone": "Sin teléfono",
+      "none": "-",
+      "unknown_status": "Estado desconocido"
+    },
+    "empty": {
+      "title": "No hay clientes",
+      "subtitle": "Añade un cliente para empezar tu base de datos.",
+      "action": "Añadir cliente"
+    },
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "of": "de",
+      "results": "resultados"
+    },
+    "status": {
+      "active": "Activo",
+      "archived": "Archivado"
+    },
+    "details": {
+      "sales": {
+        "title": "Ventas",
+        "view_all": "Ver todo",
+        "count": "Ventas",
+        "paid": "Pagado",
+        "total": "Total",
+        "empty": "Aún no hay ventas para este cliente.",
+        "sale_fallback": "Venta #{id}"
+      },
+      "purchase": {
+        "title": "Hábitos de compra",
+        "last_purchase": "Última compra",
+        "days_since": "Días desde",
+        "average_order": "Orden promedio",
+        "average_items": "Artículos promedio",
+        "frequency": "Cadencia media",
+        "recent_30": "compras de 30 días",
+        "preference": "Preferencia"
+      },
+      "top_products": {
+        "title": "Productos destacados",
+        "product_fallback": "Producto",
+        "initial_fallback": "P",
+        "sku_fallback": "SKU -",
+        "empty": "No hay compras recientes."
+      },
+      "schedule": {
+        "title": "Horario",
+        "upcoming_jobs": "Próximos trabajos",
+        "view_all": "Ver todo",
+        "starts": "Comienza",
+        "no_upcoming_jobs": "No hay trabajos próximos.",
+        "tasks": "Tareas",
+        "due": "Vence",
+        "no_due_date": "Sin fecha de vencimiento",
+        "no_tasks": "Aún no hay tareas."
+      },
+      "activity": {
+        "title": "Actividad reciente para este cliente",
+        "empty": "Aún no hay actividad reciente."
+      },
+      "preview": {
+        "title": "Resumen del cliente",
+        "quotes": "Cotizaciones",
+        "active_jobs": "Trabajos activos",
+        "jobs": "Trabajos",
+        "invoices": "Facturas",
+        "requests": "Solicitudes",
+        "balance_due": "Saldo adeudado",
+        "latest_quote": "Última cotización",
+        "quote_number": "Cotización {number}",
+        "quote_fallback": "Cotización",
+        "total": "Total",
+        "no_quotes": "Sin cotizaciones.",
+        "latest_job": "Último trabajo",
+        "job_fallback": "Trabajo",
+        "no_jobs": "Sin trabajos.",
+        "latest_invoice": "Última factura",
+        "invoice_number": "Factura {number}",
+        "invoice_fallback": "Factura",
+        "no_invoices": "Sin facturas."
+      },
+      "contact": {
+        "title": "Detalles de contacto",
+        "fields": {
+          "number": "Número",
+          "name": "Nombre",
+          "phone": "Teléfono",
+          "email": "Correo electrónico"
+        }
+      },
+      "mailing_lists": {
+        "title": "Listas de correo",
+        "description": "Añade este cliente a una lista de correo de marketing con un clic.",
+        "add_action": "Agregar a la lista de correo",
+        "modal_title": "Agregar a la lista de correo",
+        "modal_description": "Seleccione una lista de correo de destino y luego confirme agregar este cliente.",
+        "select_label": "Lista de correo",
+        "select_placeholder": "Elija una lista de correo",
+        "confirm_add": "Agregar cliente",
+        "loading": "Cargando listas de correo...",
+        "info_added": "Agregado a {list}. Nuevo: {added}, ya presente: {alreadyPresent}, total: {total}.",
+        "error_load": "No se pueden cargar listas de correo.",
+        "error_add": "No se puede agregar este cliente a la lista de correo."
+      },
+      "tags": {
+        "title": "Etiquetas",
+        "field": "Etiquetas (separadas por comas)",
+        "empty": "Aún no hay etiquetas."
+      },
+      "auto_validation": {
+        "title": "Validación automática",
+        "quotes": "Cotizaciones de validación automática",
+        "jobs": "Validar trabajos automáticamente",
+        "tasks": "Tareas de validación automática",
+        "invoices": "Validar facturas automáticamente"
+      },
+      "last_interaction": {
+        "title": "Última interacción con el cliente",
+        "empty": "Aún no hay interacciones."
+      },
+      "billing_history": {
+        "title": "Historial de facturación",
+        "invoiced": "Facturado",
+        "paid": "Pagado",
+        "balance_due": "Saldo adeudado",
+        "recent_payments": "Pagos recientes",
+        "invoice_fallback": "Factura",
+        "payment_fallback": "Pago",
+        "paid_on": "Pagado en",
+        "empty": "Aún no hay pagos."
+      },
+      "loyalty": {
+        "title": "Puntos de fidelidad",
+        "balance": "Saldo",
+        "earn_rate": "Tasa de ganancia",
+        "rate_value": "{rate} pts por cada $1 gastado",
+        "minimum_spend": "Gasto mínimo",
+        "rounding": "Redondeo: {mode}",
+        "enabled": "Programa activo",
+        "disabled": "Programa inactivo",
+        "recent_activity": "Actividad de puntos recientes",
+        "event_accrual": "Puntos ganados",
+        "event_refund": "Puntos eliminados (reembolso)",
+        "event_redemption": "Puntos canjeados",
+        "event_redemption_reversal": "Puntos restaurados",
+        "payment_amount": "Basado en el pago de {amount}",
+        "empty": "Aún no hay actividad de fidelización.",
+        "points_unit": "puntos",
+        "rounding_modes": {
+          "floor": "A la baja",
+          "round": "Más cercano",
+          "ceil": "Al alza"
+        }
+      },
+      "notes": {
+        "title": "Notas internas",
+        "field": "Notas internas",
+        "empty": "Aún no hay notas."
+      },
+      "days_label": "{count} días"
+    },
+    "form": {
+      "title": {
+        "new": "Nuevo cliente",
+        "edit": "Editar cliente"
+      },
+      "sections": {
+        "client_details": "Detalles del cliente",
+        "contact_details": "Detalles de contacto",
+        "auto_validation": "Validación automática del cliente",
+        "additional_details": "Detalle adicional del cliente",
+        "billing_preferences": "Preferencias de facturación",
+        "location": "Ubicación"
+      },
+      "fields": {
+        "title": "Título",
+        "first_name": "Nombre",
+        "last_name": "Apellido",
+        "company_name": "Nombre de la empresa",
+        "company_logo": "Logotipo de la empresa",
+        "upload_company_logo": "Subir logotipo de la empresa",
+        "choose_company_icon": "O elija un icono de empresa",
+        "company_icon_alt": "Icono de empresa",
+        "default_icon": "Predeterminado",
+        "clear_icon": "Quitar icono",
+        "phone": "Teléfono",
+        "email": "Dirección de correo electrónico",
+        "portal_access": "Dar acceso a la plataforma",
+        "description": "Descripción",
+        "referred_by": "Referido por",
+        "discount_rate": "Descuento de fidelidad (%)",
+        "search_address": "Buscar una dirección",
+        "notes": "Notas"
+      },
+      "auto_accept_quotes": "Cotizaciones de aceptación automática",
+      "billing": {
+        "same_as_property": "La dirección de facturación es la misma que la dirección de la propiedad.",
+        "mode": "Modo de facturación",
+        "grouping": "Agrupación",
+        "cycle": "Ciclo",
+        "delay_days": "Retraso (días)",
+        "date_rule": "Regla de fecha (por ejemplo: 1.º del mes)"
+      },
+      "billing_modes": {
+        "per_task": "Por tarea",
+        "per_segment": "Por segmento",
+        "end_of_job": "Fin del trabajo",
+        "deferred": "Diferido"
+      },
+      "billing_groupings": {
+        "single": "Factura única",
+        "periodic": "Agrupados"
+      },
+      "billing_cycles": {
+        "weekly": "Semanal",
+        "biweekly": "Cada 2 semanas",
+        "monthly": "Mensual",
+        "every_n_tasks": "Cada N tareas"
+      },
+      "salutations": {
+        "mr": "Sr.",
+        "mrs": "Sra.",
+        "miss": "Señorita"
+      },
+      "actions": {
+        "save_create_another": "Guardar y crear otro",
+        "save_client": "Guardar cliente",
+        "update_client": "Actualizar cliente"
+      },
+      "errors": {
+        "city_required": "Se requiere ciudad al guardar una ubicación.",
+        "required_fields": "Por favor complete todos los campos requeridos.",
+        "save_failed": "No se puede guardar al cliente. Por favor inténtalo de nuevo."
+      }
+    },
+    "properties": {
+      "title": "Propiedades",
+      "add": "Agregar propiedad",
+      "set_default": "Establecer como predeterminado",
+      "default_label": "Predeterminado",
+      "empty": "Aún no hay propiedades.",
+      "delete_confirm": "¿Eliminar esta propiedad?",
+      "fallback": "Propiedad",
+      "types": {
+        "physical": "Física",
+        "billing": "Facturación",
+        "other": "Otro"
+      },
+      "fields": {
+        "type": "Tipo",
+        "street1": "Calle 1",
+        "street2": "Calle 2",
+        "city": "Ciudad",
+        "state": "Estado",
+        "zip": "Código postal",
+        "country": "País"
+      }
+    },
+    "tabs": {
+      "overview": "Descripción general",
+      "empty_modules": "No hay módulos habilitados para este plan.",
+      "status_label": "Estado",
+      "filters": {
+        "all": "Todos los estados"
+      },
+      "active_works": "Obras activas",
+      "requests": {
+        "label": "Solicitudes",
+        "status": {
+          "new": "Nuevo",
+          "call_requested": "Llamada solicitada",
+          "contacted": "Contactado",
+          "qualified": "Calificado",
+          "quote_sent": "Cotización enviada",
+          "won": "Ganado",
+          "lost": "Perdido",
+          "converted": "Convertido"
+        }
+      },
+      "quotes": "Cotizaciones",
+      "jobs": "Trabajos",
+      "invoices": "Facturas",
+      "items": "{count} artículos",
+      "empty_filtered": "Ningún {type} coincide con este filtro.",
+      "empty_title": "Sin datos {type}",
+      "empty_subtitle": "Mientras tanto, puedes crear un nuevo {type} personalizado para monitorear tus métricas más importantes.",
+      "types": {
+        "works": "trabajos",
+        "requests": "solicitudes",
+        "quotes": "cotizaciones",
+        "jobs": "trabajos",
+        "invoices": "facturas"
+      },
+      "actions": {
+        "create_quote": "Crear cotización",
+        "create_job": "Crear trabajo",
+        "view_invoices": "Ver facturas",
+        "create_request": "Crear solicitud"
+      }
+    }
+  }
+}

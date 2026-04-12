@@ -1,0 +1,59 @@
+{
+  "client_orders": {
+    "title": "My purchases",
+    "subtitle_company": "Sales with {name}",
+    "subtitle_default": "Your recent sales",
+    "actions": {
+      "order": "Order",
+      "reorder": "Reorder",
+      "confirm_delivery": "Confirm",
+      "edit": "Edit",
+      "view": "View",
+      "view_invoice": "View invoice",
+      "pay_deposit": "Pay deposit"
+    },
+    "kpi": {
+      "orders": "Orders",
+      "pending": "Pending",
+      "paid": "Paid",
+      "amount_paid": "Total paid"
+    },
+    "sections": {
+      "pending_orders": "Pending orders",
+      "deliveries": "Deliveries in progress",
+      "delivery_alerts": "Delivery alerts",
+      "recent_sales": "Recent sales"
+    },
+    "empty": {
+      "pending_orders": "No pending orders.",
+      "deliveries": "No deliveries in progress.",
+      "delivery_alerts": "No delivery alerts.",
+      "recent_sales": "No recent sales."
+    },
+    "labels": {
+      "scheduled_delivery": "Scheduled delivery: {date}",
+      "delivery_in_progress": "Delivery in progress",
+      "in_transit": "In transit",
+      "order_label": "Order #{id}",
+      "sale_label": "Sale #{id}"
+    },
+    "status": {
+      "draft": "Draft",
+      "pending": "Pending",
+      "unpaid": "Unpaid",
+      "deposit_required": "Deposit required",
+      "partial": "Partial",
+      "paid": "Paid",
+      "canceled": "Canceled"
+    },
+    "fulfillment": {
+      "pending": "Order received",
+      "preparing": "Preparing",
+      "out_for_delivery": "Out for delivery",
+      "ready_for_pickup": "Ready for pickup",
+      "completed": "Delivered",
+      "confirmed": "Confirmed",
+      "completed_unconfirmed": "Delivered - to confirm"
+    }
+  }
+}

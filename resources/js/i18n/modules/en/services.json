@@ -1,0 +1,144 @@
+{
+  "services": {
+    "title": "Services",
+    "stats": {
+      "total": "Total services",
+      "active": "Active",
+      "archived": "Archived",
+      "avg_price": "Avg price"
+    },
+    "filters": {
+      "search_placeholder": "Search services",
+      "category": "Category",
+      "status": "Status",
+      "price_min": "Price min",
+      "price_max": "Price max",
+      "created_from": "Created from",
+      "created_to": "Created to"
+    },
+    "aria": {
+      "dropdown": "Dropdown"
+    },
+    "actions": {
+      "filters": "Filters",
+      "clear": "Clear",
+      "add_service": "Add service",
+      "edit": "Edit",
+      "delete": "Delete",
+      "delete_confirm": "Delete \"{name}\"?",
+      "new_service": "New service",
+      "edit_service": "Edit service",
+      "cancel": "Cancel",
+      "create_service": "Create service",
+      "update_service": "Update service",
+      "archive": "Archive",
+      "restore": "Restore"
+    },
+    "table": {
+      "service": "Service",
+      "price": "Price",
+      "category": "Category",
+      "status": "Status",
+      "created": "Created"
+    },
+    "labels": {
+      "uncategorized": "Uncategorized"
+    },
+    "status": {
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "empty": "No services found.",
+    "pagination": {
+      "results": "results",
+      "previous": "Previous",
+      "next": "Next",
+      "of": "of",
+      "label": "Pagination"
+    },
+    "form": {
+      "name": "Name",
+      "category": "Category",
+      "category_hint": "Need a new category?",
+      "category_hide": "Hide",
+      "category_add": "Add category",
+      "category_empty": "No categories yet. Create one below.",
+      "category_new": "New category name",
+      "category_create": "Create",
+      "unit": "Unit",
+      "tax_rate": "Tax rate (%)",
+      "price": "Price",
+      "description": "Description",
+      "errors": {
+        "category_name_required": "Enter a category name.",
+        "category_create_failed": "Unable to create category.",
+        "required_fields": "Please fill all required fields.",
+        "save_failed": "Unable to save service. Please try again."
+      }
+    },
+    "materials": {
+      "title": "Materials",
+      "add": "Add material",
+      "custom": "Custom",
+      "product": "Product",
+      "label": "Label",
+      "quantity": "Quantity",
+      "unit_price": "Unit price",
+      "unit": "Unit",
+      "billable": "Billable",
+      "description_optional": "Description (optional)",
+      "remove": "Remove",
+      "empty": "No materials yet."
+    },
+    "units": {
+      "piece": "Piece",
+      "hour": "Hour",
+      "m2": "m2",
+      "other": "Other"
+    },
+    "categories": {
+      "title": "Categories",
+      "subtitle": "Manage categories used for services and products.",
+      "stats": {
+        "total": "Total categories",
+        "active": "Active",
+        "archived": "Archived",
+        "in_use": "In use"
+      },
+      "form": {
+        "edit_label": "Edit category",
+        "new_label": "New category",
+        "editing": "Editing: {name}",
+        "update": "Update",
+        "add": "Add"
+      },
+      "filters": {
+        "search_placeholder": "Search categories",
+        "status": "Status",
+        "created_by": "Created by",
+        "created_from": "Created from",
+        "created_to": "Created to"
+      },
+      "table": {
+        "category": "Category",
+        "items": "Items",
+        "created_by": "Created by",
+        "status": "Status",
+        "created": "Created",
+        "system_category": "System category",
+        "products": "Products",
+        "services": "Services",
+        "locked": "Locked"
+      },
+      "empty": "No categories found.",
+      "creator": {
+        "owner": "Owner",
+        "system": "System",
+        "team_member": "Team member"
+      },
+      "actions": {
+        "archive_confirm": "Archive \"{name}\"?"
+      }
+    }
+  }
+}

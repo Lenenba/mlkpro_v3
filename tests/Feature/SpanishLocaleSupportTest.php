@@ -14,6 +14,20 @@ use App\Support\PublicProductPageLocalizedOverrides;
 use App\Support\PublicProductPageNarratives;
 use App\Support\WelcomeShowcaseSection;
 
+$loadJsLocaleModules = function (string $locale): array {
+    $directory = resource_path("js/i18n/modules/{$locale}");
+    $files = glob($directory.'/*.json') ?: [];
+    sort($files);
+
+    $merged = [];
+    foreach ($files as $file) {
+        $payload = json_decode(file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
+        $merged = array_replace_recursive($merged, $payload);
+    }
+
+    return $merged;
+};
+
 it('accepts spanish as a locale preference', function () {
     $user = User::factory()->create();
 
@@ -376,29 +390,18 @@ it('exposes extracted spanish override maps for all product narratives', functio
     expect(PublicProductPageLocalizedOverrides::for('sales-crm', 'en'))->toBe([]);
 });
 
-it('covers missing spanish backoffice groups with supplemental locale files', function () {
-    $en = json_decode(file_get_contents(resource_path('js/i18n/en.json')), true, 512, JSON_THROW_ON_ERROR);
-    $es = json_decode(file_get_contents(resource_path('js/i18n/es.json')), true, 512, JSON_THROW_ON_ERROR);
-    $backofficeEs = json_decode(file_get_contents(resource_path('js/i18n/backoffice.es.json')), true, 512, JSON_THROW_ON_ERROR);
-    $backofficeEn = json_decode(file_get_contents(resource_path('js/i18n/backoffice.en.json')), true, 512, JSON_THROW_ON_ERROR);
-    $backofficeFr = json_decode(file_get_contents(resource_path('js/i18n/backoffice.fr.json')), true, 512, JSON_THROW_ON_ERROR);
+it('loads modular locale files for all backoffice groups', function () use ($loadJsLocaleModules) {
+    $en = $loadJsLocaleModules('en');
+    $fr = $loadJsLocaleModules('fr');
+    $es = $loadJsLocaleModules('es');
 
-    $missingTopLevel = array_values(array_filter(
-        array_keys($en),
-        fn (string $key) => ! array_key_exists($key, $es)
-    ));
-
-    expect($missingTopLevel)->toContain('dashboard', 'customers', 'sales', 'client_dashboard');
-
-    foreach ($missingTopLevel as $key) {
-        expect(array_key_exists($key, $backofficeEs))->toBeTrue();
-    }
-
-    expect(data_get($backofficeEs, 'dashboard.title'))->toBe('Dashboard')
-        ->and(data_get($backofficeEs, 'customers.stats.total'))->toBe('Clientes totales')
-        ->and(data_get($backofficeEs, 'client_dashboard.title'))->toBe('Portal del cliente')
-        ->and(data_get($backofficeEs, 'dashboard_products.owner.title'))->toBe('Dashboard de productos')
-        ->and(data_get($backofficeEs, 'dashboard_tasks.timeline.title'))->toBe('Agenda de hoy')
-        ->and(data_get($backofficeEn, 'dashboard.marketing_panel.title'))->toBe('Marketing KPI')
-        ->and(data_get($backofficeFr, 'dashboard.marketing_panel.title'))->toBe('KPI marketing');
+    expect(array_keys($en))->toEqualCanonicalizing(array_keys($fr))
+        ->and(array_keys($en))->toEqualCanonicalizing(array_keys($es))
+        ->and(data_get($es, 'dashboard.title'))->toBe('Dashboard')
+        ->and(data_get($es, 'customers.stats.total'))->toBe('Clientes totales')
+        ->and(data_get($es, 'client_dashboard.title'))->toBe('Portal del cliente')
+        ->and(data_get($es, 'dashboard_products.owner.title'))->toBe('Dashboard de productos')
+        ->and(data_get($es, 'dashboard_tasks.timeline.title'))->toBe('Agenda de hoy')
+        ->and(data_get($en, 'dashboard.marketing_panel.title'))->toBe('Marketing KPI')
+        ->and(data_get($fr, 'dashboard.marketing_panel.title'))->toBe('KPI marketing');
 });

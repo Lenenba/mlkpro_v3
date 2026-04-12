@@ -1,0 +1,54 @@
+{
+  "portal_order": {
+    "title": "Commande {number}",
+    "subtitle": "Details de la commande",
+    "actions": {
+      "back_to_dashboard": "Retour au tableau de bord",
+      "download_pdf": "Telecharger la facture"
+    },
+    "sections": {
+      "items": "Articles",
+      "summary": "Resume",
+      "payment": "Paiement",
+      "fulfillment": "Livraison / retrait",
+      "customer": "Client",
+      "payments": "Historique des paiements",
+      "reviews": "Avis"
+    },
+    "table": {
+      "product": "Produit",
+      "sku": "SKU",
+      "unit": "Unite",
+      "quantity": "Qt.",
+      "price": "Prix",
+      "total": "Total"
+    },
+    "labels": {
+      "order_status": "Statut commande",
+      "payment_status": "Statut paiement",
+      "created_on": "Cree le {date}",
+      "paid_on": "Payee le {date}",
+      "requested_time": "Horaire souhaite: {date}",
+      "delivery_address": "Adresse",
+      "notes": "Notes"
+    },
+    "reviews": {
+      "unavailable": "Les avis sont disponibles apres paiement.",
+      "order_title": "Avis sur la commande",
+      "order_subtitle": "Notez la livraison et le service.",
+      "product_title": "Avis sur le produit",
+      "rating_label": "Note",
+      "title_label": "Titre",
+      "comment_label": "Commentaire",
+      "submit_order": "Envoyer l avis commande",
+      "submit_product": "Envoyer l avis produit",
+      "status": {
+        "approved": "Publie",
+        "blocked": "Bloque"
+      }
+    },
+    "empty": {
+      "payments": "Aucun paiement enregistre."
+    }
+  }
+}

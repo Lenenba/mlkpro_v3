@@ -1,0 +1,12 @@
+{
+  "account": {
+    "default_name": "Cuenta",
+    "company_label": "Empresa",
+    "settings": "Configuracion",
+    "billing": "Facturacion",
+    "profile": "Mi cuenta",
+    "dark_mode": "Modo oscuro",
+    "logout": "Cerrar sesion",
+    "language": "Idioma"
+  }
+}

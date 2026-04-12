@@ -1,0 +1,37 @@
+{
+  "public_showcase": {
+    "title": "Services {company}",
+    "company_fallback": "Entreprise",
+    "eyebrow": "Vitrine services",
+    "headline": "Services par {company}.",
+    "subheadline": "Decouvrez les services que nous realisons pour vos projets.",
+    "cta_request": "Demander un devis",
+    "cta_contact": "Nous contacter",
+    "featured": "Service phare",
+    "empty": "Aucun service disponible pour le moment.",
+    "empty_description": "Description non disponible.",
+    "category_fallback": "Sans categorie",
+    "price_from": "A partir de",
+    "price_quote": "Devis requis",
+    "stats_services": "{count} services",
+    "stats_categories": "{count} categories",
+    "filters": {
+      "search": "Recherche",
+      "search_placeholder": "Rechercher un service",
+      "category": "Categorie",
+      "all": "Toutes les categories"
+    },
+    "sections": {
+      "services": "Services",
+      "services_hint": "Choisissez un service et demandez un devis en quelques minutes."
+    },
+    "contact": {
+      "title": "Nous contacter",
+      "subtitle": "Parlez-nous de votre projet, nous repondons rapidement.",
+      "phone": "Telephone",
+      "email": "Email",
+      "location": "Localisation",
+      "empty": "Les informations de contact arrivent bientot."
+    }
+  }
+}

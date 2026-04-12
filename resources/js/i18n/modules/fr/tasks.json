@@ -1,0 +1,205 @@
+{
+  "tasks": {
+    "title": "Taches",
+    "stats": {
+      "total": "Total taches",
+      "todo": "A faire",
+      "in_progress": "En cours",
+      "done": "Terminee"
+    },
+    "view": {
+      "board": "Tableau",
+      "schedule": "Planning",
+      "team": "Equipe"
+    },
+    "team": {
+      "title": "Planning equipe",
+      "no_members": "Aucun membre d'equipe pour le moment."
+    },
+    "filters": {
+      "search_placeholder": "Rechercher taches, details ou assignes",
+      "search_placeholder_solo": "Rechercher taches ou details",
+      "status": {
+        "all": "Tous les statuts"
+      }
+    },
+    "actions": {
+      "filters": "Filtres",
+      "clear": "Effacer",
+      "add_task": "Ajouter tache",
+      "set_status": "Definir statut",
+      "edit": "Modifier",
+      "add_proof": "Ajouter preuve",
+      "delete": "Supprimer",
+      "delete_confirm": "Supprimer la tache \"{title}\" ?",
+      "cancel": "Annuler",
+      "create": "Creer",
+      "save": "Enregistrer",
+      "close": "Fermer"
+    },
+    "status": {
+      "todo": "A faire",
+      "in_progress": "En cours",
+      "done": "Terminee"
+    },
+    "timing": {
+      "early": "Terminee en avance",
+      "late": "En retard",
+      "on_time": "A l heure",
+      "unscheduled": "Non planifiee"
+    },
+    "schedule": {
+      "title": "Planning",
+      "range_label": "Periode",
+      "show_all": "Tout afficher",
+      "all_dates": "Toutes dates",
+      "range": {
+        "week": "Semaine",
+        "two_weeks": "2 semaines",
+        "month": "Mois",
+        "all": "Tout"
+      }
+    },
+    "calendar": {
+      "weekdays": {
+        "mon": "Lun",
+        "tue": "Mar",
+        "wed": "Mer",
+        "thu": "Jeu",
+        "fri": "Ven",
+        "sat": "Sam",
+        "sun": "Dim"
+      },
+      "day_count_one": "{count} tache",
+      "day_count_many": "{count} taches",
+      "tasks_due": "Taches a faire"
+    },
+    "empty": {
+      "no_tasks": "Aucune tache pour le moment.",
+      "no_tasks_in_range": "Aucune tache sur cette periode.",
+      "no_tasks_for_date": "Aucune tache pour {date}.",
+      "no_tasks_column": "Aucune tache"
+    },
+    "labels": {
+      "no_due_date": "Aucune date",
+      "unassigned": "Non assigne",
+      "task_count_one": "{count} tache",
+      "task_count_many": "{count} taches",
+      "job_number": "Chantier #{id}",
+      "unknown_status": "Statut inconnu",
+      "task": "Tache"
+    },
+    "table": {
+      "task": "Tache",
+      "status": "Statut",
+      "due": "Echeance",
+      "assignee": "Assigne",
+      "created": "Cree",
+      "results": "resultats"
+    },
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "of": "sur"
+    },
+    "details": {
+      "title": "Details de la tache",
+      "status": "Statut",
+      "due": "Echeance",
+      "created": "Cree",
+      "assignee": "Assigne",
+      "description": "Description",
+      "no_description": "Aucune description.",
+      "materials": "Materiaux",
+      "material_fallback": "Element",
+      "no_materials": "Aucun materiau.",
+      "open_full_task": "Ouvrir la tache",
+      "page_title": "Voir la tache",
+      "address_label": "Adresse",
+      "open_in_maps": "Ouvrir dans Maps",
+      "address_unavailable": "Adresse indisponible pour cette tache.",
+      "timeline": "Timeline",
+      "back_to_tasks": "Retour aux taches",
+      "execution": "Execution",
+      "completed_at": "Date reelle",
+      "completion_reason": "Raison de completion",
+      "not_completed": "Pas encore terminee",
+      "no_reason": "Aucune raison indiquee"
+    },
+    "history": {
+      "title": "Historique",
+      "empty": "Aucun historique pour le moment.",
+      "by": "Par {name}",
+      "system": "Mise a jour systeme",
+      "actions": {
+        "created": "Cree",
+        "manual": "Mise a jour manuelle",
+        "auto_started": "Demarree automatiquement",
+        "auto_completed": "Terminee automatiquement",
+        "overdue": "Marquee en retard",
+        "client_notified": "Client notifie"
+      }
+    },
+    "modal": {
+      "add_title": "Ajouter une tache",
+      "edit_title": "Modifier la tache"
+    },
+    "form": {
+      "title": "Titre",
+      "description_optional": "Description (optionnel)",
+      "job": "Chantier",
+      "select_job": "Selectionner chantier",
+      "one_off_task": "Tache ponctuelle",
+      "status": "Statut",
+      "due_date": "Date d'echeance",
+      "assignee": "Assigne",
+      "unassigned": "Non assigne",
+      "solo_hint": "Cet espace solo n assigne pas les taches a des membres d equipe.",
+      "availability": {
+        "available": "Disponible",
+        "busy": "Indisponible",
+        "unknown": "Selectionnez un horaire pour verifier la disponibilite"
+      }
+    },
+    "completion": {
+      "title": "Terminer la tache",
+      "completed_at": "Date de completion",
+      "reason": "Raison de completion",
+      "confirm": "Confirmer la completion",
+      "reason_required": "La raison est requise si la date differe."
+    },
+    "reasons": {
+      "client_available": "Client disponible",
+      "urgent_request": "Demande urgente",
+      "optimized_planning": "Planning optimise",
+      "team_available": "Equipe disponible",
+      "materials_ready": "Materiaux prets"
+    },
+    "materials": {
+      "title": "Materiaux",
+      "add": "Ajouter materiau",
+      "custom": "Personnalise",
+      "product": "Produit",
+      "label": "Libelle",
+      "quantity": "Quantite",
+      "unit_price": "Prix unitaire",
+      "unit": "Unite",
+      "billable": "Facturable",
+      "description_optional": "Description (optionnel)",
+      "remove": "Retirer",
+      "empty": "Aucun materiau."
+    },
+    "proof": {
+      "title": "Ajouter une preuve",
+      "type": "Type",
+      "types": {
+        "execution": "Execution",
+        "completion": "Completion",
+        "other": "Autre"
+      },
+      "file": "Fichier",
+      "note_optional": "Note (optionnel)",
+      "upload": "Televerser"
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "loyalty_module": {
+    "title": "Loyalty management",
+    "subtitle": "Track points movement and customer balances in real time.",
+    "default_points_label": "points",
+    "actions": {
+      "configure": "Configure module",
+      "apply_filters": "Apply filters",
+      "clear_filters": "Clear filters",
+      "show_advanced": "Show advanced",
+      "hide_advanced": "Hide advanced"
+    },
+    "filters": {
+      "search_placeholder": "Search by customer, event, payment or reference...",
+      "period": "Period",
+      "customer": "Customer",
+      "event": "Event",
+      "per_page": "Rows / page",
+      "from": "From",
+      "to": "To",
+      "all_customers": "All customers",
+      "all_events": "All events"
+    },
+    "period": {
+      "last_7_days": "Last 7 days",
+      "last_30_days": "Last 30 days",
+      "last_90_days": "Last 90 days",
+      "this_month": "This month",
+      "custom": "Custom range"
+    },
+    "kpi": {
+      "total_balance": "Total points balance",
+      "active_customers": "Customers with points",
+      "points_earned": "Points earned",
+      "points_spent": "Points spent"
+    },
+    "program": {
+      "title": "Program status",
+      "status": "Status",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "rate": "Earn rate (pts / $1)",
+      "minimum_spend": "Minimum spend",
+      "rounding_mode": "Rounding mode"
+    },
+    "customer_stats": {
+      "title": "Customer points overview",
+      "customer": "Customer",
+      "balance": "Balance",
+      "earned": "Earned",
+      "spent": "Redeemed",
+      "empty": "No customer data to display."
+    },
+    "ledger": {
+      "title": "Points evolution",
+      "date": "Date and time",
+      "customer": "Customer",
+      "event": "Event",
+      "reference": "Reference",
+      "points": "Points",
+      "amount": "Amount",
+      "results": "results",
+      "result_count": "{count} results",
+      "page_indicator": "Page {current} / {total}",
+      "empty": "No movement found."
+    },
+    "events": {
+      "accrual": "Points earned",
+      "refund": "Refund adjustment",
+      "redemption": "Points redeemed",
+      "redemption_reversal": "Redemption reversal"
+    },
+    "references": {
+      "payment": "Payment #{id}",
+      "sale": "Sale {number}",
+      "sale_id": "Sale #{id}"
+    }
+  }
+}

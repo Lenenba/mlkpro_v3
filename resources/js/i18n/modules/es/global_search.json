@@ -1,0 +1,18 @@
+{
+  "global_search": {
+    "open": "Busqueda global",
+    "placeholder": "Buscar clientes, tareas, cotizaciones, empleados...",
+    "placeholder_solo": "Buscar clientes, tareas, cotizaciones...",
+    "quick_actions": "Acciones rapidas",
+    "results": "Resultados",
+    "loading": "Buscando...",
+    "no_results": "No se encontraron resultados.",
+    "hint": "Ctrl + K",
+    "groups": {
+      "customers": "Clientes",
+      "tasks": "Tareas",
+      "quotes": "Cotizaciones",
+      "employees": "Empleados"
+    }
+  }
+}

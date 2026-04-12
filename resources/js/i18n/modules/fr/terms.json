@@ -1,0 +1,76 @@
+{
+  "terms": {
+    "meta": {
+      "title": "Conditions d utilisation"
+    },
+    "header": {
+      "tagline": "Suite de gestion"
+    },
+    "actions": {
+      "sign_in": "Se connecter",
+      "create_account": "Creer un compte"
+    },
+    "intro": {
+      "eyebrow": "Conditions d utilisation",
+      "title": "Conditions d utilisation pour Malikia pro",
+      "updated": "Dernière mise à jour : {date}. Cette page est un modèle et doit être relue avant publication.",
+      "legal": "Nom légal : Malikia Pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Portée",
+        "body": "Ces conditions régissent l'accès à Malikia Pro, une plateforme qui aide les entreprises à gérer clients, devis, jobs, tâches, factures, produits et scans de plan."
+      },
+      "accounts": {
+        "title": "2. Comptes",
+        "bullets": {
+          "one": "Les comptes sont créés et gérés par un propriétaire ou un admin.",
+          "two": "Vous êtes responsable de la sécurité des identifiants.",
+          "three": "Les rôles et permissions limitent l'accès aux données et actions."
+        }
+      },
+      "data": {
+        "title": "3. Propriété des données",
+        "body": "Votre entreprise garde la propriété de ses données. En utilisant Malikia Pro, vous autorisez la plateforme à stocker, traiter et afficher vos données pour fournir le service."
+      },
+      "pricing": {
+        "title": "4. Devis et données de prix",
+        "bullets": {
+          "one": "Les devis sont des estimations et peuvent varier selon le site et le périmètre.",
+          "two": "Les recherches de prix utilisent des sources tierces et la précision n'est pas garantie.",
+          "three": "Vous devez valider les prix fournisseur avant d'accepter ou d'envoyer un devis."
+        }
+      },
+      "billing": {
+        "title": "5. Facturation et paiements",
+        "body": "Les frais d'abonnement, taxes et conditions de paiement sont visibles dans la facturation. Les impayés peuvent limiter l'accès."
+      },
+      "acceptable": {
+        "title": "6. Usage acceptable",
+        "bullets": {
+          "one": "Ne téléversez pas de contenu illégal et ne détournez pas les données client.",
+          "two": "Ne tentez pas de perturber ou d analyser le service.",
+          "three": "Respectez les lois applicables et les accords client."
+        }
+      },
+      "availability": {
+        "title": "7. Disponibilité",
+        "body": "La plateforme est fournie en l'état. Nous pouvons faire de la maintenance ou des mises à jour qui impactent temporairement la disponibilité."
+      },
+      "liability": {
+        "title": "8. Limitation de responsabilité",
+        "body": "Malikia Pro n'est pas responsable des dommages indirects, pertes de profits ou pertes de données au-delà des limites légales. Utilisez le service à vos risques."
+      },
+      "termination": {
+        "title": "9. Résiliation",
+        "body": "Vous pouvez résilier votre abonnement à tout moment. Nous pouvons suspendre l'accès en cas de violation ou d'impayé."
+      },
+      "changes": {
+        "title": "10. Modifications",
+        "body": "Nous pouvons mettre à jour ces conditions. L'utilisation continue vaut acceptation des mises à jour."
+      }
+    },
+    "note": "Questions ? Contactez le propriétaire du compte ou utilisez le support dans l'application.",
+    "footer": "Malikia Pro. Tous droits réservés. {year}"
+  }
+}

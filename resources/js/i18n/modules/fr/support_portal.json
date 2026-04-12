@@ -1,0 +1,126 @@
+{
+  "support_portal": {
+    "page_title": "Demandes support",
+    "title": "Support & incidents",
+    "subtitle": "Signalez bugs ou incidents a l'equipe plateforme.",
+    "actions": {
+      "new_ticket": "Nouvelle demande",
+      "submit": "Envoyer la demande",
+      "close": "Fermer",
+      "update": "Mettre a jour",
+      "save": "Enregistrer",
+      "view": "Voir",
+      "back": "Retour",
+      "send": "Envoyer un message"
+    },
+    "stats": {
+      "total": "Total",
+      "open": "Ouvertes",
+      "assigned": "Assignees",
+      "pending": "En attente",
+      "resolved": "Resolues",
+      "closed": "Cloturees"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher demandes",
+      "status": "Statut",
+      "priority": "Priorite",
+      "toggle": "Filtres",
+      "clear": "Reinitialiser",
+      "apply": "Appliquer"
+    },
+    "table": {
+      "title": "Titre",
+      "category": "Categorie",
+      "status": "Statut",
+      "priority": "Priorite",
+      "created": "Cree",
+      "empty": "Aucune demande pour le moment."
+    },
+    "form": {
+      "category": "Categorie",
+      "title": "Titre",
+      "description": "Decrivez le probleme",
+      "priority": "Priorite",
+      "status": "Statut",
+      "message": "Ecrire un message"
+    },
+    "editor": {
+      "heading_2": "Titre 2",
+      "heading_3": "Titre 3",
+      "bold": "Gras",
+      "italic": "Italique",
+      "underline": "Souligne",
+      "unordered_list": "Liste a puces",
+      "ordered_list": "Liste numerotee",
+      "quote": "Citation",
+      "code_block": "Bloc de code",
+      "horizontal_rule": "Separateur",
+      "link": "Lien",
+      "image": "Image",
+      "ai_image": "Image IA",
+      "clear": "Effacer le format",
+      "link_prompt": "Saisissez l'URL du lien",
+      "image_prompt": "Saisissez l'URL de l'image",
+      "ai_prompt": "Decrivez l'image a generer"
+    },
+    "labels": {
+      "ticket": "Ticket support",
+      "assigned_to": "Assigne a",
+      "not_assigned": "Non assigne",
+      "created_at": "Cree",
+      "priority": "Priorite",
+      "sla_due": "Echeance SLA",
+      "system": "Systeme",
+      "unknown": "Inconnu"
+    },
+    "sections": {
+      "conversation": "Discussion",
+      "history": "Historique",
+      "update": "Mettre a jour",
+      "details": "Details",
+      "attachments": "Fichiers"
+    },
+    "attachments": {
+      "label": "Fichiers",
+      "help": "Ajoutez des captures ou PDF (max 4, 10 Mo chacun).",
+      "file": "Piece jointe"
+    },
+    "audit": {
+      "actions": {
+        "support_ticket.created": "Ticket cree",
+        "support_ticket.updated": "Ticket mis a jour",
+        "support_ticket.assigned": "Ticket assigne",
+        "support_ticket.status_changed": "Statut mis a jour",
+        "support_ticket.message_added": "Message ajoute",
+        "support_ticket.sla_due_soon_sent": "Rappel SLA envoye",
+        "support_ticket.sla_overdue_sent": "Rappel SLA en retard",
+        "support_ticket.unassigned_reminder_sent": "Rappel non assigne"
+      }
+    },
+    "empty": {
+      "conversation": "Aucun message pour le moment.",
+      "history": "Aucune activite.",
+      "attachments": "Aucun fichier."
+    },
+    "categories": {
+      "incident": "Incident",
+      "bug": "Bug",
+      "feature": "Suggestion",
+      "other": "Autre"
+    },
+    "priorities": {
+      "low": "Basse",
+      "normal": "Normale",
+      "high": "Haute",
+      "urgent": "Urgente"
+    },
+    "statuses": {
+      "open": "Ouverte",
+      "assigned": "Assignee",
+      "pending": "En attente",
+      "resolved": "Resolue",
+      "closed": "Cloturee"
+    }
+  }
+}

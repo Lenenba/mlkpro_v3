@@ -1,0 +1,45 @@
+{
+  "presence": {
+    "title": "Presence",
+    "subtitle": "Suivi des presences et pointages.",
+    "cards": {
+      "settings": "Parametres de presence",
+      "me": "Mon statut",
+      "team": "Presence equipe"
+    },
+    "labels": {
+      "auto_clock_in": "Pointage auto a la connexion",
+      "auto_clock_out": "Pointage auto a la deconnexion",
+      "manual_clock": "Pointage manuel",
+      "enabled": "Active",
+      "disabled": "Desactive",
+      "status": "Statut",
+      "last_in": "Dernier pointage entree",
+      "last_out": "Dernier pointage sortie",
+      "method": "Mode",
+      "jobs_today": "Interventions du jour",
+      "tasks_today": "Taches du jour",
+      "none": "--",
+      "role_fallback": "Employe"
+    },
+    "status": {
+      "clocked_in": "En service",
+      "clocked_out": "Hors service",
+      "no_activity": "Aucune activite"
+    },
+    "actions": {
+      "clock_in": "Pointer",
+      "clock_out": "Sortir",
+      "clocking_in": "Pointage...",
+      "clocking_out": "Sortie..."
+    },
+    "help": {
+      "manual_disabled": "Le pointage manuel est désactivé par le propriétaire."
+    },
+    "errors": {
+      "clock_in": "Impossible de pointer.",
+      "clock_out": "Impossible de sortir."
+    },
+    "empty": "Aucun membre à afficher."
+  }
+}

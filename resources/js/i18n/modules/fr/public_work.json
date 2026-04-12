@@ -1,0 +1,33 @@
+{
+  "public_work": {
+    "meta_title": "Revue de l intervention",
+    "document": "Intervention",
+    "company_fallback": "Entreprise",
+    "customer_fallback": "Client",
+    "schedule": "Planning",
+    "customer": "Client",
+    "contact": "Contact",
+    "actions": {
+      "title": "Actions",
+      "validate": "Valider l intervention",
+      "dispute": "Contester l intervention",
+      "proofs": "Voir les preuves",
+      "none": "Aucune action de validation n est disponible pour cette intervention."
+    },
+    "schedule_confirmation": {
+      "title": "Confirmation du planning",
+      "description": "L acceptation du planning generera les taches pour chaque visite.",
+      "request_changes": "Demander des modifications",
+      "accept": "Accepter le planning"
+    },
+    "status": {
+      "pending": "En attente",
+      "scheduled": "Planifiee",
+      "confirmed": "Confirmee",
+      "validated": "Validee",
+      "completed": "Terminee",
+      "closed": "Cloturee",
+      "disputed": "Contestee"
+    }
+  }
+}

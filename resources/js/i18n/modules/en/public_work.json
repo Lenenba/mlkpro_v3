@@ -1,0 +1,33 @@
+{
+  "public_work": {
+    "meta_title": "Job review",
+    "document": "Job",
+    "company_fallback": "Company",
+    "customer_fallback": "Customer",
+    "schedule": "Schedule",
+    "customer": "Customer",
+    "contact": "Contact",
+    "actions": {
+      "title": "Actions",
+      "validate": "Validate job",
+      "dispute": "Dispute job",
+      "proofs": "View proofs",
+      "none": "No validation actions are available for this job."
+    },
+    "schedule_confirmation": {
+      "title": "Schedule confirmation",
+      "description": "Accepting the schedule will generate tasks for each visit.",
+      "request_changes": "Request changes",
+      "accept": "Accept schedule"
+    },
+    "status": {
+      "pending": "Pending",
+      "scheduled": "Scheduled",
+      "confirmed": "Confirmed",
+      "validated": "Validated",
+      "completed": "Completed",
+      "closed": "Closed",
+      "disputed": "Disputed"
+    }
+  }
+}

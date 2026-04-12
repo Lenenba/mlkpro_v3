@@ -1,0 +1,37 @@
+{
+  "public_showcase": {
+    "title": "Servicios de {company}",
+    "company_fallback": "Empresa",
+    "eyebrow": "Escaparate de servicios",
+    "headline": "Servicios de {company}.",
+    "subheadline": "Explora los servicios que ofrecemos para tus proyectos.",
+    "cta_request": "Solicitar cotizacion",
+    "cta_contact": "Contactanos",
+    "featured": "Servicio destacado",
+    "empty": "Todavia no hay servicios disponibles.",
+    "empty_description": "No hay descripcion disponible.",
+    "category_fallback": "Sin categoria",
+    "price_from": "Desde",
+    "price_quote": "Cotizacion requerida",
+    "stats_services": "{count} servicios",
+    "stats_categories": "{count} categorias",
+    "filters": {
+      "search": "Buscar",
+      "search_placeholder": "Buscar servicios",
+      "category": "Categoria",
+      "all": "Todas las categorias"
+    },
+    "sections": {
+      "services": "Servicios",
+      "services_hint": "Elige un servicio y solicita una cotizacion en minutos."
+    },
+    "contact": {
+      "title": "Contactanos",
+      "subtitle": "Cuentanos sobre tu proyecto y te responderemos rapido.",
+      "phone": "Telefono",
+      "email": "Correo electronico",
+      "location": "Ubicacion",
+      "empty": "Los datos de contacto estaran disponibles pronto."
+    }
+  }
+}

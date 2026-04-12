@@ -1,0 +1,283 @@
+{
+  "sales": {
+    "index": {
+      "title": "Ventes payees",
+      "subtitle": "Suivez les ventes encaissees de votre boutique.",
+      "new_sale": "Nouvelle vente",
+      "filters": {
+        "all_sales": "Toutes les ventes"
+      }
+    },
+    "stats": {
+      "total": "Total ventes",
+      "revenue": "Chiffre d'affaires",
+      "collected": "Encaissé",
+      "pending": "En attente",
+      "draft": "Brouillons",
+      "canceled": "Annulées"
+    },
+    "status": {
+      "draft": "Brouillon",
+      "pending": "En attente",
+      "paid": "Payée",
+      "canceled": "Annulée"
+    },
+    "payment": {
+      "unpaid": "Non payée",
+      "deposit_required": "Acompte requis",
+      "partial": "Partiel",
+      "paid": "Payée"
+    },
+    "payments": {
+      "title": "Paiements",
+      "history_title": "Historique des paiements",
+      "deposit_required": "Acompte requis",
+      "paid": "Payé",
+      "balance_due": "Solde à payer",
+      "amount_label": "Montant",
+      "method_label": "Méthode",
+      "cash": "Cash",
+      "card": "Carte",
+      "record": "Enregistrer le paiement",
+      "recording": "Enregistrement...",
+      "mark_paid": "Marquer comme payé",
+      "marking_paid": "Mise à jour...",
+      "pending_cash": "Paiement en attente (cash)",
+      "empty": "Aucun paiement enregistré.",
+      "status": {
+        "pending": "En attente",
+        "completed": "Payé",
+        "paid": "Payé",
+        "failed": "Échoué",
+        "refunded": "Remboursé",
+        "reversed": "Inversé"
+      },
+      "timeline": {
+        "deposit": "Acompte",
+        "balance": "Solde",
+        "payment": "Paiement",
+        "deposit_balance": "Acompte + solde",
+        "pending": "À encaisser"
+      }
+    },
+    "fulfillment": {
+      "pending": "Commande reçue",
+      "preparing": "Préparation",
+      "out_for_delivery": "En cours de livraison",
+      "ready_for_pickup": "Prête à retirer",
+      "completed": "Livrée",
+      "confirmed": "Confirmée",
+      "method": {
+        "delivery": "Livraison",
+        "pickup": "Retrait",
+        "order": "Commande"
+      }
+    },
+    "stock": {
+      "out": "Rupture",
+      "low": "Bas stock",
+      "available": "Disponible"
+    },
+    "labels": {
+      "no_code": "Sans code",
+      "stock": "Stock",
+      "customer": "Client",
+      "customer_anonymous": "Client anonyme"
+    },
+    "actions": {
+      "back_to_sales": "Retour aux ventes",
+      "edit": "Modifier",
+      "pay_with_stripe": "Payer par Stripe",
+      "pay_with_stripe_loading": "Redirection...",
+      "receipt": "Telecharger le recu",
+      "print": "Imprimer"
+    },
+    "errors": {
+      "stripe_start": "Impossible de demarrer le paiement Stripe.",
+      "stripe_amount_invalid": "Montant invalide pour Stripe."
+    },
+    "qr": {
+      "title": "Paiement par QR",
+      "subtitle": "Scannez le QR code pour payer rapidement.",
+      "loading": "Preparation du paiement...",
+      "image_alt": "QR code de paiement",
+      "order_label": "Vente {number}",
+      "view_sale": "Voir la vente",
+      "open_link": "Ouvrir le paiement"
+    },
+    "form": {
+      "search_label": "Recherche produit",
+      "search_placeholder": "Nom, SKU, code barre",
+      "scan_label": "Scanner un code barre",
+      "scan_placeholder": "Scan ici",
+      "customer_label": "Client",
+      "customer_placeholder": "Selectionner un client",
+      "new_customer": "Nouveau client",
+      "new_customer_title": "Nouveau client",
+      "create_customer": "Creer le client",
+      "discount_badge": "Remise {rate}%",
+      "type_label": "Type",
+      "payment_label": "Mode de paiement",
+      "payment_methods": {
+        "cash": {
+          "label": "Cash",
+          "description": "Encaissement immediat en personne."
+        },
+        "card": {
+          "label": "Carte",
+          "description": "Paiement par carte via Stripe.",
+          "disabled_hint": "Stripe n est pas configure pour les paiements par carte."
+        }
+      },
+      "loyalty": {
+        "balance": "Solde fidelite : {points} {label}",
+        "redeem_label": "Utiliser des points",
+        "hint": "Maximum : {max} {label} ({amount} de reduction)"
+      },
+      "status_label": "Statut",
+      "invoice_title": "Facture",
+      "lines": "{count} lignes",
+      "empty_items": "Aucun produit ajoute. Cliquez sur un produit pour demarrer.",
+      "remove_item": "Retirer",
+      "notes_label": "Notes (optionnel)",
+      "errors": {
+        "out_of_stock": "Produit en rupture.",
+        "product_not_found": "Aucun produit trouve pour ce code."
+      }
+    },
+    "summary": {
+      "subtotal": "Sous-total",
+      "taxes": "Taxes",
+      "discount_rate": "Remise ({rate}%)",
+      "loyalty_redeem": "Fidelite ({points} {label})",
+      "delivery": "Livraison",
+      "total": "Total",
+      "lines": "Lignes",
+      "items": "Articles",
+      "created": "Cree",
+      "paid": "Payee"
+    },
+    "table": {
+      "filters": {
+        "search_placeholder": "Rechercher numero ou client",
+        "toggle": "Filtres",
+        "reset": "Reinitialiser",
+        "all_statuses": "Tous les statuts",
+        "all_customers": "Tous les clients",
+        "total_min": "Total min",
+        "total_max": "Total max",
+        "date_from": "Du",
+        "date_to": "Au"
+      },
+      "headings": {
+        "sale": "Vente",
+        "customer": "Client",
+        "status": "Statut",
+        "payment": "Statut paiement",
+        "items": "Articles",
+        "total": "Total",
+        "date": "Date"
+      },
+      "sale_label": "Vente #{id}",
+      "items_count": "{count} articles",
+      "payment_label": "Statut de paiement: {status}",
+      "fulfillment_placeholder": "Statut commande",
+      "actions": {
+        "view": "Voir",
+        "edit": "Modifier",
+        "mark_paid": "Payée",
+        "cancel": "Annuler"
+      },
+      "empty": {
+        "orders": {
+          "title": "Aucune commande",
+          "description": "Les commandes clients apparaîtront ici."
+        },
+        "sales": {
+          "title": "Aucune vente",
+          "description": "Créez une vente ou passez par le POS pour démarrer."
+        }
+      },
+      "pagination": {
+        "label": "Pagination",
+        "results": "résultats",
+        "previous": "Précédent",
+        "next": "Suivant",
+        "of": "sur"
+      }
+    },
+    "create": {
+      "title": "Nouvelle vente",
+      "subtitle": "Sélectionnez des produits pour générer la facture.",
+      "flash_saved": "Vente enregistrée.",
+      "flash_view": "Voir et imprimer",
+      "save_sale": "Enregistrer la vente",
+      "save_order": "Enregistrer la commande",
+      "status": {
+        "pending": {
+          "label": "Commande",
+          "description": "À payer plus tard ou en préparation"
+        },
+        "paid": {
+          "label": "Vente payée",
+          "description": "Paiement immédiat terminé"
+        }
+      }
+    },
+    "edit": {
+      "meta_title": "Modifier vente",
+      "title": "Modifier {number}",
+      "subtitle": "Mettez à jour la vente et son statut.",
+      "view_sale": "Voir la vente",
+      "fulfillment_status_label": "Statut {method}",
+      "fulfillment_placeholder": "Selectionner",
+      "schedule_label": "Horaire souhaité (ETA)",
+      "update": "Mettre à jour"
+    },
+    "show": {
+      "meta_title": "Vente",
+      "invoice_number": "Facture {number}",
+      "company_fallback": "Entreprise",
+      "seller_fallback": "Vendeur",
+      "seller_label": "Vendeur",
+      "order_label": "Commande: {status}",
+      "payment_label": "Statut de paiement: {status}",
+      "created_on": "Créée le {date}",
+      "paid_on": "Payée le {date}",
+      "products_title": "Produits",
+      "table": {
+        "product": "Produit",
+        "sku": "SKU",
+        "unit": "Unité",
+        "quantity": "Quantité",
+        "price": "Prix",
+        "total": "Total"
+      },
+      "product_alt": "Produit",
+      "customer_missing": "Aucun client attache.",
+      "summary_title": "Resume",
+      "fulfillment_title": "Livraison",
+      "fulfillment_status": "Statut: {status}",
+      "address_label": "Adresse:",
+      "notes_label": "Notes:",
+      "requested_time": "Horaire souhaite: {date}",
+      "confirmed_on": "Confirmee le {date}",
+      "pickup_title": "Retrait",
+      "pickup_code_label": "Code",
+      "pickup_code_pending": "Code de retrait en attente.",
+      "pickup_confirmed_on": "Retire le {date}",
+      "pickup_confirmed_by": "Confirme par {name}",
+      "pickup_qr_alt": "QR {code}",
+      "delivery_proof_title": "Photo livraison",
+      "customer_notes_title": "Notes client",
+      "customer_notes_empty": "Aucune note specifique.",
+      "substitutions_label": "Substitutions:",
+      "substitution_allowed": "Autorisees",
+      "substitution_not_allowed": "Non autorisees",
+      "notes_title": "Notes",
+      "product_initial": "P",
+      "company_initials_fallback": "CO",
+      "confirm_pickup": "Confirmer retrait"
+    }
+  }
+}

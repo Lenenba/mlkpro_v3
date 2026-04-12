@@ -1,0 +1,25 @@
+{
+  "client_loyalty": {
+    "title": "My loyalty points",
+    "subtitle": "Track your available balance and points activity history.",
+    "kpi": {
+      "balance": "Available balance",
+      "earned_period": "Points earned (period)",
+      "spent_period": "Points redeemed (period)",
+      "movements": "Movements (period)",
+      "earned_lifetime": "Total earned",
+      "spent_lifetime": "Total redeemed",
+      "movements_lifetime": "Total movements"
+    },
+    "program": {
+      "title": "Program rules",
+      "status": "Status",
+      "rate": "Earn rate (pts / $1)",
+      "minimum_spend": "Minimum spend",
+      "label": "Label"
+    },
+    "ledger": {
+      "title": "Points history"
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "auth_pages": {
+    "login": {
+      "title": "Log in",
+      "email": "Email",
+      "password": "Password",
+      "remember": "Remember me",
+      "forgot_password": "Forgot your password?",
+      "submit": "Log in"
+    },
+    "register": {
+      "title": "Create account",
+      "name": "Full name",
+      "email": "Email",
+      "password": "Password",
+      "password_confirmation": "Confirm password",
+      "already_registered": "Already registered?",
+      "submit": "Create account"
+    },
+    "forgot_password": {
+      "title": "Forgot password",
+      "description": "Forgot your password? No problem. Enter your email address and we'll send you a reset link so you can choose a new one.",
+      "email": "Email",
+      "submit": "Email password reset link"
+    },
+    "reset_password": {
+      "title": "Reset password",
+      "email": "Email",
+      "password": "Password",
+      "password_confirmation": "Confirm password",
+      "submit": "Reset password"
+    },
+    "verify_email": {
+      "title": "Email verification",
+      "description": "Thanks for signing up. Before getting started, verify your email address by clicking the link we just sent you. If you didn't receive it, we can send another.",
+      "resent": "A new verification link has been sent to the email address you provided during registration.",
+      "submit": "Resend verification email",
+      "logout": "Log out"
+    },
+    "confirm_password": {
+      "title": "Confirm password",
+      "description": "This is a secure area of the application. Please confirm your password before continuing.",
+      "password": "Password",
+      "submit": "Confirm"
+    }
+  }
+}

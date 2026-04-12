@@ -1,0 +1,18 @@
+{
+  "legal": {
+    "header": {
+      "tagline": "Suite de gestion"
+    },
+    "actions": {
+      "sign_in": "Se connecter",
+      "create_account": "Créer un compte"
+    },
+    "links": {
+      "terms": "Conditions d'utilisation",
+      "privacy": "Politique de confidentialité",
+      "refund": "Politique de remboursement",
+      "pricing": "Tarification"
+    },
+    "footer": "Malikia Pro. Tous droits réservés. {year}"
+  }
+}

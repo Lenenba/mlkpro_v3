@@ -1,0 +1,398 @@
+{
+  "products": {
+    "title": "Productos",
+    "single": "Producto",
+    "stats": {
+      "total": "Productos totales",
+      "inventory_value": "Valor de inventario",
+      "in_stock": "En stock",
+      "low_stock": "Stock bajo",
+      "out_of_stock": "Agotado",
+      "rotation": "Rotación de existencias"
+    },
+    "usage": {
+      "title": "Productos más usados",
+      "subtitle": "Basado en cotizaciones y trabajos.",
+      "used": "{count} usado",
+      "empty": "Aún no hay datos de uso."
+    },
+    "aria": {
+      "dropdown": "Menú desplegable"
+    },
+    "labels": {
+      "no_sku": "Sin SKU",
+      "barcode": "código de barras",
+      "unit": "Unidad",
+      "category": "categoría",
+      "tracking": "Seguimiento",
+      "stock": "Valores",
+      "available": "Disponible",
+      "minimum": "Mínimo",
+      "minimum_short": "mín.",
+      "reserved": "Reservado",
+      "damaged": "Dañado",
+      "cost": "Costo",
+      "margin": "Margen",
+      "value": "Valor",
+      "warehouse_short": "¿Qué?",
+      "warehouse": "Almacén",
+      "bin": "Papelera",
+      "on_hand": "En mano",
+      "quantity": "Cantidad",
+      "received": "Recibido",
+      "expires": "Vence",
+      "next_expiry": "Próximo vencimiento",
+      "status": "Estado",
+      "created": "Creado",
+      "no_supplier": "Ningún proveedor",
+      "main_warehouse": "Almacén principal",
+      "no_location": "No hay ubicación establecida",
+      "uncategorized": "Sin categoría",
+      "supplier": "Proveedor",
+      "supplier_email": "Correo electrónico del proveedor",
+      "product_image_alt": "Imagen del producto",
+      "no_note": "Sin nota"
+    },
+    "status": {
+      "active": "Activo",
+      "archived": "Archivado"
+    },
+    "stock_status": {
+      "in_stock": "En stock",
+      "low_stock": "Stock bajo",
+      "out_of_stock": "Agotado"
+    },
+    "tracking": {
+      "standard": "Estándar",
+      "lot": "lote",
+      "serial": "Serie",
+      "standard_full": "Estándar (sin lote/serie)",
+      "lot_tracked": "Lote rastreado",
+      "serial_tracked": "Seguimiento de serie",
+      "lots": "lotes",
+      "serials": "Seriales",
+      "none": "No hay lotes"
+    },
+    "alerts": {
+      "out_of_stock": "Agotado",
+      "low_stock": "Stock bajo",
+      "in_stock": "Existencias correctas",
+      "damaged_count": "Dañado {count}",
+      "reserved_count": "Reservado {count}",
+      "expired_lots_count": "Caducado {count}",
+      "expiring_lots_count": "Venciendo {count}",
+      "damaged_items": "Artículos dañados",
+      "reserved_orders": "Pedidos reservados",
+      "expired_lots": "Lotes caducados",
+      "expiring_lots": "Lotes vencidos",
+      "damaged": "Dañado",
+      "reserved": "Reservado",
+      "expiring": "Expira pronto",
+      "expired": "Caducado",
+      "reorder": "Punto de reorden",
+      "none": "Sin alertas",
+      "details_title": "Detalles de alerta",
+      "open_details": "Abrir {label} detalles",
+      "select_alert": "Seleccione una alerta para ver los detalles.",
+      "select_alert_badge": "Seleccione una insignia de alerta para ver sus detalles.",
+      "stock_depleted": "El stock está agotado.",
+      "stock_below_min": "El stock está por debajo del umbral mínimo.",
+      "damaged_stock": "Stock dañado",
+      "no_damaged_stock": "No se registraron existencias dañadas para este producto.",
+      "recent_damage_movements": "Movimientos de daños recientes",
+      "no_damage_movements": "Aún no hay movimientos de daño.",
+      "loading_reserved_orders": "Cargando pedidos reservados...",
+      "reserved_orders_error": "No se pueden cargar pedidos reservados.",
+      "no_reserved_orders": "No hay pedidos reservados para este producto.",
+      "no_lots_for_alert": "No hay mucho que mostrar para esta alerta."
+    },
+    "orders": {
+      "status": {
+        "pending": "Pendiente",
+        "draft": "Borrador",
+        "paid": "Pagado",
+        "canceled": "Cancelado"
+      },
+      "fulfillment": {
+        "pending": "Pendiente",
+        "preparing": "En preparación",
+        "out_for_delivery": "Fuera para entrega",
+        "ready_for_pickup": "Listo para ser recogido",
+        "completed": "Completado",
+        "confirmed": "Confirmado"
+      },
+      "order_label": "Orden {number}",
+      "customer_fallback": "Cliente",
+      "fulfillment_label": "Cumplimiento",
+      "method": "Método",
+      "scheduled": "Programado",
+      "view_order": "Ver pedido"
+    },
+    "filters": {
+      "search_placeholder": "Buscar productos, SKU o código de barras",
+      "stock": {
+        "all": "Todo el stock"
+      },
+      "alerts": {
+        "all": "Todas las alertas",
+        "label": "Alertas"
+      },
+      "tracking": {
+        "all": "Todo el seguimiento"
+      },
+      "warehouse": {
+        "all": "Todos los almacenes",
+        "default": "Predeterminado"
+      },
+      "status": {
+        "all": "Todo el estado"
+      },
+      "media": {
+        "all": "Todos los medios",
+        "label": "Medios",
+        "with_image": "Con imagen",
+        "without_image": "Sin imagen"
+      },
+      "price_min": "Precio mínimo",
+      "price_max": "Precio máximo",
+      "stock_min": "Stock mínimo",
+      "stock_max": "Stock máximo",
+      "supplier_name": "Nombre del proveedor",
+      "barcodes": {
+        "all": "Todos los códigos de barras",
+        "label": "Códigos de barras",
+        "with": "Con código de barras",
+        "without": "Sin código de barras"
+      },
+      "created_from": "Creado a partir de",
+      "created_to": "Creado para"
+    },
+    "actions": {
+      "filters": "Filtros",
+      "export_csv": "Exportar CSV",
+      "import_csv": "Importar CSV",
+      "add_product": "Añadir producto",
+      "clear": "Borrar",
+      "archive": "Archivo",
+      "restore": "Restaurar",
+      "delete": "Eliminar",
+      "edit": "Editar",
+      "view": "Ver",
+      "quick_edit": "Edición rápida",
+      "adjust_stock": "Ajustar existencias",
+      "duplicate": "Duplicar",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "import": "Importar",
+      "update_product": "Actualizar producto",
+      "create_product": "Crear producto",
+      "delete_confirm": "¿Eliminar \"{name}\"?",
+      "archive_confirm": "{action} \"{name}\"?",
+      "edit_product": "Editar producto",
+      "view_product": "Ver producto",
+      "request_supplier": "Solicitar stock de proveedor",
+      "request_supplier_confirm": "¿Solicitar reposición de stock al proveedor?",
+      "back_to_list": "Volver a productos",
+      "remove": "Quitar"
+    },
+    "bulk": {
+      "selected": "{count} seleccionado",
+      "actions": "Acciones masivas",
+      "delete_confirm": "¿Eliminar productos seleccionados?"
+    },
+    "table": {
+      "name": "Nombre",
+      "state": "Estado",
+      "stock_status": "Estado del stock",
+      "pricing": "Precios",
+      "inventory": "inventario",
+      "tracking": "Seguimiento / Lotes",
+      "alerts": "Alertas",
+      "supplier_location": "Proveedor / Ubicación",
+      "category": "categoría"
+    },
+    "empty": {
+      "title": "Sin productos",
+      "subtitle": "Añade un producto para iniciar tu catálogo.",
+      "add_action": "Añadir producto"
+    },
+    "pagination": {
+      "results": "resultados",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "of": "de",
+      "label": "Paginación"
+    },
+    "import": {
+      "title": "importar productos",
+      "csv_file": "archivo CSV"
+    },
+    "adjust": {
+      "title": "Ajustar existencias",
+      "product": "Producto",
+      "type_label": "Tipo de ajuste",
+      "warehouse_label": "Almacén",
+      "reason_label": "Razón",
+      "low_stock_alert": "Alerta de stock bajo. El mínimo es {min}.",
+      "types": {
+        "in": "Stock en",
+        "out": "Agotamiento de existencias",
+        "adjust": "Ajustar",
+        "damage": "Daño",
+        "spoilage": "Deterioro"
+      },
+      "quantity_change": "cambio de cantidad",
+      "select_warehouse": "Seleccionar almacén",
+      "unit_cost_optional": "Costo unitario (opcional)",
+      "note_optional": "Nota (opcional)",
+      "lot_number": "Número de lote",
+      "serial_number": "Número de serie",
+      "serial_note": "Los artículos con seguimiento en serie se ajustan uno a la vez.",
+      "serial_mode_single": "soltero",
+      "serial_mode_batch": "lote",
+      "serial_batch_placeholder": "Pegue una serie por línea o sepárela con comas.",
+      "serial_batch_hint": "La cantidad se calcula automáticamente a partir de la lista.",
+      "serial_batch_count": "{count} serie",
+      "serial_batch_duplicates": "{count} duplicados detectados en la lista.",
+      "serial_range_placeholder": "Ej: EQP-001..050",
+      "serial_range_add": "Generar rango",
+      "serial_range_help": "Genera una lista a partir de un rango.",
+      "serial_range_invalid": "Formato no válido. Utilice p.e. EQP-001..050.",
+      "serial_range_too_many": "Demasiadas publicaciones seriadas ({count}).",
+      "no_warehouse_hint": "Agregue un almacén en la configuración antes de ajustar el stock.",
+      "recent_movements": "Movimientos recientes",
+      "no_movements": "Aún no hay movimientos.",
+      "select_product": "Selecciona un producto para ajustar stock.",
+      "reasons": {
+        "manual": "manuales",
+        "purchase": "Compra",
+        "sale": "Venta",
+        "return": "Regresar",
+        "audit": "Auditoría",
+        "transfer": "Transferir"
+      }
+    },
+    "form": {
+      "details": "Detalles",
+      "name": "Nombre",
+      "category": "categoría",
+      "category_hint": "¿Necesitas una nueva categoría?",
+      "category_hide": "Ocultar",
+      "category_add": "Añadir categoría",
+      "category_empty": "Aún no hay categorías. Crea uno a continuación.",
+      "category_new": "Nuevo nombre de categoría",
+      "category_create": "crear",
+      "sku": "SKU",
+      "barcode": "código de barras",
+      "tracking": "Seguimiento",
+      "unit": "Unidad",
+      "supplier": "Proveedor",
+      "supplier_email": "Correo electrónico del proveedor",
+      "tax_rate": "Tasa impositiva (%)",
+      "description": "Descripción",
+      "primary_image": "Imagen principal",
+      "pricing": "Precios",
+      "price": "Precio",
+      "cost_price": "precio de costo",
+      "margin": "Margen (%)",
+      "stock": "Valores",
+      "minimum_stock": "Stock mínimo",
+      "inventory": "inventario",
+      "lots_title": "Lotes y Seriales",
+      "lots_empty": "Aún no hay lotes ni series.",
+      "errors": {
+        "category_name_required": "Introduzca un nombre de categoría.",
+        "category_create_failed": "No se puede crear la categoría.",
+        "required_fields": "Por favor complete todos los campos requeridos.",
+        "save_failed": "No se puede guardar el producto. Por favor inténtalo de nuevo."
+      },
+      "promo_title": "Promoción",
+      "promo_hint": "Establezca un descuento y fechas de inicio/finalización opcionales.",
+      "promo_discount": "Descuento (%)",
+      "promo_start": "Inicio de promoción",
+      "promo_end": "Fin de la promoción"
+    },
+    "ai": {
+      "generate": "Generar imagen AI",
+      "generate_busy": "Generando...",
+      "prompt": "Describe la imagen del producto a generar.",
+      "hint": "Límite diario: {limit} imágenes. Restante hoy: {remaining}.",
+      "disabled": "La generación de imágenes AI está deshabilitada. Agrega un paquete AI en Facturación o configura tu clave AI.",
+      "limit_reached": "Se alcanzó el límite diario de imágenes de IA. Compra un paquete de IA en Facturación para generar más.",
+      "error": "No se puede generar la imagen de IA."
+    },
+    "ai_bulk": {
+      "generate": "Generar imágenes de IA",
+      "generate_busy": "Generando imágenes...",
+      "confirm": "¿Generar imágenes de IA para {count} productos sin imágenes? Esto utilizará su límite/créditos diarios.",
+      "loading": "Comprobando productos sin imágenes...",
+      "missing_count": "{count} productos sin imágenes.",
+      "progress": "{done}/{total} generado",
+      "none_missing": "Todos los productos ya tienen imágenes.",
+      "limit_reached": "Se alcanzó el límite diario de imágenes de IA. Compra un paquete de IA para continuar.",
+      "disabled": "La generación de imágenes AI está deshabilitada.",
+      "error": "No se pueden generar una o más imágenes de IA."
+    },
+    "price_lookup": {
+      "title": "Búsqueda de precios",
+      "search_term": "Término de búsqueda",
+      "search_action": "Buscar precios",
+      "apply_best": "Aplicar mejor precio",
+      "clear": "Borrar",
+      "provider": "Proveedor",
+      "provider_not_configured": "(no configurado)",
+      "preferred": "Preferido",
+      "enabled": "Habilitado",
+      "searching": "Buscando proveedores...",
+      "best_price": "Mejor precio",
+      "open_link": "Abrir enlace",
+      "use_cost": "Usar como costo",
+      "use_price": "Usar como precio",
+      "use_image": "Usar imagen",
+      "search_required": "Ingrese el nombre de un producto para buscar.",
+      "no_live_prices": "No se encontraron precios en vivo.",
+      "search_failed": "La búsqueda de precios falló.",
+      "selected_image": "Imagen seleccionada"
+    },
+    "images": {
+      "primary": "Primaria",
+      "set_primary": "Establecer como principal"
+    },
+    "lots": {
+      "status": {
+        "active": "Activo",
+        "expired": "Caducado",
+        "expiring": "Expira pronto"
+      },
+      "serial_label": "Serie {number}",
+      "lot_label": "Lote {number}",
+      "lot_fallback": "lote",
+      "serial_short": "SN {number}",
+      "lot_short": "Lote {number}"
+    },
+    "show": {
+      "kpi": {
+        "in_stock": "En stock",
+        "stock_value": "Valor de las acciones",
+        "reserved": "Reservado",
+        "damaged": "Dañado",
+        "lots_serials": "Lotes/series",
+        "minimum": "Mínimo"
+      },
+      "alerts_title": "Alertas",
+      "request_supplier_hint": "Agregue un correo electrónico del proveedor para enviar la solicitud.",
+      "warehouses_title": "Almacenes",
+      "lots_title": "Lotes y Seriales",
+      "general_title": "generales",
+      "pricing_title": "Precios",
+      "inventory_title": "inventario",
+      "gallery_title": "Galería"
+    },
+    "units": {
+      "piece": "Pieza",
+      "hour": "Hora",
+      "m2": "m2",
+      "other": "Otro"
+    }
+  }
+}

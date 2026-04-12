@@ -1,0 +1,48 @@
+{
+  "privacy": {
+    "meta": {
+      "title": "Politica de privacidad"
+    },
+    "intro": {
+      "eyebrow": "Politica de privacidad",
+      "title": "Politica de privacidad de Malikia Pro",
+      "updated": "Ultima actualizacion: {date}.",
+      "summary": "Esta politica explica como Malikia Pro recopila, usa y protege los datos en Malikia Pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Alcance",
+        "body": "Esta politica se aplica a la plataforma Malikia Pro y a los servicios relacionados."
+      },
+      "data": {
+        "title": "2. Datos que recopilamos",
+        "body": "Recopilamos datos de la cuenta, informacion de la empresa, datos de uso y archivos que subes."
+      },
+      "usage": {
+        "title": "3. Como usamos los datos",
+        "body": "Usamos los datos para prestar el servicio, mejorar las funciones y apoyar a tu equipo."
+      },
+      "sharing": {
+        "title": "4. Comparticion de datos",
+        "body": "Compartimos datos con proveedores de servicio solo cuando es necesario para operar la plataforma. No vendemos datos personales."
+      },
+      "security": {
+        "title": "5. Seguridad",
+        "body": "Usamos salvaguardas razonables, controles de acceso y registros para proteger tus datos."
+      },
+      "retention": {
+        "title": "6. Conservacion",
+        "body": "Conservamos los datos mientras tu cuenta este activa o cuando la ley lo exija."
+      },
+      "rights": {
+        "title": "7. Tus derechos",
+        "body": "Puedes solicitar acceso, correccion o eliminacion de datos a traves del propietario de tu cuenta."
+      },
+      "contact": {
+        "title": "8. Contacto",
+        "body": "Para preguntas sobre privacidad, contacta al soporte en la aplicacion."
+      }
+    },
+    "note": "Si tienes preguntas, contacta al soporte en la aplicacion."
+  }
+}

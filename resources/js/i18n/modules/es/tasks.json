@@ -1,0 +1,205 @@
+{
+  "tasks": {
+    "title": "Tareas",
+    "stats": {
+      "total": "Tareas totales",
+      "todo": "hacer",
+      "in_progress": "En progreso",
+      "done": "Hecho"
+    },
+    "view": {
+      "board": "tablero",
+      "schedule": "Horario",
+      "team": "Equipo"
+    },
+    "team": {
+      "title": "Horario del equipo",
+      "no_members": "Aún no hay miembros del equipo."
+    },
+    "filters": {
+      "search_placeholder": "Buscar tareas, detalles o asignado",
+      "search_placeholder_solo": "Buscar tareas o detalles",
+      "status": {
+        "all": "Todo el estado"
+      }
+    },
+    "actions": {
+      "filters": "Filtros",
+      "clear": "Borrar",
+      "add_task": "Agregar tarea",
+      "set_status": "Establecer estado",
+      "edit": "Editar",
+      "add_proof": "Agregar prueba",
+      "delete": "Eliminar",
+      "delete_confirm": "¿Eliminar la tarea \"{title}\"?",
+      "cancel": "Cancelar",
+      "create": "crear",
+      "save": "Guardar",
+      "close": "Cerrar"
+    },
+    "status": {
+      "todo": "hacer",
+      "in_progress": "En progreso",
+      "done": "Hecho"
+    },
+    "timing": {
+      "early": "Completado temprano",
+      "late": "Vencido",
+      "on_time": "A tiempo",
+      "unscheduled": "no programado"
+    },
+    "schedule": {
+      "title": "Horario",
+      "range_label": "Rango",
+      "show_all": "Mostrar todo",
+      "all_dates": "Todas las fechas",
+      "range": {
+        "week": "Semana",
+        "two_weeks": "2 semanas",
+        "month": "Mes",
+        "all": "Todos"
+      }
+    },
+    "calendar": {
+      "weekdays": {
+        "mon": "lun",
+        "tue": "mar",
+        "wed": "mié",
+        "thu": "jueves",
+        "fri": "viernes",
+        "sat": "sábado",
+        "sun": "sol"
+      },
+      "day_count_one": "{count} tarea",
+      "day_count_many": "{count} tareas",
+      "tasks_due": "Tareas pendientes"
+    },
+    "empty": {
+      "no_tasks": "Aún no hay tareas.",
+      "no_tasks_in_range": "No hay tareas en este rango.",
+      "no_tasks_for_date": "No hay tareas para {date}.",
+      "no_tasks_column": "Sin tareas"
+    },
+    "labels": {
+      "no_due_date": "Sin fecha de vencimiento",
+      "unassigned": "No asignado",
+      "task_count_one": "{count} tarea",
+      "task_count_many": "{count} tareas",
+      "job_number": "Trabajo #{id}",
+      "unknown_status": "Estado desconocido",
+      "task": "Tarea"
+    },
+    "table": {
+      "task": "Tarea",
+      "status": "Estado",
+      "due": "debido",
+      "assignee": "Cesionario",
+      "created": "Creado",
+      "results": "resultados"
+    },
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "of": "de"
+    },
+    "details": {
+      "title": "Detalles de la tarea",
+      "status": "Estado",
+      "due": "debido",
+      "created": "Creado",
+      "assignee": "Cesionario",
+      "description": "Descripción",
+      "no_description": "Sin descripción.",
+      "materials": "Materiales",
+      "material_fallback": "Artículo",
+      "no_materials": "Sin materiales.",
+      "open_full_task": "Abrir tarea completa",
+      "page_title": "Ver tarea",
+      "address_label": "Dirección",
+      "open_in_maps": "Abrir en mapas",
+      "address_unavailable": "Dirección no disponible para esta tarea.",
+      "timeline": "Línea de tiempo",
+      "back_to_tasks": "Volver a tareas",
+      "execution": "Ejecución",
+      "completed_at": "Completado el",
+      "completion_reason": "Motivo de finalización",
+      "not_completed": "No completado",
+      "no_reason": "No se proporcionó ninguna razón"
+    },
+    "history": {
+      "title": "Historia",
+      "empty": "Aún no hay antecedentes.",
+      "by": "Por {name}",
+      "system": "Actualización del sistema",
+      "actions": {
+        "created": "Creado",
+        "manual": "Actualización manual",
+        "auto_started": "iniciado automáticamente",
+        "auto_completed": "Auto completado",
+        "overdue": "Marcado vencido",
+        "client_notified": "Cliente notificado"
+      }
+    },
+    "modal": {
+      "add_title": "Agregar tarea",
+      "edit_title": "Editar tarea"
+    },
+    "form": {
+      "title": "Título",
+      "description_optional": "Descripción (opcional)",
+      "job": "Trabajo",
+      "select_job": "Seleccionar trabajo",
+      "one_off_task": "tarea única",
+      "status": "Estado",
+      "due_date": "fecha de vencimiento",
+      "assignee": "Cesionario",
+      "unassigned": "No asignado",
+      "solo_hint": "Este espacio de trabajo individual no asigna tareas a los miembros del equipo.",
+      "availability": {
+        "available": "Disponible",
+        "busy": "No disponible",
+        "unknown": "Seleccione un horario programado para verificar la disponibilidad."
+      }
+    },
+    "completion": {
+      "title": "tarea completa",
+      "completed_at": "fecha completada",
+      "reason": "Motivo de finalización",
+      "confirm": "Confirmar finalización",
+      "reason_required": "Se requiere un motivo de finalización cuando la fecha difiere."
+    },
+    "reasons": {
+      "client_available": "Cliente disponible",
+      "urgent_request": "Solicitud urgente",
+      "optimized_planning": "Planificación optimizada",
+      "team_available": "Equipo disponible",
+      "materials_ready": "Materiales listos"
+    },
+    "materials": {
+      "title": "Materiales",
+      "add": "Añadir material",
+      "custom": "personalizado",
+      "product": "Producto",
+      "label": "Etiqueta",
+      "quantity": "Cantidad",
+      "unit_price": "Precio unitario",
+      "unit": "Unidad",
+      "billable": "facturable",
+      "description_optional": "Descripción (opcional)",
+      "remove": "Quitar",
+      "empty": "Aún no hay materiales."
+    },
+    "proof": {
+      "title": "Subir prueba",
+      "type": "Tipo",
+      "types": {
+        "execution": "Ejecución",
+        "completion": "Finalización",
+        "other": "Otro"
+      },
+      "file": "Archivo",
+      "note_optional": "Nota (opcional)",
+      "upload": "Subir"
+    }
+  }
+}
