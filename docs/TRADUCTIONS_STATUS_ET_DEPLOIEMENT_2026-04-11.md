@@ -200,7 +200,7 @@ Definition of done:
 - build Vite OK
 
 ### Phase 2 - UI publique restante et helpers frontend
-Status: `en cours`
+Status: `terminee`
 
 Perimetre:
 - [resources/js/Pages/Public/Page.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/Public/Page.vue)
@@ -211,13 +211,20 @@ Perimetre:
 - [resources/js/utils/industryGrid.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/industryGrid.js)
 - [resources/js/utils/featureTabs.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/featureTabs.js)
 - [resources/js/utils/publicCopy.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/publicCopy.js)
+- [resources/js/utils/publicCatalogCopy.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/publicCatalogCopy.js)
 
 Definition of done:
 - toute la UI publique statique passe par `t(...)`
 - les helpers ne fabriquent plus de copy inline non centralise
 
+Progression recente:
+- [resources/js/Pages/Public/Page.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/Public/Page.vue) s appuie maintenant uniquement sur des cles i18n pour les derniers labels de hero et de navigation de secours.
+- [resources/js/Components/Public/PublicFooterMenu.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Components/Public/PublicFooterMenu.vue) ne garde plus que des fallbacks branches sur `t(...)`.
+- [resources/js/utils/featureTabs.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/featureTabs.js), [resources/js/utils/storyGrid.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/storyGrid.js), [resources/js/utils/testimonialGrid.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/testimonialGrid.js) et [resources/js/utils/industryGrid.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/industryGrid.js) lisent maintenant leur copy depuis des sources centralisees.
+- [resources/js/utils/publicCatalogSections.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/publicCatalogSections.js) delegue maintenant tout le texte localise a [resources/js/utils/publicCatalogCopy.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/publicCatalogCopy.js), ce qui retire les derniers gros blocs inline `fr / en / es` de ce helper.
+
 ### Phase 3 - SuperAdmin pages et sections
-Status: `en cours`
+Status: `terminee`
 
 Perimetre:
 - [resources/js/Pages/SuperAdmin/Sections/Edit.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/SuperAdmin/Sections/Edit.vue)
@@ -229,6 +236,8 @@ Definition of done:
 
 Progression recente:
 - [resources/js/Pages/SuperAdmin/Sections/Edit.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/SuperAdmin/Sections/Edit.vue) et [resources/js/Pages/SuperAdmin/Pages/Edit.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/SuperAdmin/Pages/Edit.vue) s appuient maintenant sur [resources/js/utils/publicSectionPresets.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/publicSectionPresets.js) pour les presets localises partages.
+- [resources/js/Pages/SuperAdmin/Sections/Edit.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/SuperAdmin/Sections/Edit.vue) conserve maintenant les brouillons par locale au changement d onglet, ce qui evite de reinjecter un contenu mono-locale pendant l edition.
+- [resources/js/Pages/SuperAdmin/Pages/Edit.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/SuperAdmin/Pages/Edit.vue) et [resources/js/utils/publicPageTemplates.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/publicPageTemplates.js) creent maintenant sections, bibliotheque et templates avec un seeding propre par locale.
 
 ### Phase 4 - Sources editoriales backend Welcome / produits / industries
 Status: `en cours`
@@ -249,6 +258,8 @@ Progression recente:
 - [app/Support/PublicIndustryPageSections.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicIndustryPageSections.php) et [app/Support/PublicIndustryShowcaseTabs.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicIndustryShowcaseTabs.php) couvrent maintenant les sections editoriales industries en `es`.
 - [app/Support/PublicProductPageNarratives.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicProductPageNarratives.php) couvre maintenant les 7 narratives produits en `es` sans fallback visible vers `en`.
 - [database/seeders/MegaMenuSeeder.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/database/seeders/MegaMenuSeeder.php) regenere les payloads publics `es` des produits, solutions, industries, contact et partners.
+- [app/Support/WelcomeEditorialSections.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/WelcomeEditorialSections.php) range maintenant les sections welcome dans des payloads localises explicites avec fallback `en`.
+- [app/Support/WelcomeStockImages.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/WelcomeStockImages.php) centralise maintenant les alt texts par locale dans des definitions lisibles, sans cascade `if / else` par image.
 
 ### Phase 5 - Emails et campagnes
 Status: `dernier bloc`
@@ -261,10 +272,8 @@ Decision attendue:
 - choisir si ce module suit les memes cles i18n ou des templates localises par canal
 
 ### Ordre de travail recommande a partir d ici
-1. Finir le reliquat Phase 2 sur `Page.vue`, `PublicFooterMenu.vue` et `publicCatalogSections.js`.
-2. Terminer la Phase 3 avec une verification rapide des defaults admin voisins si un nouveau bloc reapparait.
-3. Finir le reliquat Phase 4 sur `WelcomeEditorialSections.php` et `WelcomeStockImages.php`.
-4. Garder la Phase 5 pour la fin une fois le site public stabilise.
+1. Finir la verification fonctionnelle de la Phase 4 autour de `public-copy:sync` et des payloads regenerees.
+2. Garder la Phase 5 pour la fin une fois le site public stabilise.
 
 ## 5. Convention d implementation recommandee
 
@@ -358,11 +367,8 @@ php artisan public-copy:sync --only=welcome,footer
 ## 8. Backlog concret immediat
 
 ### Sprint recommande
-- Ticket 1: fermer le reliquat Phase 2 sur `Page.vue`, `PublicFooterMenu.vue` et `publicCatalogSections.js`
-- Ticket 2: terminer la Phase 3 avec verification des defaults admin restants
-- Ticket 3: terminer la Phase 4 sur `WelcomeEditorialSections.php` et `WelcomeStockImages.php`
-- Ticket 4: verifier le reliquat editorial public regenere apres `public-copy:sync`
-- Ticket 5: preparer le dernier bloc Phase 5 autour des emails / campagnes
+- Ticket 1: verifier le reliquat editorial public regenere apres `public-copy:sync`
+- Ticket 2: preparer le dernier bloc Phase 5 autour des emails / campagnes
 
 ### Definition of done
 - Aucun label UI public visible ne reste FR-only hors contenu editorial voulu

@@ -62,7 +62,9 @@ const form = useForm({
     content: {},
 });
 
+const clone = (value) => JSON.parse(JSON.stringify(value ?? {}));
 const itemsLines = ref('');
+const contentByLocale = ref({});
 const assetPickerOpen = ref(false);
 const assetPickerTarget = ref({ target: null, urlKey: 'image_url', altKey: 'image_alt' });
 const industryCardIconOptions = computed(() => [
@@ -239,10 +241,10 @@ const ensureFooterGroups = (items) => {
     }));
 };
 
-const sectionTypePreset = (type) => defaultSectionLayoutPreset(type, currentLocale.value);
+const sectionTypePreset = (type, locale = currentLocale.value) => defaultSectionLayoutPreset(type, locale);
 
-const ensureStructure = (content, type = form.type) => {
-    const preset = sectionTypePreset(type);
+const ensureStructure = (content, type = form.type, locale = currentLocale.value) => {
+    const preset = sectionTypePreset(type, locale);
 
     return {
         layout: content?.layout || preset.layout,
@@ -319,20 +321,50 @@ const syncLinesFromContent = () => {
     itemsLines.value = (form.content.items || []).join('\n');
 };
 
+const buildLocaleContentDrafts = (source = props.content, type = form.type) => {
+    const drafts = {};
+
+    (props.locales || []).forEach((locale) => {
+        drafts[locale] = ensureStructure(source?.[locale] || {}, type, locale);
+    });
+
+    return drafts;
+};
+
+const storeLocaleDraft = (locale = currentLocale.value) => {
+    if (!locale) {
+        return;
+    }
+
+    contentByLocale.value = {
+        ...contentByLocale.value,
+        [locale]: ensureStructure(clone(form.content), form.type, locale),
+    };
+};
+
 const syncFormFromProps = (locale = currentLocale.value) => {
-    const incoming = props.content?.[locale] || {};
+    const incoming = contentByLocale.value?.[locale] || props.content?.[locale] || {};
     form.locale = locale;
-    form.content = ensureStructure(incoming, form.type);
+    form.content = ensureStructure(clone(incoming), form.type, locale);
     syncLinesFromContent();
 };
 
 watch(
     () => props.content,
-    () => syncFormFromProps(currentLocale.value),
+    () => {
+        contentByLocale.value = buildLocaleContentDrafts(props.content, form.type);
+        syncFormFromProps(currentLocale.value);
+    },
     { deep: true }
 );
 
-watch(currentLocale, (locale) => syncFormFromProps(locale));
+watch(currentLocale, (locale, previousLocale) => {
+    if (previousLocale) {
+        storeLocaleDraft(previousLocale);
+    }
+
+    syncFormFromProps(locale);
+});
 watch(itemsLines, (value) => {
     form.content.items = parseLines(value);
 });
@@ -529,6 +561,7 @@ const titleLabel = computed(() =>
 );
 
 const submit = () => {
+    storeLocaleDraft(currentLocale.value);
     if (props.mode === 'create') {
         form.post(route('superadmin.sections.store'), { preserveScroll: true });
         return;
@@ -862,6 +895,7 @@ const removeFeatureItemBlock = (targetKey, index) => {
     form.content[targetKey].splice(index, 1);
 };
 
+contentByLocale.value = buildLocaleContentDrafts(props.content, form.type);
 syncFormFromProps(currentLocale.value);
 </script>
 

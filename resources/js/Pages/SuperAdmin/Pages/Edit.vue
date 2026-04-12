@@ -35,6 +35,7 @@ import {
     resolveFeatureTabIconComponent,
 } from '@/utils/featureTabs';
 import { defaultSectionLayoutPreset } from '@/utils/publicSectionPresets';
+import { buildPageTemplateContent } from '@/utils/publicPageTemplates';
 
 const props = defineProps({
     mode: { type: String, default: 'edit' },
@@ -111,79 +112,11 @@ const templates = computed(() => [
         id: 'pricing',
         label: t('super_admin.pages.templates.pricing.label'),
         description: t('super_admin.pages.templates.pricing.description'),
-        content: {
-            page_title: t('super_admin.pages.templates.pricing.page_title'),
-            page_subtitle: t('super_admin.pages.templates.pricing.page_subtitle'),
-            sections: [
-                {
-                    layout: 'split',
-                    kicker: t('super_admin.pages.templates.pricing.sections.hero.kicker'),
-                    title: t('super_admin.pages.templates.pricing.sections.hero.title'),
-                    body: t('super_admin.pages.templates.pricing.sections.hero.body'),
-                    items: [
-                        t('super_admin.pages.templates.pricing.sections.hero.items.one'),
-                        t('super_admin.pages.templates.pricing.sections.hero.items.two'),
-                        t('super_admin.pages.templates.pricing.sections.hero.items.three'),
-                    ],
-                    primary_label: t('super_admin.pages.templates.pricing.sections.hero.primary_label'),
-                    primary_href: '#pricing',
-                    secondary_label: t('super_admin.pages.templates.pricing.sections.hero.secondary_label'),
-                    secondary_href: '#contact',
-                },
-                {
-                    layout: 'stack',
-                    alignment: 'center',
-                    tone: 'muted',
-                    kicker: t('super_admin.pages.templates.pricing.sections.plans.kicker'),
-                    title: t('super_admin.pages.templates.pricing.sections.plans.title'),
-                    body: t('super_admin.pages.templates.pricing.sections.plans.body'),
-                    items: [
-                        t('super_admin.pages.templates.pricing.sections.plans.items.one'),
-                        t('super_admin.pages.templates.pricing.sections.plans.items.two'),
-                        t('super_admin.pages.templates.pricing.sections.plans.items.three'),
-                    ],
-                },
-            ],
-        },
     },
     {
         id: 'about',
         label: t('super_admin.pages.templates.about.label'),
         description: t('super_admin.pages.templates.about.description'),
-        content: {
-            page_title: t('super_admin.pages.templates.about.page_title'),
-            page_subtitle: t('super_admin.pages.templates.about.page_subtitle'),
-            sections: [
-                {
-                    layout: 'split',
-                    kicker: t('super_admin.pages.templates.about.sections.mission.kicker'),
-                    title: t('super_admin.pages.templates.about.sections.mission.title'),
-                    body: t('super_admin.pages.templates.about.sections.mission.body'),
-                },
-                {
-                    layout: 'split',
-                    alignment: 'left',
-                    kicker: t('super_admin.pages.templates.about.sections.values.kicker'),
-                    title: t('super_admin.pages.templates.about.sections.values.title'),
-                    body: t('super_admin.pages.templates.about.sections.values.body'),
-                    items: [
-                        t('super_admin.pages.templates.about.sections.values.items.one'),
-                        t('super_admin.pages.templates.about.sections.values.items.two'),
-                        t('super_admin.pages.templates.about.sections.values.items.three'),
-                    ],
-                },
-                {
-                    layout: 'stack',
-                    alignment: 'center',
-                    tone: 'contrast',
-                    kicker: t('super_admin.pages.templates.about.sections.team.kicker'),
-                    title: t('super_admin.pages.templates.about.sections.team.title'),
-                    body: t('super_admin.pages.templates.about.sections.team.body'),
-                    primary_label: t('super_admin.pages.templates.about.sections.team.primary_label'),
-                    primary_href: '#contact',
-                },
-            ],
-        },
     },
 ]);
 
@@ -450,7 +383,7 @@ const ensureHeader = (header) => ({
     alignment: header?.alignment || 'center',
 });
 
-const sectionPreset = (layout) => defaultSectionLayoutPreset(layout, currentLocale.value);
+const sectionPreset = (layout, locale = currentLocale.value) => defaultSectionLayoutPreset(layout, locale);
 
 const parseCommaList = (value) =>
     String(value || '')
@@ -906,75 +839,45 @@ const toggleSectionEditor = (sectionId, force = null) => {
     };
 };
 
-const resolveLibraryContent = (section) => {
-    if (!section?.source_id) {
+const resolveLibraryContent = (sectionOrId, locale = currentLocale.value) => {
+    const sourceId = typeof sectionOrId === 'object' ? sectionOrId?.source_id : sectionOrId;
+
+    if (!sourceId) {
         return null;
     }
-    const library = findLibrarySection(section.source_id);
+
+    const library = findLibrarySection(sourceId);
     if (!library?.content) {
         return null;
     }
-    const locale = currentLocale.value;
-    return library.content?.[locale] || library.content?.[props.default_locale] || null;
+
+    return library.content?.[locale]
+        || library.content?.[props.default_locale]
+        || Object.values(library.content)[0]
+        || null;
 };
 
-const applyLibraryToSection = (section) => {
-    const content = resolveLibraryContent(section);
-    if (!content) {
-        return;
-    }
-    section.use_source = true;
-    section.background_color = content.background_color ?? section.background_color ?? '';
-    section.background_preset = content.background_preset ?? section.background_preset ?? '';
-    section.title_color = content.title_color ?? section.title_color ?? '';
-    section.body_color = content.body_color ?? section.body_color ?? '';
-    section.layout = content.layout ?? section.layout ?? 'split';
-    section.image_position = content.image_position ?? section.image_position ?? 'left';
-    section.alignment = content.alignment ?? section.alignment ?? 'left';
-    section.density = content.density ?? section.density ?? 'normal';
-    section.tone = content.tone ?? section.tone ?? 'default';
-    section.kicker = content.kicker ?? '';
-    section.title = content.title ?? '';
-    section.body = content.body ?? '';
-    section.note = content.note ?? '';
-    section.title_font_size = Number(content.title_font_size) > 0 ? Number(content.title_font_size) : 0;
-    section.industry_cards = ensureIndustryCards(content.industry_cards);
-    section.story_cards = ensureStoryCards(content.story_cards);
-    section.feature_tabs = ensureFeatureTabs(content.feature_tabs);
-    section.feature_tabs_style = normalizeFeatureTabsStyle(content.feature_tabs_style);
-    section.feature_tabs_font_size = normalizeFeatureTabsTriggerFontSize(content.feature_tabs_font_size);
-    section.testimonial_cards = ensureTestimonialCards(content.testimonial_cards);
-    section.stats = ensureStatItems(content.stats);
-    section.hero_images = ensureHeroImages(content.hero_images);
-    section.items = Array.isArray(content.items) ? content.items : [];
-    section.override_items = false;
-    section.override_note = false;
-    section.override_stats = false;
-    section.testimonial_author = content.testimonial_author ?? '';
-    section.testimonial_role = content.testimonial_role ?? '';
-    section.aside_kicker = content.aside_kicker ?? '';
-    section.aside_title = content.aside_title ?? '';
-    section.aside_body = content.aside_body ?? '';
-    section.aside_items = Array.isArray(content.aside_items) ? content.aside_items : [];
-    section.aside_link_label = content.aside_link_label ?? '';
-    section.aside_link_href = content.aside_link_href ?? '';
-    section.aside_image_url = content.aside_image_url ?? '';
-    section.aside_image_alt = content.aside_image_alt ?? '';
-    section.image_url = content.image_url ?? '';
-    section.image_alt = content.image_alt ?? '';
-    section.embed_url = content.embed_url ?? '';
-    section.embed_title = content.embed_title ?? '';
-    section.embed_height = Number(content.embed_height) > 0 ? Number(content.embed_height) : 760;
-    section.primary_label = content.primary_label ?? '';
-    section.primary_href = content.primary_href ?? '';
-    section.secondary_label = content.secondary_label ?? '';
-    section.secondary_href = content.secondary_href ?? '';
-    section.showcase_badge_label = content.showcase_badge_label ?? '';
-    section.showcase_badge_value = content.showcase_badge_value ?? '';
-    section.showcase_badge_note = content.showcase_badge_note ?? '';
-    section.showcase_divider_style = content.showcase_divider_style ?? 'diagonal';
-    rebuildItemsLines();
-};
+const buildPresetSection = ({ sectionId, layout, locale, index }) => (
+    ensureSection(
+        {
+            id: sectionId,
+            ...clone(sectionPreset(layout, locale)),
+        },
+        index
+    )
+);
+
+const buildLibrarySection = ({ sectionId, sourceId, locale, index }) => (
+    ensureSection(
+        {
+            id: sectionId,
+            source_id: String(sourceId),
+            use_source: true,
+            ...(clone(resolveLibraryContent(sourceId, locale)) || {}),
+        },
+        index
+    )
+);
 
 const addFromLibrary = () => {
     const id = selectedLibraryId.value;
@@ -982,19 +885,28 @@ const addFromLibrary = () => {
         return;
     }
     const nextIndex = (form.content.sections || []).length;
-    const section = ensureSection(
-        {
-            id: `section-${Date.now()}`,
-            source_id: String(id),
-            use_source: true,
-        },
-        nextIndex
-    );
-    form.content.sections.push(section);
-    applyLibraryToSection(section);
-    syncSectionStructureAcrossLocales(form.content.sections);
+    const sectionId = `section-${Date.now()}`;
+    const nextDrafts = { ...contentByLocale.value };
+
+    localeList.value.forEach((locale) => {
+        const base = ensureStructure(
+            locale === currentLocale.value
+                ? clone(form.content)
+                : (nextDrafts[locale] || props.content?.[locale] || {})
+        );
+        nextDrafts[locale] = {
+            ...base,
+            sections: [
+                ...(base.sections || []),
+                buildLibrarySection({ sectionId, sourceId: id, locale, index: nextIndex }),
+            ],
+        };
+    });
+
+    contentByLocale.value = nextDrafts;
     selectedLibraryId.value = '';
-    syncSectionEditorState({ openSectionId: section.id });
+    syncFormFromProps(currentLocale.value);
+    syncSectionEditorState({ openSectionId: sectionId });
 };
 
 const moveItem = (list, index, direction) => {
@@ -1091,17 +1003,32 @@ const updateFeatureTabItems = (tab, value) => {
 
 const addSection = () => {
     const nextIndex = (form.content.sections || []).length;
-    const section = ensureSection(
-        {
-            id: `section-${Date.now()}`,
-            ...sectionPreset(selectedSectionLayout.value),
-        },
-        nextIndex
-    );
-    form.content.sections.push(section);
-    syncSectionStructureAcrossLocales(form.content.sections);
-    rebuildItemsLines();
-    syncSectionEditorState({ openSectionId: section.id });
+    const sectionId = `section-${Date.now()}`;
+    const nextDrafts = { ...contentByLocale.value };
+
+    localeList.value.forEach((locale) => {
+        const base = ensureStructure(
+            locale === currentLocale.value
+                ? clone(form.content)
+                : (nextDrafts[locale] || props.content?.[locale] || {})
+        );
+        nextDrafts[locale] = {
+            ...base,
+            sections: [
+                ...(base.sections || []),
+                buildPresetSection({
+                    sectionId,
+                    layout: selectedSectionLayout.value,
+                    locale,
+                    index: nextIndex,
+                }),
+            ],
+        };
+    });
+
+    contentByLocale.value = nextDrafts;
+    syncFormFromProps(currentLocale.value);
+    syncSectionEditorState({ openSectionId: sectionId });
 };
 
 const removeSection = (index) => {
@@ -1176,9 +1103,15 @@ const submit = () => {
 const applyTemplate = () => {
     const template = templates.value.find((item) => item.id === selectedTemplate.value);
     if (!template) return;
-    form.content = ensureStructure(template.content);
-    syncSectionStructureAcrossLocales(form.content.sections);
-    rebuildItemsLines();
+
+    const nextDrafts = {};
+
+    localeList.value.forEach((locale) => {
+        nextDrafts[locale] = ensureStructure(buildPageTemplateContent(template.id, locale) || {});
+    });
+
+    contentByLocale.value = nextDrafts;
+    syncFormFromProps(currentLocale.value);
 };
 
 contentByLocale.value = buildLocaleContentDrafts(props.content);
