@@ -297,8 +297,10 @@ const form = useForm({
         .join('\n'),
     store_hero_images_files: [],
     store_hero_captions_fr: normalizeHeroCaptions(props.company.store_settings?.hero_captions?.fr),
+    store_hero_captions_es: normalizeHeroCaptions(props.company.store_settings?.hero_captions?.es),
     store_hero_captions_en: normalizeHeroCaptions(props.company.store_settings?.hero_captions?.en),
     store_hero_copy_fr: props.company.store_settings?.hero_copy?.fr ?? '',
+    store_hero_copy_es: props.company.store_settings?.hero_copy?.es ?? '',
     store_hero_copy_en: props.company.store_settings?.hero_copy?.en ?? '',
     notification_task_day_email: props.company.company_notification_settings?.task_day?.email ?? true,
     notification_task_day_sms: props.company.company_notification_settings?.task_day?.sms ?? false,
@@ -341,26 +343,34 @@ const heroSlideItems = computed(() => ([
 
 const removeHeroCaptionAt = (index) => {
     const nextFr = Array.isArray(form.store_hero_captions_fr) ? form.store_hero_captions_fr.slice() : [];
+    const nextEs = Array.isArray(form.store_hero_captions_es) ? form.store_hero_captions_es.slice() : [];
     const nextEn = Array.isArray(form.store_hero_captions_en) ? form.store_hero_captions_en.slice() : [];
     if (index >= 0) {
         nextFr.splice(index, 1);
+        nextEs.splice(index, 1);
         nextEn.splice(index, 1);
     }
     form.store_hero_captions_fr = nextFr;
+    form.store_hero_captions_es = nextEs;
     form.store_hero_captions_en = nextEn;
 };
 
 const ensureHeroCaptionLength = () => {
     const total = heroSlideItems.value.length;
     const nextFr = Array.isArray(form.store_hero_captions_fr) ? form.store_hero_captions_fr.slice(0, total) : [];
+    const nextEs = Array.isArray(form.store_hero_captions_es) ? form.store_hero_captions_es.slice(0, total) : [];
     const nextEn = Array.isArray(form.store_hero_captions_en) ? form.store_hero_captions_en.slice(0, total) : [];
     while (nextFr.length < total) {
         nextFr.push('');
+    }
+    while (nextEs.length < total) {
+        nextEs.push('');
     }
     while (nextEn.length < total) {
         nextEn.push('');
     }
     form.store_hero_captions_fr = nextFr;
+    form.store_hero_captions_es = nextEs;
     form.store_hero_captions_en = nextEn;
 };
 
@@ -538,6 +548,7 @@ watch(
             form.store_hero_images_text = normalized;
         }
         form.store_hero_captions_fr = normalizeHeroCaptionList(props.company.store_settings?.hero_captions?.fr);
+        form.store_hero_captions_es = normalizeHeroCaptionList(props.company.store_settings?.hero_captions?.es);
         form.store_hero_captions_en = normalizeHeroCaptionList(props.company.store_settings?.hero_captions?.en);
         form.store_hero_images_files = [];
     },
@@ -937,10 +948,12 @@ const submit = () => {
                     .filter((value) => Boolean(value)),
                 hero_copy: {
                     fr: normalizeText(data.store_hero_copy_fr),
+                    es: normalizeText(data.store_hero_copy_es),
                     en: normalizeText(data.store_hero_copy_en),
                 },
                 hero_captions: {
                     fr: normalizeCaptions(data.store_hero_captions_fr),
+                    es: normalizeCaptions(data.store_hero_captions_es),
                     en: normalizeCaptions(data.store_hero_captions_en),
                 },
             };
@@ -980,8 +993,10 @@ const submit = () => {
             delete payload.store_featured_product_id;
             delete payload.store_hero_images_text;
             delete payload.store_hero_copy_fr;
+            delete payload.store_hero_copy_es;
             delete payload.store_hero_copy_en;
             delete payload.store_hero_captions_fr;
+            delete payload.store_hero_captions_es;
             delete payload.store_hero_captions_en;
             delete payload.notification_task_day_email;
             delete payload.notification_task_day_sms;
@@ -1840,10 +1855,15 @@ watch(activeTab, (value) => {
                                                 </p>
                                             </div>
                                         </div>
-                                        <div class="grid gap-2 md:grid-cols-2">
+                                        <div class="grid gap-2 md:grid-cols-3">
                                             <FloatingTextarea
                                                 v-model="form.store_hero_captions_fr[index]"
                                                 :label="$t('settings.company.store.hero_captions_fr')"
+                                                rows="2"
+                                            />
+                                            <FloatingTextarea
+                                                v-model="form.store_hero_captions_es[index]"
+                                                :label="$t('settings.company.store.hero_captions_es')"
                                                 rows="2"
                                             />
                                             <FloatingTextarea
@@ -1872,6 +1892,22 @@ watch(activeTab, (value) => {
                                     @ai-generated="handleStoreAiGenerated"
                                 />
                                 <InputError class="mt-1" :message="form.errors['company_store_settings.hero_copy.fr']" />
+                            </div>
+                            <div>
+                                <RichTextEditor
+                                    v-model="form.store_hero_copy_es"
+                                    :label="$t('settings.company.store.hero_copy_es')"
+                                    :placeholder="$t('settings.company.store.hero_copy_placeholder')"
+                                    :labels="editorLabels"
+                                    :ai-enabled="aiImageEnabled"
+                                    :ai-generate-url="aiImageSettings.generate_url"
+                                    :ai-context="'store'"
+                                    :ai-allowed="storeAiCanGenerate"
+                                    :ai-prompt="editorAiPrompt"
+                                    :ai-busy-label="editorAiBusyLabel"
+                                    @ai-generated="handleStoreAiGenerated"
+                                />
+                                <InputError class="mt-1" :message="form.errors['company_store_settings.hero_copy.es']" />
                             </div>
                             <div>
                                 <RichTextEditor
@@ -2069,5 +2105,4 @@ watch(activeTab, (value) => {
         </div>
     </SettingsLayout>
 </template>
-
 

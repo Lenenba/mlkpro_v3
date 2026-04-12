@@ -67,6 +67,7 @@ it('rewrites stale marketing pages and menus from repo source files', function (
     $page = PlatformPage::query()->where('slug', 'sales-crm')->firstOrFail();
     $expectedFrSections = PublicProductPageNarratives::sections('sales-crm', 'fr');
     $expectedEnSections = PublicProductPageNarratives::sections('sales-crm', 'en');
+    $expectedEsSections = PublicProductPageNarratives::sections('sales-crm', 'es');
 
     expect($page->content['locales']['fr']['sections'][0]['title'] ?? null)
         ->toBe($expectedFrSections[0]['title'])
@@ -74,7 +75,29 @@ it('rewrites stale marketing pages and menus from repo source files', function (
         ->toBe($expectedFrSections[1]['title'])
         ->and($page->content['locales']['en']['sections'][0]['title'] ?? null)
         ->toBe($expectedEnSections[0]['title'])
+        ->and($page->content['locales']['es']['page_title'] ?? null)
+        ->toBe('Ventas y CRM')
+        ->and($page->content['locales']['es']['page_subtitle'] ?? null)
+        ->toContain('Centraliza solicitudes, presupuestos y seguimiento del cliente')
+        ->and($page->content['locales']['es']['sections'][0]['title'] ?? null)
+        ->toBe($expectedEsSections[0]['title'])
         ->and($page->content['locales']['fr']['sections'])->toHaveCount(3);
+
+    $solutionPage = PlatformPage::query()->where('slug', 'solution-field-services')->firstOrFail();
+    $industryPage = PlatformPage::query()->where('slug', 'industry-plumbing')->firstOrFail();
+    $contactPage = PlatformPage::query()->where('slug', 'contact-us')->firstOrFail();
+    $partnersPage = PlatformPage::query()->where('slug', 'partners')->firstOrFail();
+
+    expect($solutionPage->content['locales']['es']['sections'][0]['kicker'] ?? null)
+        ->toBe('Solucion')
+        ->and($industryPage->content['locales']['es']['page_title'] ?? null)
+        ->toBe('Fontaneria')
+        ->and($industryPage->content['locales']['es']['page_subtitle'] ?? null)
+        ->toContain('fontaneria')
+        ->and($contactPage->content['locales']['es']['page_title'] ?? null)
+        ->toBe('Cuentanos como funciona hoy tu negocio')
+        ->and($partnersPage->content['locales']['es']['page_title'] ?? null)
+        ->toBe('Socios');
 
     $menu = app(MegaMenuRenderer::class)->resolveBySlug('main-header-menu');
 
@@ -165,7 +188,7 @@ it('rewrites stale welcome and footer copy from repo source files', function () 
 
     expect($editorial)->not->toBeNull()
         ->and($editorial['title'] ?? null)->toBe($expectedEditorial['title'])
-        ->and($editorial['body'] ?? '')->toContain('l’expérience client')
+        ->and($editorial['body'] ?? null)->toBe($expectedEditorial['body'])
         ->and($welcomeFrSections)->toHaveCount(7);
 
     $heroSection = PlatformSection::query()->where('type', 'welcome_hero')->firstOrFail();

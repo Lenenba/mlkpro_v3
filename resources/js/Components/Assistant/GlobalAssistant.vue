@@ -7,6 +7,16 @@ const page = usePage();
 
 const assistantEnabled = computed(() => Boolean(page.props.assistant?.enabled));
 const locale = computed(() => page.props.locale || 'fr');
+const normalizedLocale = computed(() => String(locale.value || 'fr').toLowerCase());
+const speechLocale = computed(() => {
+    if (normalizedLocale.value.startsWith('fr')) {
+        return 'fr-FR';
+    }
+    if (normalizedLocale.value.startsWith('es')) {
+        return 'es-ES';
+    }
+    return 'en-US';
+});
 const accountKey = computed(() => page.props.auth?.account?.owner_id || page.props.auth?.user?.id || 'guest');
 const currentCustomer = computed(() => {
     const customer = page.props.customer
@@ -320,7 +330,7 @@ const speakMessage = (content) => {
 
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = locale.value === 'fr' ? 'fr-FR' : 'en-US';
+    utterance.lang = speechLocale.value;
     utterance.rate = 1;
     utterance.pitch = 1;
     window.speechSynthesis.speak(utterance);
@@ -507,7 +517,7 @@ const startListening = () => {
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognition.lang = locale.value === 'fr' ? 'fr-FR' : 'en-US';
+    recognition.lang = speechLocale.value;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 

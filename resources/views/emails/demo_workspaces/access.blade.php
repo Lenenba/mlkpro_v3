@@ -16,7 +16,7 @@
                     <tr>
                         <td valign="top" width="62%" style="background-color:#0d3137; background-image:radial-gradient(circle at top center, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0) 24%), linear-gradient(135deg, #0d1d35 0%, #0d3137 48%, #0d5a46 100%); padding:24px 22px; border-radius:3px 0 0 3px;">
                             <div style="font-size:12px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#a7f3d0;">
-                                {{ app()->isLocale('fr') ? 'Workspace demo' : 'Demo workspace' }}
+                                {{ __('mail.common.demo_workspace') }}
                             </div>
                             <div style="margin-top:12px; font-size:32px; font-weight:700; line-height:0.96; letter-spacing:-0.04em; color:#f8fafc; max-width:260px;">
                                 {{ $workspaceName }}
@@ -55,7 +55,7 @@
                                 <tr>
                                     <td style="padding:14px 14px 12px;">
                                         <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:#78716c;">
-                                            {{ app()->isLocale('fr') ? 'Acces snapshot' : 'Access snapshot' }}
+                                            {{ __('mail.common.access_snapshot') }}
                                         </div>
                                         @if (!empty($prospectCompany))
                                             <div style="margin-top:10px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:#78716c;">

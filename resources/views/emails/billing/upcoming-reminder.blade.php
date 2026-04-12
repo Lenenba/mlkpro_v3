@@ -28,17 +28,17 @@
                     'heroActionUrl' => $manageBillingUrl ?? null,
                     'heroActionLabel' => __('mail.billing_upcoming.hero_action'),
                     'heroCaption' => __('mail.billing_upcoming.hero_caption'),
-                    'heroSideTitle' => 'Facturation snapshot',
+                    'heroSideTitle' => __('mail.common.billing_snapshot'),
                     'heroSideLogo' => $companyLogo ?? null,
                     'heroSideRows' => [
                         ['label' => __('mail.common.company'), 'value' => $companyName ?? config('app.name')],
-                        ['label' => 'Plan', 'value' => $planName ?? 'Malikia Pro'],
+                        ['label' => __('mail.common.plan'), 'value' => $planName ?? 'Malikia Pro'],
                         ['label' => __('mail.billing_upcoming.next_date'), 'value' => $billingDateLabel ?? ($billingDate ?? null)],
                         ['label' => __('mail.billing_upcoming.estimated_total'), 'value' => $formattedTotal ?? null],
                     ],
                     'heroMetrics' => [
-                        ['value' => (string) ($daysUntilBilling ?? '?'), 'label' => app()->isLocale('fr') ? 'Jours' : 'Days'],
-                        ['value' => (string) ($seatQuantity ?? 1), 'label' => app()->isLocale('fr') ? 'Sieges' : 'Seats'],
+                        ['value' => (string) ($daysUntilBilling ?? '?'), 'label' => __('mail.common.days')],
+                        ['value' => (string) ($seatQuantity ?? 1), 'label' => __('mail.common.seats')],
                         ['value' => $billingPeriodText, 'label' => __('mail.billing_upcoming.cycle')],
                     ],
                 ])

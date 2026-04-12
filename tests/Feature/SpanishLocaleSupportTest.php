@@ -7,10 +7,15 @@ use App\Services\MegaMenus\MegaMenuManagerService;
 use App\Services\MegaMenus\MegaMenuRenderer;
 use App\Services\PlatformPageContentService;
 use App\Services\PlatformSectionContentService;
+use App\Services\WelcomeContentService;
 use App\Support\LocalePreference;
+use App\Support\PublicPageStockImages;
+use App\Support\PublicProductPageNarratives;
 
 it('accepts spanish as a locale preference', function () {
     $user = User::factory()->create();
+
+    $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
 
     $this->actingAs($user)
         ->from('/settings/profile')
@@ -190,4 +195,120 @@ it('falls back to english mega menu translations for spanish locale requests', f
     expect($resolved['title'])->toBe('Menu EN')
         ->and($resolved['description'])->toBe('Description EN')
         ->and($resolved['items'][0]['label'])->toBe('Pricing');
+});
+
+it('loads spanish welcome defaults from dedicated locale files', function () {
+    $resolved = app(WelcomeContentService::class)->defaultContent('es');
+
+    expect($resolved['hero']['title'])->toBe(trans('welcome.hero.title', [], 'es'))
+        ->and($resolved['hero']['primary_cta'])->toBe('Iniciar prueba')
+        ->and($resolved['trust']['items'][0])->toBe('Fontaneria')
+        ->and($resolved['features']['items'][0]['title'])->toBe('Clientes y solicitudes');
+});
+
+it('renders spanish helper labels for transactional emails', function () {
+    app()->setLocale('es');
+
+    $resetHtml = view('emails.auth.reset-password', [
+        'recipientName' => 'Ana',
+        'companyName' => 'Demo Services',
+        'resetUrl' => 'https://example.com/reset-password',
+        'expiresInMinutes' => 45,
+    ])->render();
+
+    $billingHtml = view('emails.billing.upcoming-reminder', [
+        'recipientName' => 'Ana',
+        'companyName' => 'Demo Services',
+        'planName' => 'Growth',
+        'billingDateLabel' => '2026-04-20',
+        'formattedTotal' => '$199',
+        'formattedSubtotal' => '$180',
+        'formattedTax' => '$19',
+        'billingPeriod' => 'monthly',
+        'daysUntilBilling' => 9,
+        'seatQuantity' => 4,
+        'currencyCode' => 'CAD',
+        'supportEmail' => 'support@example.com',
+        'lineItems' => [
+            ['label' => 'Growth', 'quantity' => 4, 'formatted_amount' => '$199'],
+        ],
+    ])->render();
+
+    $digestHtml = view('emails.notifications.digest', [
+        'frequency' => trans('mail.platform_admin_digest.weekly', [], 'es'),
+        'generatedAt' => now(),
+        'supportEmail' => 'support@example.com',
+        'items' => [
+            [
+                'title' => 'Cambio operativo',
+                'category' => 'ops',
+                'intro' => 'Seguimiento diario',
+                'created_at' => now()->toIso8601String(),
+            ],
+        ],
+    ])->render();
+
+    expect($resetHtml)->toContain('Enlace')
+        ->and($resetHtml)->toContain('Un solo uso')
+        ->and($resetHtml)->not->toContain('Single use')
+        ->and($billingHtml)->toContain('Resumen de facturacion')
+        ->and($billingHtml)->toContain('Asientos')
+        ->and($billingHtml)->toContain('Dias')
+        ->and($digestHtml)->toContain('Frecuencia')
+        ->and($digestHtml)->toContain('Alcance')
+        ->and(trans('mail.common.total', [], 'es'))->toBe('Total')
+        ->and(trans('mail.common.label_deposit', [], 'es'))->toBe('Deposito');
+});
+
+it('returns spanish stock image alts for public visuals', function () {
+    $beautyVisual = PublicPageStockImages::visual('beauty-treatment', 'es');
+    $workflowVisual = PublicPageStockImages::visual('workflow-plan', 'es');
+
+    expect($beautyVisual['image_alt'])->toBe('Profesional de belleza preparando un tratamiento en un salon')
+        ->and($workflowVisual['image_alt'])->toBe('Profesionales revisando un plan antes de la ejecucion');
+});
+
+it('returns dedicated spanish narratives for public product pages', function () {
+    $expectations = [
+        'sales-crm' => [
+            '0.title' => 'Convierte la demanda entrante en trabajo aprobado con menos friccion',
+            '0.feature_tabs.0.label' => 'Captar demanda',
+            '1.primary_label' => 'Ver la solucion Ventas y presupuestos',
+        ],
+        'reservations' => [
+            '0.title' => 'Convierte la reserva en un recorrido completo del cliente',
+            '0.primary_label' => 'Ver la solucion Reservas y filas',
+        ],
+        'operations' => [
+            '0.title' => 'Planifica, asigna, ejecuta y cierra el trabajo desde una misma vista operativa',
+            '0.feature_tabs.1.label' => 'Despachar',
+        ],
+        'commerce' => [
+            '0.title' => 'Convierte tu catalogo en ingresos sin fragmentar la experiencia',
+            '0.feature_tabs.1.label' => 'Pedido guiado',
+        ],
+        'marketing-loyalty' => [
+            '0.title' => 'Convierte la actividad del cliente en acciones de retencion que realmente lo hagan volver',
+            '0.feature_tabs.0.label' => 'Escuchar',
+        ],
+        'ai-automation' => [
+            '0.title' => 'Pon la IA donde los equipos ya necesitan ayuda, velocidad y contexto',
+            '0.feature_tabs.3.label' => 'Mantener control',
+        ],
+        'command-center' => [
+            '0.title' => 'Convierte la visibilidad transversal en prioridades mas claras y accion mas rapida',
+            '1.primary_label' => 'Ver la solucion Supervision multiempresa',
+        ],
+    ];
+
+    foreach ($expectations as $slug => $pairs) {
+        $esSections = PublicProductPageNarratives::sections($slug, 'es');
+        $enSections = PublicProductPageNarratives::sections($slug, 'en');
+
+        foreach ($pairs as $path => $expected) {
+            expect(data_get($esSections, $path))->toBe($expected);
+        }
+
+        expect(data_get($esSections, '0.title'))->not->toBe(data_get($enSections, '0.title'));
+    }
 });

@@ -26,11 +26,11 @@
                     'heroSideRows' => [
                         ['label' => __('mail.common.platform'), 'value' => $companyName ?? 'Malikia Pro'],
                         ['label' => __('mail.common.expires'), 'value' => $expiresInMinutes.' '.__('mail.common.minutes')],
-                        ['label' => app()->isLocale('fr') ? 'Lien' : 'Link', 'value' => app()->isLocale('fr') ? 'Usage unique' : 'Single use'],
+                        ['label' => __('mail.common.link'), 'value' => __('mail.common.single_use')],
                     ],
                     'heroMetrics' => [
                         ['value' => (string) $expiresInMinutes, 'label' => __('mail.common.minutes')],
-                        ['value' => '1', 'label' => app()->isLocale('fr') ? 'Lien' : 'Link'],
+                        ['value' => '1', 'label' => __('mail.common.link')],
                         ['value' => __('mail.common.safe'), 'label' => __('mail.common.access')],
                     ],
                 ])

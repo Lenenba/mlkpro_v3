@@ -514,7 +514,7 @@ class MegaMenuRenderer
 
     private function defaultContentLocale(): string
     {
-        return LocalePreference::default();
+        return LocalePreference::supported()[0] ?? 'fr';
     }
 
     /**

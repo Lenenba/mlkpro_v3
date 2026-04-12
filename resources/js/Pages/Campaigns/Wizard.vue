@@ -2897,7 +2897,7 @@ const normalizeChannelSettings = (channel) => {
     const ab = channel?.ab_testing || {};
     return {
         enabled: Boolean(ab.enabled),
-        split_a_percent: clampPercent(ab.split_a_percent, 1, 99),
+        split_a_percent: clampPercent(ab.split_a_percent, 0, 100),
         variant_a: {
             subject_template: String(ab?.variant_a?.subject_template || ''),
             title_template: String(ab?.variant_a?.title_template || ''),

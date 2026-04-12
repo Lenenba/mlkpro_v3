@@ -16,7 +16,7 @@
         type="button"
         @click.stop="clearDate"
         class="absolute inset-y-0 end-0 flex items-center pe-3 text-stone-400 hover:text-stone-600 dark:text-neutral-400 dark:hover:text-neutral-200"
-        aria-label="Clear date"
+        :aria-label="clearLabel"
       >
         <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -151,6 +151,7 @@
     }
     return 'fr';
   })();
+  const normalizedLocale = String(locale || 'fr').toLowerCase();
 
   // Reactive state to toggle the calendar dropdown visibility
   const showPicker = ref(false);
@@ -207,6 +208,15 @@
     set(newValue) {
       emit('update:modelValue', newValue);
     }
+  });
+  const clearLabel = computed(() => {
+    if (normalizedLocale.startsWith('fr')) {
+      return 'Effacer la date';
+    }
+    if (normalizedLocale.startsWith('es')) {
+      return 'Borrar la fecha';
+    }
+    return 'Clear date';
   });
 
   const displayDate = computed(() => {

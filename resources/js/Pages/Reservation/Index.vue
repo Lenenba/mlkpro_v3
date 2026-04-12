@@ -4,6 +4,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
+import 'dayjs/locale/es';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Modal from '@/Components/Modal.vue';
@@ -16,7 +17,19 @@ import ReservationStats from '@/Components/Reservation/ReservationStats.vue';
 import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
 
 const { t, locale } = useI18n();
-const dayjsLocale = computed(() => (String(locale.value || '').toLowerCase().startsWith('fr') ? 'fr' : 'en'));
+const dayjsLocale = computed(() => {
+    const value = String(locale.value || '').toLowerCase();
+
+    if (value.startsWith('fr')) {
+        return 'fr';
+    }
+
+    if (value.startsWith('es')) {
+        return 'es';
+    }
+
+    return 'en';
+});
 
 const props = defineProps({
     filters: {

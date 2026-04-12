@@ -1,3 +1,4 @@
+import { industryCardCopy } from './publicCopy';
 import {
     Bug,
     BrushCleaning,
@@ -38,51 +39,6 @@ const normalizeIndustryLocale = (locale = 'fr') => {
     }
 
     return 'en';
-};
-
-const INDUSTRY_CARD_COPY = {
-    fr: [
-        { id: 'industry-arborists', label: 'Arboristes', href: '', icon: 'tree-pine' },
-        { id: 'industry-commercial-cleaning', label: 'Nettoyage commercial', href: '/pages/industry-cleaning', icon: 'brush-cleaning' },
-        { id: 'industry-construction', label: 'Construction & entrepreneurs', href: '', icon: 'construction' },
-        { id: 'industry-electrical', label: 'Entrepreneur electrique', href: '/pages/industry-electrical', icon: 'plug-zap' },
-        { id: 'industry-hvac', label: 'HVAC', href: '/pages/industry-hvac', icon: 'fan' },
-        { id: 'industry-handyman', label: 'Homme a tout faire', href: '', icon: 'wrench' },
-        { id: 'industry-landscaping', label: 'Amenagement paysager', href: '', icon: 'shovel' },
-        { id: 'industry-lawn-care', label: 'Entretien de pelouse', href: '', icon: 'leaf' },
-        { id: 'industry-painting', label: 'Peinture', href: '', icon: 'paint-roller' },
-        { id: 'industry-plumbing', label: 'Plomberie', href: '/pages/industry-plumbing', icon: 'shower-head' },
-        { id: 'industry-residential-cleaning', label: 'Nettoyage residentiel', href: '/pages/industry-cleaning', icon: 'sparkles' },
-        { id: 'industry-roofing', label: 'Toiture', href: '', icon: 'house' },
-    ],
-    es: [
-        { id: 'industry-arborists', label: 'Arboristas', href: '', icon: 'tree-pine' },
-        { id: 'industry-commercial-cleaning', label: 'Limpieza comercial', href: '/pages/industry-cleaning', icon: 'brush-cleaning' },
-        { id: 'industry-construction', label: 'Construccion y contratistas', href: '', icon: 'construction' },
-        { id: 'industry-electrical', label: 'Contratista electrico', href: '/pages/industry-electrical', icon: 'plug-zap' },
-        { id: 'industry-hvac', label: 'HVAC', href: '/pages/industry-hvac', icon: 'fan' },
-        { id: 'industry-handyman', label: 'Manitas', href: '', icon: 'wrench' },
-        { id: 'industry-landscaping', label: 'Paisajismo', href: '', icon: 'shovel' },
-        { id: 'industry-lawn-care', label: 'Cuidado del cesped', href: '', icon: 'leaf' },
-        { id: 'industry-painting', label: 'Pintura', href: '', icon: 'paint-roller' },
-        { id: 'industry-plumbing', label: 'Fontaneria', href: '/pages/industry-plumbing', icon: 'shower-head' },
-        { id: 'industry-residential-cleaning', label: 'Limpieza residencial', href: '/pages/industry-cleaning', icon: 'sparkles' },
-        { id: 'industry-roofing', label: 'Techado', href: '', icon: 'house' },
-    ],
-    en: [
-        { id: 'industry-arborists', label: 'Arborists', href: '', icon: 'tree-pine' },
-        { id: 'industry-commercial-cleaning', label: 'Commercial Cleaning', href: '/pages/industry-cleaning', icon: 'brush-cleaning' },
-        { id: 'industry-construction', label: 'Construction & Contractors', href: '', icon: 'construction' },
-        { id: 'industry-electrical', label: 'Electrical Contractor', href: '/pages/industry-electrical', icon: 'plug-zap' },
-        { id: 'industry-hvac', label: 'HVAC', href: '/pages/industry-hvac', icon: 'fan' },
-        { id: 'industry-handyman', label: 'Handyman', href: '', icon: 'wrench' },
-        { id: 'industry-landscaping', label: 'Landscaping', href: '', icon: 'shovel' },
-        { id: 'industry-lawn-care', label: 'Lawn Care', href: '', icon: 'leaf' },
-        { id: 'industry-painting', label: 'Painting', href: '', icon: 'paint-roller' },
-        { id: 'industry-plumbing', label: 'Plumbing', href: '/pages/industry-plumbing', icon: 'shower-head' },
-        { id: 'industry-residential-cleaning', label: 'Residential Cleaning', href: '/pages/industry-cleaning', icon: 'sparkles' },
-        { id: 'industry-roofing', label: 'Roofing', href: '', icon: 'house' },
-    ],
 };
 
 export const industryIconMap = {
@@ -195,5 +151,5 @@ export const ensureIndustryCards = (cards) => (
 );
 
 export const defaultIndustryCards = (locale = 'fr') => (
-    ensureIndustryCards(INDUSTRY_CARD_COPY[normalizeIndustryLocale(locale)] || INDUSTRY_CARD_COPY.en)
+    ensureIndustryCards(industryCardCopy[normalizeIndustryLocale(locale)] || industryCardCopy.en)
 );

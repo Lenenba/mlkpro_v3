@@ -30,6 +30,37 @@ Ce document sert de reference pour terminer la mise en place FR / EN / ES sur le
   - [resources/js/Pages/Public/InvoicePay.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/Public/InvoicePay.vue)
   - [resources/js/Pages/Public/WorkAction.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/Public/WorkAction.vue)
 - Les cles ont ete ajoutees dans [resources/js/i18n/fr.json](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/i18n/fr.json), [resources/js/i18n/en.json](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/i18n/en.json) et [resources/js/i18n/es.json](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/i18n/es.json).
+- [lang/es/welcome.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/lang/es/welcome.php) et [lang/es/mail.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/lang/es/mail.php) existent maintenant et alimentent le backend `es` au lieu de retomber silencieusement sur `en`.
+- Les templates email transactionnels utilisent maintenant des cles de traduction au lieu de labels FR/EN codes en dur:
+  - [resources/views/emails/auth/invite.blade.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/views/emails/auth/invite.blade.php)
+  - [resources/views/emails/auth/reset-password.blade.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/views/emails/auth/reset-password.blade.php)
+  - [resources/views/emails/auth/two-factor-code.blade.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/views/emails/auth/two-factor-code.blade.php)
+  - [resources/views/emails/billing/upcoming-reminder.blade.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/views/emails/billing/upcoming-reminder.blade.php)
+  - [resources/views/emails/demo_workspaces/access.blade.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/views/emails/demo_workspaces/access.blade.php)
+  - [resources/views/emails/notifications/digest.blade.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/views/emails/notifications/digest.blade.php)
+- [app/Support/PublicPageStockImages.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicPageStockImages.php) couvre maintenant les `alt_es` manquants sur la librairie d images publiques.
+- Les presets localises de sections publiques ont ete sortis dans [resources/js/utils/publicSectionPresets.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/publicSectionPresets.js), et sont maintenant utilises par:
+  - [resources/js/Pages/SuperAdmin/Sections/Edit.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/SuperAdmin/Sections/Edit.vue)
+  - [resources/js/Pages/SuperAdmin/Pages/Edit.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/SuperAdmin/Pages/Edit.vue)
+- [database/seeders/MegaMenuSeeder.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/database/seeders/MegaMenuSeeder.php) regenere maintenant les pages produits, solutions, industries, contact et partners avec une locale `es` complete sur les titres, sous-titres et sections attendues par le sync public.
+- [app/Support/PublicProductPageNarratives.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicProductPageNarratives.php) ne retombe plus sur `en` pour les 7 pages produits publiques: `sales-crm`, `reservations`, `operations`, `commerce`, `marketing-loyalty`, `ai-automation`, `command-center`.
+- Les tests de non-regression ont ete etendus pour verrouiller:
+  - les narratives produits en `es`
+  - la regeneration `public-copy:sync` des pages publiques avec `es`
+  - le seed de la page `partners`, qui etait definie mais pas semee
+- [app/Http/Controllers/Settings/CompanySettingsController.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Http/Controllers/Settings/CompanySettingsController.php), [resources/js/Pages/Settings/Company.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/Settings/Company.vue), [resources/js/Pages/Public/Store.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/Public/Store.vue) et [resources/js/Pages/Public/Showcase.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/Public/Showcase.vue) gerent maintenant le hero personnalise `es` de bout en bout:
+  - edition dans les settings
+  - persistence backend
+  - captions par slide
+  - fallback propre `es -> en -> fr` au rendu public
+- [resources/js/i18n/es.json](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/i18n/es.json) couvre maintenant tout le sous-bloc `settings.company.store` utilise par l ecran Company:
+  - hero settings
+  - generation IA
+  - labels de l editeur
+- [tests/Feature/CompanySettingsStoreTranslationsTest.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/tests/Feature/CompanySettingsStoreTranslationsTest.php) verrouille la sauvegarde du hero personnalise `es` cote settings.
+- [resources/js/Components/DatePicker.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Components/DatePicker.vue), [resources/js/Components/DateTimePicker.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Components/DateTimePicker.vue) et [resources/js/Components/Assistant/GlobalAssistant.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Components/Assistant/GlobalAssistant.vue) ne forcent plus un comportement `fr/en` seulement:
+  - label horaire et action d effacement localises
+  - synthese vocale / reconnaissance vocale compatibles `es`
 - Le build Vite passe.
 
 ### Couverture deja verifiee
@@ -38,7 +69,21 @@ Ce document sert de reference pour terminer la mise en place FR / EN / ES sur le
   - la fallback des sections vers `en` quand `es` est partiel
   - la fallback des pages vers `en` quand `es` est partiel
   - la fallback des mega menus vers `en`
+  - les defaults `welcome` espagnols
+  - les labels transactionnels email en `es`
+  - les `alt` publics `es` pour les visuels source-repo
 - [tests/Feature/PublicCopySyncCommandTest.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/tests/Feature/PublicCopySyncCommandTest.php) couvre la regeneration du copy public depuis les sources repo.
+- Verification 2026-04-11:
+  - `php artisan test tests/Feature/SpanishLocaleSupportTest.php tests/Feature/PublicCopySyncCommandTest.php tests/Unit/MegaMenuServicesTest.php`
+  - `npm run build`
+- Verification complementaire 2026-04-11:
+  - `php artisan test tests/Feature/SpanishLocaleSupportTest.php tests/Feature/PublicCopySyncCommandTest.php tests/Feature/PublicProductPagesTest.php tests/Unit/MegaMenuServicesTest.php`
+- Verification approfondie 2026-04-11:
+  - `php artisan test tests/Feature/CompanySettingsStoreTranslationsTest.php tests/Feature/SpanishLocaleSupportTest.php tests/Feature/PublicCopySyncCommandTest.php tests/Feature/PublicProductPagesTest.php tests/Feature/SoloOwnerOnlyAccessTest.php tests/Feature/MultiCurrencyBillingTest.php`
+  - `npm run build`
+- Verification finale de la passe 2026-04-11:
+  - `php artisan test tests/Feature/CompanySettingsStoreTranslationsTest.php tests/Feature/SpanishLocaleSupportTest.php`
+  - `npm run build`
 
 ## 2. Architecture actuelle
 
@@ -80,7 +125,8 @@ Ce sont les plus gros blocs restant a traiter.
 - [app/Support/WelcomeStockImages.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/WelcomeStockImages.php)
   - surtout des `alt` et labels locaux
 - [app/Support/PublicPageStockImages.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicPageStockImages.php)
-  - deja mieux structure, mais a garder dans le perimetre QA
+  - `alt_es` completes dans la passe recente
+  - a garder dans le perimetre QA apres sync des pages industries / produits
 
 ### Priorite 2 - Services de sync / reconstruction
 - [app/Services/PublicCopySyncService.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Services/PublicCopySyncService.php)
@@ -99,8 +145,16 @@ Objectif:
   - les `fallbackGroups` restent localises inline
 - [resources/js/utils/storyGrid.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/storyGrid.js)
 - [resources/js/utils/testimonialGrid.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/testimonialGrid.js)
+- [resources/js/utils/publicCatalogSections.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/publicCatalogSections.js)
+
+### Priorite 3 bis - Defaults SuperAdmin
 - [resources/js/Pages/SuperAdmin/Sections/Edit.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/SuperAdmin/Sections/Edit.vue)
 - [resources/js/Pages/SuperAdmin/Pages/Edit.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/SuperAdmin/Pages/Edit.vue)
+- [resources/js/utils/publicSectionPresets.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/publicSectionPresets.js)
+
+Etat actuel:
+- les presets localises ne sont plus dupliques entre l edition des sections et l edition des pages
+- les defaults admin ne reinjectent plus de branches `fr / es / en` disperses pour ces blocs
 
 ### Priorite 4 - Email / campagnes
 Hors site public strict, mais gros volume restant si on veut une base vraiment coherente multilingue.
@@ -156,13 +210,14 @@ Perimetre:
 - [resources/js/utils/publicCatalogSections.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/publicCatalogSections.js)
 - [resources/js/utils/industryGrid.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/industryGrid.js)
 - [resources/js/utils/featureTabs.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/featureTabs.js)
+- [resources/js/utils/publicCopy.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/publicCopy.js)
 
 Definition of done:
 - toute la UI publique statique passe par `t(...)`
 - les helpers ne fabriquent plus de copy inline non centralise
 
 ### Phase 3 - SuperAdmin pages et sections
-Status: `a lancer ensuite`
+Status: `en cours`
 
 Perimetre:
 - [resources/js/Pages/SuperAdmin/Sections/Edit.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/SuperAdmin/Sections/Edit.vue)
@@ -172,8 +227,11 @@ Perimetre:
 Definition of done:
 - les formulaires et defaults SuperAdmin ne reinjectent plus de texte mono-locale
 
+Progression recente:
+- [resources/js/Pages/SuperAdmin/Sections/Edit.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/SuperAdmin/Sections/Edit.vue) et [resources/js/Pages/SuperAdmin/Pages/Edit.vue](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Pages/SuperAdmin/Pages/Edit.vue) s appuient maintenant sur [resources/js/utils/publicSectionPresets.js](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/utils/publicSectionPresets.js) pour les presets localises partages.
+
 ### Phase 4 - Sources editoriales backend Welcome / produits / industries
-Status: `a lancer ensuite`
+Status: `en cours`
 
 Perimetre:
 - [app/Support/WelcomeEditorialSections.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/WelcomeEditorialSections.php)
@@ -187,6 +245,11 @@ Definition of done:
 - `es` retombe proprement sur `en`
 - `public-copy:sync` regenere sans trou
 
+Progression recente:
+- [app/Support/PublicIndustryPageSections.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicIndustryPageSections.php) et [app/Support/PublicIndustryShowcaseTabs.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicIndustryShowcaseTabs.php) couvrent maintenant les sections editoriales industries en `es`.
+- [app/Support/PublicProductPageNarratives.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/app/Support/PublicProductPageNarratives.php) couvre maintenant les 7 narratives produits en `es` sans fallback visible vers `en`.
+- [database/seeders/MegaMenuSeeder.php](/c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/database/seeders/MegaMenuSeeder.php) regenere les payloads publics `es` des produits, solutions, industries, contact et partners.
+
 ### Phase 5 - Emails et campagnes
 Status: `dernier bloc`
 
@@ -198,11 +261,10 @@ Decision attendue:
 - choisir si ce module suit les memes cles i18n ou des templates localises par canal
 
 ### Ordre de travail recommande a partir d ici
-1. Terminer Phase 1 et la valider en navigateur.
-2. Enchainer directement sur Phase 2 pour fermer la dette frontend visible.
-3. Basculer ensuite sur la Phase 3 pour ne plus reintroduire de FR-only depuis l admin.
-4. Finir par la Phase 4, plus lourde mais surtout editoriale.
-5. Garder la Phase 5 pour la fin une fois le site public stabilise.
+1. Finir le reliquat Phase 2 sur `Page.vue`, `PublicFooterMenu.vue` et `publicCatalogSections.js`.
+2. Terminer la Phase 3 avec une verification rapide des defaults admin voisins si un nouveau bloc reapparait.
+3. Finir le reliquat Phase 4 sur `WelcomeEditorialSections.php` et `WelcomeStockImages.php`.
+4. Garder la Phase 5 pour la fin une fois le site public stabilise.
 
 ## 5. Convention d implementation recommandee
 
@@ -274,6 +336,7 @@ private const SALES_CRM_COPY = [
 
 ### Tests a lancer
 ```powershell
+php artisan test tests/Feature/CompanySettingsStoreTranslationsTest.php
 php artisan test tests/Feature/SpanishLocaleSupportTest.php
 php artisan test tests/Feature/PublicCopySyncCommandTest.php
 php artisan test tests/Unit/MegaMenuServicesTest.php
@@ -295,11 +358,11 @@ php artisan public-copy:sync --only=welcome,footer
 ## 8. Backlog concret immediat
 
 ### Sprint recommande
-- Ticket 1: finir Phase 1 avec la QA navigateur sur `QuoteAction`, `InvoicePay`, `WorkAction`
-- Ticket 2: lancer la Phase 2 sur `Page.vue`, `storyGrid.js`, `testimonialGrid.js`
-- Ticket 3: nettoyer `publicCatalogSections.js`, `industryGrid.js` et `featureTabs.js`
-- Ticket 4: reprendre `SuperAdmin/Sections/Edit.vue` et `SuperAdmin/Pages/Edit.vue`
-- Ticket 5: preparer la refonte de `WelcomeEditorialSections.php`
+- Ticket 1: fermer le reliquat Phase 2 sur `Page.vue`, `PublicFooterMenu.vue` et `publicCatalogSections.js`
+- Ticket 2: terminer la Phase 3 avec verification des defaults admin restants
+- Ticket 3: terminer la Phase 4 sur `WelcomeEditorialSections.php` et `WelcomeStockImages.php`
+- Ticket 4: verifier le reliquat editorial public regenere apres `public-copy:sync`
+- Ticket 5: preparer le dernier bloc Phase 5 autour des emails / campagnes
 
 ### Definition of done
 - Aucun label UI public visible ne reste FR-only hors contenu editorial voulu

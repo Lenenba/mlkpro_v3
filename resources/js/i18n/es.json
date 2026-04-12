@@ -1368,5 +1368,62 @@
       "terms": "Terminos y condiciones",
       "copy": "Malikia Pro. Todos los derechos reservados."
     }
+  },
+  "settings": {
+    "company": {
+      "store": {
+        "title": "Configuracion de la tienda",
+        "description": "Personaliza el encabezado publico de tu tienda y el producto destacado.",
+        "title_services": "Configuracion del escaparate de servicios",
+        "description_services": "Personaliza el escaparate publico de tus servicios.",
+        "header_color": "Color del encabezado",
+        "featured_product": "Producto destacado",
+        "featured_service": "Servicio destacado",
+        "featured_placeholder": "Selecciona un producto destacado",
+        "featured_placeholder_service": "Selecciona un servicio destacado",
+        "hero_images": "Imagenes de fondo del hero",
+        "hero_images_hint": "Pega una URL de imagen por linea. Se iran alternando detras del producto destacado.",
+        "hero_images_upload": "Subir imagenes (ordenador)",
+        "hero_images_upload_hint": "Selecciona imagenes de alta resolucion (min. 1280x720) para evitar pixelacion.",
+        "hero_images_new": "Nuevo",
+        "ai_images_generate": "Generar imagen con IA",
+        "ai_images_generate_busy": "Generando...",
+        "ai_images_modal_title": "Generar imagen del hero",
+        "ai_images_modal_label": "Describe la imagen que quieres",
+        "ai_images_modal_hint": "Menciona el producto, el ambiente, el fondo y el estilo.",
+        "ai_images_prompt": "Describe la imagen a generar",
+        "ai_images_prompt_required": "Agrega una breve descripcion para generar la imagen.",
+        "ai_images_hint": "Limite diario: {limit} imagen(es). Restantes hoy: {remaining}.",
+        "ai_images_limit_reached": "Se alcanzo el limite diario de imagenes con IA. Compra un pack IA en Facturacion para generar mas.",
+        "ai_images_disabled": "La generacion de imagenes con IA esta desactivada. Agrega un pack IA en Facturacion o configura tu clave IA.",
+        "ai_images_error": "No se pudo generar la imagen con IA.",
+        "hero_captions_title": "Textos por slide (opcional)",
+        "hero_captions_hint": "Agrega un texto por slide. Dejalo vacio para usar el texto global del hero.",
+        "hero_captions_fr": "Texto slide (FR)",
+        "hero_captions_es": "Texto slide (ES)",
+        "hero_captions_en": "Texto slide (EN)",
+        "hero_captions_slide": "Slide {index}",
+        "hero_copy_fr": "Texto del hero (FR)",
+        "hero_copy_es": "Texto del hero (ES)",
+        "hero_copy_en": "Texto del hero (EN)",
+        "hero_copy_placeholder": "Escribe aqui el texto del hero...",
+        "editor_labels": {
+          "heading2": "Titulo",
+          "heading3": "Subtitulo",
+          "bold": "Negrita",
+          "italic": "Cursiva",
+          "underline": "Subrayado",
+          "unorderedList": "Lista con vietas",
+          "orderedList": "Lista numerada",
+          "quote": "Cita",
+          "codeBlock": "Bloque de codigo",
+          "horizontalRule": "Separador",
+          "link": "Insertar enlace",
+          "image": "Insertar imagen",
+          "aiImage": "Generar imagen",
+          "clear": "Quitar formato"
+        }
+      }
+    }
   }
 }

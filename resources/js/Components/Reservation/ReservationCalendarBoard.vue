@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
+import 'dayjs/locale/es';
 import {
     reservationStatusDotClasses,
     reservationStatusEventClasses,
@@ -45,7 +46,19 @@ const props = defineProps({
 
 const emit = defineEmits(['range-change', 'event-click', 'view-change']);
 const { t, locale } = useI18n();
-const dayjsLocale = computed(() => (String(locale.value || '').toLowerCase().startsWith('fr') ? 'fr' : 'en'));
+const dayjsLocale = computed(() => {
+    const value = String(locale.value || '').toLowerCase();
+
+    if (value.startsWith('fr')) {
+        return 'fr';
+    }
+
+    if (value.startsWith('es')) {
+        return 'es';
+    }
+
+    return 'en';
+});
 
 watch(dayjsLocale, (nextLocale) => {
     dayjs.locale(nextLocale);

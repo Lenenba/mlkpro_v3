@@ -638,7 +638,7 @@ class CampaignService
 
         return [
             'enabled' => (bool) ($abTesting['enabled'] ?? false),
-            'split_a_percent' => max(1, min(99, (int) ($abTesting['split_a_percent'] ?? 50))),
+            'split_a_percent' => max(0, min(100, (int) ($abTesting['split_a_percent'] ?? 50))),
             'variant_a' => $variant($abTesting['variant_a'] ?? []),
             'variant_b' => $variant($abTesting['variant_b'] ?? []),
         ];

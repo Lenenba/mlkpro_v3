@@ -24,11 +24,11 @@
                     'heroActionUrl' => $actionUrl,
                     'heroActionLabel' => __('mail.auth.invite.hero_action'),
                     'heroCaption' => __('mail.auth.invite.hero_caption'),
-                    'heroSideTitle' => app()->isLocale('fr') ? 'Acces snapshot' : 'Access snapshot',
+                    'heroSideTitle' => __('mail.common.access_snapshot'),
                     'heroSideLogo' => $companyLogo ?? null,
                     'heroSideRows' => [
                         ['label' => __('mail.common.company'), 'value' => $companyName ?? config('app.name')],
-                        ['label' => app()->isLocale('fr') ? 'Role' : 'Role', 'value' => ucfirst($roleLabel ?? __('mail.auth.invite.role_team_member'))],
+                        ['label' => __('mail.common.role'), 'value' => ucfirst($roleLabel ?? __('mail.auth.invite.role_team_member'))],
                         ['label' => __('mail.common.expires'), 'value' => ($expires ?? 60).' '.__('mail.common.minutes')],
                     ],
                     'heroMetrics' => [

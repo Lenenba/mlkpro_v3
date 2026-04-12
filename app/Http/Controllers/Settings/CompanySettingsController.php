@@ -165,10 +165,13 @@ class CompanySettingsController extends Controller
             'store_hero_images_files.*' => 'image|max:5120|dimensions:min_width=1280,min_height=720',
             'company_store_settings.hero_copy' => 'nullable|array',
             'company_store_settings.hero_copy.fr' => 'nullable|string|max:5000',
+            'company_store_settings.hero_copy.es' => 'nullable|string|max:5000',
             'company_store_settings.hero_copy.en' => 'nullable|string|max:5000',
             'company_store_settings.hero_captions' => 'nullable|array',
             'company_store_settings.hero_captions.fr' => 'nullable|array',
             'company_store_settings.hero_captions.fr.*' => 'nullable|string|max:5000',
+            'company_store_settings.hero_captions.es' => 'nullable|array',
+            'company_store_settings.hero_captions.es.*' => 'nullable|string|max:5000',
             'company_store_settings.hero_captions.en' => 'nullable|array',
             'company_store_settings.hero_captions.en.*' => 'nullable|string|max:5000',
             'company_time_settings' => 'nullable|array',
@@ -255,18 +258,23 @@ class CompanySettingsController extends Controller
         $heroCopyInput = is_array($heroCopyInput) ? $heroCopyInput : [];
         $heroCopy = [
             'fr' => $normalizeText($heroCopyInput['fr'] ?? null),
+            'es' => $normalizeText($heroCopyInput['es'] ?? null),
             'en' => $normalizeText($heroCopyInput['en'] ?? null),
         ];
         $heroCaptionsInput = $storeSettingsInput['hero_captions'] ?? [];
         $heroCaptionsInput = is_array($heroCaptionsInput) ? $heroCaptionsInput : [];
         $heroCaptionsFr = is_array($heroCaptionsInput['fr'] ?? null) ? $heroCaptionsInput['fr'] : [];
+        $heroCaptionsEs = is_array($heroCaptionsInput['es'] ?? null) ? $heroCaptionsInput['es'] : [];
         $heroCaptionsEn = is_array($heroCaptionsInput['en'] ?? null) ? $heroCaptionsInput['en'] : [];
         $heroCaptionsFr = array_values(array_map($normalizeText, $heroCaptionsFr));
+        $heroCaptionsEs = array_values(array_map($normalizeText, $heroCaptionsEs));
         $heroCaptionsEn = array_values(array_map($normalizeText, $heroCaptionsEn));
         $heroCaptionsFr = array_pad(array_slice($heroCaptionsFr, 0, count($heroImages)), count($heroImages), null);
+        $heroCaptionsEs = array_pad(array_slice($heroCaptionsEs, 0, count($heroImages)), count($heroImages), null);
         $heroCaptionsEn = array_pad(array_slice($heroCaptionsEn, 0, count($heroImages)), count($heroImages), null);
         $heroCaptions = [
             'fr' => $heroCaptionsFr,
+            'es' => $heroCaptionsEs,
             'en' => $heroCaptionsEn,
         ];
 

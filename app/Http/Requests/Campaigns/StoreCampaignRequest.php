@@ -60,7 +60,7 @@ class StoreCampaignRequest extends FormRequest
             'channels.*.metadata' => ['nullable', 'array'],
             'channels.*.metadata.ab_testing' => ['nullable', 'array'],
             'channels.*.metadata.ab_testing.enabled' => ['nullable', 'boolean'],
-            'channels.*.metadata.ab_testing.split_a_percent' => ['nullable', 'integer', 'min:1', 'max:99'],
+            'channels.*.metadata.ab_testing.split_a_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'channels.*.metadata.ab_testing.variant_a' => ['nullable', 'array'],
             'channels.*.metadata.ab_testing.variant_a.subject_template' => ['nullable', 'string', 'max:255'],
             'channels.*.metadata.ab_testing.variant_a.title_template' => ['nullable', 'string', 'max:255'],
