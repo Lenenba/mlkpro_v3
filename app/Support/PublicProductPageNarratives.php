@@ -1387,7 +1387,7 @@ class PublicProductPageNarratives
     {
         foreach ($overrides as $path => $value) {
             $segments = explode('.', (string) $path);
-            $target =& $sections;
+            $target = &$sections;
 
             foreach ($segments as $index => $segment) {
                 if ($index === count($segments) - 1) {
@@ -1400,7 +1400,7 @@ class PublicProductPageNarratives
                     $target[$segment] = [];
                 }
 
-                $target =& $target[$segment];
+                $target = &$target[$segment];
             }
         }
 
