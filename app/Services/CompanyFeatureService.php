@@ -39,6 +39,7 @@ class CompanyFeatureService
     ];
 
     private const OWNER_ONLY_FORCED_DISABLED_MODULES = [
+        'performance',
         'presence',
         'team_members',
     ];

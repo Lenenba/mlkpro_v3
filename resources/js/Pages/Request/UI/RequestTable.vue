@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
+import axios from 'axios';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
@@ -19,6 +20,13 @@ import { useDataTableSelection } from '@/Composables/useDataTableSelection';
 import { useI18n } from 'vue-i18n';
 import RequestBoard from '@/Pages/Request/UI/RequestBoard.vue';
 import RequestTableActionsMenu from '@/Pages/Request/UI/RequestTableActionsMenu.vue';
+import {
+    createBulkActionFailureResult,
+    dispatchBulkActionToast,
+    extractBulkActionErrorMessages,
+    normalizeBulkActionResult,
+    resolveBulkActionErrorMessage,
+} from '@/utils/bulkActions';
 
 const props = defineProps({
     requests: {
@@ -276,6 +284,32 @@ const bulkAssignee = ref('');
 const bulkLostReason = ref('');
 const bulkErrors = ref({});
 const bulkProcessing = ref(false);
+const bulkResult = ref(null);
+
+const clearBulkResult = () => {
+    bulkResult.value = null;
+};
+
+const setBulkResult = (payload) => {
+    bulkResult.value = normalizeBulkActionResult(payload);
+
+    return bulkResult.value;
+};
+
+watch(selectedCount, (count, previousCount) => {
+    if (count > 0 && count !== previousCount) {
+        clearBulkResult();
+    }
+});
+
+const reloadBulkContext = () => new Promise((resolve) => {
+    router.reload({
+        only: ['requests', 'filters', 'stats', 'analytics'],
+        preserveScroll: true,
+        preserveState: true,
+        onFinish: () => resolve(),
+    });
+});
 
 watch(() => bulkStatus.value, (value) => {
     if (value !== bulkLostReasonTriggerValue.value) {
@@ -284,7 +318,7 @@ watch(() => bulkStatus.value, (value) => {
     }
 });
 
-const submitBulkStatus = () => {
+const submitBulkStatus = async () => {
     if (!selected.value.length || !bulkStatus.value || bulkProcessing.value) {
         return;
     }
@@ -299,50 +333,92 @@ const submitBulkStatus = () => {
     }
 
     bulkErrors.value = {};
+    clearBulkResult();
     bulkProcessing.value = true;
-    router.patch(route('request.bulk'), {
-        ids: selected.value,
-        status: bulkStatus.value,
-        lost_reason: bulkStatus.value === bulkLostReasonTriggerValue.value ? lostReason : null,
-    }, {
-        preserveScroll: true,
-        onError: (errors) => {
-            bulkErrors.value = errors || {};
-        },
-        onFinish: () => {
-            bulkProcessing.value = false;
-        },
-        onSuccess: () => {
-            clearSelection();
-            bulkStatus.value = '';
-            bulkLostReason.value = '';
-        },
-    });
+
+    try {
+        const { data } = await axios.patch(route('request.bulk'), {
+            ids: selected.value,
+            status: bulkStatus.value,
+            lost_reason: bulkStatus.value === bulkLostReasonTriggerValue.value ? lostReason : null,
+        }, {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        const result = setBulkResult(data);
+        clearSelection();
+        bulkStatus.value = '';
+        bulkLostReason.value = '';
+        dispatchBulkActionToast(result, t);
+        await reloadBulkContext();
+    } catch (error) {
+        if (error?.response?.status === 422) {
+            bulkErrors.value = error?.response?.data?.errors || {};
+
+            return;
+        }
+
+        const errors = extractBulkActionErrorMessages(error);
+        const message = resolveBulkActionErrorMessage(error, t);
+        const result = createBulkActionFailureResult({
+            message,
+            errors: errors.length ? errors : [message],
+            selectedCount: selected.value.length,
+        });
+
+        bulkResult.value = result;
+        dispatchBulkActionToast(result, t);
+    } finally {
+        bulkProcessing.value = false;
+    }
 };
 
-const submitBulkAssign = () => {
+const submitBulkAssign = async () => {
     if (!selected.value.length || bulkProcessing.value || !bulkAssignee.value) {
         return;
     }
 
     bulkErrors.value = {};
+    clearBulkResult();
     bulkProcessing.value = true;
-    router.patch(route('request.bulk'), {
-        ids: selected.value,
-        assigned_team_member_id: Number(bulkAssignee.value),
-    }, {
-        preserveScroll: true,
-        onError: (errors) => {
-            bulkErrors.value = errors || {};
-        },
-        onFinish: () => {
-            bulkProcessing.value = false;
-        },
-        onSuccess: () => {
-            clearSelection();
-            bulkAssignee.value = '';
-        },
-    });
+
+    try {
+        const { data } = await axios.patch(route('request.bulk'), {
+            ids: selected.value,
+            assigned_team_member_id: Number(bulkAssignee.value),
+        }, {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        const result = setBulkResult(data);
+        clearSelection();
+        bulkAssignee.value = '';
+        dispatchBulkActionToast(result, t);
+        await reloadBulkContext();
+    } catch (error) {
+        if (error?.response?.status === 422) {
+            bulkErrors.value = error?.response?.data?.errors || {};
+
+            return;
+        }
+
+        const errors = extractBulkActionErrorMessages(error);
+        const message = resolveBulkActionErrorMessage(error, t);
+        const result = createBulkActionFailureResult({
+            message,
+            errors: errors.length ? errors : [message],
+            selectedCount: selected.value.length,
+        });
+
+        bulkResult.value = result;
+        dispatchBulkActionToast(result, t);
+    } finally {
+        bulkProcessing.value = false;
+    }
 };
 
 const convertModalId = 'hs-request-convert';
@@ -948,6 +1024,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
             v-if="viewMode === 'table'"
             :count="selectedCount"
             :label="$t(bulkSelectionLabelKey, { count: selectedCount })"
+            :result="bulkResult"
         >
             <div class="flex flex-wrap items-end gap-2">
                 <FloatingSelect

@@ -8,6 +8,8 @@ uses(TestCase::class);
 test('customer bulk action registry exposes menu actions and metadata', function () {
     $definition = app(BulkActionRegistry::class)->definitionFor('customer', [
         'can_edit' => true,
+        'contact_enabled' => true,
+        'campaign_bridge_enabled' => true,
     ]);
 
     expect($definition)
@@ -17,6 +19,10 @@ test('customer bulk action registry exposes menu actions and metadata', function
             'method' => 'post',
             'menu_label_key' => 'customers.bulk.title',
             'selection_label_key' => 'customers.labels.selected',
+            'capabilities' => [
+                'contact_enabled' => true,
+                'campaign_bridge_enabled' => true,
+            ],
         ])
         ->and($definition['endpoint'])->toBe(route('customer.bulk'))
         ->and($definition['actions'])->toHaveCount(6)
@@ -32,6 +38,22 @@ test('customer bulk action registry exposes menu actions and metadata', function
             'confirm_key' => 'customers.bulk.delete_confirm',
             'tone' => 'danger',
         ]);
+});
+
+test('customer bulk action registry hides contact action when campaigns feature is unavailable', function () {
+    $definition = app(BulkActionRegistry::class)->definitionFor('customer', [
+        'can_edit' => true,
+        'contact_enabled' => false,
+        'campaign_bridge_enabled' => false,
+    ]);
+
+    expect($definition['capabilities'])
+        ->toMatchArray([
+            'contact_enabled' => false,
+            'campaign_bridge_enabled' => false,
+        ])
+        ->and($definition['actions'])->toHaveCount(5)
+        ->and(collect($definition['actions'])->pluck('key')->contains('contact_selected'))->toBeFalse();
 });
 
 test('product bulk action registry exposes submit actions and delete confirmation', function () {

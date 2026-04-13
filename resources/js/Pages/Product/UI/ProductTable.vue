@@ -17,6 +17,13 @@ import axios from 'axios';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useDataTableSelection } from '@/Composables/useDataTableSelection';
 import { useCurrencyFormatter } from '@/utils/currency';
+import {
+    createBulkActionFailureResult,
+    dispatchBulkActionToast,
+    extractBulkActionErrorMessages,
+    normalizeBulkActionResult,
+    resolveBulkActionErrorMessage,
+} from '@/utils/bulkActions';
 
 const props = defineProps({
     filters: Object,
@@ -553,6 +560,8 @@ const {
     toggleAll,
     clearSelection,
 } = useDataTableSelection(productRows);
+const bulkResult = ref(null);
+const bulkProcessing = ref(false);
 
 watch(
     () => props.aiImage,
@@ -564,10 +573,6 @@ watch(
     { deep: true }
 );
 
-const bulkForm = useForm({
-    action: '',
-    ids: [],
-});
 const fallbackBulkActions = [
     {
         key: 'archive',
@@ -601,21 +606,70 @@ const bulkMenuActions = computed(() => (
         : fallbackBulkActions
 ));
 
-const runBulk = (action, confirmKey = null) => {
-    if (!selected.value.length) {
+const clearBulkResult = () => {
+    bulkResult.value = null;
+};
+
+const setBulkResult = (payload) => {
+    bulkResult.value = normalizeBulkActionResult(payload);
+
+    return bulkResult.value;
+};
+
+watch(selectedCount, (count, previousCount) => {
+    if (count > 0 && count !== previousCount) {
+        clearBulkResult();
+    }
+});
+
+const reloadBulkContext = () => new Promise((resolve) => {
+    router.reload({
+        only: ['products', 'filters', 'stats', 'count', 'topProducts'],
+        preserveScroll: true,
+        preserveState: true,
+        onFinish: () => resolve(),
+    });
+});
+
+const runBulk = async (action, confirmKey = null) => {
+    if (!selected.value.length || bulkProcessing.value) {
         return;
     }
     if (confirmKey && !confirm(t(confirmKey))) {
         return;
     }
-    bulkForm.action = action;
-    bulkForm.ids = selected.value;
-    bulkForm.post(route('product.bulk'), {
-        preserveScroll: true,
-        onSuccess: () => {
-            clearSelection();
-        },
-    });
+
+    clearBulkResult();
+    bulkProcessing.value = true;
+
+    try {
+        const { data } = await axios.post(route('product.bulk'), {
+            action,
+            ids: selected.value,
+        }, {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        const result = setBulkResult(data);
+        clearSelection();
+        dispatchBulkActionToast(result, t);
+        await reloadBulkContext();
+    } catch (error) {
+        const errors = extractBulkActionErrorMessages(error);
+        const message = resolveBulkActionErrorMessage(error, t);
+        const result = createBulkActionFailureResult({
+            message,
+            errors: errors.length ? errors : [message],
+            selectedCount: selected.value.length,
+        });
+
+        bulkResult.value = result;
+        dispatchBulkActionToast(result, t);
+    } finally {
+        bulkProcessing.value = false;
+    }
 };
 
 const handleBulkAction = (definition) => {
@@ -1128,10 +1182,11 @@ const submitImport = () => {
                     v-if="canEdit"
                     :count="selectedCount"
                     :label="$t(bulkSelectionLabelKey, { count: selectedCount })"
+                    :result="bulkResult"
                 >
                     <AdminDataTableBulkActionMenu
                         :actions="bulkMenuActions"
-                        :disabled="!selectedCount"
+                        :disabled="bulkProcessing || !selectedCount"
                         :menu-label-key="bulkMenuLabelKey"
                         @select="handleBulkAction"
                     />

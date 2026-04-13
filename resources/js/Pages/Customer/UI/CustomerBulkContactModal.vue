@@ -19,6 +19,10 @@ const props = defineProps({
         type: Number,
         default: 0,
     },
+    campaignsEnabled: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits(['sent']);
@@ -197,7 +201,7 @@ const smsLength = computed(() => htmlToPlainText(form.body).length);
 const summaryLine = computed(() => t('customers.bulk_contact.selection_summary', {
     count: props.selectedCount,
 }));
-const showCampaignBridge = computed(() => form.objective !== 'payment_followup');
+const showCampaignBridge = computed(() => props.campaignsEnabled && form.objective !== 'payment_followup');
 const mailingListOptions = computed(() => ([
     { value: '', label: t('customers.bulk_contact.campaign_bridge.existing_placeholder') },
     ...mailingListRows.value.map((mailingList) => ({
@@ -361,7 +365,7 @@ const clearTemplateSelection = () => {
 };
 
 const open = () => {
-    if (!props.selectedIds.length || typeof window === 'undefined' || !window.HSOverlay) {
+    if (!props.campaignsEnabled || !props.selectedIds.length || typeof window === 'undefined' || !window.HSOverlay) {
         return;
     }
 
@@ -459,6 +463,14 @@ const searchOffers = (query) => {
 };
 
 const loadTemplates = async () => {
+    if (!props.campaignsEnabled) {
+        templateRows.value = [];
+        templateError.value = '';
+        resetTemplateSelection();
+
+        return;
+    }
+
     if (!isOpen.value) {
         return;
     }
@@ -493,6 +505,14 @@ const loadTemplates = async () => {
 };
 
 const loadMailingLists = async () => {
+    if (!props.campaignsEnabled) {
+        mailingListRows.value = [];
+        mailingListError.value = '';
+        selectedMailingListId.value = '';
+
+        return;
+    }
+
     if (!isOpen.value || !showCampaignBridge.value) {
         return;
     }
@@ -709,6 +729,12 @@ const submit = async () => {
 };
 
 const handleOpen = () => {
+    if (!props.campaignsEnabled) {
+        isOpen.value = false;
+
+        return;
+    }
+
     isOpen.value = true;
     resultSummary.value = null;
     resetFeedback();
@@ -744,6 +770,19 @@ watch(() => [form.channel, form.objective], () => {
     loadTemplates();
     loadMailingLists();
     loadPreview();
+});
+
+watch(() => props.campaignsEnabled, (enabled) => {
+    if (enabled) {
+        return;
+    }
+
+    close();
+    isOpen.value = false;
+    templateRows.value = [];
+    mailingListRows.value = [];
+    resetTemplateSelection();
+    selectedMailingListId.value = '';
 });
 
 watch(() => offerSearch.value, (value) => {

@@ -17,10 +17,29 @@ test('pricing page exposes all public plans and comparison sections', function (
             ->has('pricingCatalogs.solo.plans', 3)
             ->where('pricingCatalogs.solo.plans.0.key', 'solo_essential')
             ->where('pricingCatalogs.solo.plans.0.name', 'Solo Core')
+            ->where('pricingCatalogs.solo.plans.0.features', [
+                'Demandes, devis, factures, jobs et taches',
+                'Catalogue, ventes et operations du quotidien',
+                'Portail client et page publique',
+                'Execution solo simple sans modules avances',
+            ])
             ->where('pricingCatalogs.solo.plans.1.key', 'solo_pro')
             ->where('pricingCatalogs.solo.plans.1.name', 'Solo Growth')
+            ->where('pricingCatalogs.solo.plans.1.features', [
+                'Tout Solo Core',
+                'Plus de volume pour jobs et taches',
+                'Catalogue et ventes sans logique equipe',
+                'Plan solo recommande',
+            ])
             ->where('pricingCatalogs.solo.plans.2.key', 'solo_growth')
             ->where('pricingCatalogs.solo.plans.2.name', 'Solo Scale')
+            ->where('pricingCatalogs.solo.plans.2.features', [
+                'Tout Solo Growth',
+                'Reservations et planning en mode solo limite',
+                'Assistant, scan de plan, campagnes et fidelite',
+                'Automatisation et capacite premium pour scaler seul',
+                'Support prioritaire',
+            ])
             ->where('pricingCatalogs.solo.plans.1.audience', 'solo')
             ->where('pricingCatalogs.solo.plans.1.onboarding_enabled', true)
             ->where('pricingCatalogs.solo.plans.1.prices_by_period.monthly.billing_period', 'monthly')

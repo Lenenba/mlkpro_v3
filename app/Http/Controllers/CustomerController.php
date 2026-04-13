@@ -13,6 +13,7 @@ use App\Queries\Customers\BuildCustomerDetailViewData;
 use App\Queries\Customers\CustomerReadSelects;
 use App\Services\Customers\CustomerBulkAudienceBridgeService;
 use App\Services\Customers\CustomerBulkContactService;
+use App\Services\CompanyFeatureService;
 use App\Support\BulkActions\BulkActionRegistry;
 use App\Support\Database\UserSelects;
 use App\Support\NotificationDispatcher;
@@ -55,8 +56,9 @@ class CustomerController extends Controller
         if (! $user) {
             abort(403);
         }
-        [, $accountId] = $this->resolveCustomerAccount($user);
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
         $canEdit = $user->id === $accountId;
+        $campaignsFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($accountOwner, 'campaigns');
 
         $baseQuery = Customer::query()
             ->filter($filters)
@@ -131,6 +133,8 @@ class CustomerController extends Controller
             'canEdit' => $canEdit,
             'bulkActions' => app(BulkActionRegistry::class)->definitionFor('customer', [
                 'can_edit' => $canEdit,
+                'contact_enabled' => $canEdit && $campaignsFeatureEnabled,
+                'campaign_bridge_enabled' => $campaignsFeatureEnabled,
             ]),
         ]);
     }

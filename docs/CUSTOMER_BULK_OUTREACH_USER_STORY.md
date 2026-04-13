@@ -51,11 +51,17 @@ Le tout doit se faire depuis `Customer`, avec une UX courte et orientee action, 
 - preview et validation avant envoi
 - audit de l auteur, du motif et du perimetre
 
+## Feature Dependency
+- la V1 `Customer bulk contact` depend du module `campaigns`
+- si `campaigns` est indisponible pour le compte, l action `Contact selected` ne doit pas apparaitre dans `Customer`
+- dans ce cas, les endpoints `customer.bulk-contact.*` doivent aussi rester inaccessibles cote backend
+- le pattern a reutiliser pour d autres modules bulk est: registre d actions + capability UI + garde backend
+
 ## Current Baseline (already in code)
 - la DataTable `Customer` supporte maintenant la multi-selection via le pattern bulk partage
 - la selection persiste entre les pages de pagination
 - l ouverture des actions bulk fonctionne des le premier rendu en mode table
-- le module `Customer` expose deja l action `Contact selected`
+- le module `Customer` expose deja l action `Contact selected` quand le module `campaigns` est disponible
 - les bulk actions `Customer` existantes restent disponibles:
   - `portal_enable`
   - `portal_disable`
@@ -86,7 +92,7 @@ Le tout doit se faire depuis `Customer`, avec une UX courte et orientee action, 
 ## Current Implementation Status
 
 ### Delivered
-- action `Contact selected` depuis `Customer`
+- action `Contact selected` depuis `Customer` quand le module `campaigns` est disponible
 - modal courte avec choix objectif, canal, offre et message
 - preview d eligibilite avec exclus et raisons principales
 - support `payment_followup`
@@ -148,7 +154,7 @@ As an owner, marketer, or finance operator, I want to contact selected customers
 
 Acceptance criteria:
 - the `Customer` DataTable exposes a bulk action `Contact selected`
-- the action is available only when at least one customer is selected
+- the action is available only when the account has the `campaigns` feature and at least one customer is selected
 - the user can choose a channel and a communication objective
 - the flow opens from `Customer` and returns to `Customer` after send or cancel
 - the user receives a clear result summary after execution

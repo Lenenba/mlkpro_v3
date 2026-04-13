@@ -39,7 +39,26 @@ it('shows the stored stripe plan as the active plan during trial without surfaci
             ->where('plans.0.key', 'solo_essential')
             ->where('plans.0.name', 'Solo Core')
             ->where('plans.0.description', 'Core plan for solo operators who need a clear operating foundation.')
+            ->where('plans.0.features', [
+                'Demandes, devis, factures, jobs et taches',
+                'Catalogue, ventes et operations du quotidien',
+                'Portail client et page publique',
+                'Execution solo simple sans modules avances',
+            ])
             ->where('plans.0.audience', 'solo')
+            ->where('plans.1.features', [
+                'Tout Solo Core',
+                'Plus de volume pour jobs et taches',
+                'Catalogue et ventes sans logique equipe',
+                'Plan solo recommande',
+            ])
+            ->where('plans.2.features', [
+                'Tout Solo Growth',
+                'Reservations et planning en mode solo limite',
+                'Assistant, scan de plan, campagnes et fidelite',
+                'Automatisation et capacite premium pour scaler seul',
+                'Support prioritaire',
+            ])
             ->where('plans.3.key', 'starter')
             ->where('plans.3.name', 'Team Core')
             ->where('plans.3.description', 'Core team plan for shared execution and collaboration.')

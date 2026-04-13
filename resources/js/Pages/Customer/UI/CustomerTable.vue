@@ -4,7 +4,8 @@ import {
     ref,
     watch,
 } from 'vue';
-import { Link, router, useForm } from '@inertiajs/vue3';
+import axios from 'axios';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
@@ -20,6 +21,14 @@ import Checkbox from '@/Components/Checkbox.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { useI18n } from 'vue-i18n';
+import { isFeatureEnabled } from '@/utils/features';
+import {
+    createBulkActionFailureResult,
+    dispatchBulkActionToast,
+    extractBulkActionErrorMessages,
+    normalizeBulkActionResult,
+    resolveBulkActionErrorMessage,
+} from '@/utils/bulkActions';
 
 const props = defineProps({
     filters: Object,
@@ -42,8 +51,19 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const page = usePage();
+const featureFlags = computed(() => page.props.auth?.account?.features || {});
 
 const canEdit = computed(() => Boolean(props.canEdit));
+const campaignsFeatureEnabled = computed(() => {
+    const capability = props.bulkActions?.capabilities?.contact_enabled;
+
+    if (capability !== undefined) {
+        return Boolean(capability);
+    }
+
+    return canEdit.value && isFeatureEnabled(featureFlags.value, 'campaigns');
+});
 
 const filterForm = useForm({
     name: props.filters?.name ?? '',
@@ -204,19 +224,17 @@ const {
     clearSelection,
     isSelected,
 } = useDataTableSelection(customerRows);
-const bulkForm = useForm({
-    action: '',
-    ids: [],
-});
 const bulkContactModalRef = ref(null);
-const fallbackBulkActions = [
-    {
+const bulkResult = ref(null);
+const bulkProcessing = ref(false);
+const fallbackBulkActions = computed(() => ([
+    campaignsFeatureEnabled.value ? {
         key: 'contact_selected',
         kind: 'client',
         client_handler: 'openBulkContact',
         label_key: 'customers.bulk_contact.action',
         tone: 'info',
-    },
+    } : null,
     {
         key: 'portal_enable',
         kind: 'submit',
@@ -255,34 +273,88 @@ const fallbackBulkActions = [
         divider_before: true,
         confirm_key: 'customers.bulk.delete_confirm',
     },
-];
+].filter(Boolean)));
 
 const bulkMenuLabelKey = computed(() => props.bulkActions?.menu_label_key || 'customers.bulk.title');
 const bulkSelectionLabelKey = computed(() => props.bulkActions?.selection_label_key || 'customers.labels.selected');
 const bulkMenuActions = computed(() => (
     Array.isArray(props.bulkActions?.actions) && props.bulkActions.actions.length
         ? props.bulkActions.actions
-        : fallbackBulkActions
+        : fallbackBulkActions.value
 ));
 
-const runBulk = (action, confirmKey = null) => {
-    if (!selected.value.length) {
+const clearBulkResult = () => {
+    bulkResult.value = null;
+};
+
+const setBulkResult = (payload) => {
+    bulkResult.value = normalizeBulkActionResult(payload);
+
+    return bulkResult.value;
+};
+
+watch(selectedCount, (count, previousCount) => {
+    if (count > 0 && count !== previousCount) {
+        clearBulkResult();
+    }
+});
+
+const reloadBulkContext = () => new Promise((resolve) => {
+    router.reload({
+        only: ['customers', 'filters', 'stats', 'count', 'topCustomers'],
+        preserveScroll: true,
+        preserveState: true,
+        onFinish: () => resolve(),
+    });
+});
+
+const runBulk = async (action, confirmKey = null) => {
+    if (!selected.value.length || bulkProcessing.value) {
         return;
     }
     if (confirmKey && !confirm(t(confirmKey))) {
         return;
     }
-    bulkForm.action = action;
-    bulkForm.ids = selected.value;
-    bulkForm.post(route('customer.bulk'), {
-        preserveScroll: true,
-        onSuccess: () => {
-            clearSelection();
-        },
-    });
+
+    clearBulkResult();
+    bulkProcessing.value = true;
+
+    try {
+        const { data } = await axios.post(route('customer.bulk'), {
+            action,
+            ids: selected.value,
+        }, {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        const result = setBulkResult(data);
+        clearSelection();
+        dispatchBulkActionToast(result, t);
+        await reloadBulkContext();
+    } catch (error) {
+        const errors = extractBulkActionErrorMessages(error);
+        const message = resolveBulkActionErrorMessage(error, t);
+        const result = createBulkActionFailureResult({
+            message,
+            errors: errors.length ? errors : [message],
+            selectedCount: selected.value.length,
+        });
+
+        bulkResult.value = result;
+        dispatchBulkActionToast(result, t);
+    } finally {
+        bulkProcessing.value = false;
+    }
 };
 
 const openBulkContact = () => {
+    if (!campaignsFeatureEnabled.value) {
+        return;
+    }
+
+    clearBulkResult();
     bulkContactModalRef.value?.open();
 };
 
@@ -471,6 +543,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                 v-if="canEdit"
                 :count="selectedCount"
                 :label="$t(bulkSelectionLabelKey, { count: selectedCount })"
+                :result="bulkResult"
             >
                 <template #summary>
                     <div class="flex min-w-0 items-center gap-3">
@@ -491,6 +564,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                 <button
                     type="button"
                     class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 shadow-sm hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                    :disabled="bulkProcessing"
                     @click="clearSelection"
                 >
                     {{ $t('customers.actions.clear') }}
@@ -498,7 +572,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
 
                 <AdminDataTableBulkActionMenu
                     :actions="bulkMenuActions"
-                    :disabled="!selectedCount"
+                    :disabled="bulkProcessing || !selectedCount"
                     :menu-label-key="bulkMenuLabelKey"
                     button-variant="primary"
                     @select="handleBulkAction"
@@ -855,6 +929,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
             ref="bulkContactModalRef"
             :selected-ids="selected"
             :selected-count="selectedCount"
+            :campaigns-enabled="campaignsFeatureEnabled"
             @sent="clearSelection"
         />
     </div>

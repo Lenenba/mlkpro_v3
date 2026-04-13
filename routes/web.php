@@ -628,8 +628,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::post('/customer/bulk', [CustomerController::class, 'bulk'])
         ->name('customer.bulk');
     Route::post('/customer/bulk-contact/preview', [CustomerController::class, 'previewBulkContact'])
+        ->middleware('company.feature:campaigns')
         ->name('customer.bulk-contact.preview');
     Route::post('/customer/bulk-contact/send', [CustomerController::class, 'sendBulkContact'])
+        ->middleware('company.feature:campaigns')
         ->name('customer.bulk-contact.send');
     Route::post('/customer/bulk-contact/save-selection', [CustomerController::class, 'saveBulkContactSelection'])
         ->middleware('company.feature:campaigns')

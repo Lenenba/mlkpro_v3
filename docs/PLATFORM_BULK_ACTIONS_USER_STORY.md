@@ -88,14 +88,16 @@ Le composant partage doit permettre d ajouter rapidement une action bulk sur un 
 - contrat backend bulk JSON harmonise sur `Customer`, `Product` et `Request` avec `selected_count / processed_count / success_count / failed_count / skipped_count / errors`
 - premier registre backend d actions bulk par module introduit pour `Customer`, `Product` et `Request`
 - premier composant partage de menu bulk pilote par registre introduit et branche sur `Customer` et `Product`
+- feedback mutualise livre sur `Customer`, `Product` et `Request` avec resume inline, erreurs principales et toast partage base sur le contrat bulk JSON
+- premier usage de capabilities contextuelles dans le registre pour masquer une action dependante d un module, comme `Customer -> Contact selected` quand `campaigns` est indisponible
 
 ### In progress
 - etendre le registre / adapter pattern a d autres modules bulk de la plateforme
-- mutualiser le feedback de succes partiel et d erreurs au niveau plateforme
 
 ### Remaining gaps
 - le contrat `processed_count / success_count / failed_count / skipped_count / errors` est maintenant pose sur `Customer`, `Product` et `Request`, mais pas encore etendu a tous les autres bulk handlers de la plateforme
 - le registre d actions bulk existe maintenant pour `Customer`, `Product` et `Request`, mais n est pas encore le point d entree unique de tous les modules bulk
+- le feedback mutualise existe maintenant sur `Customer`, `Product` et `Request`, mais pas encore sur tous les autres ecrans bulk de la plateforme
 - le cadre d audit et de permissions est encore partiellement local selon le module
 - la documentation technique d enregistrement d une nouvelle action bulk reste a formaliser
 - la couverture tests automatique est encore insuffisante
@@ -252,11 +254,11 @@ Status: `partiellement livree`
 - remaining: extend the same contract to the other platform bulk handlers where relevant
 
 ### Phase 2 - High-value operational actions
-Status: `livree pour Customer, pas encore generalisee`
+Status: `livree pour Customer/Product/Request, pas encore generalisee`
 - done: add customer communication bulk entry points in `Customer`
 - done: replace locally hardcoded bulk menus in `Customer` and `Product` with a shared menu component driven by registry metadata
+- done: ajouter un feedback partage de succes partiel / erreurs dans la bulk bar pour `Customer`, `Product` et `Request`
 - remaining: add reusable assignment / tagging hooks where relevant
-- remaining: add better partial-failure feedback at shared UI level
 
 ### Phase 3 - Advanced scope handling
 Status: `partiellement livree`

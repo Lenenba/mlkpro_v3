@@ -17,6 +17,17 @@
     "warning": {
       "title": "Attention"
     },
+    "bulk_action": {
+      "summary": {
+        "processed": "{count} traites",
+        "succeeded": "{count} reussies",
+        "failed": "{count} en echec",
+        "skipped": "{count} ignorees"
+      },
+      "errors_title": "Principaux problemes",
+      "more_errors": "+{count} autres",
+      "request_failed": "L action de masse a echoue."
+    },
     "validation_toast": {
       "single": "1 erreur dans le formulaire. Vérifiez le champ surligné.",
       "plural": "{count} erreurs dans le formulaire. Vérifiez les champs surlignés.",
