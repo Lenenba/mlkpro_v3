@@ -1,9 +1,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Link, router, useForm } from '@inertiajs/vue3';
-import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
+import { router, useForm } from '@inertiajs/vue3';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
+import InvoiceActionsMenu from '@/Pages/Invoice/UI/InvoiceActionsMenu.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
@@ -252,6 +253,10 @@ const sendInvoice = (invoice) => {
     });
 };
 
+const invoiceRows = computed(() => props.invoices?.data || []);
+const invoiceTableRows = computed(() => (isBusy.value
+    ? Array.from({ length: 6 }, (_, index) => ({ id: `invoice-skeleton-${index}`, __skeleton: true }))
+    : invoiceRows.value));
 const invoiceLinks = computed(() => props.invoices?.links || []);
 const invoiceResultsLabel = computed(() => `${props.invoices?.total ?? props.invoices?.data?.length ?? 0} ${t('invoices.table.results')}`);
 </script>
@@ -346,206 +351,198 @@ const invoiceResultsLabel = computed(() => `${props.invoices?.total ?? props.inv
             </template>
         </AdminDataTableToolbar>
 
-        <div
+        <AdminDataTable
             v-if="viewMode === 'table'"
-            class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-            <div class="min-w-full inline-block align-middle">
-                <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="min-w-[180px]">
-                                <button type="button" @click="toggleSort('number')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('invoices.table.invoice') }}
-                                    <svg v-if="filterForm.sort === 'number'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-40">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('invoices.table.customer') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button type="button" @click="toggleSort('status')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('invoices.table.status') }}
-                                    <svg v-if="filterForm.sort === 'status'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('invoices.table.rating') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button type="button" @click="toggleSort('total')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('invoices.table.total') }}
-                                    <svg v-if="filterForm.sort === 'total'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('invoices.table.balance_due') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button type="button" @click="toggleSort('created_at')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('invoices.table.created') }}
-                                    <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col"></th>
-                        </tr>
-                    </thead>
+            embedded
+            :rows="invoiceTableRows"
+            :links="invoiceLinks"
+            :show-pagination="invoiceRows.length > 0"
+        >
+            <template #empty>
+                <div
+                    class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                >
+                    {{ $t('invoices.empty.invoices') }}
+                </div>
+            </template>
 
-                    <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                        <template v-if="isBusy">
-                            <tr v-for="row in 6" :key="`skeleton-${row}`">
-                                <td colspan="9" class="px-4 py-3">
-                                    <div class="grid grid-cols-6 gap-4 animate-pulse">
-                                        <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    </div>
-                                </td>
-                            </tr>
-                        </template>
-                        <template v-else>
-                        <tr v-for="invoice in invoices.data" :key="invoice.id">
-                            <td class="size-px whitespace-nowrap px-4 py-2 text-start">
-                                <div class="flex flex-col">
-                                    <span class="text-sm text-stone-600 dark:text-neutral-300">
-                                        {{ invoice.number || $t('invoices.labels.invoice_number', { id: invoice.id }) }}
-                                    </span>
-                                    <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                        {{ invoice.work?.job_title ?? '-' }}
-                                    </span>
-                                </div>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-sm text-stone-600 dark:text-neutral-300">
-                                    {{ getCustomerName(invoice) }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-semibold rounded-full"
-                                    :class="getStatusMeta(invoice).classes">
-                                    <span class="inline-flex size-3.5 items-center justify-center" :class="getStatusMeta(invoice).iconClass">
-                                        <svg v-if="getStatusMeta(invoice).icon === 'draft'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="size-3.5">
-                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
-                                            <path d="M14 2v6h6" />
-                                            <path d="M8 13h8" />
-                                        </svg>
-                                        <svg v-else-if="getStatusMeta(invoice).icon === 'sent'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="size-3.5">
-                                            <path d="m22 2-7 20-4-9-9-4Z" />
-                                            <path d="M22 2 11 13" />
-                                        </svg>
-                                        <svg v-else-if="getStatusMeta(invoice).icon === 'partial'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="size-3.5">
-                                            <path d="M21 12A9 9 0 1 1 12 3v9z" />
-                                        </svg>
-                                        <svg v-else-if="getStatusMeta(invoice).icon === 'paid'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="size-3.5">
-                                            <circle cx="12" cy="12" r="9" />
-                                            <path d="m8.5 12.5 2.5 2.5 4.5-5" />
-                                        </svg>
-                                        <svg v-else-if="getStatusMeta(invoice).icon === 'overdue'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="size-3.5">
-                                            <circle cx="12" cy="12" r="9" />
-                                            <path d="M12 8v4" />
-                                            <path d="M12 16h.01" />
-                                        </svg>
-                                        <svg v-else-if="getStatusMeta(invoice).icon === 'void'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="size-3.5">
-                                            <circle cx="12" cy="12" r="9" />
-                                            <path d="m5 5 14 14" />
-                                        </svg>
-                                    </span>
-                                    <span>{{ getStatusMeta(invoice).label }}</span>
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <StarRating :value="invoice.work?.ratings_avg_rating" icon-class="h-3.5 w-3.5" empty-label="-" />
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-sm text-stone-600 dark:text-neutral-300">
-                                    ${{ Number(invoice.total || 0).toFixed(2) }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-sm text-stone-600 dark:text-neutral-300">
-                                    ${{ Number(invoice.balance_due || 0).toFixed(2) }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                    {{ formatDate(invoice.created_at) }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                                <AdminDataTableActions :label="$t('invoices.actions.view_invoice')">
-                                    <button
-                                        v-if="canSendInvoice(invoice)"
-                                        type="button"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                        :disabled="sendingInvoiceId === invoice.id"
-                                        @click="sendInvoice(invoice)"
-                                    >
-                                        {{ sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice) }}
-                                    </button>
-                                    <Link :href="route('invoice.show', invoice.id)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        {{ $t('invoices.actions.view_invoice') }}
-                                    </Link>
-                                    <Link v-if="invoice.work?.id" :href="route('work.show', invoice.work.id)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        {{ $t('invoices.actions.view_job') }}
-                                    </Link>
-                                    <Link v-if="invoice.customer?.id" :href="route('customer.show', invoice.customer.id)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        {{ $t('invoices.actions.view_customer') }}
-                                    </Link>
-                                </AdminDataTableActions>
-                            </td>
-                        </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+            <template #head>
+                <tr>
+                    <th scope="col" class="min-w-[180px]">
+                        <button type="button" @click="toggleSort('number')"
+                            class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('invoices.table.invoice') }}
+                            <svg v-if="filterForm.sort === 'number'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-40">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('invoices.table.customer') }}
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <button type="button" @click="toggleSort('status')"
+                            class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('invoices.table.status') }}
+                            <svg v-if="filterForm.sort === 'status'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('invoices.table.rating') }}
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <button type="button" @click="toggleSort('total')"
+                            class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('invoices.table.total') }}
+                            <svg v-if="filterForm.sort === 'total'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('invoices.table.balance_due') }}
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <button type="button" @click="toggleSort('created_at')"
+                            class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('invoices.table.created') }}
+                            <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col"></th>
+                </tr>
+            </template>
+
+            <template #row="{ row: invoice }">
+                <tr v-if="invoice.__skeleton">
+                    <td colspan="8" class="px-4 py-3">
+                        <div class="grid grid-cols-6 gap-4 animate-pulse">
+                            <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr v-else>
+                    <td class="size-px whitespace-nowrap px-4 py-2 text-start">
+                        <div class="flex flex-col">
+                            <span class="text-sm text-stone-600 dark:text-neutral-300">
+                                {{ invoice.number || $t('invoices.labels.invoice_number', { id: invoice.id }) }}
+                            </span>
+                            <span class="text-xs text-stone-500 dark:text-neutral-500">
+                                {{ invoice.work?.job_title ?? '-' }}
+                            </span>
+                        </div>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <span class="text-sm text-stone-600 dark:text-neutral-300">
+                            {{ getCustomerName(invoice) }}
+                        </span>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <span class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-semibold rounded-full"
+                            :class="getStatusMeta(invoice).classes">
+                            <span class="inline-flex size-3.5 items-center justify-center" :class="getStatusMeta(invoice).iconClass">
+                                <svg v-if="getStatusMeta(invoice).icon === 'draft'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
+                                    <path d="M14 2v6h6" />
+                                    <path d="M8 13h8" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(invoice).icon === 'sent'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <path d="m22 2-7 20-4-9-9-4Z" />
+                                    <path d="M22 2 11 13" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(invoice).icon === 'partial'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <path d="M21 12A9 9 0 1 1 12 3v9z" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(invoice).icon === 'paid'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <circle cx="12" cy="12" r="9" />
+                                    <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(invoice).icon === 'overdue'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <circle cx="12" cy="12" r="9" />
+                                    <path d="M12 8v4" />
+                                    <path d="M12 16h.01" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(invoice).icon === 'void'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <circle cx="12" cy="12" r="9" />
+                                    <path d="m5 5 14 14" />
+                                </svg>
+                            </span>
+                            <span>{{ getStatusMeta(invoice).label }}</span>
+                        </span>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <StarRating :value="invoice.work?.ratings_avg_rating" icon-class="h-3.5 w-3.5" empty-label="-" />
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <span class="text-sm text-stone-600 dark:text-neutral-300">
+                            ${{ Number(invoice.total || 0).toFixed(2) }}
+                        </span>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <span class="text-sm text-stone-600 dark:text-neutral-300">
+                            ${{ Number(invoice.balance_due || 0).toFixed(2) }}
+                        </span>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <span class="text-xs text-stone-500 dark:text-neutral-500">
+                            {{ formatDate(invoice.created_at) }}
+                        </span>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2 text-end">
+                        <InvoiceActionsMenu
+                            :invoice="invoice"
+                            :can-send="canSendInvoice(invoice)"
+                            :sending="sendingInvoiceId === invoice.id"
+                            :send-label="sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice)"
+                            @send="sendInvoice(invoice)"
+                        />
+                    </td>
+                </tr>
+            </template>
+
+            <template #pagination_prefix>
+                <p class="text-sm text-stone-800 dark:text-neutral-200">{{ invoiceResultsLabel }}</p>
+            </template>
+        </AdminDataTable>
 
         <div v-else class="space-y-3">
             <div v-if="isBusy" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -570,13 +567,13 @@ const invoiceResultsLabel = computed(() => `${props.invoices?.total ?? props.inv
                     </div>
                 </div>
             </div>
-            <div v-else-if="!invoices.data.length"
+            <div v-else-if="!invoiceRows.length"
                 class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                 {{ $t('invoices.empty.invoices') }}
             </div>
             <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <div
-                    v-for="invoice in invoices.data"
+                    v-for="invoice in invoiceRows"
                     :key="invoice.id"
                     class="rounded-sm border border-stone-200 border-l-4 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-neutral-700 dark:bg-neutral-800"
                     :class="getStatusMeta(invoice).accent"
@@ -637,29 +634,13 @@ const invoiceResultsLabel = computed(() => `${props.invoices?.total ?? props.inv
                                 </span>
                                 <span>{{ getStatusMeta(invoice).label }}</span>
                             </span>
-                            <AdminDataTableActions :label="$t('invoices.actions.view_invoice')">
-                                <button
-                                    v-if="canSendInvoice(invoice)"
-                                    type="button"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                    :disabled="sendingInvoiceId === invoice.id"
-                                    @click="sendInvoice(invoice)"
-                                >
-                                    {{ sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice) }}
-                                </button>
-                                <Link :href="route('invoice.show', invoice.id)"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                    {{ $t('invoices.actions.view_invoice') }}
-                                </Link>
-                                <Link v-if="invoice.work?.id" :href="route('work.show', invoice.work.id)"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                    {{ $t('invoices.actions.view_job') }}
-                                </Link>
-                                <Link v-if="invoice.customer?.id" :href="route('customer.show', invoice.customer.id)"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                    {{ $t('invoices.actions.view_customer') }}
-                                </Link>
-                            </AdminDataTableActions>
+                            <InvoiceActionsMenu
+                                :invoice="invoice"
+                                :can-send="canSendInvoice(invoice)"
+                                :sending="sendingInvoiceId === invoice.id"
+                                :send-label="sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice)"
+                                @send="sendInvoice(invoice)"
+                            />
                         </div>
                     </div>
 
@@ -700,7 +681,7 @@ const invoiceResultsLabel = computed(() => `${props.invoices?.total ?? props.inv
             </div>
         </div>
 
-        <div v-if="invoices.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
+        <div v-if="viewMode !== 'table' && invoiceRows.length > 0" class="mt-5 flex flex-wrap items-center justify-between gap-2">
             <p class="text-sm text-stone-800 dark:text-neutral-200">{{ invoiceResultsLabel }}</p>
 
             <AdminPaginationLinks :links="invoiceLinks" />

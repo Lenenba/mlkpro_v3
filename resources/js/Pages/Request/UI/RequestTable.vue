@@ -1,9 +1,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
-import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
@@ -16,6 +15,7 @@ import { isFeatureEnabled } from '@/utils/features';
 import { buildLeadScore, badgeClass } from '@/utils/leadScore';
 import { useI18n } from 'vue-i18n';
 import RequestBoard from '@/Pages/Request/UI/RequestBoard.vue';
+import RequestTableActionsMenu from '@/Pages/Request/UI/RequestTableActionsMenu.vue';
 
 const props = defineProps({
     requests: {
@@ -227,6 +227,9 @@ if (typeof window !== 'undefined') {
 }
 
 const tableRows = computed(() => (Array.isArray(props.requests?.data) ? props.requests.data : []));
+const requestTableRows = computed(() => (isLoading.value
+    ? Array.from({ length: 6 }, (_, index) => ({ id: `request-skeleton-${index}`, __skeleton: true }))
+    : tableRows.value));
 const selected = ref([]);
 const selectAllRef = ref(null);
 const allSelected = computed(() =>
@@ -979,10 +982,21 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
             <RequestBoard :requests="requests.data" :statuses="statuses" />
         </div>
 
-        <div v-else class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                <thead>
-                    <tr>
+        <AdminDataTable
+            v-else
+            embedded
+            :rows="requestTableRows"
+            :links="requestLinks"
+            :show-pagination="tableRows.length > 0"
+        >
+            <template #empty>
+                <div class="px-5 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
+                    {{ $t('requests.empty') }}
+                </div>
+            </template>
+
+            <template #head>
+                <tr>
                         <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
                             <input
                                 ref="selectAllRef"
@@ -1014,26 +1028,24 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                             {{ $t('requests.table.actions') }}
                         </th>
                     </tr>
-                </thead>
-                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                    <template v-if="isLoading">
-                        <tr v-for="row in 6" :key="`skeleton-${row}`">
-                            <td colspan="8" class="px-4 py-3">
-                                <div class="grid grid-cols-8 gap-4 animate-pulse">
-                                    <div class="h-3 w-4 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                </div>
-                            </td>
-                        </tr>
-                    </template>
-                    <template v-else>
-                    <tr v-for="lead in requests.data" :key="lead.id">
+            </template>
+
+            <template #row="{ row: lead }">
+                <tr v-if="lead.__skeleton">
+                    <td colspan="8" class="px-4 py-3">
+                        <div class="grid grid-cols-8 gap-4 animate-pulse">
+                            <div class="h-3 w-4 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr v-else>
                         <td class="px-5 py-3">
                             <Checkbox v-model:checked="selected" :value="lead.id" />
                         </td>
@@ -1126,59 +1138,27 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                         </td>
                         <td class="px-5 py-3">
                             <div class="flex items-center justify-end">
-                                <AdminDataTableActions :label="$t('requests.table.actions')">
-                                    <Link v-if="lead.quote"
-                                        :href="route('customer.quote.show', lead.quote.id)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        {{ $t('requests.actions.view_quote') }}
-                                    </Link>
-                                    <button type="button" @click="openUpdate(lead)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        {{ $t('requests.actions.update') }}
-                                    </button>
-                                    <button v-if="canUseQuotes && canConvertLead(lead)" type="button" @click="openConvert(lead)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
-                                        {{ $t('requests.actions.convert') }}
-                                    </button>
-                                    <Link
-                                        :href="route('request.show', lead.id)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                    >
-                                        {{ $t('requests.actions.view') }}
-                                    </Link>
-                                    <Link
-                                        :href="route('pipeline.timeline', { entityType: 'request', entityId: lead.id })"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                    >
-                                        {{ $t('requests.actions.timeline') }}
-                                    </Link>
-                                    <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                    <button type="button" @click="deleteLead(lead)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"
-                                        :disabled="processingId === lead.id">
-                                        {{ $t('requests.actions.delete') }}
-                                    </button>
-                                </AdminDataTableActions>
+                                <RequestTableActionsMenu
+                                    :lead="lead"
+                                    :can-use-quotes="canUseQuotes"
+                                    :can-convert="canConvertLead(lead)"
+                                    :processing="processingId === lead.id"
+                                    @update="openUpdate(lead)"
+                                    @convert="openConvert(lead)"
+                                    @delete="deleteLead(lead)"
+                                />
                             </div>
                         </td>
                     </tr>
 
-                    <tr v-if="!requests.data.length">
-                        <td colspan="8" class="px-5 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
-                            {{ $t('requests.empty') }}
-                        </td>
-                    </tr>
-                    </template>
-                </tbody>
-            </table>
-        </div>
+            </template>
 
-        <div v-if="viewMode === 'table' && requestLinks.length" class="flex flex-wrap items-center justify-between gap-3">
-            <span class="text-xs text-stone-500 dark:text-neutral-400">
-                {{ $t('requests.pagination.showing', { from: requests.from || 0, to: requests.to || 0 }) }}
-            </span>
-            <AdminPaginationLinks :links="requestLinks" />
-        </div>
+            <template #pagination_prefix>
+                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                    {{ $t('requests.pagination.showing', { from: requests.from || 0, to: requests.to || 0 }) }}
+                </span>
+            </template>
+        </AdminDataTable>
     </div>
 
     <Modal :title="$t('requests.intake.title')" :id="intakeModalId">

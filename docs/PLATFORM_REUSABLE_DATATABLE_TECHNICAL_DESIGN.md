@@ -69,10 +69,13 @@ Suggested props:
 - `striped`
 - `dense`
 - `rowKey`
+- `resultLabel`
+- `embedded`
+- `showPagination`
+- `containerClass`
 
 Suggested slots:
 - `toolbar`
-- `filters`
 - `head`
 - `row`
 - `empty`
@@ -321,17 +324,21 @@ Current module adoption shape:
 - shared toolbar
 - shared row action dropdown
 - shared pagination links where applicable
-- keep custom card views, board views, schedule and team views, bulk-selection flows, inline-edit flows, proof-upload flows, and specialized row cells local for now
+- quote, invoice, customer, and request table views now mount through embedded `AdminDataTable` instead of carrying a separate local table shell
 - allow module-local wrappers on top of shared primitives when a screen needs a wider or more specialized action menu
+- quote, invoice, customer, request, and task now use local action-menu wrappers built on top of `AdminDataTableActions`
+- customer keeps its existing card view and now reuses a dedicated shared empty-state component across table and card layouts
+- request keeps its board view, status dropdown, bulk actions, import flow, and modal workflows local while the table shell is centralized
+- keep custom card views, board views, schedule and team views, bulk-selection flows, inline-edit flows, proof-upload flows, and specialized row cells local for now
 
 Next recommended wave:
 - move the remaining hybrid module screens further toward `AdminDataTable.vue` only after the inline and board-specific workflows are extracted cleanly
-- prioritize deeper shell passes for quote, invoice, customer, request, product, and task where the remaining duplication is structural rather than purely visual
+- prioritize deeper shell passes for product and task where the remaining duplication is structural rather than purely visual
 
 Follow-up wave after that:
-- move quote and invoice table shells fully into `AdminDataTable.vue`
-- evaluate whether customer cards/table and request board/table need a deeper hybrid shell
+- evaluate whether customer cards/table and request board/table need a lighter second pass once their specialized local flows are worth extracting
 - evaluate whether product and task should get a deeper shell pass once inline workflows are extracted
+- evaluate whether quote and invoice card layouts should eventually share a lighter reusable summary-card shell
 
 ## Current Candidates and Fit
 

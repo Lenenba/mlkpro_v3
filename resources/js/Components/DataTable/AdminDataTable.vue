@@ -47,6 +47,14 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    embedded: {
+        type: Boolean,
+        default: false,
+    },
+    showPagination: {
+        type: Boolean,
+        default: true,
+    },
     containerClass: {
         type: [String, Array, Object],
         default: '',
@@ -62,6 +70,9 @@ const tbodyClass = computed(() => [
     'divide-y divide-stone-100 dark:divide-neutral-800',
     props.striped ? '[&>tr:nth-child(odd)]:bg-stone-50/50 dark:[&>tr:nth-child(odd)]:bg-neutral-800/20' : '',
 ]);
+const rootClass = computed(() => (props.embedded
+    ? ['space-y-4', props.containerClass]
+    : ['flex flex-col space-y-4 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900', props.containerClass]));
 
 const resolveRowKey = (row, index) => {
     if (typeof props.rowKey === 'function') {
@@ -77,7 +88,7 @@ const resolveRowKey = (row, index) => {
 </script>
 
 <template>
-    <section :class="['flex flex-col space-y-4 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900', containerClass]">
+    <section :class="rootClass">
         <slot name="toolbar" />
 
         <div v-if="resultLabel" class="text-sm text-stone-500 dark:text-neutral-400">
@@ -119,7 +130,7 @@ const resolveRowKey = (row, index) => {
             </table>
         </div>
 
-        <div v-if="normalizedLinks.length" class="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-4 dark:border-neutral-700">
+        <div v-if="showPagination && normalizedLinks.length" class="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-4 dark:border-neutral-700">
             <slot name="pagination_prefix" />
             <AdminPaginationLinks :links="normalizedLinks" />
         </div>

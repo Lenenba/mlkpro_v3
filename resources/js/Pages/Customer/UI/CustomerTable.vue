@@ -1,9 +1,11 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
-import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
-import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
+import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import CustomerActionsMenu from '@/Pages/Customer/UI/CustomerActionsMenu.vue';
+import CustomerEmptyState from '@/Pages/Customer/UI/CustomerEmptyState.vue';
 import { humanizeDate } from '@/utils/date';
 import Checkbox from '@/Components/Checkbox.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -176,14 +178,18 @@ const toggleSort = (column) => {
 
 const selected = ref([]);
 const selectAllRef = ref(null);
+const customerRows = computed(() => (Array.isArray(props.customers?.data) ? props.customers.data : []));
+const customerTableRows = computed(() => (isBusy.value
+    ? Array.from({ length: 6 }, (_, index) => ({ id: `customer-skeleton-${index}`, __skeleton: true }))
+    : customerRows.value));
 const allSelected = computed(() =>
-    props.customers.data.length > 0 && selected.value.length === props.customers.data.length
+    customerRows.value.length > 0 && selected.value.length === customerRows.value.length
 );
 const someSelected = computed(() =>
     selected.value.length > 0 && !allSelected.value
 );
 
-watch(() => props.customers.data, () => {
+watch(customerRows, () => {
     selected.value = [];
 }, { deep: true });
 
@@ -195,7 +201,7 @@ watch([allSelected, someSelected], () => {
 
 const toggleAll = (event) => {
     selected.value = event.target.checked
-        ? props.customers.data.map((customer) => customer.id)
+        ? customerRows.value.map((customer) => customer.id)
         : [];
 };
 
@@ -424,13 +430,21 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
             </div>
         </div>
 
-        <div
+        <AdminDataTable
             v-if="viewMode === 'table'"
-            class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-            <div class="min-w-full inline-block align-middle">
-                <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                    <thead>
-                        <tr>
+            embedded
+            :rows="customerTableRows"
+            :links="customerLinks"
+            :show-pagination="customerRows.length > 0"
+        >
+            <template #empty>
+                <div class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                    <CustomerEmptyState />
+                </div>
+            </template>
+
+            <template #head>
+                <tr>
                             <th scope="col" class="w-10 px-4 py-2">
                                 <input v-if="canEdit" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
                                     class="rounded border-stone-300 text-green-600 shadow-sm focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-green-400 dark:focus:ring-green-400" />
@@ -507,46 +521,23 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                             </th>
                             <th scope="col"></th>
                         </tr>
-                    </thead>
+            </template>
 
-                    <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                        <template v-if="isBusy">
-                            <tr v-for="row in 6" :key="`skeleton-${row}`">
-                                <td colspan="9" class="px-4 py-3">
-                                    <div class="grid grid-cols-7 gap-4 animate-pulse">
-                                        <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    </div>
-                                </td>
-                            </tr>
-                        </template>
-                        <template v-else>
-                        <tr v-if="!customers.data.length">
-                            <td colspan="9" class="px-4 py-10 text-center text-stone-600 dark:text-neutral-300">
-                                <div class="space-y-2">
-                                    <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                                        {{ $t('customers.empty.title') }}
-                                    </div>
-                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ $t('customers.empty.subtitle') }}
-                                    </div>
-                                    <div class="flex justify-center pt-2">
-                                        <Link
-                                            :href="route('customer.create')"
-                                            class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
-                                        >
-                                            {{ $t('customers.empty.action') }}
-                                        </Link>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr v-for="customer in customers.data" :key="customer.id">
+            <template #row="{ row: customer }">
+                <tr v-if="customer.__skeleton">
+                    <td colspan="9" class="px-4 py-3">
+                        <div class="grid grid-cols-7 gap-4 animate-pulse">
+                            <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr v-else>
                             <td class="size-px whitespace-nowrap px-4 py-2">
                                 <Checkbox v-if="canEdit" v-model:checked="selected" :value="customer.id" />
                             </td>
@@ -610,32 +601,20 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                                <AdminDataTableActions :label="$t('customers.actions.view')">
-                                    <Link :href="route('customer.show', customer)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        {{ $t('customers.actions.view') }}
-                                    </Link>
-                                    <Link v-if="canEdit" :href="route('customer.edit', customer)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        {{ $t('customers.actions.edit') }}
-                                    </Link>
-                                    <button v-if="canEdit" type="button" @click="toggleArchive(customer)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
-                                        {{ customer.is_active ? $t('customers.actions.archive') : $t('customers.actions.restore') }}
-                                    </button>
-                                    <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                    <button v-if="canEdit" type="button" @click="destroyCustomer(customer)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                        {{ $t('customers.actions.delete') }}
-                                    </button>
-                                </AdminDataTableActions>
+                                <CustomerActionsMenu
+                                    :customer="customer"
+                                    :can-edit="canEdit"
+                                    @toggle-archive="toggleArchive(customer)"
+                                    @delete="destroyCustomer(customer)"
+                                />
                             </td>
                         </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+            </template>
+
+            <template #pagination_prefix>
+                <p class="text-sm text-stone-800 dark:text-neutral-200">{{ customerResultsLabel }}</p>
+            </template>
+        </AdminDataTable>
 
         <div v-else class="space-y-3">
             <div v-if="isBusy" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -662,28 +641,13 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                     </div>
                 </div>
             </div>
-            <div v-else-if="!customers.data.length"
+            <div v-else-if="!customerRows.length"
                 class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                <div class="space-y-2">
-                    <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                        {{ $t('customers.empty.title') }}
-                    </div>
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('customers.empty.subtitle') }}
-                    </div>
-                    <div class="flex justify-center pt-2">
-                        <Link
-                            :href="route('customer.create')"
-                            class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
-                        >
-                            {{ $t('customers.empty.action') }}
-                        </Link>
-                    </div>
-                </div>
+                <CustomerEmptyState />
             </div>
             <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <div
-                    v-for="customer in customers.data"
+                    v-for="customer in customerRows"
                     :key="customer.id"
                     class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-neutral-700 dark:bg-neutral-800"
                 >
@@ -727,25 +691,12 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                         </div>
                         <div class="flex items-center gap-2">
                             <Checkbox v-if="canEdit" v-model:checked="selected" :value="customer.id" />
-                            <AdminDataTableActions :label="$t('customers.actions.view')">
-                                <Link :href="route('customer.show', customer)"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                    {{ $t('customers.actions.view') }}
-                                </Link>
-                                <Link v-if="canEdit" :href="route('customer.edit', customer)"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                    {{ $t('customers.actions.edit') }}
-                                </Link>
-                                <button v-if="canEdit" type="button" @click="toggleArchive(customer)"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
-                                    {{ customer.is_active ? $t('customers.actions.archive') : $t('customers.actions.restore') }}
-                                </button>
-                                <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                <button v-if="canEdit" type="button" @click="destroyCustomer(customer)"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                    {{ $t('customers.actions.delete') }}
-                                </button>
-                            </AdminDataTableActions>
+                            <CustomerActionsMenu
+                                :customer="customer"
+                                :can-edit="canEdit"
+                                @toggle-archive="toggleArchive(customer)"
+                                @delete="destroyCustomer(customer)"
+                            />
                         </div>
                     </div>
 
@@ -808,7 +759,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
             </div>
         </div>
 
-        <div v-if="customers.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
+        <div v-if="viewMode !== 'table' && customerRows.length > 0" class="mt-5 flex flex-wrap items-center justify-between gap-2">
             <p class="text-sm text-stone-800 dark:text-neutral-200">{{ customerResultsLabel }}</p>
 
             <AdminPaginationLinks :links="customerLinks" />
