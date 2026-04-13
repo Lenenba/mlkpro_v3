@@ -38,7 +38,7 @@ const props = defineProps({
     },
     striped: {
         type: Boolean,
-        default: false,
+        default: true,
     },
     dense: {
         type: Boolean,
@@ -105,7 +105,7 @@ const hasMultiplePaginationPages = computed(() => paginationPageCount.value > 1)
 const tableDensityClass = computed(() => (props.dense ? 'text-xs' : 'text-sm'));
 const tbodyClass = computed(() => [
     'divide-y divide-stone-100 dark:divide-neutral-800',
-    props.striped ? '[&>tr:nth-child(odd)]:bg-stone-50/50 dark:[&>tr:nth-child(odd)]:bg-neutral-800/20' : '',
+    props.striped ? '[&>tr:nth-child(odd)]:bg-white [&>tr:nth-child(even)]:bg-stone-50/60 dark:[&>tr:nth-child(odd)]:bg-neutral-900/55 dark:[&>tr:nth-child(even)]:bg-neutral-800/22' : '',
 ]);
 const shouldShowFooter = computed(() => (
     !!props.resultLabel
@@ -116,8 +116,8 @@ const shouldShowFooter = computed(() => (
 const resolvedPerPageLabel = computed(() => props.perPageLabel || t('datatable.shared.rows_per_page'));
 const resolvedLoadingLabel = computed(() => t('datatable.shared.loading'));
 const rootClass = computed(() => (props.embedded
-    ? ['space-y-4', props.containerClass]
-    : ['flex flex-col space-y-4 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900', props.containerClass]));
+    ? ['admin-data-table space-y-4', { 'admin-data-table--striped': props.striped }, props.containerClass]
+    : ['admin-data-table flex flex-col space-y-4 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900', { 'admin-data-table--striped': props.striped }, props.containerClass]));
 
 const resolveRowKey = (row, index) => {
     if (typeof props.rowKey === 'function') {
@@ -178,8 +178,8 @@ const updatePerPage = (event) => {
             v-else
             class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
         >
-            <table class="min-w-full divide-y divide-stone-200 text-left text-stone-600 dark:divide-neutral-700 dark:text-neutral-300" :class="tableDensityClass">
-                <thead class="bg-stone-50 dark:bg-neutral-800/60">
+            <table class="admin-data-table__table min-w-full divide-y divide-stone-200 text-left text-stone-600 dark:divide-neutral-700 dark:text-neutral-300" :class="tableDensityClass">
+                <thead class="border-b border-stone-300 bg-stone-100/95 shadow-[inset_0_-1px_0_0_rgb(214_211_209)] backdrop-blur-sm dark:border-neutral-600 dark:bg-neutral-800/95 dark:shadow-[inset_0_-1px_0_0_rgb(82_82_82)]">
                     <slot name="head" />
                 </thead>
                 <slot v-if="slots.body" name="body" :rows="normalizedRows" />
@@ -247,5 +247,57 @@ const updatePerPage = (event) => {
 
 .data-table-per-page-select::-ms-expand {
     display: none;
+}
+
+:deep(.admin-data-table__table thead th),
+:deep(.admin-data-table__table thead th > *),
+:deep(.admin-data-table__table thead th button),
+:deep(.admin-data-table__table thead th button > *) {
+    font-weight: 700;
+}
+
+:deep(.admin-data-table__table thead th) {
+    border-bottom: 1px solid rgb(214 211 209 / 0.9);
+}
+
+:deep(.admin-data-table__table thead th),
+:deep(.admin-data-table__table thead th > *),
+:deep(.admin-data-table__table thead th button) {
+    color: rgb(68 64 60);
+    letter-spacing: 0.015em;
+}
+
+:deep(.dark .admin-data-table__table thead th) {
+    border-bottom: 1px solid rgb(82 82 82 / 0.95);
+}
+
+:deep(.dark .admin-data-table__table thead th),
+:deep(.dark .admin-data-table__table thead th > *),
+:deep(.dark .admin-data-table__table thead th button) {
+    color: rgb(245 245 245);
+}
+
+.admin-data-table--striped :deep(.admin-data-table__table tbody > tr:nth-child(odd)),
+.admin-data-table--striped :deep(.admin-data-table__table tbody > tr:nth-child(odd) > td),
+.admin-data-table--striped :deep(.admin-data-table__table tbody > tr:nth-child(odd) > th) {
+    background-color: rgb(255 255 255);
+}
+
+.admin-data-table--striped :deep(.admin-data-table__table tbody > tr:nth-child(even)),
+.admin-data-table--striped :deep(.admin-data-table__table tbody > tr:nth-child(even) > td),
+.admin-data-table--striped :deep(.admin-data-table__table tbody > tr:nth-child(even) > th) {
+    background-color: rgb(245 245 244);
+}
+
+.dark .admin-data-table--striped :deep(.admin-data-table__table tbody > tr:nth-child(odd)),
+.dark .admin-data-table--striped :deep(.admin-data-table__table tbody > tr:nth-child(odd) > td),
+.dark .admin-data-table--striped :deep(.admin-data-table__table tbody > tr:nth-child(odd) > th) {
+    background-color: rgb(23 23 23 / 0.55);
+}
+
+.dark .admin-data-table--striped :deep(.admin-data-table__table tbody > tr:nth-child(even)),
+.dark .admin-data-table--striped :deep(.admin-data-table__table tbody > tr:nth-child(even) > td),
+.dark .admin-data-table--striped :deep(.admin-data-table__table tbody > tr:nth-child(even) > th) {
+    background-color: rgb(38 38 38 / 0.82);
 }
 </style>

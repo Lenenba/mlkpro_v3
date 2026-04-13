@@ -3,7 +3,8 @@
     "shared": {
       "loading": "Cargando...",
       "rows_per_page": "Filas / pagina",
-      "results_count": "{count} resultados"
+      "results_count": "{count} resultados",
+      "page_indicator": "Pagina {current} / {total}"
     }
   }
 }

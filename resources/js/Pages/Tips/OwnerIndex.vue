@@ -155,6 +155,15 @@ const statusClass = (status) => {
 
 const paymentRows = computed(() => (Array.isArray(props.payments?.data) ? props.payments.data : []));
 const paymentLinks = computed(() => props.payments?.links || []);
+const currentPage = computed(() => Number(props.payments?.current_page || 1));
+const totalPages = computed(() => Number(props.payments?.last_page || 1));
+const paymentResultsLabel = computed(() => t('datatable.shared.results_count', {
+    count: props.payments?.total ?? paymentRows.value.length,
+}));
+const paymentPageIndicator = computed(() => t('datatable.shared.page_indicator', {
+    current: currentPage.value,
+    total: totalPages.value,
+}));
 </script>
 
 <template>
@@ -341,6 +350,14 @@ const paymentLinks = computed(() => props.payments?.links || []);
                     <template #empty>
                         <div class="rounded-sm border border-dashed border-stone-300 px-4 py-10 text-center text-sm text-stone-600 dark:border-neutral-600 dark:text-neutral-300">
                             {{ $t('tips_reports.empty.rows') }}
+                        </div>
+                    </template>
+
+                    <template #pagination_prefix>
+                        <div class="flex flex-wrap items-center gap-2 text-sm text-stone-500 dark:text-neutral-400">
+                            <span>{{ paymentResultsLabel }}</span>
+                            <span class="text-stone-300 dark:text-neutral-600">•</span>
+                            <span>{{ paymentPageIndicator }}</span>
                         </div>
                     </template>
                 </AdminDataTable>

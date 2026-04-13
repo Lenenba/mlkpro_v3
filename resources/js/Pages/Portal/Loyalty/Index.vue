@@ -135,7 +135,13 @@ const entryTableRows = computed(() => (isLoading.value
     ? Array.from({ length: 8 }, (_, index) => ({ id: `loyalty-client-skeleton-${index}`, __skeleton: true }))
     : entryRows.value));
 const entryLinks = computed(() => props.entries?.links || []);
-const entryResultsLabel = computed(() => `${props.entries?.total ?? entryRows.value.length} ${t('loyalty_module.ledger.results')}`);
+const entryResultsLabel = computed(() => t('datatable.shared.results_count', {
+    count: props.entries?.total ?? entryRows.value.length,
+}));
+const entryPageIndicator = computed(() => t('datatable.shared.page_indicator', {
+    current: currentPage.value,
+    total: totalPages.value,
+}));
 const formatNumber = (value) => Number(value || 0).toLocaleString();
 const { formatCurrency } = useCurrencyFormatter();
 const formatDateTime = (value) => humanizeDate(value) || '-';
@@ -241,11 +247,8 @@ onBeforeUnmount(() => {
                 </aside>
 
                 <div class="p-5 space-y-4 flex h-full min-h-0 flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('client_loyalty.ledger.title') }}</h2>
-                        <div class="text-[11px] text-stone-500 dark:text-neutral-400">
-                            {{ $t('loyalty_module.ledger.page_indicator', { current: currentPage, total: totalPages }) }}
-                        </div>
                     </div>
 
                     <AdminDataTable
@@ -339,9 +342,11 @@ onBeforeUnmount(() => {
                         </template>
 
                         <template #pagination_prefix>
-                            <p class="text-sm text-stone-500 dark:text-neutral-400">
-                                {{ entryResultsLabel }}
-                            </p>
+                            <div class="flex flex-wrap items-center gap-2 text-sm text-stone-500 dark:text-neutral-400">
+                                <span>{{ entryResultsLabel }}</span>
+                                <span class="text-stone-300 dark:text-neutral-600">•</span>
+                                <span>{{ entryPageIndicator }}</span>
+                            </div>
                         </template>
                     </AdminDataTable>
                 </div>
