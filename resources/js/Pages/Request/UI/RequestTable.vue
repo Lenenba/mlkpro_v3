@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -14,6 +15,7 @@ import { humanizeDate } from '@/utils/date';
 import { isFeatureEnabled } from '@/utils/features';
 import { buildLeadScore, badgeClass } from '@/utils/leadScore';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
+import { useDataTableSelection } from '@/Composables/useDataTableSelection';
 import { useI18n } from 'vue-i18n';
 import RequestBoard from '@/Pages/Request/UI/RequestBoard.vue';
 import RequestTableActionsMenu from '@/Pages/Request/UI/RequestTableActionsMenu.vue';
@@ -233,30 +235,14 @@ const tableRows = computed(() => (Array.isArray(props.requests?.data) ? props.re
 const requestTableRows = computed(() => (isLoading.value
     ? Array.from({ length: 6 }, (_, index) => ({ id: `request-skeleton-${index}`, __skeleton: true }))
     : tableRows.value));
-const selected = ref([]);
-const selectAllRef = ref(null);
-const allSelected = computed(() =>
-    tableRows.value.length > 0 && selected.value.length === tableRows.value.length
-);
-const someSelected = computed(() =>
-    selected.value.length > 0 && !allSelected.value
-);
-
-watch(tableRows, () => {
-    selected.value = [];
-}, { deep: true });
-
-watch([allSelected, someSelected], () => {
-    if (selectAllRef.value) {
-        selectAllRef.value.indeterminate = someSelected.value;
-    }
-});
-
-const toggleAll = (event) => {
-    selected.value = event.target.checked
-        ? tableRows.value.map((lead) => lead.id)
-        : [];
-};
+const {
+    selected,
+    selectedCount,
+    selectAllRef,
+    allSelected,
+    toggleAll,
+    clearSelection,
+} = useDataTableSelection(tableRows);
 
 const bulkStatus = ref('');
 const bulkAssignee = ref('');
@@ -300,7 +286,7 @@ const submitBulkStatus = () => {
             bulkProcessing.value = false;
         },
         onSuccess: () => {
-            selected.value = [];
+            clearSelection();
             bulkStatus.value = '';
             bulkLostReason.value = '';
         },
@@ -326,7 +312,7 @@ const submitBulkAssign = () => {
             bulkProcessing.value = false;
         },
         onSuccess: () => {
-            selected.value = [];
+            clearSelection();
             bulkAssignee.value = '';
         },
     });
@@ -931,10 +917,11 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
             </div>
         </div>
 
-        <div v-if="viewMode === 'table' && selected.length" class="flex flex-wrap items-center gap-2">
-            <span class="text-xs text-stone-500 dark:text-neutral-400">
-                {{ $t('requests.bulk.selected', { count: selected.length }) }}
-            </span>
+        <AdminDataTableBulkBar
+            v-if="viewMode === 'table'"
+            :count="selectedCount"
+            :label="$t('requests.bulk.selected', { count: selectedCount })"
+        >
             <div class="flex flex-wrap items-end gap-2">
                 <FloatingSelect
                     v-model="bulkStatus"
@@ -978,8 +965,8 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                     {{ $t('requests.bulk.apply_assign') }}
                 </button>
             </div>
-            <InputError class="mt-1 w-full" :message="bulkErrors.lost_reason" />
-        </div>
+            <InputError class="mt-1 w-full basis-full" :message="bulkErrors.lost_reason" />
+        </AdminDataTableBulkBar>
 
         <div v-if="viewMode === 'board'" class="pt-2">
             <RequestBoard :requests="requests.data" :statuses="statuses" />

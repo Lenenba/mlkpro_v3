@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import { humanizeDate } from '@/utils/date';
 import ProductForm from './ProductForm.vue';
@@ -13,6 +14,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import axios from 'axios';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
+import { useDataTableSelection } from '@/Composables/useDataTableSelection';
 import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
@@ -538,18 +540,14 @@ const toggleSort = (column) => {
     filterForm.direction = 'asc';
 };
 
-const selected = ref([]);
-const selectAllRef = ref(null);
-const allSelected = computed(() =>
-    productRows.value.length > 0 && selected.value.length === productRows.value.length
-);
-const someSelected = computed(() =>
-    selected.value.length > 0 && !allSelected.value
-);
-
-watch(productRows, () => {
-    selected.value = [];
-}, { deep: true });
+const {
+    selected,
+    selectedCount,
+    selectAllRef,
+    allSelected,
+    toggleAll,
+    clearSelection,
+} = useDataTableSelection(productRows);
 
 watch(
     () => props.aiImage,
@@ -560,19 +558,6 @@ watch(
     },
     { deep: true }
 );
-
-
-watch([allSelected, someSelected], () => {
-    if (selectAllRef.value) {
-        selectAllRef.value.indeterminate = someSelected.value;
-    }
-});
-
-const toggleAll = (event) => {
-    selected.value = event.target.checked
-        ? productRows.value.map((product) => product.id)
-        : [];
-};
 
 const bulkForm = useForm({
     action: '',
@@ -591,7 +576,7 @@ const runBulk = (action) => {
     bulkForm.post(route('product.bulk'), {
         preserveScroll: true,
         onSuccess: () => {
-            selected.value = [];
+            clearSelection();
         },
     });
 };
@@ -1091,10 +1076,11 @@ const submitImport = () => {
                     />
                 </div>
 
-                <div v-if="canEdit && selected.length" class="flex items-center gap-2">
-                    <span class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('products.bulk.selected', { count: selected.length }) }}
-                    </span>
+                <AdminDataTableBulkBar
+                    v-if="canEdit"
+                    :count="selectedCount"
+                    :label="$t('products.bulk.selected', { count: selectedCount })"
+                >
                     <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                         <button type="button"
                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 action-feedback"
@@ -1120,7 +1106,7 @@ const submitImport = () => {
                             </div>
                         </div>
                     </div>
-                </div>
+                </AdminDataTableBulkBar>
             </div>
 
         </div>

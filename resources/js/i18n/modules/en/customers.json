@@ -62,6 +62,100 @@
       "disable_portal": "Disable portal access",
       "delete_confirm": "Delete selected customers?"
     },
+    "bulk_contact": {
+      "action": "Contact selected",
+      "title": "Contact selected customers",
+      "subtitle": "Send an email or SMS directly from the customer list.",
+      "selection_summary": "{count} customer(s) selected",
+      "fields": {
+        "objective": "Objective",
+        "channel": "Channel",
+        "offer": "Product or service",
+        "subject": "Subject",
+        "body": "Message"
+      },
+      "objectives": {
+        "payment_followup": "Payment follow-up",
+        "promotion": "Promotion",
+        "manual_message": "Manual message"
+      },
+      "channels": {
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "payment_followup_hint": "If subject or message stay empty, a suggested reminder will be used.",
+      "template_hint_email": "A Malikia branded email template will be applied automatically to keep the right email format.",
+      "offer_search_placeholder": "Search for a product or service to promote",
+      "no_offer_results": "No product or service matches this search.",
+      "clear_offer": "Clear",
+      "offer_required_hint": "For a promotion, select the offer you want to highlight.",
+      "loading_offers": "Searching catalog...",
+      "body_required_hint": "A message is required for this send.",
+      "sms_length": "{count} characters",
+      "preview_title": "Recipient preview",
+      "preview_subtitle": "The system checks eligible recipients before sending.",
+      "preview": {
+        "selected": "Selected",
+        "eligible": "Eligible",
+        "excluded": "Excluded",
+        "selected_offer": "Selected offer",
+        "reasons_title": "Main exclusion reasons",
+        "eligible_examples": "Eligible examples",
+        "excluded_examples": "Excluded examples",
+        "invoice_summary": "{count} open invoice(s), {amount} {currency}"
+      },
+      "actions": {
+        "refresh_preview": "Refresh preview",
+        "refreshing": "Refreshing...",
+        "close": "Close",
+        "send": "Send",
+        "sending": "Sending..."
+      },
+      "preview_error": "Unable to validate recipients right now.",
+      "send_error": "Unable to send this bulk message.",
+      "result_summary": "Sent: {sent}, failed: {failed}, skipped: {skipped}",
+      "tokens_title": "Available tokens",
+      "tokens_hint": "You can use these tokens in the subject or message.",
+      "reasons": {
+        "channel_disabled": "Channel disabled",
+        "missing_destination": "Missing or invalid destination",
+        "no_open_invoices": "No open invoices",
+        "consent_missing": "Missing consent",
+        "consent_revoked": "Consent revoked",
+        "opted_out": "Recipient opted out",
+        "quiet_hours": "Blocked during quiet hours",
+        "fatigue_limit": "Fatigue limit reached",
+        "mail_exception": "Email send failed",
+        "sms_error": "SMS send failed",
+        "invalid_recipient": "Invalid recipient",
+        "send_failed": "Send failed"
+      },
+      "tokens_map": {
+        "customerName": "Customer full name",
+        "firstName": "Customer first name",
+        "companyName": "Customer company",
+        "customerEmail": "Customer email",
+        "customerPhone": "Customer phone",
+        "unpaidInvoiceCount": "Open invoice count",
+        "balanceDue": "Balance due",
+        "offerName": "Offer name",
+        "offerPrice": "Offer price",
+        "offerUrl": "Offer link",
+        "offerImageUrl": "Offer image",
+        "promoPercent": "Promotion percent",
+        "promoCode": "Promotion code",
+        "promoEndDate": "Promotion end date",
+        "productName": "Product name",
+        "serviceName": "Service name",
+        "brandName": "Your company name",
+        "brandReplyToEmail": "Reply-to email",
+        "brandPhone": "Company phone"
+      },
+      "offer_types": {
+        "product": "Product",
+        "service": "Service"
+      }
+    },
     "table": {
       "company": "Company",
       "contact": "Contact",

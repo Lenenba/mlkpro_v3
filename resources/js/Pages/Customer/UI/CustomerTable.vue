@@ -1,13 +1,22 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import {
+    computed,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    watch,
+} from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
+import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import CustomerActionsMenu from '@/Pages/Customer/UI/CustomerActionsMenu.vue';
+import CustomerBulkContactModal from '@/Pages/Customer/UI/CustomerBulkContactModal.vue';
 import CustomerEmptyState from '@/Pages/Customer/UI/CustomerEmptyState.vue';
 import { humanizeDate } from '@/utils/date';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
+import { useDataTableSelection } from '@/Composables/useDataTableSelection';
 import Checkbox from '@/Components/Checkbox.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
@@ -178,44 +187,65 @@ const toggleSort = (column) => {
     filterForm.direction = 'asc';
 };
 
-const selected = ref([]);
-const selectAllRef = ref(null);
 const customerRows = computed(() => (Array.isArray(props.customers?.data) ? props.customers.data : []));
 const customerTableRows = computed(() => (isBusy.value
     ? Array.from({ length: 6 }, (_, index) => ({ id: `customer-skeleton-${index}`, __skeleton: true }))
     : customerRows.value));
-const allSelected = computed(() =>
-    customerRows.value.length > 0 && selected.value.length === customerRows.value.length
-);
-const someSelected = computed(() =>
-    selected.value.length > 0 && !allSelected.value
-);
-
-watch(customerRows, () => {
-    selected.value = [];
-}, { deep: true });
-
-watch([allSelected, someSelected], () => {
-    if (selectAllRef.value) {
-        selectAllRef.value.indeterminate = someSelected.value;
-    }
-});
-
-const toggleAll = (event) => {
-    selected.value = event.target.checked
-        ? customerRows.value.map((customer) => customer.id)
-        : [];
-};
-
+const {
+    selected,
+    selectedCount,
+    selectAllRef,
+    allSelected,
+    toggleAll,
+    toggleSelection,
+    clearSelection,
+    isSelected,
+} = useDataTableSelection(customerRows);
 const bulkForm = useForm({
     action: '',
     ids: [],
 });
+const bulkContactModalRef = ref(null);
+const bulkMenuRef = ref(null);
+const isBulkMenuOpen = ref(false);
+
+const closeBulkMenu = () => {
+    isBulkMenuOpen.value = false;
+};
+
+const toggleBulkMenu = () => {
+    if (!selectedCount.value) {
+        closeBulkMenu();
+
+        return;
+    }
+
+    isBulkMenuOpen.value = !isBulkMenuOpen.value;
+};
+
+const handleBulkMenuClickOutside = (event) => {
+    if (!isBulkMenuOpen.value) {
+        return;
+    }
+
+    if (bulkMenuRef.value?.contains(event.target)) {
+        return;
+    }
+
+    closeBulkMenu();
+};
+
+const handleBulkMenuEscape = (event) => {
+    if (event.key === 'Escape') {
+        closeBulkMenu();
+    }
+};
 
 const runBulk = (action) => {
     if (!selected.value.length) {
         return;
     }
+    closeBulkMenu();
     if (action === 'delete' && !confirm(t('customers.bulk.delete_confirm'))) {
         return;
     }
@@ -224,9 +254,14 @@ const runBulk = (action) => {
     bulkForm.post(route('customer.bulk'), {
         preserveScroll: true,
         onSuccess: () => {
-            selected.value = [];
+            clearSelection();
         },
     });
+};
+
+const openBulkContact = () => {
+    closeBulkMenu();
+    bulkContactModalRef.value?.open();
 };
 
 const toggleArchive = (customer) => {
@@ -284,6 +319,34 @@ const getCustomerInitials = (customer) => {
 const customerLinks = computed(() => props.customers?.links || []);
 const currentPerPage = computed(() => resolveDataTablePerPage(props.customers?.per_page, props.filters?.per_page));
 const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagination.results')}`);
+
+watch(selectedCount, (count) => {
+    if (count === 0) {
+        closeBulkMenu();
+    }
+});
+
+watch(viewMode, () => {
+    closeBulkMenu();
+});
+
+onMounted(() => {
+    if (typeof document === 'undefined') {
+        return;
+    }
+
+    document.addEventListener('mousedown', handleBulkMenuClickOutside);
+    document.addEventListener('keydown', handleBulkMenuEscape);
+});
+
+onBeforeUnmount(() => {
+    if (typeof document === 'undefined') {
+        return;
+    }
+
+    document.removeEventListener('mousedown', handleBulkMenuClickOutside);
+    document.removeEventListener('keydown', handleBulkMenuEscape);
+});
 </script>
 
 <template>
@@ -393,19 +456,61 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                 </template>
             </AdminDataTableToolbar>
 
-            <div v-if="canEdit && selected.length" class="flex items-center gap-2">
-                <span class="text-xs text-stone-500 dark:text-neutral-400">
-                    {{ $t('customers.labels.selected', { count: selected.length }) }}
-                </span>
-                <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                    <button type="button"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 action-feedback"
-                        aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
+            <AdminDataTableBulkBar
+                v-if="canEdit"
+                :count="selectedCount"
+                :label="$t('customers.labels.selected', { count: selectedCount })"
+            >
+                <template #summary>
+                    <div class="flex min-w-0 items-center gap-3">
+                        <div class="inline-flex size-9 shrink-0 items-center justify-center rounded-sm bg-emerald-600 text-sm font-bold text-white shadow-sm dark:bg-emerald-500">
+                            {{ selectedCount }}
+                        </div>
+                        <div class="min-w-0">
+                            <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('customers.bulk.title') }}
+                            </div>
+                            <div class="text-xs font-medium text-stone-500 dark:text-neutral-400">
+                                {{ $t('customers.labels.selected', { count: selectedCount }) }}
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 shadow-sm hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                    @click="clearSelection"
+                >
+                    {{ $t('customers.actions.clear') }}
+                </button>
+
+                <div ref="bulkMenuRef" class="relative inline-flex">
+                    <button
+                        type="button"
+                        @click="toggleBulkMenu"
+                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-emerald-700 bg-emerald-700 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-emerald-500 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400 action-feedback"
+                        aria-haspopup="menu"
+                        :aria-expanded="isBulkMenuOpen ? 'true' : 'false'"
+                        :aria-label="$t('customers.bulk.title')"
+                    >
                         {{ $t('customers.bulk.title') }}
+                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m5 7.5 5 5 5-5" />
+                        </svg>
                     </button>
-                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                        role="menu" aria-orientation="vertical">
+                    <div
+                        v-show="isBulkMenuOpen"
+                        class="absolute end-0 top-full z-20 mt-2 w-44 rounded-sm bg-white shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
+                        role="menu"
+                        aria-orientation="vertical"
+                    >
                         <div class="p-1">
+                            <button type="button" @click="openBulkContact"
+                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-neutral-800 action-feedback">
+                                {{ $t('customers.bulk_contact.action') }}
+                            </button>
+                            <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                             <button type="button" @click="runBulk('portal_enable')"
                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800 action-feedback">
                                 {{ $t('customers.bulk.enable_portal') }}
@@ -430,7 +535,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                         </div>
                     </div>
                 </div>
-            </div>
+            </AdminDataTableBulkBar>
         </div>
 
         <AdminDataTable
@@ -544,7 +649,11 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                 </tr>
                 <tr v-else>
                             <td class="size-px whitespace-nowrap px-4 py-2">
-                                <Checkbox v-if="canEdit" v-model:checked="selected" :value="customer.id" />
+                                <Checkbox
+                                    v-if="canEdit"
+                                    :checked="isSelected(customer)"
+                                    @update:checked="toggleSelection(customer.id, $event)"
+                                />
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2 text-start">
                                 <Link :href="route('customer.show', customer)">
@@ -695,7 +804,11 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
-                            <Checkbox v-if="canEdit" v-model:checked="selected" :value="customer.id" />
+                            <Checkbox
+                                v-if="canEdit"
+                                :checked="isSelected(customer)"
+                                @update:checked="toggleSelection(customer.id, $event)"
+                            />
                             <CustomerActionsMenu
                                 :customer="customer"
                                 :can-edit="canEdit"
@@ -769,5 +882,12 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
 
             <AdminPaginationLinks :links="customerLinks" />
         </div>
+
+        <CustomerBulkContactModal
+            ref="bulkContactModalRef"
+            :selected-ids="selected"
+            :selected-count="selectedCount"
+            @sent="clearSelection"
+        />
     </div>
 </template>

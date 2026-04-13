@@ -408,6 +408,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/services/quick', [ServiceController::class, 'storeQuick'])->name('service.quick.store');
         Route::get('/services/categories', [ServiceController::class, 'categories'])->name('service.categories');
     });
+    Route::get('/catalog/search', ProductsSearchController::class)->name('catalog.search');
     Route::get('/customers/options', [CustomerController::class, 'options'])->name('customer.options');
     Route::post('/customers/quick', [CustomerController::class, 'storeQuick'])->name('customer.quick.store');
 
@@ -626,6 +627,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('customer.auto-validation.update');
     Route::post('/customer/bulk', [CustomerController::class, 'bulk'])
         ->name('customer.bulk');
+    Route::post('/customer/bulk-contact/preview', [CustomerController::class, 'previewBulkContact'])
+        ->name('customer.bulk-contact.preview');
+    Route::post('/customer/bulk-contact/send', [CustomerController::class, 'sendBulkContact'])
+        ->name('customer.bulk-contact.send');
 
     Route::resource('customer', CustomerController::class)
         ->only(['index', 'store', 'update', 'create', 'edit', 'show', 'destroy']);

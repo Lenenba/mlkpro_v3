@@ -62,6 +62,100 @@
       "disable_portal": "Desactiver acces portail",
       "delete_confirm": "Supprimer les clients selectionnes ?"
     },
+    "bulk_contact": {
+      "action": "Contacter la selection",
+      "title": "Contacter les clients selectionnes",
+      "subtitle": "Envoyez un email ou un SMS directement depuis la liste clients.",
+      "selection_summary": "{count} client(s) selectionne(s)",
+      "fields": {
+        "objective": "Objectif",
+        "channel": "Canal",
+        "offer": "Produit ou service",
+        "subject": "Sujet",
+        "body": "Message"
+      },
+      "objectives": {
+        "payment_followup": "Relance paiement",
+        "promotion": "Promotion",
+        "manual_message": "Message libre"
+      },
+      "channels": {
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "payment_followup_hint": "Si le sujet ou le message restent vides, un rappel suggere sera utilise.",
+      "template_hint_email": "Un template email Malikia sera applique automatiquement pour garder le bon format de marque.",
+      "offer_search_placeholder": "Rechercher un produit ou un service a promouvoir",
+      "no_offer_results": "Aucun produit ou service ne correspond a cette recherche.",
+      "clear_offer": "Retirer",
+      "offer_required_hint": "Pour une promotion, selectionnez l offre que vous souhaitez mettre en avant.",
+      "loading_offers": "Recherche du catalogue...",
+      "body_required_hint": "Le message est requis pour cet envoi.",
+      "sms_length": "{count} caracteres",
+      "preview_title": "Apercu des destinataires",
+      "preview_subtitle": "Le systeme verifie les destinataires eligibles avant l'envoi.",
+      "preview": {
+        "selected": "Selectionnes",
+        "eligible": "Eligibles",
+        "excluded": "Exclus",
+        "selected_offer": "Offre selectionnee",
+        "reasons_title": "Principales raisons d'exclusion",
+        "eligible_examples": "Exemples eligibles",
+        "excluded_examples": "Exemples exclus",
+        "invoice_summary": "{count} facture(s) ouvertes, {amount} {currency}"
+      },
+      "actions": {
+        "refresh_preview": "Actualiser l'aperçu",
+        "refreshing": "Actualisation...",
+        "close": "Fermer",
+        "send": "Envoyer",
+        "sending": "Envoi..."
+      },
+      "preview_error": "Impossible de verifier les destinataires pour le moment.",
+      "send_error": "Impossible d'envoyer ce message en lot.",
+      "result_summary": "Envoyes: {sent}, echecs: {failed}, ignores: {skipped}",
+      "tokens_title": "Tokens disponibles",
+      "tokens_hint": "Vous pouvez utiliser ces tokens dans le sujet ou le message.",
+      "reasons": {
+        "channel_disabled": "Canal desactive",
+        "missing_destination": "Coordonnee manquante ou invalide",
+        "no_open_invoices": "Aucune facture ouverte",
+        "consent_missing": "Consentement manquant",
+        "consent_revoked": "Consentement revoque",
+        "opted_out": "Destinataire desinscrit",
+        "quiet_hours": "Bloque pendant les heures calmes",
+        "fatigue_limit": "Limite anti-fatigue atteinte",
+        "mail_exception": "Echec email",
+        "sms_error": "Echec SMS",
+        "invalid_recipient": "Destinataire invalide",
+        "send_failed": "Envoi echoue"
+      },
+      "tokens_map": {
+        "customerName": "Nom complet du client",
+        "firstName": "Prenom du client",
+        "companyName": "Societe du client",
+        "customerEmail": "Email du client",
+        "customerPhone": "Telephone du client",
+        "unpaidInvoiceCount": "Nombre de factures ouvertes",
+        "balanceDue": "Solde du",
+        "offerName": "Nom du produit ou service",
+        "offerPrice": "Prix de l offre",
+        "offerUrl": "Lien de l offre",
+        "offerImageUrl": "Image de l offre",
+        "promoPercent": "Pourcentage promo",
+        "promoCode": "Code promo",
+        "promoEndDate": "Date de fin promo",
+        "productName": "Nom du produit",
+        "serviceName": "Nom du service",
+        "brandName": "Nom de votre entreprise",
+        "brandReplyToEmail": "Email de reponse",
+        "brandPhone": "Telephone de l'entreprise"
+      },
+      "offer_types": {
+        "product": "Produit",
+        "service": "Service"
+      }
+    },
     "table": {
       "company": "Societe",
       "contact": "Contact",
