@@ -2,6 +2,9 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
+import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/Modal.vue';
@@ -225,6 +228,7 @@ const filteredAnnouncements = computed(() => {
         return true;
     });
 });
+const filteredAnnouncementsResultsLabel = computed(() => t('super_admin.announcements.filters.results', { count: filteredAnnouncements.value.length }));
 
 const resetForm = () => {
     editingId.value = null;
@@ -427,177 +431,160 @@ watch(
                 </div>
             </div>
 
-            <div
-                class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:border-neutral-700 dark:bg-neutral-800">
-                <form class="space-y-3" @submit.prevent="applyFilters">
-                    <div class="flex flex-col lg:flex-row lg:items-center gap-2">
-                        <div class="flex-1">
+            <AdminDataTable
+                :rows="filteredAnnouncements"
+                :result-label="filteredAnnouncementsResultsLabel"
+                :empty-description="$t('super_admin.announcements.empty')"
+                container-class="border-t-4 border-t-zinc-600"
+            >
+                <template #toolbar>
+                    <AdminDataTableToolbar
+                        :show-filters="showFilters"
+                        :search-placeholder="$t('super_admin.announcements.filters.search_placeholder')"
+                        :filters-label="$t('super_admin.common.filters')"
+                        :clear-label="$t('super_admin.common.clear')"
+                        :apply-label="$t('super_admin.common.apply_filters')"
+                        @toggle-filters="showFilters = !showFilters"
+                        @apply="applyFilters"
+                        @clear="resetFilters"
+                    >
+                        <template #search="{ searchPlaceholder }">
                             <div class="relative">
-                                <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
-                                    <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
-                                        xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <div class="pointer-events-none absolute inset-y-0 start-0 z-20 flex items-center ps-3.5">
+                                    <svg class="size-4 shrink-0 text-stone-500 dark:text-neutral-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <circle cx="11" cy="11" r="8" />
                                         <path d="m21 21-4.3-4.3" />
                                     </svg>
                                 </div>
-                                <input v-model="filters.search" type="text"
-                                    class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
-                                    :placeholder="$t('super_admin.announcements.filters.search_placeholder')">
+                                <input
+                                    v-model="filters.search"
+                                    type="text"
+                                    :placeholder="searchPlaceholder"
+                                    class="block w-full rounded-sm border border-stone-200 bg-white py-[7px] ps-10 pe-8 text-sm text-stone-700 placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:placeholder:text-neutral-400"
+                                >
                             </div>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-2 justify-end">
-                            <button type="button" @click="showFilters = !showFilters"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                                {{ $t('super_admin.common.filters') }}
-                            </button>
-                            <button type="button" @click="resetFilters"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                                {{ $t('super_admin.common.clear') }}
-                            </button>
-                            <button type="submit"
-                                class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
-                                {{ $t('super_admin.common.apply_filters') }}
-                            </button>
-                        </div>
-                    </div>
+                        </template>
 
-                    <div v-if="showFilters" class="grid gap-3 md:grid-cols-4">
-                        <div>
-                            <FloatingSelect
-                                v-model="filters.status"
-                                :label="$t('super_admin.announcements.filters.status')"
-                                :options="statusOptions"
-                                :placeholder="$t('super_admin.common.all')"
-                                dense
-                            />
-                        </div>
-                        <div>
-                            <FloatingSelect
-                                v-model="filters.audience"
-                                :label="$t('super_admin.announcements.filters.audience')"
-                                :options="audienceOptions"
-                                :placeholder="$t('super_admin.common.all')"
-                                dense
-                            />
-                        </div>
-                        <div>
-                            <FloatingSelect
-                                v-model="filters.placement"
-                                :label="$t('super_admin.announcements.filters.placement')"
-                                :options="placementOptions"
-                                :placeholder="$t('super_admin.common.all')"
-                                dense
-                            />
-                        </div>
-                        <div>
-                            <FloatingSelect
-                                v-model="filters.media"
-                                :label="$t('super_admin.announcements.filters.media')"
-                                :options="mediaTypeOptions"
-                                :placeholder="$t('super_admin.common.all')"
-                                dense
-                            />
-                        </div>
-                    </div>
-                </form>
+                        <template #filters>
+                            <div>
+                                <FloatingSelect
+                                    v-model="filters.status"
+                                    :label="$t('super_admin.announcements.filters.status')"
+                                    :options="statusOptions"
+                                    :placeholder="$t('super_admin.common.all')"
+                                    dense
+                                />
+                            </div>
+                            <div>
+                                <FloatingSelect
+                                    v-model="filters.audience"
+                                    :label="$t('super_admin.announcements.filters.audience')"
+                                    :options="audienceOptions"
+                                    :placeholder="$t('super_admin.common.all')"
+                                    dense
+                                />
+                            </div>
+                            <div>
+                                <FloatingSelect
+                                    v-model="filters.placement"
+                                    :label="$t('super_admin.announcements.filters.placement')"
+                                    :options="placementOptions"
+                                    :placeholder="$t('super_admin.common.all')"
+                                    dense
+                                />
+                            </div>
+                            <div>
+                                <FloatingSelect
+                                    v-model="filters.media"
+                                    :label="$t('super_admin.announcements.filters.media')"
+                                    :options="mediaTypeOptions"
+                                    :placeholder="$t('super_admin.common.all')"
+                                    dense
+                                />
+                            </div>
+                        </template>
+                    </AdminDataTableToolbar>
+                </template>
 
-                <div
-                    class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-                    <table class="min-w-full divide-y divide-stone-200 text-sm text-left text-stone-600 dark:divide-neutral-700 dark:text-neutral-300">
-                        <thead class="text-xs uppercase text-stone-500 dark:text-neutral-400">
-                            <tr>
-                                <th class="px-4 py-3">{{ $t('super_admin.announcements.table.title') }}</th>
-                                <th class="px-4 py-3">{{ $t('super_admin.announcements.table.audience') }}</th>
-                                <th class="px-4 py-3">{{ $t('super_admin.announcements.table.status') }}</th>
-                                <th class="px-4 py-3">{{ $t('super_admin.announcements.table.window') }}</th>
-                                <th class="px-4 py-3">{{ $t('super_admin.announcements.table.media') }}</th>
-                                <th class="px-4 py-3">{{ $t('super_admin.announcements.table.priority') }}</th>
-                                <th class="px-4 py-3"></th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                            <tr v-for="announcement in filteredAnnouncements" :key="announcement.id">
-                                <td class="px-4 py-3">
-                                    <div class="font-medium text-stone-800 dark:text-neutral-100">{{ announcement.title }}</div>
-                                    <div v-if="announcement.body" class="text-xs text-stone-500 dark:text-neutral-400 truncate max-w-xs">
-                                        {{ announcement.body }}
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="text-sm text-stone-800 dark:text-neutral-100">
-                                        {{ audienceLabel(announcement.audience) }}
-                                    </div>
-                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ placementLabel(announcement.placement) }}
-                                    </div>
-                                    <div v-if="announcement.audience === 'tenants' && announcement.tenant_labels?.length"
-                                        class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ $t('super_admin.announcements.table.targets') }}: {{ announcement.tenant_labels.join(', ') }}
-                                    </div>
-                                    <div v-if="announcement.audience === 'new_tenants' && announcement.new_tenant_days"
-                                        class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ $t('super_admin.announcements.table.new_tenants', { days: announcement.new_tenant_days }) }}
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
-                                        :class="statusClass(announcement.status)">
-                                        {{ announcement.status === 'active' ? $t('super_admin.announcements.status.active') : $t('super_admin.announcements.status.draft') }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <span v-if="announcementWindow(announcement)">{{ announcementWindow(announcement) }}</span>
-                                    <span v-else class="text-xs text-stone-400 dark:text-neutral-500">-</span>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="text-sm text-stone-800 dark:text-neutral-100">
-                                        {{ mediaLabel(announcement.media_type) }}
-                                    </div>
-                                    <div v-if="announcement.media_url" class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ $t('super_admin.announcements.table.attached') }}
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3">{{ announcement.priority ?? 0 }}</td>
-                                <td class="px-4 py-3 text-right">
-                                    <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                        <button type="button"
-                                            class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                            aria-haspopup="menu" aria-expanded="false" :aria-label="$t('super_admin.common.actions')">
-                                            <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <circle cx="12" cy="12" r="1" />
-                                                <circle cx="12" cy="5" r="1" />
-                                                <circle cx="12" cy="19" r="1" />
-                                            </svg>
-                                        </button>
-                                        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-36 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                            role="menu" aria-orientation="vertical">
-                                            <div class="p-1">
-                                                <button type="button" @click="openEdit(announcement)"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                    {{ $t('super_admin.common.edit') }}
-                                                </button>
-                                                <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                                <button type="button" @click="deleteAnnouncement(announcement)"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
-                                                    {{ $t('super_admin.common.delete') }}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr v-if="!filteredAnnouncements.length">
-                                <td colspan="7" class="px-4 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.announcements.empty') }}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                <template #head>
+                    <tr class="text-left text-xs font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
+                        <th class="px-4 py-3">{{ $t('super_admin.announcements.table.title') }}</th>
+                        <th class="px-4 py-3">{{ $t('super_admin.announcements.table.audience') }}</th>
+                        <th class="px-4 py-3">{{ $t('super_admin.announcements.table.status') }}</th>
+                        <th class="px-4 py-3">{{ $t('super_admin.announcements.table.window') }}</th>
+                        <th class="px-4 py-3">{{ $t('super_admin.announcements.table.media') }}</th>
+                        <th class="px-4 py-3">{{ $t('super_admin.announcements.table.priority') }}</th>
+                        <th class="px-4 py-3 text-right"></th>
+                    </tr>
+                </template>
+
+                <template #row="{ row: announcement }">
+                    <tr class="align-top">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-stone-800 dark:text-neutral-100">{{ announcement.title }}</div>
+                            <div v-if="announcement.body" class="max-w-xs truncate text-xs text-stone-500 dark:text-neutral-400">
+                                {{ announcement.body }}
+                            </div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="text-sm text-stone-800 dark:text-neutral-100">
+                                {{ audienceLabel(announcement.audience) }}
+                            </div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ placementLabel(announcement.placement) }}
+                            </div>
+                            <div
+                                v-if="announcement.audience === 'tenants' && announcement.tenant_labels?.length"
+                                class="text-xs text-stone-500 dark:text-neutral-400"
+                            >
+                                {{ $t('super_admin.announcements.table.targets') }}: {{ announcement.tenant_labels.join(', ') }}
+                            </div>
+                            <div
+                                v-if="announcement.audience === 'new_tenants' && announcement.new_tenant_days"
+                                class="text-xs text-stone-500 dark:text-neutral-400"
+                            >
+                                {{ $t('super_admin.announcements.table.new_tenants', { days: announcement.new_tenant_days }) }}
+                            </div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold" :class="statusClass(announcement.status)">
+                                {{ announcement.status === 'active' ? $t('super_admin.announcements.status.active') : $t('super_admin.announcements.status.draft') }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span v-if="announcementWindow(announcement)">{{ announcementWindow(announcement) }}</span>
+                            <span v-else class="text-xs text-stone-400 dark:text-neutral-500">-</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="text-sm text-stone-800 dark:text-neutral-100">
+                                {{ mediaLabel(announcement.media_type) }}
+                            </div>
+                            <div v-if="announcement.media_url" class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.table.attached') }}
+                            </div>
+                        </td>
+                        <td class="px-4 py-3">{{ announcement.priority ?? 0 }}</td>
+                        <td class="px-4 py-3 text-right">
+                            <AdminDataTableActions :label="$t('super_admin.common.actions')">
+                                <button
+                                    type="button"
+                                    class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                    @click="openEdit(announcement)"
+                                >
+                                    {{ $t('super_admin.common.edit') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"
+                                    @click="deleteAnnouncement(announcement)"
+                                >
+                                    {{ $t('super_admin.common.delete') }}
+                                </button>
+                            </AdminDataTableActions>
+                        </td>
+                    </tr>
+                </template>
+            </AdminDataTable>
         </div>
 
         <Modal :show="showForm" @close="closeForm" maxWidth="2xl">

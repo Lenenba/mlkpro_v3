@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Models\LoyaltyPointLedger;
 use App\Models\LoyaltyProgram;
+use App\Support\DataTablePagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -26,8 +27,6 @@ class LoyaltyController extends Controller
         'points',
         'amount',
     ];
-
-    private const PER_PAGE_OPTIONS = [10, 15, 25, 50];
 
     public function index(Request $request)
     {
@@ -94,10 +93,10 @@ class LoyaltyController extends Controller
             ->where('user_id', $accountId)
             ->when(
                 $filters['customer_id'] !== null,
-                fn(Builder $query) => $query->whereKey((int) $filters['customer_id'])
+                fn (Builder $query) => $query->whereKey((int) $filters['customer_id'])
             )
             ->withSum([
-                'loyaltyPointLedgers as points_earned' => fn(Builder $query) => $query
+                'loyaltyPointLedgers as points_earned' => fn (Builder $query) => $query
                     ->where('user_id', $accountId)
                     ->whereIn('event', [
                         LoyaltyPointLedger::EVENT_ACCRUAL,
@@ -105,12 +104,12 @@ class LoyaltyController extends Controller
                     ]),
             ], 'points')
             ->withSum([
-                'loyaltyPointLedgers as points_spent_raw' => fn(Builder $query) => $query
+                'loyaltyPointLedgers as points_spent_raw' => fn (Builder $query) => $query
                     ->where('user_id', $accountId)
                     ->where('event', LoyaltyPointLedger::EVENT_REDEMPTION),
             ], 'points')
             ->withSum([
-                'loyaltyPointLedgers as points_refunded_raw' => fn(Builder $query) => $query
+                'loyaltyPointLedgers as points_refunded_raw' => fn (Builder $query) => $query
                     ->where('user_id', $accountId)
                     ->where('event', LoyaltyPointLedger::EVENT_REFUND),
             ], 'points')
@@ -144,7 +143,7 @@ class LoyaltyController extends Controller
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->get(['id', 'company_name', 'first_name', 'last_name'])
-            ->map(fn(Customer $customer) => [
+            ->map(fn (Customer $customer) => [
                 'id' => $customer->id,
                 'name' => $this->customerLabel($customer),
             ])
@@ -183,13 +182,13 @@ class LoyaltyController extends Controller
             'customer_id' => [
                 'nullable',
                 Rule::exists('customers', 'id')->where(
-                    fn($query) => $query->where('user_id', $accountId)
+                    fn ($query) => $query->where('user_id', $accountId)
                 ),
             ],
             'event' => ['nullable', Rule::in(self::EVENT_OPTIONS)],
             'sort' => ['nullable', Rule::in(self::SORT_OPTIONS)],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
-            'per_page' => ['nullable', 'integer', Rule::in(self::PER_PAGE_OPTIONS)],
+            'per_page' => ['nullable', 'integer', Rule::in(DataTablePagination::options())],
         ]);
 
         return [
@@ -201,7 +200,9 @@ class LoyaltyController extends Controller
             'event' => $validated['event'] ?? null,
             'sort' => $validated['sort'] ?? 'processed_at',
             'direction' => $validated['direction'] ?? 'desc',
-            'per_page' => isset($validated['per_page']) ? (int) $validated['per_page'] : 15,
+            'per_page' => isset($validated['per_page'])
+                ? DataTablePagination::resolve($validated['per_page'])
+                : DataTablePagination::defaultPerPage(),
         ];
     }
 
@@ -235,7 +236,7 @@ class LoyaltyController extends Controller
             $query->where('customer_id', (int) $filters['customer_id']);
         }
 
-        if (!empty($filters['event'])) {
+        if (! empty($filters['event'])) {
             $query->where('event', (string) $filters['event']);
         }
 
@@ -289,7 +290,7 @@ class LoyaltyController extends Controller
 
     private function customerLabel(?Customer $customer): string
     {
-        if (!$customer) {
+        if (! $customer) {
             return 'Client inconnu';
         }
 
@@ -308,13 +309,13 @@ class LoyaltyController extends Controller
             return $fullName;
         }
 
-        return 'Client #' . $customer->id;
+        return 'Client #'.$customer->id;
     }
 
     private function accountIdForLoyaltyOrFail(Request $request): int
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -331,7 +332,7 @@ class LoyaltyController extends Controller
             || ($membership?->hasPermission('jobs.edit') ?? false)
             || ($membership?->hasPermission('tasks.edit') ?? false);
 
-        if (!$canManageLoyalty) {
+        if (! $canManageLoyalty) {
             abort(403);
         }
 

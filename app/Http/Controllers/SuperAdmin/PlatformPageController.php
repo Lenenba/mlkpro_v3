@@ -27,6 +27,7 @@ class PlatformPageController extends BaseSuperAdminController
         $filters = [
             'search' => trim((string) $request->query('search', '')),
             'status' => trim((string) $request->query('status', '')),
+            'per_page' => $this->resolveDataTablePerPage($request),
         ];
 
         $query = PlatformPage::query()
@@ -46,7 +47,7 @@ class PlatformPageController extends BaseSuperAdminController
             ->orderBy('slug');
 
         $pages = $query
-            ->paginate(10)
+            ->paginate((int) $filters['per_page'])
             ->withQueryString()
             ->through(function (PlatformPage $page) use ($welcomePageService) {
                 $meta = app(PlatformPageContentService::class)->meta($page);

@@ -16,6 +16,7 @@ use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationQueueService;
+use App\Support\DataTablePagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -42,7 +43,7 @@ class BuildStaffReservationIndexData
         $this->applyReservationSort($query, $filters['sort']);
 
         $reservations = (clone $query)
-            ->simplePaginate(20)
+            ->paginate((int) ($filters['per_page'] ?? DataTablePagination::defaultPerPage()))
             ->withQueryString();
 
         $events = $this->reservationEventQuery($account->id)
@@ -293,6 +294,7 @@ class BuildStaffReservationIndexData
             'scope' => $scope,
             'quick' => $quick,
             'sort' => $sort,
+            'per_page' => DataTablePagination::fromRequest($request),
         ];
     }
 

@@ -20,6 +20,7 @@ class PlanScanController extends Controller
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $perPage = $this->resolveDataTablePerPage($request);
 
         if (! $user || $user->id !== $accountId) {
             abort(403);
@@ -31,7 +32,7 @@ class PlanScanController extends Controller
 
         $scans = (clone $baseQuery)
             ->latest()
-            ->simplePaginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
         $stats = [

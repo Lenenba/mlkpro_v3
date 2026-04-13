@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import 'dayjs/locale/es';
 import { useI18n } from 'vue-i18n';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
 
@@ -75,6 +76,7 @@ const kioskPublicUrl = computed(() => props.kiosk?.public_url || null);
 
 const waitingStatuses = ['checked_in', 'pre_called', 'called', 'skipped', 'not_arrived'];
 const queueItems = computed(() => (Array.isArray(queueData.value?.items) ? queueData.value.items : []));
+const waitingRows = computed(() => (Array.isArray(queueData.value?.waiting) ? queueData.value.waiting : []));
 const statusBadgeClass = (status) => reservationStatusBadgeClass(status);
 const formatDateTime = (value) => (value ? dayjs(value).locale(dayjsLocale.value).format('DD MMM HH:mm') : '-');
 const formatNow = (value) => (value ? dayjs(value).locale(dayjsLocale.value).format('HH:mm:ss') : '-');
@@ -599,87 +601,75 @@ onBeforeUnmount(() => {
                 >
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('reservations.queue.screen.waiting_list') }}</h2>
 
-                    <div
-                        v-if="!(queueData.waiting || []).length"
-                        class="mt-3 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-4 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
+                    <AdminDataTable
+                        embedded
+                        dense
+                        :rows="waitingRows"
+                        :show-pagination="false"
+                        class="mt-3"
                     >
-                        {{ $t('reservations.queue.empty') }}
-                    </div>
+                        <template #head>
+                            <tr>
+                                <th scope="col" class="min-w-28 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                    {{ $t('reservations.queue.columns.ticket') }}
+                                </th>
+                                <th scope="col" class="min-w-40 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                    {{ $t('reservations.table.customer') }}
+                                </th>
+                                <th scope="col" class="min-w-40 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                    {{ $t('reservations.table.item') }}
+                                </th>
+                                <th scope="col" class="min-w-40 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                    {{ $t('planning.form.member') }}
+                                </th>
+                                <th scope="col" class="min-w-32 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                    {{ $t('reservations.queue.columns.position') }}
+                                </th>
+                                <th scope="col" class="min-w-32 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                    {{ $t('reservations.table.status') }}
+                                </th>
+                            </tr>
+                        </template>
 
-                    <div
-                        v-else
-                        class="mt-3 overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
-                    >
-                        <div class="min-w-full inline-block align-middle">
-                            <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                                <thead>
-                                    <tr>
-                                        <th scope="col" class="min-w-28">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('reservations.queue.columns.ticket') }}
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="min-w-40">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('reservations.table.customer') }}
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="min-w-40">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('reservations.table.item') }}
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="min-w-40">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('planning.form.member') }}
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="min-w-32">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('reservations.queue.columns.position') }}
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="min-w-32">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('reservations.table.status') }}
-                                            </div>
-                                        </th>
-                                    </tr>
-                                </thead>
+                        <template #row="{ row: item }">
+                            <tr>
+                                <td class="size-px whitespace-nowrap px-4 py-2 font-medium text-stone-700 dark:text-neutral-200">
+                                    {{ item.queue_number }}
+                                </td>
+                                <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">
+                                    {{ item.display_client_name }}
+                                </td>
+                                <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">
+                                    {{ item.service_name }}
+                                </td>
+                                <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">
+                                    {{ item.team_member_name }}
+                                </td>
+                                <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">
+                                    {{ item.position ?? '-' }}
+                                    <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                        · ETA {{ item.eta_minutes !== null && item.eta_minutes !== undefined ? `${item.eta_minutes} min` : '-' }}
+                                    </span>
+                                </td>
+                                <td class="size-px whitespace-nowrap px-4 py-2">
+                                    <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(item.status)">
+                                        {{ $t(`reservations.queue.status.${item.status}`) || item.status }}
+                                    </span>
+                                    <div v-if="item.call_expires_at" class="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                        {{ $t('reservations.queue.screen.call_expires') }}: {{ formatDateTime(item.call_expires_at) }}
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
 
-                                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                                    <tr v-for="item in (queueData.waiting || [])" :key="`screen-waiting-${item.id}`">
-                                        <td class="size-px whitespace-nowrap px-4 py-2 font-medium text-stone-700 dark:text-neutral-200">
-                                            {{ item.queue_number }}
-                                        </td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">
-                                            {{ item.display_client_name }}
-                                        </td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">
-                                            {{ item.service_name }}
-                                        </td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">
-                                            {{ item.team_member_name }}
-                                        </td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">
-                                            {{ item.position ?? '-' }}
-                                            <span class="text-xs text-stone-500 dark:text-neutral-400">
-                                                · ETA {{ item.eta_minutes !== null && item.eta_minutes !== undefined ? `${item.eta_minutes} min` : '-' }}
-                                            </span>
-                                        </td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2">
-                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(item.status)">
-                                                {{ $t(`reservations.queue.status.${item.status}`) || item.status }}
-                                            </span>
-                                            <div v-if="item.call_expires_at" class="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                                                {{ $t('reservations.queue.screen.call_expires') }}: {{ formatDateTime(item.call_expires_at) }}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                        <template #empty>
+                            <div
+                                class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-4 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
+                            >
+                                {{ $t('reservations.queue.empty') }}
+                            </div>
+                        </template>
+                    </AdminDataTable>
                 </section>
             </template>
         </div>

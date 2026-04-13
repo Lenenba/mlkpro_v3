@@ -2,10 +2,15 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
+import QuoteActionsMenu from '@/Pages/Quote/UI/QuoteActionsMenu.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
@@ -89,6 +94,7 @@ const filterPayload = () => {
         has_tax: filterForm.has_tax,
         sort: filterForm.sort,
         direction: filterForm.direction,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -286,29 +292,71 @@ const startQuote = () => {
     }
     router.get(route('customer.quote.create', newQuoteCustomerId.value));
 };
+
+const quoteRows = computed(() => props.quotes?.data || []);
+const quoteTableRows = computed(() => (isBusy.value
+    ? Array.from({ length: 6 }, (_, index) => ({ id: `quote-skeleton-${index}`, __skeleton: true }))
+    : quoteRows.value));
+const quoteLinks = computed(() => props.quotes?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.quotes?.per_page, props.filters?.per_page));
+const quoteResultsLabel = computed(() => `${props.count} ${t('quotes.table.results')}`);
 </script>
 
 <template>
     <div
         class="p-5 space-y-4 flex flex-col border-t-4 border-t-sky-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
-        <div class="space-y-3">
-            <div class="flex flex-col lg:flex-row lg:items-center gap-2">
-                <div class="flex-1">
-                    <div class="relative">
-                        <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
-                            <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
-                                xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8" />
-                                <path d="m21 21-4.3-4.3" />
-                            </svg>
-                        </div>
-                        <input type="text" v-model="filterForm.search" data-testid="demo-quote-search"
-                            class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
-                            :placeholder="$t('quotes.filters.search_placeholder')">
+        <AdminDataTableToolbar
+            :show-filters="showAdvanced"
+            :show-apply="false"
+            :busy="isBusy"
+            :filters-label="$t('quotes.actions.filters')"
+            :clear-label="$t('quotes.actions.clear')"
+            @toggle-filters="showAdvanced = !showAdvanced"
+            @apply="autoFilter"
+            @clear="clearFilters"
+        >
+            <template #search>
+                <div class="relative">
+                    <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
+                        <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
+                            xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="m21 21-4.3-4.3" />
+                        </svg>
                     </div>
+                    <input type="text" v-model="filterForm.search" data-testid="demo-quote-search"
+                        class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
+                        :placeholder="$t('quotes.filters.search_placeholder')">
                 </div>
+            </template>
 
+            <template #filters>
+                <input type="number" step="0.01" v-model="filterForm.total_min"
+                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                    :placeholder="$t('quotes.filters.total_min')">
+                <input type="number" step="0.01" v-model="filterForm.total_max"
+                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                    :placeholder="$t('quotes.filters.total_max')">
+                <DatePicker v-model="filterForm.created_from" :label="$t('quotes.filters.created_from')" />
+                <DatePicker v-model="filterForm.created_to" :label="$t('quotes.filters.created_to')" />
+                <FloatingSelect
+                    v-model="filterForm.has_deposit"
+                    :label="$t('quotes.filters.deposit.label')"
+                    :options="depositFilterOptions"
+                    :placeholder="$t('quotes.filters.deposit.label')"
+                    dense
+                />
+                <FloatingSelect
+                    v-model="filterForm.has_tax"
+                    :label="$t('quotes.filters.tax.label')"
+                    :options="taxFilterOptions"
+                    :placeholder="$t('quotes.filters.tax.label')"
+                    dense
+                />
+            </template>
+
+            <template #actions>
                 <div class="flex flex-wrap items-center gap-2 justify-end">
                     <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
                         <button
@@ -352,7 +400,6 @@ const startQuote = () => {
                         dense
                         class="min-w-[150px]"
                     />
-
                     <FloatingSelect
                         v-model="filterForm.customer_id"
                         :label="$t('quotes.table.customer')"
@@ -361,16 +408,6 @@ const startQuote = () => {
                         dense
                         class="min-w-[170px]"
                     />
-
-                    <button type="button" @click="showAdvanced = !showAdvanced"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                        {{ $t('quotes.actions.filters') }}
-                    </button>
-                    <button type="button" @click="clearFilters"
-                        class="py-2 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                        {{ $t('quotes.actions.clear') }}
-                    </button>
-
                     <div class="flex items-center gap-2">
                         <FloatingSelect
                             v-model="newQuoteCustomerId"
@@ -386,218 +423,166 @@ const startQuote = () => {
                         </button>
                     </div>
                 </div>
-            </div>
+            </template>
+        </AdminDataTableToolbar>
 
-            <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2">
-                <input type="number" step="0.01" v-model="filterForm.total_min"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('quotes.filters.total_min')">
-                <input type="number" step="0.01" v-model="filterForm.total_max"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('quotes.filters.total_max')">
-                <DatePicker v-model="filterForm.created_from" :label="$t('quotes.filters.created_from')" />
-                <DatePicker v-model="filterForm.created_to" :label="$t('quotes.filters.created_to')" />
-                <FloatingSelect
-                    v-model="filterForm.has_deposit"
-                    :label="$t('quotes.filters.deposit.label')"
-                    :options="depositFilterOptions"
-                    :placeholder="$t('quotes.filters.deposit.label')"
-                    dense
-                />
-                <FloatingSelect
-                    v-model="filterForm.has_tax"
-                    :label="$t('quotes.filters.tax.label')"
-                    :options="taxFilterOptions"
-                    :placeholder="$t('quotes.filters.tax.label')"
-                    dense
-                />
-            </div>
-        </div>
+        <AdminDataTable
+            v-if="viewMode === 'table'"
+            embedded
+            :rows="quoteTableRows"
+            :links="quoteLinks"
+            :show-pagination="quoteRows.length > 0"
+            show-per-page
+            :per-page="currentPerPage"
+        >
+            <template #empty>
+                <div
+                    class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                >
+                    {{ $t('quotes.empty.quotes') }}
+                </div>
+            </template>
 
-        <div v-if="viewMode === 'table'" class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                <thead>
-                    <tr>
-                        <th class="px-4 py-3 text-start">
-                            <button type="button" @click="toggleSort('number')"
-                                class="text-sm font-medium text-stone-800 dark:text-neutral-200 flex items-center gap-x-1">
-                                {{ $t('quotes.table.quote') }}
-                            </button>
-                        </th>
-                        <th class="px-4 py-3 text-start">
-                            <button type="button" @click="toggleSort('job_title')"
-                                class="text-sm font-medium text-stone-800 dark:text-neutral-200 flex items-center gap-x-1">
-                                {{ $t('quotes.table.job') }}
-                            </button>
-                        </th>
-                        <th class="px-4 py-3 text-start">
-                            <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">
-                                {{ $t('quotes.table.customer') }}
-                            </span>
-                        </th>
-                        <th class="px-4 py-3 text-start">
-                            <button type="button" @click="toggleSort('status')"
-                                class="text-sm font-medium text-stone-800 dark:text-neutral-200 flex items-center gap-x-1">
-                                {{ $t('quotes.table.status') }}
-                            </button>
-                        </th>
-                        <th class="px-4 py-3 text-start">
-                            <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">
-                                {{ $t('quotes.table.rating') }}
-                            </span>
-                        </th>
-                        <th class="px-4 py-3 text-start">
-                            <button type="button" @click="toggleSort('total')"
-                                class="text-sm font-medium text-stone-800 dark:text-neutral-200 flex items-center gap-x-1">
-                                {{ $t('quotes.table.total') }}
-                            </button>
-                        </th>
-                        <th class="px-4 py-3 text-start">
-                            <button type="button" @click="toggleSort('created_at')"
-                                class="text-sm font-medium text-stone-800 dark:text-neutral-200 flex items-center gap-x-1">
-                                {{ $t('quotes.table.created') }}
-                            </button>
-                        </th>
-                        <th class="px-4 py-3 text-end"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                    <template v-if="isBusy">
-                        <tr v-for="row in 6" :key="`skeleton-${row}`">
-                            <td colspan="9" class="px-4 py-3">
-                                <div class="grid grid-cols-6 gap-4 animate-pulse">
-                                    <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                </div>
-                            </td>
-                        </tr>
-                    </template>
-                    <template v-else>
-                    <tr v-for="quote in quotes.data" :key="quote.id">
-                        <td class="px-4 py-3">
-                            <Link :href="route('customer.quote.show', quote)"
-                                class="text-sm font-semibold text-stone-800 hover:underline dark:text-neutral-200">
-                                {{ quote.number || $t('quotes.labels.quote_fallback') }}
-                            </Link>
-                        </td>
-                        <td class="px-4 py-3 text-sm text-stone-600 dark:text-neutral-300">
-                            {{ quote.job_title || $t('quotes.labels.job_fallback') }}
-                        </td>
-                        <td class="px-4 py-3 text-sm text-stone-600 dark:text-neutral-300">
-                            {{ displayCustomer(quote.customer) }}
-                        </td>
-                        <td class="px-4 py-3">
-                            <span class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-semibold rounded-full"
-                                :class="getStatusMeta(quote).classes">
-                                <span class="inline-flex size-3.5 items-center justify-center" :class="getStatusMeta(quote).iconClass">
-                                    <svg v-if="getStatusMeta(quote).icon === 'draft'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                        class="size-3.5">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
-                                        <path d="M14 2v6h6" />
-                                        <path d="M8 13h8" />
-                                    </svg>
-                                    <svg v-else-if="getStatusMeta(quote).icon === 'sent'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                        class="size-3.5">
-                                        <path d="m22 2-7 20-4-9-9-4Z" />
-                                        <path d="M22 2 11 13" />
-                                    </svg>
-                                    <svg v-else-if="getStatusMeta(quote).icon === 'accepted'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                        class="size-3.5">
-                                        <circle cx="12" cy="12" r="9" />
-                                        <path d="m8.5 12.5 2.5 2.5 4.5-5" />
-                                    </svg>
-                                    <svg v-else-if="getStatusMeta(quote).icon === 'declined'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                        class="size-3.5">
-                                        <circle cx="12" cy="12" r="9" />
-                                        <path d="m15 9-6 6" />
-                                        <path d="m9 9 6 6" />
-                                    </svg>
-                                    <svg v-else-if="getStatusMeta(quote).icon === 'archived'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                        class="size-3.5">
-                                        <rect x="3" y="4" width="18" height="4" rx="1" />
-                                        <path d="M5 8v12h14V8" />
-                                        <path d="M10 12h4" />
-                                    </svg>
-                                </span>
-                                <span>{{ getStatusMeta(quote).label }}</span>
-                            </span>
-                        </td>
-                        <td class="px-4 py-3">
-                            <StarRating :value="quote.ratings_avg_rating" icon-class="h-3.5 w-3.5" empty-label="-" />
-                        </td>
-                        <td class="px-4 py-3 text-sm text-stone-600 dark:text-neutral-300">
-                            {{ formatCurrency(quote.total) }}
-                        </td>
-                        <td class="px-4 py-3 text-sm text-stone-600 dark:text-neutral-300">
-                            {{ formatDate(quote.created_at) }}
-                        </td>
-                        <td class="px-4 py-3 text-end">
-                            <div
-                                class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                <button type="button"
-                                    class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                    aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                        height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="12" cy="12" r="1" />
-                                        <circle cx="12" cy="5" r="1" />
-                                        <circle cx="12" cy="19" r="1" />
-                                    </svg>
-                                </button>
+            <template #head>
+                <tr>
+                    <th class="px-4 py-3 text-start">
+                        <button type="button" @click="toggleSort('number')"
+                            class="flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
+                            {{ $t('quotes.table.quote') }}
+                        </button>
+                    </th>
+                    <th class="px-4 py-3 text-start">
+                        <button type="button" @click="toggleSort('job_title')"
+                            class="flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
+                            {{ $t('quotes.table.job') }}
+                        </button>
+                    </th>
+                    <th class="px-4 py-3 text-start">
+                        <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">
+                            {{ $t('quotes.table.customer') }}
+                        </span>
+                    </th>
+                    <th class="px-4 py-3 text-start">
+                        <button type="button" @click="toggleSort('status')"
+                            class="flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
+                            {{ $t('quotes.table.status') }}
+                        </button>
+                    </th>
+                    <th class="px-4 py-3 text-start">
+                        <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">
+                            {{ $t('quotes.table.rating') }}
+                        </span>
+                    </th>
+                    <th class="px-4 py-3 text-start">
+                        <button type="button" @click="toggleSort('total')"
+                            class="flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
+                            {{ $t('quotes.table.total') }}
+                        </button>
+                    </th>
+                    <th class="px-4 py-3 text-start">
+                        <button type="button" @click="toggleSort('created_at')"
+                            class="flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
+                            {{ $t('quotes.table.created') }}
+                        </button>
+                    </th>
+                    <th class="px-4 py-3 text-end"></th>
+                </tr>
+            </template>
 
-                                <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                    role="menu" aria-orientation="vertical">
-                                    <div class="p-1">
-                                        <Link :href="route('customer.quote.show', quote)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                            {{ $t('quotes.actions.view') }}
-                                        </Link>
-                                        <Link v-if="!isArchived(quote) && quote.status !== 'accepted'"
-                                            :href="route('customer.quote.edit', quote)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                            {{ $t('quotes.actions.edit') }}
-                                        </Link>
-                                        <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                        <button v-if="!isArchived(quote)" type="button" @click="sendEmail(quote)" data-testid="demo-quote-send"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-neutral-800 action-feedback" data-tone="info">
-                                            {{ $t('quotes.actions.send_email') }}
-                                        </button>
-                                        <button v-if="!isArchived(quote) && quote.status !== 'accepted' && quote.status !== 'declined'" type="button" @click="acceptQuote(quote)" data-testid="demo-quote-accept"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
-                                            {{ $t('quotes.actions.accept_quote') }}
-                                        </button>
-                                        <button v-if="!isArchived(quote)" type="button" @click="convertToJob(quote)" data-testid="demo-quote-convert"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
-                                            {{ $t('quotes.actions.create_job') }}
-                                        </button>
-                                        <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                        <button v-if="!isArchived(quote)" type="button" @click="archiveQuote(quote)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                            {{ $t('quotes.actions.archive') }}
-                                        </button>
-                                        <button v-else type="button" @click="restoreQuote(quote)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
-                                            {{ $t('quotes.actions.restore') }}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    </template>
-                </tbody>
-            </table>
-        </div>
+            <template #row="{ row: quote }">
+                <tr v-if="quote.__skeleton">
+                    <td colspan="8" class="px-4 py-3">
+                        <div class="grid animate-pulse grid-cols-6 gap-4">
+                            <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr v-else>
+                    <td class="px-4 py-3">
+                        <Link :href="route('customer.quote.show', quote)"
+                            class="text-sm font-semibold text-stone-800 hover:underline dark:text-neutral-200">
+                            {{ quote.number || $t('quotes.labels.quote_fallback') }}
+                        </Link>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-stone-600 dark:text-neutral-300">
+                        {{ quote.job_title || $t('quotes.labels.job_fallback') }}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-stone-600 dark:text-neutral-300">
+                        {{ displayCustomer(quote.customer) }}
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-semibold rounded-full"
+                            :class="getStatusMeta(quote).classes">
+                            <span class="inline-flex size-3.5 items-center justify-center" :class="getStatusMeta(quote).iconClass">
+                                <svg v-if="getStatusMeta(quote).icon === 'draft'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
+                                    <path d="M14 2v6h6" />
+                                    <path d="M8 13h8" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(quote).icon === 'sent'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <path d="m22 2-7 20-4-9-9-4Z" />
+                                    <path d="M22 2 11 13" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(quote).icon === 'accepted'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <circle cx="12" cy="12" r="9" />
+                                    <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(quote).icon === 'declined'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <circle cx="12" cy="12" r="9" />
+                                    <path d="m15 9-6 6" />
+                                    <path d="m9 9 6 6" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(quote).icon === 'archived'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <rect x="3" y="4" width="18" height="4" rx="1" />
+                                    <path d="M5 8v12h14V8" />
+                                    <path d="M10 12h4" />
+                                </svg>
+                            </span>
+                            <span>{{ getStatusMeta(quote).label }}</span>
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <StarRating :value="quote.ratings_avg_rating" icon-class="h-3.5 w-3.5" empty-label="-" />
+                    </td>
+                    <td class="px-4 py-3 text-sm text-stone-600 dark:text-neutral-300">
+                        {{ formatCurrency(quote.total) }}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-stone-600 dark:text-neutral-300">
+                        {{ formatDate(quote.created_at) }}
+                    </td>
+                    <td class="px-4 py-3 text-end">
+                        <QuoteActionsMenu
+                            :quote="quote"
+                            :archived="isArchived(quote)"
+                            @send-email="sendEmail(quote)"
+                            @accept="acceptQuote(quote)"
+                            @convert="convertToJob(quote)"
+                            @archive="archiveQuote(quote)"
+                            @restore="restoreQuote(quote)"
+                        />
+                    </td>
+                </tr>
+            </template>
+
+            <template #pagination_prefix>
+                <p class="text-sm text-stone-800 dark:text-neutral-200">{{ quoteResultsLabel }}</p>
+            </template>
+        </AdminDataTable>
 
         <div v-else class="space-y-3">
             <div v-if="isBusy" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -622,13 +607,13 @@ const startQuote = () => {
                     </div>
                 </div>
             </div>
-            <div v-else-if="!quotes.data.length"
+            <div v-else-if="!quoteRows.length"
                 class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                 {{ $t('quotes.empty.quotes') }}
             </div>
             <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <div
-                    v-for="quote in quotes.data"
+                    v-for="quote in quoteRows"
                     :key="quote.id"
                     class="rounded-sm border border-stone-200 border-l-4 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-neutral-700 dark:bg-neutral-800"
                     :class="getStatusMeta(quote).accent"
@@ -686,56 +671,15 @@ const startQuote = () => {
                                 </span>
                                 <span>{{ getStatusMeta(quote).label }}</span>
                             </span>
-                            <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                <button type="button"
-                                    class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                    aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                        height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="12" cy="12" r="1" />
-                                        <circle cx="12" cy="5" r="1" />
-                                        <circle cx="12" cy="19" r="1" />
-                                    </svg>
-                                </button>
-
-                                <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                    role="menu" aria-orientation="vertical">
-                                    <div class="p-1">
-                                        <Link :href="route('customer.quote.show', quote)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                            {{ $t('quotes.actions.view') }}
-                                        </Link>
-                                        <Link v-if="!isArchived(quote) && quote.status !== 'accepted'"
-                                            :href="route('customer.quote.edit', quote)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                            {{ $t('quotes.actions.edit') }}
-                                        </Link>
-                                        <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                        <button v-if="!isArchived(quote)" type="button" @click="sendEmail(quote)" data-testid="demo-quote-send"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-neutral-800 action-feedback" data-tone="info">
-                                            {{ $t('quotes.actions.send_email') }}
-                                        </button>
-                                        <button v-if="!isArchived(quote) && quote.status !== 'accepted' && quote.status !== 'declined'" type="button" @click="acceptQuote(quote)" data-testid="demo-quote-accept"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
-                                            {{ $t('quotes.actions.accept_quote') }}
-                                        </button>
-                                        <button v-if="!isArchived(quote)" type="button" @click="convertToJob(quote)" data-testid="demo-quote-convert"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
-                                            {{ $t('quotes.actions.create_job') }}
-                                        </button>
-                                        <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                        <button v-if="!isArchived(quote)" type="button" @click="archiveQuote(quote)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                            {{ $t('quotes.actions.archive') }}
-                                        </button>
-                                        <button v-else type="button" @click="restoreQuote(quote)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
-                                            {{ $t('quotes.actions.restore') }}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                            <QuoteActionsMenu
+                                :quote="quote"
+                                :archived="isArchived(quote)"
+                                @send-email="sendEmail(quote)"
+                                @accept="acceptQuote(quote)"
+                                @convert="convertToJob(quote)"
+                                @archive="archiveQuote(quote)"
+                                @restore="restoreQuote(quote)"
+                            />
                         </div>
                     </div>
 
@@ -772,51 +716,10 @@ const startQuote = () => {
             </div>
         </div>
 
-        <div class="mt-5 flex flex-wrap justify-between items-center gap-2">
-            <p class="text-sm text-stone-800 dark:text-neutral-200">
-                <span class="font-medium">{{ count }}</span>
-                <span class="text-stone-500 dark:text-neutral-500">{{ $t('quotes.table.results') }}</span>
-            </p>
+        <div v-if="viewMode !== 'table' && quoteRows.length > 0" class="mt-5 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-sm text-stone-800 dark:text-neutral-200">{{ quoteResultsLabel }}</p>
 
-            <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
-                <Link :href="quotes.prev_page_url" v-if="quotes.prev_page_url">
-                    <button type="button"
-                        class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                        :aria-label="$t('quotes.pagination.previous')">
-                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m15 18-6-6 6-6" />
-                        </svg>
-                        <span class="sr-only">{{ $t('quotes.pagination.previous') }}</span>
-                    </button>
-                </Link>
-                <div class="flex items-center gap-x-1">
-                    <span
-                        class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
-                        aria-current="page">{{ quotes.from }}</span>
-                    <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">
-                        {{ $t('quotes.pagination.of') }}
-                    </span>
-                    <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{
-                            quotes.to }}</span>
-                </div>
-
-                <Link :href="quotes.next_page_url" v-if="quotes.next_page_url">
-                    <button type="button"
-                        class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                        :aria-label="$t('quotes.pagination.next')">
-                        <span class="sr-only">{{ $t('quotes.pagination.next') }}</span>
-                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m9 18 6-6-6-6" />
-                        </svg>
-                    </button>
-                </Link>
-            </nav>
+            <AdminPaginationLinks :links="quoteLinks" />
         </div>
     </div>
 </template>

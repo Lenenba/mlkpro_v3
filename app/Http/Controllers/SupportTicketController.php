@@ -5,10 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\PlatformSupportTicket;
 use App\Models\PlatformSupportTicketMedia;
-use App\Utils\FileHandler;
 use App\Services\SupportAssignmentService;
 use App\Services\SupportSettingsService;
 use App\Services\SupportTicketNotificationService;
+use App\Utils\FileHandler;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Inertia\Response;
@@ -16,26 +16,28 @@ use Inertia\Response;
 class SupportTicketController extends Controller
 {
     private const STATUSES = ['open', 'assigned', 'pending', 'resolved', 'closed'];
+
     private const PRIORITIES = ['low', 'normal', 'high', 'urgent'];
+
     private const CATEGORIES = ['incident', 'bug', 'feature', 'other'];
 
     public function __construct(
         private SupportAssignmentService $assignmentService,
         private SupportSettingsService $settingsService,
         private SupportTicketNotificationService $notificationService
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): Response|\Illuminate\Http\JsonResponse
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId();
 
-        if (!$user || !$accountId) {
+        if (! $user || ! $accountId) {
             abort(403);
         }
 
         $filters = $request->only(['search', 'status', 'priority']);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
 
         $query = PlatformSupportTicket::query()
             ->where('account_id', $accountId)
@@ -47,20 +49,20 @@ class SupportTicketController extends Controller
 
         $query->when($filters['search'] ?? null, function ($builder, $search) {
             $builder->where(function ($sub) use ($search) {
-                $sub->where('title', 'like', '%' . $search . '%')
-                    ->orWhere('description', 'like', '%' . $search . '%');
+                $sub->where('title', 'like', '%'.$search.'%')
+                    ->orWhere('description', 'like', '%'.$search.'%');
             });
         });
 
         $query->when($filters['status'] ?? null, function ($builder, $status) {
-            if (!in_array($status, self::STATUSES, true)) {
+            if (! in_array($status, self::STATUSES, true)) {
                 return;
             }
             $builder->where('status', $status);
         });
 
         $query->when($filters['priority'] ?? null, function ($builder, $priority) {
-            if (!in_array($priority, self::PRIORITIES, true)) {
+            if (! in_array($priority, self::PRIORITIES, true)) {
                 return;
             }
             $builder->where('priority', $priority);
@@ -73,7 +75,7 @@ class SupportTicketController extends Controller
         $resolvedCount = (clone $query)->where('status', 'resolved')->count();
         $closedCount = (clone $query)->where('status', 'closed')->count();
 
-        $tickets = $query->latest()->paginate(15)->withQueryString();
+        $tickets = $query->latest()->paginate((int) $filters['per_page'])->withQueryString();
 
         $payload = [
             'tickets' => $tickets,
@@ -99,7 +101,7 @@ class SupportTicketController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId();
 
-        if (!$user || !$accountId || $ticket->account_id !== $accountId) {
+        if (! $user || ! $accountId || $ticket->account_id !== $accountId) {
             abort(403);
         }
 
@@ -131,6 +133,7 @@ class SupportTicketController extends Controller
         $messages->transform(function ($message) use ($mediaLookup) {
             $ids = collect(data_get($message, 'meta.media_ids', []));
             $message->setAttribute('media', $ids->map(fn ($id) => $mediaLookup->get($id))->filter()->values());
+
             return $message;
         });
 
@@ -158,15 +161,15 @@ class SupportTicketController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId();
 
-        if (!$user || !$accountId) {
+        if (! $user || ! $accountId) {
             abort(403);
         }
 
         $validated = $request->validate([
-            'category' => 'required|string|in:' . implode(',', self::CATEGORIES),
+            'category' => 'required|string|in:'.implode(',', self::CATEGORIES),
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
-            'priority' => 'required|string|in:' . implode(',', self::PRIORITIES),
+            'priority' => 'required|string|in:'.implode(',', self::PRIORITIES),
             'attachments' => 'nullable|array|max:4',
             'attachments.*' => 'file|mimes:pdf,jpg,jpeg,png,webp|max:10000',
         ]);
@@ -195,7 +198,7 @@ class SupportTicketController extends Controller
 
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments', []) as $file) {
-                if (!$file instanceof UploadedFile) {
+                if (! $file instanceof UploadedFile) {
                     continue;
                 }
 
@@ -227,6 +230,7 @@ class SupportTicketController extends Controller
 
         if ($this->shouldReturnJson($request)) {
             $ticket->load(['creator:id,name,email', 'assignedTo:id,name,email', 'media']);
+
             return response()->json([
                 'message' => 'Support request submitted.',
                 'ticket' => $ticket,
@@ -241,7 +245,7 @@ class SupportTicketController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId();
 
-        if (!$user || !$accountId || $ticket->account_id !== $accountId) {
+        if (! $user || ! $accountId || $ticket->account_id !== $accountId) {
             abort(403);
         }
 
@@ -253,8 +257,8 @@ class SupportTicketController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
-            'priority' => 'required|string|in:' . implode(',', self::PRIORITIES),
-            'status' => 'required|string|in:' . implode(',', $editableStatuses),
+            'priority' => 'required|string|in:'.implode(',', self::PRIORITIES),
+            'status' => 'required|string|in:'.implode(',', $editableStatuses),
             'attachments' => 'nullable|array|max:4',
             'attachments.*' => 'file|mimes:pdf,jpg,jpeg,png,webp|max:10000',
         ]);
@@ -270,7 +274,7 @@ class SupportTicketController extends Controller
 
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments', []) as $file) {
-                if (!$file instanceof UploadedFile) {
+                if (! $file instanceof UploadedFile) {
                     continue;
                 }
 
@@ -302,6 +306,7 @@ class SupportTicketController extends Controller
 
         if ($this->shouldReturnJson($request)) {
             $ticket->load(['creator:id,name,email', 'assignedTo:id,name,email', 'media']);
+
             return response()->json([
                 'message' => 'Support request updated.',
                 'ticket' => $ticket,

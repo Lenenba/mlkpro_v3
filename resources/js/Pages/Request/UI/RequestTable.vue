@@ -1,6 +1,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
@@ -11,8 +13,10 @@ import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
 import { isFeatureEnabled } from '@/utils/features';
 import { buildLeadScore, badgeClass } from '@/utils/leadScore';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useI18n } from 'vue-i18n';
 import RequestBoard from '@/Pages/Request/UI/RequestBoard.vue';
+import RequestTableActionsMenu from '@/Pages/Request/UI/RequestTableActionsMenu.vue';
 
 const props = defineProps({
     requests: {
@@ -156,6 +160,7 @@ const filterPayload = () => {
         status: filterForm.status,
         customer_id: filterForm.customer_id,
         view: viewMode.value,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -202,6 +207,9 @@ const clearFilters = () => {
     autoFilter();
 };
 
+const requestLinks = computed(() => props.requests?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.requests?.per_page, props.filters?.per_page));
+
 const setViewMode = (mode) => {
     if (!allowedViews.includes(mode) || viewMode.value === mode) {
         return;
@@ -222,6 +230,9 @@ if (typeof window !== 'undefined') {
 }
 
 const tableRows = computed(() => (Array.isArray(props.requests?.data) ? props.requests.data : []));
+const requestTableRows = computed(() => (isLoading.value
+    ? Array.from({ length: 6 }, (_, index) => ({ id: `request-skeleton-${index}`, __skeleton: true }))
+    : tableRows.value));
 const selected = ref([]);
 const selectAllRef = ref(null);
 const allSelected = computed(() =>
@@ -794,34 +805,104 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
     <div
         class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700"
     >
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2 flex-1">
-                <div class="relative flex-1">
-                    <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
-                        <svg
-                            class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="24"
-                            height="24"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <circle cx="11" cy="11" r="8" />
-                            <path d="m21 21-4.3-4.3" />
-                        </svg>
+        <div class="space-y-3">
+            <AdminDataTableToolbar
+                :show-clear="false"
+                :show-apply="false"
+                :busy="isLoading"
+            >
+                <template #search>
+                    <div class="relative flex-1">
+                        <div class="absolute inset-y-0 start-0 z-20 flex items-center ps-3.5 pointer-events-none">
+                            <svg
+                                class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.3-4.3" />
+                            </svg>
+                        </div>
+                        <input
+                            v-model="filterForm.search"
+                            type="text"
+                            class="py-2 ps-10 pe-3 block w-full border-transparent rounded-sm bg-stone-100 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
+                            :placeholder="$t('requests.filters.search_placeholder')"
+                        />
                     </div>
-                    <input
-                        v-model="filterForm.search"
-                        type="text"
-                        class="py-2 ps-10 pe-3 block w-full border-transparent rounded-sm bg-stone-100 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
-                        :placeholder="$t('requests.filters.search_placeholder')"
-                    />
-                </div>
+                </template>
 
+                <template #actions>
+                    <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                        <button
+                            type="button"
+                            @click="setViewMode('table')"
+                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
+                            :class="viewMode === 'table'
+                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
+                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                        >
+                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 6h18" />
+                                <path d="M3 12h18" />
+                                <path d="M3 18h18" />
+                            </svg>
+                            {{ $t('requests.view.table') }}
+                        </button>
+                        <button
+                            type="button"
+                            @click="setViewMode('board')"
+                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
+                            :class="viewMode === 'board'
+                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
+                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                        >
+                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="7" rx="1" />
+                                <rect x="14" y="3" width="7" height="7" rx="1" />
+                                <rect x="14" y="14" width="7" height="7" rx="1" />
+                                <rect x="3" y="14" width="7" height="7" rx="1" />
+                            </svg>
+                            {{ $t('requests.view.board') }}
+                        </button>
+                    </div>
+
+                    <template v-if="canUseRequests">
+                        <button
+                            type="button"
+                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            :data-hs-overlay="`#${intakeModalId}`"
+                        >
+                            {{ $t('requests.actions.intake') }}
+                        </button>
+                        <button
+                            type="button"
+                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            :data-hs-overlay="`#${importModalId}`"
+                        >
+                            {{ $t('requests.actions.import_csv') }}
+                        </button>
+                        <button
+                            type="button"
+                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700"
+                            @click="openQuickCreate"
+                        >
+                            {{ $t('requests.actions.new_request') }}
+                        </button>
+                    </template>
+                </template>
+            </AdminDataTableToolbar>
+
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <FloatingSelect
                     v-model="filterForm.status"
                     :label="$t('requests.table.status')"
@@ -847,68 +928,6 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                 >
                     {{ $t('requests.actions.clear') }}
                 </button>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2 justify-end">
-                <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                    <button
-                        type="button"
-                        @click="setViewMode('table')"
-                        class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                        :class="viewMode === 'table'
-                            ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                            : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
-                    >
-                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 6h18" />
-                            <path d="M3 12h18" />
-                            <path d="M3 18h18" />
-                        </svg>
-                        {{ $t('requests.view.table') }}
-                    </button>
-                    <button
-                        type="button"
-                        @click="setViewMode('board')"
-                        class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                        :class="viewMode === 'board'
-                            ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                            : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
-                    >
-                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="7" height="7" rx="1" />
-                            <rect x="14" y="3" width="7" height="7" rx="1" />
-                            <rect x="14" y="14" width="7" height="7" rx="1" />
-                            <rect x="3" y="14" width="7" height="7" rx="1" />
-                        </svg>
-                        {{ $t('requests.view.board') }}
-                    </button>
-                </div>
-
-                <template v-if="canUseRequests">
-                    <button
-                        type="button"
-                        class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        :data-hs-overlay="`#${intakeModalId}`"
-                    >
-                        {{ $t('requests.actions.intake') }}
-                    </button>
-                    <button
-                        type="button"
-                        class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        :data-hs-overlay="`#${importModalId}`"
-                    >
-                        {{ $t('requests.actions.import_csv') }}
-                    </button>
-                    <button
-                        type="button"
-                        class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700"
-                        @click="openQuickCreate"
-                    >
-                        {{ $t('requests.actions.new_request') }}
-                    </button>
-                </template>
             </div>
         </div>
 
@@ -966,10 +985,23 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
             <RequestBoard :requests="requests.data" :statuses="statuses" />
         </div>
 
-        <div v-else class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                <thead>
-                    <tr>
+        <AdminDataTable
+            v-else
+            embedded
+            :rows="requestTableRows"
+            :links="requestLinks"
+            :show-pagination="tableRows.length > 0"
+            show-per-page
+            :per-page="currentPerPage"
+        >
+            <template #empty>
+                <div class="px-5 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
+                    {{ $t('requests.empty') }}
+                </div>
+            </template>
+
+            <template #head>
+                <tr>
                         <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
                             <input
                                 ref="selectAllRef"
@@ -1001,26 +1033,24 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                             {{ $t('requests.table.actions') }}
                         </th>
                     </tr>
-                </thead>
-                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                    <template v-if="isLoading">
-                        <tr v-for="row in 6" :key="`skeleton-${row}`">
-                            <td colspan="8" class="px-4 py-3">
-                                <div class="grid grid-cols-8 gap-4 animate-pulse">
-                                    <div class="h-3 w-4 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                </div>
-                            </td>
-                        </tr>
-                    </template>
-                    <template v-else>
-                    <tr v-for="lead in requests.data" :key="lead.id">
+            </template>
+
+            <template #row="{ row: lead }">
+                <tr v-if="lead.__skeleton">
+                    <td colspan="8" class="px-4 py-3">
+                        <div class="grid grid-cols-8 gap-4 animate-pulse">
+                            <div class="h-3 w-4 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr v-else>
                         <td class="px-5 py-3">
                             <Checkbox v-model:checked="selected" :value="lead.id" />
                         </td>
@@ -1113,89 +1143,27 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                         </td>
                         <td class="px-5 py-3">
                             <div class="flex items-center justify-end">
-                                <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                    <button type="button"
-                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                        aria-haspopup="menu" aria-expanded="false" :aria-label="$t('requests.table.actions')">
-                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <circle cx="12" cy="12" r="1" />
-                                            <circle cx="12" cy="5" r="1" />
-                                            <circle cx="12" cy="19" r="1" />
-                                        </svg>
-                                    </button>
-
-                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                        role="menu" aria-orientation="vertical">
-                                        <div class="p-1">
-                                            <Link v-if="lead.quote"
-                                                :href="route('customer.quote.show', lead.quote.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('requests.actions.view_quote') }}
-                                            </Link>
-                                            <button type="button" @click="openUpdate(lead)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('requests.actions.update') }}
-                                            </button>
-                                            <button v-if="canUseQuotes && canConvertLead(lead)" type="button" @click="openConvert(lead)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
-                                                {{ $t('requests.actions.convert') }}
-                                            </button>
-                                            <Link
-                                                :href="route('request.show', lead.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                            >
-                                                {{ $t('requests.actions.view') }}
-                                            </Link>
-                                            <Link
-                                                :href="route('pipeline.timeline', { entityType: 'request', entityId: lead.id })"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                            >
-                                                {{ $t('requests.actions.timeline') }}
-                                            </Link>
-                                            <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                            <button type="button" @click="deleteLead(lead)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"
-                                                :disabled="processingId === lead.id">
-                                                {{ $t('requests.actions.delete') }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                <RequestTableActionsMenu
+                                    :lead="lead"
+                                    :can-use-quotes="canUseQuotes"
+                                    :can-convert="canConvertLead(lead)"
+                                    :processing="processingId === lead.id"
+                                    @update="openUpdate(lead)"
+                                    @convert="openConvert(lead)"
+                                    @delete="deleteLead(lead)"
+                                />
                             </div>
                         </td>
                     </tr>
 
-                    <tr v-if="!requests.data.length">
-                        <td colspan="8" class="px-5 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
-                            {{ $t('requests.empty') }}
-                        </td>
-                    </tr>
-                    </template>
-                </tbody>
-            </table>
-        </div>
+            </template>
 
-        <div v-if="viewMode === 'table' && (requests.next_page_url || requests.prev_page_url)" class="flex items-center justify-between gap-3">
-            <Link
-                v-if="requests.prev_page_url"
-                :href="requests.prev_page_url"
-                class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
-            >
-                {{ $t('requests.pagination.previous') }}
-            </Link>
-            <span class="text-xs text-stone-500 dark:text-neutral-400">
-                {{ $t('requests.pagination.showing', { from: requests.from || 0, to: requests.to || 0 }) }}
-            </span>
-            <Link
-                v-if="requests.next_page_url"
-                :href="requests.next_page_url"
-                class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
-            >
-                {{ $t('requests.pagination.next') }}
-            </Link>
-        </div>
+            <template #pagination_prefix>
+                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                    {{ $t('requests.pagination.showing', { from: requests.from || 0, to: requests.to || 0 }) }}
+                </span>
+            </template>
+        </AdminDataTable>
     </div>
 
     <Modal :title="$t('requests.intake.title')" :id="intakeModalId">

@@ -245,6 +245,7 @@
       "created_at": "Cree le",
       "results": "resultats"
     },
+    "empty": "Aucun chantier trouve.",
     "actions": {
       "filters": "Filtres",
       "reset": "Reinitialiser",

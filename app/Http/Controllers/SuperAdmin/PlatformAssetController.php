@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,11 +24,12 @@ class PlatformAssetController extends BaseSuperAdminController
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:120'],
             'tag' => ['nullable', 'string', 'max:80'],
+            'per_page' => ['nullable', Rule::in($this->dataTablePerPageOptions())],
         ]);
 
         $assets = $this->paginateAssets(
             $this->filteredAssets($filters, app()->getLocale()),
-            24,
+            $this->resolveDataTablePerPage($filters['per_page'] ?? null),
             $request
         );
 
@@ -36,6 +38,7 @@ class PlatformAssetController extends BaseSuperAdminController
             'filters' => [
                 'search' => $filters['search'] ?? '',
                 'tag' => $filters['tag'] ?? '',
+                'per_page' => $this->resolveDataTablePerPage($filters['per_page'] ?? null),
             ],
             'dashboard_url' => route('superadmin.dashboard'),
         ]);

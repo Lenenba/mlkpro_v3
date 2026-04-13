@@ -1,10 +1,15 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Link, router, useForm } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
+import InvoiceActionsMenu from '@/Pages/Invoice/UI/InvoiceActionsMenu.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -98,6 +103,7 @@ const filterPayload = () => {
         created_to: filterForm.created_to,
         sort: filterForm.sort,
         direction: filterForm.direction,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -248,76 +254,46 @@ const sendInvoice = (invoice) => {
         },
     });
 };
+
+const invoiceRows = computed(() => props.invoices?.data || []);
+const invoiceTableRows = computed(() => (isBusy.value
+    ? Array.from({ length: 6 }, (_, index) => ({ id: `invoice-skeleton-${index}`, __skeleton: true }))
+    : invoiceRows.value));
+const invoiceLinks = computed(() => props.invoices?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.invoices?.per_page, props.filters?.per_page));
+const invoiceResultsLabel = computed(() => `${props.invoices?.total ?? props.invoices?.data?.length ?? 0} ${t('invoices.table.results')}`);
 </script>
 
 <template>
     <div
         class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
-        <div class="space-y-3">
-            <div class="flex flex-col lg:flex-row lg:items-center gap-2">
-                <div class="flex-1">
-                    <div class="relative">
-                        <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
-                            <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
-                                xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8" />
-                                <path d="m21 21-4.3-4.3" />
-                            </svg>
-                        </div>
-                        <input type="text" v-model="filterForm.search"
-                            class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
-                            :placeholder="$t('invoices.filters.search_placeholder')">
+        <AdminDataTableToolbar
+            :show-filters="showAdvanced"
+            :show-apply="false"
+            :busy="isBusy"
+            :filters-label="$t('invoices.actions.filters')"
+            :clear-label="$t('invoices.actions.clear')"
+            @toggle-filters="showAdvanced = !showAdvanced"
+            @apply="autoFilter"
+            @clear="clearFilters"
+        >
+            <template #search>
+                <div class="relative">
+                    <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
+                        <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
+                            xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="m21 21-4.3-4.3" />
+                        </svg>
                     </div>
+                    <input type="text" v-model="filterForm.search"
+                        class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
+                        :placeholder="$t('invoices.filters.search_placeholder')">
                 </div>
+            </template>
 
-                <div class="flex flex-wrap items-center gap-2 justify-end">
-                    <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                        <button
-                            type="button"
-                            @click="setViewMode('table')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'table'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
-                        >
-                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M3 3h18v6H3z" />
-                                <path d="M3 13h18v8H3z" />
-                            </svg>
-                            {{ $t('invoices.view.table') }}
-                        </button>
-                        <button
-                            type="button"
-                            @click="setViewMode('cards')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'cards'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
-                        >
-                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="3" width="7" height="7" rx="1" />
-                                <rect x="14" y="3" width="7" height="7" rx="1" />
-                                <rect x="3" y="14" width="7" height="7" rx="1" />
-                                <rect x="14" y="14" width="7" height="7" rx="1" />
-                            </svg>
-                            {{ $t('invoices.view.cards') }}
-                        </button>
-                    </div>
-                    <button type="button" @click="showAdvanced = !showAdvanced"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        {{ $t('invoices.actions.filters') }}
-                    </button>
-                    <button type="button" @click="clearFilters"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        {{ $t('invoices.actions.clear') }}
-                    </button>
-                </div>
-            </div>
-
-            <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2">
+            <template #filters>
                 <FloatingSelect
                     v-model="filterForm.status"
                     :label="$t('invoices.table.status')"
@@ -338,227 +314,240 @@ const sendInvoice = (invoice) => {
                     :placeholder="$t('invoices.filters.total_max')">
                 <DatePicker v-model="filterForm.created_from" :label="$t('invoices.filters.created_from')" />
                 <DatePicker v-model="filterForm.created_to" :label="$t('invoices.filters.created_to')" />
-            </div>
-        </div>
+            </template>
 
-        <div
+            <template #actions>
+                <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                    <button
+                        type="button"
+                        @click="setViewMode('table')"
+                        class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
+                        :class="viewMode === 'table'
+                            ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
+                            : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                    >
+                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3h18v6H3z" />
+                            <path d="M3 13h18v8H3z" />
+                        </svg>
+                        {{ $t('invoices.view.table') }}
+                    </button>
+                    <button
+                        type="button"
+                        @click="setViewMode('cards')"
+                        class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
+                        :class="viewMode === 'cards'
+                            ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
+                            : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                    >
+                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="7" height="7" rx="1" />
+                            <rect x="14" y="3" width="7" height="7" rx="1" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" />
+                        </svg>
+                        {{ $t('invoices.view.cards') }}
+                    </button>
+                </div>
+            </template>
+        </AdminDataTableToolbar>
+
+        <AdminDataTable
             v-if="viewMode === 'table'"
-            class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-            <div class="min-w-full inline-block align-middle">
-                <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="min-w-[180px]">
-                                <button type="button" @click="toggleSort('number')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('invoices.table.invoice') }}
-                                    <svg v-if="filterForm.sort === 'number'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-40">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('invoices.table.customer') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button type="button" @click="toggleSort('status')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('invoices.table.status') }}
-                                    <svg v-if="filterForm.sort === 'status'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('invoices.table.rating') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button type="button" @click="toggleSort('total')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('invoices.table.total') }}
-                                    <svg v-if="filterForm.sort === 'total'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('invoices.table.balance_due') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button type="button" @click="toggleSort('created_at')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('invoices.table.created') }}
-                                    <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col"></th>
-                        </tr>
-                    </thead>
+            embedded
+            :rows="invoiceTableRows"
+            :links="invoiceLinks"
+            :show-pagination="invoiceRows.length > 0"
+            show-per-page
+            :per-page="currentPerPage"
+        >
+            <template #empty>
+                <div
+                    class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                >
+                    {{ $t('invoices.empty.invoices') }}
+                </div>
+            </template>
 
-                    <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                        <template v-if="isBusy">
-                            <tr v-for="row in 6" :key="`skeleton-${row}`">
-                                <td colspan="9" class="px-4 py-3">
-                                    <div class="grid grid-cols-6 gap-4 animate-pulse">
-                                        <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    </div>
-                                </td>
-                            </tr>
-                        </template>
-                        <template v-else>
-                        <tr v-for="invoice in invoices.data" :key="invoice.id">
-                            <td class="size-px whitespace-nowrap px-4 py-2 text-start">
-                                <div class="flex flex-col">
-                                    <span class="text-sm text-stone-600 dark:text-neutral-300">
-                                        {{ invoice.number || $t('invoices.labels.invoice_number', { id: invoice.id }) }}
-                                    </span>
-                                    <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                        {{ invoice.work?.job_title ?? '-' }}
-                                    </span>
-                                </div>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-sm text-stone-600 dark:text-neutral-300">
-                                    {{ getCustomerName(invoice) }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-semibold rounded-full"
-                                    :class="getStatusMeta(invoice).classes">
-                                    <span class="inline-flex size-3.5 items-center justify-center" :class="getStatusMeta(invoice).iconClass">
-                                        <svg v-if="getStatusMeta(invoice).icon === 'draft'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="size-3.5">
-                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
-                                            <path d="M14 2v6h6" />
-                                            <path d="M8 13h8" />
-                                        </svg>
-                                        <svg v-else-if="getStatusMeta(invoice).icon === 'sent'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="size-3.5">
-                                            <path d="m22 2-7 20-4-9-9-4Z" />
-                                            <path d="M22 2 11 13" />
-                                        </svg>
-                                        <svg v-else-if="getStatusMeta(invoice).icon === 'partial'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="size-3.5">
-                                            <path d="M21 12A9 9 0 1 1 12 3v9z" />
-                                        </svg>
-                                        <svg v-else-if="getStatusMeta(invoice).icon === 'paid'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="size-3.5">
-                                            <circle cx="12" cy="12" r="9" />
-                                            <path d="m8.5 12.5 2.5 2.5 4.5-5" />
-                                        </svg>
-                                        <svg v-else-if="getStatusMeta(invoice).icon === 'overdue'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="size-3.5">
-                                            <circle cx="12" cy="12" r="9" />
-                                            <path d="M12 8v4" />
-                                            <path d="M12 16h.01" />
-                                        </svg>
-                                        <svg v-else-if="getStatusMeta(invoice).icon === 'void'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="size-3.5">
-                                            <circle cx="12" cy="12" r="9" />
-                                            <path d="m5 5 14 14" />
-                                        </svg>
-                                    </span>
-                                    <span>{{ getStatusMeta(invoice).label }}</span>
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <StarRating :value="invoice.work?.ratings_avg_rating" icon-class="h-3.5 w-3.5" empty-label="-" />
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-sm text-stone-600 dark:text-neutral-300">
-                                    ${{ Number(invoice.total || 0).toFixed(2) }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-sm text-stone-600 dark:text-neutral-300">
-                                    ${{ Number(invoice.balance_due || 0).toFixed(2) }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                    {{ formatDate(invoice.created_at) }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                                <div
-                                    class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                    <button type="button"
-                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                        aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <circle cx="12" cy="12" r="1" />
-                                            <circle cx="12" cy="5" r="1" />
-                                            <circle cx="12" cy="19" r="1" />
-                                        </svg>
-                                    </button>
+            <template #head>
+                <tr>
+                    <th scope="col" class="min-w-[180px]">
+                        <button type="button" @click="toggleSort('number')"
+                            class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('invoices.table.invoice') }}
+                            <svg v-if="filterForm.sort === 'number'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-40">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('invoices.table.customer') }}
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <button type="button" @click="toggleSort('status')"
+                            class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('invoices.table.status') }}
+                            <svg v-if="filterForm.sort === 'status'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('invoices.table.rating') }}
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <button type="button" @click="toggleSort('total')"
+                            class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('invoices.table.total') }}
+                            <svg v-if="filterForm.sort === 'total'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('invoices.table.balance_due') }}
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <button type="button" @click="toggleSort('created_at')"
+                            class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('invoices.table.created') }}
+                            <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col"></th>
+                </tr>
+            </template>
 
-                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                        role="menu" aria-orientation="vertical">
-                                        <div class="p-1">
-                                            <button
-                                                v-if="canSendInvoice(invoice)"
-                                                type="button"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                                :disabled="sendingInvoiceId === invoice.id"
-                                                @click="sendInvoice(invoice)"
-                                            >
-                                                {{ sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice) }}
-                                            </button>
-                                            <Link :href="route('invoice.show', invoice.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('invoices.actions.view_invoice') }}
-                                            </Link>
-                                            <Link v-if="invoice.work?.id" :href="route('work.show', invoice.work.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('invoices.actions.view_job') }}
-                                            </Link>
-                                            <Link v-if="invoice.customer?.id" :href="route('customer.show', invoice.customer.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('invoices.actions.view_customer') }}
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+            <template #row="{ row: invoice }">
+                <tr v-if="invoice.__skeleton">
+                    <td colspan="8" class="px-4 py-3">
+                        <div class="grid grid-cols-6 gap-4 animate-pulse">
+                            <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr v-else>
+                    <td class="size-px whitespace-nowrap px-4 py-2 text-start">
+                        <div class="flex flex-col">
+                            <span class="text-sm text-stone-600 dark:text-neutral-300">
+                                {{ invoice.number || $t('invoices.labels.invoice_number', { id: invoice.id }) }}
+                            </span>
+                            <span class="text-xs text-stone-500 dark:text-neutral-500">
+                                {{ invoice.work?.job_title ?? '-' }}
+                            </span>
+                        </div>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <span class="text-sm text-stone-600 dark:text-neutral-300">
+                            {{ getCustomerName(invoice) }}
+                        </span>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <span class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-semibold rounded-full"
+                            :class="getStatusMeta(invoice).classes">
+                            <span class="inline-flex size-3.5 items-center justify-center" :class="getStatusMeta(invoice).iconClass">
+                                <svg v-if="getStatusMeta(invoice).icon === 'draft'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
+                                    <path d="M14 2v6h6" />
+                                    <path d="M8 13h8" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(invoice).icon === 'sent'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <path d="m22 2-7 20-4-9-9-4Z" />
+                                    <path d="M22 2 11 13" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(invoice).icon === 'partial'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <path d="M21 12A9 9 0 1 1 12 3v9z" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(invoice).icon === 'paid'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <circle cx="12" cy="12" r="9" />
+                                    <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(invoice).icon === 'overdue'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <circle cx="12" cy="12" r="9" />
+                                    <path d="M12 8v4" />
+                                    <path d="M12 16h.01" />
+                                </svg>
+                                <svg v-else-if="getStatusMeta(invoice).icon === 'void'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="size-3.5">
+                                    <circle cx="12" cy="12" r="9" />
+                                    <path d="m5 5 14 14" />
+                                </svg>
+                            </span>
+                            <span>{{ getStatusMeta(invoice).label }}</span>
+                        </span>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <StarRating :value="invoice.work?.ratings_avg_rating" icon-class="h-3.5 w-3.5" empty-label="-" />
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <span class="text-sm text-stone-600 dark:text-neutral-300">
+                            ${{ Number(invoice.total || 0).toFixed(2) }}
+                        </span>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <span class="text-sm text-stone-600 dark:text-neutral-300">
+                            ${{ Number(invoice.balance_due || 0).toFixed(2) }}
+                        </span>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <span class="text-xs text-stone-500 dark:text-neutral-500">
+                            {{ formatDate(invoice.created_at) }}
+                        </span>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2 text-end">
+                        <InvoiceActionsMenu
+                            :invoice="invoice"
+                            :can-send="canSendInvoice(invoice)"
+                            :sending="sendingInvoiceId === invoice.id"
+                            :send-label="sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice)"
+                            @send="sendInvoice(invoice)"
+                        />
+                    </td>
+                </tr>
+            </template>
+
+            <template #pagination_prefix>
+                <p class="text-sm text-stone-800 dark:text-neutral-200">{{ invoiceResultsLabel }}</p>
+            </template>
+        </AdminDataTable>
 
         <div v-else class="space-y-3">
             <div v-if="isBusy" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -583,13 +572,13 @@ const sendInvoice = (invoice) => {
                     </div>
                 </div>
             </div>
-            <div v-else-if="!invoices.data.length"
+            <div v-else-if="!invoiceRows.length"
                 class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                 {{ $t('invoices.empty.invoices') }}
             </div>
             <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <div
-                    v-for="invoice in invoices.data"
+                    v-for="invoice in invoiceRows"
                     :key="invoice.id"
                     class="rounded-sm border border-stone-200 border-l-4 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-neutral-700 dark:bg-neutral-800"
                     :class="getStatusMeta(invoice).accent"
@@ -650,46 +639,13 @@ const sendInvoice = (invoice) => {
                                 </span>
                                 <span>{{ getStatusMeta(invoice).label }}</span>
                             </span>
-                            <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                <button type="button"
-                                    class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                    aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                        height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="12" cy="12" r="1" />
-                                        <circle cx="12" cy="5" r="1" />
-                                        <circle cx="12" cy="19" r="1" />
-                                    </svg>
-                                </button>
-
-                                <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                    role="menu" aria-orientation="vertical">
-                                        <div class="p-1">
-                                            <button
-                                                v-if="canSendInvoice(invoice)"
-                                                type="button"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                                :disabled="sendingInvoiceId === invoice.id"
-                                                @click="sendInvoice(invoice)"
-                                            >
-                                                {{ sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice) }}
-                                            </button>
-                                            <Link :href="route('invoice.show', invoice.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('invoices.actions.view_invoice') }}
-                                            </Link>
-                                            <Link v-if="invoice.work?.id" :href="route('work.show', invoice.work.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('invoices.actions.view_job') }}
-                                            </Link>
-                                            <Link v-if="invoice.customer?.id" :href="route('customer.show', invoice.customer.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('invoices.actions.view_customer') }}
-                                            </Link>
-                                        </div>
-                                </div>
-                            </div>
+                            <InvoiceActionsMenu
+                                :invoice="invoice"
+                                :can-send="canSendInvoice(invoice)"
+                                :sending="sendingInvoiceId === invoice.id"
+                                :send-label="sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice)"
+                                @send="sendInvoice(invoice)"
+                            />
                         </div>
                     </div>
 
@@ -730,48 +686,10 @@ const sendInvoice = (invoice) => {
             </div>
         </div>
 
-        <div v-if="invoices.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
-            <p class="text-sm text-stone-800 dark:text-neutral-200">
-                <span class="font-medium"> {{ invoices.total ?? invoices.data.length }} </span>
-                <span class="text-stone-500 dark:text-neutral-500"> {{ $t('invoices.table.results') }}</span>
-            </p>
+        <div v-if="viewMode !== 'table' && invoiceRows.length > 0" class="mt-5 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-sm text-stone-800 dark:text-neutral-200">{{ invoiceResultsLabel }}</p>
 
-            <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
-                <Link :href="invoices.prev_page_url" v-if="invoices.prev_page_url">
-                <button type="button"
-                    class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    :aria-label="$t('invoices.pagination.previous')">
-                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="m15 18-6-6 6-6" />
-                    </svg>
-                    <span class="sr-only">{{ $t('invoices.pagination.previous') }}</span>
-                </button>
-                </Link>
-                <div class="flex items-center gap-x-1">
-                    <span
-                        class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
-                        aria-current="page">{{ invoices.from }}</span>
-                    <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ $t('invoices.pagination.of') }}</span>
-                    <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ invoices.to }}</span>
-                </div>
-
-                <Link :href="invoices.next_page_url" v-if="invoices.next_page_url">
-                <button type="button"
-                    class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    :aria-label="$t('invoices.pagination.next')">
-                    <span class="sr-only">{{ $t('invoices.pagination.next') }}</span>
-                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="m9 18 6-6-6-6" />
-                    </svg>
-                </button>
-                </Link>
-            </nav>
+            <AdminPaginationLinks :links="invoiceLinks" />
         </div>
     </div>
 </template>

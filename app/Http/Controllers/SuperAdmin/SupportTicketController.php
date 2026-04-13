@@ -7,10 +7,10 @@ use App\Models\PlatformSupportTicket;
 use App\Models\PlatformSupportTicketMedia;
 use App\Models\Role;
 use App\Models\User;
-use App\Support\PlatformPermissions;
 use App\Services\SupportAssignmentService;
 use App\Services\SupportSettingsService;
 use App\Services\SupportTicketNotificationService;
+use App\Support\PlatformPermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,20 +19,21 @@ use Inertia\Response;
 class SupportTicketController extends BaseSuperAdminController
 {
     private const STATUSES = ['open', 'assigned', 'pending', 'resolved', 'closed'];
+
     private const PRIORITIES = ['low', 'normal', 'high', 'urgent'];
 
     public function __construct(
         private SupportAssignmentService $assignmentService,
         private SupportSettingsService $settingsService,
         private SupportTicketNotificationService $notificationService
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): Response
     {
         $this->authorizePermission($request, PlatformPermissions::SUPPORT_MANAGE);
 
-        $filters = $request->only(['search', 'status', 'priority', 'account_id']);
+        $filters = $request->only(['search', 'status', 'priority', 'account_id', 'per_page']);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
 
         $query = PlatformSupportTicket::query()->with([
             'account:id,company_name,email',
@@ -43,10 +44,10 @@ class SupportTicketController extends BaseSuperAdminController
 
         $query->when($filters['search'] ?? null, function ($builder, $search) {
             $builder->where(function ($sub) use ($search) {
-                $sub->where('title', 'like', '%' . $search . '%')
+                $sub->where('title', 'like', '%'.$search.'%')
                     ->orWhereHas('account', function ($accountQuery) use ($search) {
-                        $accountQuery->where('company_name', 'like', '%' . $search . '%')
-                            ->orWhere('email', 'like', '%' . $search . '%');
+                        $accountQuery->where('company_name', 'like', '%'.$search.'%')
+                            ->orWhere('email', 'like', '%'.$search.'%');
                     });
             });
         });
@@ -70,7 +71,7 @@ class SupportTicketController extends BaseSuperAdminController
         $resolvedCount = (clone $query)->where('status', 'resolved')->count();
         $closedCount = (clone $query)->where('status', 'closed')->count();
 
-        $tickets = $query->latest()->paginate(15)->withQueryString();
+        $tickets = $query->latest()->paginate((int) $filters['per_page'])->withQueryString();
 
         $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
         $tenants = User::query()
@@ -131,6 +132,7 @@ class SupportTicketController extends BaseSuperAdminController
         $messages->transform(function ($message) use ($mediaLookup) {
             $ids = collect(data_get($message, 'meta.media_ids', []));
             $message->setAttribute('media', $ids->map(fn ($id) => $mediaLookup->get($id))->filter()->values());
+
             return $message;
         });
 
@@ -162,15 +164,15 @@ class SupportTicketController extends BaseSuperAdminController
             'account_id' => 'required|integer|exists:users,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
-            'status' => 'required|string|in:' . implode(',', self::STATUSES),
-            'priority' => 'required|string|in:' . implode(',', self::PRIORITIES),
+            'status' => 'required|string|in:'.implode(',', self::STATUSES),
+            'priority' => 'required|string|in:'.implode(',', self::PRIORITIES),
             'sla_due_at' => 'nullable|date',
             'tags' => 'nullable|string|max:500',
             'assigned_to_user_id' => 'nullable|integer|exists:users,id',
         ]);
 
         $account = User::query()->findOrFail($validated['account_id']);
-        if (!$account->isOwner()) {
+        if (! $account->isOwner()) {
             return redirect()->back()->with('error', 'Selected account is not a tenant owner.');
         }
 
@@ -188,7 +190,7 @@ class SupportTicketController extends BaseSuperAdminController
         }
 
         $slaDueAt = $validated['sla_due_at'] ?? null;
-        if (!$slaDueAt) {
+        if (! $slaDueAt) {
             $slaHours = $this->settingsService->slaHours($validated['priority']);
             $slaDueAt = $slaHours > 0 ? now()->addHours($slaHours) : null;
         }
@@ -228,8 +230,8 @@ class SupportTicketController extends BaseSuperAdminController
         $this->authorizePermission($request, PlatformPermissions::SUPPORT_MANAGE);
 
         $validated = $request->validate([
-            'status' => 'required|string|in:' . implode(',', self::STATUSES),
-            'priority' => 'required|string|in:' . implode(',', self::PRIORITIES),
+            'status' => 'required|string|in:'.implode(',', self::STATUSES),
+            'priority' => 'required|string|in:'.implode(',', self::PRIORITIES),
             'sla_due_at' => 'nullable|date',
             'tags' => 'nullable|string|max:500',
             'assigned_to_user_id' => 'nullable|integer|exists:users,id',
@@ -294,7 +296,7 @@ class SupportTicketController extends BaseSuperAdminController
 
     private function resolveAssignee(?int $userId): ?User
     {
-        if (!$userId) {
+        if (! $userId) {
             return null;
         }
 
@@ -303,11 +305,11 @@ class SupportTicketController extends BaseSuperAdminController
             ->with(['role', 'platformAdmin'])
             ->first();
 
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
-        if (!$user->hasPlatformPermission(PlatformPermissions::SUPPORT_MANAGE)) {
+        if (! $user->hasPlatformPermission(PlatformPermissions::SUPPORT_MANAGE)) {
             return null;
         }
 
@@ -321,6 +323,7 @@ class SupportTicketController extends BaseSuperAdminController
         }
 
         $tags = array_filter(array_map('trim', explode(',', $raw)));
+
         return array_values(array_unique($tags));
     }
 }

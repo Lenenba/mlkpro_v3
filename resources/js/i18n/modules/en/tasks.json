@@ -95,6 +95,7 @@
       "due": "Due",
       "assignee": "Assignee",
       "created": "Created",
+      "actions": "Actions",
       "results": "results"
     },
     "pagination": {

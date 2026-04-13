@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -100,6 +101,9 @@ const pagedRows = computed(() => {
     const start = (listPage.value - 1) * listPerPage.value;
     return filteredRows.value.slice(start, start + listPerPage.value);
 });
+const providerTableRows = computed(() => (isLoadingList.value
+    ? Array.from({ length: 4 }, (_, index) => ({ id: `provider-skeleton-${index}`, __skeleton: true }))
+    : pagedRows.value));
 const canGoPrevious = computed(() => listPage.value > 1);
 const canGoNext = computed(() => listPage.value < totalPages.value);
 
@@ -383,8 +387,8 @@ load();
                 />
             </div>
 
-            <table class="min-w-full divide-y divide-stone-200 text-sm dark:divide-neutral-700">
-                <thead>
+            <AdminDataTable embedded :rows="providerTableRows" :show-pagination="false">
+                <template #head>
                     <tr class="text-left text-xs uppercase text-stone-500 dark:text-neutral-400">
                         <th class="px-3 py-2 font-medium">{{ t('marketing.prospect_provider_manager.columns.provider') }}</th>
                         <th class="px-3 py-2 font-medium">{{ t('marketing.prospect_provider_manager.columns.label') }}</th>
@@ -392,80 +396,82 @@ load();
                         <th class="px-3 py-2 font-medium">{{ t('marketing.prospect_provider_manager.columns.last_validated') }}</th>
                         <th class="px-3 py-2 font-medium text-right">{{ t('marketing.template_manager.actions') }}</th>
                     </tr>
-                </thead>
-                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                    <template v-if="isLoadingList">
-                        <tr v-for="row in 4" :key="`provider-skeleton-${row}`">
-                            <td v-for="col in 5" :key="`provider-skeleton-${row}-${col}`" class="px-3 py-2">
+                </template>
+
+                <template #row="{ row: connection }">
+                    <tr>
+                        <template v-if="connection.__skeleton">
+                            <td v-for="col in 5" :key="`provider-skeleton-${connection.id}-${col}`" class="px-3 py-2">
                                 <div class="h-3 w-full animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                             </td>
-                        </tr>
-                    </template>
-                    <tr v-else-if="pagedRows.length === 0">
-                        <td colspan="5" class="px-3 py-6 text-center text-xs text-stone-500 dark:text-neutral-400">
-                            {{ t('marketing.prospect_provider_manager.no_connection_found') }}
-                        </td>
-                    </tr>
-                    <tr v-for="connection in pagedRows" :key="`prospect-provider-${connection.id}`">
-                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">
-                            <div class="font-medium">{{ connection.provider_label }}</div>
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ connection.provider_key }}</div>
-                        </td>
-                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">
-                            <div>{{ connection.label }}</div>
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ connection.has_credentials ? t('marketing.prospect_provider_manager.credentials_saved') : t('marketing.prospect_provider_manager.no_credentials') }}
-                            </div>
-                        </td>
-                        <td class="px-3 py-2">
-                            <span class="inline-flex items-center rounded-sm border px-2 py-1 text-xs font-medium" :class="statusClass(connection.status)">
-                                {{ statusLabel(connection.status) }}
-                            </span>
-                            <div v-if="connection.last_error" class="mt-1 max-w-xs text-xs text-rose-600 dark:text-rose-300">
-                                {{ connection.last_error }}
-                            </div>
-                        </td>
-                        <td class="px-3 py-2 text-xs text-stone-600 dark:text-neutral-300">
-                            {{ connection.last_validated_at ? new Date(connection.last_validated_at).toLocaleString() : t('marketing.prospect_provider_manager.not_validated') }}
-                        </td>
-                        <td class="px-3 py-2">
-                            <div class="flex flex-wrap justify-end gap-2">
-                                <SecondaryButton
-                                    v-if="access.can_manage_secrets"
-                                    type="button"
-                                    :disabled="busy"
-                                    @click="edit(connection)"
-                                >
-                                    {{ t('marketing.common.edit') }}
-                                </SecondaryButton>
-                                <SecondaryButton
-                                    v-if="access.can_manage_secrets"
-                                    type="button"
-                                    :disabled="busy || !connection.has_credentials"
-                                    @click="validateConnection(connection)"
-                                >
-                                    {{ t('marketing.prospect_provider_manager.validate_connection') }}
-                                </SecondaryButton>
-                                <button
-                                    v-if="access.can_manage_secrets"
-                                    type="button"
-                                    class="rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
-                                    :disabled="busy"
-                                    @click="disconnectConnection(connection)"
-                                >
-                                    {{ t('marketing.prospect_provider_manager.disconnect_connection') }}
-                                </button>
-                                <span
-                                    v-else
-                                    class="text-xs text-stone-500 dark:text-neutral-400"
-                                >
-                                    {{ t('marketing.prospect_provider_manager.view_only_actions') }}
+                        </template>
+                        <template v-else>
+                            <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">
+                                <div class="font-medium">{{ connection.provider_label }}</div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ connection.provider_key }}</div>
+                            </td>
+                            <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">
+                                <div>{{ connection.label }}</div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ connection.has_credentials ? t('marketing.prospect_provider_manager.credentials_saved') : t('marketing.prospect_provider_manager.no_credentials') }}
+                                </div>
+                            </td>
+                            <td class="px-3 py-2">
+                                <span class="inline-flex items-center rounded-sm border px-2 py-1 text-xs font-medium" :class="statusClass(connection.status)">
+                                    {{ statusLabel(connection.status) }}
                                 </span>
-                            </div>
-                        </td>
+                                <div v-if="connection.last_error" class="mt-1 max-w-xs text-xs text-rose-600 dark:text-rose-300">
+                                    {{ connection.last_error }}
+                                </div>
+                            </td>
+                            <td class="px-3 py-2 text-xs text-stone-600 dark:text-neutral-300">
+                                {{ connection.last_validated_at ? new Date(connection.last_validated_at).toLocaleString() : t('marketing.prospect_provider_manager.not_validated') }}
+                            </td>
+                            <td class="px-3 py-2">
+                                <div class="flex flex-wrap justify-end gap-2">
+                                    <SecondaryButton
+                                        v-if="access.can_manage_secrets"
+                                        type="button"
+                                        :disabled="busy"
+                                        @click="edit(connection)"
+                                    >
+                                        {{ t('marketing.common.edit') }}
+                                    </SecondaryButton>
+                                    <SecondaryButton
+                                        v-if="access.can_manage_secrets"
+                                        type="button"
+                                        :disabled="busy || !connection.has_credentials"
+                                        @click="validateConnection(connection)"
+                                    >
+                                        {{ t('marketing.prospect_provider_manager.validate_connection') }}
+                                    </SecondaryButton>
+                                    <button
+                                        v-if="access.can_manage_secrets"
+                                        type="button"
+                                        class="rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
+                                        :disabled="busy"
+                                        @click="disconnectConnection(connection)"
+                                    >
+                                        {{ t('marketing.prospect_provider_manager.disconnect_connection') }}
+                                    </button>
+                                    <span
+                                        v-else
+                                        class="text-xs text-stone-500 dark:text-neutral-400"
+                                    >
+                                        {{ t('marketing.prospect_provider_manager.view_only_actions') }}
+                                    </span>
+                                </div>
+                            </td>
+                        </template>
                     </tr>
-                </tbody>
-            </table>
+                </template>
+
+                <template #empty>
+                    <div class="px-3 py-6 text-center text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.prospect_provider_manager.no_connection_found') }}
+                    </div>
+                </template>
+            </AdminDataTable>
 
             <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 dark:text-neutral-400">
                 <span>{{ t('marketing.common.results_count', { count: filteredRows.length }) }}</span>

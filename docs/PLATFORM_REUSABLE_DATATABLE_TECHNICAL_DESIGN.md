@@ -1,6 +1,6 @@
 # Platform Reusable DataTable - Technical Design
 
-Last updated: 2026-03-20
+Last updated: 2026-04-13
 
 ## Overview
 The platform currently uses multiple table screens with similar structure but locally duplicated markup and interaction logic.
@@ -69,10 +69,13 @@ Suggested props:
 - `striped`
 - `dense`
 - `rowKey`
+- `resultLabel`
+- `embedded`
+- `showPagination`
+- `containerClass`
 
 Suggested slots:
 - `toolbar`
-- `filters`
 - `head`
 - `row`
 - `empty`
@@ -273,11 +276,79 @@ Evaluate candidate module screens:
 - customers
 - quotes
 - invoices
+- team members
+- services
+- sales
+- work
 - tasks
 - requests
 - loyalty reports
 
 Only migrate screens that really fit the standard table shell.
+
+## Current Rollout Status
+
+Last updated: 2026-04-13
+
+Shared primitives implemented:
+- `AdminDataTable.vue`
+- `AdminDataTableToolbar.vue`
+- `AdminDataTableActions.vue`
+- `AdminPaginationLinks.vue`
+- `useDataTableFilters.js`
+
+Screens already migrated:
+- `SuperAdmin/Pages/Index.vue`
+- `SuperAdmin/Sections/Index.vue`
+- `SuperAdmin/Tenants/Index.vue`
+- `SuperAdmin/Support/Index.vue`
+- `SuperAdmin/Announcements/Index.vue`
+- `SuperAdmin/MegaMenus/Index.vue`
+- `SuperAdmin/Admins/Index.vue`
+- `SuperAdmin/DemoWorkspaces/Index.vue`
+- `SuperAdmin/Assets/Index.vue`
+
+Shared DataTable primitives now adopted on module screens:
+- `Quote/UI/QuoteTable.vue`
+- `Invoice/UI/InvoiceTable.vue`
+- `Customer/UI/CustomerTable.vue`
+- `Product/UI/ProductTable.vue`
+- `Request/UI/RequestTable.vue`
+- `Service/UI/ServiceTable.vue`
+- `Sales/UI/SalesTable.vue`
+- `Work/UI/WorkTable.vue`
+- `Team/UI/TeamTable.vue`
+- `Task/UI/TaskTable.vue`
+
+Current module adoption shape:
+- shared toolbar
+- shared row action dropdown
+- shared pagination links where applicable
+- quote, invoice, customer, product, request, service, service categories, sales, work, support, plan scan, loyalty, portal loyalty, tips, reservation table shells, the campaigns index, and the lighter campaign managers (segments, VIP tiers, prospect providers) now mount through embedded `AdminDataTable` instead of carrying a separate local table shell
+- allow module-local wrappers on top of shared primitives when a screen needs a wider or more specialized action menu
+- quote, invoice, customer, product, request, and task now use local action-menu wrappers built on top of `AdminDataTableActions`
+- customer keeps its existing card view and now reuses a dedicated shared empty-state component across table and card layouts
+- loyalty and portal loyalty keep their richer KPI/filter side panels local while the ledger table shell is centralized
+- owner and member tips keep their dashboard KPIs and export/filter workflows local while the paginated payment table shell is centralized
+- reservation staff/client pages plus the live screen waiting list now centralize their table shells while keeping calendar boards, chair cards, live timing, and modal action workflows local
+- product keeps its inline edit, stock adjust, import, alert details, and richer row states local while the shared table shell is centralized
+- request keeps its board view, status dropdown, bulk actions, import flow, and modal workflows local while the table shell is centralized
+- service now shares the same embedded shell pattern as the main CRUD list modules while keeping its modal create/edit workflow local
+- sales now shares the same embedded shell pattern while keeping fulfillment quick actions and status updates local to the module
+- work now shares the same embedded shell pattern while keeping its create modal and invoice creation workflow local
+- team now shares the same embedded shell pattern with server-side search, shared pagination, and shared `per_page` handling while member detail and edit workflows stay local
+- task no longer carries its inactive fallback list shell; the active board, schedule, and team views stay local because they do not map cleanly to `AdminDataTable`
+- keep custom card views, board views, schedule and team views, bulk-selection flows, inline-edit flows, proof-upload flows, and specialized row cells local for now
+
+Next recommended wave:
+- move the remaining hybrid module screens further toward `AdminDataTable.vue` only after the inline and board-specific workflows are extracted cleanly
+- prioritize the remaining campaign table islands next (`MailingListManager`, `Show`, `Wizard`, `ProspectBatchWorkspace`) and dashboard table islands after that, then revisit other hybrid screens only where the board-specific workflows can be separated cleanly
+- prioritize task workflow cleanup around board, schedule, and team concerns before considering any deeper shared-shell pass
+
+Follow-up wave after that:
+- evaluate whether customer cards/table and request board/table need a lighter second pass once their specialized local flows are worth extracting
+- evaluate whether product should get a lighter second pass once its inline workflows are worth extracting, and whether task should get any further shared extraction once board, schedule, and team workflows are better isolated
+- evaluate whether quote and invoice card layouts should eventually share a lighter reusable summary-card shell
 
 ## Current Candidates and Fit
 
@@ -360,4 +431,3 @@ Build a narrow, strong, reusable shell for the 80 percent case already present i
 - Inertia pagination
 
 That is the fastest path to real reuse without adding a second layer of complexity.
-

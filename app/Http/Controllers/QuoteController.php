@@ -43,6 +43,7 @@ class QuoteController extends Controller
             'sort',
             'direction',
         ]);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
 
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
@@ -74,7 +75,7 @@ class QuoteController extends Controller
             ->withAvg('ratings', 'rating')
             ->withCount('ratings')
             ->orderBy($sort, $direction)
-            ->simplePaginate(10)
+            ->paginate((int) $filters['per_page'])
             ->withQueryString();
 
         $totalCount = (clone $baseQuery)->count();

@@ -1,0 +1,112 @@
+{
+  "team": {
+    "page_title": "Equipo",
+    "stats": {
+      "total_members": "Total miembros",
+      "active": "Activos",
+      "administrators": "Administradores",
+      "members": "Miembros del equipo"
+    },
+    "roles": {
+      "admin": "Administrador",
+      "member": "Miembro del equipo",
+      "seller": "Vendedor (POS)",
+      "sales_manager": "Gerente de ventas"
+    },
+    "status": {
+      "active": "Activo",
+      "inactive": "Inactivo"
+    },
+    "actions": {
+      "clear": "Limpiar",
+      "add_member": "Agregar miembro",
+      "member_actions": "Acciones del miembro",
+      "details": "Detalles",
+      "edit": "Editar",
+      "deactivate": "Desactivar",
+      "activate": "Activar",
+      "close": "Cerrar",
+      "cancel": "Cancelar",
+      "save": "Guardar"
+    },
+    "table": {
+      "search_placeholder": "Buscar miembros del equipo",
+      "empty": "No se encontraron miembros del equipo.",
+      "member_fallback": "Miembro #{id}",
+      "member_avatar_alt": "Avatar del miembro",
+      "headings": {
+        "member": "Miembro",
+        "role": "Rol",
+        "title": "Titulo",
+        "phone": "Telefono",
+        "status": "Estado",
+        "added": "Agregado"
+      }
+    },
+    "dialogs": {
+      "member_details": "Detalles del miembro",
+      "add_member": "Agregar miembro del equipo",
+      "edit_member": "Editar miembro del equipo"
+    },
+    "detail": {
+      "title": "Titulo",
+      "phone": "Telefono",
+      "joined": "Agregado",
+      "member_id": "ID del miembro",
+      "permissions": "Permisos",
+      "no_permissions": "Sin permisos especificos.",
+      "none_selected": "No hay ningun miembro seleccionado."
+    },
+    "forms": {
+      "name": "Nombre",
+      "email": "Email",
+      "role": "Rol",
+      "title_optional": "Titulo (opcional)",
+      "phone_optional": "Telefono (opcional)",
+      "photo_or_icon": "Foto o icono",
+      "upload_photo": "Subir foto",
+      "or_choose_avatar_icon": "O elegir un icono de avatar",
+      "avatar_icon_alt": "Icono de avatar",
+      "default": "Por defecto",
+      "clear_icon": "Quitar icono",
+      "new_password_optional": "Nueva contrasena (opcional)",
+      "permissions": "Permisos",
+      "active": "Activo"
+    },
+    "planning": {
+      "title_optional": "Reglas de planificacion (opcional)",
+      "break_minutes": "Pausa (min)",
+      "min_hours_day": "Min horas/dia",
+      "max_hours_day": "Max horas/dia",
+      "max_hours_week": "Max horas/semana"
+    },
+    "messages": {
+      "invite_email": "Se enviara un enlace de acceso por email para definir la contrasena."
+    },
+    "confirm": {
+      "deactivate": "Desactivar a {name}?"
+    },
+    "permissions": {
+      "options": {
+        "jobs_view": "Ver trabajos asignados",
+        "jobs_edit": "Editar trabajos asignados",
+        "tasks_view": "Ver tareas",
+        "tasks_create": "Crear tareas",
+        "tasks_edit": "Editar tareas",
+        "tasks_delete": "Eliminar tareas",
+        "quotes_view": "Ver cotizaciones",
+        "quotes_create": "Crear cotizaciones",
+        "quotes_edit": "Editar cotizaciones",
+        "quotes_send": "Enviar cotizaciones",
+        "reservations_view": "Ver reservas",
+        "reservations_queue": "Gestionar acciones de cola",
+        "reservations_manage": "Gestionar configuracion y actualizaciones de reservas",
+        "sales_manage": "Gestionar ventas",
+        "sales_pos": "Acceso solo POS",
+        "campaigns_view": "Ver campanas",
+        "campaigns_manage": "Crear y editar campanas",
+        "campaigns_send": "Enviar campanas"
+      }
+    }
+  }
+}

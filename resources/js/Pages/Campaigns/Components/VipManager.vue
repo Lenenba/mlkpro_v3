@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -69,6 +70,9 @@ const pagedRows = computed(() => {
     const start = (listPage.value - 1) * listPerPage.value;
     return filteredRows.value.slice(start, start + listPerPage.value);
 });
+const vipTableRows = computed(() => (isLoadingList.value
+    ? Array.from({ length: 6 }, (_, index) => ({ id: `vip-skeleton-${index}`, __skeleton: true }))
+    : pagedRows.value));
 const canGoPrevious = computed(() => listPage.value > 1);
 const canGoNext = computed(() => listPage.value < totalPages.value);
 
@@ -230,8 +234,8 @@ load();
                     option-label="label"
                 />
             </div>
-            <table class="min-w-full divide-y divide-stone-200 text-sm dark:divide-neutral-700">
-                <thead>
+            <AdminDataTable embedded :rows="vipTableRows" :show-pagination="false">
+                <template #head>
                     <tr class="text-left text-xs uppercase text-stone-500 dark:text-neutral-400">
                         <th class="px-3 py-2 font-medium">{{ t('marketing.vip_tier_manager.code') }}</th>
                         <th class="px-3 py-2 font-medium">{{ t('marketing.vip_tier_manager.name') }}</th>
@@ -239,57 +243,59 @@ load();
                         <th class="px-3 py-2 font-medium">{{ t('marketing.vip_tier_manager.status') }}</th>
                         <th class="px-3 py-2 font-medium text-right">{{ t('marketing.template_manager.actions') }}</th>
                     </tr>
-                </thead>
-                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                    <template v-if="isLoadingList">
-                        <tr v-for="row in 6" :key="`vip-skeleton-${row}`">
-                            <td v-for="col in 5" :key="`vip-skeleton-${row}-${col}`" class="px-3 py-2">
+                </template>
+
+                <template #row="{ row: tier }">
+                    <tr>
+                        <template v-if="tier.__skeleton">
+                            <td v-for="col in 5" :key="`vip-skeleton-${tier.id}-${col}`" class="px-3 py-2">
                                 <div class="h-3 w-full animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                             </td>
-                        </tr>
-                    </template>
-                    <tr v-else-if="pagedRows.length === 0">
-                        <td colspan="5" class="px-3 py-6 text-center text-xs text-stone-500 dark:text-neutral-400">
-                            {{ t('marketing.vip_tier_manager.no_tier_found') }}
-                        </td>
-                    </tr>
-                    <tr v-for="tier in pagedRows" :key="`vip-tier-${tier.id}`">
-                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ tier.code }}</td>
-                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ tier.name }}</td>
-                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">
-                            {{ Array.isArray(tier.perks) ? tier.perks.join(', ') : '-' }}
-                        </td>
-                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">
-                            <span
-                                class="rounded-full px-2 py-0.5 text-xs font-semibold"
-                                :class="tier.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200' : 'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-300'"
-                            >
-                                {{ tier.is_active ? t('marketing.vip_tier_manager.active') : t('marketing.vip_tier_manager.inactive') }}
-                            </span>
-                        </td>
-                        <td class="px-3 py-2">
-                            <div class="flex items-center justify-end gap-2">
-                                <button
-                                    type="button"
-                                    class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                                    :disabled="busy"
-                                    @click="edit(tier)"
+                        </template>
+                        <template v-else>
+                            <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ tier.code }}</td>
+                            <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ tier.name }}</td>
+                            <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">
+                                {{ Array.isArray(tier.perks) ? tier.perks.join(', ') : '-' }}
+                            </td>
+                            <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">
+                                <span
+                                    class="rounded-full px-2 py-0.5 text-xs font-semibold"
+                                    :class="tier.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200' : 'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-300'"
                                 >
-                                    {{ t('marketing.common.edit') }}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="rounded-sm border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700 hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
-                                    :disabled="busy"
-                                    @click="remove(tier)"
-                                >
-                                    {{ t('marketing.common.delete') }}
-                                </button>
-                            </div>
-                        </td>
+                                    {{ tier.is_active ? t('marketing.vip_tier_manager.active') : t('marketing.vip_tier_manager.inactive') }}
+                                </span>
+                            </td>
+                            <td class="px-3 py-2">
+                                <div class="flex items-center justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                        :disabled="busy"
+                                        @click="edit(tier)"
+                                    >
+                                        {{ t('marketing.common.edit') }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="rounded-sm border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700 hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
+                                        :disabled="busy"
+                                        @click="remove(tier)"
+                                    >
+                                        {{ t('marketing.common.delete') }}
+                                    </button>
+                                </div>
+                            </td>
+                        </template>
                     </tr>
-                </tbody>
-            </table>
+                </template>
+
+                <template #empty>
+                    <div class="px-3 py-6 text-center text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.vip_tier_manager.no_tier_found') }}
+                    </div>
+                </template>
+            </AdminDataTable>
 
             <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 dark:text-neutral-400">
                 <div>{{ t('marketing.common.results_count', { count: filteredRows.length }) }}</div>

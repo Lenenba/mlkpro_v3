@@ -39,6 +39,7 @@ class RequestController extends Controller
             'customer_id',
             'view',
         ]);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
 
         $allowedViews = ['table', 'board'];
         $filters['view'] = in_array($filters['view'] ?? null, $allowedViews, true)
@@ -103,7 +104,7 @@ class RequestController extends Controller
             );
         } else {
             $requests = $requestsQuery
-                ->simplePaginate(15)
+                ->paginate((int) $filters['per_page'])
                 ->withQueryString();
         }
 

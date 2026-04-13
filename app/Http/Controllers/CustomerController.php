@@ -45,6 +45,7 @@ class CustomerController extends Controller
             'sort',
             'direction',
         ]);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
         $user = $request->user();
         if (! $user) {
             abort(403);
@@ -70,7 +71,7 @@ class CustomerController extends Controller
                 'invoices as invoices_count' => fn ($query) => $query->where('user_id', $accountId),
             ])
             ->orderBy($sort, $direction)
-            ->simplePaginate(12)
+            ->paginate((int) $filters['per_page'])
             ->withQueryString();
 
         $totalCount = (clone $baseQuery)->count();

@@ -7,6 +7,7 @@ import 'dayjs/locale/fr';
 import 'dayjs/locale/es';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import Modal from '@/Components/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -14,6 +15,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import ReservationCalendarBoard from '@/Components/Reservation/ReservationCalendarBoard.vue';
 import ReservationStats from '@/Components/Reservation/ReservationStats.vue';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
 
 const { t, locale } = useI18n();
@@ -244,6 +246,13 @@ const clientOptions = computed(() => [
 const isDateSort = computed(() => ['date_asc', 'date_desc'].includes(filterForm.sort));
 const isDateSortAsc = computed(() => filterForm.sort === 'date_asc');
 const isStatusSort = computed(() => filterForm.sort === 'status');
+const reservationRows = computed(() => (Array.isArray(props.reservations?.data) ? props.reservations.data : []));
+const reservationLinks = computed(() => props.reservations?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.reservations?.per_page, props.filters?.per_page));
+const reservationPaginationLabel = computed(() => t('reservations.pagination.showing', {
+    from: props.reservations?.from || 0,
+    to: props.reservations?.to || 0,
+}));
 
 const statusBadgeClass = (status) => reservationStatusBadgeClass(status);
 const waitlistBadgeStatus = (status) => {
@@ -341,6 +350,7 @@ const refreshList = () => {
             scope: filterForm.scope || undefined,
             sort: filterForm.sort || undefined,
             view_mode: viewMode.value,
+            per_page: currentPerPage.value,
         },
         {
             preserveState: true,
@@ -669,17 +679,6 @@ const removeReservation = (reservation) => {
     });
 };
 
-const goToPage = (url) => {
-    if (!url) {
-        return;
-    }
-
-    router.visit(url, {
-        preserveState: true,
-        preserveScroll: true,
-        only: ['filters', 'reservations', 'stats', 'performance', 'waitlists', 'waitlistStats', 'queueItems', 'queueStats'],
-    });
-};
 </script>
 
 <template>
@@ -833,178 +832,155 @@ const goToPage = (url) => {
                     {{ queueActionSuccess }}
                 </div>
 
-                <div v-if="!queueRows.length" class="mt-3 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-4 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
-                    {{ $t('reservations.queue.empty') }}
-                </div>
+                <AdminDataTable embedded :rows="queueRows" :show-pagination="false">
+                    <template #head>
+                        <tr>
+                            <th scope="col" class="min-w-36 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.queue.columns.ticket') }}
+                            </th>
+                            <th scope="col" class="min-w-52 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.customer') }}
+                            </th>
+                            <th scope="col" class="min-w-28 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.queue.columns.origin') }}
+                            </th>
+                            <th scope="col" class="min-w-48 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.item') }}
+                            </th>
+                            <th scope="col" class="min-w-40 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('planning.form.member') }}
+                            </th>
+                            <th scope="col" class="min-w-32 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.queue.columns.position') }}
+                            </th>
+                            <th scope="col" class="min-w-28 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.status') }}
+                            </th>
+                            <th scope="col" class="min-w-20 px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.actions') }}
+                            </th>
+                        </tr>
+                    </template>
 
-                <div
-                    v-else
-                    class="mt-3 overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
-                >
-                    <div class="min-w-full inline-block align-middle">
-                        <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                            <thead>
-                                <tr>
-                                    <th scope="col" class="min-w-36">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.queue.columns.ticket') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-52">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.table.customer') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-28">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.queue.columns.origin') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-48">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.table.item') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-40">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('planning.form.member') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-32">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.queue.columns.position') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-28">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.table.status') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-20 text-end">
-                                        <div class="px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.table.actions') }}
-                                        </div>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                                <tr
-                                    v-for="item in queueRows"
-                                    :key="`queue-item-${item.id}`"
+                    <template #row="{ row: item }">
+                        <tr>
+                            <td class="size-px whitespace-nowrap px-4 py-2 align-top">
+                                <div class="font-medium text-stone-700 dark:text-neutral-200">{{ item.queue_number || `#${item.id}` }}</div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ item.item_type === 'appointment' ? $t('reservations.queue.types.appointment') : $t('reservations.queue.types.ticket') }}
+                                </div>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ item.client_name || '-' }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2">
+                                <span
+                                    class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                    :class="item.origin === 'booking'
+                                        ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300'
+                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'"
                                 >
-                                    <td class="size-px whitespace-nowrap px-4 py-2 align-top">
-                                        <div class="font-medium text-stone-700 dark:text-neutral-200">{{ item.queue_number || `#${item.id}` }}</div>
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ item.item_type === 'appointment' ? $t('reservations.queue.types.appointment') : $t('reservations.queue.types.ticket') }}
-                                        </div>
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ item.client_name || '-' }}</td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2">
-                                        <span
-                                            class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                                            :class="item.origin === 'booking'
-                                                ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300'
-                                                : 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'"
-                                        >
-                                            {{ $t(`reservations.queue.origins.${item.origin || (item.item_type === 'appointment' ? 'booking' : 'walk_in')}`) }}
-                                        </span>
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ item.service_name || '-' }}</td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ item.team_member_name || $t('reservations.client.index.any_available') }}</td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">
-                                        <div>{{ item.position ?? '-' }}</div>
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ item.eta_minutes !== null && item.eta_minutes !== undefined ? `${item.eta_minutes} min` : '-' }}
-                                        </div>
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2">
-                                        <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(item.status)">
-                                            {{ $t(`reservations.queue.status.${item.status}`) || item.status }}
-                                        </span>
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-end align-top">
-                                        <div
-                                            v-if="item.can_update_status"
-                                            class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex"
-                                        >
+                                    {{ $t(`reservations.queue.origins.${item.origin || (item.item_type === 'appointment' ? 'booking' : 'walk_in')}`) }}
+                                </span>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ item.service_name || '-' }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ item.team_member_name || $t('reservations.client.index.any_available') }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">
+                                <div>{{ item.position ?? '-' }}</div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ item.eta_minutes !== null && item.eta_minutes !== undefined ? `${item.eta_minutes} min` : '-' }}
+                                </div>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2">
+                                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(item.status)">
+                                    {{ $t(`reservations.queue.status.${item.status}`) || item.status }}
+                                </span>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-end align-top">
+                                <div
+                                    v-if="item.can_update_status"
+                                    class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex"
+                                >
+                                    <button
+                                        type="button"
+                                        class="size-7 inline-flex items-center justify-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:pointer-events-none disabled:opacity-50 focus:bg-stone-50 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                        aria-haspopup="menu"
+                                        aria-expanded="false"
+                                        aria-label="Dropdown"
+                                        :disabled="queueUpdatingId === Number(item.id)"
+                                    >
+                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="1" />
+                                            <circle cx="12" cy="5" r="1" />
+                                            <circle cx="12" cy="19" r="1" />
+                                        </svg>
+                                    </button>
+                                    <div
+                                        class="hs-dropdown-menu hs-dropdown-open:opacity-100 hidden w-40 rounded-sm bg-white opacity-0 shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] transition-[opacity,margin] duration dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
+                                        role="menu"
+                                        aria-orientation="vertical"
+                                    >
+                                        <div class="p-1">
                                             <button
+                                                v-if="item.status === 'not_arrived'"
                                                 type="button"
-                                                class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                                aria-haspopup="menu"
-                                                aria-expanded="false"
-                                                aria-label="Dropdown"
-                                                :disabled="queueUpdatingId === Number(item.id)"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
+                                                @click="updateQueueStatus(item, 'check-in')"
                                             >
-                                                <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                    <circle cx="12" cy="12" r="1" />
-                                                    <circle cx="12" cy="5" r="1" />
-                                                    <circle cx="12" cy="19" r="1" />
-                                                </svg>
+                                                {{ $t('reservations.queue.actions.check_in') }}
                                             </button>
-                                            <div
-                                                class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                                role="menu"
-                                                aria-orientation="vertical"
+                                            <button
+                                                v-if="['checked_in', 'skipped'].includes(item.status)"
+                                                type="button"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
+                                                @click="updateQueueStatus(item, 'pre-call')"
                                             >
-                                                <div class="p-1">
-                                                    <button
-                                                        v-if="item.status === 'not_arrived'"
-                                                        type="button"
-                                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
-                                                        @click="updateQueueStatus(item, 'check-in')"
-                                                    >
-                                                        {{ $t('reservations.queue.actions.check_in') }}
-                                                    </button>
-                                                    <button
-                                                        v-if="['checked_in', 'skipped'].includes(item.status)"
-                                                        type="button"
-                                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
-                                                        @click="updateQueueStatus(item, 'pre-call')"
-                                                    >
-                                                        {{ $t('reservations.queue.actions.pre_call') }}
-                                                    </button>
-                                                    <button
-                                                        v-if="['checked_in', 'pre_called', 'skipped'].includes(item.status)"
-                                                        type="button"
-                                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
-                                                        @click="updateQueueStatus(item, 'call')"
-                                                    >
-                                                        {{ $t('reservations.queue.actions.call') }}
-                                                    </button>
-                                                    <button
-                                                        v-if="['checked_in', 'pre_called', 'called'].includes(item.status)"
-                                                        type="button"
-                                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-neutral-800"
-                                                        @click="updateQueueStatus(item, 'start')"
-                                                    >
-                                                        {{ $t('reservations.queue.actions.start') }}
-                                                    </button>
-                                                    <button
-                                                        v-if="['in_service', 'called'].includes(item.status)"
-                                                        type="button"
-                                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
-                                                        @click="updateQueueStatus(item, 'done')"
-                                                    >
-                                                        {{ $t('reservations.queue.actions.done') }}
-                                                    </button>
-                                                    <button
-                                                        v-if="['checked_in', 'pre_called', 'called'].includes(item.status)"
-                                                        type="button"
-                                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-neutral-800"
-                                                        @click="updateQueueStatus(item, 'skip')"
-                                                    >
-                                                        {{ $t('reservations.queue.actions.skip') }}
-                                                    </button>
-                                                </div>
-                                            </div>
+                                                {{ $t('reservations.queue.actions.pre_call') }}
+                                            </button>
+                                            <button
+                                                v-if="['checked_in', 'pre_called', 'skipped'].includes(item.status)"
+                                                type="button"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
+                                                @click="updateQueueStatus(item, 'call')"
+                                            >
+                                                {{ $t('reservations.queue.actions.call') }}
+                                            </button>
+                                            <button
+                                                v-if="['checked_in', 'pre_called', 'called'].includes(item.status)"
+                                                type="button"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-neutral-800"
+                                                @click="updateQueueStatus(item, 'start')"
+                                            >
+                                                {{ $t('reservations.queue.actions.start') }}
+                                            </button>
+                                            <button
+                                                v-if="['in_service', 'called'].includes(item.status)"
+                                                type="button"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
+                                                @click="updateQueueStatus(item, 'done')"
+                                            >
+                                                {{ $t('reservations.queue.actions.done') }}
+                                            </button>
+                                            <button
+                                                v-if="['checked_in', 'pre_called', 'called'].includes(item.status)"
+                                                type="button"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-neutral-800"
+                                                @click="updateQueueStatus(item, 'skip')"
+                                            >
+                                                {{ $t('reservations.queue.actions.skip') }}
+                                            </button>
                                         </div>
-                                        <span v-else class="text-xs text-stone-400 dark:text-neutral-500">-</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                                    </div>
+                                </div>
+                                <span v-else class="text-xs text-stone-400 dark:text-neutral-500">-</span>
+                            </td>
+                        </tr>
+                    </template>
+
+                    <template #empty>
+                        <div class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-4 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                            {{ $t('reservations.queue.empty') }}
+                        </div>
+                    </template>
+                </AdminDataTable>
             </section>
 
             <section
@@ -1036,133 +1012,114 @@ const goToPage = (url) => {
                     {{ waitlistActionSuccess }}
                 </div>
 
-                <div v-if="!waitlistRows.length" class="mt-3 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-4 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
-                    {{ $t('reservations.waitlist.empty') }}
-                </div>
+                <AdminDataTable embedded :rows="waitlistRows" :show-pagination="false">
+                    <template #head>
+                        <tr>
+                            <th scope="col" class="min-w-48 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.when') }}
+                            </th>
+                            <th scope="col" class="min-w-52 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.customer') }}
+                            </th>
+                            <th scope="col" class="min-w-48 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.item') }}
+                            </th>
+                            <th scope="col" class="min-w-40 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('planning.form.member') }}
+                            </th>
+                            <th scope="col" class="min-w-28 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.status') }}
+                            </th>
+                            <th scope="col" class="min-w-20 px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.actions') }}
+                            </th>
+                        </tr>
+                    </template>
 
-                <div
-                    v-else
-                    class="mt-3 overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
-                >
-                    <div class="min-w-full inline-block align-middle">
-                        <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                            <thead>
-                                <tr>
-                                    <th scope="col" class="min-w-48">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.table.when') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-52">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.table.customer') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-48">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.table.item') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-40">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('planning.form.member') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-28">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.table.status') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-20 text-end">
-                                        <div class="px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.table.actions') }}
-                                        </div>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                                <tr
-                                    v-for="entry in waitlistRows"
-                                    :key="`waitlist-${entry.id}`"
+                    <template #row="{ row: entry }">
+                        <tr>
+                            <td class="size-px whitespace-nowrap px-4 py-2 align-top">
+                                <div class="font-medium text-stone-700 dark:text-neutral-200">
+                                    {{ formatDateTime(entry.requested_start_at) }}
+                                </div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ formatDateTime(entry.requested_end_at) }}
+                                    <template v-if="entry.party_size">
+                                        · {{ $t('reservations.table.party_size_value', { value: entry.party_size }) }}
+                                    </template>
+                                </div>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ entry.client_name || '-' }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ entry.service_name || '-' }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ entry.team_member_name || $t('reservations.client.index.any_available') }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2">
+                                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(waitlistBadgeStatus(entry.status))">
+                                    {{ $t(`reservations.waitlist.status.${entry.status}`) || entry.status }}
+                                </span>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-end align-top">
+                                <div
+                                    v-if="entry.can_update_status"
+                                    class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex"
                                 >
-                                    <td class="size-px whitespace-nowrap px-4 py-2 align-top">
-                                        <div class="font-medium text-stone-700 dark:text-neutral-200">
-                                            {{ formatDateTime(entry.requested_start_at) }}
-                                        </div>
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ formatDateTime(entry.requested_end_at) }}
-                                            <template v-if="entry.party_size">
-                                                · {{ $t('reservations.table.party_size_value', { value: entry.party_size }) }}
-                                            </template>
-                                        </div>
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ entry.client_name || '-' }}</td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ entry.service_name || '-' }}</td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ entry.team_member_name || $t('reservations.client.index.any_available') }}</td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2">
-                                        <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(waitlistBadgeStatus(entry.status))">
-                                            {{ $t(`reservations.waitlist.status.${entry.status}`) || entry.status }}
-                                        </span>
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-end align-top">
-                                        <div
-                                            v-if="entry.can_update_status"
-                                            class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex"
-                                        >
+                                    <button
+                                        type="button"
+                                        class="size-7 inline-flex items-center justify-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:pointer-events-none disabled:opacity-50 focus:bg-stone-50 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                        aria-haspopup="menu"
+                                        aria-expanded="false"
+                                        aria-label="Dropdown"
+                                        :disabled="waitlistUpdatingId === Number(entry.id)"
+                                    >
+                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="1" />
+                                            <circle cx="12" cy="5" r="1" />
+                                            <circle cx="12" cy="19" r="1" />
+                                        </svg>
+                                    </button>
+                                    <div
+                                        class="hs-dropdown-menu hs-dropdown-open:opacity-100 hidden w-44 rounded-sm bg-white opacity-0 shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] transition-[opacity,margin] duration dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
+                                        role="menu"
+                                        aria-orientation="vertical"
+                                    >
+                                        <div class="p-1">
                                             <button
+                                                v-if="entry.status === 'pending'"
                                                 type="button"
-                                                class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                                aria-haspopup="menu"
-                                                aria-expanded="false"
-                                                aria-label="Dropdown"
-                                                :disabled="waitlistUpdatingId === Number(entry.id)"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
+                                                @click="updateWaitlistStatus(entry, 'released')"
                                             >
-                                                <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                    <circle cx="12" cy="12" r="1" />
-                                                    <circle cx="12" cy="5" r="1" />
-                                                    <circle cx="12" cy="19" r="1" />
-                                                </svg>
+                                                {{ $t('reservations.waitlist.actions.release') }}
                                             </button>
-                                            <div
-                                                class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                                role="menu"
-                                                aria-orientation="vertical"
+                                            <button
+                                                v-if="entry.status === 'released'"
+                                                type="button"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
+                                                @click="updateWaitlistStatus(entry, 'booked')"
                                             >
-                                                <div class="p-1">
-                                                    <button
-                                                        v-if="entry.status === 'pending'"
-                                                        type="button"
-                                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-neutral-800"
-                                                        @click="updateWaitlistStatus(entry, 'released')"
-                                                    >
-                                                        {{ $t('reservations.waitlist.actions.release') }}
-                                                    </button>
-                                                    <button
-                                                        v-if="entry.status === 'released'"
-                                                        type="button"
-                                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800"
-                                                        @click="updateWaitlistStatus(entry, 'booked')"
-                                                    >
-                                                        {{ $t('reservations.waitlist.actions.booked') }}
-                                                    </button>
-                                                    <button
-                                                        v-if="['pending', 'released'].includes(entry.status)"
-                                                        type="button"
-                                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-neutral-800"
-                                                        @click="updateWaitlistStatus(entry, 'cancelled')"
-                                                    >
-                                                        {{ $t('reservations.actions.cancel') }}
-                                                    </button>
-                                                </div>
-                                            </div>
+                                                {{ $t('reservations.waitlist.actions.booked') }}
+                                            </button>
+                                            <button
+                                                v-if="['pending', 'released'].includes(entry.status)"
+                                                type="button"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-neutral-800"
+                                                @click="updateWaitlistStatus(entry, 'cancelled')"
+                                            >
+                                                {{ $t('reservations.actions.cancel') }}
+                                            </button>
                                         </div>
-                                        <span v-else class="text-xs text-stone-400 dark:text-neutral-500">-</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                                    </div>
+                                </div>
+                                <span v-else class="text-xs text-stone-400 dark:text-neutral-500">-</span>
+                            </td>
+                        </tr>
+                    </template>
+
+                    <template #empty>
+                        <div class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-4 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                            {{ $t('reservations.waitlist.empty') }}
+                        </div>
+                    </template>
+                </AdminDataTable>
             </section>
 
             <section v-if="activeDataTab === 'reservations'" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
@@ -1310,178 +1267,153 @@ const goToPage = (url) => {
             />
 
             <section v-else-if="activeDataTab === 'reservations'" class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
-                <div v-if="!reservations?.data?.length" class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
-                    {{ $t('reservations.empty') }}
-                </div>
-
-                <template v-else>
-                    <div class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-                        <div class="min-w-full inline-block align-middle">
-                            <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                                <thead>
-                                    <tr>
-                                        <th scope="col" class="min-w-52">
-                                            <button
-                                                type="button"
-                                                class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300"
-                                                @click="toggleDateSort"
-                                            >
-                                                {{ $t('reservations.table.when') }}
-                                                <svg
-                                                    v-if="isDateSort"
-                                                    class="size-3"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    stroke-width="2"
-                                                    :class="isDateSortAsc ? 'rotate-180' : ''"
-                                                >
-                                                    <path d="m6 9 6 6 6-6" />
-                                                </svg>
-                                            </button>
-                                        </th>
-                                        <th scope="col" class="min-w-44">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('reservations.table.item') }}
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="min-w-52">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('reservations.table.customer') }}
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="min-w-40">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('planning.form.member') }}
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="min-w-32">
-                                            <button
-                                                type="button"
-                                                class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300"
-                                                @click="setStatusSort"
-                                            >
-                                                {{ $t('reservations.table.status') }}
-                                                <svg
-                                                    v-if="isStatusSort"
-                                                    class="size-3"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    stroke-width="2"
-                                                >
-                                                    <path d="m6 9 6 6 6-6" />
-                                                </svg>
-                                            </button>
-                                        </th>
-                                        <th scope="col" class="min-w-20 text-end">
-                                            <div class="px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('reservations.table.actions') }}
-                                            </div>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                                    <tr
-                                        v-for="reservation in reservations.data"
-                                        :key="reservation.id"
+                <AdminDataTable
+                    embedded
+                    :rows="reservationRows"
+                    :links="reservationLinks"
+                    :show-pagination="reservationRows.length > 0"
+                    show-per-page
+                    :per-page="currentPerPage"
+                >
+                    <template #head>
+                        <tr>
+                            <th scope="col" class="min-w-52">
+                                <button
+                                    type="button"
+                                    class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300"
+                                    @click="toggleDateSort"
+                                >
+                                    {{ $t('reservations.table.when') }}
+                                    <svg
+                                        v-if="isDateSort"
+                                        class="size-3"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        :class="isDateSortAsc ? 'rotate-180' : ''"
                                     >
-                                        <td class="size-px whitespace-nowrap px-4 py-2">
-                                            <button type="button" class="text-start hover:underline" @click="openDetails(reservation)">
-                                                <div class="text-sm text-stone-700 dark:text-neutral-200">{{ formatDateTime(reservation.starts_at) }}</div>
-                                                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ formatDateTime(reservation.ends_at) }}</div>
+                                        <path d="m6 9 6 6 6-6" />
+                                    </svg>
+                                </button>
+                            </th>
+                            <th scope="col" class="min-w-44 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.item') }}
+                            </th>
+                            <th scope="col" class="min-w-52 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.customer') }}
+                            </th>
+                            <th scope="col" class="min-w-40 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('planning.form.member') }}
+                            </th>
+                            <th scope="col" class="min-w-32">
+                                <button
+                                    type="button"
+                                    class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300"
+                                    @click="setStatusSort"
+                                >
+                                    {{ $t('reservations.table.status') }}
+                                    <svg
+                                        v-if="isStatusSort"
+                                        class="size-3"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path d="m6 9 6 6 6-6" />
+                                    </svg>
+                                </button>
+                            </th>
+                            <th scope="col" class="min-w-20 px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.actions') }}
+                            </th>
+                        </tr>
+                    </template>
+
+                    <template #row="{ row: reservation }">
+                        <tr>
+                            <td class="size-px whitespace-nowrap px-4 py-2">
+                                <button type="button" class="text-start hover:underline" @click="openDetails(reservation)">
+                                    <div class="text-sm text-stone-700 dark:text-neutral-200">{{ formatDateTime(reservation.starts_at) }}</div>
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ formatDateTime(reservation.ends_at) }}</div>
+                                </button>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ reservation.service?.name || '-' }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ reservationClientName(reservation) }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ reservationMemberName(reservation) }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2">
+                                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(reservation.status)">
+                                    {{ $t(`reservations.status.${reservation.status}`) || reservation.status?.replace(/_/g, ' ') }}
+                                </span>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-end">
+                                <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
+                                    <button
+                                        type="button"
+                                        class="size-7 inline-flex items-center justify-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:pointer-events-none disabled:opacity-50 focus:bg-stone-50 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                        aria-haspopup="menu"
+                                        aria-expanded="false"
+                                        aria-label="Dropdown"
+                                    >
+                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="1" />
+                                            <circle cx="12" cy="5" r="1" />
+                                            <circle cx="12" cy="19" r="1" />
+                                        </svg>
+                                    </button>
+
+                                    <div
+                                        class="hs-dropdown-menu hs-dropdown-open:opacity-100 hidden w-32 rounded-sm bg-white opacity-0 shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] transition-[opacity,margin] duration dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
+                                        role="menu"
+                                        aria-orientation="vertical"
+                                    >
+                                        <div class="p-1">
+                                            <button
+                                                type="button"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                                @click="openDetails(reservation)"
+                                            >
+                                                {{ $t('reservations.actions.view') }}
                                             </button>
-                                        </td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ reservation.service?.name || '-' }}</td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ reservationClientName(reservation) }}</td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ reservationMemberName(reservation) }}</td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2">
-                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(reservation.status)">
-                                                {{ $t(`reservations.status.${reservation.status}`) || reservation.status?.replace(/_/g, ' ') }}
-                                            </span>
-                                        </td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                                            <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                                <button
-                                                    type="button"
-                                                    class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                                    aria-haspopup="menu"
-                                                    aria-expanded="false"
-                                                    aria-label="Dropdown"
-                                                >
-                                                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                        <circle cx="12" cy="12" r="1" />
-                                                        <circle cx="12" cy="5" r="1" />
-                                                        <circle cx="12" cy="19" r="1" />
-                                                    </svg>
-                                                </button>
+                                            <button
+                                                v-if="canManageReservationActions"
+                                                type="button"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                                @click="openEdit(reservation)"
+                                            >
+                                                {{ $t('reservations.actions.edit') }}
+                                            </button>
+                                            <div v-if="canManageReservationActions" class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                            <button
+                                                v-if="canManageReservationActions"
+                                                type="button"
+                                                class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"
+                                                @click="removeReservation(reservation)"
+                                            >
+                                                {{ $t('reservations.actions.delete') }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
 
-                                                <div
-                                                    class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-32 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                                    role="menu"
-                                                    aria-orientation="vertical"
-                                                >
-                                                    <div class="p-1">
-                                                        <button
-                                                            type="button"
-                                                            class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                                            @click="openDetails(reservation)"
-                                                        >
-                                                            {{ $t('reservations.actions.view') }}
-                                                        </button>
-                                                        <button
-                                                            v-if="canManageReservationActions"
-                                                            type="button"
-                                                            class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                                            @click="openEdit(reservation)"
-                                                        >
-                                                            {{ $t('reservations.actions.edit') }}
-                                                        </button>
-                                                        <div v-if="canManageReservationActions" class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                                        <button
-                                                            v-if="canManageReservationActions"
-                                                            type="button"
-                                                            class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"
-                                                            @click="removeReservation(reservation)"
-                                                        >
-                                                            {{ $t('reservations.actions.delete') }}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    <template #empty>
+                        <div class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                            {{ $t('reservations.empty') }}
                         </div>
-                    </div>
+                    </template>
 
-                    <div class="mt-3 flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
-                        <div>
-                            {{ $t('reservations.pagination.showing', { from: reservations.from || 0, to: reservations.to || 0 }) }}
+                    <template #pagination_prefix>
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ reservationPaginationLabel }}
                         </div>
-                        <div class="flex gap-2">
-                            <button
-                                type="button"
-                                class="rounded-sm border border-stone-200 px-3 py-1 disabled:opacity-50 dark:border-neutral-700"
-                                :disabled="!reservations.prev_page_url"
-                                @click="goToPage(reservations.prev_page_url)"
-                            >
-                                {{ $t('reservations.pagination.previous') }}
-                            </button>
-                            <button
-                                type="button"
-                                class="rounded-sm border border-stone-200 px-3 py-1 disabled:opacity-50 dark:border-neutral-700"
-                                :disabled="!reservations.next_page_url"
-                                @click="goToPage(reservations.next_page_url)"
-                            >
-                                {{ $t('reservations.pagination.next') }}
-                            </button>
-                        </div>
-                    </div>
-                </template>
+                    </template>
+                </AdminDataTable>
             </section>
         </div>
 

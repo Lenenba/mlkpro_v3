@@ -14,6 +14,11 @@ return [
             'queue' => env('ASYNC_QUEUE_WORKS', 'works'),
             'backoff' => [60, 300, 900],
         ],
+        'demos' => [
+            'queue' => env('ASYNC_QUEUE_DEMOS', 'demo-provisioning'),
+            'run_inline' => env('ASYNC_DEMOS_INLINE', env('APP_ENV', 'production') === 'local'),
+            'backoff' => [60, 300, 900],
+        ],
         'plan_scans' => [
             'queue' => env('ASYNC_QUEUE_PLAN_SCANS', 'default'),
             'run_inline' => env('ASYNC_PLAN_SCANS_INLINE', env('APP_ENV', 'production') === 'local'),

@@ -1,6 +1,8 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -70,6 +72,10 @@ let listenersBound = false;
 const activeMenuScan = computed(() =>
     (props.scans?.data || []).find((scan) => scan.id === openMenuScanId.value) || null
 );
+const scanRows = computed(() => (Array.isArray(props.scans?.data) ? props.scans.data : []));
+const scanLinks = computed(() => props.scans?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.scans?.per_page));
+const scanResultsLabel = computed(() => `Showing ${props.scans?.from || 0}-${props.scans?.to || 0}`);
 
 const setActionButtonRef = (scanId, element) => {
     if (element) {
@@ -228,35 +234,49 @@ onBeforeUnmount(() => {
             </Link>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                <thead>
-                    <tr>
-                        <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Project
-                        </th>
-                        <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Customer
-                        </th>
-                        <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Trade
-                        </th>
-                        <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Status
-                        </th>
-                        <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Confidence
-                        </th>
-                        <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Updated
-                        </th>
-                        <th class="px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Actions
-                        </th>
-                    </tr>
-                </thead>
+        <AdminDataTable
+            embedded
+            :rows="scanRows"
+            :links="scanLinks"
+            :show-pagination="scanRows.length > 0"
+            show-per-page
+            :per-page="currentPerPage"
+        >
+            <template #empty>
+                <div class="px-5 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
+                    No plan scans found.
+                </div>
+            </template>
+
+            <template #head>
+                <tr>
+                    <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        Project
+                    </th>
+                    <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        Customer
+                    </th>
+                    <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        Trade
+                    </th>
+                    <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        Status
+                    </th>
+                    <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        Confidence
+                    </th>
+                    <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        Updated
+                    </th>
+                    <th class="px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
+                        Actions
+                    </th>
+                </tr>
+            </template>
+
+            <template #body="{ rows }">
                 <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                    <tr v-for="scan in scans.data" :key="scan.id">
+                    <tr v-for="scan in rows" :key="scan.id">
                         <td class="px-5 py-3">
                             <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">
                                 {{ scan.job_title || `Plan scan #${scan.id}` }}
@@ -313,14 +333,15 @@ onBeforeUnmount(() => {
                             </button>
                         </td>
                     </tr>
-                    <tr v-if="!scans.data.length">
-                        <td colspan="7" class="px-5 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
-                            No plan scans found.
-                        </td>
-                    </tr>
                 </tbody>
-            </table>
-        </div>
+            </template>
+
+            <template #pagination_prefix>
+                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                    {{ scanResultsLabel }}
+                </span>
+            </template>
+        </AdminDataTable>
 
         <Teleport to="body">
             <div
@@ -366,24 +387,5 @@ onBeforeUnmount(() => {
             </div>
         </Teleport>
 
-        <div v-if="scans.next_page_url || scans.prev_page_url" class="flex items-center justify-between gap-3">
-            <Link
-                v-if="scans.prev_page_url"
-                :href="scans.prev_page_url"
-                class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
-            >
-                Previous
-            </Link>
-            <span class="text-xs text-stone-500 dark:text-neutral-400">
-                Showing {{ scans.from || 0 }}-{{ scans.to || 0 }}
-            </span>
-            <Link
-                v-if="scans.next_page_url"
-                :href="scans.next_page_url"
-                class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
-            >
-                Next
-            </Link>
-        </div>
     </div>
 </template>

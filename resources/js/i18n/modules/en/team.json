@@ -1,0 +1,112 @@
+{
+  "team": {
+    "page_title": "Team",
+    "stats": {
+      "total_members": "Total members",
+      "active": "Active",
+      "administrators": "Administrators",
+      "members": "Team members"
+    },
+    "roles": {
+      "admin": "Administrator",
+      "member": "Team member",
+      "seller": "Seller (POS)",
+      "sales_manager": "Sales manager"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "actions": {
+      "clear": "Clear",
+      "add_member": "Add member",
+      "member_actions": "Member actions",
+      "details": "Details",
+      "edit": "Edit",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "close": "Close",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "table": {
+      "search_placeholder": "Search team members",
+      "empty": "No team members found.",
+      "member_fallback": "Member #{id}",
+      "member_avatar_alt": "Member avatar",
+      "headings": {
+        "member": "Member",
+        "role": "Role",
+        "title": "Title",
+        "phone": "Phone",
+        "status": "Status",
+        "added": "Added"
+      }
+    },
+    "dialogs": {
+      "member_details": "Team member details",
+      "add_member": "Add team member",
+      "edit_member": "Edit team member"
+    },
+    "detail": {
+      "title": "Title",
+      "phone": "Phone",
+      "joined": "Joined",
+      "member_id": "Member ID",
+      "permissions": "Permissions",
+      "no_permissions": "No specific permissions.",
+      "none_selected": "No team member selected."
+    },
+    "forms": {
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "title_optional": "Title (optional)",
+      "phone_optional": "Phone (optional)",
+      "photo_or_icon": "Photo or icon",
+      "upload_photo": "Upload photo",
+      "or_choose_avatar_icon": "Or choose an avatar icon",
+      "avatar_icon_alt": "Avatar icon",
+      "default": "Default",
+      "clear_icon": "Clear icon",
+      "new_password_optional": "New password (optional)",
+      "permissions": "Permissions",
+      "active": "Active"
+    },
+    "planning": {
+      "title_optional": "Planning rules (optional)",
+      "break_minutes": "Break (min)",
+      "min_hours_day": "Min hours/day",
+      "max_hours_day": "Max hours/day",
+      "max_hours_week": "Max hours/week"
+    },
+    "messages": {
+      "invite_email": "A sign-in link will be sent by email so the member can set a password."
+    },
+    "confirm": {
+      "deactivate": "Deactivate {name}?"
+    },
+    "permissions": {
+      "options": {
+        "jobs_view": "View assigned jobs",
+        "jobs_edit": "Edit assigned jobs",
+        "tasks_view": "View tasks",
+        "tasks_create": "Create tasks",
+        "tasks_edit": "Edit tasks",
+        "tasks_delete": "Delete tasks",
+        "quotes_view": "View quotes",
+        "quotes_create": "Create quotes",
+        "quotes_edit": "Edit quotes",
+        "quotes_send": "Send quotes",
+        "reservations_view": "View reservations",
+        "reservations_queue": "Operate queue actions",
+        "reservations_manage": "Manage reservations settings and updates",
+        "sales_manage": "Manage sales",
+        "sales_pos": "POS access only",
+        "campaigns_view": "View campaigns",
+        "campaigns_manage": "Create and edit campaigns",
+        "campaigns_send": "Send campaigns"
+      }
+    }
+  }
+}

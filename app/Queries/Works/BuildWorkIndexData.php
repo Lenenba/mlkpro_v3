@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\User;
 use App\Models\Work;
 use App\Services\TaskTimingService;
+use App\Support\DataTablePagination;
 use Illuminate\Http\Request;
 
 class BuildWorkIndexData
@@ -21,6 +22,7 @@ class BuildWorkIndexData
             'sort',
             'direction',
         ]);
+        $filters['per_page'] = DataTablePagination::fromRequest($request);
 
         $baseQuery = Work::query()
             ->filter($filters)
@@ -53,7 +55,7 @@ class BuildWorkIndexData
                 },
             ])
             ->orderBy($sort, $direction)
-            ->simplePaginate(10)
+            ->paginate((int) $filters['per_page'])
             ->withQueryString();
 
         $scheduledStatuses = [Work::STATUS_TO_SCHEDULE, Work::STATUS_SCHEDULED];

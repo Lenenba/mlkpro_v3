@@ -1,6 +1,8 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Modal from '@/Components/Modal.vue';
 
@@ -74,6 +76,12 @@ const currentListQuery = computed(() => {
         query.page = props.workspaces.current_page;
     }
 
+    const perPage = resolveDataTablePerPage(props.workspaces?.per_page, props.filters?.per_page);
+
+    if (perPage !== 10) {
+        query.per_page = perPage;
+    }
+
     return query;
 });
 
@@ -81,11 +89,18 @@ const actionPayload = () => ({
     ...(currentListQuery.value.status ? { return_status: currentListQuery.value.status } : {}),
     ...(currentListQuery.value.sales_status ? { return_sales_status: currentListQuery.value.sales_status } : {}),
     ...(currentListQuery.value.page ? { return_page: currentListQuery.value.page } : {}),
+    ...(currentListQuery.value.per_page ? { return_per_page: currentListQuery.value.per_page } : {}),
 });
 
 const openCreatePage = () => {
     router.visit(route('superadmin.demo-workspaces.create'));
 };
+
+const workspaceRows = computed(() => props.workspaces?.data || []);
+const workspaceLinks = computed(() => props.workspaces?.links || []);
+const workspaceTotal = computed(() => Number(props.workspaces?.total || workspaceRows.value.length || 0));
+const workspaceResultsLabel = computed(() => `${formatNumber(workspaceTotal.value)} demo(s)`);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.workspaces?.per_page, props.filters?.per_page));
 
 const detailsRoute = (workspaceId) => route('superadmin.demo-workspaces.show', {
     demoWorkspace: workspaceId,
@@ -442,8 +457,17 @@ onBeforeUnmount(() => {
                 </div>
             </div>
 
-            <section class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="border-b border-stone-200 p-5 dark:border-neutral-700">
+            <AdminDataTable
+                :rows="workspaceRows"
+                :links="workspaceLinks"
+                :total="workspaceTotal"
+                :result-label="workspaceResultsLabel"
+                empty-description="No demo workspace matches the current filters."
+                container-class="border-t-4 border-t-zinc-600"
+                show-per-page
+                :per-page="currentPerPage"
+            >
+                <template #toolbar>
                     <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                         <div class="flex flex-wrap gap-2">
                             <Link
@@ -477,126 +501,117 @@ onBeforeUnmount(() => {
                             </Link>
                         </div>
                     </div>
-                </div>
+                </template>
 
-                <div class="overflow-x-auto p-5">
-                    <table class="min-w-full divide-y divide-stone-200 text-left text-sm text-stone-600 dark:divide-neutral-700 dark:text-neutral-300">
-                        <thead class="text-xs uppercase text-stone-500 dark:text-neutral-400">
-                            <tr>
-                                <th class="px-4 py-3">Demo tenant</th>
-                                <th class="px-4 py-3">Prospect</th>
-                                <th class="px-4 py-3">Stack</th>
-                                <th class="px-4 py-3">Lifecycle</th>
-                                <th class="px-4 py-3">Sales</th>
-                                <th class="px-4 py-3">Expires</th>
-                                <th class="px-4 py-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
+                <template #head>
+                    <tr class="text-left text-xs font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
+                        <th class="px-4 py-3">Demo tenant</th>
+                        <th class="px-4 py-3">Prospect</th>
+                        <th class="px-4 py-3">Stack</th>
+                        <th class="px-4 py-3">Lifecycle</th>
+                        <th class="px-4 py-3">Sales</th>
+                        <th class="px-4 py-3">Expires</th>
+                        <th class="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                </template>
 
-                        <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                            <tr v-for="workspace in workspaces.data" :key="workspace.id" class="align-top">
-                                <td class="px-4 py-3">
-                                    <div class="font-medium text-stone-800 dark:text-neutral-100">{{ workspace.company_name }}</div>
-                                    <div class="mt-1 text-xs uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
-                                        {{ workspace.company_type }} / {{ workspace.company_sector || 'general' }}
-                                    </div>
-                                    <div class="mt-2 flex flex-wrap gap-2">
-                                        <span
-                                            v-if="workspace.template"
-                                            class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium"
-                                            :class="metaBadgeClass('blue')"
-                                        >
-                                            Template: {{ workspace.template.name }}
-                                        </span>
-                                        <span
-                                            v-if="workspace.cloned_from"
-                                            class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium"
-                                            :class="metaBadgeClass('amber')"
-                                        >
-                                            Clone of {{ workspace.cloned_from.company_name }}
-                                        </span>
-                                    </div>
-                                </td>
+                <template #row="{ row: workspace }">
+                    <tr class="align-top">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-stone-800 dark:text-neutral-100">{{ workspace.company_name }}</div>
+                            <div class="mt-1 text-xs uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
+                                {{ workspace.company_type }} / {{ workspace.company_sector || 'general' }}
+                            </div>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                <span
+                                    v-if="workspace.template"
+                                    class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium"
+                                    :class="metaBadgeClass('blue')"
+                                >
+                                    Template: {{ workspace.template.name }}
+                                </span>
+                                <span
+                                    v-if="workspace.cloned_from"
+                                    class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium"
+                                    :class="metaBadgeClass('amber')"
+                                >
+                                    Clone of {{ workspace.cloned_from.company_name }}
+                                </span>
+                            </div>
+                        </td>
 
-                                <td class="px-4 py-3">
-                                    <div class="font-medium text-stone-800 dark:text-neutral-100">{{ workspace.prospect_name || 'No prospect' }}</div>
-                                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ workspace.prospect_email || 'No email' }}</div>
-                                </td>
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-stone-800 dark:text-neutral-100">{{ workspace.prospect_name || 'No prospect' }}</div>
+                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ workspace.prospect_email || 'No email' }}</div>
+                        </td>
 
-                                <td class="px-4 py-3">
-                                    <div class="text-sm text-stone-800 dark:text-neutral-100">{{ workspace.seed_profile }} / {{ workspace.team_size }} seats</div>
-                                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ workspace.module_labels.length }} modules / {{ workspace.scenario_pack_labels?.length || 0 }} scenarios
-                                    </div>
-                                </td>
+                        <td class="px-4 py-3">
+                            <div class="text-sm text-stone-800 dark:text-neutral-100">{{ workspace.seed_profile }} / {{ workspace.team_size }} seats</div>
+                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ workspace.module_labels.length }} modules / {{ workspace.scenario_pack_labels?.length || 0 }} scenarios
+                            </div>
+                        </td>
 
-                                <td class="px-4 py-3">
-                                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" :class="toneClass(workspace.status_tone)">
-                                        {{ workspace.status_label }}
-                                    </span>
-                                    <div class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ workspace.provisioning_progress }}% / {{ workspace.provisioning_stage || (workspace.status === 'draft' ? 'Draft saved' : 'Ready') }}
-                                    </div>
-                                    <div
-                                        v-if="workspace.provisioning_status === 'failed' && workspace.provisioning_error"
-                                        class="mt-2 max-w-xs rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
-                                    >
-                                        {{ truncateText(workspace.provisioning_error, 140) }}
-                                    </div>
-                                    <div
-                                        v-if="workspace.provisioning_status === 'failed' && workspace.provisioning_failed_at"
-                                        class="mt-1 text-[11px] text-rose-600 dark:text-rose-300"
-                                    >
-                                        Failed {{ formatDateTime(workspace.provisioning_failed_at) }}
-                                    </div>
-                                </td>
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium" :class="toneClass(workspace.status_tone)">
+                                {{ workspace.status_label }}
+                            </span>
+                            <div class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ workspace.provisioning_progress }}% / {{ workspace.provisioning_stage || (workspace.status === 'draft' ? 'Draft saved' : 'Ready') }}
+                            </div>
+                            <div
+                                v-if="workspace.provisioning_status === 'failed' && workspace.provisioning_error"
+                                class="mt-2 max-w-xs rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
+                            >
+                                {{ truncateText(workspace.provisioning_error, 140) }}
+                            </div>
+                            <div
+                                v-if="workspace.provisioning_status === 'failed' && workspace.provisioning_failed_at"
+                                class="mt-1 text-[11px] text-rose-600 dark:text-rose-300"
+                            >
+                                Failed {{ formatDateTime(workspace.provisioning_failed_at) }}
+                            </div>
+                        </td>
 
-                                <td class="px-4 py-3">
-                                    <div class="text-sm text-stone-800 dark:text-neutral-100">{{ workspace.sales_status_label }}</div>
-                                    <div class="mt-2">
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium" :class="deliveryBadgeClass(workspace.sent_at)">
-                                            {{ workspace.sent_at ? 'Sent' : 'Not sent' }}
-                                        </span>
-                                    </div>
-                                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ workspace.sent_at ? formatDateTime(workspace.sent_at) : 'Access kit pending' }}
-                                    </div>
-                                </td>
+                        <td class="px-4 py-3">
+                            <div class="text-sm text-stone-800 dark:text-neutral-100">{{ workspace.sales_status_label }}</div>
+                            <div class="mt-2">
+                                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium" :class="deliveryBadgeClass(workspace.sent_at)">
+                                    {{ workspace.sent_at ? 'Sent' : 'Not sent' }}
+                                </span>
+                            </div>
+                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ workspace.sent_at ? formatDateTime(workspace.sent_at) : 'Access kit pending' }}
+                            </div>
+                        </td>
 
-                                <td class="px-4 py-3">
-                                    <div class="text-sm text-stone-800 dark:text-neutral-100">{{ formatDate(workspace.expires_at) }}</div>
-                                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ workspace.status === 'purged' && workspace.purged_at ? `Purged ${formatDate(workspace.purged_at)}` : formatDate(workspace.created_at) }}
-                                    </div>
-                                </td>
+                        <td class="px-4 py-3">
+                            <div class="text-sm text-stone-800 dark:text-neutral-100">{{ formatDate(workspace.expires_at) }}</div>
+                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ workspace.status === 'purged' && workspace.purged_at ? `Purged ${formatDate(workspace.purged_at)}` : formatDate(workspace.created_at) }}
+                            </div>
+                        </td>
 
-                                <td class="px-4 py-3 text-right">
-                                    <button
-                                        :ref="(element) => setActionButtonRef(workspace.id, element)"
-                                        type="button"
-                                        class="inline-flex size-8 items-center justify-center rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                        :aria-expanded="openMenuWorkspaceId === workspace.id ? 'true' : 'false'"
-                                        :disabled="isWorkspaceActionPending(workspace.id)"
-                                        aria-label="Open actions menu"
-                                        @click="toggleActionMenu(workspace.id)"
-                                    >
-                                        <svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <circle cx="12" cy="12" r="1" />
-                                            <circle cx="12" cy="5" r="1" />
-                                            <circle cx="12" cy="19" r="1" />
-                                        </svg>
-                                    </button>
-                                </td>
-                            </tr>
-
-                            <tr v-if="!workspaces.data.length">
-                                <td colspan="7" class="px-4 py-8 text-center text-sm text-stone-500 dark:text-neutral-400">
-                                    No demo workspace matches the current filters.
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                        <td class="px-4 py-3 text-right">
+                            <button
+                                :ref="(element) => setActionButtonRef(workspace.id, element)"
+                                type="button"
+                                class="inline-flex size-8 items-center justify-center rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                :aria-expanded="openMenuWorkspaceId === workspace.id ? 'true' : 'false'"
+                                :disabled="isWorkspaceActionPending(workspace.id)"
+                                aria-label="Open actions menu"
+                                @click="toggleActionMenu(workspace.id)"
+                            >
+                                <svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="1" />
+                                    <circle cx="12" cy="5" r="1" />
+                                    <circle cx="12" cy="19" r="1" />
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                </template>
+            </AdminDataTable>
 
                 <Teleport to="body">
                     <div
@@ -794,20 +809,6 @@ onBeforeUnmount(() => {
                     </div>
                 </Modal>
 
-                <div v-if="workspaces.links?.length" class="flex flex-wrap items-center gap-2 border-t border-stone-200 px-5 py-4 text-sm dark:border-neutral-700">
-                    <template v-for="link in workspaces.links" :key="link.url || link.label">
-                        <span v-if="!link.url" v-html="link.label" class="rounded-sm border border-stone-200 px-2 py-1 text-stone-400 dark:border-neutral-700"></span>
-                        <Link
-                            v-else
-                            :href="link.url"
-                            v-html="link.label"
-                            preserve-scroll
-                            class="rounded-sm border border-stone-200 px-2 py-1 dark:border-neutral-700"
-                            :class="link.active ? 'border-transparent bg-green-600 text-white' : 'text-stone-700 hover:bg-stone-50 dark:text-neutral-200 dark:hover:bg-neutral-800'"
-                        />
-                    </template>
-                </div>
-            </section>
         </div>
     </AuthenticatedLayout>
 </template>

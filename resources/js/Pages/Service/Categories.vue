@@ -2,11 +2,13 @@
 import { computed, ref, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -108,6 +110,7 @@ const filterPayload = () => {
         created_by: filterForm.created_by,
         sort: filterForm.sort,
         direction: filterForm.direction,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -217,6 +220,11 @@ const restoreCategory = (category) => {
     }
     router.patch(route('settings.categories.restore', category.id), {}, { preserveScroll: true });
 };
+
+const categoryRows = computed(() => (Array.isArray(props.categories?.data) ? props.categories.data : []));
+const categoryLinks = computed(() => props.categories?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.categories?.per_page, props.filters?.per_page));
+const categoryResultsLabel = computed(() => `${props.count} ${t('services.pagination.results')}`);
 </script>
 
 <template>
@@ -392,202 +400,168 @@ const restoreCategory = (category) => {
                     </div>
                 </div>
 
-                <div
-                    class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-                    <div class="min-w-full inline-block align-middle">
-                        <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                            <thead>
-                                <tr>
-                                    <th scope="col" class="min-w-[240px]">
-                                        <button type="button" @click="toggleSort('name')"
-                                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                            {{ $t('services.categories.table.category') }}
-                                            <svg v-if="filterForm.sort === 'name'" class="size-3"
-                                                xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                                <path d="m6 9 6 6 6-6" />
-                                            </svg>
-                                        </button>
-                                    </th>
-                                    <th scope="col" class="min-w-[160px]">
-                                        <button type="button" @click="toggleSort('items_count')"
-                                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                            {{ $t('services.categories.table.items') }}
-                                            <svg v-if="filterForm.sort === 'items_count'" class="size-3"
-                                                xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                                <path d="m6 9 6 6 6-6" />
-                                            </svg>
-                                        </button>
-                                    </th>
-                                    <th scope="col" class="min-w-[200px]">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('services.categories.table.created_by') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-[120px]">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('services.categories.table.status') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-[130px]">
-                                        <button type="button" @click="toggleSort('created_at')"
-                                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                            {{ $t('services.categories.table.created') }}
-                                            <svg v-if="filterForm.sort === 'created_at'" class="size-3"
-                                                xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                                <path d="m6 9 6 6 6-6" />
-                                            </svg>
-                                        </button>
-                                    </th>
-                                    <th scope="col" class="min-w-[80px]"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                                <tr v-for="category in props.categories.data" :key="category.id">
-                                    <td class="size-px whitespace-nowrap px-5 py-2">
-                                        <div class="flex flex-col">
-                                            <span class="text-sm text-stone-700 dark:text-neutral-200">
-                                                {{ category.name }}
-                                            </span>
-                                            <span v-if="!category.user_id" class="text-xs text-stone-400 dark:text-neutral-500">
-                                                {{ $t('services.categories.table.system_category') }}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-5 py-2">
-                                        <div class="flex flex-col">
-                                            <span class="text-sm text-stone-700 dark:text-neutral-200">
-                                                {{ Number(category.items_count || 0).toLocaleString() }}
-                                            </span>
-                                            <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                                {{ $t('services.categories.table.products') }}: {{ category.products_count || 0 }} /
-                                                {{ $t('services.categories.table.services') }}: {{ category.services_count || 0 }}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-5 py-2">
-                                        <div class="flex flex-col">
-                                            <span class="text-sm text-stone-700 dark:text-neutral-200">
-                                                {{ creatorName(category) }}
-                                            </span>
-                                            <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                                {{ creatorLabel(category) }}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-5 py-2">
-                                        <span v-if="!category.archived_at"
-                                            class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full dark:bg-emerald-500/10 dark:text-emerald-400">
-                                            {{ $t('services.status.active') }}
-                                        </span>
-                                        <span v-else
-                                            class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-stone-200 text-stone-700 rounded-full dark:bg-neutral-700 dark:text-neutral-300">
-                                            {{ $t('services.status.archived') }}
-                                        </span>
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-5 py-2">
-                                        <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                            {{ formatDate(category.created_at) }}
-                                        </span>
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-5 py-2 text-end">
-                                        <div v-if="canManageCategory(category)" class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                            <button type="button"
-                                                class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                                aria-haspopup="menu" aria-expanded="false" :aria-label="$t('services.aria.dropdown')">
-                                                <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                                    height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <circle cx="12" cy="12" r="1" />
-                                                    <circle cx="12" cy="5" r="1" />
-                                                    <circle cx="12" cy="19" r="1" />
-                                                </svg>
-                                            </button>
+                <AdminDataTable
+                    embedded
+                    :rows="categoryRows"
+                    :links="categoryLinks"
+                    :show-pagination="categoryRows.length > 0"
+                    show-per-page
+                    :per-page="currentPerPage"
+                >
+                    <template #empty>
+                        <div class="px-5 py-10 text-center text-sm text-stone-500 dark:text-neutral-500">
+                            {{ $t('services.categories.empty') }}
+                        </div>
+                    </template>
 
-                                            <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-32 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                                role="menu" aria-orientation="vertical">
-                                                <div class="p-1">
-                                                    <button type="button" @click="startEditCategory(category)"
-                                                        class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                        {{ $t('services.actions.edit') }}
-                                                    </button>
-                                                    <button v-if="!category.archived_at" type="button" @click="archiveCategory(category)"
-                                                        class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                        {{ $t('services.actions.archive') }}
-                                                    </button>
-                                                    <button v-else type="button" @click="restoreCategory(category)"
-                                                        class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                        {{ $t('services.actions.restore') }}
-                                                    </button>
-                                                </div>
+                    <template #head>
+                        <tr>
+                            <th scope="col" class="min-w-[240px]">
+                                <button type="button" @click="toggleSort('name')"
+                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                                    {{ $t('services.categories.table.category') }}
+                                    <svg v-if="filterForm.sort === 'name'" class="size-3"
+                                        xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                        <path d="m6 9 6 6 6-6" />
+                                    </svg>
+                                </button>
+                            </th>
+                            <th scope="col" class="min-w-[160px]">
+                                <button type="button" @click="toggleSort('items_count')"
+                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                                    {{ $t('services.categories.table.items') }}
+                                    <svg v-if="filterForm.sort === 'items_count'" class="size-3"
+                                        xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                        <path d="m6 9 6 6 6-6" />
+                                    </svg>
+                                </button>
+                            </th>
+                            <th scope="col" class="min-w-[200px]">
+                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                    {{ $t('services.categories.table.created_by') }}
+                                </div>
+                            </th>
+                            <th scope="col" class="min-w-[120px]">
+                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                    {{ $t('services.categories.table.status') }}
+                                </div>
+                            </th>
+                            <th scope="col" class="min-w-[130px]">
+                                <button type="button" @click="toggleSort('created_at')"
+                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                                    {{ $t('services.categories.table.created') }}
+                                    <svg v-if="filterForm.sort === 'created_at'" class="size-3"
+                                        xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                        <path d="m6 9 6 6 6-6" />
+                                    </svg>
+                                </button>
+                            </th>
+                            <th scope="col" class="min-w-[80px]"></th>
+                        </tr>
+                    </template>
+
+                    <template #body="{ rows }">
+                        <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                            <tr v-for="category in rows" :key="category.id">
+                                <td class="size-px whitespace-nowrap px-5 py-2">
+                                    <div class="flex flex-col">
+                                        <span class="text-sm text-stone-700 dark:text-neutral-200">
+                                            {{ category.name }}
+                                        </span>
+                                        <span v-if="!category.user_id" class="text-xs text-stone-400 dark:text-neutral-500">
+                                            {{ $t('services.categories.table.system_category') }}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="size-px whitespace-nowrap px-5 py-2">
+                                    <div class="flex flex-col">
+                                        <span class="text-sm text-stone-700 dark:text-neutral-200">
+                                            {{ Number(category.items_count || 0).toLocaleString() }}
+                                        </span>
+                                        <span class="text-xs text-stone-500 dark:text-neutral-500">
+                                            {{ $t('services.categories.table.products') }}: {{ category.products_count || 0 }} /
+                                            {{ $t('services.categories.table.services') }}: {{ category.services_count || 0 }}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="size-px whitespace-nowrap px-5 py-2">
+                                    <div class="flex flex-col">
+                                        <span class="text-sm text-stone-700 dark:text-neutral-200">
+                                            {{ creatorName(category) }}
+                                        </span>
+                                        <span class="text-xs text-stone-500 dark:text-neutral-500">
+                                            {{ creatorLabel(category) }}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="size-px whitespace-nowrap px-5 py-2">
+                                    <span v-if="!category.archived_at"
+                                        class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full dark:bg-emerald-500/10 dark:text-emerald-400">
+                                        {{ $t('services.status.active') }}
+                                    </span>
+                                    <span v-else
+                                        class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-stone-200 text-stone-700 rounded-full dark:bg-neutral-700 dark:text-neutral-300">
+                                        {{ $t('services.status.archived') }}
+                                    </span>
+                                </td>
+                                <td class="size-px whitespace-nowrap px-5 py-2">
+                                    <span class="text-xs text-stone-500 dark:text-neutral-500">
+                                        {{ formatDate(category.created_at) }}
+                                    </span>
+                                </td>
+                                <td class="size-px whitespace-nowrap px-5 py-2 text-end">
+                                    <div v-if="canManageCategory(category)" class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
+                                        <button type="button"
+                                            class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                            aria-haspopup="menu" aria-expanded="false" :aria-label="$t('services.aria.dropdown')">
+                                            <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
+                                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <circle cx="12" cy="12" r="1" />
+                                                <circle cx="12" cy="5" r="1" />
+                                                <circle cx="12" cy="19" r="1" />
+                                            </svg>
+                                        </button>
+
+                                        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-32 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                            role="menu" aria-orientation="vertical">
+                                            <div class="p-1">
+                                                <button type="button" @click="startEditCategory(category)"
+                                                    class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                    {{ $t('services.actions.edit') }}
+                                                </button>
+                                                <button v-if="!category.archived_at" type="button" @click="archiveCategory(category)"
+                                                    class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                    {{ $t('services.actions.archive') }}
+                                                </button>
+                                                <button v-else type="button" @click="restoreCategory(category)"
+                                                    class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                    {{ $t('services.actions.restore') }}
+                                                </button>
                                             </div>
                                         </div>
-                                        <span v-else class="text-xs text-stone-400 dark:text-neutral-500">{{ $t('services.categories.table.locked') }}</span>
-                                    </td>
-                                </tr>
+                                    </div>
+                                    <span v-else class="text-xs text-stone-400 dark:text-neutral-500">{{ $t('services.categories.table.locked') }}</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </template>
 
-                                <tr v-if="props.categories.data.length === 0">
-                                    <td colspan="6" class="px-5 py-10 text-center text-sm text-stone-500 dark:text-neutral-500">
-                                        {{ $t('services.categories.empty') }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div v-if="props.categories.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
-                    <p class="text-sm text-stone-800 dark:text-neutral-200">
-                        <span class="font-medium">{{ count }}</span>
-                        <span class="text-stone-500 dark:text-neutral-500"> {{ $t('services.pagination.results') }}</span>
-                    </p>
-
-                    <nav class="flex justify-end items-center gap-x-1" :aria-label="$t('services.pagination.label')">
-                        <Link :href="props.categories.prev_page_url" v-if="props.categories.prev_page_url">
-                        <button type="button"
-                            class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                            :aria-label="$t('services.pagination.previous')">
-                            <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <path d="m15 18-6-6 6-6" />
-                            </svg>
-                            <span class="sr-only">{{ $t('services.pagination.previous') }}</span>
-                        </button>
-                        </Link>
-
-                        <div class="flex items-center gap-x-1">
-                            <span
-                                class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
-                                aria-current="page">{{ props.categories.from }}</span>
-                            <span
-                                class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ $t('services.pagination.of') }}</span>
-                            <span
-                                class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ props.categories.to }}</span>
-                        </div>
-
-                        <Link :href="props.categories.next_page_url" v-if="props.categories.next_page_url">
-                        <button type="button"
-                            class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                            :aria-label="$t('services.pagination.next')">
-                            <span class="sr-only">{{ $t('services.pagination.next') }}</span>
-                            <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <path d="m9 18 6-6-6-6" />
-                            </svg>
-                        </button>
-                        </Link>
-                    </nav>
-                </div>
+                    <template #pagination_prefix>
+                        <p class="text-sm text-stone-800 dark:text-neutral-200">
+                            {{ categoryResultsLabel }}
+                        </p>
+                    </template>
+                </AdminDataTable>
             </div>
         </div>
     </AuthenticatedLayout>

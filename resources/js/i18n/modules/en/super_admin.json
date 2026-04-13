@@ -222,6 +222,9 @@
         "role": "Role",
         "status": "Status"
       },
+      "filters": {
+        "results": "{count} admin(s)"
+      },
       "status": {
         "active": "Active",
         "inactive": "Inactive"
@@ -252,7 +255,8 @@
         "status": "Status",
         "plan": "Plan",
         "created_from": "Created from",
-        "created_to": "Created to"
+        "created_to": "Created to",
+        "results": "{count} tenant(s)"
       },
       "company_types": {
         "services": "Services",
@@ -359,7 +363,8 @@
         "search_placeholder": "Search tickets or tenants",
         "status": "Status",
         "priority": "Priority",
-        "tenant": "Tenant"
+        "tenant": "Tenant",
+        "results": "{count} ticket(s)"
       },
       "table": {
         "title": "Title",
@@ -464,7 +469,8 @@
         "status": "Status",
         "audience": "Audience",
         "placement": "Placement",
-        "media": "Media"
+        "media": "Media",
+        "results": "{count} announcement(s)"
       },
       "status": {
         "active": "Active",
@@ -1310,6 +1316,9 @@
         "updated": "Updated",
         "actions": "Actions"
       },
+      "filters": {
+        "results": "{count} section(s)"
+      },
       "locale": {
         "label": "Language",
         "hint": "Edits apply to the selected locale only."
@@ -1414,7 +1423,16 @@
         "search": "Search",
         "search_placeholder": "Search by name or mime",
         "tag": "Tag",
-        "tag_placeholder": "Filter by tag"
+        "tag_placeholder": "Filter by tag",
+        "results": "{count} asset(s)"
+      },
+      "table": {
+        "preview": "Preview",
+        "asset": "Asset",
+        "type": "Type",
+        "tags": "Tags",
+        "created": "Created",
+        "stock": "Platform stock"
       }
     }
   }
