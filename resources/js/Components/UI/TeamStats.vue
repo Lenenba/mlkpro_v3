@@ -1,10 +1,14 @@
 <script setup>
+import { useI18n } from 'vue-i18n';
+
 const props = defineProps({
     stats: {
         type: Object,
         required: true,
     },
 });
+
+const { t } = useI18n();
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -17,7 +21,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Total members
+                        {{ t('team.stats.total_members') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.total) }}
@@ -31,7 +35,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Active
+                        {{ t('team.stats.active') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.active) }}
@@ -45,7 +49,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Administrators
+                        {{ t('team.stats.administrators') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.admins) }}
@@ -59,7 +63,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Team members
+                        {{ t('team.stats.members') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.members) }}
@@ -69,4 +73,3 @@ const formatNumber = (value) =>
         </div>
     </div>
 </template>
-
