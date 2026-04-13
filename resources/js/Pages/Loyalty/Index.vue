@@ -153,7 +153,13 @@ const entryTableRows = computed(() => (isLoading.value
     ? Array.from({ length: 8 }, (_, index) => ({ id: `ledger-skeleton-${index}`, __skeleton: true }))
     : entryRows.value));
 const entryLinks = computed(() => props.entries?.links || []);
-const entryResultsLabel = computed(() => `${props.entries?.total ?? entryRows.value.length} ${t('loyalty_module.ledger.results')}`);
+const entryResultsLabel = computed(() => t('datatable.shared.results_count', {
+    count: props.entries?.total ?? entryRows.value.length,
+}));
+const entryPageIndicator = computed(() => t('datatable.shared.page_indicator', {
+    current: currentPage.value,
+    total: totalPages.value,
+}));
 
 const eventBadgeClass = (event) => {
     if (event === 'accrual') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
@@ -267,7 +273,7 @@ onBeforeUnmount(() => {
             </section>
 
             <section class="grid grid-cols-1 gap-4 xl:h-[calc(100vh-25.5rem)] xl:min-h-[420px] xl:grid-cols-[300px,minmax(0,1fr)]">
-                <aside class="flex h-full flex-col gap-4">
+                <aside class="flex h-full min-h-0 flex-col gap-4">
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('loyalty_module.program.title') }}</h2>
                         <div class="mt-3 grid grid-cols-1 gap-2 text-sm text-stone-700 dark:text-neutral-200">
@@ -277,9 +283,12 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <div class="flex min-h-0 flex-1 flex-col rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('loyalty_module.customer_stats.title') }}</h2>
-                        <div class="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                    <div class="flex min-h-0 max-h-[24rem] flex-1 flex-col overflow-hidden rounded-sm border border-stone-200 bg-white p-4 shadow-sm md:max-h-[28rem] xl:max-h-none dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="flex items-center justify-between gap-2">
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('loyalty_module.customer_stats.title') }}</h2>
+                            <span class="text-[11px] text-stone-500 dark:text-neutral-400">{{ customerStats.length }}</span>
+                        </div>
+                        <div class="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-800 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-600">
                             <div v-if="isLoading" v-for="row in 8" :key="`customer-skeleton-${row}`" class="h-10 animate-pulse rounded-sm bg-stone-100 dark:bg-neutral-800"></div>
                             <div v-else-if="!customerStats.length" class="rounded-sm border border-dashed border-stone-200 px-3 py-8 text-center text-sm text-stone-500 dark:border-neutral-700 dark:text-neutral-400">
                                 {{ $t('loyalty_module.customer_stats.empty') }}
@@ -299,11 +308,8 @@ onBeforeUnmount(() => {
                 <div
                     class="p-5 space-y-4 flex h-full min-h-0 flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700"
                 >
-                    <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('loyalty_module.ledger.title') }}</h2>
-                        <div class="text-[11px] text-stone-500 dark:text-neutral-400">
-                            {{ $t('loyalty_module.ledger.page_indicator', { current: currentPage, total: totalPages }) }}
-                        </div>
                     </div>
 
                     <AdminDataTable
@@ -407,9 +413,11 @@ onBeforeUnmount(() => {
                         </template>
 
                         <template #pagination_prefix>
-                            <p class="text-sm text-stone-500 dark:text-neutral-400">
-                                {{ entryResultsLabel }}
-                            </p>
+                            <div class="flex flex-wrap items-center gap-2 text-sm text-stone-500 dark:text-neutral-400">
+                                <span>{{ entryResultsLabel }}</span>
+                                <span class="text-stone-300 dark:text-neutral-600">•</span>
+                                <span>{{ entryPageIndicator }}</span>
+                            </div>
                         </template>
                     </AdminDataTable>
                 </div>

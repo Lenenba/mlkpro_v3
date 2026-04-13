@@ -3,7 +3,8 @@
     "shared": {
       "loading": "Chargement...",
       "rows_per_page": "Lignes / page",
-      "results_count": "{count} resultats"
+      "results_count": "{count} resultats",
+      "page_indicator": "Page {current} / {total}"
     }
   }
 }
