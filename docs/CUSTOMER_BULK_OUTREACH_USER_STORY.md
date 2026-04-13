@@ -74,13 +74,14 @@ Le tout doit se faire depuis `Customer`, avec une UX courte et orientee action, 
 - les factures supportent deja un `send-email` individuel, mais pas une relance multi-clients depuis la liste client
 - le flux `Customer bulk contact` dispose deja de:
   - preview et envoi via endpoints dedies
-  - objectifs `payment_followup`, `promotion` et `manual_message`
+  - objectifs `payment_followup`, `promotion`, `announcement` et `manual_message`
   - canaux `email` et `sms`
   - selection d un produit ou service a promouvoir
+  - selection d un template sauvegarde depuis `Campaigns/Templates`
   - email brande au format Malikia
   - WYSIWYG pour le contenu email
   - champ texte simple pour le SMS
-  - resume de resultat avec `success_count`, `failed_count` et `skipped_count`
+  - resume de resultat avec `processed_count`, `success_count`, `failed_count`, `skipped_count`, raisons et exemples d echecs
 
 ## Current Implementation Status
 
@@ -90,22 +91,23 @@ Le tout doit se faire depuis `Customer`, avec une UX courte et orientee action, 
 - preview d eligibilite avec exclus et raisons principales
 - support `payment_followup`
 - support `promotion`
+- support `announcement`
 - support `manual_message`
 - support `email`
 - support `sms`
+- selection de templates sauvegardes depuis `Campaigns`
+- resultat detaille avec raisons et erreurs visibles
 - rendu email brande proche du langage visuel Malikia
+- sauvegarde de la selection comme mailing list depuis `Customer`
+- ouverture directe du wizard `Campaigns` avec audience mailing list pre-remplie
+- preconfiguration du wizard `Campaigns` selon l objectif choisi dans `Customer`
 
 ### In progress
-- ouvrir l objectif `announcement`
-- brancher les vrais templates sauvegardes du module `Campaigns`
 - renforcer les tests automatiques du flux preview + send
 
 ### Remaining gaps
-- `announcement` est encore prevu par la story mais pas expose dans le flux courant
-- les templates `Campaigns/Templates` ne sont pas encore branches comme source selectable
 - la planification d envoi n est pas encore disponible
-- la sauvegarde de selection comme mailing list ou audience seed n est pas encore disponible
-- le pont explicite vers `Campaigns` pour les cas plus avances reste a faire
+- renforcer la couverture de tests sur le bridge `Customer -> Campaigns`
 
 ## Product Proposal
 Ajouter une nouvelle famille d actions bulk dans `Customer`:
@@ -118,7 +120,7 @@ Le flux ouvre un panneau ou modal avec:
   - `payment_followup`
   - `promotion`
   - `manual_message`
-  - `announcement` en prochaine iteration
+  - `announcement`
 - canal:
   - `email`
   - `sms`
@@ -301,14 +303,14 @@ This preserves coherence and reduces future maintenance cost.
 ### Phase 2 - Promotional quick outreach
 - done: add `sms`
 - done: add `promotion`
-- remaining: add `announcement`
-- remaining: connect to reusable templates from `Campaigns`
-- in progress: improve result reporting and shared feedback consistency
+- done: add `announcement`
+- done: connect to reusable templates from `Campaigns`
+- done: improve result reporting in the `Customer` bulk flow
 
 ### Phase 3 - Bridge to advanced marketing
-- optional scheduling
-- save selection as mailing list
-- handoff into `Campaigns` for advanced follow-up or re-use
+- in progress: optional scheduling
+- done: save selection as mailing list
+- done: handoff into `Campaigns` for advanced follow-up or re-use
 
 ## Success Metrics
 - reduction in time needed to relaunch unpaid customers
@@ -331,7 +333,5 @@ This preserves coherence and reduces future maintenance cost.
 - implementation reuses shared messaging/compliance infrastructure instead of creating a parallel silo
 
 ## Remaining Work Before We Can Call This Story Closed
-- expose `announcement` in the objective list and backend handling
-- let the user choose a saved template from `Campaigns/Templates`
-- add scheduling and a bridge to save the current selection as a mailing list or campaign seed
+- add scheduling for cases where the user wants to plan the outreach without leaving the quick flow
 - add stronger feature coverage for preview, eligibility, consent, and partial-success reporting

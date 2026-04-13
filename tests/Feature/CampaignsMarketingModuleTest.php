@@ -2257,6 +2257,144 @@ test('available mailing list customers can be searched and imported by selected 
         ->assertJsonPath('customers.data.0.id', $candidate->id);
 });
 
+test('customer bulk selection can be saved as a new mailing list for campaign reuse', function () {
+    $owner = marketingOwner();
+    $first = marketingCustomer($owner, [
+        'first_name' => 'Alicia',
+        'last_name' => 'Martin',
+    ]);
+    $second = marketingCustomer($owner, [
+        'first_name' => 'Bruno',
+        'last_name' => 'Diaz',
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('customer.bulk-contact.save-selection'), [
+        'ids' => [$first->id, $second->id],
+        'objective' => 'promotion',
+        'mailing_list_name' => 'Spring launch audience',
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('mode', 'created')
+        ->assertJsonPath('mailing_list.name', 'Spring launch audience')
+        ->assertJsonPath('stats.selected_count', 2)
+        ->assertJsonPath('stats.added', 2)
+        ->assertJsonPath('stats.already_present', 0)
+        ->assertJsonPath('stats.total', 2);
+
+    $mailingList = MailingList::query()
+        ->where('user_id', $owner->id)
+        ->where('name', 'Spring launch audience')
+        ->first();
+
+    expect($mailingList)->not->toBeNull()
+        ->and($mailingList?->tags)->toBe(['customer-bulk', 'promotion'])
+        ->and($mailingList?->customers()->pluck('customers.id')->sort()->values()->all())
+        ->toBe([$first->id, $second->id]);
+});
+
+test('customer bulk selection can be merged into an existing mailing list without duplicates', function () {
+    $owner = marketingOwner();
+    $existingCustomer = marketingCustomer($owner, [
+        'first_name' => 'Nora',
+        'last_name' => 'Existing',
+    ]);
+    $newCustomer = marketingCustomer($owner, [
+        'first_name' => 'Sam',
+        'last_name' => 'Fresh',
+    ]);
+
+    $mailingList = MailingList::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Existing audience',
+    ]);
+    $mailingList->customers()->attach($existingCustomer->id, [
+        'added_by_user_id' => $owner->id,
+        'added_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('customer.bulk-contact.save-selection'), [
+        'ids' => [$existingCustomer->id, $newCustomer->id],
+        'objective' => 'announcement',
+        'mailing_list_id' => $mailingList->id,
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('mode', 'existing')
+        ->assertJsonPath('mailing_list.id', $mailingList->id)
+        ->assertJsonPath('stats.selected_count', 2)
+        ->assertJsonPath('stats.added', 1)
+        ->assertJsonPath('stats.already_present', 1)
+        ->assertJsonPath('stats.total', 2);
+
+    expect($mailingList->fresh()->customers()->pluck('customers.id')->sort()->values()->all())
+        ->toBe([$existingCustomer->id, $newCustomer->id]);
+});
+
+test('customer bulk selection can open campaigns with a seeded mailing list handoff', function () {
+    $owner = marketingOwner();
+    $first = marketingCustomer($owner);
+    $second = marketingCustomer($owner);
+
+    $response = $this->actingAs($owner)->postJson(route('customer.bulk-contact.open-campaign'), [
+        'ids' => [$first->id, $second->id],
+        'objective' => 'announcement',
+        'mailing_list_name' => 'April important updates',
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('mode', 'created')
+        ->assertJsonPath('mailing_list.name', 'April important updates')
+        ->assertJsonPath('stats.total', 2);
+
+    $mailingListId = (int) $response->json('mailing_list.id');
+
+    expect($response->json('redirect_url'))->toBe(route('campaigns.create', [
+        'seed_mailing_list_id' => $mailingListId,
+        'seed_objective' => 'announcement',
+        'seed_step' => 3,
+    ]));
+});
+
+test('campaign wizard accepts customer bulk seed query parameters', function () {
+    $owner = marketingOwner();
+    $first = marketingCustomer($owner);
+    $second = marketingCustomer($owner);
+
+    $mailingList = MailingList::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'VIP cross-sell audience',
+    ]);
+    $mailingList->customers()->attach([$first->id, $second->id], [
+        'added_by_user_id' => $owner->id,
+        'added_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $response = $this->actingAs($owner)->getJson(route('campaigns.create', [
+        'seed_mailing_list_id' => $mailingList->id,
+        'seed_objective' => 'promotion',
+        'seed_step' => 3,
+    ]));
+
+    $response->assertOk()
+        ->assertJsonPath('seedAudience.include_mailing_list_ids.0', $mailingList->id)
+        ->assertJsonPath('seedAudience.exclude_mailing_list_ids', [])
+        ->assertJsonPath('seedAudience.source_logic', 'UNION')
+        ->assertJsonPath('seedAudience.label', 'VIP cross-sell audience')
+        ->assertJsonPath('seedAudience.customers_count', 2)
+        ->assertJsonPath('seedCampaign.name', 'Promotion audience - VIP cross-sell audience')
+        ->assertJsonPath('seedCampaign.campaign_type', Campaign::TYPE_PROMOTION)
+        ->assertJsonPath('seedStep', 3);
+});
+
 test('vip tier assignment is reflected in audience resolver filters', function () {
     $owner = marketingOwner();
     disableMarketingQuietHours($owner);

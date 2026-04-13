@@ -631,6 +631,12 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('customer.bulk-contact.preview');
     Route::post('/customer/bulk-contact/send', [CustomerController::class, 'sendBulkContact'])
         ->name('customer.bulk-contact.send');
+    Route::post('/customer/bulk-contact/save-selection', [CustomerController::class, 'saveBulkContactSelection'])
+        ->middleware('company.feature:campaigns')
+        ->name('customer.bulk-contact.save-selection');
+    Route::post('/customer/bulk-contact/open-campaign', [CustomerController::class, 'openBulkContactCampaign'])
+        ->middleware('company.feature:campaigns')
+        ->name('customer.bulk-contact.open-campaign');
 
     Route::resource('customer', CustomerController::class)
         ->only(['index', 'store', 'update', 'create', 'edit', 'show', 'destroy']);

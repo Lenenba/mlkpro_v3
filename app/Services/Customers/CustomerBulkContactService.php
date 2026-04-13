@@ -29,6 +29,8 @@ class CustomerBulkContactService
 
     public const OBJECTIVE_PROMOTION = 'promotion';
 
+    public const OBJECTIVE_ANNOUNCEMENT = 'announcement';
+
     public const OBJECTIVE_MANUAL_MESSAGE = 'manual_message';
 
     public function __construct(
@@ -60,6 +62,7 @@ class CustomerBulkContactService
         return [
             self::OBJECTIVE_PAYMENT_FOLLOWUP,
             self::OBJECTIVE_PROMOTION,
+            self::OBJECTIVE_ANNOUNCEMENT,
             self::OBJECTIVE_MANUAL_MESSAGE,
         ];
     }
@@ -493,6 +496,11 @@ class CustomerBulkContactService
                     ? '{firstName}, discover {offerName}'
                     : '{firstName}, enjoy {offerName}',
             },
+            self::OBJECTIVE_ANNOUNCEMENT => match ($locale) {
+                'fr' => 'Nouvelle importante de {brandName}',
+                'es' => 'Nueva actualización de {brandName}',
+                default => 'An important update from {brandName}',
+            },
             self::OBJECTIVE_MANUAL_MESSAGE => match ($locale) {
                 'fr' => 'Message de {brandName}',
                 'es' => 'Mensaje de {brandName}',
@@ -537,6 +545,22 @@ class CustomerBulkContactService
                 'fr' => "Bonjour {customerName},\n\nNous voulions vous presenter {$productOrService} de la part de {brandName}.\n\nRetrouvez ci-dessous le point fort de l offre, puis repondez a cet email si vous souhaitez plus de details.\n\nMerci,\n{brandName}",
                 'es' => "Hola {customerName},\n\nQueremos presentarte {$productOrService} de parte de {brandName}.\n\nConsulta abajo los puntos fuertes de la oferta y responde a este correo si deseas mas detalles.\n\nGracias,\n{brandName}",
                 default => "Hello {customerName},\n\nWe wanted to share {$productOrService} from {brandName} with you.\n\nSee the key offer details below, then reply to this email if you would like more information.\n\nThank you,\n{brandName}",
+            };
+        }
+
+        if ($objective === self::OBJECTIVE_ANNOUNCEMENT && $channel === Campaign::CHANNEL_SMS) {
+            return match ($locale) {
+                'fr' => 'Bonjour {firstName}, {brandName} souhaite vous partager une mise a jour importante. Repondez a ce message si vous souhaitez plus de details.',
+                'es' => 'Hola {firstName}, {brandName} quiere compartir una actualización importante contigo. Responde a este mensaje si deseas mas detalles.',
+                default => 'Hello {firstName}, {brandName} would like to share an important update with you. Reply to this message if you would like more details.',
+            };
+        }
+
+        if ($objective === self::OBJECTIVE_ANNOUNCEMENT) {
+            return match ($locale) {
+                'fr' => "Bonjour {customerName},\n\nNous voulions vous partager une mise a jour importante de la part de {brandName}.\n\nRetrouvez les informations essentielles ci-dessous, puis repondez a cet email si vous avez des questions.\n\nMerci,\n{brandName}",
+                'es' => "Hola {customerName},\n\nQueríamos compartir contigo una actualización importante de parte de {brandName}.\n\nConsulta la información clave a continuación y responde a este correo si tienes alguna pregunta.\n\nGracias,\n{brandName}",
+                default => "Hello {customerName},\n\nWe wanted to share an important update from {brandName}.\n\nPlease review the key information below and reply to this email if you have any questions.\n\nThank you,\n{brandName}",
             };
         }
 
@@ -717,6 +741,10 @@ class CustomerBulkContactService
                     : $this->bulkEmailText($locale, 'view_offer'),
                 'url' => (string) (($context['trackedCtaUrl'] ?? $context['offerUrl'] ?? $context['brandWebsiteUrl'] ?? '') ?: ''),
             ],
+            self::OBJECTIVE_ANNOUNCEMENT => [
+                'label' => $this->bulkEmailText($locale, 'view_update'),
+                'url' => (string) (($context['brandWebsiteUrl'] ?? $context['brandContactUrl'] ?? '') ?: ''),
+            ],
             default => [
                 'label' => $this->bulkEmailText($locale, 'reply_to_us'),
                 'url' => (string) (($context['brandContactUrl'] ?? $context['brandWebsiteUrl'] ?? '') ?: ''),
@@ -761,6 +789,11 @@ class CustomerBulkContactService
                     $context['offerName'] ?? $this->bulkEmailText($locale, 'offer')
                 ),
             },
+            self::OBJECTIVE_ANNOUNCEMENT => match ($locale) {
+                'fr' => 'Une information importante vous est partagee dans un format clair, direct et brandé.',
+                'es' => 'Se comparte una actualización importante contigo en un formato claro, directo y con marca.',
+                default => 'An important update is being shared with you in a clear, direct, and branded format.',
+            },
             default => trim($bodyPreview) !== ''
                 ? Str::limit($bodyPreview, 180)
                 : match ($locale) {
@@ -784,6 +817,11 @@ class CustomerBulkContactService
                 'es' => 'Destaca tus ofertas con una presentacion mas premium y directa.',
                 default => 'Highlight your offers with a more premium and direct presentation.',
             },
+            self::OBJECTIVE_ANNOUNCEMENT => match ($locale) {
+                'fr' => 'Diffusez vos annonces importantes dans un format plus clair et plus professionnel.',
+                'es' => 'Comparte anuncios importantes en un formato mas claro y profesional.',
+                default => 'Share important announcements in a clearer and more professional format.',
+            },
             default => match ($locale) {
                 'fr' => 'Gardez un suivi clair de vos actions, clients et operations.',
                 'es' => 'Mantén una vista clara de tus acciones, clientes y operaciones.',
@@ -804,6 +842,11 @@ class CustomerBulkContactService
                 'fr' => 'Promotion',
                 'es' => 'Promocion',
                 default => 'Promotion',
+            },
+            self::OBJECTIVE_ANNOUNCEMENT => match ($locale) {
+                'fr' => 'Annonce',
+                'es' => 'Anuncio',
+                default => 'Announcement',
             },
             default => match ($locale) {
                 'fr' => 'Notification',
@@ -933,6 +976,11 @@ class CustomerBulkContactService
                 'fr' => 'Voir l offre',
                 'es' => 'Ver oferta',
                 default => 'View offer',
+            },
+            'view_update' => match ($locale) {
+                'fr' => 'Voir l annonce',
+                'es' => 'Ver anuncio',
+                default => 'View update',
             },
             'book_now' => match ($locale) {
                 'fr' => 'Reserver maintenant',

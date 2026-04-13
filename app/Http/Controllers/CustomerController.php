@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\InviteUserNotification;
 use App\Queries\Customers\BuildCustomerDetailViewData;
 use App\Queries\Customers\CustomerReadSelects;
+use App\Services\Customers\CustomerBulkAudienceBridgeService;
 use App\Services\Customers\CustomerBulkContactService;
 use App\Support\Database\UserSelects;
 use App\Support\NotificationDispatcher;
@@ -887,6 +888,94 @@ class CustomerController extends Controller
                 ],
                 $offer,
                 $user->preferredLocale()
+            )
+        );
+    }
+
+    public function saveBulkContactSelection(
+        Request $request,
+        CustomerBulkAudienceBridgeService $bulkAudienceBridgeService
+    ) {
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        $this->ensureBulkContactAuthorized($user, $accountId);
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            'objective' => ['nullable', Rule::in(CustomerBulkContactService::allowedObjectives())],
+            'mailing_list_id' => ['nullable', 'integer'],
+            'mailing_list_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $customers = $this->resolveBulkContactCustomers($accountId, $validated['ids']);
+        if ($customers->isEmpty()) {
+            return response()->json([
+                'message' => 'No eligible customers were found in the current account.',
+                'errors' => [
+                    'ids' => ['No eligible customers were found in the current account.'],
+                ],
+            ], 422);
+        }
+
+        foreach ($customers as $customer) {
+            $this->authorize('view', $customer);
+        }
+
+        return response()->json(
+            $bulkAudienceBridgeService->saveSelection(
+                $accountOwner,
+                $user,
+                $customers,
+                $validated
+            )
+        );
+    }
+
+    public function openBulkContactCampaign(
+        Request $request,
+        CustomerBulkAudienceBridgeService $bulkAudienceBridgeService
+    ) {
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        $this->ensureBulkContactAuthorized($user, $accountId);
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            'objective' => ['nullable', Rule::in(CustomerBulkContactService::allowedObjectives())],
+            'mailing_list_id' => ['nullable', 'integer'],
+            'mailing_list_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $customers = $this->resolveBulkContactCustomers($accountId, $validated['ids']);
+        if ($customers->isEmpty()) {
+            return response()->json([
+                'message' => 'No eligible customers were found in the current account.',
+                'errors' => [
+                    'ids' => ['No eligible customers were found in the current account.'],
+                ],
+            ], 422);
+        }
+
+        foreach ($customers as $customer) {
+            $this->authorize('view', $customer);
+        }
+
+        return response()->json(
+            $bulkAudienceBridgeService->prepareCampaignHandoff(
+                $accountOwner,
+                $user,
+                $customers,
+                $validated
             )
         );
     }

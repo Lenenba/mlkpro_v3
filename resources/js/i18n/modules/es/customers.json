@@ -70,6 +70,7 @@
       "fields": {
         "objective": "Objetivo",
         "channel": "Canal",
+        "template": "Plantilla guardada",
         "offer": "Producto o servicio",
         "subject": "Asunto",
         "body": "Mensaje"
@@ -77,6 +78,7 @@
       "objectives": {
         "payment_followup": "Seguimiento de pago",
         "promotion": "Promoción",
+        "announcement": "Anuncio",
         "manual_message": "Mensaje libre"
       },
       "channels": {
@@ -84,7 +86,13 @@
         "sms": "SMS"
       },
       "payment_followup_hint": "Si el asunto o el mensaje quedan vacíos, se usará un recordatorio sugerido.",
-      "template_hint_email": "Se aplicará automaticamente una plantilla de correo con formato Malikia para mantener la marca.",
+      "template_hint_email": "Puedes mantener la plantilla sugerida de Malikia o aplicar una plantilla guardada desde Campaigns.",
+      "template_applied_hint": "La plantilla guardada está aplicada. Aún puedes ajustar el contenido antes del envío.",
+      "template_default_option": "Sin plantilla guardada",
+      "clear_template": "Quitar plantilla",
+      "loading_templates": "Cargando plantillas...",
+      "no_templates": "No hay plantillas guardadas disponibles para este canal u objetivo.",
+      "template_load_error": "No se pudieron cargar las plantillas de marketing en este momento.",
       "offer_search_placeholder": "Buscar un producto o servicio para promocionar",
       "no_offer_results": "Ningun producto o servicio coincide con esta busqueda.",
       "clear_offer": "Quitar",
@@ -114,6 +122,14 @@
       "preview_error": "No se pudieron validar los destinatarios en este momento.",
       "send_error": "No se pudo enviar este mensaje masivo.",
       "result_summary": "Enviados: {sent}, fallidos: {failed}, omitidos: {skipped}",
+      "result": {
+        "processed": "Procesados",
+        "sent": "Enviados",
+        "failed": "Fallidos",
+        "skipped": "Omitidos",
+        "reasons_title": "Motivos principales",
+        "failures_title": "Incidencias de entrega"
+      },
       "tokens_title": "Tokens disponibles",
       "tokens_hint": "Puedes usar estos tokens en el asunto o en el mensaje.",
       "reasons": {
@@ -151,9 +167,45 @@
         "brandReplyToEmail": "Correo de respuesta",
         "brandPhone": "Teléfono de la empresa"
       },
+      "template_types": {
+        "general": "General",
+        "promotion": "Promoción",
+        "announcement": "Anuncio"
+      },
       "offer_types": {
         "product": "Producto",
         "service": "Servicio"
+      },
+      "campaign_bridge": {
+        "title": "Reutilizar esta selección en marketing",
+        "subtitle": "Agrega los clientes seleccionados a una mailing list o abre directamente el wizard de Campaigns con esta audiencia.",
+        "existing_label": "Mailing list existente",
+        "existing_placeholder": "Elegir una mailing list existente",
+        "new_label": "Nueva mailing list",
+        "helper": "Si eliges una mailing list existente, los clientes seleccionados se añadirán allí. Si no, se creará una nueva lista para abrir Campaigns.",
+        "loading_lists": "Cargando mailing lists...",
+        "actions": {
+          "add_to_existing": "Agregar a la lista",
+          "create_list": "Crear la lista",
+          "open_campaigns": "Abrir en Campaigns",
+          "opening_campaigns": "Abriendo Campaigns..."
+        },
+        "messages": {
+          "saved_existing": "{added} clientes agregados a {list}. Ya presentes: {alreadyPresent}. Total: {total}.",
+          "created": "La mailing list {list} fue creada con {total} clientes."
+        },
+        "errors": {
+          "load_lists": "No se pudieron cargar las mailing lists de marketing en este momento.",
+          "save_selection": "No se pudo agregar esta selección a la mailing list elegida.",
+          "create_list": "No se pudo crear una mailing list para esta selección.",
+          "open_campaign": "No se pudo abrir Campaigns con esta audiencia en este momento."
+        },
+        "default_names": {
+          "promotion": "Audiencia promoción",
+          "announcement": "Audiencia anuncio",
+          "payment_followup": "Audiencia seguimiento de pago",
+          "manual_message": "Audiencia clientes"
+        }
       }
     },
     "table": {

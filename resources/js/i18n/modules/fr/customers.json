@@ -70,6 +70,7 @@
       "fields": {
         "objective": "Objectif",
         "channel": "Canal",
+        "template": "Template sauvegarde",
         "offer": "Produit ou service",
         "subject": "Sujet",
         "body": "Message"
@@ -77,6 +78,7 @@
       "objectives": {
         "payment_followup": "Relance paiement",
         "promotion": "Promotion",
+        "announcement": "Annonce",
         "manual_message": "Message libre"
       },
       "channels": {
@@ -84,7 +86,13 @@
         "sms": "SMS"
       },
       "payment_followup_hint": "Si le sujet ou le message restent vides, un rappel suggere sera utilise.",
-      "template_hint_email": "Un template email Malikia sera applique automatiquement pour garder le bon format de marque.",
+      "template_hint_email": "Vous pouvez garder le template Malikia suggere ou appliquer un template sauvegarde du module Campaigns.",
+      "template_applied_hint": "Le template sauvegarde est applique. Vous pouvez encore ajuster le contenu avant l envoi.",
+      "template_default_option": "Aucun template sauvegarde",
+      "clear_template": "Retirer le template",
+      "loading_templates": "Chargement des templates...",
+      "no_templates": "Aucun template sauvegarde disponible pour ce canal ou cet objectif.",
+      "template_load_error": "Impossible de charger les templates marketing pour le moment.",
       "offer_search_placeholder": "Rechercher un produit ou un service a promouvoir",
       "no_offer_results": "Aucun produit ou service ne correspond a cette recherche.",
       "clear_offer": "Retirer",
@@ -114,6 +122,14 @@
       "preview_error": "Impossible de verifier les destinataires pour le moment.",
       "send_error": "Impossible d'envoyer ce message en lot.",
       "result_summary": "Envoyes: {sent}, echecs: {failed}, ignores: {skipped}",
+      "result": {
+        "processed": "Traites",
+        "sent": "Envoyes",
+        "failed": "Echecs",
+        "skipped": "Ignores",
+        "reasons_title": "Motifs principaux",
+        "failures_title": "Exemples d echecs"
+      },
       "tokens_title": "Tokens disponibles",
       "tokens_hint": "Vous pouvez utiliser ces tokens dans le sujet ou le message.",
       "reasons": {
@@ -151,9 +167,45 @@
         "brandReplyToEmail": "Email de reponse",
         "brandPhone": "Telephone de l'entreprise"
       },
+      "template_types": {
+        "general": "General",
+        "promotion": "Promotion",
+        "announcement": "Annonce"
+      },
       "offer_types": {
         "product": "Produit",
         "service": "Service"
+      },
+      "campaign_bridge": {
+        "title": "Reutiliser cette selection en marketing",
+        "subtitle": "Ajoutez les clients selectionnes a une mailing list ou ouvrez directement le wizard Campaigns avec cette audience.",
+        "existing_label": "Mailing list existante",
+        "existing_placeholder": "Choisir une mailing list existante",
+        "new_label": "Nouvelle mailing list",
+        "helper": "Si une mailing list existante est choisie, les clients selectionnes y seront ajoutes. Sinon, une nouvelle liste sera creee pour l ouverture dans Campaigns.",
+        "loading_lists": "Chargement des mailing lists...",
+        "actions": {
+          "add_to_existing": "Ajouter a la liste",
+          "create_list": "Creer la liste",
+          "open_campaigns": "Ouvrir dans Campaigns",
+          "opening_campaigns": "Ouverture de Campaigns..."
+        },
+        "messages": {
+          "saved_existing": "{added} clients ajoutes a {list}. Deja presents: {alreadyPresent}. Total: {total}.",
+          "created": "La mailing list {list} a ete creee avec {total} clients."
+        },
+        "errors": {
+          "load_lists": "Impossible de charger les mailing lists marketing pour le moment.",
+          "save_selection": "Impossible d ajouter cette selection a la mailing list choisie.",
+          "create_list": "Impossible de creer la mailing list pour cette selection.",
+          "open_campaign": "Impossible d ouvrir Campaigns avec cette audience pour le moment."
+        },
+        "default_names": {
+          "promotion": "Audience promo",
+          "announcement": "Audience annonce",
+          "payment_followup": "Audience relance paiement",
+          "manual_message": "Audience clients"
+        }
       }
     },
     "table": {

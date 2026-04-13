@@ -18,6 +18,7 @@ use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\Campaigns\CampaignService;
 use App\Services\Campaigns\MarketingSettingsService;
 use App\Services\Campaigns\ProspectProviderConnectionService;
+use App\Services\Customers\CustomerBulkAudienceBridgeService;
 use Illuminate\Http\Request;
 
 class CampaignController extends Controller
@@ -108,10 +109,15 @@ class CampaignController extends Controller
             abort(403);
         }
 
+        [$seedAudience, $seedCampaign, $seedStep] = $this->resolveCustomerSeed($request, $owner->id);
+
         return $this->inertiaOrJson('Campaigns/Wizard', [
             'campaign' => null,
             'products' => [],
             'selectedOffers' => [],
+            'seedAudience' => $seedAudience,
+            'seedCampaign' => $seedCampaign,
+            'seedStep' => $seedStep,
             'segments' => $this->segmentsForOwner($owner->id),
             'mailingLists' => $this->mailingListsForOwner($owner->id),
             'vipTiers' => $this->vipTiersForOwner($owner->id),
@@ -692,6 +698,46 @@ class CampaignController extends Controller
             ->filter()
             ->values()
             ->all();
+    }
+
+    /**
+     * @return array{0: array<string, mixed>|null, 1: array<string, mixed>, 2: int|null}
+     */
+    private function resolveCustomerSeed(Request $request, int $ownerId): array
+    {
+        $validated = $request->validate([
+            'seed_mailing_list_id' => ['nullable', 'integer'],
+            'seed_objective' => ['nullable', 'string', 'max:60'],
+            'seed_step' => ['nullable', 'integer', 'min:1', 'max:5'],
+        ]);
+
+        $mailingListId = (int) ($validated['seed_mailing_list_id'] ?? 0);
+        if ($mailingListId < 1) {
+            return [null, [], null];
+        }
+
+        $mailingList = MailingList::query()
+            ->where('user_id', $ownerId)
+            ->withCount('customers')
+            ->find($mailingListId);
+
+        if (! $mailingList) {
+            abort(404);
+        }
+
+        $bulkAudienceBridgeService = app(CustomerBulkAudienceBridgeService::class);
+        $seedObjective = (string) ($validated['seed_objective'] ?? '');
+
+        return [[
+            'include_mailing_list_ids' => [(int) $mailingList->id],
+            'exclude_mailing_list_ids' => [],
+            'source_logic' => CampaignAudienceSourceLogic::UNION->value,
+            'label' => (string) $mailingList->name,
+            'customers_count' => (int) ($mailingList->customers_count ?? 0),
+        ], [
+            'name' => $bulkAudienceBridgeService->seedCampaignName($mailingList, $seedObjective),
+            'campaign_type' => $bulkAudienceBridgeService->seedCampaignType($seedObjective),
+        ], (int) ($validated['seed_step'] ?? 3)];
     }
 
     private function resolveCampaignAccess(User $user): array

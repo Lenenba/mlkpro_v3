@@ -68,6 +68,7 @@ Le composant partage doit permettre d ajouter rapidement une action bulk sur un 
   - `request.bulk`
   - `campaigns.prospects.bulk-status`
 - le module `Customer` va deja plus loin que le simple changement d etat avec une action `Contact selected`
+- le module `Customer` sait maintenant aussi sauvegarder la selection comme mailing list et ouvrir `Campaigns` avec une audience pre-remplie
 
 ## Current Implementation Status
 
@@ -77,6 +78,7 @@ Le composant partage doit permettre d ajouter rapidement une action bulk sur un 
 - persistance de la selection sur changement de page
 - correction du bug premier rendu sur l ouverture des actions bulk dans `Customer`
 - premiere action bulk a forte valeur metier livree: `Contact selected` dans `Customer`
+- premier bridge bulk vers un workflow avance livre: `Customer -> mailing list -> Campaigns`
 
 ### In progress
 - uniformiser le contrat backend de resultat bulk sur tous les modules
@@ -245,7 +247,8 @@ Acceptance criteria:
 ### Phase 3 - Advanced scope handling
 - support "all rows on current filtered result" when technically justified
 - support queued progress tracking for heavy bulk jobs
-- add more advanced adapters per module
+- done: add an advanced customer adapter to save a selection as mailing list and hand off into `Campaigns`
+- remaining: add more advanced adapters per module
 
 ## Technical Notes
 - prefer a module-level registry or adapter pattern instead of hardcoding action names in the DataTable

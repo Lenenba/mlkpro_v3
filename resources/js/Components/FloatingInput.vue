@@ -18,6 +18,10 @@ const props = defineProps({
         type: String,
         required: true,
     },
+    placeholder: {
+        type: String,
+        default: '',
+    },
     autocomplete: {
         type: String,
         default: null,
@@ -49,6 +53,7 @@ const value = computed({
 });
 
 const inputId = computed(() => props.id || generatedId);
+const resolvedPlaceholder = computed(() => props.placeholder || props.label);
 const resolvedAutocomplete = computed(() => {
     if (props.autocomplete) {
         return props.autocomplete;
@@ -87,7 +92,7 @@ defineExpose({ focus: () => input.value?.focus() });
                 [&:not(:placeholder-shown)]:pb-2
                 autofill:pt-6
                 autofill:pb-2"
-            :placeholder="label"
+            :placeholder="resolvedPlaceholder"
         />
         <label
             :for="inputId"
