@@ -50,6 +50,6 @@ abstract class Controller extends BaseController
             return true;
         }
 
-        return $request->expectsJson() && !$request->headers->has('X-Inertia');
+        return $request->expectsJson() && ! $request->headers->has('X-Inertia');
     }
 }

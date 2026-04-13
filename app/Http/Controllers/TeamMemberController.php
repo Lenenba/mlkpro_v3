@@ -7,9 +7,9 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
 use App\Services\CompanyFeatureService;
+use App\Services\UsageLimitService;
 use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
-use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -65,7 +65,7 @@ class TeamMemberController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
 
@@ -122,7 +122,7 @@ class TeamMemberController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
 
@@ -153,7 +153,7 @@ class TeamMemberController extends Controller
         ]);
 
         $roleId = Role::where('name', 'employee')->value('id');
-        if (!$roleId) {
+        if (! $roleId) {
             $roleId = Role::create([
                 'name' => 'employee',
                 'description' => 'Employee role',
@@ -164,7 +164,7 @@ class TeamMemberController extends Controller
         $profilePicture = $defaultAvatar;
         if ($request->hasFile('profile_picture')) {
             $profilePicture = FileHandler::handleImageUpload('team', $request, 'profile_picture', $defaultAvatar);
-        } elseif (!empty($validated['avatar_icon'])) {
+        } elseif (! empty($validated['avatar_icon'])) {
             $profilePicture = $validated['avatar_icon'];
         }
 
@@ -179,7 +179,7 @@ class TeamMemberController extends Controller
         ]);
 
         $permissions = array_values($validated['permissions'] ?? []);
-        if (!$permissions) {
+        if (! $permissions) {
             $permissions = $this->defaultPermissionsForRole($validated['role'], $allowedPermissions);
         }
 
@@ -207,7 +207,7 @@ class TeamMemberController extends Controller
         ]);
 
         if ($this->shouldReturnJson($request)) {
-            if (!$inviteQueued) {
+            if (! $inviteQueued) {
                 return response()->json([
                     'message' => 'Team member created, but the invite email could not be sent.',
                     'warning' => true,
@@ -221,7 +221,7 @@ class TeamMemberController extends Controller
             ], 201);
         }
 
-        if (!$inviteQueued) {
+        if (! $inviteQueued) {
             return redirect()->back()->with('warning', 'Team member created, but the invite email could not be sent.');
         }
 
@@ -231,7 +231,7 @@ class TeamMemberController extends Controller
     public function update(Request $request, TeamMember $teamMember)
     {
         $user = Auth::user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
 
@@ -243,7 +243,7 @@ class TeamMemberController extends Controller
 
         $validated = $request->validate([
             'name' => 'nullable|string|max:255',
-            'email' => 'nullable|string|lowercase|email|max:255|unique:users,email,' . $teamMember->user_id,
+            'email' => 'nullable|string|lowercase|email|max:255|unique:users,email,'.$teamMember->user_id,
             'password' => 'nullable|string|min:8',
             'role' => 'nullable|string|in:admin,member,seller,sales_manager',
             'title' => 'nullable|string|max:255',
@@ -266,7 +266,7 @@ class TeamMemberController extends Controller
         ]);
 
         $memberUser = $teamMember->user;
-        if (!$memberUser) {
+        if (! $memberUser) {
             abort(404);
         }
 
@@ -277,7 +277,7 @@ class TeamMemberController extends Controller
         if (array_key_exists('email', $validated)) {
             $userUpdates['email'] = $validated['email'];
         }
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $userUpdates['password'] = Hash::make($validated['password']);
         }
         $defaultAvatar = config('icon_presets.defaults.avatar');
@@ -289,13 +289,13 @@ class TeamMemberController extends Controller
                 $defaultAvatar,
                 $memberUser->profile_picture
             );
-        } elseif (!empty($validated['avatar_icon'])) {
+        } elseif (! empty($validated['avatar_icon'])) {
             if (
                 $memberUser->profile_picture
                 && $memberUser->profile_picture !== $validated['avatar_icon']
-                && !str_starts_with($memberUser->profile_picture, '/')
-                && !str_starts_with($memberUser->profile_picture, 'http://')
-                && !str_starts_with($memberUser->profile_picture, 'https://')
+                && ! str_starts_with($memberUser->profile_picture, '/')
+                && ! str_starts_with($memberUser->profile_picture, 'http://')
+                && ! str_starts_with($memberUser->profile_picture, 'https://')
                 && $memberUser->profile_picture !== $defaultAvatar
             ) {
                 FileHandler::deleteFile($memberUser->profile_picture, $defaultAvatar);
@@ -332,7 +332,7 @@ class TeamMemberController extends Controller
     public function destroy(TeamMember $teamMember)
     {
         $user = Auth::user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
 
@@ -366,7 +366,7 @@ class TeamMemberController extends Controller
                 }
 
                 $feature = self::PERMISSION_FEATURE_MAP[$permissionId] ?? null;
-                if (!$feature) {
+                if (! $feature) {
                     return true;
                 }
 
@@ -424,7 +424,7 @@ class TeamMemberController extends Controller
             ],
         };
 
-        if (!is_array($allowedPermissions)) {
+        if (! is_array($allowedPermissions)) {
             return $defaults;
         }
 
@@ -433,7 +433,7 @@ class TeamMemberController extends Controller
 
     private function normalizePlanningRules(?array $rules): ?array
     {
-        if (!$rules) {
+        if (! $rules) {
             return null;
         }
 

@@ -19,7 +19,7 @@ class TipReportController extends Controller
     public function ownerIndex(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
@@ -36,7 +36,7 @@ class TipReportController extends Controller
             ->orderByDesc('id')
             ->paginate((int) $filters['per_page'])
             ->withQueryString()
-            ->through(fn(Payment $payment) => $this->serializePayment($payment));
+            ->through(fn (Payment $payment) => $this->serializePayment($payment));
 
         $statsQuery = clone $query;
         $totalTips = $this->sumNetTips($statsQuery);
@@ -69,7 +69,7 @@ class TipReportController extends Controller
     public function ownerExport(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
@@ -85,7 +85,7 @@ class TipReportController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        $filename = 'tips-report-' . now()->format('Ymd-His') . '.csv';
+        $filename = 'tips-report-'.now()->format('Ymd-His').'.csv';
 
         return response()->streamDownload(function () use ($rows) {
             $handle = fopen('php://output', 'w');
@@ -123,13 +123,13 @@ class TipReportController extends Controller
     public function memberIndex(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
         $accountId = $user->accountOwnerId();
         $membership = $this->resolveMembership($accountId, $user->id);
-        if (!$membership) {
+        if (! $membership) {
             abort(403);
         }
 
@@ -142,7 +142,7 @@ class TipReportController extends Controller
             ->orderByDesc('id')
             ->paginate((int) $filters['per_page'])
             ->withQueryString()
-            ->through(fn(Payment $payment) => $this->serializePaymentForMember(
+            ->through(fn (Payment $payment) => $this->serializePaymentForMember(
                 $payment,
                 $user->id,
                 (bool) ($filters['anonymize_customers'] ?? false)
@@ -185,7 +185,7 @@ class TipReportController extends Controller
             'team_member_id' => ['nullable', Rule::exists('users', 'id')],
             'work_id' => [
                 'nullable',
-                Rule::exists('works', 'id')->where(fn($query) => $query->where('user_id', $accountId)),
+                Rule::exists('works', 'id')->where(fn ($query) => $query->where('user_id', $accountId)),
             ],
             'status' => ['nullable', Rule::in($this->statusOptions())],
             'per_page' => ['nullable', 'integer', Rule::in($this->dataTablePerPageOptions())],
@@ -227,7 +227,7 @@ class TipReportController extends Controller
     {
         $query = $this->baseTipsQuery($accountId);
 
-        if (!empty($filters['team_member_id'])) {
+        if (! empty($filters['team_member_id'])) {
             if ($this->supportsAllocations()) {
                 $teamMemberId = (int) $filters['team_member_id'];
                 $query->whereHas('tipAllocations', function (Builder $allocationQuery) use ($teamMemberId) {
@@ -238,9 +238,9 @@ class TipReportController extends Controller
             }
         }
 
-        if (!empty($filters['work_id'])) {
+        if (! empty($filters['work_id'])) {
             $workId = (int) $filters['work_id'];
-            $query->whereHas('invoice', fn(Builder $invoiceQuery) => $invoiceQuery->where('work_id', $workId));
+            $query->whereHas('invoice', fn (Builder $invoiceQuery) => $invoiceQuery->where('work_id', $workId));
         }
 
         return $this->applyCommonTipFilters($query, $filters);
@@ -263,7 +263,7 @@ class TipReportController extends Controller
 
     private function applyCommonTipFilters(Builder $query, array $filters): Builder
     {
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
@@ -289,6 +289,7 @@ class TipReportController extends Controller
             if ($to) {
                 $query->whereDate('paid_at', '<=', $to);
             }
+
             return;
         }
 
@@ -341,14 +342,14 @@ class TipReportController extends Controller
 
         $customerName = $this->customerLabel($payment);
         if ($anonymizeCustomer) {
-            $customerName = 'Customer #' . (int) ($payment->customer_id ?? 0);
+            $customerName = 'Customer #'.(int) ($payment->customer_id ?? 0);
         }
 
         return [
             'id' => $payment->id,
             'paid_at' => $payment->paid_at?->toDateTimeString(),
             'invoice_id' => $payment->invoice_id,
-            'invoice_number' => $payment->invoice?->number ?? ('#' . (int) ($payment->invoice_id ?? 0)),
+            'invoice_number' => $payment->invoice?->number ?? ('#'.(int) ($payment->invoice_id ?? 0)),
             'customer_name' => $customerName,
             'work_id' => $payment->invoice?->work_id,
             'work_title' => $payment->invoice?->work?->job_title,
@@ -369,7 +370,7 @@ class TipReportController extends Controller
 
         if ($this->supportsAllocations()) {
             $allocation = $payment->tipAllocations
-                ?->first(fn($item) => (int) ($item->user_id ?? 0) === $memberUserId);
+                ?->first(fn ($item) => (int) ($item->user_id ?? 0) === $memberUserId);
             if ($allocation && $serialized['tip_amount'] <= 0 && (float) ($allocation->reversed_amount ?? 0) > 0) {
                 $serialized['status'] = 'reversed';
             }
@@ -381,7 +382,7 @@ class TipReportController extends Controller
     private function customerLabel(Payment $payment): string
     {
         $customer = $payment->customer;
-        if (!$customer) {
+        if (! $customer) {
             return 'Customer';
         }
 
@@ -390,7 +391,8 @@ class TipReportController extends Controller
             return $company;
         }
 
-        $fullName = trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+        $fullName = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
+
         return $fullName !== '' ? $fullName : 'Customer';
     }
 
@@ -407,7 +409,7 @@ class TipReportController extends Controller
                     'name' => $member->user?->name ?: 'Team member',
                 ];
             })
-            ->filter(fn($item) => !empty($item['id']))
+            ->filter(fn ($item) => ! empty($item['id']))
             ->sortBy('name')
             ->values()
             ->all();
@@ -417,13 +419,13 @@ class TipReportController extends Controller
     {
         return Work::query()
             ->where('user_id', $accountId)
-            ->whereHas('invoice.payments', fn(Builder $paymentQuery) => $paymentQuery->where('tip_amount', '>', 0))
+            ->whereHas('invoice.payments', fn (Builder $paymentQuery) => $paymentQuery->where('tip_amount', '>', 0))
             ->orderBy('job_title')
             ->get(['id', 'job_title'])
             ->map(function (Work $work) {
                 return [
                     'id' => $work->id,
-                    'title' => $work->job_title ?: ('Job #' . $work->id),
+                    'title' => $work->job_title ?: ('Job #'.$work->id),
                 ];
             })
             ->values()
@@ -449,7 +451,7 @@ class TipReportController extends Controller
         $isOwner = $user->id === $accountId && $user->isOwner();
         $isTeamAdmin = $membership && $membership->role === 'admin';
 
-        if (!$isOwner && !$isTeamAdmin) {
+        if (! $isOwner && ! $isTeamAdmin) {
             abort(403);
         }
     }
@@ -461,6 +463,7 @@ class TipReportController extends Controller
         }
 
         $this->supportsAllocations = Schema::hasTable('payment_tip_allocations');
+
         return $this->supportsAllocations;
     }
 
@@ -468,12 +471,13 @@ class TipReportController extends Controller
     {
         $tip = (float) ($payment->tip_amount ?? 0);
         $reversed = (float) ($payment->tip_reversed_amount ?? 0);
+
         return round(max(0, $tip - $reversed), 2);
     }
 
     private function memberNetTipAmount(Payment $payment, int $memberUserId): float
     {
-        if (!$this->supportsAllocations()) {
+        if (! $this->supportsAllocations()) {
             if ((int) ($payment->tip_assignee_user_id ?? 0) !== $memberUserId) {
                 return 0.0;
             }
@@ -482,13 +486,14 @@ class TipReportController extends Controller
         }
 
         $allocation = $payment->tipAllocations
-            ?->first(fn($item) => (int) ($item->user_id ?? 0) === $memberUserId);
-        if (!$allocation) {
+            ?->first(fn ($item) => (int) ($item->user_id ?? 0) === $memberUserId);
+        if (! $allocation) {
             return 0.0;
         }
 
         $amount = (float) ($allocation->amount ?? 0);
         $reversed = (float) ($allocation->reversed_amount ?? 0);
+
         return round(max(0, $amount - $reversed), 2);
     }
 
@@ -498,16 +503,17 @@ class TipReportController extends Controller
             $names = $payment->tipAllocations
                 ->filter(function ($allocation) {
                     $net = (float) ($allocation->amount ?? 0) - (float) ($allocation->reversed_amount ?? 0);
+
                     return $net > 0;
                 })
-                ->sortByDesc(fn($allocation) => (float) ($allocation->amount ?? 0))
-                ->map(fn($allocation) => $allocation->user?->name)
+                ->sortByDesc(fn ($allocation) => (float) ($allocation->amount ?? 0))
+                ->map(fn ($allocation) => $allocation->user?->name)
                 ->filter()
                 ->unique()
                 ->values()
                 ->all();
 
-            if (!empty($names)) {
+            if (! empty($names)) {
                 return implode(', ', $names);
             }
         }
@@ -538,14 +544,14 @@ class TipReportController extends Controller
                     $join->on('filtered_payments.id', '=', 'payment_tip_allocations.payment_id');
                 })
                 ->where('payment_tip_allocations.user_id', $memberUserId)
-                ->selectRaw('SUM(' . $this->allocationNetExpression() . ') as total')
+                ->selectRaw('SUM('.$this->allocationNetExpression().') as total')
                 ->value('total');
 
             return round((float) ($sum ?? 0), 2);
         }
 
         $sum = (clone $query)
-            ->selectRaw('SUM(' . $this->paymentNetExpression() . ') as total')
+            ->selectRaw('SUM('.$this->paymentNetExpression().') as total')
             ->value('total');
 
         return round((float) ($sum ?? 0), 2);
@@ -559,7 +565,7 @@ class TipReportController extends Controller
                 ->joinSub($paymentIds, 'filtered_payments', function ($join) {
                     $join->on('filtered_payments.id', '=', 'payment_tip_allocations.payment_id');
                 })
-                ->selectRaw('payment_tip_allocations.user_id, SUM(' . $this->allocationNetExpression() . ') as total_tips, COUNT(DISTINCT payment_tip_allocations.payment_id) as tips_count')
+                ->selectRaw('payment_tip_allocations.user_id, SUM('.$this->allocationNetExpression().') as total_tips, COUNT(DISTINCT payment_tip_allocations.payment_id) as tips_count')
                 ->groupBy('payment_tip_allocations.user_id')
                 ->orderByDesc('total_tips')
                 ->limit(3)
@@ -567,7 +573,7 @@ class TipReportController extends Controller
         } else {
             $rows = (clone $query)
                 ->whereNotNull('tip_assignee_user_id')
-                ->selectRaw('tip_assignee_user_id as user_id, SUM(' . $this->paymentNetExpression() . ') as total_tips, COUNT(*) as tips_count')
+                ->selectRaw('tip_assignee_user_id as user_id, SUM('.$this->paymentNetExpression().') as total_tips, COUNT(*) as tips_count')
                 ->groupBy('tip_assignee_user_id')
                 ->orderByDesc('total_tips')
                 ->limit(3)
