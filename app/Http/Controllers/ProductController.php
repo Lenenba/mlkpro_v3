@@ -17,6 +17,7 @@ use App\Services\AssistantCreditService;
 use App\Services\InventoryService;
 use App\Services\StripeCatalogService;
 use App\Services\UsageLimitService;
+use App\Support\BulkActions\BulkActionRegistry;
 use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -243,6 +244,9 @@ class ProductController extends Controller
             'warehouses' => $warehouses,
             'defaultWarehouseId' => $defaultWarehouseId,
             'canEdit' => $canEdit,
+            'bulkActions' => app(BulkActionRegistry::class)->definitionFor('product', [
+                'can_edit' => $canEdit,
+            ]),
             'ai_image' => $aiImagePayload,
             'tenantCurrencyCode' => $tenantCurrencyCode,
         ]);
@@ -889,6 +893,7 @@ class ProductController extends Controller
             ->byUser(Auth::id())
             ->whereIn('id', $data['ids'])
             ->get();
+        $processedIds = $products->pluck('id')->all();
 
         if ($data['action'] === 'archive') {
             foreach ($products as $product) {
@@ -896,10 +901,11 @@ class ProductController extends Controller
             }
             Product::query()->products()->byUser(Auth::id())->whereIn('id', $data['ids'])->update(['is_active' => false]);
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Products archived.',
-                    'ids' => $data['ids'],
-                ]);
+                return response()->json($this->bulkActionResult(
+                    'Products archived.',
+                    $data['ids'],
+                    $processedIds
+                ));
             }
 
             return redirect()->back()->with('success', 'Products archived.');
@@ -911,10 +917,11 @@ class ProductController extends Controller
             }
             Product::query()->products()->byUser(Auth::id())->whereIn('id', $data['ids'])->update(['is_active' => true]);
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Products restored.',
-                    'ids' => $data['ids'],
-                ]);
+                return response()->json($this->bulkActionResult(
+                    'Products restored.',
+                    $data['ids'],
+                    $processedIds
+                ));
             }
 
             return redirect()->back()->with('success', 'Products restored.');
@@ -930,10 +937,11 @@ class ProductController extends Controller
         }
 
         if ($this->shouldReturnJson($request)) {
-            return response()->json([
-                'message' => 'Products deleted.',
-                'ids' => $data['ids'],
-            ]);
+            return response()->json($this->bulkActionResult(
+                'Products deleted.',
+                $data['ids'],
+                $processedIds
+            ));
         }
 
         return redirect()->back()->with('success', 'Products deleted.');

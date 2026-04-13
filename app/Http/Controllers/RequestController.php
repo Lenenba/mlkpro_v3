@@ -16,6 +16,7 @@ use App\Models\TeamMember;
 use App\Models\TrackingEvent;
 use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\UsageLimitService;
+use App\Support\BulkActions\BulkActionRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -330,6 +331,10 @@ class RequestController extends Controller
             'customers' => $customers,
             'statuses' => $statuses,
             'assignees' => $assignees,
+            'bulkActions' => app(BulkActionRegistry::class)->definitionFor('request', [
+                'statuses' => $statuses,
+                'assignees' => $assignees,
+            ]),
             'lead_intake' => $leadIntake,
             'analytics' => [
                 'window_days' => $windowDays,
@@ -843,6 +848,7 @@ class RequestController extends Controller
             ->where('user_id', $accountId)
             ->whereIn('id', $leadIds)
             ->get();
+        $processedIds = $leads->pluck('id')->all();
 
         foreach ($leads as $lead) {
             $previousStatus = $lead->status;
@@ -856,10 +862,12 @@ class RequestController extends Controller
         }
 
         if ($this->shouldReturnJson($request)) {
-            return response()->json([
-                'message' => 'Requests updated.',
-                'updated' => $leads->count(),
-            ]);
+            return response()->json($this->bulkActionResult(
+                'Requests updated.',
+                $leadIds->all(),
+                $processedIds,
+                ['updated' => $leads->count()]
+            ));
         }
 
         return redirect()->back()->with('success', 'Requests updated.');

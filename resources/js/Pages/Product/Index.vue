@@ -33,6 +33,10 @@ const props = defineProps({
         type: Array,
         required: true,
     },
+    bulkActions: {
+        type: Object,
+        default: () => ({}),
+    },
     canEdit: {
         type: Boolean,
         default: false,
@@ -66,6 +70,7 @@ const props = defineProps({
                     :warehouses="warehouses"
                     :defaultWarehouseId="defaultWarehouseId"
                     :canEdit="canEdit"
+                    :bulk-actions="bulkActions"
                     :ai-image="ai_image"
                     :tenant-currency-code="tenantCurrencyCode"
                 />

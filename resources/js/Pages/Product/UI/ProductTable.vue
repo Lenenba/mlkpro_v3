@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
+import AdminDataTableBulkActionMenu from '@/Components/DataTable/AdminDataTableBulkActionMenu.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import { humanizeDate } from '@/utils/date';
 import ProductForm from './ProductForm.vue';
@@ -38,6 +39,10 @@ const props = defineProps({
     count: {
         type: Number,
         required: true,
+    },
+    bulkActions: {
+        type: Object,
+        default: () => ({}),
     },
     warehouses: {
         type: Array,
@@ -563,12 +568,44 @@ const bulkForm = useForm({
     action: '',
     ids: [],
 });
+const fallbackBulkActions = [
+    {
+        key: 'archive',
+        kind: 'submit',
+        action: 'archive',
+        label_key: 'products.actions.archive',
+        tone: 'neutral',
+    },
+    {
+        key: 'restore',
+        kind: 'submit',
+        action: 'restore',
+        label_key: 'products.actions.restore',
+        tone: 'success',
+    },
+    {
+        key: 'delete',
+        kind: 'submit',
+        action: 'delete',
+        label_key: 'products.actions.delete',
+        tone: 'danger',
+        divider_before: true,
+        confirm_key: 'products.bulk.delete_confirm',
+    },
+];
+const bulkMenuLabelKey = computed(() => props.bulkActions?.menu_label_key || 'products.bulk.actions');
+const bulkSelectionLabelKey = computed(() => props.bulkActions?.selection_label_key || 'products.bulk.selected');
+const bulkMenuActions = computed(() => (
+    Array.isArray(props.bulkActions?.actions) && props.bulkActions.actions.length
+        ? props.bulkActions.actions
+        : fallbackBulkActions
+));
 
-const runBulk = (action) => {
+const runBulk = (action, confirmKey = null) => {
     if (!selected.value.length) {
         return;
     }
-    if (action === 'delete' && !confirm(t('products.bulk.delete_confirm'))) {
+    if (confirmKey && !confirm(t(confirmKey))) {
         return;
     }
     bulkForm.action = action;
@@ -579,6 +616,17 @@ const runBulk = (action) => {
             clearSelection();
         },
     });
+};
+
+const handleBulkAction = (definition) => {
+    if (!definition || typeof definition !== 'object') {
+        return;
+    }
+
+    runBulk(
+        String(definition.action || definition.key || ''),
+        definition.confirm_key || null
+    );
 };
 
 const syncAiUsage = (payload) => {
@@ -1079,33 +1127,14 @@ const submitImport = () => {
                 <AdminDataTableBulkBar
                     v-if="canEdit"
                     :count="selectedCount"
-                    :label="$t('products.bulk.selected', { count: selectedCount })"
+                    :label="$t(bulkSelectionLabelKey, { count: selectedCount })"
                 >
-                    <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                        <button type="button"
-                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 action-feedback"
-                            aria-haspopup="menu" aria-expanded="false" :aria-label="$t('products.aria.dropdown')">
-                            {{ $t('products.bulk.actions') }}
-                        </button>
-                        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-36 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                            role="menu" aria-orientation="vertical">
-                            <div class="p-1">
-                                <button type="button" @click="runBulk('archive')"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
-                                    {{ $t('products.actions.archive') }}
-                                </button>
-                                <button type="button" @click="runBulk('restore')"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                    {{ $t('products.actions.restore') }}
-                                </button>
-                                <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                <button type="button" @click="runBulk('delete')"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                    {{ $t('products.actions.delete') }}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <AdminDataTableBulkActionMenu
+                        :actions="bulkMenuActions"
+                        :disabled="!selectedCount"
+                        :menu-label-key="bulkMenuLabelKey"
+                        @select="handleBulkAction"
+                    />
                 </AdminDataTableBulkBar>
             </div>
 

@@ -72,6 +72,12 @@ Le composant partage doit permettre d ajouter rapidement une action bulk sur un 
 
 ## Current Implementation Status
 
+### Status summary
+- la story plateforme n est pas encore close
+- le socle partage de selection bulk est deja en production sur plusieurs modules et supporte deja de vraies actions metier
+- la plateforme est assez mature pour continuer a livrer de nouvelles bulk actions a forte valeur ajoutee sans attendre la cloture complete du framework
+- en revanche, la story ne doit etre marquee terminee qu une fois le contrat de resultat partage, le registre d actions, le feedback mutualise, la parite audit/permissions et la couverture de tests completes
+
 ### Delivered
 - selection partagee pour les DataTables compatibles
 - bulk bar partagee et coherente au niveau UI
@@ -79,14 +85,17 @@ Le composant partage doit permettre d ajouter rapidement une action bulk sur un 
 - correction du bug premier rendu sur l ouverture des actions bulk dans `Customer`
 - premiere action bulk a forte valeur metier livree: `Contact selected` dans `Customer`
 - premier bridge bulk vers un workflow avance livre: `Customer -> mailing list -> Campaigns`
+- contrat backend bulk JSON harmonise sur `Customer`, `Product` et `Request` avec `selected_count / processed_count / success_count / failed_count / skipped_count / errors`
+- premier registre backend d actions bulk par module introduit pour `Customer`, `Product` et `Request`
+- premier composant partage de menu bulk pilote par registre introduit et branche sur `Customer` et `Product`
 
 ### In progress
-- uniformiser le contrat backend de resultat bulk sur tous les modules
-- sortir un vrai registre d actions bulk par module au lieu de menus encore cables localement
+- etendre le registre / adapter pattern a d autres modules bulk de la plateforme
 - mutualiser le feedback de succes partiel et d erreurs au niveau plateforme
 
 ### Remaining gaps
-- le contrat `processed_count / success_count / failed_count / skipped_count / errors` n est pas encore applique de facon homogene sur tous les bulk handlers
+- le contrat `processed_count / success_count / failed_count / skipped_count / errors` est maintenant pose sur `Customer`, `Product` et `Request`, mais pas encore etendu a tous les autres bulk handlers de la plateforme
+- le registre d actions bulk existe maintenant pour `Customer`, `Product` et `Request`, mais n est pas encore le point d entree unique de tous les modules bulk
 - le cadre d audit et de permissions est encore partiellement local selon le module
 - la documentation technique d enregistrement d une nouvelle action bulk reste a formaliser
 - la couverture tests automatique est encore insuffisante
@@ -234,17 +243,23 @@ Acceptance criteria:
 ## Delivery Plan
 
 ### Phase 1 - Shared bulk framework
+Status: `partiellement livree`
 - done: add shared selection contract on top of the reusable DataTable
 - done: standardize selected count and action area
 - done: migrate `Customer`, `Product`, and `Request` onto the shared selection pattern
-- remaining: finish standardizing the backend result contract across those modules
+- done: standardize the backend result contract across `Customer`, `Product`, and `Request`
+- done: introduce a first module bulk action registry for `Customer`, `Product`, and `Request`
+- remaining: extend the same contract to the other platform bulk handlers where relevant
 
 ### Phase 2 - High-value operational actions
+Status: `livree pour Customer, pas encore generalisee`
 - done: add customer communication bulk entry points in `Customer`
+- done: replace locally hardcoded bulk menus in `Customer` and `Product` with a shared menu component driven by registry metadata
 - remaining: add reusable assignment / tagging hooks where relevant
 - remaining: add better partial-failure feedback at shared UI level
 
 ### Phase 3 - Advanced scope handling
+Status: `partiellement livree`
 - support "all rows on current filtered result" when technically justified
 - support queued progress tracking for heavy bulk jobs
 - done: add an advanced customer adapter to save a selection as mailing list and hand off into `Campaigns`
@@ -278,9 +293,16 @@ Acceptance criteria:
 - audit logging is documented and active for high-risk actions
 - technical documentation explains how new modules register a bulk action
 
+## Closure Assessment
+- current verdict: `not complete`
+- practical verdict: `not blocking the next value-added feature`
+- rationale: le framework bulk partage existe et sert deja de base utile, mais tous les criteres de fermeture plateforme ne sont pas encore remplis
+- decision rule: on peut passer a la prochaine etape produit, mais on garde cette story ouverte tant que le travail transverse restant n est pas termine
+
 ## Remaining Work Before We Can Call This Story Closed
-- finish the shared backend result contract across `Customer`, `Product`, and `Request`
-- extract a reusable module action registry / adapter pattern
+- extend the shared backend result contract beyond `Customer`, `Product`, and `Request`
+- extend the module bulk action registry beyond `Customer`, `Product`, and `Request`
+- complete the migration from locally wired bulk UIs to the shared registry / adapter pattern
 - add a shared result feedback surface for partial success and per-item failures
 - complete audit and permission parity for every high-risk bulk action
 - add automated feature and UI smoke coverage for the shared flow

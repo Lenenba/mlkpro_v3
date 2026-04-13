@@ -1,8 +1,6 @@
 <script setup>
 import {
     computed,
-    onBeforeUnmount,
-    onMounted,
     ref,
     watch,
 } from 'vue';
@@ -10,6 +8,7 @@ import { Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
+import AdminDataTableBulkActionMenu from '@/Components/DataTable/AdminDataTableBulkActionMenu.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import CustomerActionsMenu from '@/Pages/Customer/UI/CustomerActionsMenu.vue';
 import CustomerBulkContactModal from '@/Pages/Customer/UI/CustomerBulkContactModal.vue';
@@ -31,6 +30,10 @@ const props = defineProps({
     count: {
         type: Number,
         required: true,
+    },
+    bulkActions: {
+        type: Object,
+        default: () => ({}),
     },
     canEdit: {
         type: Boolean,
@@ -206,47 +209,67 @@ const bulkForm = useForm({
     ids: [],
 });
 const bulkContactModalRef = ref(null);
-const bulkMenuRef = ref(null);
-const isBulkMenuOpen = ref(false);
+const fallbackBulkActions = [
+    {
+        key: 'contact_selected',
+        kind: 'client',
+        client_handler: 'openBulkContact',
+        label_key: 'customers.bulk_contact.action',
+        tone: 'info',
+    },
+    {
+        key: 'portal_enable',
+        kind: 'submit',
+        action: 'portal_enable',
+        label_key: 'customers.bulk.enable_portal',
+        tone: 'success',
+        divider_before: true,
+    },
+    {
+        key: 'portal_disable',
+        kind: 'submit',
+        action: 'portal_disable',
+        label_key: 'customers.bulk.disable_portal',
+        tone: 'warning',
+    },
+    {
+        key: 'archive',
+        kind: 'submit',
+        action: 'archive',
+        label_key: 'customers.actions.archive',
+        tone: 'neutral',
+    },
+    {
+        key: 'restore',
+        kind: 'submit',
+        action: 'restore',
+        label_key: 'customers.actions.restore',
+        tone: 'success',
+    },
+    {
+        key: 'delete',
+        kind: 'submit',
+        action: 'delete',
+        label_key: 'customers.actions.delete',
+        tone: 'danger',
+        divider_before: true,
+        confirm_key: 'customers.bulk.delete_confirm',
+    },
+];
 
-const closeBulkMenu = () => {
-    isBulkMenuOpen.value = false;
-};
+const bulkMenuLabelKey = computed(() => props.bulkActions?.menu_label_key || 'customers.bulk.title');
+const bulkSelectionLabelKey = computed(() => props.bulkActions?.selection_label_key || 'customers.labels.selected');
+const bulkMenuActions = computed(() => (
+    Array.isArray(props.bulkActions?.actions) && props.bulkActions.actions.length
+        ? props.bulkActions.actions
+        : fallbackBulkActions
+));
 
-const toggleBulkMenu = () => {
-    if (!selectedCount.value) {
-        closeBulkMenu();
-
-        return;
-    }
-
-    isBulkMenuOpen.value = !isBulkMenuOpen.value;
-};
-
-const handleBulkMenuClickOutside = (event) => {
-    if (!isBulkMenuOpen.value) {
-        return;
-    }
-
-    if (bulkMenuRef.value?.contains(event.target)) {
-        return;
-    }
-
-    closeBulkMenu();
-};
-
-const handleBulkMenuEscape = (event) => {
-    if (event.key === 'Escape') {
-        closeBulkMenu();
-    }
-};
-
-const runBulk = (action) => {
+const runBulk = (action, confirmKey = null) => {
     if (!selected.value.length) {
         return;
     }
-    closeBulkMenu();
-    if (action === 'delete' && !confirm(t('customers.bulk.delete_confirm'))) {
+    if (confirmKey && !confirm(t(confirmKey))) {
         return;
     }
     bulkForm.action = action;
@@ -260,8 +283,24 @@ const runBulk = (action) => {
 };
 
 const openBulkContact = () => {
-    closeBulkMenu();
     bulkContactModalRef.value?.open();
+};
+
+const handleBulkAction = (definition) => {
+    if (!definition || typeof definition !== 'object') {
+        return;
+    }
+
+    if (definition.kind === 'client' && definition.client_handler === 'openBulkContact') {
+        openBulkContact();
+
+        return;
+    }
+
+    runBulk(
+        String(definition.action || definition.key || ''),
+        definition.confirm_key || null
+    );
 };
 
 const toggleArchive = (customer) => {
@@ -319,34 +358,6 @@ const getCustomerInitials = (customer) => {
 const customerLinks = computed(() => props.customers?.links || []);
 const currentPerPage = computed(() => resolveDataTablePerPage(props.customers?.per_page, props.filters?.per_page));
 const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagination.results')}`);
-
-watch(selectedCount, (count) => {
-    if (count === 0) {
-        closeBulkMenu();
-    }
-});
-
-watch(viewMode, () => {
-    closeBulkMenu();
-});
-
-onMounted(() => {
-    if (typeof document === 'undefined') {
-        return;
-    }
-
-    document.addEventListener('mousedown', handleBulkMenuClickOutside);
-    document.addEventListener('keydown', handleBulkMenuEscape);
-});
-
-onBeforeUnmount(() => {
-    if (typeof document === 'undefined') {
-        return;
-    }
-
-    document.removeEventListener('mousedown', handleBulkMenuClickOutside);
-    document.removeEventListener('keydown', handleBulkMenuEscape);
-});
 </script>
 
 <template>
@@ -459,7 +470,7 @@ onBeforeUnmount(() => {
             <AdminDataTableBulkBar
                 v-if="canEdit"
                 :count="selectedCount"
-                :label="$t('customers.labels.selected', { count: selectedCount })"
+                :label="$t(bulkSelectionLabelKey, { count: selectedCount })"
             >
                 <template #summary>
                     <div class="flex min-w-0 items-center gap-3">
@@ -468,10 +479,10 @@ onBeforeUnmount(() => {
                         </div>
                         <div class="min-w-0">
                             <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('customers.bulk.title') }}
+                                {{ $t(bulkMenuLabelKey) }}
                             </div>
                             <div class="text-xs font-medium text-stone-500 dark:text-neutral-400">
-                                {{ $t('customers.labels.selected', { count: selectedCount }) }}
+                                {{ $t(bulkSelectionLabelKey, { count: selectedCount }) }}
                             </div>
                         </div>
                     </div>
@@ -485,56 +496,13 @@ onBeforeUnmount(() => {
                     {{ $t('customers.actions.clear') }}
                 </button>
 
-                <div ref="bulkMenuRef" class="relative inline-flex">
-                    <button
-                        type="button"
-                        @click="toggleBulkMenu"
-                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-emerald-700 bg-emerald-700 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-emerald-500 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400 action-feedback"
-                        aria-haspopup="menu"
-                        :aria-expanded="isBulkMenuOpen ? 'true' : 'false'"
-                        :aria-label="$t('customers.bulk.title')"
-                    >
-                        {{ $t('customers.bulk.title') }}
-                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m5 7.5 5 5 5-5" />
-                        </svg>
-                    </button>
-                    <div
-                        v-show="isBulkMenuOpen"
-                        class="absolute end-0 top-full z-20 mt-2 w-44 rounded-sm bg-white shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
-                        role="menu"
-                        aria-orientation="vertical"
-                    >
-                        <div class="p-1">
-                            <button type="button" @click="openBulkContact"
-                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-neutral-800 action-feedback">
-                                {{ $t('customers.bulk_contact.action') }}
-                            </button>
-                            <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                            <button type="button" @click="runBulk('portal_enable')"
-                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800 action-feedback">
-                                {{ $t('customers.bulk.enable_portal') }}
-                            </button>
-                            <button type="button" @click="runBulk('portal_disable')"
-                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-neutral-800 action-feedback">
-                                {{ $t('customers.bulk.disable_portal') }}
-                            </button>
-                            <button type="button" @click="runBulk('archive')"
-                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-slate-700 hover:bg-slate-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
-                                {{ $t('customers.actions.archive') }}
-                            </button>
-                            <button type="button" @click="runBulk('restore')"
-                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800 action-feedback">
-                                {{ $t('customers.actions.restore') }}
-                            </button>
-                            <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                            <button type="button" @click="runBulk('delete')"
-                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                {{ $t('customers.actions.delete') }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <AdminDataTableBulkActionMenu
+                    :actions="bulkMenuActions"
+                    :disabled="!selectedCount"
+                    :menu-label-key="bulkMenuLabelKey"
+                    button-variant="primary"
+                    @select="handleBulkAction"
+                />
             </AdminDataTableBulkBar>
         </div>
 

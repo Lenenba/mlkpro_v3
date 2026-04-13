@@ -52,4 +52,57 @@ abstract class Controller extends BaseController
 
         return $request->expectsJson() && ! $request->headers->has('X-Inertia');
     }
+
+    /**
+     * @param  array<int, mixed>  $selectedIds
+     * @param  array<int, mixed>  $processedIds
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    protected function bulkActionResult(
+        string $message,
+        array $selectedIds,
+        array $processedIds,
+        array $extra = []
+    ): array {
+        $selected = collect($selectedIds)
+            ->map(fn (mixed $id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values();
+
+        $processed = collect($processedIds)
+            ->map(fn (mixed $id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values();
+
+        $failedCount = max(0, (int) ($extra['failed_count'] ?? 0));
+        $successCount = array_key_exists('success_count', $extra)
+            ? max(0, (int) $extra['success_count'])
+            : $processed->count();
+        $skippedCount = array_key_exists('skipped_count', $extra)
+            ? max(0, (int) $extra['skipped_count'])
+            : max(0, $selected->count() - $processed->count() - $failedCount);
+        $errors = $extra['errors'] ?? [];
+
+        unset(
+            $extra['success_count'],
+            $extra['failed_count'],
+            $extra['skipped_count'],
+            $extra['errors']
+        );
+
+        return array_merge([
+            'message' => $message,
+            'ids' => $selected->all(),
+            'processed_ids' => $processed->all(),
+            'selected_count' => $selected->count(),
+            'processed_count' => $processed->count(),
+            'success_count' => $successCount,
+            'failed_count' => $failedCount,
+            'skipped_count' => $skippedCount,
+            'errors' => is_array($errors) ? array_values($errors) : [],
+        ], $extra);
+    }
 }

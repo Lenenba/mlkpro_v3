@@ -41,6 +41,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    bulkActions: {
+        type: Object,
+        default: () => ({}),
+    },
     leadIntake: {
         type: Object,
         default: () => ({}),
@@ -135,9 +139,15 @@ const statusSelectOptions = computed(() => {
 });
 
 const statusActionOptions = computed(() =>
-    (props.statuses || []).map((status) => ({
-        id: String(status.id),
-        name: statusLabel(String(status.id)),
+    (Array.isArray(props.bulkActions?.controls?.status?.options) && props.bulkActions.controls.status.options.length
+        ? props.bulkActions.controls.status.options
+        : (props.statuses || []).map((status) => ({
+            value: String(status.id),
+            label: statusLabel(String(status.id)),
+        }))
+    ).map((status) => ({
+        id: String(status.value ?? status.id),
+        name: String(status.label ?? status.name ?? status.value ?? status.id),
     }))
 );
 
@@ -150,11 +160,28 @@ const assigneeSelectOptions = computed(() => [
 ]);
 
 const bulkAssigneeOptions = computed(() =>
-    (props.assignees || []).map((assignee) => ({
-        id: String(assignee.id),
-        name: assignee.name || t('requests.labels.unassigned'),
+    (Array.isArray(props.bulkActions?.controls?.assign?.options) && props.bulkActions.controls.assign.options.length
+        ? props.bulkActions.controls.assign.options
+        : (props.assignees || []).map((assignee) => ({
+            value: String(assignee.id),
+            label: assignee.name || t('requests.labels.unassigned'),
+        }))
+    ).map((assignee) => ({
+        id: String(assignee.value ?? assignee.id),
+        name: String(assignee.label ?? assignee.name ?? assignee.value ?? assignee.id),
     }))
 );
+
+const bulkSelectionLabelKey = computed(() => props.bulkActions?.selection_label_key || 'requests.bulk.selected');
+const bulkStatusLabelKey = computed(() => props.bulkActions?.controls?.status?.label_key || 'requests.bulk.status_label');
+const bulkStatusPlaceholderKey = computed(() => props.bulkActions?.controls?.status?.placeholder_key || 'requests.bulk.status_placeholder');
+const bulkStatusSubmitLabelKey = computed(() => props.bulkActions?.controls?.status?.submit_label_key || 'requests.bulk.apply_status');
+const bulkLostReasonPlaceholderKey = computed(() => props.bulkActions?.controls?.status?.lost_reason_placeholder_key || 'requests.bulk.lost_reason');
+const bulkLostReasonPromptKey = computed(() => props.bulkActions?.controls?.status?.lost_reason_prompt_key || 'requests.bulk.lost_reason_prompt');
+const bulkLostReasonTriggerValue = computed(() => props.bulkActions?.controls?.status?.lost_reason_trigger_value || 'REQ_LOST');
+const bulkAssignLabelKey = computed(() => props.bulkActions?.controls?.assign?.label_key || 'requests.bulk.assign_label');
+const bulkAssignPlaceholderKey = computed(() => props.bulkActions?.controls?.assign?.placeholder_key || 'requests.bulk.assign_placeholder');
+const bulkAssignSubmitLabelKey = computed(() => props.bulkActions?.controls?.assign?.submit_label_key || 'requests.bulk.apply_assign');
 
 const filterPayload = () => {
     const payload = {
@@ -251,7 +278,7 @@ const bulkErrors = ref({});
 const bulkProcessing = ref(false);
 
 watch(() => bulkStatus.value, (value) => {
-    if (value !== 'REQ_LOST') {
+    if (value !== bulkLostReasonTriggerValue.value) {
         bulkLostReason.value = '';
         bulkErrors.value = {};
     }
@@ -263,8 +290,8 @@ const submitBulkStatus = () => {
     }
 
     let lostReason = bulkLostReason.value;
-    if (bulkStatus.value === 'REQ_LOST' && !lostReason) {
-        lostReason = window.prompt(t('requests.bulk.lost_reason_prompt'));
+    if (bulkStatus.value === bulkLostReasonTriggerValue.value && !lostReason) {
+        lostReason = window.prompt(t(bulkLostReasonPromptKey.value));
         if (!lostReason) {
             return;
         }
@@ -276,7 +303,7 @@ const submitBulkStatus = () => {
     router.patch(route('request.bulk'), {
         ids: selected.value,
         status: bulkStatus.value,
-        lost_reason: bulkStatus.value === 'REQ_LOST' ? lostReason : null,
+        lost_reason: bulkStatus.value === bulkLostReasonTriggerValue.value ? lostReason : null,
     }, {
         preserveScroll: true,
         onError: (errors) => {
@@ -920,23 +947,23 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
         <AdminDataTableBulkBar
             v-if="viewMode === 'table'"
             :count="selectedCount"
-            :label="$t('requests.bulk.selected', { count: selectedCount })"
+            :label="$t(bulkSelectionLabelKey, { count: selectedCount })"
         >
             <div class="flex flex-wrap items-end gap-2">
                 <FloatingSelect
                     v-model="bulkStatus"
-                    :label="$t('requests.bulk.status_label')"
+                    :label="$t(bulkStatusLabelKey)"
                     :options="statusActionOptions"
-                    :placeholder="$t('requests.bulk.status_placeholder')"
+                    :placeholder="$t(bulkStatusPlaceholderKey)"
                     dense
                     class="min-w-[170px]"
                 />
                 <input
-                    v-if="bulkStatus === 'REQ_LOST'"
+                    v-if="bulkStatus === bulkLostReasonTriggerValue"
                     v-model="bulkLostReason"
                     type="text"
                     class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('requests.bulk.lost_reason')"
+                    :placeholder="$t(bulkLostReasonPlaceholderKey)"
                 />
                 <button
                     type="button"
@@ -944,15 +971,15 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                     :disabled="bulkProcessing || !bulkStatus"
                     @click="submitBulkStatus"
                 >
-                    {{ $t('requests.bulk.apply_status') }}
+                    {{ $t(bulkStatusSubmitLabelKey) }}
                 </button>
             </div>
             <div class="flex flex-wrap items-end gap-2">
                 <FloatingSelect
                     v-model="bulkAssignee"
-                    :label="$t('requests.bulk.assign_label')"
+                    :label="$t(bulkAssignLabelKey)"
                     :options="bulkAssigneeOptions"
-                    :placeholder="$t('requests.bulk.assign_placeholder')"
+                    :placeholder="$t(bulkAssignPlaceholderKey)"
                     dense
                     class="min-w-[180px]"
                 />
@@ -962,7 +989,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                     :disabled="bulkProcessing || !bulkAssignee"
                     @click="submitBulkAssign"
                 >
-                    {{ $t('requests.bulk.apply_assign') }}
+                    {{ $t(bulkAssignSubmitLabelKey) }}
                 </button>
             </div>
             <InputError class="mt-1 w-full basis-full" :message="bulkErrors.lost_reason" />

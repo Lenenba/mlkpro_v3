@@ -13,6 +13,7 @@ use App\Queries\Customers\BuildCustomerDetailViewData;
 use App\Queries\Customers\CustomerReadSelects;
 use App\Services\Customers\CustomerBulkAudienceBridgeService;
 use App\Services\Customers\CustomerBulkContactService;
+use App\Support\BulkActions\BulkActionRegistry;
 use App\Support\Database\UserSelects;
 use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
@@ -128,6 +129,9 @@ class CustomerController extends Controller
             'stats' => $stats,
             'topCustomers' => $topCustomers,
             'canEdit' => $canEdit,
+            'bulkActions' => app(BulkActionRegistry::class)->definitionFor('customer', [
+                'can_edit' => $canEdit,
+            ]),
         ]);
     }
 
@@ -670,6 +674,7 @@ class CustomerController extends Controller
             ->byUser($accountId)
             ->whereIn('id', $data['ids'])
             ->get();
+        $processedIds = $customers->pluck('id')->all();
 
         if ($data['action'] === 'portal_enable') {
             foreach ($customers as $customer) {
@@ -681,10 +686,11 @@ class CustomerController extends Controller
                 ->update(['portal_access' => true]);
 
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Portal access enabled.',
-                    'ids' => $data['ids'],
-                ]);
+                return response()->json($this->bulkActionResult(
+                    'Portal access enabled.',
+                    $data['ids'],
+                    $processedIds
+                ));
             }
 
             return redirect()->back()->with('success', 'Portal access enabled.');
@@ -700,10 +706,11 @@ class CustomerController extends Controller
                 ->update(['portal_access' => false]);
 
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Portal access disabled.',
-                    'ids' => $data['ids'],
-                ]);
+                return response()->json($this->bulkActionResult(
+                    'Portal access disabled.',
+                    $data['ids'],
+                    $processedIds
+                ));
             }
 
             return redirect()->back()->with('success', 'Portal access disabled.');
@@ -719,10 +726,11 @@ class CustomerController extends Controller
                 ->update(['is_active' => false]);
 
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Customers archived.',
-                    'ids' => $data['ids'],
-                ]);
+                return response()->json($this->bulkActionResult(
+                    'Customers archived.',
+                    $data['ids'],
+                    $processedIds
+                ));
             }
 
             return redirect()->back()->with('success', 'Customers archived.');
@@ -738,10 +746,11 @@ class CustomerController extends Controller
                 ->update(['is_active' => true]);
 
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Customers restored.',
-                    'ids' => $data['ids'],
-                ]);
+                return response()->json($this->bulkActionResult(
+                    'Customers restored.',
+                    $data['ids'],
+                    $processedIds
+                ));
             }
 
             return redirect()->back()->with('success', 'Customers restored.');
@@ -755,10 +764,11 @@ class CustomerController extends Controller
         }
 
         if ($this->shouldReturnJson($request)) {
-            return response()->json([
-                'message' => 'Customers deleted.',
-                'ids' => $data['ids'],
-            ]);
+            return response()->json($this->bulkActionResult(
+                'Customers deleted.',
+                $data['ids'],
+                $processedIds
+            ));
         }
 
         return redirect()->back()->with('success', 'Customers deleted.');
