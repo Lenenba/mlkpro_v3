@@ -104,7 +104,7 @@ class RequestController extends Controller
             );
         } else {
             $requests = $requestsQuery
-                ->simplePaginate((int) $filters['per_page'])
+                ->paginate((int) $filters['per_page'])
                 ->withQueryString();
         }
 

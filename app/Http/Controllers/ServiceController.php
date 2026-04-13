@@ -56,7 +56,7 @@ class ServiceController extends Controller
         $services = (clone $baseQuery)
             ->with(['category', 'serviceMaterials.product'])
             ->orderBy($sort, $direction)
-            ->simplePaginate((int) $filters['per_page'])
+            ->paginate((int) $filters['per_page'])
             ->withQueryString();
 
         $stats = [
@@ -164,7 +164,7 @@ class ServiceController extends Controller
                     ->where('item_type', Product::ITEM_TYPE_SERVICE),
             ])
             ->orderBy($sort, $direction)
-            ->simplePaginate((int) $filters['per_page'])
+            ->paginate((int) $filters['per_page'])
             ->withQueryString();
 
         $stats = [

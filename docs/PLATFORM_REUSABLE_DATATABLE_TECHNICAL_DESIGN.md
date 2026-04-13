@@ -336,7 +336,7 @@ Current module adoption shape:
 - service now shares the same embedded shell pattern as the main CRUD list modules while keeping its modal create/edit workflow local
 - sales now shares the same embedded shell pattern while keeping fulfillment quick actions and status updates local to the module
 - work now shares the same embedded shell pattern while keeping its create modal and invoice creation workflow local
-- team now shares the same embedded shell pattern for its management list even though it remains a non-paginated local-data screen
+- team now shares the same embedded shell pattern with server-side search, shared pagination, and shared `per_page` handling while member detail and edit workflows stay local
 - task no longer carries its inactive fallback list shell; the active board, schedule, and team views stay local because they do not map cleanly to `AdminDataTable`
 - keep custom card views, board views, schedule and team views, bulk-selection flows, inline-edit flows, proof-upload flows, and specialized row cells local for now
 

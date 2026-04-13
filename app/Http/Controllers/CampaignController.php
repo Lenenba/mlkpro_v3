@@ -71,7 +71,7 @@ class CampaignController extends Controller
             ])
             ->withCount(['runs', 'recipients'])
             ->orderByDesc('updated_at')
-            ->simplePaginate((int) $filters['per_page'])
+            ->paginate((int) $filters['per_page'])
             ->withQueryString();
 
         $stats = [

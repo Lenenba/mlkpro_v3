@@ -62,29 +62,59 @@ class TeamMemberController extends Controller
         'campaigns.send' => 'campaigns',
     ];
 
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
         if (!$user || !$user->isAccountOwner()) {
             abort(403);
         }
 
-        $teamMembers = TeamMember::query()
+        $filters = $request->only([
+            'search',
+        ]);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
+
+        $search = trim((string) ($filters['search'] ?? ''));
+
+        $baseQuery = TeamMember::query()
             ->forAccount($user->id)
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($memberQuery) use ($search) {
+                    $memberQuery
+                        ->whereHas('user', function ($userQuery) use ($search) {
+                            $userQuery
+                                ->where('name', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%");
+                        })
+                        ->orWhere('role', 'like', "%{$search}%")
+                        ->orWhere('title', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                });
+            });
+
+        $teamMembers = (clone $baseQuery)
             ->with('user')
             ->orderBy('created_at')
-            ->get();
+            ->paginate((int) $filters['per_page'])
+            ->withQueryString();
+
+        $statsMembers = (clone $baseQuery)->get([
+            'id',
+            'role',
+            'is_active',
+        ]);
 
         $availablePermissions = $this->availablePermissionsForAccount($user);
 
         return $this->inertiaOrJson('Team/Index', [
             'teamMembers' => $teamMembers,
+            'filters' => $filters,
             'availablePermissions' => $availablePermissions,
             'stats' => [
-                'total' => $teamMembers->count(),
-                'active' => $teamMembers->where('is_active', true)->count(),
-                'admins' => $teamMembers->where('role', 'admin')->count(),
-                'members' => $teamMembers->whereIn('role', ['member', 'seller', 'sales_manager'])->count(),
+                'total' => $statsMembers->count(),
+                'active' => $statsMembers->where('is_active', true)->count(),
+                'admins' => $statsMembers->where('role', 'admin')->count(),
+                'members' => $statsMembers->whereIn('role', ['member', 'seller', 'sales_manager'])->count(),
             ],
         ]);
     }

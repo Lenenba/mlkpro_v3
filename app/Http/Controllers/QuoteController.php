@@ -75,7 +75,7 @@ class QuoteController extends Controller
             ->withAvg('ratings', 'rating')
             ->withCount('ratings')
             ->orderBy($sort, $direction)
-            ->simplePaginate((int) $filters['per_page'])
+            ->paginate((int) $filters['per_page'])
             ->withQueryString();
 
         $totalCount = (clone $baseQuery)->count();

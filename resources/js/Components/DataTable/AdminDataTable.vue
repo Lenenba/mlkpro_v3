@@ -1,6 +1,7 @@
 <script setup>
 import { computed, useSlots } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import { DATA_TABLE_PER_PAGE_OPTIONS, normalizeDataTablePerPage } from '@/Components/DataTable/pagination';
 
@@ -69,7 +70,7 @@ const props = defineProps({
     },
     perPageLabel: {
         type: String,
-        default: 'Rows / page',
+        default: '',
     },
     perPageOptions: {
         type: Array,
@@ -81,6 +82,7 @@ const props = defineProps({
     },
 });
 const slots = useSlots();
+const { t } = useI18n();
 
 const normalizedRows = computed(() => (Array.isArray(props.rows) ? props.rows : []));
 const normalizedLinks = computed(() => (Array.isArray(props.links) ? props.links : []));
@@ -95,6 +97,11 @@ const normalizedPerPageOptions = computed(() => {
 });
 const normalizedPerPage = computed(() => normalizeDataTablePerPage(props.perPage));
 const hasRows = computed(() => normalizedRows.value.length > 0);
+const paginationPageCount = computed(() => normalizedLinks.value
+    .map((link) => String(link?.label ?? '').replace(/<[^>]*>/g, '').trim())
+    .filter((label) => /^\d+$/.test(label))
+    .length);
+const hasMultiplePaginationPages = computed(() => paginationPageCount.value > 1);
 const tableDensityClass = computed(() => (props.dense ? 'text-xs' : 'text-sm'));
 const tbodyClass = computed(() => [
     'divide-y divide-stone-100 dark:divide-neutral-800',
@@ -103,9 +110,11 @@ const tbodyClass = computed(() => [
 const shouldShowFooter = computed(() => (
     !!props.resultLabel
     || !!slots.pagination_prefix
-    || (props.showPagination && normalizedLinks.value.length > 0)
+    || (props.showPagination && hasMultiplePaginationPages.value)
     || props.showPerPage
 ));
+const resolvedPerPageLabel = computed(() => props.perPageLabel || t('datatable.shared.rows_per_page'));
+const resolvedLoadingLabel = computed(() => t('datatable.shared.loading'));
 const rootClass = computed(() => (props.embedded
     ? ['space-y-4', props.containerClass]
     : ['flex flex-col space-y-4 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900', props.containerClass]));
@@ -151,7 +160,7 @@ const updatePerPage = (event) => {
             v-if="loading"
             class="rounded-sm border border-dashed border-stone-300 p-6 text-sm text-stone-600 dark:border-neutral-600 dark:text-neutral-300"
         >
-            Loading...
+            {{ resolvedLoadingLabel }}
         </div>
 
         <slot v-else-if="!hasRows" name="empty">
@@ -192,7 +201,7 @@ const updatePerPage = (event) => {
                     <p v-else>{{ resultLabel }}</p>
                 </div>
 
-                <div v-if="showPagination && normalizedLinks.length" class="flex justify-start md:col-start-2 md:justify-center">
+                <div v-if="showPagination && hasMultiplePaginationPages" class="flex justify-start md:col-start-2 md:justify-center">
                     <AdminPaginationLinks :links="normalizedLinks" />
                 </div>
 
@@ -200,23 +209,43 @@ const updatePerPage = (event) => {
                     <label
                         class="inline-flex items-center gap-2 whitespace-nowrap text-xs text-stone-500 dark:text-neutral-400"
                     >
-                        <span>{{ perPageLabel }}</span>
-                        <select
-                            :value="normalizedPerPage"
-                            class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 focus:border-green-500 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                            @change="updatePerPage"
-                        >
-                            <option
-                                v-for="option in normalizedPerPageOptions"
-                                :key="`per-page-${option}`"
-                                :value="option"
+                        <span>{{ resolvedPerPageLabel }}</span>
+                        <span class="relative inline-flex">
+                            <select
+                                :value="normalizedPerPage"
+                                class="data-table-per-page-select rounded-sm border border-stone-200 bg-none bg-white pl-2 pr-7 py-1 text-xs text-stone-700 focus:border-green-500 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                @change="updatePerPage"
                             >
-                                {{ option }}
-                            </option>
-                        </select>
+                                <option
+                                    v-for="option in normalizedPerPageOptions"
+                                    :key="`per-page-${option}`"
+                                    :value="option"
+                                >
+                                    {{ option }}
+                                </option>
+                            </select>
+                            <span class="pointer-events-none absolute inset-y-0 right-2 flex items-center text-stone-400 dark:text-neutral-500">
+                                <svg class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m5 7.5 5 5 5-5" />
+                                </svg>
+                            </span>
+                        </span>
                     </label>
                 </div>
             </div>
         </div>
     </section>
 </template>
+
+<style scoped>
+.data-table-per-page-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: none;
+}
+
+.data-table-per-page-select::-ms-expand {
+    display: none;
+}
+</style>

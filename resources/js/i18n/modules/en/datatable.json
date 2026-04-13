@@ -1,0 +1,9 @@
+{
+  "datatable": {
+    "shared": {
+      "loading": "Loading...",
+      "rows_per_page": "Rows / page",
+      "results_count": "{count} results"
+    }
+  }
+}

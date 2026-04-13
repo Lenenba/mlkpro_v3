@@ -43,7 +43,7 @@ class BuildStaffReservationIndexData
         $this->applyReservationSort($query, $filters['sort']);
 
         $reservations = (clone $query)
-            ->simplePaginate((int) ($filters['per_page'] ?? DataTablePagination::defaultPerPage()))
+            ->paginate((int) ($filters['per_page'] ?? DataTablePagination::defaultPerPage()))
             ->withQueryString();
 
         $events = $this->reservationEventQuery($account->id)

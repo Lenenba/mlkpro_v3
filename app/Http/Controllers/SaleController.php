@@ -123,7 +123,7 @@ class SaleController extends Controller
             ->with('customer:id,first_name,last_name,company_name')
             ->withCount('items')
             ->orderBy($sort, $direction)
-            ->simplePaginate((int) $filters['per_page'])
+            ->paginate((int) $filters['per_page'])
             ->withQueryString();
 
         $totalCount = (clone $baseQuery)->count();
@@ -246,7 +246,7 @@ class SaleController extends Controller
             ->withCount('items')
             ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
             ->orderBy($sort, $direction)
-            ->simplePaginate((int) $filters['per_page'])
+            ->paginate((int) $filters['per_page'])
             ->withQueryString();
 
         $totalCount = (clone $baseQuery)->count();

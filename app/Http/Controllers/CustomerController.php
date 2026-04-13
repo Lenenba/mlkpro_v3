@@ -71,7 +71,7 @@ class CustomerController extends Controller
                 'invoices as invoices_count' => fn ($query) => $query->where('user_id', $accountId),
             ])
             ->orderBy($sort, $direction)
-            ->simplePaginate((int) $filters['per_page'])
+            ->paginate((int) $filters['per_page'])
             ->withQueryString();
 
         $totalCount = (clone $baseQuery)->count();

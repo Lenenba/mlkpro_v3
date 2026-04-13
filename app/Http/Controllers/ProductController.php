@@ -127,7 +127,7 @@ class ProductController extends Controller
                 }]);
             })
             ->orderBy($sort, $direction)
-            ->simplePaginate((int) $filters['per_page'])
+            ->paginate((int) $filters['per_page'])
             ->withQueryString();
 
         $productCollection = $products->getCollection();

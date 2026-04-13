@@ -246,7 +246,7 @@ class ClientReservationController extends Controller
 
         $reservations = (clone $query)
             ->orderBy('starts_at')
-            ->simplePaginate((int) $filters['per_page'])
+            ->paginate((int) $filters['per_page'])
             ->withQueryString();
 
         $events = (clone $query)

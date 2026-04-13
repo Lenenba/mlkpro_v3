@@ -32,7 +32,7 @@ class PlanScanController extends Controller
 
         $scans = (clone $baseQuery)
             ->latest()
-            ->simplePaginate($perPage)
+            ->paginate($perPage)
             ->withQueryString();
 
         $stats = [
