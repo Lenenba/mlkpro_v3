@@ -1,6 +1,6 @@
 # Platform Reusable DataTable - Technical Design
 
-Last updated: 2026-03-20
+Last updated: 2026-04-13
 
 ## Overview
 The platform currently uses multiple table screens with similar structure but locally duplicated markup and interaction logic.
@@ -273,11 +273,65 @@ Evaluate candidate module screens:
 - customers
 - quotes
 - invoices
+- team members
+- services
+- sales
+- work
 - tasks
 - requests
 - loyalty reports
 
 Only migrate screens that really fit the standard table shell.
+
+## Current Rollout Status
+
+Last updated: 2026-04-13
+
+Shared primitives implemented:
+- `AdminDataTable.vue`
+- `AdminDataTableToolbar.vue`
+- `AdminDataTableActions.vue`
+- `AdminPaginationLinks.vue`
+- `useDataTableFilters.js`
+
+Screens already migrated:
+- `SuperAdmin/Pages/Index.vue`
+- `SuperAdmin/Sections/Index.vue`
+- `SuperAdmin/Tenants/Index.vue`
+- `SuperAdmin/Support/Index.vue`
+- `SuperAdmin/Announcements/Index.vue`
+- `SuperAdmin/MegaMenus/Index.vue`
+- `SuperAdmin/Admins/Index.vue`
+- `SuperAdmin/DemoWorkspaces/Index.vue`
+- `SuperAdmin/Assets/Index.vue`
+
+Shared DataTable primitives now adopted on module screens:
+- `Quote/UI/QuoteTable.vue`
+- `Invoice/UI/InvoiceTable.vue`
+- `Customer/UI/CustomerTable.vue`
+- `Product/UI/ProductTable.vue`
+- `Request/UI/RequestTable.vue`
+- `Service/UI/ServiceTable.vue`
+- `Sales/UI/SalesTable.vue`
+- `Work/UI/WorkTable.vue`
+- `Team/UI/TeamTable.vue`
+- `Task/UI/TaskTable.vue`
+
+Current module adoption shape:
+- shared toolbar
+- shared row action dropdown
+- shared pagination links where applicable
+- keep custom card views, board views, schedule and team views, bulk-selection flows, inline-edit flows, proof-upload flows, and specialized row cells local for now
+- allow module-local wrappers on top of shared primitives when a screen needs a wider or more specialized action menu
+
+Next recommended wave:
+- move the remaining hybrid module screens further toward `AdminDataTable.vue` only after the inline and board-specific workflows are extracted cleanly
+- prioritize deeper shell passes for quote, invoice, customer, request, product, and task where the remaining duplication is structural rather than purely visual
+
+Follow-up wave after that:
+- move quote and invoice table shells fully into `AdminDataTable.vue`
+- evaluate whether customer cards/table and request board/table need a deeper hybrid shell
+- evaluate whether product and task should get a deeper shell pass once inline workflows are extracted
 
 ## Current Candidates and Fit
 
@@ -360,4 +414,3 @@ Build a narrow, strong, reusable shell for the 80 percent case already present i
 - Inertia pagination
 
 That is the fastest path to real reuse without adding a second layer of complexity.
-

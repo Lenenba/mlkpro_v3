@@ -222,6 +222,9 @@
         "role": "Rol",
         "status": "Estado"
       },
+      "filters": {
+        "results": "{count} administrador(es)"
+      },
       "status": {
         "active": "Activo",
         "inactive": "Inactivo"
@@ -252,7 +255,8 @@
         "status": "Estado",
         "plan": "Planificar",
         "created_from": "Creado a partir de",
-        "created_to": "Creado para"
+        "created_to": "Creado para",
+        "results": "{count} inquilino(s)"
       },
       "company_types": {
         "services": "Servicios",
@@ -359,7 +363,8 @@
         "search_placeholder": "Buscar entradas o inquilinos",
         "status": "Estado",
         "priority": "Prioridad",
-        "tenant": "inquilino"
+        "tenant": "inquilino",
+        "results": "{count} ticket(s)"
       },
       "table": {
         "title": "Título",
@@ -464,7 +469,8 @@
         "status": "Estado",
         "audience": "Audiencia",
         "placement": "Colocación",
-        "media": "Medios"
+        "media": "Medios",
+        "results": "{count} anuncio(s)"
       },
       "status": {
         "active": "Activo",
@@ -1310,6 +1316,9 @@
         "updated": "Actualizado",
         "actions": "Acciones"
       },
+      "filters": {
+        "results": "{count} seccion(es)"
+      },
       "locale": {
         "label": "Idioma",
         "hint": "Las ediciones se aplican únicamente a la configuración regional seleccionada."
@@ -1414,7 +1423,16 @@
         "search": "Buscar",
         "search_placeholder": "Buscar por nombre o mimo",
         "tag": "Etiqueta",
-        "tag_placeholder": "Filtrar por etiqueta"
+        "tag_placeholder": "Filtrar por etiqueta",
+        "results": "{count} activo(s)"
+      },
+      "table": {
+        "preview": "Vista previa",
+        "asset": "Activo",
+        "type": "Tipo",
+        "tags": "Etiquetas",
+        "created": "Creado",
+        "stock": "Stock de plataforma"
       }
     }
   }

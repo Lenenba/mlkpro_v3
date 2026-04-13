@@ -222,6 +222,9 @@
         "role": "Role",
         "status": "Statut"
       },
+      "filters": {
+        "results": "{count} admin(s)"
+      },
       "status": {
         "active": "Actif",
         "inactive": "Inactif"
@@ -252,7 +255,8 @@
         "status": "Statut",
         "plan": "Plan",
         "created_from": "Cree a partir du",
-        "created_to": "Cree jusqu'au"
+        "created_to": "Cree jusqu'au",
+        "results": "{count} entreprise(s)"
       },
       "company_types": {
         "services": "Services",
@@ -359,7 +363,8 @@
         "search_placeholder": "Rechercher tickets ou entreprises",
         "status": "Statut",
         "priority": "Priorite",
-        "tenant": "Entreprise"
+        "tenant": "Entreprise",
+        "results": "{count} ticket(s)"
       },
       "table": {
         "title": "Titre",
@@ -464,7 +469,8 @@
         "status": "Statut",
         "audience": "Audience",
         "placement": "Placement",
-        "media": "Media"
+        "media": "Media",
+        "results": "{count} annonce(s)"
       },
       "status": {
         "active": "Active",
@@ -1310,6 +1316,9 @@
         "updated": "Mise a jour",
         "actions": "Actions"
       },
+      "filters": {
+        "results": "{count} section(s)"
+      },
       "locale": {
         "label": "Langue",
         "hint": "Les changements s'appliquent uniquement a la langue selectionnee."
@@ -1414,7 +1423,16 @@
         "search": "Recherche",
         "search_placeholder": "Nom ou type MIME",
         "tag": "Tag",
-        "tag_placeholder": "Filtrer par tag"
+        "tag_placeholder": "Filtrer par tag",
+        "results": "{count} media(s)"
+      },
+      "table": {
+        "preview": "Apercu",
+        "asset": "Media",
+        "type": "Type",
+        "tags": "Tags",
+        "created": "Cree le",
+        "stock": "Stock plateforme"
       }
     }
   }

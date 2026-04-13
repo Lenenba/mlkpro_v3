@@ -52,6 +52,7 @@
         "create": "Creer un mega menu",
         "search": "Recherche",
         "search_placeholder": "Titre, slug, description",
+        "filters": "Filtres",
         "status": "Statut",
         "location": "Emplacement",
         "clear": "Effacer",
@@ -64,6 +65,7 @@
         "structure": "Structure",
         "updated": "Mise a jour",
         "actions": "Actions",
+        "results": "{count} mega menu(s)",
         "top_level_items": "{count} items racine",
         "content_blocks": "{count} blocs de contenu"
       },

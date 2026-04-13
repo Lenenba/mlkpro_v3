@@ -1,6 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import InputError from '@/Components/InputError.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -26,6 +29,8 @@ const props = defineProps({
         default: () => ({}),
     },
 });
+
+const { t } = useI18n();
 
 const showCreate = ref(false);
 const roleOptions = computed(() =>
@@ -53,6 +58,9 @@ const editForm = useForm({
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+const adminRows = computed(() => props.admins || []);
+const adminsResultsLabel = computed(() => t('super_admin.admins.filters.results', { count: adminRows.value.length }));
 
 const openCreate = () => {
     showCreate.value = true;
@@ -152,66 +160,49 @@ const submitEdit = () => {
                 </div>
             </div>
 
-            <div
-                class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:border-neutral-700 dark:bg-neutral-800">
-                <div
-                    class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-                    <table class="min-w-full divide-y divide-stone-200 text-sm text-left text-stone-600 dark:divide-neutral-700 dark:text-neutral-300">
-                        <thead class="text-xs uppercase text-stone-500 dark:text-neutral-400">
-                            <tr>
-                                <th class="px-4 py-3">{{ $t('super_admin.admins.table.name') }}</th>
-                                <th class="px-4 py-3">{{ $t('super_admin.admins.table.email') }}</th>
-                                <th class="px-4 py-3">{{ $t('super_admin.admins.table.role') }}</th>
-                                <th class="px-4 py-3">{{ $t('super_admin.admins.table.status') }}</th>
-                                <th class="px-4 py-3"></th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                            <tr v-for="admin in admins" :key="admin.id">
-                                <td class="px-4 py-3 font-medium text-stone-800 dark:text-neutral-100">{{ admin.name }}</td>
-                                <td class="px-4 py-3">{{ admin.email }}</td>
-                                <td class="px-4 py-3">{{ admin.platform?.role || $t('super_admin.common.not_available') }}</td>
-                                <td class="px-4 py-3">
-                                    <span
-                                        class="inline-flex items-center rounded-full px-2 py-0.5 text-xs"
-                                        :class="admin.platform?.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'">
-                                        {{ admin.platform?.is_active ? $t('super_admin.admins.status.active') : $t('super_admin.admins.status.inactive') }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-right">
-                                    <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                        <button type="button"
-                                            class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                            aria-haspopup="menu" aria-expanded="false" :aria-label="$t('super_admin.common.actions')">
-                                            <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <circle cx="12" cy="12" r="1" />
-                                                <circle cx="12" cy="5" r="1" />
-                                                <circle cx="12" cy="19" r="1" />
-                                            </svg>
-                                        </button>
-                                        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-32 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                            role="menu" aria-orientation="vertical">
-                                            <div class="p-1">
-                                                <button type="button" @click="openEdit(admin)"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                    {{ $t('super_admin.common.edit') }}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr v-if="admins.length === 0">
-                                <td colspan="5" class="px-4 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.admins.empty') }}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <AdminDataTable
+                :rows="adminRows"
+                :result-label="adminsResultsLabel"
+                :empty-description="$t('super_admin.admins.empty')"
+                container-class="border-t-4 border-t-zinc-600"
+            >
+                <template #head>
+                    <tr class="text-left text-xs font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
+                        <th class="px-4 py-3">{{ $t('super_admin.admins.table.name') }}</th>
+                        <th class="px-4 py-3">{{ $t('super_admin.admins.table.email') }}</th>
+                        <th class="px-4 py-3">{{ $t('super_admin.admins.table.role') }}</th>
+                        <th class="px-4 py-3">{{ $t('super_admin.admins.table.status') }}</th>
+                        <th class="px-4 py-3 text-right"></th>
+                    </tr>
+                </template>
+
+                <template #row="{ row: admin }">
+                    <tr class="align-top">
+                        <td class="px-4 py-3 font-medium text-stone-800 dark:text-neutral-100">{{ admin.name }}</td>
+                        <td class="px-4 py-3">{{ admin.email }}</td>
+                        <td class="px-4 py-3">{{ admin.platform?.role || $t('super_admin.common.not_available') }}</td>
+                        <td class="px-4 py-3">
+                            <span
+                                class="inline-flex items-center rounded-full px-2 py-0.5 text-xs"
+                                :class="admin.platform?.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300'"
+                            >
+                                {{ admin.platform?.is_active ? $t('super_admin.admins.status.active') : $t('super_admin.admins.status.inactive') }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <AdminDataTableActions :label="$t('super_admin.common.actions')">
+                                <button
+                                    type="button"
+                                    class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                    @click="openEdit(admin)"
+                                >
+                                    {{ $t('super_admin.common.edit') }}
+                                </button>
+                            </AdminDataTableActions>
+                        </td>
+                    </tr>
+                </template>
+            </AdminDataTable>
 
             <Modal :show="showCreate" @close="closeCreate">
                 <div class="p-5">

@@ -4,6 +4,8 @@ import draggable from 'vuedraggable';
 import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
@@ -12,6 +14,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
+import TaskActionsMenu from '@/Pages/Task/UI/TaskActionsMenu.vue';
 import { humanizeDate } from '@/utils/date';
 import { isFeatureEnabled } from '@/utils/features';
 
@@ -788,6 +791,9 @@ const clearFilters = () => {
     autoFilter();
 };
 
+const taskLinks = computed(() => props.tasks?.links || []);
+const taskResultsLabel = computed(() => `${props.count ?? taskList.value.length} ${t('tasks.table.results')}`);
+
 const statusLabel = (status) => {
     if (!status) {
         return '';
@@ -1536,8 +1542,12 @@ const submitProof = () => {
     <div
         class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
         <div class="space-y-3">
-            <div class="flex flex-col lg:flex-row lg:items-center gap-2">
-                <div class="flex-1">
+            <AdminDataTableToolbar
+                :show-clear="false"
+                :show-apply="false"
+                :busy="isLoading"
+            >
+                <template #search>
                     <div class="relative">
                         <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
                             <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
@@ -1552,9 +1562,9 @@ const submitProof = () => {
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
                             :placeholder="searchPlaceholder">
                     </div>
-                </div>
+                </template>
 
-                <div class="flex flex-wrap items-center gap-2 justify-end">
+                <template #actions>
                     <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
                         <button
                             type="button"
@@ -1627,8 +1637,8 @@ const submitProof = () => {
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500 action-feedback">
                         + {{ $t('tasks.actions.add_task') }}
                     </button>
-                </div>
-            </div>
+                </template>
+            </AdminDataTableToolbar>
         </div>
 
         <div
@@ -1753,64 +1763,17 @@ const submitProof = () => {
                                         </p>
                                     </div>
                                 </div>
-                                <div
-                                    class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex"
-                                    @click.stop
-                                >
-                                    <button type="button"
-                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                        aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <circle cx="12" cy="12" r="1" />
-                                            <circle cx="12" cy="5" r="1" />
-                                            <circle cx="12" cy="19" r="1" />
-                                        </svg>
-                                    </button>
-
-                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                        role="menu" aria-orientation="vertical">
-                                        <div class="p-1">
-                                            <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
-                                                {{ $t('tasks.actions.set_status') }}
-                                            </div>
-                                            <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
-                                                @click="setTaskStatus(task, 'todo')"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                {{ $t('tasks.status.todo') }}
-                                            </button>
-                                            <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
-                                                @click="setTaskStatus(task, 'in_progress')"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                {{ $t('tasks.status.in_progress') }}
-                                            </button>
-                                            <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)" data-testid="demo-task-mark-done"
-                                                @click="setTaskStatus(task, 'done')"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                {{ $t('tasks.status.done') }}
-                                            </button>
-
-                                            <template v-if="canManage || canDelete">
-                                                <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                            </template>
-
-                                            <button v-if="canManage" type="button" @click="openEditTask(task)"
-                                                :disabled="isTaskLocked(task)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                {{ $t('tasks.actions.edit') }}
-                                            </button>
-                                            <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                {{ $t('tasks.actions.add_proof') }}
-                                            </button>
-                                            <button v-if="canDelete" type="button" @click="deleteTask(task)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                                {{ $t('tasks.actions.delete') }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                <TaskActionsMenu
+                                    :task="task"
+                                    :can-change-status="canChangeStatus"
+                                    :can-manage="canManage"
+                                    :can-delete="canDelete"
+                                    :locked="isTaskLocked(task)"
+                                    @set-status="setTaskStatus(task, $event)"
+                                    @edit="openEditTask(task)"
+                                    @add-proof="openProofUpload(task)"
+                                    @delete="deleteTask(task)"
+                                />
                             </div>
                             <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
                                 <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
@@ -2035,64 +1998,17 @@ const submitProof = () => {
                                     <span class="text-[11px] text-stone-400 dark:text-neutral-500">
                                         {{ formatDate(task.created_at) }}
                                     </span>
-                                    <div
-                                        class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex"
-                                        @click.stop
-                                    >
-                                        <button type="button"
-                                            class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                            aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                            <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <circle cx="12" cy="12" r="1" />
-                                                <circle cx="12" cy="5" r="1" />
-                                                <circle cx="12" cy="19" r="1" />
-                                            </svg>
-                                        </button>
-
-                                        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                            role="menu" aria-orientation="vertical">
-                                            <div class="p-1">
-                                                <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
-                                                    {{ $t('tasks.actions.set_status') }}
-                                                </div>
-                                                <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
-                                                    @click="setTaskStatus(task, 'todo')"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    {{ $t('tasks.status.todo') }}
-                                                </button>
-                                                <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
-                                                    @click="setTaskStatus(task, 'in_progress')"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    {{ $t('tasks.status.in_progress') }}
-                                                </button>
-                                                <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)" data-testid="demo-task-mark-done"
-                                                    @click="setTaskStatus(task, 'done')"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    {{ $t('tasks.status.done') }}
-                                                </button>
-
-                                                <template v-if="canManage || canDelete">
-                                                    <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                                </template>
-
-                                                <button v-if="canManage" type="button" @click="openEditTask(task)"
-                                                    :disabled="isTaskLocked(task)"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    {{ $t('tasks.actions.edit') }}
-                                                </button>
-                                                <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    {{ $t('tasks.actions.add_proof') }}
-                                                </button>
-                                                <button v-if="canDelete" type="button" @click="deleteTask(task)"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                                    {{ $t('tasks.actions.delete') }}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <TaskActionsMenu
+                                        :task="task"
+                                        :can-change-status="canChangeStatus"
+                                        :can-manage="canManage"
+                                        :can-delete="canDelete"
+                                        :locked="isTaskLocked(task)"
+                                        @set-status="setTaskStatus(task, $event)"
+                                        @edit="openEditTask(task)"
+                                        @add-proof="openProofUpload(task)"
+                                        @delete="deleteTask(task)"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -2171,64 +2087,17 @@ const submitProof = () => {
                                     <span class="text-[11px] text-stone-400 dark:text-neutral-500">
                                         {{ formatDate(task.created_at) }}
                                     </span>
-                                    <div
-                                        class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex"
-                                        @click.stop
-                                    >
-                                        <button type="button"
-                                            class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                            aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                            <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <circle cx="12" cy="12" r="1" />
-                                                <circle cx="12" cy="5" r="1" />
-                                                <circle cx="12" cy="19" r="1" />
-                                            </svg>
-                                        </button>
-
-                                        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                            role="menu" aria-orientation="vertical">
-                                            <div class="p-1">
-                                                <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
-                                                    {{ $t('tasks.actions.set_status') }}
-                                                </div>
-                                                <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
-                                                    @click="setTaskStatus(task, 'todo')"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    {{ $t('tasks.status.todo') }}
-                                                </button>
-                                                <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
-                                                    @click="setTaskStatus(task, 'in_progress')"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    {{ $t('tasks.status.in_progress') }}
-                                                </button>
-                                                <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)" data-testid="demo-task-mark-done"
-                                                    @click="setTaskStatus(task, 'done')"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    {{ $t('tasks.status.done') }}
-                                                </button>
-
-                                                <template v-if="canManage || canDelete">
-                                                    <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                                </template>
-
-                                                <button v-if="canManage" type="button" @click="openEditTask(task)"
-                                                    :disabled="isTaskLocked(task)"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    {{ $t('tasks.actions.edit') }}
-                                                </button>
-                                                <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    {{ $t('tasks.actions.add_proof') }}
-                                                </button>
-                                                <button v-if="canDelete" type="button" @click="deleteTask(task)"
-                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                                    {{ $t('tasks.actions.delete') }}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <TaskActionsMenu
+                                        :task="task"
+                                        :can-change-status="canChangeStatus"
+                                        :can-manage="canManage"
+                                        :can-delete="canDelete"
+                                        :locked="isTaskLocked(task)"
+                                        @set-status="setTaskStatus(task, $event)"
+                                        @edit="openEditTask(task)"
+                                        @add-proof="openProofUpload(task)"
+                                        @delete="deleteTask(task)"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -2561,62 +2430,17 @@ const submitProof = () => {
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                                <div
-                                    class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                    <button type="button"
-                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                        aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <circle cx="12" cy="12" r="1" />
-                                            <circle cx="12" cy="5" r="1" />
-                                            <circle cx="12" cy="19" r="1" />
-                                        </svg>
-                                    </button>
-
-                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                        role="menu" aria-orientation="vertical">
-                                        <div class="p-1">
-                                            <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
-                                                {{ $t('tasks.actions.set_status') }}
-                                            </div>
-                                            <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
-                                                @click="setTaskStatus(task, 'todo')"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                {{ $t('tasks.status.todo') }}
-                                            </button>
-                                            <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
-                                                @click="setTaskStatus(task, 'in_progress')"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                {{ $t('tasks.status.in_progress') }}
-                                            </button>
-                                            <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)" data-testid="demo-task-mark-done"
-                                                @click="setTaskStatus(task, 'done')"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                {{ $t('tasks.status.done') }}
-                                            </button>
-
-                                            <template v-if="canManage || canDelete">
-                                                <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                            </template>
-
-                                            <button v-if="canManage" type="button" @click="openEditTask(task)"
-                                                :disabled="isTaskLocked(task)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                {{ $t('tasks.actions.edit') }}
-                                            </button>
-                                            <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                {{ $t('tasks.actions.add_proof') }}
-                                            </button>
-                                            <button v-if="canDelete" type="button" @click="deleteTask(task)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                                {{ $t('tasks.actions.delete') }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                <TaskActionsMenu
+                                    :task="task"
+                                    :can-change-status="canChangeStatus"
+                                    :can-manage="canManage"
+                                    :can-delete="canDelete"
+                                    :locked="isTaskLocked(task)"
+                                    @set-status="setTaskStatus(task, $event)"
+                                    @edit="openEditTask(task)"
+                                    @add-proof="openProofUpload(task)"
+                                    @delete="deleteTask(task)"
+                                />
                             </td>
                         </tr>
                         </template>
@@ -2626,48 +2450,9 @@ const submitProof = () => {
         </div>
 
         <div v-if="taskList.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
-            <p class="text-sm text-stone-800 dark:text-neutral-200">
-                <span class="font-medium"> {{ count ?? taskList.length }} </span>
-                <span class="text-stone-500 dark:text-neutral-500"> {{ $t('tasks.table.results') }}</span>
-            </p>
+            <p class="text-sm text-stone-800 dark:text-neutral-200">{{ taskResultsLabel }}</p>
 
-            <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
-                <Link :href="tasks.prev_page_url" v-if="tasks.prev_page_url">
-                    <button type="button"
-                        class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                        :aria-label="$t('tasks.pagination.previous')">
-                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m15 18-6-6 6-6" />
-                        </svg>
-                        <span class="sr-only">{{ $t('tasks.pagination.previous') }}</span>
-                    </button>
-                </Link>
-                <div class="flex items-center gap-x-1">
-                    <span
-                        class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
-                        aria-current="page">{{ tasks.from }}</span>
-                    <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ $t('tasks.pagination.of') }}</span>
-                    <span class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">
-                        {{ tasks.to }}
-                    </span>
-                </div>
-
-                <Link :href="tasks.next_page_url" v-if="tasks.next_page_url">
-                    <button type="button"
-                        class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                        :aria-label="$t('tasks.pagination.next')">
-                        <span class="sr-only">{{ $t('tasks.pagination.next') }}</span>
-                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m9 18 6-6-6-6" />
-                        </svg>
-                    </button>
-                </Link>
-            </nav>
+            <AdminPaginationLinks :links="taskLinks" />
         </div>
     </div>
 

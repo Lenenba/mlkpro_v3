@@ -1,6 +1,9 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
+import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
+import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
@@ -248,76 +251,41 @@ const sendInvoice = (invoice) => {
         },
     });
 };
+
+const invoiceLinks = computed(() => props.invoices?.links || []);
+const invoiceResultsLabel = computed(() => `${props.invoices?.total ?? props.invoices?.data?.length ?? 0} ${t('invoices.table.results')}`);
 </script>
 
 <template>
     <div
         class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
-        <div class="space-y-3">
-            <div class="flex flex-col lg:flex-row lg:items-center gap-2">
-                <div class="flex-1">
-                    <div class="relative">
-                        <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
-                            <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
-                                xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8" />
-                                <path d="m21 21-4.3-4.3" />
-                            </svg>
-                        </div>
-                        <input type="text" v-model="filterForm.search"
-                            class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
-                            :placeholder="$t('invoices.filters.search_placeholder')">
+        <AdminDataTableToolbar
+            :show-filters="showAdvanced"
+            :show-apply="false"
+            :busy="isBusy"
+            :filters-label="$t('invoices.actions.filters')"
+            :clear-label="$t('invoices.actions.clear')"
+            @toggle-filters="showAdvanced = !showAdvanced"
+            @apply="autoFilter"
+            @clear="clearFilters"
+        >
+            <template #search>
+                <div class="relative">
+                    <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
+                        <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
+                            xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="m21 21-4.3-4.3" />
+                        </svg>
                     </div>
+                    <input type="text" v-model="filterForm.search"
+                        class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
+                        :placeholder="$t('invoices.filters.search_placeholder')">
                 </div>
+            </template>
 
-                <div class="flex flex-wrap items-center gap-2 justify-end">
-                    <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                        <button
-                            type="button"
-                            @click="setViewMode('table')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'table'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
-                        >
-                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M3 3h18v6H3z" />
-                                <path d="M3 13h18v8H3z" />
-                            </svg>
-                            {{ $t('invoices.view.table') }}
-                        </button>
-                        <button
-                            type="button"
-                            @click="setViewMode('cards')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'cards'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
-                        >
-                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="3" width="7" height="7" rx="1" />
-                                <rect x="14" y="3" width="7" height="7" rx="1" />
-                                <rect x="3" y="14" width="7" height="7" rx="1" />
-                                <rect x="14" y="14" width="7" height="7" rx="1" />
-                            </svg>
-                            {{ $t('invoices.view.cards') }}
-                        </button>
-                    </div>
-                    <button type="button" @click="showAdvanced = !showAdvanced"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        {{ $t('invoices.actions.filters') }}
-                    </button>
-                    <button type="button" @click="clearFilters"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        {{ $t('invoices.actions.clear') }}
-                    </button>
-                </div>
-            </div>
-
-            <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2">
+            <template #filters>
                 <FloatingSelect
                     v-model="filterForm.status"
                     :label="$t('invoices.table.status')"
@@ -338,8 +306,45 @@ const sendInvoice = (invoice) => {
                     :placeholder="$t('invoices.filters.total_max')">
                 <DatePicker v-model="filterForm.created_from" :label="$t('invoices.filters.created_from')" />
                 <DatePicker v-model="filterForm.created_to" :label="$t('invoices.filters.created_to')" />
-            </div>
-        </div>
+            </template>
+
+            <template #actions>
+                <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                    <button
+                        type="button"
+                        @click="setViewMode('table')"
+                        class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
+                        :class="viewMode === 'table'
+                            ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
+                            : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                    >
+                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3h18v6H3z" />
+                            <path d="M3 13h18v8H3z" />
+                        </svg>
+                        {{ $t('invoices.view.table') }}
+                    </button>
+                    <button
+                        type="button"
+                        @click="setViewMode('cards')"
+                        class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
+                        :class="viewMode === 'cards'
+                            ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
+                            : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                    >
+                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="7" height="7" rx="1" />
+                            <rect x="14" y="3" width="7" height="7" rx="1" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" />
+                        </svg>
+                        {{ $t('invoices.view.cards') }}
+                    </button>
+                </div>
+            </template>
+        </AdminDataTableToolbar>
 
         <div
             v-if="viewMode === 'table'"
@@ -511,47 +516,29 @@ const sendInvoice = (invoice) => {
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                                <div
-                                    class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                    <button type="button"
-                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                        aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <circle cx="12" cy="12" r="1" />
-                                            <circle cx="12" cy="5" r="1" />
-                                            <circle cx="12" cy="19" r="1" />
-                                        </svg>
+                                <AdminDataTableActions :label="$t('invoices.actions.view_invoice')">
+                                    <button
+                                        v-if="canSendInvoice(invoice)"
+                                        type="button"
+                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                        :disabled="sendingInvoiceId === invoice.id"
+                                        @click="sendInvoice(invoice)"
+                                    >
+                                        {{ sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice) }}
                                     </button>
-
-                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                        role="menu" aria-orientation="vertical">
-                                        <div class="p-1">
-                                            <button
-                                                v-if="canSendInvoice(invoice)"
-                                                type="button"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                                :disabled="sendingInvoiceId === invoice.id"
-                                                @click="sendInvoice(invoice)"
-                                            >
-                                                {{ sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice) }}
-                                            </button>
-                                            <Link :href="route('invoice.show', invoice.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('invoices.actions.view_invoice') }}
-                                            </Link>
-                                            <Link v-if="invoice.work?.id" :href="route('work.show', invoice.work.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('invoices.actions.view_job') }}
-                                            </Link>
-                                            <Link v-if="invoice.customer?.id" :href="route('customer.show', invoice.customer.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('invoices.actions.view_customer') }}
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
+                                    <Link :href="route('invoice.show', invoice.id)"
+                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                        {{ $t('invoices.actions.view_invoice') }}
+                                    </Link>
+                                    <Link v-if="invoice.work?.id" :href="route('work.show', invoice.work.id)"
+                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                        {{ $t('invoices.actions.view_job') }}
+                                    </Link>
+                                    <Link v-if="invoice.customer?.id" :href="route('customer.show', invoice.customer.id)"
+                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                        {{ $t('invoices.actions.view_customer') }}
+                                    </Link>
+                                </AdminDataTableActions>
                             </td>
                         </tr>
                         </template>
@@ -650,46 +637,29 @@ const sendInvoice = (invoice) => {
                                 </span>
                                 <span>{{ getStatusMeta(invoice).label }}</span>
                             </span>
-                            <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                <button type="button"
-                                    class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                    aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                        height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="12" cy="12" r="1" />
-                                        <circle cx="12" cy="5" r="1" />
-                                        <circle cx="12" cy="19" r="1" />
-                                    </svg>
+                            <AdminDataTableActions :label="$t('invoices.actions.view_invoice')">
+                                <button
+                                    v-if="canSendInvoice(invoice)"
+                                    type="button"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                    :disabled="sendingInvoiceId === invoice.id"
+                                    @click="sendInvoice(invoice)"
+                                >
+                                    {{ sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice) }}
                                 </button>
-
-                                <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                    role="menu" aria-orientation="vertical">
-                                        <div class="p-1">
-                                            <button
-                                                v-if="canSendInvoice(invoice)"
-                                                type="button"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                                :disabled="sendingInvoiceId === invoice.id"
-                                                @click="sendInvoice(invoice)"
-                                            >
-                                                {{ sendingInvoiceId === invoice.id ? $t('invoices.actions.sending_invoice') : invoiceActionLabel(invoice) }}
-                                            </button>
-                                            <Link :href="route('invoice.show', invoice.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('invoices.actions.view_invoice') }}
-                                            </Link>
-                                            <Link v-if="invoice.work?.id" :href="route('work.show', invoice.work.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('invoices.actions.view_job') }}
-                                            </Link>
-                                            <Link v-if="invoice.customer?.id" :href="route('customer.show', invoice.customer.id)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('invoices.actions.view_customer') }}
-                                            </Link>
-                                        </div>
-                                </div>
-                            </div>
+                                <Link :href="route('invoice.show', invoice.id)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                    {{ $t('invoices.actions.view_invoice') }}
+                                </Link>
+                                <Link v-if="invoice.work?.id" :href="route('work.show', invoice.work.id)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                    {{ $t('invoices.actions.view_job') }}
+                                </Link>
+                                <Link v-if="invoice.customer?.id" :href="route('customer.show', invoice.customer.id)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                    {{ $t('invoices.actions.view_customer') }}
+                                </Link>
+                            </AdminDataTableActions>
                         </div>
                     </div>
 
@@ -731,47 +701,9 @@ const sendInvoice = (invoice) => {
         </div>
 
         <div v-if="invoices.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
-            <p class="text-sm text-stone-800 dark:text-neutral-200">
-                <span class="font-medium"> {{ invoices.total ?? invoices.data.length }} </span>
-                <span class="text-stone-500 dark:text-neutral-500"> {{ $t('invoices.table.results') }}</span>
-            </p>
+            <p class="text-sm text-stone-800 dark:text-neutral-200">{{ invoiceResultsLabel }}</p>
 
-            <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
-                <Link :href="invoices.prev_page_url" v-if="invoices.prev_page_url">
-                <button type="button"
-                    class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    :aria-label="$t('invoices.pagination.previous')">
-                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="m15 18-6-6 6-6" />
-                    </svg>
-                    <span class="sr-only">{{ $t('invoices.pagination.previous') }}</span>
-                </button>
-                </Link>
-                <div class="flex items-center gap-x-1">
-                    <span
-                        class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
-                        aria-current="page">{{ invoices.from }}</span>
-                    <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ $t('invoices.pagination.of') }}</span>
-                    <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ invoices.to }}</span>
-                </div>
-
-                <Link :href="invoices.next_page_url" v-if="invoices.next_page_url">
-                <button type="button"
-                    class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    :aria-label="$t('invoices.pagination.next')">
-                    <span class="sr-only">{{ $t('invoices.pagination.next') }}</span>
-                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="m9 18 6-6-6-6" />
-                    </svg>
-                </button>
-                </Link>
-            </nav>
+            <AdminPaginationLinks :links="invoiceLinks" />
         </div>
     </div>
 </template>

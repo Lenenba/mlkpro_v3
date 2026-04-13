@@ -95,6 +95,7 @@
       "due": "Echeance",
       "assignee": "Assigne",
       "created": "Cree",
+      "actions": "Actions",
       "results": "resultats"
     },
     "pagination": {

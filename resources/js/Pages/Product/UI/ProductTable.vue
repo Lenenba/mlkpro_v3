@@ -1,6 +1,9 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
+import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
+import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import { humanizeDate } from '@/utils/date';
 import ProductForm from './ProductForm.vue';
 import Modal from '@/Components/UI/Modal.vue';
@@ -267,6 +270,8 @@ const clearFilters = () => {
 };
 
 const exportUrl = computed(() => route('product.export', filterPayload()));
+const productLinks = computed(() => props.products?.links || []);
+const productResultsLabel = computed(() => `${props.count} ${t('products.pagination.results')}`);
 
 const { formatCurrency } = useCurrencyFormatter();
 
@@ -922,10 +927,19 @@ const submitImport = () => {
         class="p-5 space-y-4 flex flex-col border-t-4 border-t-green-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700">
 
         <div class="space-y-3">
-            <div class="flex flex-col lg:flex-row lg:items-center gap-2">
-                <div class="flex-1">
+            <AdminDataTableToolbar
+                :show-filters="showAdvanced"
+                :show-apply="false"
+                :busy="isLoading"
+                :filters-label="$t('products.actions.filters')"
+                :clear-label="$t('products.actions.clear')"
+                @toggle-filters="showAdvanced = !showAdvanced"
+                @apply="autoFilter"
+                @clear="clearFilters"
+            >
+                <template #search>
                     <div class="relative">
-                        <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
+                        <div class="absolute inset-y-0 start-0 z-20 flex items-center ps-3.5 pointer-events-none">
                             <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
                                 xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -937,13 +951,44 @@ const submitImport = () => {
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
                             :placeholder="$t('products.filters.search_placeholder')">
                     </div>
-                </div>
+                </template>
 
-                <div class="flex flex-wrap items-center gap-2 justify-end">
-                    <button type="button" @click="showAdvanced = !showAdvanced"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                        {{ $t('products.actions.filters') }}
-                    </button>
+                <template #filters>
+                    <input type="number" step="0.01" v-model="filterForm.price_min"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        :placeholder="$t('products.filters.price_min')">
+                    <input type="number" step="0.01" v-model="filterForm.price_max"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        :placeholder="$t('products.filters.price_max')">
+                    <input type="number" step="1" v-model="filterForm.stock_min"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        :placeholder="$t('products.filters.stock_min')">
+                    <input type="number" step="1" v-model="filterForm.stock_max"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        :placeholder="$t('products.filters.stock_max')">
+                    <input type="text" v-model="filterForm.supplier_name"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        :placeholder="$t('products.filters.supplier_name')">
+                    <FloatingSelect
+                        v-model="filterForm.has_barcode"
+                        :label="$t('products.filters.barcodes.label')"
+                        :options="barcodeOptions"
+                        dense
+                    />
+                    <DatePicker v-model="filterForm.created_from" :label="$t('products.filters.created_from')" />
+                    <DatePicker v-model="filterForm.created_to" :label="$t('products.filters.created_to')" />
+                    <div class="md:col-span-3">
+                        <FloatingSelect
+                            v-model="filterForm.category_ids"
+                            :label="$t('products.labels.category')"
+                            :options="categoryOptions"
+                            multiple
+                            class="min-h-[120px]"
+                        />
+                    </div>
+                </template>
+
+                <template #actions>
                     <template v-if="canEdit">
                         <a :href="exportUrl"
                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
@@ -973,8 +1018,8 @@ const submitImport = () => {
                             {{ aiBulkGenerating ? $t('products.ai_bulk.generate_busy') : $t('products.ai_bulk.generate') }}
                         </button>
                     </template>
-                </div>
-            </div>
+                </template>
+            </AdminDataTableToolbar>
             <div v-if="canEdit && aiImageEnabled" class="text-xs text-stone-500 dark:text-neutral-400">
                 <span v-if="aiMissingLoading">
                     {{ $t('products.ai_bulk.loading') }}
@@ -1037,11 +1082,6 @@ const submitImport = () => {
                         :options="imageOptions"
                         dense
                     />
-
-                    <button type="button" @click="clearFilters"
-                        class="py-2 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                        {{ $t('products.actions.clear') }}
-                    </button>
                 </div>
 
                 <div v-if="canEdit && selected.length" class="flex items-center gap-2">
@@ -1076,40 +1116,6 @@ const submitImport = () => {
                 </div>
             </div>
 
-            <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2">
-                <input type="number" step="0.01" v-model="filterForm.price_min"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('products.filters.price_min')">
-                <input type="number" step="0.01" v-model="filterForm.price_max"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('products.filters.price_max')">
-                <input type="number" step="1" v-model="filterForm.stock_min"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('products.filters.stock_min')">
-                <input type="number" step="1" v-model="filterForm.stock_max"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('products.filters.stock_max')">
-                <input type="text" v-model="filterForm.supplier_name"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('products.filters.supplier_name')">
-                <FloatingSelect
-                    v-model="filterForm.has_barcode"
-                    :label="$t('products.filters.barcodes.label')"
-                    :options="barcodeOptions"
-                    dense
-                />
-                <DatePicker v-model="filterForm.created_from" :label="$t('products.filters.created_from')" />
-                <DatePicker v-model="filterForm.created_to" :label="$t('products.filters.created_to')" />
-                <div class="md:col-span-2 lg:col-span-6">
-                    <FloatingSelect
-                        v-model="filterForm.category_ids"
-                        :label="$t('products.labels.category')"
-                        :options="categoryOptions"
-                        multiple
-                        class="min-h-[120px]"
-                    />
-                </div>
-            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -1430,56 +1436,39 @@ const submitImport = () => {
                             </button>
                         </div>
                         <div v-else>
-                            <div v-if="canEdit" class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                <button type="button"
-                                    class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                    aria-haspopup="menu" aria-expanded="false" :aria-label="$t('products.aria.dropdown')">
-                                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="12" cy="12" r="1" />
-                                        <circle cx="12" cy="5" r="1" />
-                                        <circle cx="12" cy="19" r="1" />
-                                    </svg>
+                            <AdminDataTableActions v-if="canEdit" :label="$t('products.aria.dropdown')">
+                                <Link
+                                    :href="route('product.show', product.id)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                >
+                                    {{ $t('products.actions.view') }}
+                                </Link>
+                                <button type="button" @click="startInlineEdit(product)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                    {{ $t('products.actions.quick_edit') }}
                                 </button>
-
-                                <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-32 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                    role="menu" aria-orientation="vertical">
-                                    <div class="p-1">
-                                        <Link
-                                            :href="route('product.show', product.id)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                        >
-                                            {{ $t('products.actions.view') }}
-                                        </Link>
-                                        <button type="button" @click="startInlineEdit(product)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                            {{ $t('products.actions.quick_edit') }}
-                                        </button>
-                                        <button type="button" @click="openAdjust(product)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                            {{ $t('products.actions.adjust_stock') }}
-                                        </button>
-                                        <button type="button" @click="duplicateProduct(product)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                            {{ $t('products.actions.duplicate') }}
-                                        </button>
-                                        <button type="button" @click="toggleArchive(product)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
-                                            {{ product.is_active ? $t('products.actions.archive') : $t('products.actions.restore') }}
-                                        </button>
-                                        <button type="button" :data-hs-overlay="'#hs-pro-edit' + product.id"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                            {{ $t('products.actions.edit') }}
-                                        </button>
-                                        <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                        <button type="button" @click="destroyProduct(product)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                            {{ $t('products.actions.delete') }}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                                <button type="button" @click="openAdjust(product)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                    {{ $t('products.actions.adjust_stock') }}
+                                </button>
+                                <button type="button" @click="duplicateProduct(product)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                    {{ $t('products.actions.duplicate') }}
+                                </button>
+                                <button type="button" @click="toggleArchive(product)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
+                                    {{ product.is_active ? $t('products.actions.archive') : $t('products.actions.restore') }}
+                                </button>
+                                <button type="button" :data-hs-overlay="'#hs-pro-edit' + product.id"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                    {{ $t('products.actions.edit') }}
+                                </button>
+                                <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                <button type="button" @click="destroyProduct(product)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
+                                    {{ $t('products.actions.delete') }}
+                                </button>
+                            </AdminDataTableActions>
                             <div v-else>
                                 <Link
                                     :href="route('product.show', product.id)"
@@ -1507,48 +1496,9 @@ const submitImport = () => {
         </div>
 
         <div class="mt-5 flex flex-wrap justify-between items-center gap-2">
-            <p class="text-sm text-stone-800 dark:text-neutral-200">
-                <span class="font-medium"> {{ count }} </span>
-                <span class="text-stone-500 dark:text-neutral-500"> {{ $t('products.pagination.results') }}</span>
-            </p>
+            <p class="text-sm text-stone-800 dark:text-neutral-200">{{ productResultsLabel }}</p>
 
-            <nav class="flex justify-end items-center gap-x-1" :aria-label="$t('products.pagination.label')">
-                <Link :href="products.prev_page_url" v-if="products.prev_page_url">
-                <button type="button"
-                    class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    :aria-label="$t('products.pagination.previous')">
-                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="m15 18-6-6 6-6" />
-                    </svg>
-                    <span class="sr-only">{{ $t('products.pagination.previous') }}</span>
-                </button>
-                </Link>
-                <div class="flex items-center gap-x-1">
-                    <span
-                        class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
-                        aria-current="page">{{ products.from }}</span>
-                    <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ $t('products.pagination.of') }}</span>
-                    <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{
-                            products.to }}</span>
-                </div>
-
-                <Link :href="products.next_page_url" v-if="products.next_page_url">
-                <button type="button"
-                    class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    :aria-label="$t('products.pagination.next')">
-                    <span class="sr-only">{{ $t('products.pagination.next') }}</span>
-                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="m9 18 6-6-6-6" />
-                    </svg>
-                </button>
-                </Link>
-            </nav>
+            <AdminPaginationLinks :links="productLinks" />
         </div>
     </div>
 

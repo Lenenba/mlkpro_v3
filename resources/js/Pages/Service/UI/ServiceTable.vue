@@ -1,6 +1,9 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Link, router, useForm } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
+import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
+import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import ServiceForm from '@/Pages/Service/UI/ServiceForm.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -158,6 +161,7 @@ const selectableCategories = computed(() => {
     const current = (props.categories || []).find((category) => category.id === currentId);
     return current ? [...base, current] : base;
 });
+const serviceLinks = computed(() => props.services?.links || []);
 
 const openCreate = () => {
     editingService.value = null;
@@ -184,47 +188,33 @@ const destroyService = (service) => {
 <template>
     <div
         class="p-5 space-y-4 flex flex-col border-t-4 border-t-emerald-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
-        <div class="space-y-3">
-            <div class="flex flex-col lg:flex-row lg:items-center gap-2">
-                <div class="flex-1">
-                    <div class="relative">
-                        <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
-                            <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
-                                xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8" />
-                                <path d="m21 21-4.3-4.3" />
-                            </svg>
-                        </div>
-                        <input type="text" v-model="filterForm.name" data-testid="demo-service-search"
-                            class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
-                            :placeholder="$t('services.filters.search_placeholder')">
-                    </div>
-                </div>
-
-                <div class="flex flex-wrap items-center gap-2 justify-end">
-                    <button type="button" @click="showAdvanced = !showAdvanced"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        {{ $t('services.actions.filters') }}
-                    </button>
-                    <button type="button" @click="clearFilters"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        {{ $t('services.actions.clear') }}
-                    </button>
-                    <button type="button" data-hs-overlay="#hs-service-upsert" @click="openCreate"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
-                        <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M5 12h14" />
-                            <path d="M12 5v14" />
+        <AdminDataTableToolbar
+            :show-filters="showAdvanced"
+            :show-apply="false"
+            :busy="isLoading"
+            :filters-label="$t('services.actions.filters')"
+            :clear-label="$t('services.actions.clear')"
+            @toggle-filters="showAdvanced = !showAdvanced"
+            @apply="autoFilter"
+            @clear="clearFilters"
+        >
+            <template #search>
+                <div class="relative">
+                    <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
+                        <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
+                            xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="m21 21-4.3-4.3" />
                         </svg>
-                        {{ $t('services.actions.add_service') }}
-                    </button>
+                    </div>
+                    <input type="text" v-model="filterForm.name" data-testid="demo-service-search"
+                        class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
+                        :placeholder="$t('services.filters.search_placeholder')">
                 </div>
-            </div>
+            </template>
 
-            <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2">
+            <template #filters>
                 <FloatingSelect
                     v-model="filterForm.category_id"
                     :label="$t('services.filters.category')"
@@ -247,8 +237,21 @@ const destroyService = (service) => {
                     :placeholder="$t('services.filters.price_max')">
                 <DatePicker v-model="filterForm.created_from" :label="$t('services.filters.created_from')" />
                 <DatePicker v-model="filterForm.created_to" :label="$t('services.filters.created_to')" />
-            </div>
-        </div>
+            </template>
+
+            <template #actions>
+                <button type="button" data-hs-overlay="#hs-service-upsert" @click="openCreate"
+                    class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
+                        height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14" />
+                        <path d="M12 5v14" />
+                    </svg>
+                    {{ $t('services.actions.add_service') }}
+                </button>
+            </template>
+        </AdminDataTableToolbar>
 
         <div
             class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
@@ -351,34 +354,17 @@ const destroyService = (service) => {
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-5 py-2 text-end">
-                                <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                                    <button type="button"
-                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                        aria-haspopup="menu" aria-expanded="false" :aria-label="$t('services.aria.dropdown')">
-                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <circle cx="12" cy="12" r="1" />
-                                            <circle cx="12" cy="5" r="1" />
-                                            <circle cx="12" cy="19" r="1" />
-                                        </svg>
+                                <AdminDataTableActions :label="$t('services.aria.dropdown')">
+                                    <button type="button" @click="openEdit(service)"
+                                        class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                        {{ $t('services.actions.edit') }}
                                     </button>
-
-                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-28 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                        role="menu" aria-orientation="vertical">
-                                        <div class="p-1">
-                                            <button type="button" @click="openEdit(service)"
-                                                class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                {{ $t('services.actions.edit') }}
-                                            </button>
-                                            <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                            <button type="button" @click="destroyService(service)"
-                                                class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
-                                                {{ $t('services.actions.delete') }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                    <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                    <button type="button" @click="destroyService(service)"
+                                        class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
+                                        {{ $t('services.actions.delete') }}
+                                    </button>
+                                </AdminDataTableActions>
                             </td>
                         </tr>
 
@@ -399,43 +385,7 @@ const destroyService = (service) => {
                 <span class="text-stone-500 dark:text-neutral-500"> {{ $t('services.pagination.results') }}</span>
             </p>
 
-            <nav class="flex justify-end items-center gap-x-1" :aria-label="$t('services.pagination.label')">
-                <Link :href="services.prev_page_url" v-if="services.prev_page_url">
-                <button type="button"
-                    class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    :aria-label="$t('services.pagination.previous')">
-                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="m15 18-6-6 6-6" />
-                    </svg>
-                    <span class="sr-only">{{ $t('services.pagination.previous') }}</span>
-                </button>
-                </Link>
-
-                <div class="flex items-center gap-x-1">
-                    <span
-                        class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
-                        aria-current="page">{{ services.from }}</span>
-                    <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ $t('services.pagination.of') }}</span>
-                    <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ services.to }}</span>
-                </div>
-
-                <Link :href="services.next_page_url" v-if="services.next_page_url">
-                <button type="button"
-                    class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    :aria-label="$t('services.pagination.next')">
-                    <span class="sr-only">{{ $t('services.pagination.next') }}</span>
-                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="m9 18 6-6-6-6" />
-                    </svg>
-                </button>
-                </Link>
-            </nav>
+            <AdminPaginationLinks :links="serviceLinks" />
         </div>
 
         <Modal :title="editingService ? $t('services.actions.edit_service') : $t('services.actions.new_service')" :id="'hs-service-upsert'">
