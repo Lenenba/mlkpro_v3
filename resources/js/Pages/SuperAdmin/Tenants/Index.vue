@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import DatePicker from '@/Components/DatePicker.vue';
@@ -75,6 +76,7 @@ const tenantRows = computed(() => props.tenants?.data || []);
 const tenantLinks = computed(() => props.tenants?.links || []);
 const tenantsTotal = computed(() => Number(props.tenants?.total || tenantRows.value.length || 0));
 const tenantResultsLabel = computed(() => t('super_admin.tenants.filters.results', { count: tenantsTotal.value }));
+const currentPerPage = computed(() => resolveDataTablePerPage(props.tenants?.per_page, props.filters?.per_page));
 
 const { apply: applyFilters, clear: clearFilters } = useDataTableFilters(
     form,
@@ -156,6 +158,8 @@ const statusLabel = (tenant) => {
                 :result-label="tenantResultsLabel"
                 :empty-description="$t('super_admin.tenants.empty')"
                 container-class="border-t-4 border-t-zinc-600"
+                show-per-page
+                :per-page="currentPerPage"
             >
                 <template #toolbar>
                     <AdminDataTableToolbar

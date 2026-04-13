@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { humanizeDate } from '@/utils/date';
@@ -29,7 +31,6 @@ const filterForm = useForm({
     event: props.filters?.event || '',
     sort: props.filters?.sort || 'processed_at',
     direction: props.filters?.direction || 'desc',
-    per_page: Number(props.filters?.per_page || 15),
 });
 
 const periodOptions = computed(() => ([
@@ -51,12 +52,7 @@ const eventFilterOptions = computed(() => ([
     ...(props.eventOptions || []).map((event) => ({ id: event, name: eventLabel(event) })),
 ]));
 
-const perPageOptions = computed(() => ([
-    { id: 10, name: '10' },
-    { id: 15, name: '15' },
-    { id: 25, name: '25' },
-    { id: 50, name: '50' },
-]));
+const currentPerPage = computed(() => resolveDataTablePerPage(props.entries?.per_page, props.filters?.per_page));
 
 const filterPayload = () => {
     const payload = {
@@ -66,7 +62,7 @@ const filterPayload = () => {
         event: filterForm.event,
         sort: filterForm.sort,
         direction: filterForm.direction,
-        per_page: filterForm.per_page,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -107,7 +103,6 @@ watch(
         filterForm.event,
         filterForm.sort,
         filterForm.direction,
-        filterForm.per_page,
     ],
     autoFilter
 );
@@ -119,7 +114,6 @@ const clearFilters = () => {
     filterForm.event = '';
     filterForm.sort = 'processed_at';
     filterForm.direction = 'desc';
-    filterForm.per_page = 15;
     showAdvanced.value = false;
     applyFilters();
 };
@@ -136,6 +130,12 @@ const toggleSort = (column) => {
 const pointLabel = computed(() => props.program?.points_label || t('loyalty_module.default_points_label'));
 const currentPage = computed(() => Number(props.entries?.current_page || 1));
 const totalPages = computed(() => Number(props.entries?.last_page || 1));
+const entryRows = computed(() => (Array.isArray(props.entries?.data) ? props.entries.data : []));
+const entryTableRows = computed(() => (isLoading.value
+    ? Array.from({ length: 8 }, (_, index) => ({ id: `loyalty-client-skeleton-${index}`, __skeleton: true }))
+    : entryRows.value));
+const entryLinks = computed(() => props.entries?.links || []);
+const entryResultsLabel = computed(() => `${props.entries?.total ?? entryRows.value.length} ${t('loyalty_module.ledger.results')}`);
 const formatNumber = (value) => Number(value || 0).toLocaleString();
 const { formatCurrency } = useCurrencyFormatter();
 const formatDateTime = (value) => humanizeDate(value) || '-';
@@ -182,7 +182,6 @@ onBeforeUnmount(() => {
                 <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
                     <FloatingSelect v-model="filterForm.period" :options="periodOptions" :label="$t('loyalty_module.filters.period')" />
                     <FloatingSelect v-model="filterForm.event" :options="eventFilterOptions" :label="$t('loyalty_module.filters.event')" />
-                    <FloatingSelect v-model="filterForm.per_page" :options="perPageOptions" :label="$t('loyalty_module.filters.per_page')" />
                     <FloatingInput v-if="showAdvanced || filterForm.period === 'custom'" v-model="filterForm.from" type="date" :label="$t('loyalty_module.filters.from')" />
                     <FloatingInput v-if="showAdvanced || filterForm.period === 'custom'" v-model="filterForm.to" type="date" :label="$t('loyalty_module.filters.to')" />
                 </div>
@@ -249,134 +248,102 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <div class="min-h-0 flex-1 overflow-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-                        <div class="min-w-full inline-block align-middle">
-                            <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                                <thead>
-                                    <tr>
-                                        <th scope="col" class="min-w-40">
-                                            <button type="button" class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300" @click="toggleSort('processed_at')">
-                                                {{ $t('loyalty_module.ledger.date') }}
-                                                <svg v-if="filterForm.sort === 'processed_at'" class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                                    <path d="m6 9 6 6 6-6" />
-                                                </svg>
-                                            </button>
-                                        </th>
-                                        <th scope="col" class="min-w-32">
-                                            <button type="button" class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300" @click="toggleSort('event')">
-                                                {{ $t('loyalty_module.ledger.event') }}
-                                                <svg v-if="filterForm.sort === 'event'" class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                                    <path d="m6 9 6 6 6-6" />
-                                                </svg>
-                                            </button>
-                                        </th>
-                                        <th scope="col" class="min-w-32">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('loyalty_module.ledger.reference') }}
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="min-w-20">
-                                            <button type="button" class="px-5 py-2.5 text-end w-full flex justify-end items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300" @click="toggleSort('points')">
-                                                {{ $t('loyalty_module.ledger.points') }}
-                                                <svg v-if="filterForm.sort === 'points'" class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                                    <path d="m6 9 6 6 6-6" />
-                                                </svg>
-                                            </button>
-                                        </th>
-                                        <th scope="col" class="min-w-20">
-                                            <button type="button" class="px-5 py-2.5 text-end w-full flex justify-end items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300" @click="toggleSort('amount')">
-                                                {{ $t('loyalty_module.ledger.amount') }}
-                                                <svg v-if="filterForm.sort === 'amount'" class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                                    <path d="m6 9 6 6 6-6" />
-                                                </svg>
-                                            </button>
-                                        </th>
-                                    </tr>
-                                </thead>
+                    <AdminDataTable
+                        embedded
+                        :rows="entryTableRows"
+                        :links="entryLinks"
+                        :show-pagination="entryRows.length > 0"
+                        show-per-page
+                        :per-page="currentPerPage"
+                        :per-page-label="$t('loyalty_module.filters.per_page')"
+                    >
+                        <template #head>
+                            <tr>
+                                <th scope="col" class="min-w-40">
+                                    <button type="button" class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300" @click="toggleSort('processed_at')">
+                                        {{ $t('loyalty_module.ledger.date') }}
+                                        <svg v-if="filterForm.sort === 'processed_at'" class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                            <path d="m6 9 6 6 6-6" />
+                                        </svg>
+                                    </button>
+                                </th>
+                                <th scope="col" class="min-w-32">
+                                    <button type="button" class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300" @click="toggleSort('event')">
+                                        {{ $t('loyalty_module.ledger.event') }}
+                                        <svg v-if="filterForm.sort === 'event'" class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                            <path d="m6 9 6 6 6-6" />
+                                        </svg>
+                                    </button>
+                                </th>
+                                <th scope="col" class="min-w-32 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                    {{ $t('loyalty_module.ledger.reference') }}
+                                </th>
+                                <th scope="col" class="min-w-20">
+                                    <button type="button" class="flex w-full items-center justify-end gap-x-1 px-5 py-2.5 text-end text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300" @click="toggleSort('points')">
+                                        {{ $t('loyalty_module.ledger.points') }}
+                                        <svg v-if="filterForm.sort === 'points'" class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                            <path d="m6 9 6 6 6-6" />
+                                        </svg>
+                                    </button>
+                                </th>
+                                <th scope="col" class="min-w-20">
+                                    <button type="button" class="flex w-full items-center justify-end gap-x-1 px-5 py-2.5 text-end text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300" @click="toggleSort('amount')">
+                                        {{ $t('loyalty_module.ledger.amount') }}
+                                        <svg v-if="filterForm.sort === 'amount'" class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                            <path d="m6 9 6 6 6-6" />
+                                        </svg>
+                                    </button>
+                                </th>
+                            </tr>
+                        </template>
 
-                                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                                    <template v-if="isLoading">
-                                        <tr v-for="row in 8" :key="`loyalty-client-skeleton-${row}`">
-                                            <td colspan="5" class="px-4 py-3">
-                                                <div class="grid grid-cols-5 gap-4 animate-pulse">
-                                                    <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                                    <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                                    <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                                    <div class="h-3 w-10 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                                    <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    </template>
+                        <template #body="{ rows }">
+                            <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                                <tr v-for="entry in rows" :key="entry.id">
+                                    <td v-if="entry.__skeleton" colspan="5" class="px-4 py-3">
+                                        <div class="grid animate-pulse grid-cols-5 gap-4">
+                                            <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                            <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                            <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                            <div class="h-3 w-10 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                            <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        </div>
+                                    </td>
                                     <template v-else>
-                                        <tr v-if="!(entries.data || []).length">
-                                            <td colspan="5" class="px-4 py-8 text-center text-stone-600 dark:text-neutral-300">
-                                                {{ $t('loyalty_module.ledger.empty') }}
-                                            </td>
-                                        </tr>
-                                        <tr v-for="entry in entries.data || []" :key="entry.id">
-                                            <td class="size-px whitespace-nowrap px-4 py-2 text-start text-sm text-stone-600 dark:text-neutral-300">
-                                                {{ formatDateTime(entry.processed_at) }}
-                                            </td>
-                                            <td class="size-px whitespace-nowrap px-4 py-2 text-start">
-                                                <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium" :class="eventBadgeClass(entry.event)">
-                                                    {{ eventLabel(entry.event) }}
-                                                </span>
-                                            </td>
-                                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">
-                                                {{ referenceLabel(entry) }}
-                                            </td>
-                                            <td class="size-px whitespace-nowrap px-4 py-2 text-end text-sm font-semibold" :class="pointsClass(entry.points)">
-                                                {{ signedPoints(entry.points) }}
-                                            </td>
-                                            <td class="size-px whitespace-nowrap px-4 py-2 text-end text-sm font-medium text-stone-700 dark:text-neutral-200">
-                                                {{ formatCurrency(entry.amount) }}
-                                            </td>
-                                        </tr>
+                                        <td class="size-px whitespace-nowrap px-4 py-2 text-start text-sm text-stone-600 dark:text-neutral-300">
+                                            {{ formatDateTime(entry.processed_at) }}
+                                        </td>
+                                        <td class="size-px whitespace-nowrap px-4 py-2 text-start">
+                                            <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium" :class="eventBadgeClass(entry.event)">
+                                                {{ eventLabel(entry.event) }}
+                                            </span>
+                                        </td>
+                                        <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">
+                                            {{ referenceLabel(entry) }}
+                                        </td>
+                                        <td class="size-px whitespace-nowrap px-4 py-2 text-end text-sm font-semibold" :class="pointsClass(entry.points)">
+                                            {{ signedPoints(entry.points) }}
+                                        </td>
+                                        <td class="size-px whitespace-nowrap px-4 py-2 text-end text-sm font-medium text-stone-700 dark:text-neutral-200">
+                                            {{ formatCurrency(entry.amount) }}
+                                        </td>
                                     </template>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                </tr>
+                            </tbody>
+                        </template>
 
-                    <div v-if="(entries.data || []).length" class="mt-5 flex flex-wrap justify-between items-center gap-2">
-                        <p class="text-sm text-stone-800 dark:text-neutral-200">
-                            <span class="font-medium">{{ entries.total ?? (entries.data || []).length }}</span>
-                            <span class="text-stone-500 dark:text-neutral-500"> {{ $t('loyalty_module.ledger.results') }}</span>
-                        </p>
-
-                        <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
-                            <Link :href="entries.prev_page_url" v-if="entries.prev_page_url">
-                                <button type="button"
-                                    class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                                    :aria-label="$t('invoices.pagination.previous')">
-                                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round">
-                                        <path d="m15 18-6-6 6-6" />
-                                    </svg>
-                                    <span class="sr-only">{{ $t('invoices.pagination.previous') }}</span>
-                                </button>
-                            </Link>
-                            <div class="flex items-center gap-x-1">
-                                <span class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white" aria-current="page">{{ entries.from }}</span>
-                                <span class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ $t('invoices.pagination.of') }}</span>
-                                <span class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ entries.to }}</span>
+                        <template #empty>
+                            <div class="rounded-sm border border-dashed border-stone-300 px-4 py-8 text-center text-sm text-stone-600 dark:border-neutral-600 dark:text-neutral-300">
+                                {{ $t('loyalty_module.ledger.empty') }}
                             </div>
-                            <Link :href="entries.next_page_url" v-if="entries.next_page_url">
-                                <button type="button"
-                                    class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                                    :aria-label="$t('invoices.pagination.next')">
-                                    <span class="sr-only">{{ $t('invoices.pagination.next') }}</span>
-                                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round">
-                                        <path d="m9 18 6-6-6-6" />
-                                    </svg>
-                                </button>
-                            </Link>
-                        </nav>
-                    </div>
+                        </template>
+
+                        <template #pagination_prefix>
+                            <p class="text-sm text-stone-500 dark:text-neutral-400">
+                                {{ entryResultsLabel }}
+                            </p>
+                        </template>
+                    </AdminDataTable>
                 </div>
             </section>
         </div>

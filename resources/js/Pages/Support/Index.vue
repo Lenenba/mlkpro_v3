@@ -1,13 +1,15 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/Modal.vue';
 import { humanizeDate } from '@/utils/date';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -72,6 +74,7 @@ const filterForm = useForm({
     status: props.filters?.status ?? '',
     priority: props.filters?.priority ?? '',
 });
+const currentPerPage = computed(() => resolveDataTablePerPage(props.tickets?.per_page, props.filters?.per_page));
 
 const showFilters = ref(false);
 const showCreate = ref(false);
@@ -81,7 +84,12 @@ const editAttachmentInput = ref(null);
 const selectedTicket = ref(null);
 
 const applyFilters = () => {
-    filterForm.get(route('settings.support.index'), {
+    router.get(route('settings.support.index'), {
+        search: filterForm.search,
+        status: filterForm.status,
+        priority: filterForm.priority,
+        per_page: currentPerPage.value,
+    }, {
         only: ['tickets', 'filters', 'stats'],
         preserveScroll: true,
         preserveState: true,
@@ -90,7 +98,9 @@ const applyFilters = () => {
 
 const resetFilters = () => {
     filterForm.reset();
-    filterForm.get(route('settings.support.index'), {
+    router.get(route('settings.support.index'), {
+        per_page: currentPerPage.value,
+    }, {
         only: ['tickets', 'filters', 'stats'],
         preserveScroll: true,
     });
@@ -237,6 +247,9 @@ const attachmentIcon = (media) => {
     }
     return 'file';
 };
+
+const ticketRows = computed(() => (Array.isArray(props.tickets?.data) ? props.tickets.data : []));
+const ticketLinks = computed(() => props.tickets?.links || []);
 </script>
 
 <template>
@@ -365,21 +378,34 @@ const attachmentIcon = (media) => {
                     </div>
                 </form>
 
-                <div
-                    class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-                    <table class="min-w-full divide-y divide-stone-200 text-sm text-left text-stone-600 dark:divide-neutral-700 dark:text-neutral-300">
-                        <thead class="text-xs uppercase text-stone-500 dark:text-neutral-400">
-                            <tr>
-                                <th class="px-4 py-3">{{ $t('support_portal.table.title') }}</th>
-                                <th class="px-4 py-3">{{ $t('support_portal.table.category') }}</th>
-                                <th class="px-4 py-3">{{ $t('support_portal.table.status') }}</th>
-                                <th class="px-4 py-3">{{ $t('support_portal.table.priority') }}</th>
-                                <th class="px-4 py-3">{{ $t('support_portal.table.created') }}</th>
-                                <th class="px-4 py-3"></th>
-                            </tr>
-                        </thead>
+                <AdminDataTable
+                    embedded
+                    :rows="ticketRows"
+                    :links="ticketLinks"
+                    :show-pagination="ticketRows.length > 0"
+                    show-per-page
+                    :per-page="currentPerPage"
+                >
+                    <template #empty>
+                        <div class="px-4 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
+                            {{ $t('support_portal.table.empty') }}
+                        </div>
+                    </template>
+
+                    <template #head>
+                        <tr class="text-xs uppercase text-stone-500 dark:text-neutral-400">
+                            <th class="px-4 py-3">{{ $t('support_portal.table.title') }}</th>
+                            <th class="px-4 py-3">{{ $t('support_portal.table.category') }}</th>
+                            <th class="px-4 py-3">{{ $t('support_portal.table.status') }}</th>
+                            <th class="px-4 py-3">{{ $t('support_portal.table.priority') }}</th>
+                            <th class="px-4 py-3">{{ $t('support_portal.table.created') }}</th>
+                            <th class="px-4 py-3"></th>
+                        </tr>
+                    </template>
+
+                    <template #body="{ rows }">
                         <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                            <tr v-for="ticket in tickets.data" :key="ticket.id">
+                            <tr v-for="ticket in rows" :key="ticket.id">
                                 <td class="px-4 py-3">
                                     <Link :href="route('settings.support.show', ticket.id)"
                                         class="font-medium text-stone-800 hover:underline dark:text-neutral-100">
@@ -442,14 +468,9 @@ const attachmentIcon = (media) => {
                                     </div>
                                 </td>
                             </tr>
-                            <tr v-if="!tickets.data.length">
-                                <td colspan="6" class="px-4 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
-                                    {{ $t('support_portal.table.empty') }}
-                                </td>
-                            </tr>
                         </tbody>
-                    </table>
-                </div>
+                    </template>
+                </AdminDataTable>
             </div>
         </div>
 

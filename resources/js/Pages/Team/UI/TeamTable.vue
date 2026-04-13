@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import Modal from '@/Components/UI/Modal.vue';
@@ -431,141 +432,139 @@ const filteredResultsLabel = computed(() => `${filteredMembers.value.length} res
             </template>
         </AdminDataTableToolbar>
 
-        <div
-            class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-            <div class="min-w-full inline-block align-middle">
-                <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="min-w-[260px]">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Member
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-28">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Role
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-40">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Title
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-40">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Phone
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-28">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Status
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Added
-                                </div>
-                            </th>
-                            <th scope="col"></th>
-                        </tr>
-                    </thead>
+        <AdminDataTable embedded :rows="filteredMembers" :show-pagination="false">
+            <template #empty>
+                <div class="px-4 py-6 text-sm text-stone-600 dark:text-neutral-400">
+                    No team members found.
+                </div>
+            </template>
 
-                    <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                        <tr v-if="!filteredMembers.length">
-                            <td colspan="7" class="px-4 py-6 text-sm text-stone-600 dark:text-neutral-400">
-                                No team members found.
-                            </td>
-                        </tr>
-                        <tr v-for="member in filteredMembers" :key="member.id">
-                            <td class="size-px whitespace-nowrap px-4 py-2 text-start">
-                                <div class="flex items-center gap-3">
-                                    <div class="size-10 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center overflow-hidden dark:bg-neutral-700 dark:text-neutral-200">
-                                        <img
-                                            v-if="memberAvatarUrl(member)"
-                                            :src="memberAvatarUrl(member)"
-                                            alt="Member avatar"
-                                            class="h-full w-full object-cover"
-                                            loading="lazy"
-                                            decoding="async"
-                                        >
-                                        <span v-else class="text-xs font-semibold">
-                                            {{ memberInitials(member) }}
-                                        </span>
-                                    </div>
-                                    <div class="flex flex-col">
-                                        <span
-                                            class="text-sm font-medium text-stone-800 hover:text-stone-900 cursor-pointer dark:text-neutral-200 dark:hover:text-white"
-                                            @click="openDetailMember(member)"
-                                        >
-                                            {{ member.user?.name || `Member #${member.id}` }}
-                                        </span>
-                                        <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                            {{ member.user?.email || '-' }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="py-1.5 px-2 inline-flex items-center text-xs font-medium rounded-full"
-                                    :class="roleBadge(member)">
-                                    {{ roleLabel(member.role) }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-sm text-stone-600 dark:text-neutral-300">
-                                    {{ member.title || '-' }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-sm text-stone-600 dark:text-neutral-300">
-                                    {{ member.phone || '-' }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="py-1.5 px-2 inline-flex items-center text-xs font-medium rounded-full"
-                                    :class="statusBadge(member)">
-                                    {{ member.is_active ? 'active' : 'inactive' }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                    {{ formatDate(member.created_at) }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                                <AdminDataTableActions label="Dropdown">
-                                    <button type="button" @click="openDetailMember(member)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        Details
-                                    </button>
-                                    <Link
-                                        v-if="memberPerformanceUrl(member)"
-                                        :href="memberPerformanceUrl(member)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            <template #head>
+                <tr>
+                    <th scope="col" class="min-w-[260px]">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            Member
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-28">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            Role
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-40">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            Title
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-40">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            Phone
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-28">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            Status
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            Added
+                        </div>
+                    </th>
+                    <th scope="col"></th>
+                </tr>
+            </template>
+
+            <template #body="{ rows }">
+                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                    <tr v-for="member in rows" :key="member.id">
+                        <td class="size-px whitespace-nowrap px-4 py-2 text-start">
+                            <div class="flex items-center gap-3">
+                                <div class="size-10 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center overflow-hidden dark:bg-neutral-700 dark:text-neutral-200">
+                                    <img
+                                        v-if="memberAvatarUrl(member)"
+                                        :src="memberAvatarUrl(member)"
+                                        alt="Member avatar"
+                                        class="h-full w-full object-cover"
+                                        loading="lazy"
+                                        decoding="async"
                                     >
-                                        {{ t('performance.employees.view_employee') }}
-                                    </Link>
-                                    <button type="button" @click="openEditMember(member)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        Edit
-                                    </button>
-                                    <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                    <button v-if="member.is_active" type="button" @click="deactivateMember(member)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
-                                        Deactivate
-                                    </button>
-                                    <button v-else type="button" @click="activateMember(member)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
-                                        Activate
-                                    </button>
-                                </AdminDataTableActions>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                                    <span v-else class="text-xs font-semibold">
+                                        {{ memberInitials(member) }}
+                                    </span>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-sm font-medium text-stone-800 hover:text-stone-900 cursor-pointer dark:text-neutral-200 dark:hover:text-white"
+                                        @click="openDetailMember(member)"
+                                    >
+                                        {{ member.user?.name || `Member #${member.id}` }}
+                                    </span>
+                                    <span class="text-xs text-stone-500 dark:text-neutral-500">
+                                        {{ member.user?.email || '-' }}
+                                    </span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="size-px whitespace-nowrap px-4 py-2">
+                            <span class="py-1.5 px-2 inline-flex items-center text-xs font-medium rounded-full"
+                                :class="roleBadge(member)">
+                                {{ roleLabel(member.role) }}
+                            </span>
+                        </td>
+                        <td class="size-px whitespace-nowrap px-4 py-2">
+                            <span class="text-sm text-stone-600 dark:text-neutral-300">
+                                {{ member.title || '-' }}
+                            </span>
+                        </td>
+                        <td class="size-px whitespace-nowrap px-4 py-2">
+                            <span class="text-sm text-stone-600 dark:text-neutral-300">
+                                {{ member.phone || '-' }}
+                            </span>
+                        </td>
+                        <td class="size-px whitespace-nowrap px-4 py-2">
+                            <span class="py-1.5 px-2 inline-flex items-center text-xs font-medium rounded-full"
+                                :class="statusBadge(member)">
+                                {{ member.is_active ? 'active' : 'inactive' }}
+                            </span>
+                        </td>
+                        <td class="size-px whitespace-nowrap px-4 py-2">
+                            <span class="text-xs text-stone-500 dark:text-neutral-500">
+                                {{ formatDate(member.created_at) }}
+                            </span>
+                        </td>
+                        <td class="size-px whitespace-nowrap px-4 py-2 text-end">
+                            <AdminDataTableActions label="Dropdown">
+                                <button type="button" @click="openDetailMember(member)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                    Details
+                                </button>
+                                <Link
+                                    v-if="memberPerformanceUrl(member)"
+                                    :href="memberPerformanceUrl(member)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                >
+                                    {{ t('performance.employees.view_employee') }}
+                                </Link>
+                                <button type="button" @click="openEditMember(member)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                    Edit
+                                </button>
+                                <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                <button v-if="member.is_active" type="button" @click="deactivateMember(member)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
+                                    Deactivate
+                                </button>
+                                <button v-else type="button" @click="activateMember(member)"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
+                                    Activate
+                                </button>
+                            </AdminDataTableActions>
+                        </td>
+                    </tr>
+                </tbody>
+            </template>
+        </AdminDataTable>
 
         <div class="mt-5 flex flex-wrap justify-between items-center gap-2">
             <p class="text-sm text-stone-800 dark:text-neutral-200">{{ filteredResultsLabel }}</p>

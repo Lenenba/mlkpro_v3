@@ -33,6 +33,7 @@ class InvoiceController extends Controller
             'sort',
             'direction',
         ]);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
 
         $userId = Auth::id();
         $baseQuery = Invoice::query()
@@ -51,7 +52,7 @@ class InvoiceController extends Controller
             ])
             ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
             ->orderBy($sort, $direction)
-            ->simplePaginate(10)
+            ->simplePaginate((int) $filters['per_page'])
             ->withQueryString();
 
         $totalCount = (clone $baseQuery)->count();

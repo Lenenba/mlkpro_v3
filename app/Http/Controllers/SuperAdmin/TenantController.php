@@ -43,7 +43,10 @@ class TenantController extends BaseSuperAdminController
             'plan',
             'created_from',
             'created_to',
+            'per_page',
         ]);
+
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
 
         $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
         $query = User::query()->where('role_id', $ownerRoleId);
@@ -86,7 +89,7 @@ class TenantController extends BaseSuperAdminController
         $newCount = (clone $query)->whereDate('created_at', '>=', $recentThreshold)->count();
         $onboardedCount = (clone $query)->whereNotNull('onboarding_completed_at')->count();
 
-        $tenants = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
+        $tenants = $query->orderByDesc('created_at')->paginate((int) $filters['per_page'])->withQueryString();
 
         $subscriptionMap = $this->subscriptionMap($tenants->pluck('id'));
         $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);

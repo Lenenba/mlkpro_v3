@@ -34,6 +34,7 @@ class ServiceController extends Controller
             'sort',
             'direction',
         ]);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
 
         $user = Auth::user();
         $userId = $user?->id ?? Auth::id();
@@ -55,7 +56,7 @@ class ServiceController extends Controller
         $services = (clone $baseQuery)
             ->with(['category', 'serviceMaterials.product'])
             ->orderBy($sort, $direction)
-            ->simplePaginate(10)
+            ->simplePaginate((int) $filters['per_page'])
             ->withQueryString();
 
         $stats = [
@@ -111,6 +112,7 @@ class ServiceController extends Controller
             'sort',
             'direction',
         ]);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
 
         $baseQuery = ProductCategory::forAccount($accountId);
 
@@ -162,7 +164,7 @@ class ServiceController extends Controller
                     ->where('item_type', Product::ITEM_TYPE_SERVICE),
             ])
             ->orderBy($sort, $direction)
-            ->simplePaginate(10)
+            ->simplePaginate((int) $filters['per_page'])
             ->withQueryString();
 
         $stats = [

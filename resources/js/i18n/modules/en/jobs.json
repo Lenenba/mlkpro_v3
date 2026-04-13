@@ -245,6 +245,7 @@
       "created_at": "Created",
       "results": "results"
     },
+    "empty": "No jobs found.",
     "actions": {
       "filters": "Filters",
       "reset": "Reset",

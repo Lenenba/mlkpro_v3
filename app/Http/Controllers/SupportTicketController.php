@@ -36,6 +36,7 @@ class SupportTicketController extends Controller
         }
 
         $filters = $request->only(['search', 'status', 'priority']);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
 
         $query = PlatformSupportTicket::query()
             ->where('account_id', $accountId)
@@ -73,7 +74,7 @@ class SupportTicketController extends Controller
         $resolvedCount = (clone $query)->where('status', 'resolved')->count();
         $closedCount = (clone $query)->where('status', 'closed')->count();
 
-        $tickets = $query->latest()->paginate(15)->withQueryString();
+        $tickets = $query->latest()->paginate((int) $filters['per_page'])->withQueryString();
 
         $payload = [
             'tickets' => $tickets,

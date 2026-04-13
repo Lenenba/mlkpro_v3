@@ -1,17 +1,18 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
-import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
-import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import { humanizeDate } from '@/utils/date';
 import ProductForm from './ProductForm.vue';
+import ProductActionsMenu from './ProductActionsMenu.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import { useI18n } from 'vue-i18n';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import axios from 'axios';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
@@ -183,6 +184,7 @@ const filterPayload = () => {
         alert: filterForm.alert,
         sort: filterForm.sort,
         direction: filterForm.direction,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -270,7 +272,12 @@ const clearFilters = () => {
 };
 
 const exportUrl = computed(() => route('product.export', filterPayload()));
+const productRows = computed(() => (Array.isArray(props.products?.data) ? props.products.data : []));
+const productTableRows = computed(() => (isLoading.value
+    ? Array.from({ length: 6 }, (_, index) => ({ id: `product-skeleton-${index}`, __skeleton: true }))
+    : productRows.value));
 const productLinks = computed(() => props.products?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.products?.per_page, props.filters?.per_page));
 const productResultsLabel = computed(() => `${props.count} ${t('products.pagination.results')}`);
 
 const { formatCurrency } = useCurrencyFormatter();
@@ -534,13 +541,13 @@ const toggleSort = (column) => {
 const selected = ref([]);
 const selectAllRef = ref(null);
 const allSelected = computed(() =>
-    props.products.data.length > 0 && selected.value.length === props.products.data.length
+    productRows.value.length > 0 && selected.value.length === productRows.value.length
 );
 const someSelected = computed(() =>
     selected.value.length > 0 && !allSelected.value
 );
 
-watch(() => props.products.data, () => {
+watch(productRows, () => {
     selected.value = [];
 }, { deep: true });
 
@@ -563,7 +570,7 @@ watch([allSelected, someSelected], () => {
 
 const toggleAll = (event) => {
     selected.value = event.target.checked
-        ? props.products.data.map((product) => product.id)
+        ? productRows.value.map((product) => product.id)
         : [];
 };
 
@@ -1118,9 +1125,44 @@ const submitImport = () => {
 
         </div>
 
-        <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-            <thead>
+        <AdminDataTable
+            embedded
+            :rows="productTableRows"
+            :links="productLinks"
+            :show-pagination="productRows.length > 0"
+            show-per-page
+            :per-page="currentPerPage"
+        >
+            <template #empty>
+                <div class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                    <div class="space-y-2">
+                        <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ $t('products.empty.title') }}
+                        </div>
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('products.empty.subtitle') }}
+                        </div>
+                        <div v-if="canEdit" class="flex flex-wrap justify-center gap-2 pt-2">
+                            <button
+                                type="button"
+                                data-hs-overlay="#hs-pro-dasadpm"
+                                class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+                            >
+                                {{ $t('products.empty.add_action') }}
+                            </button>
+                            <button
+                                type="button"
+                                data-hs-overlay="#hs-pro-import"
+                                class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            >
+                                {{ $t('products.actions.import_csv') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <template #head>
                 <tr class="border-t border-stone-200 dark:border-neutral-700">
                     <th scope="col" class="px-4 py-2 w-10">
                         <input v-if="canEdit" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
@@ -1194,11 +1236,16 @@ const submitImport = () => {
                     </th>
                     <th scope="col"></th>
                 </tr>
-            </thead>
+            </template>
 
-            <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                <template v-if="isLoading">
-                    <tr v-for="row in 6" :key="`skeleton-${row}`">
+            <template #body="{ rows }">
+                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                    <tr v-for="product in rows" :key="product.id"
+                        :class="{
+                            'bg-amber-50/40 dark:bg-amber-500/5': !product.__skeleton && isLowStock(product),
+                            'bg-red-50/40 dark:bg-red-500/5': !product.__skeleton && isOutOfStock(product),
+                        }">
+                    <template v-if="product.__skeleton">
                         <td colspan="11" class="px-4 py-3">
                             <div class="grid grid-cols-7 gap-4 animate-pulse">
                                 <div class="h-3 w-10 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
@@ -1210,42 +1257,8 @@ const submitImport = () => {
                                 <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                             </div>
                         </td>
-                    </tr>
-                </template>
-                <template v-else>
-                    <tr v-if="!products.data.length">
-                        <td colspan="11" class="px-4 py-10 text-center text-stone-600 dark:text-neutral-300">
-                            <div class="space-y-2">
-                                <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                                    {{ $t('products.empty.title') }}
-                                </div>
-                                <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('products.empty.subtitle') }}
-                                </div>
-                                <div v-if="canEdit" class="flex flex-wrap justify-center gap-2 pt-2">
-                                    <button
-                                        type="button"
-                                        data-hs-overlay="#hs-pro-dasadpm"
-                                        class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
-                                    >
-                                        {{ $t('products.empty.add_action') }}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        data-hs-overlay="#hs-pro-import"
-                                        class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                                    >
-                                        {{ $t('products.actions.import_csv') }}
-                                    </button>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr v-for="product in products.data" :key="product.id"
-                        :class="{
-                            'bg-amber-50/40 dark:bg-amber-500/5': isLowStock(product),
-                            'bg-red-50/40 dark:bg-red-500/5': isOutOfStock(product),
-                        }">
+                    </template>
+                    <template v-else>
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <Checkbox v-if="canEdit" v-model:checked="selected" :value="product.id" />
                     </td>
@@ -1436,39 +1449,15 @@ const submitImport = () => {
                             </button>
                         </div>
                         <div v-else>
-                            <AdminDataTableActions v-if="canEdit" :label="$t('products.aria.dropdown')">
-                                <Link
-                                    :href="route('product.show', product.id)"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                >
-                                    {{ $t('products.actions.view') }}
-                                </Link>
-                                <button type="button" @click="startInlineEdit(product)"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                    {{ $t('products.actions.quick_edit') }}
-                                </button>
-                                <button type="button" @click="openAdjust(product)"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                    {{ $t('products.actions.adjust_stock') }}
-                                </button>
-                                <button type="button" @click="duplicateProduct(product)"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                    {{ $t('products.actions.duplicate') }}
-                                </button>
-                                <button type="button" @click="toggleArchive(product)"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
-                                    {{ product.is_active ? $t('products.actions.archive') : $t('products.actions.restore') }}
-                                </button>
-                                <button type="button" :data-hs-overlay="'#hs-pro-edit' + product.id"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                    {{ $t('products.actions.edit') }}
-                                </button>
-                                <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                <button type="button" @click="destroyProduct(product)"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                    {{ $t('products.actions.delete') }}
-                                </button>
-                            </AdminDataTableActions>
+                            <ProductActionsMenu
+                                v-if="canEdit"
+                                :product="product"
+                                @quick-edit="startInlineEdit(product)"
+                                @adjust="openAdjust(product)"
+                                @duplicate="duplicateProduct(product)"
+                                @toggle-archive="toggleArchive(product)"
+                                @delete="destroyProduct(product)"
+                            />
                             <div v-else>
                                 <Link
                                     :href="route('product.show', product.id)"
@@ -1489,17 +1478,15 @@ const submitImport = () => {
                             :tenant-currency-code="tenantCurrencyCode"
                         />
                     </Modal>
+                    </template>
                 </tr>
-                </template>
-            </tbody>
-        </table>
-        </div>
+                </tbody>
+            </template>
 
-        <div class="mt-5 flex flex-wrap justify-between items-center gap-2">
-            <p class="text-sm text-stone-800 dark:text-neutral-200">{{ productResultsLabel }}</p>
-
-            <AdminPaginationLinks :links="productLinks" />
-        </div>
+            <template #pagination_prefix>
+                <p class="text-sm text-stone-800 dark:text-neutral-200">{{ productResultsLabel }}</p>
+            </template>
+        </AdminDataTable>
     </div>
 
     <Modal :title="alertDetailsTitle" :id="'hs-pro-alert-details'">

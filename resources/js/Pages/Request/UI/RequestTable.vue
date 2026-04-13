@@ -13,6 +13,7 @@ import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
 import { isFeatureEnabled } from '@/utils/features';
 import { buildLeadScore, badgeClass } from '@/utils/leadScore';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useI18n } from 'vue-i18n';
 import RequestBoard from '@/Pages/Request/UI/RequestBoard.vue';
 import RequestTableActionsMenu from '@/Pages/Request/UI/RequestTableActionsMenu.vue';
@@ -159,6 +160,7 @@ const filterPayload = () => {
         status: filterForm.status,
         customer_id: filterForm.customer_id,
         view: viewMode.value,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -206,6 +208,7 @@ const clearFilters = () => {
 };
 
 const requestLinks = computed(() => props.requests?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.requests?.per_page, props.filters?.per_page));
 
 const setViewMode = (mode) => {
     if (!allowedViews.includes(mode) || viewMode.value === mode) {
@@ -988,6 +991,8 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
             :rows="requestTableRows"
             :links="requestLinks"
             :show-pagination="tableRows.length > 0"
+            show-per-page
+            :per-page="currentPerPage"
         >
             <template #empty>
                 <div class="px-5 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">

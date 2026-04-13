@@ -59,6 +59,7 @@ class ProductController extends Controller
             'sort',
             'direction',
         ]);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
         $user = $request?->user() ?? Auth::user();
         if (! $user) {
             abort(403);
@@ -126,7 +127,7 @@ class ProductController extends Controller
                 }]);
             })
             ->orderBy($sort, $direction)
-            ->simplePaginate(7)
+            ->simplePaginate((int) $filters['per_page'])
             ->withQueryString();
 
         $productCollection = $products->getCollection();

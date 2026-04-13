@@ -2,13 +2,14 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
-import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import Modal from '@/Components/UI/Modal.vue';
 import InputError from '@/Components/InputError.vue';
 
@@ -105,6 +106,7 @@ const filterPayload = () => {
         start_to: filterForm.start_to,
         sort: filterForm.sort,
         direction: filterForm.direction,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -217,7 +219,12 @@ watch(createCustomerId, () => {
     }
 });
 
+const workRows = computed(() => (Array.isArray(props.works?.data) ? props.works.data : []));
+const workTableRows = computed(() => (isLoading.value
+    ? Array.from({ length: 6 }, (_, index) => ({ id: `work-skeleton-${index}`, __skeleton: true }))
+    : workRows.value));
 const workLinks = computed(() => props.works?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.works?.per_page, props.filters?.per_page));
 const workResultsLabel = computed(() => `${props.works?.total ?? props.works?.data?.length ?? 0} ${t('jobs.table.results')}`);
 </script>
 
@@ -279,103 +286,112 @@ const workResultsLabel = computed(() => `${props.works?.total ?? props.works?.da
             </template>
         </AdminDataTableToolbar>
 
-        <div
-            class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-            <div class="min-w-full inline-block align-middle">
-                <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="min-w-[240px]">
-                                <button type="button" @click="toggleSort('job_title')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('jobs.table.job') }}
-                                    <svg v-if="filterForm.sort === 'job_title'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-40">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('jobs.table.customer') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button type="button" @click="toggleSort('status')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('jobs.table.status') }}
-                                    <svg v-if="filterForm.sort === 'status'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('jobs.table.rating') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button type="button" @click="toggleSort('total')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('jobs.table.total') }}
-                                    <svg v-if="filterForm.sort === 'total'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button type="button" @click="toggleSort('start_date')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('jobs.table.start_date') }}
-                                    <svg v-if="filterForm.sort === 'start_date'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button type="button" @click="toggleSort('created_at')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('jobs.table.created_at') }}
-                                    <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col"></th>
-                        </tr>
-                    </thead>
+        <AdminDataTable
+            embedded
+            :rows="workTableRows"
+            :links="workLinks"
+            :show-pagination="workRows.length > 0"
+            show-per-page
+            :per-page="currentPerPage"
+        >
+            <template #empty>
+                <div class="px-5 py-10 text-center text-sm text-stone-500 dark:text-neutral-500">
+                    {{ $t('jobs.empty') }}
+                </div>
+            </template>
 
-                    <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                        <template v-if="isLoading">
-                            <tr v-for="row in 6" :key="`skeleton-${row}`">
-                                <td colspan="8" class="px-4 py-3">
-                                    <div class="grid grid-cols-6 gap-4 animate-pulse">
-                                        <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    </div>
-                                </td>
-                            </tr>
+            <template #head>
+                <tr>
+                    <th scope="col" class="min-w-[240px]">
+                        <button type="button" @click="toggleSort('job_title')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('jobs.table.job') }}
+                            <svg v-if="filterForm.sort === 'job_title'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-40">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('jobs.table.customer') }}
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <button type="button" @click="toggleSort('status')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('jobs.table.status') }}
+                            <svg v-if="filterForm.sort === 'status'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('jobs.table.rating') }}
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <button type="button" @click="toggleSort('total')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('jobs.table.total') }}
+                            <svg v-if="filterForm.sort === 'total'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <button type="button" @click="toggleSort('start_date')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('jobs.table.start_date') }}
+                            <svg v-if="filterForm.sort === 'start_date'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <button type="button" @click="toggleSort('created_at')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('jobs.table.created_at') }}
+                            <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col"></th>
+                </tr>
+            </template>
+
+            <template #body="{ rows }">
+                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                    <tr v-for="work in rows" :key="work.id">
+                        <template v-if="work.__skeleton">
+                            <td colspan="8" class="px-4 py-3">
+                                <div class="grid grid-cols-6 gap-4 animate-pulse">
+                                    <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                            </td>
                         </template>
                         <template v-else>
-                        <tr v-for="work in works.data" :key="work.id">
                             <td class="size-px whitespace-nowrap px-4 py-2 text-start">
                                 <Link :href="route('work.show', work.id)" class="flex flex-col hover:underline">
                                     <span class="text-sm text-stone-600 dark:text-neutral-300">
@@ -461,20 +477,17 @@ const workResultsLabel = computed(() => `${props.works?.total ?? props.works?.da
                                     </button>
                                 </AdminDataTableActions>
                             </td>
-                        </tr>
                         </template>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                    </tr>
+                </tbody>
+            </template>
 
-        <div v-if="works.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
-            <p class="text-sm text-stone-800 dark:text-neutral-200">
-                {{ workResultsLabel }}
-            </p>
-
-            <AdminPaginationLinks :links="workLinks" />
-        </div>
+            <template #pagination_prefix>
+                <p class="text-sm text-stone-800 dark:text-neutral-200">
+                    {{ workResultsLabel }}
+                </p>
+            </template>
+        </AdminDataTable>
 
         <Modal :title="$t('jobs.create_modal.title')" :id="'hs-work-create'">
             <div class="space-y-4">

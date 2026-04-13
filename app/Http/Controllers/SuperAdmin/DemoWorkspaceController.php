@@ -49,6 +49,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
 
         $statusFilter = (string) $request->string('status', 'all');
         $salesStatusFilter = (string) $request->string('sales_status', 'all');
+        $perPage = $this->resolveDataTablePerPage($request);
 
         $query = DemoWorkspace::query()
             ->with([
@@ -65,7 +66,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
         $this->applySalesStatusFilter($query, $salesStatusFilter);
 
         $statsQuery = DemoWorkspace::query();
-        $workspaces = $query->paginate(12)->withQueryString();
+        $workspaces = $query->paginate($perPage)->withQueryString();
         $workspaceIds = $workspaces->getCollection()->pluck('id');
         $timelineByWorkspace = $this->timelineByWorkspace($workspaceIds);
         $workspaces->through(
@@ -96,6 +97,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
             'filters' => [
                 'status' => $statusFilter,
                 'sales_status' => $salesStatusFilter,
+                'per_page' => $perPage,
                 'options' => $this->statusFilterOptions(),
                 'sales_options' => self::SALES_STATUS_OPTIONS,
             ],
@@ -191,7 +193,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
             : $provisioner->queueCreate($payload, $request->user());
 
         if ($saveAsDraft === false) {
-            ProvisionDemoWorkspaceJob::dispatch($workspace->id, (int) $request->user()->id);
+            $this->dispatchProvisioningJob($workspace, (int) $request->user()->id);
         }
 
         $timeline->record($workspace, $saveAsDraft ? 'demo_workspace.draft_saved' : 'demo_workspace.queued', $request->user(), [
@@ -251,7 +253,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
         }
 
         $queuedWorkspace = $provisioner->queueDraft($demoWorkspace, $request->user());
-        ProvisionDemoWorkspaceJob::dispatch($queuedWorkspace->id, (int) $request->user()->id);
+        $this->dispatchProvisioningJob($queuedWorkspace, (int) $request->user()->id);
 
         $timeline->record($queuedWorkspace, 'demo_workspace.queued', $request->user(), [
             'from_status' => DemoWorkspaceProvisioner::STATUS_DRAFT,
@@ -541,7 +543,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
         $validated['clone_data_mode'] = (string) ($validated['clone_data_mode'] ?? 'keep_current_profile');
 
         $clone = $provisioner->queueClone($demoWorkspace, $validated, $request->user());
-        ProvisionDemoWorkspaceJob::dispatch($clone->id, (int) $request->user()->id);
+        $this->dispatchProvisioningJob($clone, (int) $request->user()->id);
         $cloneModeLabel = $this->cloneDataModeLabel((string) $validated['clone_data_mode']);
         $cloneModeDescription = $this->cloneDataModeDescription((string) $validated['clone_data_mode']);
 
@@ -608,7 +610,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
         $this->ensureWorkspaceHasProvisionedTenant($demoWorkspace, 'Draft demos must be queued first before they can be reset from baseline.');
 
         $resetWorkspace = $provisioner->queueResetToBaseline($demoWorkspace, $request->user());
-        ProvisionDemoWorkspaceJob::dispatch($resetWorkspace->id, (int) $request->user()->id, true);
+        $this->dispatchProvisioningJob($resetWorkspace, (int) $request->user()->id, true);
 
         $this->logAudit($request, 'demo_workspace.reset_to_baseline', $resetWorkspace, [
             'queued_for_reset_at' => $resetWorkspace->queued_at?->toIso8601String(),
@@ -1492,6 +1494,7 @@ class DemoWorkspaceController extends BaseSuperAdminController
         $status = trim((string) $request->input('return_status', $request->query('status', '')));
         $salesStatus = trim((string) $request->input('return_sales_status', $request->query('sales_status', '')));
         $page = (int) $request->input('return_page', $request->query('page', 1));
+        $perPage = $this->resolveDataTablePerPage($request->input('return_per_page', $request->query('per_page')));
         $query = [];
 
         if ($status !== '') {
@@ -1504,6 +1507,10 @@ class DemoWorkspaceController extends BaseSuperAdminController
 
         if ($page > 1) {
             $query['page'] = (string) $page;
+        }
+
+        if ($perPage !== $this->defaultDataTablePerPage()) {
+            $query['per_page'] = (string) $perPage;
         }
 
         return $query;
@@ -1527,6 +1534,17 @@ class DemoWorkspaceController extends BaseSuperAdminController
         }
 
         return ['superadmin.demo-workspaces.index', $query];
+    }
+
+    private function dispatchProvisioningJob(DemoWorkspace $workspace, int $actorUserId, bool $isReset = false): void
+    {
+        if ((bool) config('async.workloads.demos.run_inline', false)) {
+            ProvisionDemoWorkspaceJob::dispatchSync($workspace->id, $actorUserId, $isReset);
+
+            return;
+        }
+
+        ProvisionDemoWorkspaceJob::dispatch($workspace->id, $actorUserId, $isReset);
     }
 
     /**

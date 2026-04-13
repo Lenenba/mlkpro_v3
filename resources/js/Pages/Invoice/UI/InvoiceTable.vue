@@ -9,6 +9,7 @@ import StarRating from '@/Components/UI/StarRating.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -102,6 +103,7 @@ const filterPayload = () => {
         created_to: filterForm.created_to,
         sort: filterForm.sort,
         direction: filterForm.direction,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -258,6 +260,7 @@ const invoiceTableRows = computed(() => (isBusy.value
     ? Array.from({ length: 6 }, (_, index) => ({ id: `invoice-skeleton-${index}`, __skeleton: true }))
     : invoiceRows.value));
 const invoiceLinks = computed(() => props.invoices?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.invoices?.per_page, props.filters?.per_page));
 const invoiceResultsLabel = computed(() => `${props.invoices?.total ?? props.invoices?.data?.length ?? 0} ${t('invoices.table.results')}`);
 </script>
 
@@ -357,6 +360,8 @@ const invoiceResultsLabel = computed(() => `${props.invoices?.total ?? props.inv
             :rows="invoiceTableRows"
             :links="invoiceLinks"
             :show-pagination="invoiceRows.length > 0"
+            show-per-page
+            :per-page="currentPerPage"
         >
             <template #empty>
                 <div

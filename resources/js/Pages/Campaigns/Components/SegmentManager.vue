@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -80,6 +81,9 @@ const pagedRows = computed(() => {
     const start = (listPage.value - 1) * listPerPage.value;
     return filteredRows.value.slice(start, start + listPerPage.value);
 });
+const segmentTableRows = computed(() => (isLoadingList.value
+    ? Array.from({ length: 6 }, (_, index) => ({ id: `segment-skeleton-${index}`, __skeleton: true }))
+    : pagedRows.value));
 const canGoPrevious = computed(() => listPage.value > 1);
 const canGoNext = computed(() => listPage.value < totalPages.value);
 
@@ -275,58 +279,60 @@ load();
                     option-label="label"
                 />
             </div>
-            <table class="min-w-full divide-y divide-stone-200 text-sm dark:divide-neutral-700">
-                <thead>
+            <AdminDataTable embedded :rows="segmentTableRows" :show-pagination="false">
+                <template #head>
                     <tr class="text-left text-xs uppercase text-stone-500 dark:text-neutral-400">
                         <th class="px-3 py-2 font-medium">{{ t('marketing.template_manager.name') }}</th>
                         <th class="px-3 py-2 font-medium">{{ t('marketing.segment_manager.eligible_cache') }}</th>
                         <th class="px-3 py-2 font-medium">{{ t('marketing.segment_manager.updated') }}</th>
                         <th class="px-3 py-2 font-medium text-right">{{ t('marketing.template_manager.actions') }}</th>
                     </tr>
-                </thead>
-                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                    <template v-if="isLoadingList">
-                        <tr v-for="row in 6" :key="`segment-skeleton-${row}`">
-                            <td v-for="col in 4" :key="`segment-skeleton-${row}-${col}`" class="px-3 py-2">
+                </template>
+
+                <template #row="{ row: segment }">
+                    <tr>
+                        <template v-if="segment.__skeleton">
+                            <td v-for="col in 4" :key="`segment-skeleton-${segment.id}-${col}`" class="px-3 py-2">
                                 <div class="h-3 w-full animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                             </td>
-                        </tr>
-                    </template>
-                    <tr v-else-if="pagedRows.length === 0">
-                        <td colspan="4" class="px-3 py-6 text-center text-xs text-stone-500 dark:text-neutral-400">
-                            {{ t('marketing.segment_manager.no_segment_found') }}
-                        </td>
+                        </template>
+                        <template v-else>
+                            <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">
+                                <div class="font-medium">{{ segment.name }}</div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ segment.description || '-' }}</div>
+                            </td>
+                            <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ segment.cached_count ?? 0 }}</td>
+                            <td class="px-3 py-2 text-stone-600 dark:text-neutral-300">{{ segment.updated_at || '-' }}</td>
+                            <td class="px-3 py-2">
+                                <div class="flex items-center justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                        :disabled="busy"
+                                        @click="edit(segment)"
+                                    >
+                                        {{ t('marketing.common.edit') }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="rounded-sm border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700 hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
+                                        :disabled="busy"
+                                        @click="destroySegment(segment)"
+                                    >
+                                        {{ t('marketing.common.delete') }}
+                                    </button>
+                                </div>
+                            </td>
+                        </template>
                     </tr>
-                    <tr v-for="segment in pagedRows" :key="`segment-${segment.id}`">
-                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">
-                            <div class="font-medium">{{ segment.name }}</div>
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ segment.description || '-' }}</div>
-                        </td>
-                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ segment.cached_count ?? 0 }}</td>
-                        <td class="px-3 py-2 text-stone-600 dark:text-neutral-300">{{ segment.updated_at || '-' }}</td>
-                        <td class="px-3 py-2">
-                            <div class="flex items-center justify-end gap-2">
-                                <button
-                                    type="button"
-                                    class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                                    :disabled="busy"
-                                    @click="edit(segment)"
-                                >
-                                    {{ t('marketing.common.edit') }}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="rounded-sm border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700 hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
-                                    :disabled="busy"
-                                    @click="destroySegment(segment)"
-                                >
-                                    {{ t('marketing.common.delete') }}
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                </template>
+
+                <template #empty>
+                    <div class="px-3 py-6 text-center text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.segment_manager.no_segment_found') }}
+                    </div>
+                </template>
+            </AdminDataTable>
 
             <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 dark:text-neutral-400">
                 <div>{{ t('marketing.common.results_count', { count: filteredRows.length }) }}</div>

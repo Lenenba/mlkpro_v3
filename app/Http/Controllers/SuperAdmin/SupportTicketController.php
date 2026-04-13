@@ -32,7 +32,8 @@ class SupportTicketController extends BaseSuperAdminController
     {
         $this->authorizePermission($request, PlatformPermissions::SUPPORT_MANAGE);
 
-        $filters = $request->only(['search', 'status', 'priority', 'account_id']);
+        $filters = $request->only(['search', 'status', 'priority', 'account_id', 'per_page']);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
 
         $query = PlatformSupportTicket::query()->with([
             'account:id,company_name,email',
@@ -70,7 +71,7 @@ class SupportTicketController extends BaseSuperAdminController
         $resolvedCount = (clone $query)->where('status', 'resolved')->count();
         $closedCount = (clone $query)->where('status', 'closed')->count();
 
-        $tickets = $query->latest()->paginate(15)->withQueryString();
+        $tickets = $query->latest()->paginate((int) $filters['per_page'])->withQueryString();
 
         $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
         $tenants = User::query()

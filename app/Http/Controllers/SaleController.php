@@ -54,6 +54,7 @@ class SaleController extends Controller
             'direction',
         ]);
         $filters['status'] = Sale::STATUS_PAID;
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
 
         $allowedStatuses = [
             Sale::STATUS_PAID,
@@ -122,7 +123,7 @@ class SaleController extends Controller
             ->with('customer:id,first_name,last_name,company_name')
             ->withCount('items')
             ->orderBy($sort, $direction)
-            ->simplePaginate(12)
+            ->simplePaginate((int) $filters['per_page'])
             ->withQueryString();
 
         $totalCount = (clone $baseQuery)->count();
@@ -173,6 +174,7 @@ class SaleController extends Controller
             'sort',
             'direction',
         ]);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
 
         $allowedStatuses = [
             Sale::STATUS_DRAFT,
@@ -244,7 +246,7 @@ class SaleController extends Controller
             ->withCount('items')
             ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
             ->orderBy($sort, $direction)
-            ->simplePaginate(12)
+            ->simplePaginate((int) $filters['per_page'])
             ->withQueryString();
 
         $totalCount = (clone $baseQuery)->count();

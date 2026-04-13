@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import Modal from '@/Components/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -12,6 +13,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import ReservationCalendarBoard from '@/Components/Reservation/ReservationCalendarBoard.vue';
 import ReservationStats from '@/Components/Reservation/ReservationStats.vue';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { reservationStatusBadgeClass } from '@/Components/Reservation/status';
 
 const { t } = useI18n();
@@ -141,6 +143,13 @@ const selectedRescheduleEventId = computed(() => {
 
     return `${rescheduleSelectedSlot.value.team_member_id}:${rescheduleSelectedSlot.value.starts_at}`;
 });
+const reservationRows = computed(() => (Array.isArray(props.reservations?.data) ? props.reservations.data : []));
+const reservationLinks = computed(() => props.reservations?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.reservations?.per_page, props.filters?.per_page));
+const reservationPaginationLabel = computed(() => t('reservations.pagination.showing', {
+    from: props.reservations?.from || 0,
+    to: props.reservations?.to || 0,
+}));
 
 const statusBadgeClass = (status) => reservationStatusBadgeClass(status);
 const formatDateTime = (value) => (value ? dayjs(value).format('MMM D, YYYY HH:mm') : '-');
@@ -216,6 +225,7 @@ const refreshList = () => {
             date_from: filterForm.date_from || undefined,
             date_to: filterForm.date_to || undefined,
             view_mode: viewMode.value,
+            per_page: currentPerPage.value,
         },
         {
             preserveState: true,
@@ -511,18 +521,6 @@ const submitReview = async () => {
     }
 };
 
-const goToPage = (url) => {
-    if (!url) {
-        return;
-    }
-
-    router.visit(url, {
-        preserveState: true,
-        preserveScroll: true,
-        only: ['filters', 'reservations', 'stats', 'queueTickets'],
-    });
-};
-
 onBeforeUnmount(() => {
     if (filterTimer) {
         clearTimeout(filterTimer);
@@ -592,90 +590,75 @@ onBeforeUnmount(() => {
                     {{ queueActionSuccess }}
                 </div>
 
-                <div v-if="!queueTickets.length" class="mt-3 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
-                    {{ $t('reservations.queue.client.none') }}
-                </div>
-                <div v-else class="mt-3 overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-                    <div class="min-w-full inline-block align-middle">
-                        <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                            <thead>
-                                <tr>
-                                    <th scope="col" class="min-w-28">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.queue.columns.ticket') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-44">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.table.item') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-40">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('planning.form.member') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-32">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.queue.columns.position') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-28">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.table.status') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-32 text-end">
-                                        <div class="px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('reservations.table.actions') }}
-                                        </div>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                                <tr
-                                    v-for="ticket in queueTickets"
-                                    :key="`client-queue-ticket-${ticket.id}`"
-                                >
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ ticket.queue_number || `#${ticket.id}` }}</td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ ticket.service_name || $t('reservations.client.book.default_service') }}</td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ ticket.team_member_name || $t('reservations.client.index.any_available') }}</td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">
-                                        {{ ticket.position ?? '-' }}
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                            ETA: {{ ticket.eta_minutes !== null && ticket.eta_minutes !== undefined ? `${ticket.eta_minutes} min` : '-' }}
-                                        </div>
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2">
-                                        <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(ticket.status)">
-                                            {{ $t(`reservations.queue.status.${ticket.status}`) || ticket.status }}
-                                        </span>
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                                        <div class="flex flex-wrap justify-end gap-2">
-                                            <button
-                                                v-if="ticket.can_still_here"
-                                                type="button"
-                                                class="text-xs text-indigo-700 underline"
-                                                @click="stillHereQueueTicket(ticket)"
-                                            >
-                                                {{ $t('reservations.queue.client.still_here') }}
-                                            </button>
-                                            <button
-                                                v-if="ticket.can_cancel"
-                                                type="button"
-                                                class="text-xs text-rose-700 underline"
-                                                @click="cancelQueueTicket(ticket)"
-                                            >
-                                                {{ $t('reservations.actions.cancel') }}
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <AdminDataTable embedded :rows="queueTickets" :show-pagination="false">
+                    <template #head>
+                        <tr>
+                            <th scope="col" class="min-w-28 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.queue.columns.ticket') }}
+                            </th>
+                            <th scope="col" class="min-w-44 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.item') }}
+                            </th>
+                            <th scope="col" class="min-w-40 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('planning.form.member') }}
+                            </th>
+                            <th scope="col" class="min-w-32 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.queue.columns.position') }}
+                            </th>
+                            <th scope="col" class="min-w-28 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.status') }}
+                            </th>
+                            <th scope="col" class="min-w-32 px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.actions') }}
+                            </th>
+                        </tr>
+                    </template>
+
+                    <template #row="{ row: ticket }">
+                        <tr>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ ticket.queue_number || `#${ticket.id}` }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ ticket.service_name || $t('reservations.client.book.default_service') }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ ticket.team_member_name || $t('reservations.client.index.any_available') }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">
+                                {{ ticket.position ?? '-' }}
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    ETA: {{ ticket.eta_minutes !== null && ticket.eta_minutes !== undefined ? `${ticket.eta_minutes} min` : '-' }}
+                                </div>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2">
+                                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(ticket.status)">
+                                    {{ $t(`reservations.queue.status.${ticket.status}`) || ticket.status }}
+                                </span>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-end">
+                                <div class="flex flex-wrap justify-end gap-2">
+                                    <button
+                                        v-if="ticket.can_still_here"
+                                        type="button"
+                                        class="text-xs text-indigo-700 underline"
+                                        @click="stillHereQueueTicket(ticket)"
+                                    >
+                                        {{ $t('reservations.queue.client.still_here') }}
+                                    </button>
+                                    <button
+                                        v-if="ticket.can_cancel"
+                                        type="button"
+                                        class="text-xs text-rose-700 underline"
+                                        @click="cancelQueueTicket(ticket)"
+                                    >
+                                        {{ $t('reservations.actions.cancel') }}
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+
+                    <template #empty>
+                        <div class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                            {{ $t('reservations.queue.client.none') }}
+                        </div>
+                    </template>
+                </AdminDataTable>
             </section>
 
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
@@ -744,120 +727,93 @@ onBeforeUnmount(() => {
             />
 
             <section v-else class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
-                <div v-if="!reservations?.data?.length" class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
-                    {{ $t('reservations.client.index.empty') }}
-                </div>
+                <AdminDataTable
+                    embedded
+                    :rows="reservationRows"
+                    :links="reservationLinks"
+                    :show-pagination="reservationRows.length > 0"
+                    show-per-page
+                    :per-page="currentPerPage"
+                >
+                    <template #head>
+                        <tr>
+                            <th scope="col" class="min-w-52 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.when') }}
+                            </th>
+                            <th scope="col" class="min-w-44 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.item') }}
+                            </th>
+                            <th scope="col" class="min-w-40 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('planning.form.member') }}
+                            </th>
+                            <th scope="col" class="min-w-28 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.status') }}
+                            </th>
+                            <th scope="col" class="min-w-40 px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('reservations.table.actions') }}
+                            </th>
+                        </tr>
+                    </template>
 
-                <template v-else>
-                    <div class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-                        <div class="min-w-full inline-block align-middle">
-                            <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                                <thead>
-                                    <tr>
-                                        <th scope="col" class="min-w-52">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('reservations.table.when') }}
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="min-w-44">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('reservations.table.item') }}
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="min-w-40">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('planning.form.member') }}
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="min-w-28">
-                                            <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('reservations.table.status') }}
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="min-w-40 text-end">
-                                            <div class="px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                                {{ $t('reservations.table.actions') }}
-                                            </div>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                                    <tr
-                                        v-for="reservation in reservations.data"
-                                        :key="reservation.id"
+                    <template #row="{ row: reservation }">
+                        <tr>
+                            <td class="size-px whitespace-nowrap px-4 py-2">
+                                <button type="button" class="text-start hover:underline" @click="openDetails(reservation)">
+                                    <div class="text-sm text-stone-700 dark:text-neutral-200">{{ formatDateTime(reservation.starts_at) }}</div>
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ formatDateTime(reservation.ends_at) }}</div>
+                                </button>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ reservation.service?.name || $t('reservations.client.book.default_service') }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ reservation.team_member?.user?.name || reservation.teamMember?.user?.name || '-' }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2">
+                                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(reservation.status)">
+                                    {{ $t(`reservations.status.${reservation.status}`) || reservation.status?.replace(/_/g, ' ') }}
+                                </span>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-end">
+                                <div class="flex flex-wrap justify-end gap-2">
+                                    <button type="button" class="text-xs underline" @click="openDetails(reservation)">{{ $t('reservations.actions.view') }}</button>
+                                    <button
+                                        v-if="canReschedule(reservation)"
+                                        type="button"
+                                        class="text-xs underline"
+                                        @click="openReschedule(reservation)"
                                     >
-                                        <td class="size-px whitespace-nowrap px-4 py-2">
-                                            <button type="button" class="text-start hover:underline" @click="openDetails(reservation)">
-                                                <div class="text-sm text-stone-700 dark:text-neutral-200">{{ formatDateTime(reservation.starts_at) }}</div>
-                                                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ formatDateTime(reservation.ends_at) }}</div>
-                                            </button>
-                                        </td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ reservation.service?.name || $t('reservations.client.book.default_service') }}</td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ reservation.team_member?.user?.name || reservation.teamMember?.user?.name || '-' }}</td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2">
-                                            <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(reservation.status)">
-                                                {{ $t(`reservations.status.${reservation.status}`) || reservation.status?.replace(/_/g, ' ') }}
-                                            </span>
-                                        </td>
-                                        <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                                            <div class="flex flex-wrap justify-end gap-2">
-                                                <button type="button" class="text-xs underline" @click="openDetails(reservation)">{{ $t('reservations.actions.view') }}</button>
-                                                <button
-                                                    v-if="canReschedule(reservation)"
-                                                    type="button"
-                                                    class="text-xs underline"
-                                                    @click="openReschedule(reservation)"
-                                                >
-                                                    {{ $t('reservations.actions.reschedule') }}
-                                                </button>
-                                                <button
-                                                    v-if="canCancel(reservation)"
-                                                    type="button"
-                                                    class="text-xs text-rose-600"
-                                                    @click="cancelReservation(reservation)"
-                                                >
-                                                    {{ $t('reservations.actions.cancel') }}
-                                                </button>
-                                                <button
-                                                    v-if="canReview(reservation)"
-                                                    type="button"
-                                                    class="text-xs text-emerald-700 underline"
-                                                    @click="openReview(reservation)"
-                                                >
-                                                    {{ $t('reservations.client.index.review.actions.leave') }}
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                        {{ $t('reservations.actions.reschedule') }}
+                                    </button>
+                                    <button
+                                        v-if="canCancel(reservation)"
+                                        type="button"
+                                        class="text-xs text-rose-600"
+                                        @click="cancelReservation(reservation)"
+                                    >
+                                        {{ $t('reservations.actions.cancel') }}
+                                    </button>
+                                    <button
+                                        v-if="canReview(reservation)"
+                                        type="button"
+                                        class="text-xs text-emerald-700 underline"
+                                        @click="openReview(reservation)"
+                                    >
+                                        {{ $t('reservations.client.index.review.actions.leave') }}
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
 
-                    <div class="mt-3 flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
-                        <div>
-                            {{ $t('reservations.pagination.showing', { from: reservations.from || 0, to: reservations.to || 0 }) }}
+                    <template #empty>
+                        <div class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                            {{ $t('reservations.client.index.empty') }}
                         </div>
-                        <div class="flex gap-2">
-                            <button
-                                type="button"
-                                class="rounded-sm border border-stone-200 px-3 py-1 disabled:opacity-50 dark:border-neutral-700"
-                                :disabled="!reservations.prev_page_url"
-                                @click="goToPage(reservations.prev_page_url)"
-                            >
-                                {{ $t('reservations.pagination.previous') }}
-                            </button>
-                            <button
-                                type="button"
-                                class="rounded-sm border border-stone-200 px-3 py-1 disabled:opacity-50 dark:border-neutral-700"
-                                :disabled="!reservations.next_page_url"
-                                @click="goToPage(reservations.next_page_url)"
-                            >
-                                {{ $t('reservations.pagination.next') }}
-                            </button>
+                    </template>
+
+                    <template #pagination_prefix>
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ reservationPaginationLabel }}
                         </div>
-                    </div>
-                </template>
+                    </template>
+                </AdminDataTable>
             </section>
         </div>
 

@@ -2,12 +2,13 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
-import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
@@ -137,6 +138,7 @@ const filterPayload = () => {
         created_to: filterForm.created_to,
         sort: filterForm.sort,
         direction: filterForm.direction,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -379,7 +381,12 @@ const canMarkCanceled = (sale) =>
     && !['paid', 'canceled'].includes(sale.status)
     && !['completed', 'confirmed'].includes(sale.fulfillment_status);
 
+const salesRows = computed(() => (Array.isArray(props.sales?.data) ? props.sales.data : []));
+const salesTableRows = computed(() => (isLoading.value
+    ? Array.from({ length: 6 }, (_, index) => ({ id: `sale-skeleton-${index}`, __skeleton: true }))
+    : salesRows.value));
 const salesLinks = computed(() => props.sales?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.sales?.per_page, props.filters?.per_page));
 const salesResultsLabel = computed(() => `${props.sales?.total ?? props.sales?.data?.length ?? 0} ${t('sales.table.pagination.results')}`);
 </script>
 
@@ -440,116 +447,120 @@ const salesResultsLabel = computed(() => `${props.sales?.total ?? props.sales?.d
             </template>
         </AdminDataTableToolbar>
 
-        <div
-            class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-            <div class="min-w-full inline-block align-middle">
-                <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="min-w-[200px]">
-                                <button type="button" @click="toggleSort('number')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('sales.table.headings.sale') }}
-                                    <svg v-if="filterForm.sort === 'number'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-40">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('sales.table.headings.customer') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button type="button" @click="toggleSort('status')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('sales.table.headings.status') }}
-                                    <svg v-if="filterForm.sort === 'status'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('sales.table.headings.payment') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-28">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('sales.table.headings.items') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button type="button" @click="toggleSort('total')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('sales.table.headings.total') }}
-                                    <svg v-if="filterForm.sort === 'total'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <button type="button" @click="toggleSort('created_at')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('sales.table.headings.date') }}
-                                    <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col"></th>
-                        </tr>
-                    </thead>
+        <AdminDataTable
+            embedded
+            :rows="salesTableRows"
+            :links="salesLinks"
+            :show-pagination="salesRows.length > 0"
+            show-per-page
+            :per-page="currentPerPage"
+        >
+            <template #empty>
+                <div class="px-4 py-8 text-center text-stone-600 dark:text-neutral-300">
+                    <div class="space-y-2">
+                        <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ emptyState.title }}
+                        </div>
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ emptyState.description }}
+                        </div>
+                        <Link
+                            v-if="emptyState.cta"
+                            :href="route(emptyState.cta.routeName)"
+                            class="inline-flex items-center justify-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+                        >
+                            {{ emptyState.cta.label }}
+                        </Link>
+                    </div>
+                </div>
+            </template>
 
-                    <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                        <template v-if="isLoading">
-                            <tr v-for="row in 6" :key="`skeleton-${row}`">
-                                <td colspan="8" class="px-4 py-3">
-                                    <div class="grid grid-cols-7 gap-4 animate-pulse">
-                                        <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    </div>
-                                </td>
-                            </tr>
+            <template #head>
+                <tr>
+                    <th scope="col" class="min-w-[200px]">
+                        <button type="button" @click="toggleSort('number')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('sales.table.headings.sale') }}
+                            <svg v-if="filterForm.sort === 'number'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-40">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('sales.table.headings.customer') }}
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <button type="button" @click="toggleSort('status')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('sales.table.headings.status') }}
+                            <svg v-if="filterForm.sort === 'status'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('sales.table.headings.payment') }}
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-28">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('sales.table.headings.items') }}
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <button type="button" @click="toggleSort('total')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('sales.table.headings.total') }}
+                            <svg v-if="filterForm.sort === 'total'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <button type="button" @click="toggleSort('created_at')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('sales.table.headings.date') }}
+                            <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col"></th>
+                </tr>
+            </template>
+
+            <template #body="{ rows }">
+                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                    <tr v-for="sale in rows" :key="sale.id">
+                        <template v-if="sale.__skeleton">
+                            <td colspan="8" class="px-4 py-3">
+                                <div class="grid grid-cols-7 gap-4 animate-pulse">
+                                    <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                            </td>
                         </template>
                         <template v-else>
-                            <tr v-if="!sales.data.length">
-                                <td colspan="8" class="px-4 py-8 text-center text-stone-600 dark:text-neutral-300">
-                                    <div class="space-y-2">
-                                        <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                                            {{ emptyState.title }}
-                                        </div>
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ emptyState.description }}
-                                        </div>
-                                        <Link
-                                            v-if="emptyState.cta"
-                                            :href="route(emptyState.cta.routeName)"
-                                            class="inline-flex items-center justify-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
-                                        >
-                                            {{ emptyState.cta.label }}
-                                        </Link>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr v-for="sale in sales.data" :key="sale.id">
                             <td class="size-px whitespace-nowrap px-4 py-2 text-start">
                                 <Link :href="route('sales.show', sale.id)" class="flex flex-col hover:underline">
                                     <span class="text-sm text-stone-600 dark:text-neutral-300">
@@ -646,19 +657,16 @@ const salesResultsLabel = computed(() => `${props.sales?.total ?? props.sales?.d
                                     </Link>
                                 </AdminDataTableActions>
                             </td>
-                        </tr>
                         </template>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                    </tr>
+                </tbody>
+            </template>
 
-        <div v-if="sales.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
-            <p class="text-sm text-stone-800 dark:text-neutral-200">
-                {{ salesResultsLabel }}
-            </p>
-
-            <AdminPaginationLinks :links="salesLinks" />
-        </div>
+            <template #pagination_prefix>
+                <p class="text-sm text-stone-800 dark:text-neutral-200">
+                    {{ salesResultsLabel }}
+                </p>
+            </template>
+        </AdminDataTable>
     </div>
 </template>

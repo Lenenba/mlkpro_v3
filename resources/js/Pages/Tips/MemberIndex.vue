@@ -1,8 +1,10 @@
 <script setup>
 import { computed, reactive } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import { humanizeDate } from '@/utils/date';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
 
@@ -34,6 +36,7 @@ const filters = reactive({
     status: props.filters?.status || '',
     anonymize_customers: Boolean(props.filters?.anonymize_customers),
 });
+const currentPerPage = computed(() => resolveDataTablePerPage(props.payments?.per_page, props.filters?.per_page));
 
 const sanitizedFilters = computed(() => {
     const query = {};
@@ -49,6 +52,7 @@ const sanitizedFilters = computed(() => {
             query[key] = value;
         }
     });
+    query.per_page = currentPerPage.value;
     return query;
 });
 
@@ -113,6 +117,9 @@ const statusClass = (status) => {
     }
     return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300';
 };
+
+const paymentRows = computed(() => (Array.isArray(props.payments?.data) ? props.payments.data : []));
+const paymentLinks = computed(() => props.payments?.links || []);
 </script>
 
 <template>
@@ -202,78 +209,56 @@ const statusClass = (status) => {
             </section>
 
             <section class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
-                <div class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-                    <div class="min-w-full inline-block align-middle">
-                        <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                            <thead>
-                                <tr>
-                                    <th scope="col" class="min-w-44">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('tips_reports.table.date') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-24">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('tips_reports.table.invoice') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-52">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('tips_reports.table.customer') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-28">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('tips_reports.table.tip_amount') }}
-                                        </div>
-                                    </th>
-                                    <th scope="col" class="min-w-28">
-                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            {{ $t('tips_reports.table.status') }}
-                                        </div>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                                <tr v-for="payment in payments.data || []" :key="payment.id">
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ formatDateTime(payment.paid_at) }}</td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">
-                                        {{ payment.invoice_number }}
-                                    </td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ payment.customer_name }}</td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm font-medium text-stone-800 dark:text-neutral-100">{{ formatCurrency(payment.tip_amount) }}</td>
-                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm">
-                                        <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="statusClass(payment.status)">
-                                            {{ statusLabel(payment.status) }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                <tr v-if="!(payments.data || []).length">
-                                    <td colspan="5" class="px-4 py-10 text-center text-stone-600 dark:text-neutral-300">
-                                        {{ $t('tips_reports.empty.rows') }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <AdminDataTable
+                    embedded
+                    :rows="paymentRows"
+                    :links="paymentLinks"
+                    :show-pagination="paymentRows.length > 0"
+                    show-per-page
+                    :per-page="currentPerPage"
+                >
+                    <template #head>
+                        <tr>
+                            <th scope="col" class="min-w-44 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('tips_reports.table.date') }}
+                            </th>
+                            <th scope="col" class="min-w-24 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('tips_reports.table.invoice') }}
+                            </th>
+                            <th scope="col" class="min-w-52 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('tips_reports.table.customer') }}
+                            </th>
+                            <th scope="col" class="min-w-28 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('tips_reports.table.tip_amount') }}
+                            </th>
+                            <th scope="col" class="min-w-28 px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                {{ $t('tips_reports.table.status') }}
+                            </th>
+                        </tr>
+                    </template>
 
-                <div v-if="payments.prev_page_url || payments.next_page_url" class="mt-4 flex items-center justify-end gap-2">
-                    <Link
-                        v-if="payments.prev_page_url"
-                        :href="payments.prev_page_url"
-                        class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                    >
-                        {{ $t('invoices.pagination.previous') }}
-                    </Link>
-                    <Link
-                        v-if="payments.next_page_url"
-                        :href="payments.next_page_url"
-                        class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                    >
-                        {{ $t('invoices.pagination.next') }}
-                    </Link>
-                </div>
+                    <template #row="{ row: payment }">
+                        <tr>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ formatDateTime(payment.paid_at) }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">
+                                {{ payment.invoice_number }}
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ payment.customer_name }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm font-medium text-stone-800 dark:text-neutral-100">{{ formatCurrency(payment.tip_amount) }}</td>
+                            <td class="size-px whitespace-nowrap px-4 py-2 text-sm">
+                                <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="statusClass(payment.status)">
+                                    {{ statusLabel(payment.status) }}
+                                </span>
+                            </td>
+                        </tr>
+                    </template>
+
+                    <template #empty>
+                        <div class="rounded-sm border border-dashed border-stone-300 px-4 py-10 text-center text-sm text-stone-600 dark:border-neutral-600 dark:text-neutral-300">
+                            {{ $t('tips_reports.empty.rows') }}
+                        </div>
+                    </template>
+                </AdminDataTable>
             </section>
         </div>
     </AuthenticatedLayout>

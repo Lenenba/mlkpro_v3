@@ -10,6 +10,7 @@ import StarRating from '@/Components/UI/StarRating.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
@@ -93,6 +94,7 @@ const filterPayload = () => {
         has_tax: filterForm.has_tax,
         sort: filterForm.sort,
         direction: filterForm.direction,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -296,6 +298,7 @@ const quoteTableRows = computed(() => (isBusy.value
     ? Array.from({ length: 6 }, (_, index) => ({ id: `quote-skeleton-${index}`, __skeleton: true }))
     : quoteRows.value));
 const quoteLinks = computed(() => props.quotes?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.quotes?.per_page, props.filters?.per_page));
 const quoteResultsLabel = computed(() => `${props.count} ${t('quotes.table.results')}`);
 </script>
 
@@ -429,6 +432,8 @@ const quoteResultsLabel = computed(() => `${props.count} ${t('quotes.table.resul
             :rows="quoteTableRows"
             :links="quoteLinks"
             :show-pagination="quoteRows.length > 0"
+            show-per-page
+            :per-page="currentPerPage"
         >
             <template #empty>
                 <div

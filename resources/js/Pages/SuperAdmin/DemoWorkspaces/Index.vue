@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Modal from '@/Components/Modal.vue';
 
@@ -75,6 +76,12 @@ const currentListQuery = computed(() => {
         query.page = props.workspaces.current_page;
     }
 
+    const perPage = resolveDataTablePerPage(props.workspaces?.per_page, props.filters?.per_page);
+
+    if (perPage !== 10) {
+        query.per_page = perPage;
+    }
+
     return query;
 });
 
@@ -82,6 +89,7 @@ const actionPayload = () => ({
     ...(currentListQuery.value.status ? { return_status: currentListQuery.value.status } : {}),
     ...(currentListQuery.value.sales_status ? { return_sales_status: currentListQuery.value.sales_status } : {}),
     ...(currentListQuery.value.page ? { return_page: currentListQuery.value.page } : {}),
+    ...(currentListQuery.value.per_page ? { return_per_page: currentListQuery.value.per_page } : {}),
 });
 
 const openCreatePage = () => {
@@ -92,6 +100,7 @@ const workspaceRows = computed(() => props.workspaces?.data || []);
 const workspaceLinks = computed(() => props.workspaces?.links || []);
 const workspaceTotal = computed(() => Number(props.workspaces?.total || workspaceRows.value.length || 0));
 const workspaceResultsLabel = computed(() => `${formatNumber(workspaceTotal.value)} demo(s)`);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.workspaces?.per_page, props.filters?.per_page));
 
 const detailsRoute = (workspaceId) => route('superadmin.demo-workspaces.show', {
     demoWorkspace: workspaceId,
@@ -455,6 +464,8 @@ onBeforeUnmount(() => {
                 :result-label="workspaceResultsLabel"
                 empty-description="No demo workspace matches the current filters."
                 container-class="border-t-4 border-t-zinc-600"
+                show-per-page
+                :per-page="currentPerPage"
             >
                 <template #toolbar>
                     <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">

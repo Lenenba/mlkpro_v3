@@ -1,6 +1,10 @@
 <script setup>
 import { computed, useSlots } from 'vue';
+import { router } from '@inertiajs/vue3';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
+import { DATA_TABLE_PER_PAGE_OPTIONS, normalizeDataTablePerPage } from '@/Components/DataTable/pagination';
+
+const emit = defineEmits(['update:perPage']);
 
 const props = defineProps({
     rows: {
@@ -55,6 +59,22 @@ const props = defineProps({
         type: Boolean,
         default: true,
     },
+    showPerPage: {
+        type: Boolean,
+        default: false,
+    },
+    perPage: {
+        type: Number,
+        default: null,
+    },
+    perPageLabel: {
+        type: String,
+        default: 'Rows / page',
+    },
+    perPageOptions: {
+        type: Array,
+        default: () => DATA_TABLE_PER_PAGE_OPTIONS,
+    },
     containerClass: {
         type: [String, Array, Object],
         default: '',
@@ -64,12 +84,28 @@ const slots = useSlots();
 
 const normalizedRows = computed(() => (Array.isArray(props.rows) ? props.rows : []));
 const normalizedLinks = computed(() => (Array.isArray(props.links) ? props.links : []));
+const normalizedPerPageOptions = computed(() => {
+    const options = Array.isArray(props.perPageOptions) && props.perPageOptions.length
+        ? props.perPageOptions
+        : DATA_TABLE_PER_PAGE_OPTIONS;
+
+    return options
+        .map((value) => Number.parseInt(value, 10))
+        .filter((value, index, collection) => Number.isInteger(value) && value > 0 && collection.indexOf(value) === index);
+});
+const normalizedPerPage = computed(() => normalizeDataTablePerPage(props.perPage));
 const hasRows = computed(() => normalizedRows.value.length > 0);
 const tableDensityClass = computed(() => (props.dense ? 'text-xs' : 'text-sm'));
 const tbodyClass = computed(() => [
     'divide-y divide-stone-100 dark:divide-neutral-800',
     props.striped ? '[&>tr:nth-child(odd)]:bg-stone-50/50 dark:[&>tr:nth-child(odd)]:bg-neutral-800/20' : '',
 ]);
+const shouldShowFooter = computed(() => (
+    !!props.resultLabel
+    || !!slots.pagination_prefix
+    || (props.showPagination && normalizedLinks.value.length > 0)
+    || props.showPerPage
+));
 const rootClass = computed(() => (props.embedded
     ? ['space-y-4', props.containerClass]
     : ['flex flex-col space-y-4 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900', props.containerClass]));
@@ -85,15 +121,31 @@ const resolveRowKey = (row, index) => {
 
     return index;
 };
+
+const updatePerPage = (event) => {
+    const nextPerPage = normalizeDataTablePerPage(event?.target?.value, normalizedPerPage.value);
+
+    emit('update:perPage', nextPerPage);
+
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('per_page', String(nextPerPage));
+    url.searchParams.delete('page');
+
+    router.get(`${url.pathname}${url.search}`, {}, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
+};
 </script>
 
 <template>
     <section :class="rootClass">
         <slot name="toolbar" />
-
-        <div v-if="resultLabel" class="text-sm text-stone-500 dark:text-neutral-400">
-            {{ resultLabel }}
-        </div>
 
         <div
             v-if="loading"
@@ -130,9 +182,41 @@ const resolveRowKey = (row, index) => {
             </table>
         </div>
 
-        <div v-if="showPagination && normalizedLinks.length" class="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-4 dark:border-neutral-700">
-            <slot name="pagination_prefix" />
-            <AdminPaginationLinks :links="normalizedLinks" />
+        <div v-if="shouldShowFooter" class="border-t border-stone-200 pt-4 dark:border-neutral-700">
+            <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
+                <div
+                    v-if="slots.pagination_prefix || resultLabel"
+                    class="min-w-0 text-sm text-stone-500 dark:text-neutral-400 [&_*]:!m-0 [&_*]:!text-sm [&_*]:!font-normal [&_*]:!text-stone-500 dark:[&_*]:!text-neutral-400 md:col-start-1"
+                >
+                    <slot v-if="slots.pagination_prefix" name="pagination_prefix" />
+                    <p v-else>{{ resultLabel }}</p>
+                </div>
+
+                <div v-if="showPagination && normalizedLinks.length" class="flex justify-start md:col-start-2 md:justify-center">
+                    <AdminPaginationLinks :links="normalizedLinks" />
+                </div>
+
+                <div v-if="showPerPage" class="flex justify-start md:col-start-3 md:justify-end">
+                    <label
+                        class="inline-flex items-center gap-2 whitespace-nowrap text-xs text-stone-500 dark:text-neutral-400"
+                    >
+                        <span>{{ perPageLabel }}</span>
+                        <select
+                            :value="normalizedPerPage"
+                            class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 focus:border-green-500 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                            @change="updatePerPage"
+                        >
+                            <option
+                                v-for="option in normalizedPerPageOptions"
+                                :key="`per-page-${option}`"
+                                :value="option"
+                            >
+                                {{ option }}
+                            </option>
+                        </select>
+                    </label>
+                </div>
+            </div>
         </div>
     </section>
 </template>

@@ -1,14 +1,15 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
-import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import ServiceForm from '@/Pages/Service/UI/ServiceForm.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
 
@@ -74,6 +75,7 @@ const filterPayload = () => {
         created_to: filterForm.created_to,
         sort: filterForm.sort,
         direction: filterForm.direction,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -161,7 +163,13 @@ const selectableCategories = computed(() => {
     const current = (props.categories || []).find((category) => category.id === currentId);
     return current ? [...base, current] : base;
 });
+const serviceRows = computed(() => (Array.isArray(props.services?.data) ? props.services.data : []));
+const serviceTableRows = computed(() => (isLoading.value
+    ? Array.from({ length: 6 }, (_, index) => ({ id: `service-skeleton-${index}`, __skeleton: true }))
+    : serviceRows.value));
 const serviceLinks = computed(() => props.services?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.services?.per_page, props.filters?.per_page));
+const serviceResultsLabel = computed(() => `${props.count} ${t('services.pagination.results')}`);
 
 const openCreate = () => {
     editingService.value = null;
@@ -253,77 +261,87 @@ const destroyService = (service) => {
             </template>
         </AdminDataTableToolbar>
 
-        <div
-            class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-            <div class="min-w-full inline-block align-middle">
-                <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="min-w-[260px]">
-                                <button type="button" @click="toggleSort('name')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('services.table.service') }}
-                                    <svg v-if="filterForm.sort === 'name'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-[140px]">
-                                <button type="button" @click="toggleSort('price')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('services.table.price') }}
-                                    <svg v-if="filterForm.sort === 'price'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-[180px]">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('services.table.category') }}
+        <AdminDataTable
+            embedded
+            :rows="serviceTableRows"
+            :links="serviceLinks"
+            :show-pagination="serviceRows.length > 0"
+            show-per-page
+            :per-page="currentPerPage"
+        >
+            <template #empty>
+                <div class="px-5 py-10 text-center text-sm text-stone-500 dark:text-neutral-500">
+                    {{ $t('services.empty') }}
+                </div>
+            </template>
+
+            <template #head>
+                <tr>
+                    <th scope="col" class="min-w-[260px]">
+                        <button type="button" @click="toggleSort('name')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('services.table.service') }}
+                            <svg v-if="filterForm.sort === 'name'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-[140px]">
+                        <button type="button" @click="toggleSort('price')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('services.table.price') }}
+                            <svg v-if="filterForm.sort === 'price'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-[180px]">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('services.table.category') }}
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-[120px]">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            {{ $t('services.table.status') }}
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-[120px]">
+                        <button type="button" @click="toggleSort('created_at')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            {{ $t('services.table.created') }}
+                            <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-[60px]"></th>
+                </tr>
+            </template>
+
+            <template #body="{ rows }">
+                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                    <tr v-for="service in rows" :key="service.id">
+                        <template v-if="service.__skeleton">
+                            <td colspan="6" class="px-4 py-3">
+                                <div class="grid grid-cols-5 gap-4 animate-pulse">
+                                    <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                                 </div>
-                            </th>
-                            <th scope="col" class="min-w-[120px]">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('services.table.status') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-[120px]">
-                                <button type="button" @click="toggleSort('created_at')"
-                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    {{ $t('services.table.created') }}
-                                    <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round"
-                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                            </th>
-                            <th scope="col" class="min-w-[60px]"></th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                        <template v-if="isLoading">
-                            <tr v-for="row in 6" :key="`skeleton-${row}`">
-                                <td colspan="7" class="px-4 py-3">
-                                    <div class="grid grid-cols-5 gap-4 animate-pulse">
-                                        <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    </div>
-                                </td>
-                            </tr>
+                            </td>
                         </template>
                         <template v-else>
-                        <tr v-for="service in services.data" :key="service.id">
                             <td class="size-px whitespace-nowrap px-5 py-2">
                                 <div class="flex flex-col">
                                     <span class="text-sm text-stone-700 dark:text-neutral-200">{{ service.name }}</span>
@@ -366,27 +384,17 @@ const destroyService = (service) => {
                                     </button>
                                 </AdminDataTableActions>
                             </td>
-                        </tr>
-
-                        <tr v-if="services.data.length === 0">
-                            <td colspan="6" class="px-5 py-10 text-center text-sm text-stone-500 dark:text-neutral-500">
-                                {{ $t('services.empty') }}
-                            </td>
-                        </tr>
                         </template>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                    </tr>
+                </tbody>
+            </template>
 
-        <div v-if="services.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
-            <p class="text-sm text-stone-800 dark:text-neutral-200">
-                <span class="font-medium">{{ count }}</span>
-                <span class="text-stone-500 dark:text-neutral-500"> {{ $t('services.pagination.results') }}</span>
-            </p>
-
-            <AdminPaginationLinks :links="serviceLinks" />
-        </div>
+            <template #pagination_prefix>
+                <p class="text-sm text-stone-800 dark:text-neutral-200">
+                    {{ serviceResultsLabel }}
+                </p>
+            </template>
+        </AdminDataTable>
 
         <Modal :title="editingService ? $t('services.actions.edit_service') : $t('services.actions.new_service')" :id="'hs-service-upsert'">
             <ServiceForm

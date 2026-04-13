@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
@@ -109,6 +110,7 @@ const ticketRows = computed(() => props.tickets?.data || []);
 const ticketLinks = computed(() => props.tickets?.links || []);
 const ticketsTotal = computed(() => Number(props.tickets?.total || ticketRows.value.length || 0));
 const ticketResultsLabel = computed(() => t('super_admin.support.filters.results', { count: ticketsTotal.value }));
+const currentPerPage = computed(() => resolveDataTablePerPage(props.tickets?.per_page, props.filters?.per_page));
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -264,6 +266,8 @@ const attachmentIcon = (media) => {
                 :result-label="ticketResultsLabel"
                 :empty-description="$t('super_admin.support.empty')"
                 container-class="border-t-4 border-t-zinc-600"
+                show-per-page
+                :per-page="currentPerPage"
             >
                 <template #toolbar>
                     <AdminDataTableToolbar

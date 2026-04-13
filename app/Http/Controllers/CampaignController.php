@@ -42,6 +42,7 @@ class CampaignController extends Controller
         }
 
         $filters = $request->only(['search', 'status', 'type']);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
         $campaignsQuery = Campaign::query()
             ->where('user_id', $owner->id)
             ->when($filters['search'] ?? null, function ($query, $search): void {
@@ -70,7 +71,7 @@ class CampaignController extends Controller
             ])
             ->withCount(['runs', 'recipients'])
             ->orderByDesc('updated_at')
-            ->simplePaginate(12)
+            ->simplePaginate((int) $filters['per_page'])
             ->withQueryString();
 
         $stats = [

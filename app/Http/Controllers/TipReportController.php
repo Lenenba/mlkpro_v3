@@ -34,7 +34,7 @@ class TipReportController extends Controller
             ->with($this->tipRelations())
             ->orderByDesc('paid_at')
             ->orderByDesc('id')
-            ->paginate(15)
+            ->paginate((int) $filters['per_page'])
             ->withQueryString()
             ->through(fn(Payment $payment) => $this->serializePayment($payment));
 
@@ -140,7 +140,7 @@ class TipReportController extends Controller
             ->with($this->tipRelations($user->id))
             ->orderByDesc('paid_at')
             ->orderByDesc('id')
-            ->paginate(15)
+            ->paginate((int) $filters['per_page'])
             ->withQueryString()
             ->through(fn(Payment $payment) => $this->serializePaymentForMember(
                 $payment,
@@ -188,6 +188,7 @@ class TipReportController extends Controller
                 Rule::exists('works', 'id')->where(fn($query) => $query->where('user_id', $accountId)),
             ],
             'status' => ['nullable', Rule::in($this->statusOptions())],
+            'per_page' => ['nullable', 'integer', Rule::in($this->dataTablePerPageOptions())],
         ]);
 
         return [
@@ -197,6 +198,7 @@ class TipReportController extends Controller
             'team_member_id' => isset($validated['team_member_id']) ? (int) $validated['team_member_id'] : null,
             'work_id' => isset($validated['work_id']) ? (int) $validated['work_id'] : null,
             'status' => $validated['status'] ?? null,
+            'per_page' => isset($validated['per_page']) ? (int) $validated['per_page'] : $this->defaultDataTablePerPage(),
         ];
     }
 
@@ -208,6 +210,7 @@ class TipReportController extends Controller
             'to' => ['nullable', 'date', 'after_or_equal:from'],
             'status' => ['nullable', Rule::in($this->statusOptions())],
             'anonymize_customers' => ['nullable', 'boolean'],
+            'per_page' => ['nullable', 'integer', Rule::in($this->dataTablePerPageOptions())],
         ]);
 
         return [
@@ -216,6 +219,7 @@ class TipReportController extends Controller
             'to' => $validated['to'] ?? null,
             'status' => $validated['status'] ?? null,
             'anonymize_customers' => (bool) ($validated['anonymize_customers'] ?? false),
+            'per_page' => isset($validated['per_page']) ? (int) $validated['per_page'] : $this->defaultDataTablePerPage(),
         ];
     }
 

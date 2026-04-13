@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -45,7 +47,13 @@ const filterForm = reactive({
 });
 const isFiltering = ref(false);
 
-const rows = computed(() => props.campaigns?.data || []);
+const rows = computed(() => (Array.isArray(props.campaigns?.data) ? props.campaigns.data : []));
+const campaignTableRows = computed(() => (isFiltering.value
+    ? Array.from({ length: 6 }, (_, index) => ({ id: `campaign-skeleton-${index}`, __skeleton: true }))
+    : rows.value));
+const campaignLinks = computed(() => (Array.isArray(props.campaigns?.links) ? props.campaigns.links : []));
+const currentPerPage = computed(() => resolveDataTablePerPage(props.campaigns?.per_page, props.filters?.per_page));
+const campaignPageLabel = computed(() => t('marketing.campaign_index.page', { page: props.campaigns?.current_page || 1 }));
 const canManage = computed(() => Boolean(props.access?.can_manage));
 const providerSummary = computed(() => ({
     configured: Number(props.prospectProviderSummary?.configured || 0),
@@ -95,6 +103,7 @@ const applyFilters = () => {
         search: filterForm.search,
         status: filterForm.status,
         type: filterForm.type,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -282,35 +291,36 @@ const statusBadgeClass = (status) => {
                 </div>
             </section>
 
-            <section class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-stone-200 text-sm dark:divide-neutral-700">
-                        <thead>
-                            <tr class="text-left text-xs uppercase text-stone-500 dark:text-neutral-400">
-                                <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.campaign') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.type') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.status') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.channels') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.runs') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.recipients') }}</th>
-                                <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.updated_at') }}</th>
-                                <th class="px-4 py-3 font-medium text-right">{{ t('marketing.campaign_index.table.actions') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                            <template v-if="isFiltering">
-                                <tr v-for="row in 6" :key="`campaign-skeleton-${row}`">
-                                    <td v-for="col in 8" :key="`campaign-skeleton-${row}-${col}`" class="px-4 py-3">
-                                        <div class="h-3 w-full animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    </td>
-                                </tr>
-                            </template>
-                            <tr v-if="!isFiltering && rows.length === 0">
-                                <td colspan="8" class="px-4 py-8 text-center text-stone-500 dark:text-neutral-400">
-                                    {{ t('marketing.campaign_index.no_campaign') }}
+            <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <AdminDataTable
+                    embedded
+                    :rows="campaignTableRows"
+                    :links="campaignLinks"
+                    :show-pagination="rows.length > 0"
+                    show-per-page
+                    :per-page="currentPerPage"
+                >
+                    <template #head>
+                        <tr class="text-left text-xs uppercase text-stone-500 dark:text-neutral-400">
+                            <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.campaign') }}</th>
+                            <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.type') }}</th>
+                            <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.status') }}</th>
+                            <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.channels') }}</th>
+                            <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.runs') }}</th>
+                            <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.recipients') }}</th>
+                            <th class="px-4 py-3 font-medium">{{ t('marketing.campaign_index.table.updated_at') }}</th>
+                            <th class="px-4 py-3 font-medium text-right">{{ t('marketing.campaign_index.table.actions') }}</th>
+                        </tr>
+                    </template>
+
+                    <template #row="{ row: campaign }">
+                        <tr class="text-stone-700 dark:text-neutral-200">
+                            <template v-if="campaign.__skeleton">
+                                <td v-for="col in 8" :key="`campaign-skeleton-cell-${campaign.id}-${col}`" class="px-4 py-3">
+                                    <div class="h-3 w-full animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                                 </td>
-                            </tr>
-                            <tr v-for="campaign in rows" v-show="!isFiltering" :key="campaign.id" class="text-stone-700 dark:text-neutral-200">
+                            </template>
+                            <template v-else>
                                 <td class="px-4 py-3">
                                     <div class="font-semibold">{{ campaign.name }}</div>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">
@@ -354,32 +364,22 @@ const statusBadgeClass = (status) => {
                                         </Link>
                                     </div>
                                 </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                            </template>
+                        </tr>
+                    </template>
 
-                <div v-if="campaigns?.next_page_url || campaigns?.prev_page_url" class="flex items-center justify-between gap-3 border-t border-stone-200 px-4 py-3 text-xs text-stone-500 dark:border-neutral-700 dark:text-neutral-400">
-                    <div>
-                        {{ t('marketing.campaign_index.page', { page: campaigns.current_page || 1 }) }}
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <Link
-                            v-if="campaigns.prev_page_url"
-                            :href="campaigns.prev_page_url"
-                            class="rounded-sm border border-stone-200 bg-white px-2 py-1 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-700"
-                        >
-                            {{ t('marketing.common.previous') }}
-                        </Link>
-                        <Link
-                            v-if="campaigns.next_page_url"
-                            :href="campaigns.next_page_url"
-                            class="rounded-sm border border-stone-200 bg-white px-2 py-1 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-700"
-                        >
-                            {{ t('marketing.common.next') }}
-                        </Link>
-                    </div>
-                </div>
+                    <template #empty>
+                        <div class="px-4 py-8 text-center text-stone-500 dark:text-neutral-400">
+                            {{ t('marketing.campaign_index.no_campaign') }}
+                        </div>
+                    </template>
+
+                    <template #pagination_prefix>
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ campaignPageLabel }}
+                        </div>
+                    </template>
+                </AdminDataTable>
             </section>
         </div>
     </AuthenticatedLayout>

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import InputError from '@/Components/InputError.vue';
@@ -25,6 +26,7 @@ const assetRows = computed(() => props.assets?.data || []);
 const assetLinks = computed(() => props.assets?.links || []);
 const assetsTotal = computed(() => Number(props.assets?.total || assetRows.value.length || 0));
 const assetsResultsLabel = computed(() => t('super_admin.assets.filters.results', { count: assetsTotal.value }));
+const currentPerPage = computed(() => resolveDataTablePerPage(props.assets?.per_page, props.filters?.per_page));
 
 const filterForm = useForm({
     search: props.filters?.search ?? '',
@@ -223,6 +225,8 @@ const previewTypeLabel = (asset) => {
                 :result-label="assetsResultsLabel"
                 :empty-description="$t('super_admin.assets.empty')"
                 container-class="border-t-4 border-t-zinc-600"
+                show-per-page
+                :per-page="currentPerPage"
             >
                 <template #toolbar>
                     <AdminDataTableToolbar

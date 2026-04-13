@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\LoyaltyPointLedger;
 use App\Models\LoyaltyProgram;
 use App\Services\Portal\PortalAccessService;
+use App\Support\DataTablePagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -32,8 +33,6 @@ class PortalLoyaltyController extends Controller
         'points',
         'amount',
     ];
-
-    private const PER_PAGE_OPTIONS = [10, 15, 25, 50];
 
     public function index(Request $request)
     {
@@ -129,7 +128,7 @@ class PortalLoyaltyController extends Controller
             'event' => ['nullable', Rule::in(self::EVENT_OPTIONS)],
             'sort' => ['nullable', Rule::in(self::SORT_OPTIONS)],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
-            'per_page' => ['nullable', 'integer', Rule::in(self::PER_PAGE_OPTIONS)],
+            'per_page' => ['nullable', 'integer', Rule::in(DataTablePagination::options())],
         ]);
 
         return [
@@ -139,7 +138,9 @@ class PortalLoyaltyController extends Controller
             'event' => $validated['event'] ?? null,
             'sort' => $validated['sort'] ?? 'processed_at',
             'direction' => $validated['direction'] ?? 'desc',
-            'per_page' => isset($validated['per_page']) ? (int) $validated['per_page'] : 15,
+            'per_page' => isset($validated['per_page'])
+                ? DataTablePagination::resolve($validated['per_page'])
+                : DataTablePagination::defaultPerPage(),
         ];
     }
 

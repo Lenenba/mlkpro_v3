@@ -5,7 +5,6 @@ import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
-import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
@@ -790,9 +789,6 @@ const clearFilters = () => {
     clearSelectedDate();
     autoFilter();
 };
-
-const taskLinks = computed(() => props.tasks?.links || []);
-const taskResultsLabel = computed(() => `${props.count ?? taskList.value.length} ${t('tasks.table.results')}`);
 
 const statusLabel = (status) => {
     if (!status) {
@@ -2325,135 +2321,6 @@ const submitProof = () => {
             </div>
         </template>
     </div>
-
-        <div v-else
-            class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-            <div class="min-w-full inline-block align-middle">
-                <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="min-w-[260px]">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('tasks.table.task') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-36">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('tasks.table.status') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('tasks.table.due') }}
-                                </div>
-                            </th>
-                            <th v-if="showAssigneeColumn" scope="col" class="min-w-44">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('tasks.table.assignee') }}
-                                </div>
-                            </th>
-                            <th scope="col" class="min-w-32">
-                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    {{ $t('tasks.table.created') }}
-                                </div>
-                            </th>
-                            <th scope="col"></th>
-                        </tr>
-                    </thead>
-
-                    <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                        <template v-if="isLoading">
-                            <tr v-for="row in 6" :key="`skeleton-${row}`">
-                                <td colspan="7" class="px-4 py-3">
-                                    <div class="grid grid-cols-5 gap-4 animate-pulse">
-                                        <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                    </div>
-                                </td>
-                            </tr>
-                        </template>
-                        <template v-else>
-                        <tr v-for="task in tasks.data" :key="task.id">
-                            <td class="size-px whitespace-nowrap px-4 py-2 text-start">
-                                <div class="flex flex-col">
-                                    <Link
-                                        :href="`/tasks/${task.id}`"
-                                        class="text-sm font-medium text-stone-800 hover:text-emerald-700 dark:text-neutral-200 dark:hover:text-emerald-300"
-                                    >
-                                        {{ task.title }}
-                                    </Link>
-                                    <span v-if="task.description" class="text-xs text-stone-500 dark:text-neutral-500 line-clamp-1">
-                                        {{ task.description }}
-                                    </span>
-                                </div>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="py-1.5 px-2 inline-flex items-center text-xs font-medium rounded-full"
-                                    :class="statusClasses(task.status)">
-                                    {{ statusLabel(task.status) || $t('tasks.status.todo') }}
-                                </span>
-                                <span
-                                    v-if="task.timing_status"
-                                    class="ms-2 py-1.5 px-2 inline-flex items-center text-xs font-medium rounded-full"
-                                    :class="timingStatusClasses(task.timing_status)"
-                                >
-                                    {{ timingStatusLabel(task.timing_status) }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                    {{ formatDate(task.due_date) || $t('tasks.labels.no_due_date') }}
-                                </span>
-                            </td>
-                            <td v-if="showAssigneeColumn" class="size-px whitespace-nowrap px-4 py-2">
-                                <div class="flex items-center gap-2">
-                                    <span
-                                        v-if="task?.assignee?.user?.name"
-                                        class="text-sm text-stone-600 dark:text-neutral-300"
-                                    >
-                                        {{ task.assignee.user.name }}
-                                    </span>
-                                    <span
-                                        v-else
-                                        class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
-                                    >
-                                        {{ $t('tasks.labels.unassigned') }}
-                                    </span>
-                                </div>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                    {{ formatDate(task.created_at) }}
-                                </span>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                                <TaskActionsMenu
-                                    :task="task"
-                                    :can-change-status="canChangeStatus"
-                                    :can-manage="canManage"
-                                    :can-delete="canDelete"
-                                    :locked="isTaskLocked(task)"
-                                    @set-status="setTaskStatus(task, $event)"
-                                    @edit="openEditTask(task)"
-                                    @add-proof="openProofUpload(task)"
-                                    @delete="deleteTask(task)"
-                                />
-                            </td>
-                        </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div v-if="taskList.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
-            <p class="text-sm text-stone-800 dark:text-neutral-200">{{ taskResultsLabel }}</p>
-
-            <AdminPaginationLinks :links="taskLinks" />
-        </div>
     </div>
 
     <Modal v-if="detailsTask" :title="detailsTask.title || $t('tasks.details.title')" :id="'hs-task-details'">

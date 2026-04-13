@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -39,6 +40,7 @@ const pageRows = computed(() => props.pages?.data || []);
 const pageLinks = computed(() => props.pages?.links || []);
 const pageTotal = computed(() => Number(props.pages?.total || pageRows.value.length || 0));
 const pageResultsLabel = computed(() => t('super_admin.pages.filters.results', { count: pageTotal.value }));
+const currentPerPage = computed(() => resolveDataTablePerPage(props.pages?.per_page, props.filters?.per_page));
 
 const statusOptions = computed(() => [
     ...(props.choices?.statuses || []).map((status) => ({
@@ -108,6 +110,8 @@ const deletePage = (page) => {
                 :result-label="pageResultsLabel"
                 :empty-description="$t('super_admin.pages.empty')"
                 container-class="border-t-4 border-t-zinc-600"
+                show-per-page
+                :per-page="currentPerPage"
             >
                 <template #toolbar>
                     <AdminDataTableToolbar

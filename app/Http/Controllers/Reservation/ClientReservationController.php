@@ -232,6 +232,7 @@ class ClientReservationController extends Controller
         [$account, $customer] = $this->resolveClientContext($user);
 
         $filters = $request->only(['status', 'date_from', 'date_to', 'view_mode']);
+        $filters['per_page'] = $this->resolveDataTablePerPage($request);
         $query = Reservation::query()
             ->forAccount($account->id)
             ->where(function ($builder) use ($user, $customer) {
@@ -245,7 +246,7 @@ class ClientReservationController extends Controller
 
         $reservations = (clone $query)
             ->orderBy('starts_at')
-            ->simplePaginate(20)
+            ->simplePaginate((int) $filters['per_page'])
             ->withQueryString();
 
         $events = (clone $query)

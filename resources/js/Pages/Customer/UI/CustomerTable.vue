@@ -7,6 +7,7 @@ import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.
 import CustomerActionsMenu from '@/Pages/Customer/UI/CustomerActionsMenu.vue';
 import CustomerEmptyState from '@/Pages/Customer/UI/CustomerEmptyState.vue';
 import { humanizeDate } from '@/utils/date';
+import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import Checkbox from '@/Components/Checkbox.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
@@ -104,6 +105,7 @@ const filterPayload = () => {
         created_to: filterForm.created_to,
         sort: filterForm.sort,
         direction: filterForm.direction,
+        per_page: currentPerPage.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -280,6 +282,7 @@ const getCustomerInitials = (customer) => {
 };
 
 const customerLinks = computed(() => props.customers?.links || []);
+const currentPerPage = computed(() => resolveDataTablePerPage(props.customers?.per_page, props.filters?.per_page));
 const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagination.results')}`);
 </script>
 
@@ -436,6 +439,8 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
             :rows="customerTableRows"
             :links="customerLinks"
             :show-pagination="customerRows.length > 0"
+            show-per-page
+            :per-page="currentPerPage"
         >
             <template #empty>
                 <div class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
