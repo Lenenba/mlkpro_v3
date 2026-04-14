@@ -77,6 +77,7 @@ it('syncs the redesigned core and growth entitlements from billing config', func
     $limits = PlatformSetting::getValue('plan_limits', []);
 
     expect($modules['solo_essential']['jobs'] ?? null)->toBeTrue()
+        ->and($modules['solo_essential']['expenses'] ?? null)->toBeTrue()
         ->and($modules['solo_essential']['assistant'] ?? null)->toBeFalse()
         ->and($modules['solo_essential']['campaigns'] ?? null)->toBeFalse()
         ->and($modules['solo_essential']['performance'] ?? null)->toBeFalse()
@@ -86,8 +87,10 @@ it('syncs the redesigned core and growth entitlements from billing config', func
         ->and($modules['solo_pro']['campaigns'] ?? null)->toBeFalse()
         ->and($modules['solo_pro']['performance'] ?? null)->toBeFalse()
         ->and($modules['solo_growth']['performance'] ?? null)->toBeFalse()
+        ->and($modules['solo_growth']['expenses'] ?? null)->toBeTrue()
         ->and($modules['solo_growth']['assistant'] ?? null)->toBeTrue()
         ->and($modules['solo_growth']['reservations'] ?? null)->toBeTrue()
+        ->and($modules['starter']['expenses'] ?? null)->toBeTrue()
         ->and($modules['growth']['loyalty'] ?? null)->toBeTrue()
         ->and($limits['solo_essential']['jobs'] ?? null)->toBe(300)
         ->and($limits['solo_essential']['assistant_requests'] ?? null)->toBe(0)

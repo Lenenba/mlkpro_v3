@@ -120,6 +120,7 @@ class DemoAccountService
             'jobs' => true,
             'tasks' => true,
             'invoices' => true,
+            'expenses' => true,
             'products' => true,
             'performance' => true,
             'presence' => true,

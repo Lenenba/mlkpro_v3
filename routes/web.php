@@ -12,6 +12,7 @@ use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DemoController;
 use App\Http\Controllers\DemoTourController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LegalController;
@@ -605,6 +606,23 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('sales.pickup.confirm');
         Route::get('/sales/{sale}/receipt', [SaleController::class, 'receipt'])->name('sales.receipt');
         Route::get('/sales/{sale}', [SaleController::class, 'show'])->name('sales.show');
+    });
+
+    Route::middleware('company.feature:expenses')->group(function () {
+        Route::get('/expenses', [ExpenseController::class, 'index'])->name('expense.index');
+        Route::post('/expenses', [ExpenseController::class, 'store'])->name('expense.store');
+        Route::post('/expenses/scan-ai', [ExpenseController::class, 'scanWithAi'])
+            ->middleware('company.feature:assistant')
+            ->name('expense.scan-ai');
+        Route::patch('/expenses/{expense}/submit', [ExpenseController::class, 'submit'])->name('expense.submit');
+        Route::patch('/expenses/{expense}/approve', [ExpenseController::class, 'approve'])->name('expense.approve');
+        Route::patch('/expenses/{expense}/mark-due', [ExpenseController::class, 'markDue'])->name('expense.mark-due');
+        Route::patch('/expenses/{expense}/mark-paid', [ExpenseController::class, 'markPaid'])->name('expense.mark-paid');
+        Route::patch('/expenses/{expense}/mark-reimbursed', [ExpenseController::class, 'markReimbursed'])->name('expense.mark-reimbursed');
+        Route::patch('/expenses/{expense}/cancel', [ExpenseController::class, 'cancel'])->name('expense.cancel');
+        Route::get('/expenses/{expense}', [ExpenseController::class, 'show'])->name('expense.show');
+        Route::put('/expenses/{expense}', [ExpenseController::class, 'update'])->name('expense.update');
+        Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expense.destroy');
     });
 
     // Customer Management

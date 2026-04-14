@@ -54,6 +54,7 @@ class DemoWorkspaceCatalog
                     'reservations' => 5,
                     'queue' => 3,
                     'sales' => 2,
+                    'expenses' => 4,
                     'team' => 2,
                 ],
             ],
@@ -70,6 +71,7 @@ class DemoWorkspaceCatalog
                     'reservations' => 9,
                     'queue' => 4,
                     'sales' => 4,
+                    'expenses' => 7,
                     'team' => 3,
                 ],
             ],
@@ -86,6 +88,7 @@ class DemoWorkspaceCatalog
                     'reservations' => 14,
                     'queue' => 6,
                     'sales' => 6,
+                    'expenses' => 10,
                     'team' => 4,
                 ],
             ],
@@ -192,6 +195,13 @@ class DemoWorkspaceCatalog
                 'category' => 'Revenue',
                 'company_types' => ['services', 'products'],
             ],
+            'expenses' => [
+                'key' => 'expenses',
+                'label' => 'Expenses',
+                'description' => 'Operational spend tracking with receipts, statuses, and finance follow-up.',
+                'category' => 'Finance',
+                'company_types' => ['services', 'products'],
+            ],
             'reservations' => [
                 'key' => 'reservations',
                 'label' => 'Reservations & queue',
@@ -280,8 +290,8 @@ class DemoWorkspaceCatalog
     public function defaultModules(string $companyType, ?string $sector = null): array
     {
         $base = $companyType === 'products'
-            ? ['products', 'sales', 'invoices', 'campaigns', 'loyalty', 'performance']
-            : ['requests', 'quotes', 'services', 'jobs', 'tasks', 'invoices', 'team_members', 'performance'];
+            ? ['products', 'sales', 'invoices', 'expenses', 'campaigns', 'loyalty', 'performance']
+            : ['requests', 'quotes', 'services', 'jobs', 'tasks', 'invoices', 'expenses', 'team_members', 'performance'];
 
         if ($companyType === 'services' && in_array($sector, ['salon', 'wellness', 'restaurant'], true)) {
             $base = array_merge($base, ['reservations', 'planning', 'presence']);
@@ -762,6 +772,7 @@ class DemoWorkspaceCatalog
             'reservations' => 9,
             'queue' => 4,
             'sales' => 4,
+            'expenses' => 7,
             'team' => 3,
         ]);
     }

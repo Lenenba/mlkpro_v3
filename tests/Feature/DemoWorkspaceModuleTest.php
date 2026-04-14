@@ -5,6 +5,8 @@ use App\Jobs\ProvisionDemoWorkspaceJob;
 use App\Models\ActivityLog;
 use App\Models\DemoWorkspace;
 use App\Models\DemoWorkspaceTemplate;
+use App\Models\Expense;
+use App\Models\ExpenseAttachment;
 use App\Models\MarketingSetting;
 use App\Models\PlatformAdmin;
 use App\Models\Role;
@@ -14,6 +16,7 @@ use App\Services\Demo\DemoWorkspaceCatalog;
 use App\Support\PlatformPermissions;
 use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -173,11 +176,21 @@ it('allows platform admins with demo permissions to access the demo builder page
             ->component('SuperAdmin/DemoWorkspaces/Create')
             ->has('templates')
             ->has('options.modules')
+            ->where('options.modules', fn ($modules) => collect($modules)->pluck('key')->contains('expenses'))
             ->has('options.scenario_packs')
             ->has('options.extra_access_roles')
             ->has('defaults.selected_modules')
             ->has('template_defaults.selected_modules')
         );
+});
+
+it('includes expenses in default demo module packs for service and commerce demos', function () {
+    /** @var DemoWorkspaceCatalog $catalog */
+    $catalog = app(DemoWorkspaceCatalog::class);
+
+    expect($catalog->moduleKeys())->toContain('expenses')
+        ->and($catalog->defaultModules('services', 'salon'))->toContain('expenses')
+        ->and($catalog->defaultModules('products', 'retail'))->toContain('expenses');
 });
 
 it('allows platform admins with demo permissions to access a demo workspace details page', function () {
@@ -241,6 +254,8 @@ it('can create, duplicate and archive demo templates', function () {
 });
 
 it('provisions a realistic service demo workspace from the admin module', function () {
+    Storage::fake('public');
+
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
     $payload = demoWorkspacePayload([
         'prefill_source' => 'crm',
@@ -283,7 +298,18 @@ it('provisions a realistic service demo workspace from the admin module', functi
     expect($workspace->seed_summary['reservations'] ?? 0)->toBeGreaterThan(0);
     expect($workspace->seed_summary['queue_items'] ?? 0)->toBeGreaterThan(0);
     expect($workspace->seed_summary['invoices'] ?? 0)->toBeGreaterThan(0);
+    expect($workspace->seed_summary['expenses'] ?? 0)->toBeGreaterThan(0);
+    expect($workspace->seed_summary['expense_attachments'] ?? 0)->toBeGreaterThan(0);
+    expect(Expense::query()->where('user_id', $workspace->owner_user_id)->count())->toBeGreaterThan(0);
+    expect(ExpenseAttachment::query()
+        ->whereIn('expense_id', Expense::query()->where('user_id', $workspace->owner_user_id)->select('id'))
+        ->count())->toBeGreaterThan(0);
     expect(TeamMember::query()->where('account_id', $workspace->owner_user_id)->count())->toBeGreaterThan(0);
+    Storage::disk('public')->assertExists(
+        ExpenseAttachment::query()
+            ->whereIn('expense_id', Expense::query()->where('user_id', $workspace->owner_user_id)->select('id'))
+            ->value('path')
+    );
     expect(data_get(MarketingSetting::query()->where('user_id', $workspace->owner_user_id)->first(), 'templates.brand_profile.name'))
         ->toBe('Northwind Demo Studio');
     expect(ActivityLog::query()
@@ -344,6 +370,8 @@ it('can create a workspace from a template, mark it sent and extend expiration',
 });
 
 it('can provision and fully purge a commerce demo workspace', function () {
+    Storage::fake('public');
+
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
 
     $payload = demoWorkspacePayload([
@@ -375,10 +403,17 @@ it('can provision and fully purge a commerce demo workspace', function () {
     $workspace = DemoWorkspace::query()->latest('id')->firstOrFail();
     $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
     $ownerId = $workspace->owner_user_id;
+    $expenseAttachmentPaths = ExpenseAttachment::query()
+        ->whereIn('expense_id', Expense::query()->where('user_id', $ownerId)->select('id'))
+        ->pluck('path')
+        ->filter()
+        ->values();
 
     expect($workspace->seed_summary['sales'] ?? 0)->toBeGreaterThan(0);
     expect($workspace->seed_summary['campaigns'] ?? 0)->toBe(1);
     expect($workspace->seed_summary['loyalty_program_enabled'] ?? 0)->toBe(1);
+    expect($workspace->seed_summary['expenses'] ?? 0)->toBeGreaterThan(0);
+    expect($expenseAttachmentPaths)->not->toBeEmpty();
 
     $this->actingAs($admin)
         ->delete(route('superadmin.demo-workspaces.destroy', $workspace))
@@ -392,6 +427,9 @@ it('can provision and fully purge a commerce demo workspace', function () {
     expect($purgedWorkspace?->purged_at)->not->toBeNull();
     expect($purgedWorkspace?->owner_user_id)->toBeNull();
     expect(User::query()->find($ownerId))->toBeNull();
+    foreach ($expenseAttachmentPaths as $path) {
+        Storage::disk('public')->assertMissing($path);
+    }
 });
 
 it('can clone a demo workspace with fresh credentials and inherited phase two configuration', function () {

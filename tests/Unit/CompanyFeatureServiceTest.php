@@ -18,6 +18,7 @@ it('normalizes stale owner-only plan modules from platform settings', function (
     expect($resolved['solo_essential']['jobs'])->toBeTrue()
         ->and($resolved['solo_essential']['tasks'])->toBeTrue()
         ->and($resolved['solo_essential']['sales'])->toBeTrue()
+        ->and($resolved['solo_essential']['expenses'])->toBeTrue()
         ->and($resolved['solo_essential']['assistant'])->toBeFalse()
         ->and($resolved['solo_essential']['campaigns'])->toBeFalse()
         ->and($resolved['solo_essential']['loyalty'])->toBeFalse()
@@ -42,6 +43,7 @@ it('keeps owner-only solo plans on the simplified module path until solo growth'
         ->and($planModules['solo_growth']['performance'])->toBeFalse()
         ->and($planModules['starter']['performance'])->toBeTrue()
         ->and($planModules['solo_essential']['sales'])->toBe($planModules['starter']['sales'])
+        ->and($planModules['solo_essential']['expenses'])->toBeTrue()
         ->and($planModules['solo_essential']['services'])->toBe($planModules['starter']['services'])
         ->and($planModules['solo_essential']['tasks'])->toBe($planModules['starter']['tasks'])
         ->and($planModules['solo_essential']['plan_scans'])->toBeFalse()
@@ -53,6 +55,7 @@ it('keeps owner-only solo plans on the simplified module path until solo growth'
         ->and($planModules['solo_essential']['assistant'])->toBeFalse()
         ->and($planModules['solo_pro']['assistant'])->toBeFalse()
         ->and($planModules['solo_growth']['assistant'])->toBeTrue()
+        ->and($planModules['solo_growth']['expenses'])->toBeTrue()
         ->and($planModules['solo_essential']['campaigns'])->toBeFalse()
         ->and($planModules['solo_pro']['campaigns'])->toBeFalse()
         ->and($planModules['solo_growth']['campaigns'])->toBeTrue()
@@ -64,6 +67,7 @@ it('keeps owner-only solo plans on the simplified module path until solo growth'
         ->and($planModules['solo_growth']['reservations'])->toBeTrue()
         ->and($planModules['solo_essential']['presence'])->toBeFalse()
         ->and($planModules['starter']['presence'])->toBeTrue()
+        ->and($planModules['starter']['expenses'])->toBeTrue()
         ->and($planModules['solo_essential']['team_members'])->toBeFalse()
         ->and($planModules['starter']['team_members'])->toBeTrue();
 });

@@ -1,0 +1,238 @@
+{
+  "expenses": {
+    "title": "Depenses",
+    "stats": {
+      "total": "Depenses totales",
+      "draft": "Brouillons",
+      "overdue": "En retard",
+      "due_total": "A payer",
+      "paid_this_month": "Paye ce mois"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher depenses, fournisseurs ou references",
+      "status": "Statut",
+      "category": "Categorie",
+      "expense_date_from": "Date depense depuis",
+      "expense_date_to": "Date depense jusqu'a",
+      "quick": {
+        "all": "Toutes",
+        "submitted": "Soumises",
+        "due": "A payer",
+        "overdue": "En retard",
+        "paid": "Payees",
+        "reimbursable": "Remboursables",
+        "reimbursement_pending": "Remboursement en attente",
+        "recurring": "Recurrence"
+      }
+    },
+    "aria": {
+      "dropdown": "Menu des depenses"
+    },
+    "actions": {
+      "filters": "Filtres",
+      "clear": "Effacer",
+      "add_expense": "Ajouter depense",
+      "scan_with_ai": "Scanner avec IA",
+      "new_expense": "Nouvelle depense",
+      "edit_expense": "Modifier depense",
+      "create_expense": "Creer la depense",
+      "update_expense": "Mettre a jour la depense",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "delete_confirm": "Supprimer \"{name}\" ?",
+      "submit": "Soumettre",
+      "approve": "Approuver",
+      "mark_due": "Marquer a payer",
+      "mark_paid": "Marquer payee",
+      "mark_reimbursed": "Marquer remboursee",
+      "cancel": "Annuler",
+      "cancel_confirm": "Annuler \"{name}\" ?",
+      "capture_receipt": "Prendre une photo",
+      "browse_files": "Choisir des fichiers",
+      "open": "Ouvrir",
+      "back_to_list": "Retour a la liste"
+    },
+    "table": {
+      "expense": "Depense",
+      "category": "Categorie",
+      "total": "Total",
+      "status": "Statut",
+      "expense_date": "Date",
+      "attachments": "Pieces"
+    },
+    "form": {
+      "title": "Titre",
+      "category": "Categorie",
+      "supplier_name": "Fournisseur",
+      "reference_number": "Reference",
+      "subtotal": "Sous-total",
+      "tax_amount": "Taxe",
+      "total": "Total",
+      "expense_date": "Date de depense",
+      "due_date": "Date d'echeance",
+      "paid_date": "Date de paiement",
+      "payment_method": "Mode de paiement",
+      "status": "Statut",
+      "reimbursable": "Remboursable",
+      "team_member": "Membre equipe",
+      "reimbursement_reference": "Reference remboursement",
+      "is_recurring": "Recurrence",
+      "recurrence_frequency": "Frequence recurrence",
+      "recurrence_interval": "Repeter tous les",
+      "recurrence_ends_at": "Fin de recurrence",
+      "reimbursement_help": "Utilise ce lien quand la depense doit etre remboursee a un membre equipe plutot qu a un fournisseur.",
+      "recurrence_help": "La prochaine depense sera creee automatiquement depuis ce modele quand la date de recurrence sera atteinte.",
+      "recurrence_preview": "Prochaine depense generee le {date}",
+      "description": "Description",
+      "notes": "Notes",
+      "attachments": "Pieces jointes",
+      "attachments_help": "Ajoute facture, recu ou justificatif. La V1 conserve les pieces pour la revue et la compta legere.",
+      "mobile_capture_hint": "Sur mobile, utilise l appareil photo pour capturer le recu tout de suite, ou ajoute une facture PDF depuis les fichiers.",
+      "existing_attachments": "Pieces deja ajoutees",
+      "business_currency": "Devise entreprise: {currency}. Les depenses sont enregistrees dans cette devise."
+    },
+    "status": {
+      "draft": "Brouillon",
+      "submitted": "Soumise",
+      "approved": "Approuvee",
+      "due": "A payer",
+      "paid": "Payee",
+      "reimbursed": "Remboursee",
+      "cancelled": "Annulee",
+      "review_required": "A verifier"
+    },
+    "labels": {
+      "uncategorized": "Sans categorie",
+      "no_supplier": "Sans fournisseur",
+      "not_set": "Non defini",
+      "none": "Aucune information",
+      "yes": "Oui",
+      "no": "Non",
+      "recurring": "Recurrence",
+      "reimbursement_pending": "Remboursement en attente"
+    },
+    "detail": {
+      "summary": "Resume",
+      "notes": "Contexte",
+      "record": "Trace",
+      "attachments": "Pieces jointes",
+      "quick_actions": "Actions rapides",
+      "creator": "Cree par",
+      "approver": "Approuve par",
+      "payer": "Paye par",
+      "reimburser": "Rembourse par",
+      "reimbursement_status": "Statut remboursement",
+      "next_recurrence": "Prochaine recurrence",
+      "generated_count": "Depenses generees",
+      "recurrence_source": "Source recurrence",
+      "workflow_history": "Historique workflow",
+      "workflow_empty": "Aucune action de workflow pour le moment.",
+      "status_change": "{from} -> {to}"
+    },
+    "workflow": {
+      "modal_title": "{action} la depense",
+      "dismiss": "Fermer",
+      "comment_label": "Commentaire",
+      "expense_context": "Depense: {name}",
+      "current_status": "Statut actuel: {status}",
+      "paid_date_help": "Confirme ou ajuste la date de paiement avant validation.",
+      "descriptions": {
+        "submit": "Ajoute un contexte utile avant d envoyer la depense en revue.",
+        "approve": "Valide la depense et laisse un commentaire de revue si besoin.",
+        "mark_due": "Utilise un commentaire pour preciser l echeance ou la priorite de paiement.",
+        "mark_paid": "Ajoute le contexte de paiement et verifie la date utilisee.",
+        "mark_reimbursed": "Confirme la date du remboursement et ajoute une reference si utile.",
+        "cancel": "Explique pourquoi cette depense ne doit plus avancer dans le workflow."
+      },
+      "comment_placeholders": {
+        "submit": "Ex. facture complete et prete pour validation",
+        "approve": "Ex. budget valide, categorie verifiee",
+        "mark_due": "Ex. a payer avec le batch fournisseur de vendredi",
+        "mark_paid": "Ex. payee par virement ce matin",
+        "mark_reimbursed": "Ex. remboursement terrain valide par finance",
+        "cancel": "Ex. doublon detecte ou facture annulee"
+      }
+    },
+    "history": {
+      "created": "Depense creee",
+      "manual_update": "Depense mise a jour",
+      "generated_from_recurrence": "Depense generee depuis la recurrence",
+      "submit": "Depense soumise",
+      "approve": "Depense approuvee",
+      "mark_due": "Depense marquee a payer",
+      "mark_paid": "Depense marquee payee",
+      "mark_reimbursed": "Depense remboursee",
+      "cancel": "Depense annulee"
+    },
+    "attachments": {
+      "file": "Fichier",
+      "empty": "Aucune piece jointe pour le moment."
+    },
+    "ai_scan": {
+      "modal_title": "Creer une depense depuis une facture IA",
+      "upload_title": "Importer une facture ou un recu",
+      "upload_hint": "L IA lit le document, cree un brouillon de depense et conserve la piece jointe source.",
+      "choose_document": "Choisir un document",
+      "mobile_hint": "Sur mobile, prends directement la facture en photo ou ajoute un PDF depuis les fichiers.",
+      "note_label": "Contexte optionnel",
+      "note_hint": "Ajoute un indice utile si tu veux aider l extraction, par exemple le contexte du fournisseur ou de l achat.",
+      "review_notice": "Le brouillon cree par IA reste en brouillon ou en revue. Les champs detectes doivent etre verifies avant approbation.",
+      "review_title": "Revue extraction IA",
+      "review_required": "Revue requise",
+      "ready_for_review": "Brouillon prepare",
+      "duplicate_exact": "Doublon probable detecte",
+      "duplicate_possible": "Facture potentiellement deja enregistree",
+      "duplicate_match_count": "{count} depense(s) ressemblent deja a ce document.",
+      "source_document": "Document source",
+      "confidence": "Confiance globale",
+      "field_review": "Champs detectes",
+      "review_flags": "Points a verifier",
+      "assumptions": "Hypotheses IA",
+      "duplicate_reasons": {
+        "same_file": "Meme fichier",
+        "same_reference": "Meme reference",
+        "same_supplier": "Meme fournisseur",
+        "same_total": "Meme montant",
+        "same_expense_date": "Meme date"
+      }
+    },
+    "reimbursement_status": {
+      "not_applicable": "Non applicable",
+      "pending": "En attente",
+      "reimbursed": "Remboursee"
+    },
+    "recurrence": {
+      "frequency": {
+        "monthly": "Mensuelle",
+        "yearly": "Annuelle"
+      }
+    },
+    "empty": "Aucune depense trouvee.",
+    "pagination": {
+      "results": "resultats"
+    },
+    "payment_methods": {
+      "cash": "Especes",
+      "card": "Carte",
+      "bank_transfer": "Virement bancaire",
+      "mobile_money": "Mobile money",
+      "cheque": "Cheque",
+      "other": "Autre"
+    },
+    "categories": {
+      "inventory": "Stock",
+      "materials": "Materiaux",
+      "travel": "Deplacements",
+      "fuel": "Carburant",
+      "software": "Logiciels",
+      "marketing": "Marketing",
+      "rent": "Loyer",
+      "utilities": "Charges",
+      "professional_services": "Services professionnels",
+      "taxes_fees": "Taxes et frais",
+      "reimbursement": "Remboursements",
+      "equipment": "Equipement",
+      "other": "Autre"
+    }
+  }
+}

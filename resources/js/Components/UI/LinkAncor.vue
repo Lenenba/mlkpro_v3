@@ -58,6 +58,7 @@ const tonePalette = {
     tasks: { accent: '#14b8a6', glow: 'rgba(20,184,166,0.35)', text: 'text-teal-600 dark:text-teal-400' },
     team: { accent: '#84cc16', glow: 'rgba(132,204,22,0.35)', text: 'text-lime-600 dark:text-lime-400' },
     invoices: { accent: '#f43f5e', glow: 'rgba(244,63,94,0.35)', text: 'text-rose-600 dark:text-rose-400' },
+    expenses: { accent: '#dc2626', glow: 'rgba(220,38,38,0.35)', text: 'text-red-600 dark:text-red-400' },
     default: { accent: '#10b981', glow: 'rgba(16,185,129,0.25)', text: 'text-emerald-600 dark:text-emerald-400' },
 };
 

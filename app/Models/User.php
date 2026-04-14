@@ -212,6 +212,11 @@ class User extends Authenticatable implements HasLocalePreferenceContract
         return $this->hasMany(Customer::class);
     }
 
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
+    }
+
     public function campaigns(): HasMany
     {
         return $this->hasMany(Campaign::class);

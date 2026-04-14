@@ -1,0 +1,238 @@
+{
+  "expenses": {
+    "title": "Expenses",
+    "stats": {
+      "total": "Total expenses",
+      "draft": "Drafts",
+      "overdue": "Overdue",
+      "due_total": "Due total",
+      "paid_this_month": "Paid this month"
+    },
+    "filters": {
+      "search_placeholder": "Search expenses, suppliers, or references",
+      "status": "Status",
+      "category": "Category",
+      "expense_date_from": "Expense date from",
+      "expense_date_to": "Expense date to",
+      "quick": {
+        "all": "All",
+        "submitted": "Submitted",
+        "due": "Due",
+        "overdue": "Overdue",
+        "paid": "Paid",
+        "reimbursable": "Reimbursable",
+        "reimbursement_pending": "Reimbursement pending",
+        "recurring": "Recurring"
+      }
+    },
+    "aria": {
+      "dropdown": "Expenses menu"
+    },
+    "actions": {
+      "filters": "Filters",
+      "clear": "Clear",
+      "add_expense": "Add expense",
+      "scan_with_ai": "Scan with AI",
+      "new_expense": "New expense",
+      "edit_expense": "Edit expense",
+      "create_expense": "Create expense",
+      "update_expense": "Update expense",
+      "edit": "Edit",
+      "delete": "Delete",
+      "delete_confirm": "Delete \"{name}\"?",
+      "submit": "Submit",
+      "approve": "Approve",
+      "mark_due": "Mark due",
+      "mark_paid": "Mark paid",
+      "mark_reimbursed": "Mark reimbursed",
+      "cancel": "Cancel",
+      "cancel_confirm": "Cancel \"{name}\"?",
+      "capture_receipt": "Capture receipt",
+      "browse_files": "Browse files",
+      "open": "Open",
+      "back_to_list": "Back to list"
+    },
+    "table": {
+      "expense": "Expense",
+      "category": "Category",
+      "total": "Total",
+      "status": "Status",
+      "expense_date": "Date",
+      "attachments": "Files"
+    },
+    "form": {
+      "title": "Title",
+      "category": "Category",
+      "supplier_name": "Supplier",
+      "reference_number": "Reference",
+      "subtotal": "Subtotal",
+      "tax_amount": "Tax amount",
+      "total": "Total",
+      "expense_date": "Expense date",
+      "due_date": "Due date",
+      "paid_date": "Paid date",
+      "payment_method": "Payment method",
+      "status": "Status",
+      "reimbursable": "Reimbursable",
+      "team_member": "Team member",
+      "reimbursement_reference": "Reimbursement reference",
+      "is_recurring": "Recurring",
+      "recurrence_frequency": "Recurrence frequency",
+      "recurrence_interval": "Repeat every",
+      "recurrence_ends_at": "Recurrence ends on",
+      "reimbursement_help": "Use this when the expense should be paid back to a team member instead of a supplier.",
+      "recurrence_help": "The next expense will be generated automatically from this template when the recurrence date is reached.",
+      "recurrence_preview": "Next generated expense date: {date}",
+      "description": "Description",
+      "notes": "Notes",
+      "attachments": "Attachments",
+      "attachments_help": "Attach the invoice, receipt, or proof of purchase. V1 keeps the files ready for review and lightweight accounting.",
+      "mobile_capture_hint": "On mobile, use the camera button to capture the receipt right away, or attach a PDF invoice from files.",
+      "existing_attachments": "Existing attachments",
+      "business_currency": "Business currency: {currency}. Expenses are stored in this currency."
+    },
+    "status": {
+      "draft": "Draft",
+      "submitted": "Submitted",
+      "approved": "Approved",
+      "due": "Due",
+      "paid": "Paid",
+      "reimbursed": "Reimbursed",
+      "cancelled": "Cancelled",
+      "review_required": "Review required"
+    },
+    "labels": {
+      "uncategorized": "Uncategorized",
+      "no_supplier": "No supplier",
+      "not_set": "Not set",
+      "none": "No additional information",
+      "yes": "Yes",
+      "no": "No",
+      "recurring": "Recurring",
+      "reimbursement_pending": "Reimbursement pending"
+    },
+    "detail": {
+      "summary": "Summary",
+      "notes": "Context",
+      "record": "Record",
+      "attachments": "Attachments",
+      "quick_actions": "Quick actions",
+      "creator": "Created by",
+      "approver": "Approved by",
+      "payer": "Paid by",
+      "reimburser": "Reimbursed by",
+      "reimbursement_status": "Reimbursement status",
+      "next_recurrence": "Next recurrence",
+      "generated_count": "Generated expenses",
+      "recurrence_source": "Recurrence source",
+      "workflow_history": "Workflow history",
+      "workflow_empty": "No workflow actions recorded yet.",
+      "status_change": "{from} -> {to}"
+    },
+    "workflow": {
+      "modal_title": "{action} expense",
+      "dismiss": "Close",
+      "comment_label": "Comment",
+      "expense_context": "Expense: {name}",
+      "current_status": "Current status: {status}",
+      "paid_date_help": "Confirm or adjust the payment date before saving.",
+      "descriptions": {
+        "submit": "Add any context you want the reviewer to see before submission.",
+        "approve": "Approve the expense and leave a review note when helpful.",
+        "mark_due": "Use the comment to clarify payment priority or timing.",
+        "mark_paid": "Capture the payment context and verify the paid date.",
+        "mark_reimbursed": "Confirm the reimbursement date and optionally add a reimbursement reference.",
+        "cancel": "Explain why this expense should stop moving through the workflow."
+      },
+      "comment_placeholders": {
+        "submit": "Ex. receipt complete and ready for review",
+        "approve": "Ex. budget checked, category confirmed",
+        "mark_due": "Ex. include in Friday supplier payment batch",
+        "mark_paid": "Ex. paid by bank transfer this morning",
+        "mark_reimbursed": "Ex. reimbursed to the field worker after finance review",
+        "cancel": "Ex. duplicate or supplier invoice voided"
+      }
+    },
+    "history": {
+      "created": "Expense created",
+      "manual_update": "Expense updated",
+      "generated_from_recurrence": "Expense generated from recurrence",
+      "submit": "Expense submitted",
+      "approve": "Expense approved",
+      "mark_due": "Expense marked as due",
+      "mark_paid": "Expense marked as paid",
+      "mark_reimbursed": "Expense reimbursed",
+      "cancel": "Expense cancelled"
+    },
+    "attachments": {
+      "file": "File",
+      "empty": "No attachments yet."
+    },
+    "ai_scan": {
+      "modal_title": "Create an expense from an AI scan",
+      "upload_title": "Upload an invoice or receipt",
+      "upload_hint": "AI reads the document, creates an expense draft, and keeps the original attachment on the record.",
+      "choose_document": "Choose a document",
+      "mobile_hint": "On mobile, capture the invoice right away or attach a PDF from files.",
+      "note_label": "Optional context",
+      "note_hint": "Add a short note if you want to help extraction with supplier or purchase context.",
+      "review_notice": "AI-created drafts stay in draft or review mode. Detected fields must be checked before approval.",
+      "review_title": "AI extraction review",
+      "review_required": "Review required",
+      "ready_for_review": "Draft prepared",
+      "duplicate_exact": "Probable duplicate detected",
+      "duplicate_possible": "This invoice may already exist",
+      "duplicate_match_count": "{count} expense(s) already look similar to this document.",
+      "source_document": "Source document",
+      "confidence": "Overall confidence",
+      "field_review": "Detected fields",
+      "review_flags": "Review flags",
+      "assumptions": "AI assumptions",
+      "duplicate_reasons": {
+        "same_file": "Same file",
+        "same_reference": "Same reference",
+        "same_supplier": "Same supplier",
+        "same_total": "Same total",
+        "same_expense_date": "Same date"
+      }
+    },
+    "reimbursement_status": {
+      "not_applicable": "Not applicable",
+      "pending": "Pending",
+      "reimbursed": "Reimbursed"
+    },
+    "recurrence": {
+      "frequency": {
+        "monthly": "Monthly",
+        "yearly": "Yearly"
+      }
+    },
+    "empty": "No expenses found.",
+    "pagination": {
+      "results": "results"
+    },
+    "payment_methods": {
+      "cash": "Cash",
+      "card": "Card",
+      "bank_transfer": "Bank transfer",
+      "mobile_money": "Mobile money",
+      "cheque": "Cheque",
+      "other": "Other"
+    },
+    "categories": {
+      "inventory": "Inventory",
+      "materials": "Materials",
+      "travel": "Travel",
+      "fuel": "Fuel",
+      "software": "Software",
+      "marketing": "Marketing",
+      "rent": "Rent",
+      "utilities": "Utilities",
+      "professional_services": "Professional services",
+      "taxes_fees": "Taxes and fees",
+      "reimbursement": "Reimbursements",
+      "equipment": "Equipment",
+      "other": "Other"
+    }
+  }
+}

@@ -21,6 +21,7 @@ class CompanyFeatureService
         'presence',
         'planning',
         'sales',
+        'expenses',
         'services',
         'tasks',
         'team_members',

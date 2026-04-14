@@ -32,6 +32,7 @@ class SuperAdminPlatformSettingsService
         'performance',
         'presence',
         'planning',
+        'expenses',
         'services',
         'tasks',
         'team_members',

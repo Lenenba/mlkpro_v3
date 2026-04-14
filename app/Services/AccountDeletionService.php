@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\ExpenseAttachment;
 use App\Models\PlanScan;
 use App\Models\Product;
 use App\Models\ProductImage;
@@ -226,6 +227,11 @@ class AccountDeletionService
             ->merge(WorkMedia::query()
                 ->whereIn('work_id', function ($query) use ($accountId) {
                     $query->select('id')->from('works')->where('user_id', $accountId);
+                })
+                ->pluck('path'))
+            ->merge(ExpenseAttachment::query()
+                ->whereIn('expense_id', function ($query) use ($accountId) {
+                    $query->select('id')->from('expenses')->where('user_id', $accountId);
                 })
                 ->pluck('path'))
             ->merge(PlanScan::query()->where('user_id', $accountId)->pluck('plan_file_path'))
