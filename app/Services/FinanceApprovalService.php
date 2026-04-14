@@ -6,6 +6,7 @@ use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\TeamMember;
 use App\Models\User;
+use Illuminate\Support\Collection;
 
 class FinanceApprovalService
 {
@@ -76,6 +77,10 @@ class FinanceApprovalService
             ],
             'invoice' => [
                 'roles' => $this->normalizeRoles(data_get($settings, 'invoice.roles'), $defaults['invoice']['roles']),
+                'auto_approve_under_amount' => $this->normalizeOptionalThreshold(
+                    data_get($settings, 'invoice.auto_approve_under_amount'),
+                    $defaults['invoice']['auto_approve_under_amount'] ?? null,
+                ),
             ],
         ];
     }
@@ -256,6 +261,7 @@ class FinanceApprovalService
     public function resolveInvoiceCreation(User $accountOwner, ?User $actor, float $amount): array
     {
         $effectiveActor = $actor ?: $accountOwner;
+        $settings = $this->settingsFor($accountOwner);
 
         if (
             $this->modeFor($accountOwner) === self::MODE_SOLO
@@ -268,10 +274,32 @@ class FinanceApprovalService
                 'approval_policy_snapshot' => $this->buildApprovalSnapshot($effectiveActor, 'invoice', $amount, [
                     'status' => self::APPROVAL_STATUS_APPROVED,
                     'auto_approved' => true,
+                    'auto_approved_reason' => 'owner_or_solo',
                     'role_key' => 'owner',
                     'approval_order' => 0,
                 ]),
                 'auto_approved' => true,
+                'approved_by_user_id' => $effectiveActor->id,
+            ];
+        }
+
+        $autoApproveThreshold = $this->normalizeOptionalThreshold(
+            data_get($settings, 'invoice.auto_approve_under_amount')
+        );
+        if ($autoApproveThreshold !== null && $amount <= $autoApproveThreshold) {
+            return [
+                'approval_status' => self::APPROVAL_STATUS_APPROVED,
+                'current_approver_role_key' => null,
+                'current_approval_level' => null,
+                'approval_policy_snapshot' => $this->buildApprovalSnapshot($effectiveActor, 'invoice', $amount, [
+                    'status' => self::APPROVAL_STATUS_APPROVED,
+                    'auto_approved' => true,
+                    'auto_approved_reason' => 'under_threshold',
+                    'role_key' => 'policy_auto',
+                    'approval_order' => 0,
+                ]),
+                'auto_approved' => true,
+                'approved_by_user_id' => null,
             ];
         }
 
@@ -283,12 +311,59 @@ class FinanceApprovalService
             'current_approval_level' => $policy['approval_order'],
             'approval_policy_snapshot' => $this->buildApprovalSnapshot($effectiveActor, 'invoice', $amount, $policy),
             'auto_approved' => false,
+            'approved_by_user_id' => null,
         ];
     }
 
     public function approvalStatuses(): array
     {
         return self::APPROVAL_STATUSES;
+    }
+
+    public function approverRecipientsForDocument(
+        User $user,
+        string $documentType,
+        ?string $roleKey,
+        ?int $approvalLevel = null,
+        ?int $excludeUserId = null
+    ): Collection {
+        $owner = $this->resolveOwner($user);
+        if (! $owner) {
+            return collect();
+        }
+
+        if (! $roleKey || $roleKey === 'owner') {
+            return User::query()
+                ->whereKey($owner->id)
+                ->when($excludeUserId, fn ($query) => $query->where('id', '!=', $excludeUserId))
+                ->get();
+        }
+
+        $resolvedLevel = $approvalLevel
+            ?? (int) (data_get($this->roleConfigFor($owner, $documentType, $roleKey), 'approval_order', 1));
+        $requiredPermission = $this->approvalPermissionForDocument($documentType, $resolvedLevel);
+
+        $members = TeamMember::query()
+            ->forAccount($owner->id)
+            ->active()
+            ->where('role', $roleKey)
+            ->with('user:id,name,email,locale')
+            ->get()
+            ->filter(fn (TeamMember $member) => $member->user && (! $requiredPermission || $member->hasPermission($requiredPermission)))
+            ->map(fn (TeamMember $member) => $member->user)
+            ->filter(fn (?User $recipient) => $recipient !== null)
+            ->reject(fn (User $recipient) => $excludeUserId !== null && (int) $recipient->id === (int) $excludeUserId)
+            ->unique('id')
+            ->values();
+
+        if ($members->isNotEmpty()) {
+            return $members->values();
+        }
+
+        return User::query()
+            ->whereKey($owner->id)
+            ->when($excludeUserId, fn ($query) => $query->where('id', '!=', $excludeUserId))
+            ->get();
     }
 
     public function authorizeInvoiceAction(User $actor, Invoice $invoice, string $action): array
@@ -385,6 +460,7 @@ class FinanceApprovalService
                 ],
             ],
             'invoice' => [
+                'auto_approve_under_amount' => null,
                 'roles' => [
                     [
                         'role_key' => 'admin',
@@ -435,6 +511,20 @@ class FinanceApprovalService
         return $normalized !== [] ? $normalized : $fallback;
     }
 
+    private function normalizeOptionalThreshold(mixed $value, mixed $fallback = null): ?float
+    {
+        $normalized = $value;
+        if ($normalized === '' || $normalized === null) {
+            $normalized = $fallback;
+        }
+
+        if ($normalized === '' || $normalized === null) {
+            return null;
+        }
+
+        return round(max(0, (float) $normalized), 2);
+    }
+
     private function resolveDocumentPolicy(User $user, string $documentType, float $amount): array
     {
         $roles = data_get($this->settingsFor($user), $documentType.'.roles', []);
@@ -482,6 +572,7 @@ class FinanceApprovalService
             'approval_order' => $policy['approval_order'] ?? null,
             'status' => $policy['status'] ?? ($policy['initial_status'] ?? null),
             'auto_approved' => (bool) ($policy['auto_approved'] ?? false),
+            'auto_approved_reason' => $policy['auto_approved_reason'] ?? null,
             'can_reject' => $policy['can_reject'] ?? null,
             'can_mark_paid' => $policy['can_mark_paid'] ?? null,
             'can_mark_processed' => $policy['can_mark_processed'] ?? null,
@@ -544,6 +635,17 @@ class FinanceApprovalService
     {
         return collect(data_get($this->settingsFor($user), $documentType.'.roles', []))
             ->first(fn ($role) => is_array($role) && ($role['role_key'] ?? null) === $roleKey);
+    }
+
+    private function approvalPermissionForDocument(string $documentType, ?int $approvalLevel = null): ?string
+    {
+        $level = max(1, (int) ($approvalLevel ?? 1));
+
+        return match ($documentType) {
+            'expense' => $level > 1 ? 'expenses.approve_high' : 'expenses.approve',
+            'invoice' => $level > 1 ? 'invoices.approve_high' : 'invoices.approve',
+            default => null,
+        };
     }
 
     private function roleCoversAmount(array $role, float $amount): bool

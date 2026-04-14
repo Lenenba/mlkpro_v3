@@ -17,6 +17,10 @@
           "escalation_role": "Rol de escalacion",
           "escalation_limit": "Importe maximo de escalacion"
         },
+        "optional": {
+          "invoice_auto_approve_under_amount": "Autoaprobacion opcional por debajo del importe",
+          "invoice_auto_approve_under_amount_hint": "Dejalo vacio para exigir aprobacion en cada factura creada por un empleado."
+        },
         "mode": {
           "solo": "Modo del plan actual: Solo. Los nuevos documentos financieros se autoaprueban al instante.",
           "team": "Modo del plan actual: Equipo. El remitente queda aislado de la aprobacion y se aplican los limites."

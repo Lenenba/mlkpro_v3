@@ -554,6 +554,19 @@ Le module `Expenses` doit etre mobile-first sur les usages terrain, pas desktop-
 - escalation vers role superieur puis owner si besoin
 - journal d audit complet des transitions et overrides
 - ajout d un `approval_status` distinct sur `invoices` sans casser le `billing_status`
+- `Delivered so far`:
+  - moteur partage `FinanceApprovalService` pour `expenses` et `invoices`
+  - auto-approval immediat en `solo` et auto-approval des invoices creees par l owner sur plan `team`
+  - configuration admin des roles approbateurs et seuils par type de document
+  - enforcement serveur de la separation submitter / approbateur sur `expenses` et `invoices`
+  - `approval_status` distinct sur `invoices` avec actions `approve`, `reject`, `process`
+  - bloc UI d approbation sur la fiche `invoice` avec historique local et badges de statut
+  - blocage de `invoice.send.email` tant que la facture n est pas `approved` ou `processed`
+  - blocage des notifications automatiques facture tant que l approbation finance n est pas acquise
+- `Still open after this slice`:
+  - etendre le gating d approbation aux surfaces portail/public si necessaire
+  - enrichir davantage la liste `Invoices` avec filtres dedies `approval_status`
+  - preparer une vraie chaine multi-level approval si plusieurs etapes deviennent necessaires
 
 ### Cross-cutting - Demo and superadmin enablement
 - enrichir `seed_summary` demo pour exposer `expenses`, `expenses_due`, `expenses_paid`, `expense_attachments`

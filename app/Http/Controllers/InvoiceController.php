@@ -29,6 +29,7 @@ class InvoiceController extends Controller
         $filters = $request->only([
             'search',
             'status',
+            'approval_status',
             'customer_id',
             'total_min',
             'total_max',
@@ -45,7 +46,7 @@ class InvoiceController extends Controller
             ->filter($filters)
             ->byUser($userId);
 
-        $sort = in_array($filters['sort'] ?? null, ['created_at', 'total', 'status', 'number'], true)
+        $sort = in_array($filters['sort'] ?? null, ['created_at', 'total', 'status', 'approval_status', 'number'], true)
             ? $filters['sort']
             : 'created_at';
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';

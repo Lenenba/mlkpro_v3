@@ -343,6 +343,11 @@ const form = useForm({
     finance_invoice_max_2: financeRoleAt('invoice', 1, 'max_amount', '') !== ''
         ? String(financeRoleAt('invoice', 1, 'max_amount', ''))
         : '',
+    finance_invoice_auto_approve_under_amount:
+        props.company.company_finance_settings?.invoice?.auto_approve_under_amount !== null
+        && props.company.company_finance_settings?.invoice?.auto_approve_under_amount !== undefined
+            ? String(props.company.company_finance_settings.invoice.auto_approve_under_amount)
+            : '',
     presence_auto_clock_in: toBool(props.company.time_settings?.auto_clock_in ?? true),
     presence_auto_clock_out: toBool(props.company.time_settings?.auto_clock_out ?? true),
     presence_manual_clock: toBool(props.company.time_settings?.manual_clock ?? true),
@@ -1035,6 +1040,9 @@ const submit = () => {
                     roles: buildFinanceRoles('expense'),
                 },
                 invoice: {
+                    auto_approve_under_amount: data.finance_invoice_auto_approve_under_amount !== ''
+                        ? Number(data.finance_invoice_auto_approve_under_amount)
+                        : null,
                     roles: buildFinanceRoles('invoice'),
                 },
             };
@@ -1076,6 +1084,7 @@ const submit = () => {
             delete payload.finance_invoice_max_1;
             delete payload.finance_invoice_role_2;
             delete payload.finance_invoice_max_2;
+            delete payload.finance_invoice_auto_approve_under_amount;
             delete payload.presence_auto_clock_in;
             delete payload.presence_auto_clock_out;
             delete payload.presence_manual_clock;
@@ -1528,6 +1537,18 @@ watch(activeTab, (value) => {
                                         />
                                         <InputError class="mt-1" :message="form.errors['company_finance_settings.invoice.roles.1.max_amount']" />
                                     </div>
+                                </div>
+                                <div>
+                                    <FloatingInput
+                                        v-model="form.finance_invoice_auto_approve_under_amount"
+                                        type="number"
+                                        step="0.01"
+                                        :label="$t('settings.company.finance.optional.invoice_auto_approve_under_amount')"
+                                    />
+                                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('settings.company.finance.optional.invoice_auto_approve_under_amount_hint') }}
+                                    </p>
+                                    <InputError class="mt-1" :message="form.errors['company_finance_settings.invoice.auto_approve_under_amount']" />
                                 </div>
                             </div>
                         </div>

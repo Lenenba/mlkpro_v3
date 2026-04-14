@@ -1,0 +1,40 @@
+{
+  "finance_approvals": {
+    "title": "Finance approvals",
+    "subtitle": "Review the invoices and expenses that are currently waiting on your finance decision.",
+    "stats": {
+      "total_pending": "Pending documents",
+      "expenses_pending": "Expenses awaiting review",
+      "invoices_pending": "Invoices awaiting review"
+    },
+    "sections": {
+      "expenses": "Expenses awaiting approval",
+      "invoices": "Invoices awaiting approval"
+    },
+    "empty": {
+      "all": "No finance approvals are waiting right now.",
+      "expenses": "No expenses are waiting for approval.",
+      "invoices": "No invoices are waiting for approval."
+    },
+    "labels": {
+      "created_by": "Created by",
+      "customer": "Customer",
+      "job": "Job",
+      "current_role": "Current approver role",
+      "status": "Status",
+      "approval_status": "Approval status",
+      "expense_date": "Expense date",
+      "created_at": "Created"
+    },
+    "actions": {
+      "open": "Open",
+      "approve": "Approve",
+      "reject": "Reject",
+      "process": "Mark processed"
+    },
+    "fallbacks": {
+      "customer": "No customer",
+      "job": "No linked job"
+    }
+  }
+}

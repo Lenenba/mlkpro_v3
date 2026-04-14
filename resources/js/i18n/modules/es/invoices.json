@@ -14,6 +14,9 @@
       "customer": {
         "all": "Todos los clientes"
       },
+      "approval_status": {
+        "all": "Todos los estados de aprobacion"
+      },
       "total_min": "Total mínimo",
       "total_max": "total máximo",
       "created_from": "Creado a partir de",
@@ -27,10 +30,30 @@
       "overdue": "Vencido",
       "void": "vacío"
     },
+    "approval_status": {
+      "draft": "Borrador",
+      "submitted": "Enviado para aprobación",
+      "pending_approval": "Pendiente de aprobación",
+      "approved": "Aprobado",
+      "rejected": "Rechazado",
+      "paid": "Pagado",
+      "processed": "Procesado"
+    },
+    "approval_actions": {
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "process": "Marcar procesado"
+    },
+    "approval_history": {
+      "approve": "Aprobado",
+      "reject": "Rechazado",
+      "process": "Marcado como procesado"
+    },
     "table": {
       "invoice": "Factura",
       "customer": "Cliente",
       "status": "Estado",
+      "approval_status": "Aprobacion",
       "rating": "Calificación",
       "total": "Total",
       "balance_due": "Saldo adeudado",
@@ -67,6 +90,19 @@
       "invoice_for": "Factura de {customer}",
       "timeline": "Línea de tiempo",
       "download_pdf": "Descargar PDF",
+      "finance_approval": {
+        "title": "Aprobación financiera",
+        "current_status": "Estado de aprobación",
+        "current_role": "Rol aprobador actual",
+        "approved_by": "Aprobado por",
+        "processed_by": "Procesado por",
+        "history": "Historial de aprobación",
+        "comment_placeholder": "Nota de aprobación opcional",
+        "send_blocked": "Esta factura no puede enviarse hasta que la aprobación financiera esté completa.",
+        "from": "De",
+        "to": "A",
+        "by": "Por"
+      },
       "property_address": "Dirección de la propiedad",
       "no_property": "Ninguna propiedad seleccionada.",
       "contact_details": "Detalles de contacto",

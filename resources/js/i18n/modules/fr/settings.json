@@ -441,6 +441,10 @@
           "escalation_role": "Role d escalation",
           "escalation_limit": "Montant max d escalation"
         },
+        "optional": {
+          "invoice_auto_approve_under_amount": "Auto-approbation optionnelle sous montant",
+          "invoice_auto_approve_under_amount_hint": "Laisse vide pour garder une approbation sur chaque facture creee par un employe."
+        },
         "mode": {
           "solo": "Mode du plan actuel : Solo. Les nouveaux documents finance sont auto-approuves immediatement.",
           "team": "Mode du plan actuel : Equipe. Le submitter est isole des approbations et les seuils s appliquent."

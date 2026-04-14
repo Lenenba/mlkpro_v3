@@ -117,6 +117,7 @@ class TaskBillingService
             $invoice = $grouping === 'periodic'
                 ? $this->findOpenInvoiceForPeriod($work, $periodDate, $settings)
                 : null;
+            $createdInvoice = false;
 
             if (! $invoice) {
                 $limitUser = $actor ?: User::find($work->user_id);
@@ -128,9 +129,11 @@ class TaskBillingService
                     'user_id' => $work->user_id,
                     'customer_id' => $work->customer_id,
                     'work_id' => $work->id,
+                    'created_by_user_id' => $actor?->id ?: $work->user_id,
                     'status' => $status,
                     'total' => 0,
                 ]);
+                $createdInvoice = true;
 
                 if ($actor) {
                     ActivityLog::record($actor, $invoice, 'created', [
@@ -207,10 +210,32 @@ class TaskBillingService
             ]);
 
             $invoice->total = $invoice->items()->sum('total');
+            if ($createdInvoice && $invoice->status === 'sent') {
+                $approval = app(FinanceApprovalService::class)->resolveInvoiceCreation(
+                    User::findOrFail($work->user_id),
+                    $actor,
+                    (float) $invoice->total
+                );
+
+                $invoice->approval_status = $approval['approval_status'];
+                $invoice->current_approver_role_key = $approval['current_approver_role_key'];
+                $invoice->current_approval_level = $approval['current_approval_level'];
+                $invoice->approval_meta = [
+                    'approval_policy_snapshot' => $approval['approval_policy_snapshot'] ?? null,
+                ];
+                $invoice->approved_by_user_id = ($approval['auto_approved'] ?? false)
+                    ? ($approval['approved_by_user_id'] ?? ($actor?->id ?: $work->user_id))
+                    : null;
+                $invoice->approved_at = ($approval['auto_approved'] ?? false)
+                    ? now()
+                    : null;
+            }
             $invoice->save();
 
             return $invoice;
         });
+
+        app(FinanceApprovalNotificationService::class)->notifyInvoicePendingApproval($invoice);
 
         if (
             $invoice->status === 'sent'

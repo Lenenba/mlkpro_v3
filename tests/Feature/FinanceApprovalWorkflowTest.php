@@ -4,13 +4,17 @@ use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Expense;
+use App\Models\Invoice;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
+use App\Notifications\InvoiceAvailableNotification;
+use App\Services\FinanceApprovalService;
 use App\Services\WorkBillingService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -282,4 +286,84 @@ test('invoice creation reuses the approval engine without breaking billing statu
         ->and($teamInvoice->approval_status)->toBe('submitted')
         ->and($teamInvoice->current_approver_role_key)->toBe('admin')
         ->and($teamInvoice->created_by_user_id)->toBe($teamActor->id);
+});
+
+test('team owners auto approve invoices they create and customer notifications stay enabled', function () {
+    Notification::fake();
+
+    $owner = financeApprovalOwner([
+        'company_name' => 'Owner Invoice Workspace',
+    ]);
+    $customer = financeApprovalCustomer($owner);
+    $work = financeApprovalWork($owner, $customer, ['total' => 650]);
+
+    $invoice = app(WorkBillingService::class)->createInvoiceFromWork($work, $owner);
+
+    expect($invoice->approval_status)->toBe(FinanceApprovalService::APPROVAL_STATUS_APPROVED)
+        ->and($invoice->approved_by_user_id)->toBe($owner->id)
+        ->and($invoice->current_approver_role_key)->toBeNull();
+
+    Notification::assertSentTo($customer, InvoiceAvailableNotification::class);
+});
+
+test('team invoice approval blocks sending until approved and supports processed status', function () {
+    Notification::fake();
+
+    $owner = financeApprovalOwner([
+        'company_name' => 'Invoice Approval Workspace',
+    ]);
+    $submitter = financeApprovalTeamMember($owner, 'member', [
+        'invoices.view',
+        'invoices.create',
+    ]);
+    $approver = financeApprovalTeamMember($owner, 'admin', [
+        'invoices.view',
+        'invoices.approve',
+    ]);
+    $customer = financeApprovalCustomer($owner);
+    $work = financeApprovalWork($owner, $customer, ['total' => 900]);
+
+    $this->actingAs($submitter)
+        ->post(route('invoice.store-from-work', $work))
+        ->assertRedirect();
+
+    $invoice = Invoice::query()->where('work_id', $work->id)->latest('id')->firstOrFail();
+
+    expect($invoice->approval_status)->toBe(FinanceApprovalService::APPROVAL_STATUS_SUBMITTED)
+        ->and($invoice->created_by_user_id)->toBe($submitter->id);
+
+    Notification::assertNothingSent();
+
+    $this->actingAs($submitter)
+        ->patchJson(route('invoice.approve', $invoice))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['approval_status']);
+
+    $this->actingAs($approver)
+        ->postJson(route('invoice.send.email', $invoice))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['approval_status']);
+
+    $this->actingAs($approver)
+        ->patchJson(route('invoice.approve', $invoice), [
+            'comment' => 'Finance review complete.',
+        ])
+        ->assertOk()
+        ->assertJsonPath('invoice.approval_status', FinanceApprovalService::APPROVAL_STATUS_APPROVED)
+        ->assertJsonPath('invoice.approved_by_user_id', $approver->id);
+
+    $this->actingAs($approver)
+        ->patchJson(route('invoice.process', $invoice), [
+            'comment' => 'Processed for dispatch.',
+        ])
+        ->assertOk()
+        ->assertJsonPath('invoice.approval_status', FinanceApprovalService::APPROVAL_STATUS_PROCESSED)
+        ->assertJsonPath('invoice.processed_by_user_id', $approver->id);
+
+    $this->actingAs($approver)
+        ->postJson(route('invoice.send.email', $invoice))
+        ->assertOk()
+        ->assertJsonPath('invoice.approval_status', FinanceApprovalService::APPROVAL_STATUS_PROCESSED);
+
+    Notification::assertSentTo($customer, InvoiceAvailableNotification::class);
 });

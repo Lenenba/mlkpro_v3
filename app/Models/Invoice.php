@@ -168,6 +168,10 @@ class Invoice extends Model
                 fn (Builder $query, $status) => $query->where('status', $status)
             )
             ->when(
+                $filters['approval_status'] ?? null,
+                fn (Builder $query, $status) => $query->where('approval_status', $status)
+            )
+            ->when(
                 $filters['customer_id'] ?? null,
                 function (Builder $query, $customerIds) {
                     $ids = is_array($customerIds) ? $customerIds : [$customerIds];

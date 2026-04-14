@@ -4,7 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { paymentMethodLabel as resolvePaymentMethodLabel, useTenantPaymentMethods } from '@/Composables/useTenantPaymentMethods';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
@@ -29,7 +29,11 @@ const form = useForm({
     paid_at: '',
     notes: '',
 });
+const approvalForm = useForm({
+    comment: '',
+});
 const markPaidForm = useForm({});
+const sendInvoiceForm = useForm({});
 const balanceDue = computed(() => {
     const value = Number(props.invoice?.balance_due || 0);
     return Number.isFinite(value) ? Math.max(0, value) : 0;
@@ -183,6 +187,91 @@ const statusLabel = computed(() => {
     return translated === key ? status : translated;
 });
 
+const approvalStatusLabel = computed(() => {
+    const status = props.invoice?.approval_status || 'draft';
+    const key = `invoices.approval_status.${status}`;
+    const translated = t(key);
+    return translated === key ? status : translated;
+});
+
+const approvalStatusClass = computed(() => {
+    const status = props.invoice?.approval_status || 'draft';
+
+    switch (status) {
+    case 'submitted':
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300';
+    case 'pending_approval':
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-500/10 dark:text-orange-300';
+    case 'approved':
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300';
+    case 'rejected':
+        return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
+    case 'processed':
+        return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-300';
+    case 'paid':
+        return 'bg-violet-100 text-violet-800 dark:bg-violet-500/10 dark:text-violet-300';
+    default:
+        return 'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-200';
+    }
+});
+
+const availableApprovalActions = computed(() => props.invoice?.available_approval_actions || []);
+const approvalHistory = computed(() => props.invoice?.approval_history || []);
+const canSendInvoice = computed(() => Boolean(props.invoice?.can_send_email));
+
+const humanizeRoleKey = (value) => {
+    if (!value) {
+        return '-';
+    }
+
+    return String(value)
+        .replaceAll('_', ' ')
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
+const approvalActionLabel = (action) => {
+    const key = `invoices.approval_actions.${action}`;
+    const translated = t(key);
+    return translated === key ? action : translated;
+};
+
+const approvalTimelineLabel = (entry) => {
+    const action = String(entry?.action || '');
+    const key = `invoices.approval_history.${action}`;
+    const translated = t(key);
+
+    return translated === key ? action : translated;
+};
+
+const runApprovalAction = (action) => {
+    const routeMap = {
+        approve: 'invoice.approve',
+        reject: 'invoice.reject',
+        process: 'invoice.process',
+    };
+    const routeName = routeMap[action];
+    if (!routeName || approvalForm.processing) {
+        return;
+    }
+
+    approvalForm.patch(route(routeName, props.invoice.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            approvalForm.reset('comment');
+        },
+    });
+};
+
+const sendInvoice = () => {
+    if (!canSendInvoice.value || sendInvoiceForm.processing) {
+        return;
+    }
+
+    sendInvoiceForm.post(route('invoice.send.email', props.invoice.id), {
+        preserveScroll: true,
+    });
+};
+
 const {
     allowedPaymentMethods,
     defaultPaymentMethod,
@@ -298,6 +387,15 @@ watch(
                         >
                             {{ $t('invoices.show.download_pdf') }}
                         </a>
+                        <button
+                            v-if="canSendInvoice"
+                            type="button"
+                            class="inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 px-3 py-1.5 text-white hover:bg-green-700 disabled:opacity-60"
+                            :disabled="sendInvoiceForm.processing"
+                            @click="sendInvoice"
+                        >
+                            {{ sendInvoiceForm.processing ? $t('invoices.actions.sending_invoice') : $t('invoices.actions.send_invoice') }}
+                        </button>
                         <span class="py-1.5 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
                             :class="{
                                 'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-200': invoice.status === 'draft',
@@ -307,6 +405,12 @@ watch(
                                 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-400': invoice.status === 'overdue' || invoice.status === 'void',
                             }">
                             {{ statusLabel }}
+                        </span>
+                        <span
+                            class="py-1.5 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
+                            :class="approvalStatusClass"
+                        >
+                            {{ approvalStatusLabel }}
                         </span>
                     </div>
                 </div>
@@ -361,6 +465,107 @@ watch(
                                 <StarRating :value="ratingValue" show-value :empty-label="$t('invoices.show.no_rating')" />
                                 <span v-if="ratingCount" class="text-xs text-stone-500 dark:text-neutral-400">({{ ratingCount }})</span>
                             </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="space-y-2">
+                            <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('invoices.show.finance_approval.title') }}
+                            </div>
+                            <div class="grid gap-2 text-xs text-stone-600 dark:text-neutral-300 md:grid-cols-2 xl:grid-cols-4">
+                                <div>
+                                    <div class="text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                                        {{ $t('invoices.show.finance_approval.current_status') }}
+                                    </div>
+                                    <div class="mt-1 font-medium text-stone-800 dark:text-neutral-100">
+                                        {{ approvalStatusLabel }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                                        {{ $t('invoices.show.finance_approval.current_role') }}
+                                    </div>
+                                    <div class="mt-1 font-medium text-stone-800 dark:text-neutral-100">
+                                        {{ humanizeRoleKey(invoice.current_approver_role_key) }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                                        {{ $t('invoices.show.finance_approval.approved_by') }}
+                                    </div>
+                                    <div class="mt-1 font-medium text-stone-800 dark:text-neutral-100">
+                                        {{ invoice.approver?.name || '-' }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                                        {{ $t('invoices.show.finance_approval.processed_by') }}
+                                    </div>
+                                    <div class="mt-1 font-medium text-stone-800 dark:text-neutral-100">
+                                        {{ invoice.processor?.name || '-' }}
+                                    </div>
+                                </div>
+                            </div>
+                            <p
+                                v-if="!canSendInvoice && ['submitted', 'pending_approval'].includes(invoice.approval_status)"
+                                class="text-xs text-amber-700 dark:text-amber-300"
+                            >
+                                {{ $t('invoices.show.finance_approval.send_blocked') }}
+                            </p>
+                        </div>
+                        <div v-if="availableApprovalActions.length" class="w-full max-w-md space-y-2">
+                            <textarea
+                                v-model="approvalForm.comment"
+                                rows="2"
+                                class="w-full rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                :placeholder="$t('invoices.show.finance_approval.comment_placeholder')"
+                            />
+                            <div class="flex flex-wrap gap-2">
+                                <button
+                                    v-for="action in availableApprovalActions"
+                                    :key="action"
+                                    type="button"
+                                    class="inline-flex items-center rounded-sm border px-3 py-1.5 text-xs font-medium disabled:opacity-60"
+                                    :class="action === 'reject'
+                                        ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300'
+                                        : action === 'process'
+                                            ? 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300'
+                                            : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'"
+                                    :disabled="approvalForm.processing"
+                                    @click="runApprovalAction(action)"
+                                >
+                                    {{ approvalActionLabel(action) }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-if="approvalHistory.length" class="mt-4 border-t border-stone-200 pt-4 dark:border-neutral-800">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                            {{ $t('invoices.show.finance_approval.history') }}
+                        </div>
+                        <div class="mt-3 space-y-2">
+                            <div
+                                v-for="(entry, index) in approvalHistory.slice().reverse()"
+                                :key="`${entry.created_at || index}-${entry.action || index}`"
+                                class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
+                            >
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <span class="font-medium text-stone-800 dark:text-neutral-100">
+                                        {{ approvalTimelineLabel(entry) }}
+                                    </span>
+                                    <span>{{ formatDate(entry.created_at) }}</span>
+                                </div>
+                                <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                                    <span>{{ $t('invoices.show.finance_approval.from') }}: {{ entry.from || '-' }}</span>
+                                    <span>{{ $t('invoices.show.finance_approval.to') }}: {{ entry.to || '-' }}</span>
+                                    <span>{{ $t('invoices.show.finance_approval.by') }}: {{ entry.actor_name || '-' }}</span>
+                                </div>
+                                <p v-if="entry.comment" class="mt-1 text-stone-500 dark:text-neutral-400">
+                                    {{ entry.comment }}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

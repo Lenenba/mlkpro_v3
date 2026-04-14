@@ -190,6 +190,7 @@ class CompanySettingsController extends Controller
             'company_finance_settings.expense.roles.*.max_amount' => 'nullable|numeric|min:0',
             'company_finance_settings.expense.roles.*.approval_order' => 'nullable|integer|min:1|max:5',
             'company_finance_settings.invoice' => 'nullable|array',
+            'company_finance_settings.invoice.auto_approve_under_amount' => 'nullable|numeric|min:0',
             'company_finance_settings.invoice.roles' => 'nullable|array|max:5',
             'company_finance_settings.invoice.roles.*.role_key' => ['nullable', 'string', Rule::in(collect(app(FinanceApprovalService::class)->roleOptions())->pluck('key')->all())],
             'company_finance_settings.invoice.roles.*.max_amount' => 'nullable|numeric|min:0',

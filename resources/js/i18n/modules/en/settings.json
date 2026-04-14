@@ -441,6 +441,10 @@
           "escalation_role": "Escalation role",
           "escalation_limit": "Escalation max amount"
         },
+        "optional": {
+          "invoice_auto_approve_under_amount": "Optional auto-approve under amount",
+          "invoice_auto_approve_under_amount_hint": "Leave this empty to keep approval required on every employee-created invoice."
+        },
         "mode": {
           "solo": "Current plan mode: Solo. New finance records are auto-approved immediately.",
           "team": "Current plan mode: Team. Submitters are isolated from approval actions and thresholds apply."

@@ -13,6 +13,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DemoController;
 use App\Http\Controllers\DemoTourController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\FinanceApprovalInboxController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LegalController;
@@ -626,6 +627,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::put('/expenses/{expense}', [ExpenseController::class, 'update'])->name('expense.update');
         Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expense.destroy');
     });
+
+    Route::get('/finance-approvals', [FinanceApprovalInboxController::class, 'index'])
+        ->name('finance-approvals.index');
 
     // Customer Management
     Route::scopeBindings()->group(function () {
