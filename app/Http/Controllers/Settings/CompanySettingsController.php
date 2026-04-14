@@ -13,6 +13,7 @@ use App\Services\AiImageUsageService;
 use App\Services\CompanyFeatureService;
 use App\Services\CompanyNotificationPreferenceService;
 use App\Services\FinanceApprovalService;
+use App\Services\InvoiceDocumentService;
 use App\Services\PreventUnsafeTenantCurrencyChange;
 use App\Services\SupplierDirectory;
 use App\Services\UsageLimitService;
@@ -57,6 +58,7 @@ class CompanySettingsController extends Controller
         $hasPresenceFeature = app(CompanyFeatureService::class)->hasFeature($user, 'presence');
         $aiImageUsage = app(AiImageUsageService::class);
         $financeApproval = app(FinanceApprovalService::class);
+        $invoiceDocuments = app(InvoiceDocumentService::class);
         $aiImagePayload = [
             'enabled' => (bool) config('services.openai.key'),
             'generate_url' => route('ai.images.generate'),
@@ -114,6 +116,7 @@ class CompanySettingsController extends Controller
             'preferred_limit' => config('suppliers.preferred_limit', 4),
             'finance_role_options' => $financeApproval->roleOptions(),
             'finance_approval_mode' => $financeApproval->modeFor($user),
+            'invoice_templates' => $invoiceDocuments->templateOptions(),
             'warehouses' => $warehouses,
             'api_tokens' => $user->tokens()
                 ->orderByDesc('created_at')
@@ -135,6 +138,11 @@ class CompanySettingsController extends Controller
         $preferredLimit = (int) config('suppliers.preferred_limit', 4);
         $supplierKeys = collect($suppliers)->pluck('key')->filter()->values()->all();
         $preparedCustomSuppliers = $this->prepareCustomSuppliers($request->input('custom_suppliers', []));
+        $invoiceTemplateKeys = collect(app(InvoiceDocumentService::class)->templateOptions())
+            ->pluck('key')
+            ->filter()
+            ->values()
+            ->all();
         if ($preparedCustomSuppliers) {
             $request->merge(['custom_suppliers' => $preparedCustomSuppliers]);
             $customKeys = collect($preparedCustomSuppliers)->pluck('key')->filter()->values()->all();
@@ -163,6 +171,7 @@ class CompanySettingsController extends Controller
             'company_fulfillment.pickup_notes' => 'nullable|string|max:500',
             'company_store_settings' => 'nullable|array',
             'company_store_settings.header_color' => 'nullable|string|max:16',
+            'company_store_settings.invoice_template_key' => ['nullable', 'string', Rule::in($invoiceTemplateKeys)],
             'company_store_settings.featured_product_id' => 'nullable|integer',
             'company_store_settings.hero_images' => 'nullable|array',
             'company_store_settings.hero_images.*' => 'nullable|string|max:500',
@@ -256,6 +265,7 @@ class CompanySettingsController extends Controller
 
         $storeSettingsInput = $validated['company_store_settings'] ?? [];
         $headerColor = $normalizeText($storeSettingsInput['header_color'] ?? null);
+        $invoiceTemplateKey = $normalizeText($storeSettingsInput['invoice_template_key'] ?? null);
         $featuredProductId = $storeSettingsInput['featured_product_id'] ?? null;
         $featuredProductId = ($featuredProductId === '' || $featuredProductId === null) ? null : (int) $featuredProductId;
         $heroImages = $storeSettingsInput['hero_images'] ?? [];
@@ -309,6 +319,7 @@ class CompanySettingsController extends Controller
 
         $storeSettings = [
             'header_color' => $headerColor,
+            'invoice_template_key' => $invoiceTemplateKey,
             'featured_product_id' => $featuredProductId,
             'hero_images' => $heroImages,
             'hero_copy' => $heroCopy,

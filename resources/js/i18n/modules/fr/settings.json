@@ -445,6 +445,25 @@
           "invoice_auto_approve_under_amount": "Auto-approbation optionnelle sous montant",
           "invoice_auto_approve_under_amount_hint": "Laisse vide pour garder une approbation sur chaque facture creee par un employe."
         },
+        "templates": {
+          "title": "Modele de facture",
+          "description": "Choisis le modele PDF de facture envoye par defaut a tes clients.",
+          "invoice_template_label": "Modele de facture par defaut",
+          "options": {
+            "modern": {
+              "title": "Moderne premium",
+              "description": "Une mise en page equilibree avec un bloc total plus premium, une meilleure hierarchie et une finition plus rassurante cote client."
+            },
+            "clean_professional": {
+              "title": "Professionnel epure",
+              "description": "Un modele plus sobre inspire des factures d agence classiques, avec une structure legere et un rendu plus formel."
+            },
+            "minimal_corporate": {
+              "title": "Minimal corporate",
+              "description": "Une facture minimaliste inspiree d un modele corporate noir et blanc, adaptee avec les accents Malikia Pro pour un rendu tres net."
+            }
+          }
+        },
         "mode": {
           "solo": "Mode du plan actuel : Solo. Les nouveaux documents finance sont auto-approuves immediatement.",
           "team": "Mode du plan actuel : Equipe. Le submitter est isole des approbations et les seuils s appliquent."

@@ -445,6 +445,25 @@
           "invoice_auto_approve_under_amount": "Optional auto-approve under amount",
           "invoice_auto_approve_under_amount_hint": "Leave this empty to keep approval required on every employee-created invoice."
         },
+        "templates": {
+          "title": "Invoice template",
+          "description": "Choose the PDF invoice model your clients receive by default.",
+          "invoice_template_label": "Default invoice model",
+          "options": {
+            "modern": {
+              "title": "Modern premium",
+              "description": "Balanced layout with a premium summary block, stronger hierarchy, and a polished client-facing finish."
+            },
+            "clean_professional": {
+              "title": "Clean professional",
+              "description": "A cleaner business invoice inspired by classic agency templates, with a lighter structure and a more formal feel."
+            },
+            "minimal_corporate": {
+              "title": "Minimal corporate",
+              "description": "A minimalist corporate invoice inspired by a black-and-white Canva layout, adapted with Malikia Pro accents for a sharper finish."
+            }
+          }
+        },
         "mode": {
           "solo": "Current plan mode: Solo. New finance records are auto-approved immediately.",
           "team": "Current plan mode: Team. Submitters are isolated from approval actions and thresholds apply."

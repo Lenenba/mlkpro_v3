@@ -9,6 +9,51 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoiceDocumentService
 {
+    /**
+     * @return array<int, array{key:string,label_key:string,description_key:string,view:string}>
+     */
+    public function templateOptions(): array
+    {
+        return collect(config('invoices.templates', []))
+            ->map(function (array $template, string $key): array {
+                return [
+                    'key' => $key,
+                    'label_key' => (string) ($template['label_key'] ?? ''),
+                    'description_key' => (string) ($template['description_key'] ?? ''),
+                    'view' => (string) ($template['view'] ?? 'pdf.invoice'),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    public function defaultTemplateKey(): string
+    {
+        $configured = (string) config('invoices.default_template', 'modern');
+        $templates = config('invoices.templates', []);
+
+        if (is_array($templates) && array_key_exists($configured, $templates)) {
+            return $configured;
+        }
+
+        return is_array($templates) && array_key_exists('modern', $templates)
+            ? 'modern'
+            : (array_key_first($templates) ?: 'modern');
+    }
+
+    public function templateKeyFor(?User $company = null): string
+    {
+        $selected = data_get($company?->company_store_settings, 'invoice_template_key');
+        $selected = is_string($selected) ? trim($selected) : '';
+        $templates = config('invoices.templates', []);
+
+        if ($selected !== '' && is_array($templates) && array_key_exists($selected, $templates)) {
+            return $selected;
+        }
+
+        return $this->defaultTemplateKey();
+    }
+
     public function prepareInvoice(Invoice $invoice): Invoice
     {
         return $invoice->load([
@@ -31,8 +76,11 @@ class InvoiceDocumentService
     public function buildPdf(Invoice $invoice, ?User $company = null)
     {
         $invoice = $this->prepareInvoice($invoice);
+        $company ??= $this->resolveCompany($invoice);
+        $templateKey = $this->templateKeyFor($company);
+        $view = (string) data_get(config('invoices.templates', []), $templateKey.'.view', 'pdf.invoice');
 
-        return Pdf::loadView('pdf.invoice', $this->buildViewData($invoice, $company))
+        return Pdf::loadView($view, $this->buildViewData($invoice, $company, $templateKey))
             ->setOption('isRemoteEnabled', true);
     }
 
@@ -44,7 +92,7 @@ class InvoiceDocumentService
     /**
      * @return array<string, mixed>
      */
-    private function buildViewData(Invoice $invoice, ?User $company = null): array
+    private function buildViewData(Invoice $invoice, ?User $company = null, ?string $templateKey = null): array
     {
         $isTaskBased = $invoice->items->isNotEmpty();
         $taskItems = collect();
@@ -88,6 +136,7 @@ class InvoiceDocumentService
             'company' => $company ?: $this->resolveCompany($invoice),
             'customer' => $invoice->customer,
             'invoice' => $invoice,
+            'invoiceTemplateKey' => $templateKey ?: $this->defaultTemplateKey(),
             'isTaskBased' => $isTaskBased,
             'productItems' => $productItems,
             'subtotal' => $subtotal,

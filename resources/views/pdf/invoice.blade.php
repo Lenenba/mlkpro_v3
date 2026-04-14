@@ -287,6 +287,7 @@
           'rejected' => 'Rejetee',
       ];
       $statusLabel = $statusLabelMap[$status] ?? $status;
+      $displayStatusLabel = $status === 'sent' ? null : $statusLabel;
       $statusClass = 'status-default';
       switch ($status) {
           case 'draft':
@@ -371,7 +372,9 @@
             </table>
           </td>
           <td style="width: 30%; text-align: right; vertical-align: top;">
-            <span class="status-badge {{ $statusClass }}">{{ $statusLabel }}</span>
+            @if($displayStatusLabel)
+              <span class="status-badge {{ $statusClass }}">{{ $displayStatusLabel }}</span>
+            @endif
           </td>
         </tr>
       </table>
