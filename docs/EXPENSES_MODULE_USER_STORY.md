@@ -2,6 +2,9 @@
 
 Last updated: 2026-04-14
 
+Related backlog:
+- `Nice to have`: `docs/EXPENSES_MODULE_NICE_TO_HAVE.md`
+
 ## Goal
 Ajouter un module `Expenses` pour capturer, classer, valider, payer, rembourser et analyser les depenses d entreprise dans la meme plateforme que `Sales`, `Invoices`, `Quotes`, `Requests` et `Products`, avec une couche optionnelle `AI-assisted intake` pour lire une facture ou un recu et preparer automatiquement un brouillon de depense.
 
@@ -544,7 +547,7 @@ Le module `Expenses` doit etre mobile-first sur les usages terrain, pas desktop-
   - stats enrichies `linked_total`, `top_categories`, `top_suppliers`
   - contexte lie visible dans la table et la fiche detail
 - `Nice to have after V1`:
-  - remonter les couts lies directement dans les fiches `Work`, `Sale`, `Customer` et `Campaign` pour lire la profitabilite sans quitter ces modules
+  - voir `docs/EXPENSES_MODULE_NICE_TO_HAVE.md`
 
 ### Phase 6 - Plan-based approval engine and invoice alignment
 - introduire un moteur d approbation partage `expenses` / `invoices`
@@ -558,17 +561,22 @@ Le module `Expenses` doit etre mobile-first sur les usages terrain, pas desktop-
   - moteur partage `FinanceApprovalService` pour `expenses` et `invoices`
   - auto-approval immediat en `solo` et auto-approval des invoices creees par l owner sur plan `team`
   - configuration admin des roles approbateurs et seuils par type de document
+  - option `invoice.auto_approve_under_amount` pour assouplir les petites factures creees par un employe sans casser le controle des montants plus eleves
   - enforcement serveur de la separation submitter / approbateur sur `expenses` et `invoices`
   - `approval_status` distinct sur `invoices` avec actions `approve`, `reject`, `process`
   - bloc UI d approbation sur la fiche `invoice` avec historique local et badges de statut
+  - filtre `approval_status` ajoute a la liste `Invoices` pour piloter le backlog sans passer par chaque fiche
+  - notification mail + in-app du role cible quand une facture entre en `submitted` ou `pending_approval`
+  - inbox `Finance approvals` pour traiter les depenses et factures en attente depuis une seule vue
   - blocage de `invoice.send.email` tant que la facture n est pas `approved` ou `processed`
   - blocage des notifications automatiques facture tant que l approbation finance n est pas acquise
-- `Still open after this slice`:
-  - etendre le gating d approbation aux surfaces portail/public si necessaire
-  - enrichir davantage la liste `Invoices` avec filtres dedies `approval_status`
-  - preparer une vraie chaine multi-level approval si plusieurs etapes deviennent necessaires
+- `Phase 6 status`:
+  - V1 closed
+- `Nice to have after V1`:
+  - voir `docs/EXPENSES_MODULE_NICE_TO_HAVE.md`
 
 ### Cross-cutting - Demo and superadmin enablement
+- status: delivered
 - enrichir `seed_summary` demo pour exposer `expenses`, `expenses_due`, `expenses_paid`, `expense_attachments`
 - afficher un bloc `finance snapshot` dans la fiche detail superadmin demo
 - garder ce bloc en lecture rapide pour support sales / QA, sans dupliquer tout le module `Expenses`
@@ -588,3 +596,4 @@ Le module `Expenses` doit etre mobile-first sur les usages terrain, pas desktop-
 - la logique `solo` vs `team` est enforcee cote serveur et visible en admin settings
 - le moteur d approbation est reutilisable par `expenses` puis `invoices`
 - les invoices conservent leur `billing_status` existant tout en gagnant une couche `approval_status` auditable
+- les approbateurs cibles sont notifies quand une facture passe en attente et peuvent la retrouver dans une inbox finance dediee

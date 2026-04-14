@@ -32,6 +32,16 @@
       "reject": "Rejeter",
       "process": "Marquer traitee"
     },
+    "search": {
+      "label": "Recherche rapide",
+      "placeholder": "Chercher par titre, numero, client, chantier ou createur",
+      "helper": "Filtre simultanement les depenses et les factures en attente.",
+      "loading": "Mise a jour de la liste..."
+    },
+    "load_more": {
+      "button": "Charger plus",
+      "loading": "Chargement..."
+    },
     "fallbacks": {
       "customer": "Aucun client",
       "job": "Aucun chantier lie"

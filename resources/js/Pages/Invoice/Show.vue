@@ -21,6 +21,23 @@ const page = usePage();
 const { t } = useI18n();
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('invoices.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
+const canOpenFinanceApprovals = computed(() => {
+    const account = page.props.auth?.account;
+    const permissions = account?.team?.permissions || [];
+
+    if (account?.is_client) {
+        return false;
+    }
+
+    if (account?.is_owner) {
+        return Boolean(account?.features?.expenses || account?.features?.invoices);
+    }
+
+    return permissions.includes('expenses.approve')
+        || permissions.includes('expenses.approve_high')
+        || permissions.includes('invoices.approve')
+        || permissions.includes('invoices.approve_high');
+});
 
 const form = useForm({
     amount: '',
@@ -373,6 +390,13 @@ watch(
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
+                        <Link
+                            v-if="canOpenFinanceApprovals"
+                            :href="route('finance-approvals.index')"
+                            class="inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                        >
+                            {{ $t('finance_approvals.title') }}
+                        </Link>
                         <Link
                             :href="route('pipeline.timeline', { entityType: 'invoice', entityId: invoice.id })"
                             class="inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"

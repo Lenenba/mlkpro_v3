@@ -18,6 +18,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
@@ -887,4 +888,55 @@ test('filtered expenses can be exported to csv with linked context columns', fun
         ->and($csv)->toContain((string) $invoice->number)
         ->and($csv)->toContain('Spring Restart')
         ->and($csv)->not->toContain('Blue Harbor fuel');
+});
+
+test('api exposes reject, reimbursed, and export expense endpoints', function () {
+    $owner = expenseOwner([
+        'team_members' => true,
+    ]);
+    $member = expenseTeamMember($owner);
+
+    Sanctum::actingAs($owner);
+
+    $submittedExpense = seedExpense($owner, [
+        'title' => 'Submitted API expense',
+        'reference_number' => 'API-REJECT-1',
+        'status' => Expense::STATUS_SUBMITTED,
+        'due_date' => null,
+    ]);
+
+    $this->patchJson("/api/v1/expenses/{$submittedExpense->id}/reject")
+        ->assertOk()
+        ->assertJsonPath('expense.status', Expense::STATUS_REJECTED);
+
+    $reimbursableExpense = seedExpense($owner, [
+        'title' => 'Reimbursable API expense',
+        'reference_number' => 'API-REIMBURSE-1',
+        'status' => Expense::STATUS_DUE,
+        'reimbursable' => true,
+        'team_member_id' => $member->id,
+        'reimbursement_status' => Expense::REIMBURSEMENT_STATUS_PENDING,
+        'paid_date' => null,
+        'paid_by_user_id' => null,
+    ]);
+
+    $this->patchJson("/api/v1/expenses/{$reimbursableExpense->id}/mark-reimbursed", [
+        'comment' => 'Reimbursed through API contract.',
+        'paid_date' => '2026-04-12',
+        'reimbursement_reference' => 'API-RMB-1',
+    ])
+        ->assertOk()
+        ->assertJsonPath('expense.status', Expense::STATUS_PAID)
+        ->assertJsonPath('expense.reimbursement_status', Expense::REIMBURSEMENT_STATUS_REIMBURSED)
+        ->assertJsonPath('expense.team_member.id', $member->id);
+
+    $response = $this->get('/api/v1/expenses/export');
+    $csv = $response->streamedContent();
+
+    $response->assertOk();
+
+    expect((string) $response->headers->get('content-type'))->toContain('text/csv')
+        ->and($csv)->toContain('title,status,reimbursement_status')
+        ->and($csv)->toContain('Submitted API expense')
+        ->and($csv)->toContain('Reimbursable API expense');
 });

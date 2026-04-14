@@ -69,7 +69,7 @@ class FinanceApprovalRequestedNotification extends Notification implements Shoul
         $locale = LocalePreference::forNotifiable($notifiable);
 
         return match ($locale) {
-            'fr' => 'Facture en attente d’approbation',
+            'fr' => "Facture en attente d'approbation",
             'es' => 'Factura pendiente de aprobacion',
             default => 'Invoice awaiting approval',
         };

@@ -32,6 +32,16 @@
       "reject": "Reject",
       "process": "Mark processed"
     },
+    "search": {
+      "label": "Quick search",
+      "placeholder": "Search by title, number, customer, job, or creator",
+      "helper": "Filters pending expenses and invoices at the same time.",
+      "loading": "Refreshing the list..."
+    },
+    "load_more": {
+      "button": "Load more",
+      "loading": "Loading..."
+    },
     "fallbacks": {
       "customer": "No customer",
       "job": "No linked job"

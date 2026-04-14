@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Notifications\FinanceApprovalRequestedNotification;
 use App\Models\Work;
 use App\Notifications\InvoiceAvailableNotification;
 use App\Services\FinanceApprovalService;
@@ -16,6 +17,7 @@ use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
@@ -223,6 +225,7 @@ test('company settings can save finance approval thresholds and influence expens
                     ],
                 ],
                 'invoice' => [
+                    'auto_approve_under_amount' => 450,
                     'roles' => [
                         ['role_key' => 'admin', 'max_amount' => 800, 'approval_order' => 1],
                     ],
@@ -232,7 +235,8 @@ test('company settings can save finance approval thresholds and influence expens
         ->assertOk()
         ->assertJsonPath('company.company_finance_settings.expense.roles.0.role_key', 'admin')
         ->assertJsonPath('company.company_finance_settings.expense.roles.0.max_amount', 300)
-        ->assertJsonPath('company.company_finance_settings.expense.roles.1.role_key', 'sales_manager');
+        ->assertJsonPath('company.company_finance_settings.expense.roles.1.role_key', 'sales_manager')
+        ->assertJsonPath('company.company_finance_settings.invoice.auto_approve_under_amount', 450);
 
     $this->actingAs($submitter)
         ->postJson(route('expense.store'), [
@@ -332,7 +336,8 @@ test('team invoice approval blocks sending until approved and supports processed
     expect($invoice->approval_status)->toBe(FinanceApprovalService::APPROVAL_STATUS_SUBMITTED)
         ->and($invoice->created_by_user_id)->toBe($submitter->id);
 
-    Notification::assertNothingSent();
+    Notification::assertSentTo($approver, FinanceApprovalRequestedNotification::class);
+    Notification::assertNotSentTo($customer, InvoiceAvailableNotification::class);
 
     $this->actingAs($submitter)
         ->patchJson(route('invoice.approve', $invoice))
@@ -366,4 +371,286 @@ test('team invoice approval blocks sending until approved and supports processed
         ->assertJsonPath('invoice.approval_status', FinanceApprovalService::APPROVAL_STATUS_PROCESSED);
 
     Notification::assertSentTo($customer, InvoiceAvailableNotification::class);
+});
+
+test('invoice pending approvals notify the target role and appear in the finance inbox', function () {
+    Notification::fake();
+
+    $owner = financeApprovalOwner([
+        'company_name' => 'Finance Inbox Workspace',
+    ]);
+    $submitter = financeApprovalTeamMember($owner, 'member', [
+        'expenses.view',
+        'expenses.create',
+        'expenses.edit',
+        'invoices.view',
+        'invoices.create',
+    ]);
+    $approver = financeApprovalTeamMember($owner, 'admin', [
+        'expenses.view',
+        'expenses.approve',
+        'invoices.view',
+        'invoices.approve',
+    ]);
+    $customer = financeApprovalCustomer($owner);
+    $work = financeApprovalWork($owner, $customer, ['total' => 900]);
+
+    $this->actingAs($submitter)
+        ->post(route('invoice.store-from-work', $work))
+        ->assertRedirect();
+
+    $this->actingAs($submitter)
+        ->postJson(route('expense.store'), [
+            'title' => 'Inbox expense',
+            'category_key' => 'software',
+            'supplier_name' => 'Inbox Vendor',
+            'reference_number' => 'INBOX-EXP-1',
+            'subtotal' => 240,
+            'tax_amount' => 0,
+            'total' => 240,
+            'expense_date' => now()->toDateString(),
+        ])
+        ->assertCreated();
+
+    $invoice = Invoice::query()->where('work_id', $work->id)->latest('id')->firstOrFail();
+    $expense = Expense::query()->where('reference_number', 'INBOX-EXP-1')->latest('id')->firstOrFail();
+
+    Notification::assertSentTo($approver, FinanceApprovalRequestedNotification::class, function (FinanceApprovalRequestedNotification $notification) use ($invoice, $approver) {
+        return $notification->invoice->is($invoice)
+            && data_get($notification->toArray($approver), 'action_url') === route('invoice.show', $invoice);
+    });
+
+    $this->actingAs($approver)
+        ->get(route('finance-approvals.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('FinanceApprovals/Index')
+            ->where('stats.total_pending', 2)
+            ->has('invoices.data', 1)
+            ->has('expenses.data', 1)
+            ->where('invoices.data.0.id', $invoice->id)
+            ->where('expenses.data.0.id', $expense->id)
+            ->where('filters.search', '')
+        );
+});
+
+test('finance inbox search filters pending approvals across expenses and invoices', function () {
+    $owner = financeApprovalOwner([
+        'company_name' => 'Search Inbox Workspace',
+    ]);
+    $submitter = financeApprovalTeamMember($owner, 'member', [
+        'expenses.view',
+        'expenses.create',
+        'expenses.edit',
+        'invoices.view',
+        'invoices.create',
+    ]);
+    $approver = financeApprovalTeamMember($owner, 'admin', [
+        'expenses.view',
+        'expenses.approve',
+        'invoices.view',
+        'invoices.approve',
+    ]);
+    $customer = financeApprovalCustomer($owner);
+    $matchingWork = financeApprovalWork($owner, $customer, [
+        'total' => 900,
+        'job_title' => 'Northwind approval job',
+    ]);
+    $otherWork = financeApprovalWork($owner, $customer, [
+        'total' => 900,
+        'job_title' => 'Southwind follow-up job',
+    ]);
+
+    $this->actingAs($submitter)
+        ->post(route('invoice.store-from-work', $matchingWork))
+        ->assertRedirect();
+
+    $this->actingAs($submitter)
+        ->post(route('invoice.store-from-work', $otherWork))
+        ->assertRedirect();
+
+    $this->actingAs($submitter)
+        ->postJson(route('expense.store'), [
+            'title' => 'Northwind media spend',
+            'category_key' => 'marketing',
+            'supplier_name' => 'Northwind Ads',
+            'reference_number' => 'SEARCH-EXP-1',
+            'subtotal' => 180,
+            'tax_amount' => 0,
+            'total' => 180,
+            'expense_date' => now()->toDateString(),
+        ])
+        ->assertCreated();
+
+    $this->actingAs($submitter)
+        ->postJson(route('expense.store'), [
+            'title' => 'General office software',
+            'category_key' => 'software',
+            'supplier_name' => 'Backoffice Tools',
+            'reference_number' => 'SEARCH-EXP-2',
+            'subtotal' => 95,
+            'tax_amount' => 0,
+            'total' => 95,
+            'expense_date' => now()->toDateString(),
+        ])
+        ->assertCreated();
+
+    $matchingInvoice = Invoice::query()->where('work_id', $matchingWork->id)->latest('id')->firstOrFail();
+    $matchingExpense = Expense::query()->where('reference_number', 'SEARCH-EXP-1')->latest('id')->firstOrFail();
+
+    $this->actingAs($approver)
+        ->get(route('finance-approvals.index', ['search' => 'Northwind']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('FinanceApprovals/Index')
+            ->where('filters.search', 'Northwind')
+            ->where('stats.total_pending', 2)
+            ->where('stats.expenses_pending', 1)
+            ->where('stats.invoices_pending', 1)
+            ->has('expenses.data', 1)
+            ->has('invoices.data', 1)
+            ->where('expenses.data.0.id', $matchingExpense->id)
+            ->where('invoices.data.0.id', $matchingInvoice->id)
+        );
+});
+
+test('finance inbox paginates expense approvals for progressive loading', function () {
+    $owner = financeApprovalOwner([
+        'company_name' => 'Paged Inbox Workspace',
+    ]);
+    $submitter = financeApprovalTeamMember($owner, 'member', [
+        'expenses.view',
+        'expenses.create',
+        'expenses.edit',
+    ]);
+    $approver = financeApprovalTeamMember($owner, 'admin', [
+        'expenses.view',
+        'expenses.approve',
+    ]);
+
+    foreach (range(1, 13) as $index) {
+        $this->actingAs($submitter)
+            ->postJson(route('expense.store'), [
+                'title' => "Paged expense {$index}",
+                'category_key' => 'software',
+                'supplier_name' => 'Paged Vendor',
+                'reference_number' => "PAGE-EXP-{$index}",
+                'subtotal' => 80 + $index,
+                'tax_amount' => 0,
+                'total' => 80 + $index,
+                'expense_date' => now()->subDays($index)->toDateString(),
+            ])
+            ->assertCreated();
+    }
+
+    $this->actingAs($approver)
+        ->get(route('finance-approvals.index', ['expense_page' => 2]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('FinanceApprovals/Index')
+            ->where('stats.expenses_pending', 13)
+            ->where('expenses.current_page', 2)
+            ->where('expenses.last_page', 2)
+            ->where('expenses.total', 13)
+            ->has('expenses.data', 1)
+            ->where('expenses.data.0.reference_number', 'PAGE-EXP-13')
+        );
+});
+
+test('finance inbox api exposes searchable approval payloads', function () {
+    $owner = financeApprovalOwner([
+        'company_name' => 'Finance API Workspace',
+    ]);
+    $submitter = financeApprovalTeamMember($owner, 'member', [
+        'expenses.view',
+        'expenses.create',
+        'expenses.edit',
+        'invoices.view',
+        'invoices.create',
+    ]);
+    $approver = financeApprovalTeamMember($owner, 'admin', [
+        'expenses.view',
+        'expenses.approve',
+        'invoices.view',
+        'invoices.approve',
+    ]);
+    $customer = financeApprovalCustomer($owner);
+    $work = financeApprovalWork($owner, $customer, [
+        'total' => 900,
+        'job_title' => 'Northwind finance API job',
+    ]);
+
+    $this->actingAs($submitter)
+        ->post(route('invoice.store-from-work', $work))
+        ->assertRedirect();
+
+    $this->actingAs($submitter)
+        ->postJson(route('expense.store'), [
+            'title' => 'Northwind API expense',
+            'category_key' => 'software',
+            'supplier_name' => 'Northwind Vendor',
+            'reference_number' => 'API-INBOX-EXP-1',
+            'subtotal' => 240,
+            'tax_amount' => 0,
+            'total' => 240,
+            'expense_date' => now()->toDateString(),
+        ])
+        ->assertCreated();
+
+    Sanctum::actingAs($approver);
+
+    $this->getJson('/api/v1/finance-approvals?search=Northwind')
+        ->assertOk()
+        ->assertJsonPath('filters.search', 'Northwind')
+        ->assertJsonPath('stats.total_pending', 2)
+        ->assertJsonPath('stats.expenses_pending', 1)
+        ->assertJsonPath('stats.invoices_pending', 1)
+        ->assertJsonCount(1, 'expenses.data')
+        ->assertJsonCount(1, 'invoices.data')
+        ->assertJsonPath('expenses.data.0.title', 'Northwind API expense')
+        ->assertJsonPath('invoices.data.0.work.job_title', 'Northwind finance API job');
+});
+
+test('team invoice auto approval under threshold can stay soft when configured', function () {
+    Notification::fake();
+
+    $owner = financeApprovalOwner([
+        'company_name' => 'Soft Threshold Workspace',
+        'company_finance_settings' => [
+            'expense' => [
+                'roles' => [
+                    ['role_key' => 'admin', 'max_amount' => 1000, 'approval_order' => 1],
+                    ['role_key' => 'sales_manager', 'max_amount' => 5000, 'approval_order' => 2],
+                ],
+            ],
+            'invoice' => [
+                'auto_approve_under_amount' => 1000,
+                'roles' => [
+                    ['role_key' => 'admin', 'max_amount' => 2500, 'approval_order' => 1],
+                    ['role_key' => 'sales_manager', 'max_amount' => 10000, 'approval_order' => 2],
+                ],
+            ],
+        ],
+    ]);
+    $submitter = financeApprovalTeamMember($owner, 'member', [
+        'invoices.view',
+        'invoices.create',
+    ]);
+    $approver = financeApprovalTeamMember($owner, 'admin', [
+        'invoices.view',
+        'invoices.approve',
+    ]);
+    $customer = financeApprovalCustomer($owner);
+    $work = financeApprovalWork($owner, $customer, ['total' => 900]);
+
+    $this->actingAs($submitter)
+        ->post(route('invoice.store-from-work', $work))
+        ->assertRedirect();
+
+    $invoice = Invoice::query()->where('work_id', $work->id)->latest('id')->firstOrFail();
+
+    expect($invoice->approval_status)->toBe(FinanceApprovalService::APPROVAL_STATUS_APPROVED)
+        ->and($invoice->current_approver_role_key)->toBeNull()
+        ->and($invoice->approved_by_user_id)->toBeNull()
+        ->and(data_get($invoice->approval_meta, 'approval_policy_snapshot.auto_approved_reason'))->toBe('under_threshold');
+
+    Notification::assertSentTo($customer, InvoiceAvailableNotification::class);
+    Notification::assertNotSentTo($approver, FinanceApprovalRequestedNotification::class);
 });

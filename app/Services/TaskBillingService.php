@@ -224,7 +224,9 @@ class TaskBillingService
                     'approval_policy_snapshot' => $approval['approval_policy_snapshot'] ?? null,
                 ];
                 $invoice->approved_by_user_id = ($approval['auto_approved'] ?? false)
-                    ? ($approval['approved_by_user_id'] ?? ($actor?->id ?: $work->user_id))
+                    ? (array_key_exists('approved_by_user_id', $approval)
+                        ? $approval['approved_by_user_id']
+                        : ($actor?->id ?: $work->user_id))
                     : null;
                 $invoice->approved_at = ($approval['auto_approved'] ?? false)
                     ? now()

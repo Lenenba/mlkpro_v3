@@ -70,6 +70,46 @@ const resolvedWorkspaceLogoUrl = computed(() => {
 
 const formatDate = (value) => value ? new Date(value).toLocaleDateString() : 'Not set';
 const formatDateTime = (value) => value ? new Date(value).toLocaleString() : 'Not set';
+const formatNumber = (value) => new Intl.NumberFormat().format(Number(value || 0));
+
+const showFinanceSnapshot = computed(() => (props.workspace.selected_modules || []).includes('expenses'));
+const financeSnapshotCards = computed(() => {
+    const summary = props.workspace.seed_summary || {};
+
+    return [
+        {
+            key: 'expenses',
+            label: 'Expenses seeded',
+            value: summary.expenses ?? 0,
+            tone: 'stone',
+        },
+        {
+            key: 'expenses_due',
+            label: 'Due now',
+            value: summary.expenses_due ?? 0,
+            tone: 'amber',
+        },
+        {
+            key: 'expenses_paid',
+            label: 'Paid or reimbursed',
+            value: summary.expenses_paid ?? 0,
+            tone: 'emerald',
+        },
+        {
+            key: 'expense_attachments',
+            label: 'Receipt files',
+            value: summary.expense_attachments ?? 0,
+            tone: 'blue',
+        },
+    ];
+});
+
+const financeSnapshotCardClass = (tone) => ({
+    stone: 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200',
+    amber: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200',
+    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200',
+    blue: 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200',
+}[tone] || 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200');
 
 const salesStatusOptions = computed(() =>
     (props.options?.sales_statuses || []).filter((option) => option.value !== 'all'),
@@ -592,6 +632,32 @@ const copyAccessKit = async () => {
                             <span v-for="label in workspace.scenario_pack_labels || []" :key="`scenario-${label}`" class="rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700 ring-1 ring-blue-200">
                                 {{ label }}
                             </span>
+                        </div>
+                    </section>
+
+                    <section
+                        v-if="showFinanceSnapshot"
+                        class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    >
+                        <div class="text-xs uppercase tracking-[0.2em] text-stone-500 dark:text-neutral-400">Finance snapshot</div>
+                        <p class="mt-2 text-sm text-stone-600 dark:text-neutral-400">
+                            Quick demo QA block driven by the seeded finance summary. Use it to confirm that the workspace is ready for an expense walkthrough before opening the tenant.
+                        </p>
+
+                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div
+                                v-for="card in financeSnapshotCards"
+                                :key="card.key"
+                                class="rounded-sm border p-3"
+                                :class="financeSnapshotCardClass(card.tone)"
+                            >
+                                <div class="text-[11px] uppercase tracking-[0.18em] opacity-80">
+                                    {{ card.label }}
+                                </div>
+                                <div class="mt-2 text-2xl font-semibold">
+                                    {{ formatNumber(card.value) }}
+                                </div>
+                            </div>
                         </div>
                     </section>
 

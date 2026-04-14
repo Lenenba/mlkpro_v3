@@ -1112,6 +1112,10 @@ class DemoWorkspaceProvisioner
             'waitlist_entries' => $reservationSummary['waitlist_entries'],
             'sales' => $sales->count(),
             'expenses' => $expenses->count(),
+            'expenses_due' => $expenses->where('status', Expense::STATUS_DUE)->count(),
+            'expenses_paid' => $expenses->filter(
+                fn (Expense $expense) => in_array($expense->status, [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED], true)
+            )->count(),
             'expense_attachments' => (int) $expenses->sum(fn (Expense $expense) => $expense->attachments->count()),
             'campaigns' => $marketing['campaigns'],
             'mailing_lists' => $marketing['mailing_lists'],

@@ -80,29 +80,23 @@ const hasServiceOps = computed(() =>
 const canQuotes = computed(() =>
     isOwner.value || teamPermissions.value.includes('quotes.view') || teamPermissions.value.includes('quotes.edit')
 );
-const canFinanceApprovals = computed(() => {
-    if (isClient.value) {
-        return false;
-    }
-
-    if (isOwner.value) {
-        return hasFeature('expenses') || hasFeature('invoices');
-    }
-
-    return (
-        hasFeature('expenses')
-        && (
-            teamPermissions.value.includes('expenses.approve')
-            || teamPermissions.value.includes('expenses.approve_high')
-        )
-    ) || (
-        hasFeature('invoices')
-        && (
-            teamPermissions.value.includes('invoices.approve')
-            || teamPermissions.value.includes('invoices.approve_high')
-        )
-    );
-});
+const canExpensesNav = computed(() =>
+    isOwner.value
+    || teamPermissions.value.includes('expenses.view')
+    || teamPermissions.value.includes('expenses.create')
+    || teamPermissions.value.includes('expenses.edit')
+    || teamPermissions.value.includes('expenses.approve')
+    || teamPermissions.value.includes('expenses.approve_high')
+    || teamPermissions.value.includes('expenses.pay')
+);
+const canInvoicesNav = computed(() =>
+    isOwner.value
+    || teamPermissions.value.includes('invoices.view')
+    || teamPermissions.value.includes('invoices.create')
+    || teamPermissions.value.includes('invoices.edit')
+    || teamPermissions.value.includes('invoices.approve')
+    || teamPermissions.value.includes('invoices.approve_high')
+);
 const isSeller = computed(() => teamRole.value === 'seller');
 const userName = computed(() => page.props.auth?.user?.name || '');
 const userEmail = computed(() => page.props.auth?.user?.email || '');
@@ -785,7 +779,7 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
                                 <!-- Item -->
                                 <LinkAncor
-                                    v-if="hasFeature('expenses') && page.props.auth.account?.is_owner && !isSeller"
+                                    v-if="hasFeature('expenses') && canExpensesNav && !isSeller"
                                     :label="$t('nav.expenses')"
                                     :href="'expense.index'"
                                     tone="expenses"
@@ -804,27 +798,7 @@ const isCustomerActive = computed(() => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor
-                                    v-if="canFinanceApprovals"
-                                    :label="$t('nav.finance_approvals')"
-                                    :href="'finance-approvals.index'"
-                                    tone="invoices"
-                                    :active="route().current('finance-approvals.*')"
-                                >
-                                    <template #icon>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="lucide lucide-clipboard-check">
-                                            <rect width="14" height="18" x="5" y="3" rx="2" />
-                                            <path d="M9 3h6v4H9z" />
-                                            <path d="m9 14 2 2 4-4" />
-                                        </svg>
-                                    </template>
-                                </LinkAncor>
-                                <!-- End Item -->
-                                <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('invoices') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.invoices')" :href="'invoice.index'" tone="invoices"
+                                <LinkAncor v-if="showServices && hasFeature('invoices') && canInvoicesNav && !isSeller" :label="$t('nav.invoices')" :href="'invoice.index'" tone="invoices"
                                     :active="route().current('invoice.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"

@@ -299,6 +299,8 @@ it('provisions a realistic service demo workspace from the admin module', functi
     expect($workspace->seed_summary['queue_items'] ?? 0)->toBeGreaterThan(0);
     expect($workspace->seed_summary['invoices'] ?? 0)->toBeGreaterThan(0);
     expect($workspace->seed_summary['expenses'] ?? 0)->toBeGreaterThan(0);
+    expect($workspace->seed_summary['expenses_due'] ?? 0)->toBeGreaterThan(0);
+    expect($workspace->seed_summary['expenses_paid'] ?? 0)->toBeGreaterThan(0);
     expect($workspace->seed_summary['expense_attachments'] ?? 0)->toBeGreaterThan(0);
     expect(Expense::query()->where('user_id', $workspace->owner_user_id)->count())->toBeGreaterThan(0);
     expect(ExpenseAttachment::query()
@@ -430,6 +432,29 @@ it('can provision and fully purge a commerce demo workspace', function () {
     foreach ($expenseAttachmentPaths as $path) {
         Storage::disk('public')->assertMissing($path);
     }
+});
+
+it('exposes a finance snapshot on the superadmin demo detail page when expenses are seeded', function () {
+    $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
+
+    $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.store'), demoWorkspacePayload())
+        ->assertRedirect(route('superadmin.demo-workspaces.index'));
+
+    $workspace = DemoWorkspace::query()->latest('id')->firstOrFail();
+    $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
+
+    $this->actingAs($admin)
+        ->get(route('superadmin.demo-workspaces.show', $workspace))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('SuperAdmin/DemoWorkspaces/Show')
+            ->where('workspace.id', $workspace->id)
+            ->where('workspace.seed_summary.expenses', $workspace->seed_summary['expenses'] ?? 0)
+            ->where('workspace.seed_summary.expenses_due', $workspace->seed_summary['expenses_due'] ?? 0)
+            ->where('workspace.seed_summary.expenses_paid', $workspace->seed_summary['expenses_paid'] ?? 0)
+            ->where('workspace.seed_summary.expense_attachments', $workspace->seed_summary['expense_attachments'] ?? 0)
+        );
 });
 
 it('can clone a demo workspace with fresh credentials and inherited phase two configuration', function () {

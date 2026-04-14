@@ -25,6 +25,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\FinanceApprovalInboxController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LocaleController;
@@ -343,15 +344,21 @@ Route::name('api.')->group(function () {
                 Route::post('sales/{sale}/pickup-confirm', [SaleController::class, 'confirmPickup']);
             });
 
+            Route::get('finance-approvals', [FinanceApprovalInboxController::class, 'index'])
+                ->name('finance-approvals.index');
+
             Route::middleware('company.feature:expenses')->group(function () {
                 Route::get('expenses', [ExpenseController::class, 'index']);
+                Route::get('expenses/export', [ExpenseController::class, 'export']);
                 Route::post('expenses', [ExpenseController::class, 'store']);
                 Route::post('expenses/scan-ai', [ExpenseController::class, 'scanWithAi'])
                     ->middleware('company.feature:assistant');
                 Route::patch('expenses/{expense}/submit', [ExpenseController::class, 'submit']);
                 Route::patch('expenses/{expense}/approve', [ExpenseController::class, 'approve']);
+                Route::patch('expenses/{expense}/reject', [ExpenseController::class, 'reject']);
                 Route::patch('expenses/{expense}/mark-due', [ExpenseController::class, 'markDue']);
                 Route::patch('expenses/{expense}/mark-paid', [ExpenseController::class, 'markPaid']);
+                Route::patch('expenses/{expense}/mark-reimbursed', [ExpenseController::class, 'markReimbursed']);
                 Route::patch('expenses/{expense}/cancel', [ExpenseController::class, 'cancel']);
                 Route::get('expenses/{expense}', [ExpenseController::class, 'show']);
                 Route::put('expenses/{expense}', [ExpenseController::class, 'update']);

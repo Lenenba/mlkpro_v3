@@ -227,7 +227,9 @@ class WorkBillingService
                 'current_approver_role_key' => $approval['current_approver_role_key'],
                 'current_approval_level' => $approval['current_approval_level'],
                 'approved_by_user_id' => ($approval['auto_approved'] ?? false)
-                    ? ($approval['approved_by_user_id'] ?? ($actor?->id ?: $work->user_id))
+                    ? (array_key_exists('approved_by_user_id', $approval)
+                        ? $approval['approved_by_user_id']
+                        : ($actor?->id ?: $work->user_id))
                     : null,
                 'approved_at' => ($approval['auto_approved'] ?? false) ? now() : null,
                 'approval_meta' => [

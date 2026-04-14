@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import ExpenseForm from '@/Pages/Expense/UI/ExpenseForm.vue';
@@ -54,6 +54,7 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const page = usePage();
 const editingExpense = ref(null);
 const workflowExpense = ref(null);
 const pendingWorkflowAction = ref('');
@@ -251,6 +252,23 @@ const aiFieldStateClass = (state) => {
 };
 
 const duplicateReasonLabel = (reason) => t(`expenses.ai_scan.duplicate_reasons.${reason}`);
+const canOpenFinanceApprovals = computed(() => {
+    const account = page.props.auth?.account;
+    const permissions = account?.team?.permissions || [];
+
+    if (account?.is_client) {
+        return false;
+    }
+
+    if (account?.is_owner) {
+        return Boolean(account?.features?.expenses || account?.features?.invoices);
+    }
+
+    return permissions.includes('expenses.approve')
+        || permissions.includes('expenses.approve_high')
+        || permissions.includes('invoices.approve')
+        || permissions.includes('invoices.approve_high');
+});
 
 const clearWorkflowSelection = () => {
     workflowExpense.value = null;
@@ -292,6 +310,13 @@ const openWorkflowAction = (action) => {
                     </div>
 
                     <div class="flex flex-wrap items-center gap-2">
+                        <Link
+                            v-if="canOpenFinanceApprovals"
+                            :href="route('finance-approvals.index')"
+                            class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                        >
+                            {{ $t('finance_approvals.title') }}
+                        </Link>
                         <Link
                             :href="route('expense.index')"
                             class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"

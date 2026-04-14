@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -9,24 +9,77 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    filters: {
+        type: Object,
+        default: () => ({}),
+    },
     expenses: {
-        type: Array,
-        default: () => [],
+        type: Object,
+        default: () => ({}),
     },
     invoices: {
-        type: Array,
-        default: () => [],
+        type: Object,
+        default: () => ({}),
     },
 });
 
 const { t } = useI18n();
 const busyKey = ref(null);
+const search = ref(props.filters?.search || '');
+const searchIsLoading = ref(false);
+const searchSyncGuard = ref(false);
+const listLoading = reactive({
+    expense: false,
+    invoice: false,
+});
+
+const normalizePaginator = (paginator) => {
+    const data = Array.isArray(paginator?.data)
+        ? paginator.data
+        : (Array.isArray(paginator) ? paginator : []);
+
+    return {
+        data,
+        total: Number(paginator?.total ?? data.length ?? 0),
+        current_page: Number(paginator?.current_page ?? 1),
+        last_page: Number(paginator?.last_page ?? (data.length ? 1 : 1)),
+    };
+};
+
+const statsState = ref(props.stats || {});
+const expensesState = ref(normalizePaginator(props.expenses));
+const invoicesState = ref(normalizePaginator(props.invoices));
+
+watch(() => props.stats, (value) => {
+    statsState.value = value || {};
+}, { deep: true });
+
+watch(() => props.expenses, (value) => {
+    expensesState.value = normalizePaginator(value);
+}, { deep: true });
+
+watch(() => props.invoices, (value) => {
+    invoicesState.value = normalizePaginator(value);
+}, { deep: true });
+
+watch(() => props.filters?.search || '', (value) => {
+    searchSyncGuard.value = true;
+    search.value = value || '';
+    setTimeout(() => {
+        searchSyncGuard.value = false;
+    }, 0);
+}, { immediate: true });
 
 const statCards = computed(() => ([
-    { key: 'total_pending', value: props.stats?.total_pending ?? 0 },
-    { key: 'expenses_pending', value: props.stats?.expenses_pending ?? 0 },
-    { key: 'invoices_pending', value: props.stats?.invoices_pending ?? 0 },
+    { key: 'total_pending', value: statsState.value?.total_pending ?? 0 },
+    { key: 'expenses_pending', value: statsState.value?.expenses_pending ?? 0 },
+    { key: 'invoices_pending', value: statsState.value?.invoices_pending ?? 0 },
 ]));
+
+const expenses = computed(() => expensesState.value.data || []);
+const invoices = computed(() => invoicesState.value.data || []);
+const expenseHasMore = computed(() => expensesState.value.current_page < expensesState.value.last_page);
+const invoiceHasMore = computed(() => invoicesState.value.current_page < invoicesState.value.last_page);
 
 const humanizeRoleKey = (value) => String(value || '')
     .split('_')
@@ -123,6 +176,123 @@ const runAction = (documentType, documentId, action) => {
 };
 
 const isBusy = (documentType, documentId, action) => busyKey.value === `${documentType}:${documentId}:${action}`;
+
+const buildInboxQuery = ({ searchValue = search.value, expensePage = 1, invoicePage = 1 } = {}) => {
+    const trimmedSearch = String(searchValue || '').trim();
+    const query = {
+        expense_page: expensePage,
+        invoice_page: invoicePage,
+    };
+
+    if (trimmedSearch !== '') {
+        query.search = trimmedSearch;
+    }
+
+    return query;
+};
+
+let searchTimeout = null;
+
+watch(search, (value) => {
+    if (searchSyncGuard.value) {
+        return;
+    }
+
+    if (searchTimeout) {
+        window.clearTimeout(searchTimeout);
+    }
+
+    searchTimeout = window.setTimeout(() => {
+        searchIsLoading.value = true;
+        router.get(route('finance-approvals.index'), buildInboxQuery({
+            searchValue: value,
+            expensePage: 1,
+            invoicePage: 1,
+        }), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            only: ['stats', 'filters', 'expenses', 'invoices'],
+            onFinish: () => {
+                searchIsLoading.value = false;
+            },
+        });
+    }, 300);
+});
+
+const appendUniqueItems = (currentItems, nextItems) => {
+    const ids = new Set(currentItems.map((item) => item.id));
+
+    return [
+        ...currentItems,
+        ...nextItems.filter((item) => !ids.has(item.id)),
+    ];
+};
+
+const loadMore = async (documentType) => {
+    const state = documentType === 'expense' ? expensesState.value : invoicesState.value;
+
+    if (searchIsLoading.value || listLoading[documentType] || state.current_page >= state.last_page) {
+        return;
+    }
+
+    listLoading[documentType] = true;
+
+    const nextExpensePage = documentType === 'expense'
+        ? state.current_page + 1
+        : expensesState.value.current_page;
+    const nextInvoicePage = documentType === 'invoice'
+        ? state.current_page + 1
+        : invoicesState.value.current_page;
+
+    try {
+        const response = await fetch(
+            route('finance-approvals.index', buildInboxQuery({
+                expensePage: nextExpensePage,
+                invoicePage: nextInvoicePage,
+            })),
+            {
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            },
+        );
+
+        if (!response.ok) {
+            throw new Error(`Unable to load more ${documentType} approvals.`);
+        }
+
+        const payload = await response.json();
+        const nextPaginator = normalizePaginator(payload[documentType === 'expense' ? 'expenses' : 'invoices']);
+
+        if (documentType === 'expense') {
+            expensesState.value = {
+                ...nextPaginator,
+                data: appendUniqueItems(expensesState.value.data, nextPaginator.data),
+            };
+        } else {
+            invoicesState.value = {
+                ...nextPaginator,
+                data: appendUniqueItems(invoicesState.value.data, nextPaginator.data),
+            };
+        }
+    } finally {
+        listLoading[documentType] = false;
+    }
+};
+
+const handleSectionScroll = (documentType, event) => {
+    const element = event?.target;
+    if (!element) {
+        return;
+    }
+
+    if ((element.scrollHeight - element.scrollTop - element.clientHeight) < 120) {
+        loadMore(documentType);
+    }
+};
 </script>
 
 <template>
@@ -156,6 +326,21 @@ const isBusy = (documentType, documentId, action) => busyKey.value === `${docume
                         </div>
                     </div>
                 </div>
+
+                <div class="mt-4">
+                    <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                        {{ $t('finance_approvals.search.label') }}
+                    </label>
+                    <input
+                        v-model="search"
+                        type="search"
+                        :placeholder="$t('finance_approvals.search.placeholder')"
+                        class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 placeholder:text-stone-400 focus:border-green-600 focus:outline-none focus:ring-2 focus:ring-green-200 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:ring-green-900/50"
+                    />
+                    <div class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ searchIsLoading ? $t('finance_approvals.search.loading') : $t('finance_approvals.search.helper') }}
+                    </div>
+                </div>
             </section>
 
             <section class="grid gap-5 xl:grid-cols-2">
@@ -165,7 +350,7 @@ const isBusy = (documentType, documentId, action) => busyKey.value === `${docume
                             {{ $t('finance_approvals.sections.expenses') }}
                         </h2>
                         <span class="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            {{ expenses.length }}
+                            {{ expensesState.total }}
                         </span>
                     </div>
 
@@ -173,7 +358,11 @@ const isBusy = (documentType, documentId, action) => busyKey.value === `${docume
                         {{ $t('finance_approvals.empty.expenses') }}
                     </div>
 
-                    <div v-else class="mt-4 space-y-3">
+                    <div
+                        v-else
+                        class="mt-4 max-h-[68vh] space-y-3 overflow-y-auto pr-1"
+                        @scroll.passive="handleSectionScroll('expense', $event)"
+                    >
                         <article
                             v-for="expense in expenses"
                             :key="expense.id"
@@ -222,6 +411,17 @@ const isBusy = (documentType, documentId, action) => busyKey.value === `${docume
                                 </div>
                             </div>
                         </article>
+
+                        <div v-if="expenseHasMore" class="flex justify-center py-2">
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                :disabled="listLoading.expense"
+                                @click="loadMore('expense')"
+                            >
+                                {{ listLoading.expense ? $t('finance_approvals.load_more.loading') : $t('finance_approvals.load_more.button') }}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -231,7 +431,7 @@ const isBusy = (documentType, documentId, action) => busyKey.value === `${docume
                             {{ $t('finance_approvals.sections.invoices') }}
                         </h2>
                         <span class="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            {{ invoices.length }}
+                            {{ invoicesState.total }}
                         </span>
                     </div>
 
@@ -239,7 +439,11 @@ const isBusy = (documentType, documentId, action) => busyKey.value === `${docume
                         {{ $t('finance_approvals.empty.invoices') }}
                     </div>
 
-                    <div v-else class="mt-4 space-y-3">
+                    <div
+                        v-else
+                        class="mt-4 max-h-[68vh] space-y-3 overflow-y-auto pr-1"
+                        @scroll.passive="handleSectionScroll('invoice', $event)"
+                    >
                         <article
                             v-for="invoice in invoices"
                             :key="invoice.id"
@@ -288,6 +492,17 @@ const isBusy = (documentType, documentId, action) => busyKey.value === `${docume
                                 </div>
                             </div>
                         </article>
+
+                        <div v-if="invoiceHasMore" class="flex justify-center py-2">
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                :disabled="listLoading.invoice"
+                                @click="loadMore('invoice')"
+                            >
+                                {{ listLoading.invoice ? $t('finance_approvals.load_more.loading') : $t('finance_approvals.load_more.button') }}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
