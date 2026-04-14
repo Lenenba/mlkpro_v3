@@ -8,7 +8,6 @@ use App\Models\Quote;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Work;
-use App\Services\FinanceApprovalService;
 use App\Notifications\InvoiceAvailableNotification;
 use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;

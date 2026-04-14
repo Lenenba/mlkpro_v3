@@ -11,13 +11,21 @@ use Illuminate\Support\Collection;
 class FinanceApprovalService
 {
     public const MODE_SOLO = 'solo';
+
     public const MODE_TEAM = 'team';
+
     public const APPROVAL_STATUS_DRAFT = 'draft';
+
     public const APPROVAL_STATUS_SUBMITTED = 'submitted';
+
     public const APPROVAL_STATUS_PENDING_APPROVAL = 'pending_approval';
+
     public const APPROVAL_STATUS_APPROVED = 'approved';
+
     public const APPROVAL_STATUS_REJECTED = 'rejected';
+
     public const APPROVAL_STATUS_PAID = 'paid';
+
     public const APPROVAL_STATUS_PROCESSED = 'processed';
 
     public const APPROVAL_STATUSES = [

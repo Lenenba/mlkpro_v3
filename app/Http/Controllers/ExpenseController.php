@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ActivityLog;
 use App\Enums\CurrencyCode;
 use App\Http\Requests\Expenses\ExpenseWriteRequest;
+use App\Models\ActivityLog;
 use App\Models\Campaign;
 use App\Models\Customer;
 use App\Models\Expense;
@@ -12,11 +12,11 @@ use App\Models\ExpenseAttachment;
 use App\Models\Invoice;
 use App\Models\Sale;
 use App\Models\TeamMember;
+use App\Models\User;
 use App\Models\Work;
 use App\Services\ExpenseAiDraftService;
 use App\Services\ExpenseRecurringService;
 use App\Services\FinanceApprovalService;
-use App\Models\User;
 use App\Utils\FileHandler;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -718,8 +718,7 @@ class ExpenseController extends Controller
         ?Expense $existing = null,
         ?ExpenseRecurringService $recurringService = null,
         ?User $actor = null
-    ): array
-    {
+    ): array {
         $total = round((float) ($validated['total'] ?? 0), 2);
         $taxAmount = round((float) ($validated['tax_amount'] ?? 0), 2);
         $subtotal = array_key_exists('subtotal', $validated) && $validated['subtotal'] !== null && $validated['subtotal'] !== ''

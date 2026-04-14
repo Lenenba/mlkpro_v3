@@ -13,19 +13,33 @@ class Expense extends Model
     use HasFactory;
 
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_SUBMITTED = 'submitted';
+
     public const STATUS_PENDING_APPROVAL = 'pending_approval';
+
     public const STATUS_APPROVED = 'approved';
+
     public const STATUS_REJECTED = 'rejected';
+
     public const STATUS_DUE = 'due';
+
     public const STATUS_PAID = 'paid';
+
     public const STATUS_REIMBURSED = 'reimbursed';
+
     public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_REVIEW_REQUIRED = 'review_required';
+
     public const REIMBURSEMENT_STATUS_NOT_APPLICABLE = 'not_applicable';
+
     public const REIMBURSEMENT_STATUS_PENDING = 'pending';
+
     public const REIMBURSEMENT_STATUS_REIMBURSED = 'reimbursed';
+
     public const RECURRENCE_FREQUENCY_MONTHLY = 'monthly';
+
     public const RECURRENCE_FREQUENCY_YEARLY = 'yearly';
 
     public const STATUSES = [

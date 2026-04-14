@@ -13,7 +13,6 @@ use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
 use App\Support\TenantPaymentMethodsResolver;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 

@@ -8,8 +8,8 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\FinanceApprovalService;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
 class FinanceApprovalInboxController extends Controller

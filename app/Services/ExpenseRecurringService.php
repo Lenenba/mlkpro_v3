@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Expense;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Collection;
 
 class ExpenseRecurringService
 {

@@ -102,7 +102,7 @@ class AccountDeletionService
             ->where('account_id', '!=', $accountId)
             ->exists();
 
-        return !$hasOtherMemberships;
+        return ! $hasOtherMemberships;
     }
 
     private function deleteAccountData(int $accountId): void
@@ -178,7 +178,7 @@ class AccountDeletionService
 
     private function cancelPaddleSubscriptions(User $accountOwner): void
     {
-        if (!config('cashier.api_key')) {
+        if (! config('cashier.api_key')) {
             return;
         }
 
@@ -259,7 +259,7 @@ class AccountDeletionService
 
     private function isDeletablePath(?string $path): bool
     {
-        if (!$path) {
+        if (! $path) {
             return false;
         }
 
@@ -271,7 +271,7 @@ class AccountDeletionService
             return false;
         }
 
-        return !in_array($path, self::DEFAULT_PUBLIC_FILES, true);
+        return ! in_array($path, self::DEFAULT_PUBLIC_FILES, true);
     }
 
     private function deleteFilePaths(array $paths): void
