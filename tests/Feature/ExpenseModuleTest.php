@@ -420,6 +420,9 @@ test('ai expense scan falls back to review mode when openai is unavailable', fun
 test('ai expense scan flags potential duplicates on the account', function () {
     Storage::fake('public');
 
+    config()->set('services.openai.key', 'test-openai-key');
+    config()->set('services.openai.expense_scan_model', 'gpt-4.1-mini');
+
     fakeExpenseScanOpenAi([
         'document_type' => 'invoice',
         'title' => 'Acme SaaS - monthly subscription',
