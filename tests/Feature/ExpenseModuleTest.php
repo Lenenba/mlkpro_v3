@@ -1,11 +1,16 @@
 <?php
 
 use App\Http\Middleware\EnsureTwoFactorVerified;
+use App\Models\Campaign;
+use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\ExpenseAttachment;
+use App\Models\Invoice;
 use App\Models\Role;
+use App\Models\Sale;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Models\Work;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -95,6 +100,69 @@ function seedExpense(User $owner, array $overrides = []): Expense
         'status' => Expense::STATUS_DUE,
         'reimbursable' => false,
         'is_recurring' => false,
+    ], $overrides));
+}
+
+function expenseCustomerRecord(User $owner, array $overrides = []): Customer
+{
+    return Customer::query()->create(array_merge([
+        'user_id' => $owner->id,
+        'first_name' => 'Amina',
+        'last_name' => 'Diallo',
+        'company_name' => 'Northwind Studio',
+        'email' => 'expense-customer-'.fake()->unique()->safeEmail(),
+        'phone' => '+1 514 555 1001',
+        'salutation' => 'Mr',
+        'billing_same_as_physical' => false,
+    ], $overrides));
+}
+
+function expenseWorkRecord(User $owner, Customer $customer, array $overrides = []): Work
+{
+    return Work::query()->create(array_merge([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'job_title' => 'Spring cleanup',
+        'instructions' => 'Clean and prepare the full site.',
+        'status' => Work::STATUS_TO_SCHEDULE,
+    ], $overrides));
+}
+
+function expenseSaleRecord(User $owner, Customer $customer, array $overrides = []): Sale
+{
+    return Sale::query()->create(array_merge([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'status' => Sale::STATUS_PENDING,
+        'subtotal' => 120,
+        'tax_total' => 18,
+        'total' => 138,
+    ], $overrides));
+}
+
+function expenseInvoiceRecord(User $owner, Customer $customer, Work $work, array $overrides = []): Invoice
+{
+    return Invoice::query()->create(array_merge([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'work_id' => $work->id,
+        'status' => 'draft',
+        'total' => 225,
+    ], $overrides));
+}
+
+function expenseCampaignRecord(User $owner, array $overrides = []): Campaign
+{
+    return Campaign::query()->create(array_merge([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Spring Reactivation',
+        'type' => Campaign::TYPE_PROMOTION,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
     ], $overrides));
 }
 
@@ -642,4 +710,181 @@ test('quick filters can narrow the expense list by workflow state and reimbursem
         ->assertOk()
         ->assertJsonPath('count', 1)
         ->assertJsonPath('expenses.data.0.title', 'Monthly rent template');
+});
+
+test('owner can create an expense linked to operational records', function () {
+    $owner = expenseOwner([
+        'jobs' => true,
+        'sales' => true,
+        'invoices' => true,
+        'campaigns' => true,
+    ]);
+    $customer = expenseCustomerRecord($owner);
+    $work = expenseWorkRecord($owner, $customer);
+    $sale = expenseSaleRecord($owner, $customer);
+    $invoice = expenseInvoiceRecord($owner, $customer, $work);
+    $campaign = expenseCampaignRecord($owner);
+
+    $response = $this->actingAs($owner)
+        ->postJson(route('expense.store'), [
+            'title' => 'Campaign print spend',
+            'category_key' => 'marketing',
+            'supplier_name' => 'City Print',
+            'reference_number' => 'MKT-441',
+            'subtotal' => 120,
+            'tax_amount' => 18,
+            'total' => 138,
+            'expense_date' => '2026-04-14',
+            'status' => Expense::STATUS_DRAFT,
+            'customer_id' => $customer->id,
+            'work_id' => $work->id,
+            'sale_id' => $sale->id,
+            'invoice_id' => $invoice->id,
+            'campaign_id' => $campaign->id,
+        ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('expense.customer_id', $customer->id)
+        ->assertJsonPath('expense.work_id', $work->id)
+        ->assertJsonPath('expense.sale_id', $sale->id)
+        ->assertJsonPath('expense.invoice_id', $invoice->id)
+        ->assertJsonPath('expense.campaign_id', $campaign->id);
+
+    $expense = Expense::query()->latest('id')->first();
+
+    expect($expense)->not->toBeNull()
+        ->and($expense->customer_id)->toBe($customer->id)
+        ->and($expense->work_id)->toBe($work->id)
+        ->and($expense->sale_id)->toBe($sale->id)
+        ->and($expense->invoice_id)->toBe($invoice->id)
+        ->and($expense->campaign_id)->toBe($campaign->id);
+
+    $this->actingAs($owner)
+        ->getJson(route('expense.index'))
+        ->assertOk()
+        ->assertJsonPath('linkOptions.customers.0.id', $customer->id)
+        ->assertJsonPath('linkOptions.works.0.id', $work->id)
+        ->assertJsonPath('linkOptions.sales.0.id', $sale->id)
+        ->assertJsonPath('linkOptions.invoices.0.id', $invoice->id)
+        ->assertJsonPath('linkOptions.campaigns.0.id', $campaign->id);
+});
+
+test('expense index exposes linked reporting stats and filters by linked context', function () {
+    $owner = expenseOwner([
+        'campaigns' => true,
+    ]);
+    $customer = expenseCustomerRecord($owner, [
+        'company_name' => 'Northwind Studio',
+        'email' => 'northwind-'.fake()->unique()->safeEmail(),
+    ]);
+    $otherCustomer = expenseCustomerRecord($owner, [
+        'company_name' => 'Blue Harbor',
+        'email' => 'blueharbor-'.fake()->unique()->safeEmail(),
+    ]);
+    $campaign = expenseCampaignRecord($owner, [
+        'name' => 'Meta Lead Burst',
+    ]);
+
+    seedExpense($owner, [
+        'title' => 'Meta lead ads',
+        'category_key' => 'marketing',
+        'supplier_name' => 'Meta Ads',
+        'total' => 125,
+        'tax_amount' => 0,
+        'customer_id' => $customer->id,
+        'campaign_id' => $campaign->id,
+    ]);
+    seedExpense($owner, [
+        'title' => 'CRM renewal',
+        'category_key' => 'software',
+        'supplier_name' => 'Acme SaaS',
+        'subtotal' => 80,
+        'tax_amount' => 0,
+        'total' => 80,
+        'customer_id' => $otherCustomer->id,
+    ]);
+    seedExpense($owner, [
+        'title' => 'Fuel refill',
+        'category_key' => 'fuel',
+        'supplier_name' => 'Station Nord',
+        'subtotal' => 45,
+        'tax_amount' => 0,
+        'total' => 45,
+    ]);
+
+    $this->actingAs($owner)
+        ->getJson(route('expense.index'))
+        ->assertOk()
+        ->assertJsonPath('stats.linked_total', 205)
+        ->assertJsonPath('stats.top_categories.0.key', 'marketing')
+        ->assertJsonPath('stats.top_suppliers.0.name', 'Meta Ads');
+
+    $this->actingAs($owner)
+        ->getJson(route('expense.index', ['customer_id' => $customer->id]))
+        ->assertOk()
+        ->assertJsonPath('count', 1)
+        ->assertJsonPath('filters.customer_id', (string) $customer->id)
+        ->assertJsonPath('expenses.data.0.title', 'Meta lead ads')
+        ->assertJsonPath('expenses.data.0.customer.id', $customer->id);
+});
+
+test('filtered expenses can be exported to csv with linked context columns', function () {
+    $owner = expenseOwner([
+        'jobs' => true,
+        'sales' => true,
+        'invoices' => true,
+        'campaigns' => true,
+    ]);
+    $customer = expenseCustomerRecord($owner, [
+        'company_name' => 'Northwind Studio',
+        'email' => 'northwind-export-'.fake()->unique()->safeEmail(),
+    ]);
+    $otherCustomer = expenseCustomerRecord($owner, [
+        'company_name' => 'Blue Harbor',
+        'email' => 'blueharbor-export-'.fake()->unique()->safeEmail(),
+    ]);
+    $work = expenseWorkRecord($owner, $customer, [
+        'job_title' => 'Roof inspection',
+    ]);
+    $sale = expenseSaleRecord($owner, $customer);
+    $invoice = expenseInvoiceRecord($owner, $customer, $work);
+    $campaign = expenseCampaignRecord($owner, [
+        'name' => 'Spring Restart',
+    ]);
+
+    seedExpense($owner, [
+        'title' => 'Roof campaign spend',
+        'category_key' => 'marketing',
+        'supplier_name' => 'Meta Ads',
+        'reference_number' => 'CSV-001',
+        'subtotal' => 125,
+        'tax_amount' => 0,
+        'total' => 125,
+        'customer_id' => $customer->id,
+        'work_id' => $work->id,
+        'sale_id' => $sale->id,
+        'invoice_id' => $invoice->id,
+        'campaign_id' => $campaign->id,
+    ]);
+    seedExpense($owner, [
+        'title' => 'Blue Harbor fuel',
+        'supplier_name' => 'Station East',
+        'customer_id' => $otherCustomer->id,
+    ]);
+
+    $response = $this->actingAs($owner)
+        ->get(route('expense.export', ['customer_id' => $customer->id]));
+
+    $csv = $response->streamedContent();
+
+    $response->assertOk();
+
+    expect((string) $response->headers->get('content-type'))->toContain('text/csv')
+        ->and($csv)->toContain('customer,work,sale,invoice,campaign')
+        ->and($csv)->toContain('Northwind Studio')
+        ->and($csv)->toContain((string) $work->number)
+        ->and($csv)->toContain((string) $sale->number)
+        ->and($csv)->toContain((string) $invoice->number)
+        ->and($csv)->toContain('Spring Restart')
+        ->and($csv)->not->toContain('Blue Harbor fuel');
 });

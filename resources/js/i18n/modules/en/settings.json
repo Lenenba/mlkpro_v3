@@ -425,6 +425,33 @@
         "two_factor_sms": "Allow SMS 2FA",
         "two_factor_sms_hint": "If enabled, the account owner can choose SMS as the 2FA method in Security."
       },
+      "finance": {
+        "title": "Finance approvals",
+        "description": "Configure who can approve expenses and invoices on team plans, with amount thresholds per role.",
+        "select_role": "Select a role",
+        "threshold_help": "Leave the escalation role empty if the owner should handle anything above the base threshold.",
+        "owner_fallback": "The owner always remains the final fallback approver with no amount limit.",
+        "documents": {
+          "expense": "Expenses",
+          "invoice": "Invoices"
+        },
+        "levels": {
+          "base_role": "Base approver role",
+          "base_limit": "Base max amount",
+          "escalation_role": "Escalation role",
+          "escalation_limit": "Escalation max amount"
+        },
+        "mode": {
+          "solo": "Current plan mode: Solo. New finance records are auto-approved immediately.",
+          "team": "Current plan mode: Team. Submitters are isolated from approval actions and thresholds apply."
+        },
+        "roles": {
+          "admin": "Admin",
+          "sales_manager": "Sales manager",
+          "member": "Member",
+          "seller": "Seller"
+        }
+      },
       "presence": {
         "title": "Attendance & presence",
         "description": "Configure auto clock-in/out and manual time tracking.",

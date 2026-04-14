@@ -33,6 +33,16 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    linkOptions: {
+        type: Object,
+        default: () => ({
+            customers: [],
+            works: [],
+            sales: [],
+            invoices: [],
+            campaigns: [],
+        }),
+    },
     id: {
         type: String,
         default: null,
@@ -81,6 +91,36 @@ const teamMemberOptions = computed(() =>
             : member.name,
     }))
 );
+const customerOptions = computed(() =>
+    (props.linkOptions?.customers || []).map((item) => ({
+        value: item.id,
+        label: item.name,
+    }))
+);
+const workOptions = computed(() =>
+    (props.linkOptions?.works || []).map((item) => ({
+        value: item.id,
+        label: item.name,
+    }))
+);
+const saleOptions = computed(() =>
+    (props.linkOptions?.sales || []).map((item) => ({
+        value: item.id,
+        label: item.name,
+    }))
+);
+const invoiceOptions = computed(() =>
+    (props.linkOptions?.invoices || []).map((item) => ({
+        value: item.id,
+        label: item.name,
+    }))
+);
+const campaignOptions = computed(() =>
+    (props.linkOptions?.campaigns || []).map((item) => ({
+        value: item.id,
+        label: item.name,
+    }))
+);
 
 const form = useForm({
     title: props.expense?.title || '',
@@ -97,6 +137,11 @@ const form = useForm({
     status: props.expense?.status || 'draft',
     reimbursable: Boolean(props.expense?.reimbursable),
     team_member_id: props.expense?.team_member_id || '',
+    customer_id: props.expense?.customer_id || '',
+    work_id: props.expense?.work_id || '',
+    sale_id: props.expense?.sale_id || '',
+    invoice_id: props.expense?.invoice_id || '',
+    campaign_id: props.expense?.campaign_id || '',
     is_recurring: Boolean(props.expense?.is_recurring),
     recurrence_frequency: props.expense?.recurrence_frequency || '',
     recurrence_interval: props.expense?.recurrence_interval ?? 1,
@@ -279,6 +324,50 @@ const submit = () => {
                 {{ recurrencePreview
                     ? $t('expenses.form.recurrence_preview', { date: recurrencePreview })
                     : $t('expenses.form.recurrence_help') }}
+            </div>
+        </div>
+
+        <div class="space-y-3 rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="space-y-1">
+                <p class="text-sm font-medium text-stone-800 dark:text-neutral-200">
+                    {{ $t('expenses.form.linked_context') }}
+                </p>
+                <p class="text-xs text-stone-500 dark:text-neutral-500">
+                    {{ $t('expenses.form.linked_context_help') }}
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <FloatingSelect
+                    v-model="form.customer_id"
+                    :label="$t('expenses.form.customer')"
+                    :options="customerOptions"
+                    :placeholder="$t('expenses.form.customer')"
+                />
+                <FloatingSelect
+                    v-model="form.work_id"
+                    :label="$t('expenses.form.work')"
+                    :options="workOptions"
+                    :placeholder="$t('expenses.form.work')"
+                />
+                <FloatingSelect
+                    v-model="form.sale_id"
+                    :label="$t('expenses.form.sale')"
+                    :options="saleOptions"
+                    :placeholder="$t('expenses.form.sale')"
+                />
+                <FloatingSelect
+                    v-model="form.invoice_id"
+                    :label="$t('expenses.form.invoice')"
+                    :options="invoiceOptions"
+                    :placeholder="$t('expenses.form.invoice')"
+                />
+                <FloatingSelect
+                    v-model="form.campaign_id"
+                    :label="$t('expenses.form.campaign')"
+                    :options="campaignOptions"
+                    :placeholder="$t('expenses.form.campaign')"
+                />
             </div>
         </div>
 

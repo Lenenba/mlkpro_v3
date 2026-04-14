@@ -1,6 +1,33 @@
 {
   "settings": {
     "company": {
+      "finance": {
+        "title": "Aprobaciones financieras",
+        "description": "Configura quien puede aprobar gastos y facturas en los planes de equipo, con limites por rol.",
+        "select_role": "Selecciona un rol",
+        "threshold_help": "Deja vacio el rol de escalacion si el propietario debe gestionar todo lo que supere el limite base.",
+        "owner_fallback": "El propietario siempre sigue siendo el aprobador final sin limite de importe.",
+        "documents": {
+          "expense": "Gastos",
+          "invoice": "Facturas"
+        },
+        "levels": {
+          "base_role": "Rol aprobador base",
+          "base_limit": "Importe maximo base",
+          "escalation_role": "Rol de escalacion",
+          "escalation_limit": "Importe maximo de escalacion"
+        },
+        "mode": {
+          "solo": "Modo del plan actual: Solo. Los nuevos documentos financieros se autoaprueban al instante.",
+          "team": "Modo del plan actual: Equipo. El remitente queda aislado de la aprobacion y se aplican los limites."
+        },
+        "roles": {
+          "admin": "Admin",
+          "sales_manager": "Manager comercial",
+          "member": "Miembro",
+          "seller": "Vendedor"
+        }
+      },
       "store": {
         "title": "Configuracion de la tienda",
         "description": "Personaliza el encabezado publico de tu tienda y el producto destacado.",

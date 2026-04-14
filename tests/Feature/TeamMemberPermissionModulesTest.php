@@ -105,3 +105,38 @@ test('team member default permissions are filtered by tenant module access', fun
         'tasks.edit',
     ]);
 });
+
+test('team member page exposes finance permissions when expenses and invoices are enabled', function () {
+    $owner = teamPermissionOwner([
+        'company_features' => [
+            'team_members' => true,
+            'tasks' => false,
+            'expenses' => true,
+            'invoices' => true,
+        ],
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('team.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Team/Index')
+            ->where('availablePermissions', function ($permissions) {
+                $ids = collect($permissions)->pluck('id')->all();
+
+                return collect([
+                    'expenses.view',
+                    'expenses.create',
+                    'expenses.edit',
+                    'expenses.approve',
+                    'expenses.approve_high',
+                    'expenses.pay',
+                    'invoices.view',
+                    'invoices.create',
+                    'invoices.edit',
+                    'invoices.approve',
+                    'invoices.approve_high',
+                ])->every(fn ($id) => in_array($id, $ids, true));
+            })
+        );
+});

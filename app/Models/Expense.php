@@ -14,7 +14,9 @@ class Expense extends Model
 
     public const STATUS_DRAFT = 'draft';
     public const STATUS_SUBMITTED = 'submitted';
+    public const STATUS_PENDING_APPROVAL = 'pending_approval';
     public const STATUS_APPROVED = 'approved';
+    public const STATUS_REJECTED = 'rejected';
     public const STATUS_DUE = 'due';
     public const STATUS_PAID = 'paid';
     public const STATUS_REIMBURSED = 'reimbursed';
@@ -29,7 +31,9 @@ class Expense extends Model
     public const STATUSES = [
         self::STATUS_DRAFT,
         self::STATUS_SUBMITTED,
+        self::STATUS_PENDING_APPROVAL,
         self::STATUS_APPROVED,
+        self::STATUS_REJECTED,
         self::STATUS_DUE,
         self::STATUS_PAID,
         self::STATUS_REIMBURSED,
@@ -52,9 +56,16 @@ class Expense extends Model
         'user_id',
         'created_by_user_id',
         'approved_by_user_id',
+        'current_approver_role_key',
+        'current_approval_level',
         'paid_by_user_id',
         'reimbursed_by_user_id',
         'team_member_id',
+        'customer_id',
+        'work_id',
+        'sale_id',
+        'invoice_id',
+        'campaign_id',
         'recurrence_source_expense_id',
         'title',
         'category_key',
@@ -97,6 +108,7 @@ class Expense extends Model
         'reimbursable' => 'boolean',
         'is_recurring' => 'boolean',
         'recurrence_interval' => 'integer',
+        'current_approval_level' => 'integer',
         'recurrence_next_date' => 'date',
         'recurrence_ends_at' => 'date',
         'recurrence_last_generated_at' => 'datetime',
@@ -157,6 +169,31 @@ class Expense extends Model
     public function teamMember(): BelongsTo
     {
         return $this->belongsTo(TeamMember::class);
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function work(): BelongsTo
+    {
+        return $this->belongsTo(Work::class);
+    }
+
+    public function sale(): BelongsTo
+    {
+        return $this->belongsTo(Sale::class);
+    }
+
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(Invoice::class);
+    }
+
+    public function campaign(): BelongsTo
+    {
+        return $this->belongsTo(Campaign::class);
     }
 
     public function recurrenceSource(): BelongsTo

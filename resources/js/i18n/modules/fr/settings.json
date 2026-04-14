@@ -425,6 +425,33 @@
         "two_factor_sms": "Autoriser le 2FA par SMS",
         "two_factor_sms_hint": "Si active, le proprietaire peut choisir SMS comme methode 2FA dans Securite."
       },
+      "finance": {
+        "title": "Approbations finance",
+        "description": "Configure qui peut approuver les depenses et les factures sur les plans equipe, avec des seuils par role.",
+        "select_role": "Selectionner un role",
+        "threshold_help": "Laisse le role d escalation vide si le proprietaire doit gerer tout ce qui depasse le seuil de base.",
+        "owner_fallback": "Le proprietaire reste toujours l approbateur final sans limite de montant.",
+        "documents": {
+          "expense": "Depenses",
+          "invoice": "Factures"
+        },
+        "levels": {
+          "base_role": "Role approbateur de base",
+          "base_limit": "Montant max de base",
+          "escalation_role": "Role d escalation",
+          "escalation_limit": "Montant max d escalation"
+        },
+        "mode": {
+          "solo": "Mode du plan actuel : Solo. Les nouveaux documents finance sont auto-approuves immediatement.",
+          "team": "Mode du plan actuel : Equipe. Le submitter est isole des approbations et les seuils s appliquent."
+        },
+        "roles": {
+          "admin": "Admin",
+          "sales_manager": "Manager des ventes",
+          "member": "Membre",
+          "seller": "Vendeur"
+        }
+      },
       "presence": {
         "title": "Presence & pointage",
         "description": "Configurez le pointage auto et manuel.",

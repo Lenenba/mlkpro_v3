@@ -6,12 +6,21 @@
       "draft": "Brouillons",
       "overdue": "En retard",
       "due_total": "A payer",
-      "paid_this_month": "Paye ce mois"
+      "paid_this_month": "Paye ce mois",
+      "linked_total": "Lie aux operations",
+      "top_categories": "Top categories",
+      "top_suppliers": "Top fournisseurs",
+      "no_breakdown": "Pas encore de ventilation"
     },
     "filters": {
       "search_placeholder": "Rechercher depenses, fournisseurs ou references",
       "status": "Statut",
       "category": "Categorie",
+      "customer": "Client",
+      "work": "Job",
+      "sale": "Vente",
+      "invoice": "Facture",
+      "campaign": "Campagne",
       "expense_date_from": "Date depense depuis",
       "expense_date_to": "Date depense jusqu'a",
       "quick": {
@@ -42,6 +51,7 @@
       "delete_confirm": "Supprimer \"{name}\" ?",
       "submit": "Soumettre",
       "approve": "Approuver",
+      "reject": "Rejeter",
       "mark_due": "Marquer a payer",
       "mark_paid": "Marquer payee",
       "mark_reimbursed": "Marquer remboursee",
@@ -50,7 +60,8 @@
       "capture_receipt": "Prendre une photo",
       "browse_files": "Choisir des fichiers",
       "open": "Ouvrir",
-      "back_to_list": "Retour a la liste"
+      "back_to_list": "Retour a la liste",
+      "export_csv": "Exporter CSV"
     },
     "table": {
       "expense": "Depense",
@@ -83,18 +94,27 @@
       "reimbursement_help": "Utilise ce lien quand la depense doit etre remboursee a un membre equipe plutot qu a un fournisseur.",
       "recurrence_help": "La prochaine depense sera creee automatiquement depuis ce modele quand la date de recurrence sera atteinte.",
       "recurrence_preview": "Prochaine depense generee le {date}",
+      "linked_context": "Contexte lie",
+      "linked_context_help": "Lie optionnellement cette depense au client, job, a la vente, a la facture ou a la campagne concernee.",
       "description": "Description",
       "notes": "Notes",
       "attachments": "Pieces jointes",
       "attachments_help": "Ajoute facture, recu ou justificatif. La V1 conserve les pieces pour la revue et la compta legere.",
       "mobile_capture_hint": "Sur mobile, utilise l appareil photo pour capturer le recu tout de suite, ou ajoute une facture PDF depuis les fichiers.",
       "existing_attachments": "Pieces deja ajoutees",
-      "business_currency": "Devise entreprise: {currency}. Les depenses sont enregistrees dans cette devise."
+      "business_currency": "Devise entreprise: {currency}. Les depenses sont enregistrees dans cette devise.",
+      "customer": "Client",
+      "work": "Job",
+      "sale": "Vente",
+      "invoice": "Facture",
+      "campaign": "Campagne"
     },
     "status": {
       "draft": "Brouillon",
       "submitted": "Soumise",
+      "pending_approval": "En attente d'approbation",
       "approved": "Approuvee",
+      "rejected": "Rejetee",
       "due": "A payer",
       "paid": "Payee",
       "reimbursed": "Remboursee",
@@ -125,6 +145,8 @@
       "next_recurrence": "Prochaine recurrence",
       "generated_count": "Depenses generees",
       "recurrence_source": "Source recurrence",
+      "linked_context": "Contexte lie",
+      "no_linked_context": "Aucun contexte lie pour le moment.",
       "workflow_history": "Historique workflow",
       "workflow_empty": "Aucune action de workflow pour le moment.",
       "status_change": "{from} -> {to}"
@@ -139,6 +161,7 @@
       "descriptions": {
         "submit": "Ajoute un contexte utile avant d envoyer la depense en revue.",
         "approve": "Valide la depense et laisse un commentaire de revue si besoin.",
+        "reject": "Explique pourquoi la depense doit revenir en correction plutot qu etre approuvee.",
         "mark_due": "Utilise un commentaire pour preciser l echeance ou la priorite de paiement.",
         "mark_paid": "Ajoute le contexte de paiement et verifie la date utilisee.",
         "mark_reimbursed": "Confirme la date du remboursement et ajoute une reference si utile.",
@@ -147,6 +170,7 @@
       "comment_placeholders": {
         "submit": "Ex. facture complete et prete pour validation",
         "approve": "Ex. budget valide, categorie verifiee",
+        "reject": "Ex. montant incoherent ou justificatif incomplet",
         "mark_due": "Ex. a payer avec le batch fournisseur de vendredi",
         "mark_paid": "Ex. payee par virement ce matin",
         "mark_reimbursed": "Ex. remboursement terrain valide par finance",
@@ -159,6 +183,7 @@
       "generated_from_recurrence": "Depense generee depuis la recurrence",
       "submit": "Depense soumise",
       "approve": "Depense approuvee",
+      "reject": "Depense rejetee",
       "mark_due": "Depense marquee a payer",
       "mark_paid": "Depense marquee payee",
       "mark_reimbursed": "Depense remboursee",

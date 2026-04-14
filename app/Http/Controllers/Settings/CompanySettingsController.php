@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\AiImageUsageService;
 use App\Services\CompanyFeatureService;
+use App\Services\FinanceApprovalService;
 use App\Services\CompanyNotificationPreferenceService;
 use App\Services\PreventUnsafeTenantCurrencyChange;
 use App\Services\SupplierDirectory;
@@ -55,6 +56,7 @@ class CompanySettingsController extends Controller
         $currencyGuard = app(PreventUnsafeTenantCurrencyChange::class);
         $hasPresenceFeature = app(CompanyFeatureService::class)->hasFeature($user, 'presence');
         $aiImageUsage = app(AiImageUsageService::class);
+        $financeApproval = app(FinanceApprovalService::class);
         $aiImagePayload = [
             'enabled' => (bool) config('services.openai.key'),
             'generate_url' => route('ai.images.generate'),
@@ -93,6 +95,7 @@ class CompanySettingsController extends Controller
                 'fulfillment' => $user->company_fulfillment ?? null,
                 'store_settings' => $user->company_store_settings ?? null,
                 'time_settings' => $hasPresenceFeature ? ($user->company_time_settings ?? null) : null,
+                'company_finance_settings' => $financeApproval->settingsFor($user),
                 'company_notification_settings' => $notificationSettings,
                 'can_change_currency' => ! $currencyGuard->hasBusinessActivity($user),
             ],
@@ -109,6 +112,8 @@ class CompanySettingsController extends Controller
             'suppliers' => $suppliers,
             'supplier_preferences' => $supplierPreferences,
             'preferred_limit' => config('suppliers.preferred_limit', 4),
+            'finance_role_options' => $financeApproval->roleOptions(),
+            'finance_approval_mode' => $financeApproval->modeFor($user),
             'warehouses' => $warehouses,
             'api_tokens' => $user->tokens()
                 ->orderByDesc('created_at')
@@ -178,6 +183,17 @@ class CompanySettingsController extends Controller
             'company_time_settings.auto_clock_in' => 'nullable|boolean',
             'company_time_settings.auto_clock_out' => 'nullable|boolean',
             'company_time_settings.manual_clock' => 'nullable|boolean',
+            'company_finance_settings' => 'nullable|array',
+            'company_finance_settings.expense' => 'nullable|array',
+            'company_finance_settings.expense.roles' => 'nullable|array|max:5',
+            'company_finance_settings.expense.roles.*.role_key' => ['nullable', 'string', Rule::in(collect(app(FinanceApprovalService::class)->roleOptions())->pluck('key')->all())],
+            'company_finance_settings.expense.roles.*.max_amount' => 'nullable|numeric|min:0',
+            'company_finance_settings.expense.roles.*.approval_order' => 'nullable|integer|min:1|max:5',
+            'company_finance_settings.invoice' => 'nullable|array',
+            'company_finance_settings.invoice.roles' => 'nullable|array|max:5',
+            'company_finance_settings.invoice.roles.*.role_key' => ['nullable', 'string', Rule::in(collect(app(FinanceApprovalService::class)->roleOptions())->pluck('key')->all())],
+            'company_finance_settings.invoice.roles.*.max_amount' => 'nullable|numeric|min:0',
+            'company_finance_settings.invoice.roles.*.approval_order' => 'nullable|integer|min:1|max:5',
             'company_notification_settings' => 'nullable|array',
             'company_notification_settings.task_day' => 'nullable|array',
             'company_notification_settings.task_day.email' => 'nullable|boolean',
@@ -349,6 +365,12 @@ class CompanySettingsController extends Controller
             ];
         }
 
+        $financeSettings = $user->company_finance_settings;
+        if (array_key_exists('company_finance_settings', $validated)) {
+            $financeSettings = app(FinanceApprovalService::class)
+                ->normalizeSettings($validated['company_finance_settings'] ?? []);
+        }
+
         $companySlug = $this->resolveCompanySlug($validated, $user);
         $nextCurrencyCode = $validated['currency_code'] ?? $user->businessCurrencyCode();
         try {
@@ -379,6 +401,7 @@ class CompanySettingsController extends Controller
             'company_store_settings' => $storeSettings,
             'company_notification_settings' => $notificationSettings,
             'company_time_settings' => $timeSettings,
+            'company_finance_settings' => $financeSettings,
         ]);
 
         if ($this->shouldReturnJson($request)) {

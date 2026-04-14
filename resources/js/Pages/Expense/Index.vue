@@ -41,6 +41,16 @@ defineProps({
         type: Array,
         default: () => [],
     },
+    linkOptions: {
+        type: Object,
+        default: () => ({
+            customers: [],
+            works: [],
+            sales: [],
+            invoices: [],
+            campaigns: [],
+        }),
+    },
     canUseAiIntake: {
         type: Boolean,
         default: false,
@@ -68,6 +78,7 @@ defineProps({
                 :statuses="statuses"
                 :recurrence-frequencies="recurrenceFrequencies"
                 :team-members="teamMembers"
+                :link-options="linkOptions"
                 :can-use-ai-intake="canUseAiIntake"
                 :tenant-currency-code="tenantCurrencyCode"
             />

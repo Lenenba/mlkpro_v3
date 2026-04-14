@@ -6,12 +6,21 @@
       "draft": "Drafts",
       "overdue": "Overdue",
       "due_total": "Due total",
-      "paid_this_month": "Paid this month"
+      "paid_this_month": "Paid this month",
+      "linked_total": "Linked total",
+      "top_categories": "Top categories",
+      "top_suppliers": "Top suppliers",
+      "no_breakdown": "No breakdown yet"
     },
     "filters": {
       "search_placeholder": "Search expenses, suppliers, or references",
       "status": "Status",
       "category": "Category",
+      "customer": "Customer",
+      "work": "Work",
+      "sale": "Sale",
+      "invoice": "Invoice",
+      "campaign": "Campaign",
       "expense_date_from": "Expense date from",
       "expense_date_to": "Expense date to",
       "quick": {
@@ -42,6 +51,7 @@
       "delete_confirm": "Delete \"{name}\"?",
       "submit": "Submit",
       "approve": "Approve",
+      "reject": "Reject",
       "mark_due": "Mark due",
       "mark_paid": "Mark paid",
       "mark_reimbursed": "Mark reimbursed",
@@ -50,7 +60,8 @@
       "capture_receipt": "Capture receipt",
       "browse_files": "Browse files",
       "open": "Open",
-      "back_to_list": "Back to list"
+      "back_to_list": "Back to list",
+      "export_csv": "Export CSV"
     },
     "table": {
       "expense": "Expense",
@@ -83,18 +94,27 @@
       "reimbursement_help": "Use this when the expense should be paid back to a team member instead of a supplier.",
       "recurrence_help": "The next expense will be generated automatically from this template when the recurrence date is reached.",
       "recurrence_preview": "Next generated expense date: {date}",
+      "linked_context": "Linked context",
+      "linked_context_help": "Optionally connect this expense to the customer, work, sale, invoice, or campaign it belongs to.",
       "description": "Description",
       "notes": "Notes",
       "attachments": "Attachments",
       "attachments_help": "Attach the invoice, receipt, or proof of purchase. V1 keeps the files ready for review and lightweight accounting.",
       "mobile_capture_hint": "On mobile, use the camera button to capture the receipt right away, or attach a PDF invoice from files.",
       "existing_attachments": "Existing attachments",
-      "business_currency": "Business currency: {currency}. Expenses are stored in this currency."
+      "business_currency": "Business currency: {currency}. Expenses are stored in this currency.",
+      "customer": "Customer",
+      "work": "Work",
+      "sale": "Sale",
+      "invoice": "Invoice",
+      "campaign": "Campaign"
     },
     "status": {
       "draft": "Draft",
       "submitted": "Submitted",
+      "pending_approval": "Pending approval",
       "approved": "Approved",
+      "rejected": "Rejected",
       "due": "Due",
       "paid": "Paid",
       "reimbursed": "Reimbursed",
@@ -125,6 +145,8 @@
       "next_recurrence": "Next recurrence",
       "generated_count": "Generated expenses",
       "recurrence_source": "Recurrence source",
+      "linked_context": "Linked context",
+      "no_linked_context": "No linked context yet.",
       "workflow_history": "Workflow history",
       "workflow_empty": "No workflow actions recorded yet.",
       "status_change": "{from} -> {to}"
@@ -139,6 +161,7 @@
       "descriptions": {
         "submit": "Add any context you want the reviewer to see before submission.",
         "approve": "Approve the expense and leave a review note when helpful.",
+        "reject": "Explain why this expense must be sent back instead of approved.",
         "mark_due": "Use the comment to clarify payment priority or timing.",
         "mark_paid": "Capture the payment context and verify the paid date.",
         "mark_reimbursed": "Confirm the reimbursement date and optionally add a reimbursement reference.",
@@ -147,6 +170,7 @@
       "comment_placeholders": {
         "submit": "Ex. receipt complete and ready for review",
         "approve": "Ex. budget checked, category confirmed",
+        "reject": "Ex. amount mismatch or supplier document incomplete",
         "mark_due": "Ex. include in Friday supplier payment batch",
         "mark_paid": "Ex. paid by bank transfer this morning",
         "mark_reimbursed": "Ex. reimbursed to the field worker after finance review",
@@ -159,6 +183,7 @@
       "generated_from_recurrence": "Expense generated from recurrence",
       "submit": "Expense submitted",
       "approve": "Expense approved",
+      "reject": "Expense rejected",
       "mark_due": "Expense marked as due",
       "mark_paid": "Expense marked as paid",
       "mark_reimbursed": "Expense reimbursed",

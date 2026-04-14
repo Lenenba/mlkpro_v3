@@ -48,6 +48,14 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    finance_role_options: {
+        type: Array,
+        default: () => [],
+    },
+    finance_approval_mode: {
+        type: String,
+        default: 'team',
+    },
     store_products: {
         type: Array,
         default: () => [],
@@ -128,6 +136,18 @@ const apiTokenTypeOptions = computed(() => ([
     { value: 'public', label: t('settings.company.api.fields.type_public') },
     { value: 'private', label: t('settings.company.api.fields.type_private') },
 ]));
+const financeRoleOptions = computed(() => ([
+    { id: '', name: t('settings.company.finance.select_role') },
+    ...(props.finance_role_options || []).map((role) => ({
+        id: role.key,
+        name: t(role.label_key),
+    })),
+]));
+const financeRoleAt = (documentType, index, field, fallback = '') => {
+    const value = props.company.company_finance_settings?.[documentType]?.roles?.[index]?.[field];
+
+    return value === null || value === undefined ? fallback : value;
+};
 
 const PROVINCES_BY_COUNTRY = {
     Canada: [
@@ -307,6 +327,22 @@ const form = useForm({
     notification_task_day_whatsapp: props.company.company_notification_settings?.task_day?.whatsapp ?? false,
     notification_security_two_factor_sms:
         props.company.company_notification_settings?.security?.two_factor_sms ?? false,
+    finance_expense_role_1: financeRoleAt('expense', 0, 'role_key', ''),
+    finance_expense_max_1: financeRoleAt('expense', 0, 'max_amount', '') !== ''
+        ? String(financeRoleAt('expense', 0, 'max_amount', ''))
+        : '',
+    finance_expense_role_2: financeRoleAt('expense', 1, 'role_key', ''),
+    finance_expense_max_2: financeRoleAt('expense', 1, 'max_amount', '') !== ''
+        ? String(financeRoleAt('expense', 1, 'max_amount', ''))
+        : '',
+    finance_invoice_role_1: financeRoleAt('invoice', 0, 'role_key', ''),
+    finance_invoice_max_1: financeRoleAt('invoice', 0, 'max_amount', '') !== ''
+        ? String(financeRoleAt('invoice', 0, 'max_amount', ''))
+        : '',
+    finance_invoice_role_2: financeRoleAt('invoice', 1, 'role_key', ''),
+    finance_invoice_max_2: financeRoleAt('invoice', 1, 'max_amount', '') !== ''
+        ? String(financeRoleAt('invoice', 1, 'max_amount', ''))
+        : '',
     presence_auto_clock_in: toBool(props.company.time_settings?.auto_clock_in ?? true),
     presence_auto_clock_out: toBool(props.company.time_settings?.auto_clock_out ?? true),
     presence_manual_clock: toBool(props.company.time_settings?.manual_clock ?? true),
@@ -973,6 +1009,36 @@ const submit = () => {
                 },
             };
 
+            const buildFinanceRoles = (documentType) => {
+                const roles = [
+                    {
+                        role_key: normalizeText(data[`finance_${documentType}_role_1`]),
+                        max_amount: data[`finance_${documentType}_max_1`] !== ''
+                            ? Number(data[`finance_${documentType}_max_1`])
+                            : null,
+                        approval_order: 1,
+                    },
+                    {
+                        role_key: normalizeText(data[`finance_${documentType}_role_2`]),
+                        max_amount: data[`finance_${documentType}_max_2`] !== ''
+                            ? Number(data[`finance_${documentType}_max_2`])
+                            : null,
+                        approval_order: 2,
+                    },
+                ];
+
+                return roles.filter((role) => Boolean(role.role_key));
+            };
+
+            payload.company_finance_settings = {
+                expense: {
+                    roles: buildFinanceRoles('expense'),
+                },
+                invoice: {
+                    roles: buildFinanceRoles('invoice'),
+                },
+            };
+
             if (hasPresenceFeature.value) {
                 payload.company_time_settings = {
                     auto_clock_in: Boolean(data.presence_auto_clock_in),
@@ -1002,6 +1068,14 @@ const submit = () => {
             delete payload.notification_task_day_sms;
             delete payload.notification_task_day_whatsapp;
             delete payload.notification_security_two_factor_sms;
+            delete payload.finance_expense_role_1;
+            delete payload.finance_expense_max_1;
+            delete payload.finance_expense_role_2;
+            delete payload.finance_expense_max_2;
+            delete payload.finance_invoice_role_1;
+            delete payload.finance_invoice_max_1;
+            delete payload.finance_invoice_role_2;
+            delete payload.finance_invoice_max_2;
             delete payload.presence_auto_clock_in;
             delete payload.presence_auto_clock_out;
             delete payload.presence_manual_clock;
@@ -1346,6 +1420,120 @@ watch(activeTab, (value) => {
                         </div>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             {{ $t('settings.company.notifications.two_factor_sms_hint') }}
+                        </p>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-4 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div>
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ $t('settings.company.finance.title') }}
+                            </h3>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('settings.company.finance.description') }}
+                            </p>
+                            <p class="mt-2 text-xs font-medium text-stone-600 dark:text-neutral-300">
+                                {{ $t(`settings.company.finance.mode.${finance_approval_mode}`) }}
+                            </p>
+                        </div>
+
+                        <div class="grid gap-4 lg:grid-cols-2">
+                            <div class="rounded-sm border border-stone-200 bg-white p-4 space-y-3 dark:border-neutral-800 dark:bg-neutral-950">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                        {{ $t('settings.company.finance.documents.expense') }}
+                                    </h4>
+                                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('settings.company.finance.threshold_help') }}
+                                    </p>
+                                </div>
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div>
+                                        <FloatingSelect
+                                            v-model="form.finance_expense_role_1"
+                                            :label="$t('settings.company.finance.levels.base_role')"
+                                            :options="financeRoleOptions"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.expense.roles.0.role_key']" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="form.finance_expense_max_1"
+                                            type="number"
+                                            step="0.01"
+                                            :label="$t('settings.company.finance.levels.base_limit')"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.expense.roles.0.max_amount']" />
+                                    </div>
+                                    <div>
+                                        <FloatingSelect
+                                            v-model="form.finance_expense_role_2"
+                                            :label="$t('settings.company.finance.levels.escalation_role')"
+                                            :options="financeRoleOptions"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.expense.roles.1.role_key']" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="form.finance_expense_max_2"
+                                            type="number"
+                                            step="0.01"
+                                            :label="$t('settings.company.finance.levels.escalation_limit')"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.expense.roles.1.max_amount']" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="rounded-sm border border-stone-200 bg-white p-4 space-y-3 dark:border-neutral-800 dark:bg-neutral-950">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                        {{ $t('settings.company.finance.documents.invoice') }}
+                                    </h4>
+                                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('settings.company.finance.threshold_help') }}
+                                    </p>
+                                </div>
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div>
+                                        <FloatingSelect
+                                            v-model="form.finance_invoice_role_1"
+                                            :label="$t('settings.company.finance.levels.base_role')"
+                                            :options="financeRoleOptions"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.invoice.roles.0.role_key']" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="form.finance_invoice_max_1"
+                                            type="number"
+                                            step="0.01"
+                                            :label="$t('settings.company.finance.levels.base_limit')"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.invoice.roles.0.max_amount']" />
+                                    </div>
+                                    <div>
+                                        <FloatingSelect
+                                            v-model="form.finance_invoice_role_2"
+                                            :label="$t('settings.company.finance.levels.escalation_role')"
+                                            :options="financeRoleOptions"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.invoice.roles.1.role_key']" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="form.finance_invoice_max_2"
+                                            type="number"
+                                            step="0.01"
+                                            :label="$t('settings.company.finance.levels.escalation_limit')"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.invoice.roles.1.max_amount']" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('settings.company.finance.owner_fallback') }}
                         </p>
                     </div>
 
@@ -2105,4 +2293,3 @@ watch(activeTab, (value) => {
         </div>
     </SettingsLayout>
 </template>
-

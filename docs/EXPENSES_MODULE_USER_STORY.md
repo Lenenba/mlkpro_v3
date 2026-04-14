@@ -536,6 +536,15 @@ Le module `Expenses` doit etre mobile-first sur les usages terrain, pas desktop-
 - couts lies a `work`, `sale`, `campaign`, `customer`
 - export CSV
 - base de donnees propre pour la future couche `Accounting`
+- `V1 delivered`:
+  - liens optionnels `customer`, `work`, `sale`, `invoice`, `campaign` sur la depense
+  - validation workspace-safe des liens cote backend
+  - filtres liste sur le contexte lie
+  - export CSV du resultat filtre avec colonnes de contexte et traces acteur
+  - stats enrichies `linked_total`, `top_categories`, `top_suppliers`
+  - contexte lie visible dans la table et la fiche detail
+- `Nice to have after V1`:
+  - remonter les couts lies directement dans les fiches `Work`, `Sale`, `Customer` et `Campaign` pour lire la profitabilite sans quitter ces modules
 
 ### Phase 6 - Plan-based approval engine and invoice alignment
 - introduire un moteur d approbation partage `expenses` / `invoices`

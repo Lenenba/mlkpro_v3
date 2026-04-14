@@ -212,7 +212,13 @@ class TaskBillingService
             return $invoice;
         });
 
-        if ($invoice->status === 'sent') {
+        if (
+            $invoice->status === 'sent'
+            && in_array($invoice->approval_status, [
+                FinanceApprovalService::APPROVAL_STATUS_APPROVED,
+                FinanceApprovalService::APPROVAL_STATUS_PROCESSED,
+            ], true)
+        ) {
             app(WorkBillingService::class)->sendInvoiceAvailableNotification($invoice, [
                 'work_id' => $work->id,
                 'source' => 'task_billing',

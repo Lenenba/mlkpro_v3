@@ -34,6 +34,7 @@ const { t } = useI18n();
 const workflowRoute = {
     submit: 'expense.submit',
     approve: 'expense.approve',
+    reject: 'expense.reject',
     mark_due: 'expense.mark-due',
     mark_paid: 'expense.mark-paid',
     mark_reimbursed: 'expense.mark-reimbursed',
@@ -55,7 +56,7 @@ const actionLabel = computed(() => props.action ? t(`expenses.actions.${props.ac
 const title = computed(() => props.action ? t('expenses.workflow.modal_title', { action: actionLabel.value }) : '');
 const description = computed(() => props.action ? t(`expenses.workflow.descriptions.${props.action}`) : '');
 const confirmClass = computed(() => (
-    props.action === 'cancel'
+    ['cancel', 'reject'].includes(props.action)
         ? 'bg-rose-600 hover:bg-rose-700 focus:bg-rose-700'
         : 'bg-red-600 hover:bg-red-700 focus:bg-red-700'
 ));

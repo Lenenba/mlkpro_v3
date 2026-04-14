@@ -6,12 +6,21 @@
       "draft": "Borradores",
       "overdue": "Vencidos",
       "due_total": "Por pagar",
-      "paid_this_month": "Pagado este mes"
+      "paid_this_month": "Pagado este mes",
+      "linked_total": "Vinculado a operaciones",
+      "top_categories": "Categorias principales",
+      "top_suppliers": "Proveedores principales",
+      "no_breakdown": "Todavia no hay desglose"
     },
     "filters": {
       "search_placeholder": "Buscar gastos, proveedores o referencias",
       "status": "Estado",
       "category": "Categoria",
+      "customer": "Cliente",
+      "work": "Trabajo",
+      "sale": "Venta",
+      "invoice": "Factura",
+      "campaign": "Campana",
       "expense_date_from": "Fecha desde",
       "expense_date_to": "Fecha hasta",
       "quick": {
@@ -42,6 +51,7 @@
       "delete_confirm": "¿Eliminar \"{name}\"?",
       "submit": "Enviar",
       "approve": "Aprobar",
+      "reject": "Rechazar",
       "mark_due": "Marcar por pagar",
       "mark_paid": "Marcar pagado",
       "mark_reimbursed": "Marcar reembolsado",
@@ -50,7 +60,8 @@
       "capture_receipt": "Tomar foto",
       "browse_files": "Elegir archivos",
       "open": "Abrir",
-      "back_to_list": "Volver a la lista"
+      "back_to_list": "Volver a la lista",
+      "export_csv": "Exportar CSV"
     },
     "table": {
       "expense": "Gasto",
@@ -83,18 +94,27 @@
       "reimbursement_help": "Usa esto cuando el gasto deba reembolsarse a un miembro del equipo y no a un proveedor.",
       "recurrence_help": "El siguiente gasto se generara automaticamente desde esta plantilla cuando llegue la fecha de recurrencia.",
       "recurrence_preview": "Siguiente gasto generado el {date}",
+      "linked_context": "Contexto vinculado",
+      "linked_context_help": "Vincula opcionalmente este gasto al cliente, trabajo, venta, factura o campana correspondiente.",
       "description": "Descripcion",
       "notes": "Notas",
       "attachments": "Adjuntos",
       "attachments_help": "Adjunta la factura, el recibo o el justificante. La V1 conserva los archivos listos para revision y contabilidad ligera.",
       "mobile_capture_hint": "En movil, usa la camara para capturar el recibo al instante o adjunta una factura PDF desde tus archivos.",
       "existing_attachments": "Adjuntos existentes",
-      "business_currency": "Moneda del negocio: {currency}. Los gastos se guardan en esta moneda."
+      "business_currency": "Moneda del negocio: {currency}. Los gastos se guardan en esta moneda.",
+      "customer": "Cliente",
+      "work": "Trabajo",
+      "sale": "Venta",
+      "invoice": "Factura",
+      "campaign": "Campana"
     },
     "status": {
       "draft": "Borrador",
       "submitted": "Enviado",
+      "pending_approval": "Pendiente de aprobacion",
       "approved": "Aprobado",
+      "rejected": "Rechazado",
       "due": "Por pagar",
       "paid": "Pagado",
       "reimbursed": "Reembolsado",
@@ -125,6 +145,8 @@
       "next_recurrence": "Proxima recurrencia",
       "generated_count": "Gastos generados",
       "recurrence_source": "Origen de recurrencia",
+      "linked_context": "Contexto vinculado",
+      "no_linked_context": "Todavia no hay contexto vinculado.",
       "workflow_history": "Historial de flujo",
       "workflow_empty": "Todavia no hay acciones de flujo registradas.",
       "status_change": "{from} -> {to}"
@@ -139,6 +161,7 @@
       "descriptions": {
         "submit": "Agrega contexto util antes de enviar el gasto a revision.",
         "approve": "Aprueba el gasto y deja una nota de revision si ayuda.",
+        "reject": "Explica por que este gasto debe volver en correccion en lugar de aprobarse.",
         "mark_due": "Usa el comentario para aclarar prioridad o fecha de pago.",
         "mark_paid": "Registra el contexto del pago y verifica la fecha usada.",
         "mark_reimbursed": "Confirma la fecha del reembolso y agrega una referencia si hace falta.",
@@ -147,6 +170,7 @@
       "comment_placeholders": {
         "submit": "Ej. recibo completo y listo para revision",
         "approve": "Ej. presupuesto validado, categoria confirmada",
+        "reject": "Ej. importe incoherente o justificante incompleto",
         "mark_due": "Ej. incluir en el lote de pagos del viernes",
         "mark_paid": "Ej. pagado por transferencia esta manana",
         "mark_reimbursed": "Ej. reembolso de campo validado por finanzas",
@@ -159,6 +183,7 @@
       "generated_from_recurrence": "Gasto generado desde la recurrencia",
       "submit": "Gasto enviado",
       "approve": "Gasto aprobado",
+      "reject": "Gasto rechazado",
       "mark_due": "Gasto marcado por pagar",
       "mark_paid": "Gasto marcado pagado",
       "mark_reimbursed": "Gasto reembolsado",

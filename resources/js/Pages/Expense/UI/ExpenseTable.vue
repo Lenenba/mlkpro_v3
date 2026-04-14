@@ -44,6 +44,16 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    linkOptions: {
+        type: Object,
+        default: () => ({
+            customers: [],
+            works: [],
+            sales: [],
+            invoices: [],
+            campaigns: [],
+        }),
+    },
     canUseAiIntake: {
         type: Boolean,
         default: false,
@@ -65,6 +75,11 @@ const filterForm = useForm({
     status: props.filters?.status ?? '',
     category_key: props.filters?.category_key ?? '',
     quick_filter: props.filters?.quick_filter ?? 'all',
+    customer_id: props.filters?.customer_id ?? '',
+    work_id: props.filters?.work_id ?? '',
+    sale_id: props.filters?.sale_id ?? '',
+    invoice_id: props.filters?.invoice_id ?? '',
+    campaign_id: props.filters?.campaign_id ?? '',
     expense_date_from: props.filters?.expense_date_from ?? '',
     expense_date_to: props.filters?.expense_date_to ?? '',
     sort: props.filters?.sort ?? 'expense_date',
@@ -88,6 +103,21 @@ const statusOptions = computed(() =>
         value: status,
         label: t(`expenses.status.${status}`),
     }))
+);
+const customerOptions = computed(() =>
+    (props.linkOptions?.customers || []).map((item) => ({ value: item.id, label: item.name }))
+);
+const workOptions = computed(() =>
+    (props.linkOptions?.works || []).map((item) => ({ value: item.id, label: item.name }))
+);
+const saleOptions = computed(() =>
+    (props.linkOptions?.sales || []).map((item) => ({ value: item.id, label: item.name }))
+);
+const invoiceOptions = computed(() =>
+    (props.linkOptions?.invoices || []).map((item) => ({ value: item.id, label: item.name }))
+);
+const campaignOptions = computed(() =>
+    (props.linkOptions?.campaigns || []).map((item) => ({ value: item.id, label: item.name }))
 );
 const quickFilters = computed(() => ([
     { value: 'all', label: t('expenses.filters.quick.all') },
@@ -116,6 +146,11 @@ const filterPayload = () => {
         status: filterForm.status,
         category_key: filterForm.category_key,
         quick_filter: filterForm.quick_filter !== 'all' ? filterForm.quick_filter : null,
+        customer_id: filterForm.customer_id,
+        work_id: filterForm.work_id,
+        sale_id: filterForm.sale_id,
+        invoice_id: filterForm.invoice_id,
+        campaign_id: filterForm.campaign_id,
         expense_date_from: filterForm.expense_date_from,
         expense_date_to: filterForm.expense_date_to,
         sort: filterForm.sort,
@@ -158,6 +193,11 @@ watch(() => [
     filterForm.status,
     filterForm.category_key,
     filterForm.quick_filter,
+    filterForm.customer_id,
+    filterForm.work_id,
+    filterForm.sale_id,
+    filterForm.invoice_id,
+    filterForm.campaign_id,
     filterForm.expense_date_from,
     filterForm.expense_date_to,
     filterForm.sort,
@@ -171,6 +211,11 @@ const clearFilters = () => {
     filterForm.status = '';
     filterForm.category_key = '';
     filterForm.quick_filter = 'all';
+    filterForm.customer_id = '';
+    filterForm.work_id = '';
+    filterForm.sale_id = '';
+    filterForm.invoice_id = '';
+    filterForm.campaign_id = '';
     filterForm.expense_date_from = '';
     filterForm.expense_date_to = '';
     filterForm.sort = 'expense_date';
@@ -220,7 +265,7 @@ const destroyExpense = (expense) => {
 };
 
 const workflowActionClass = (action) => {
-    if (action === 'cancel') {
+    if (['cancel', 'reject'].includes(action)) {
         return 'flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-start text-[13px] text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-neutral-800';
     }
 
@@ -235,6 +280,8 @@ const mobileWorkflowActionClass = (action) => {
     switch (action) {
         case 'approve':
             return `${base} border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-300`;
+        case 'reject':
+            return `${base} border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-300`;
         case 'mark_due':
             return `${base} border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300`;
         case 'mark_paid':
@@ -266,6 +313,70 @@ const categoryLabel = (expense) => {
     return entry?.label_key ? t(entry.label_key) : t('expenses.labels.uncategorized');
 };
 
+const customerName = (customer) => {
+    if (!customer) {
+        return '';
+    }
+
+    return customer.company_name || [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim();
+};
+
+const workLabel = (work) => {
+    if (!work) {
+        return '';
+    }
+
+    return [work.number, work.job_title].filter(Boolean).join(' - ').trim();
+};
+
+const linkedContextBadges = (expense) => {
+    const badges = [];
+
+    const customer = customerName(expense.customer);
+    if (customer) {
+        badges.push({
+            key: 'customer',
+            label: t('expenses.form.customer'),
+            value: customer,
+        });
+    }
+
+    const work = workLabel(expense.work);
+    if (work) {
+        badges.push({
+            key: 'work',
+            label: t('expenses.form.work'),
+            value: work,
+        });
+    }
+
+    if (expense.sale?.number) {
+        badges.push({
+            key: 'sale',
+            label: t('expenses.form.sale'),
+            value: expense.sale.number,
+        });
+    }
+
+    if (expense.invoice?.number) {
+        badges.push({
+            key: 'invoice',
+            label: t('expenses.form.invoice'),
+            value: expense.invoice.number,
+        });
+    }
+
+    if (expense.campaign?.name) {
+        badges.push({
+            key: 'campaign',
+            label: t('expenses.form.campaign'),
+            value: expense.campaign.name,
+        });
+    }
+
+    return badges;
+};
+
 const statusClass = (status) => {
     switch (status) {
         case 'paid':
@@ -273,10 +384,12 @@ const statusClass = (status) => {
             return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
         case 'due':
         case 'submitted':
+        case 'pending_approval':
             return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300';
         case 'approved':
             return 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300';
         case 'review_required':
+        case 'rejected':
         case 'cancelled':
             return 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300';
         default:
@@ -285,6 +398,12 @@ const statusClass = (status) => {
 };
 
 const formatDate = (value) => humanizeDate(value);
+const exportExpenses = () => {
+    const query = new URLSearchParams(filterPayload()).toString();
+    window.location.href = query
+        ? `${route('expense.export')}?${query}`
+        : route('expense.export');
+};
 </script>
 
 <template>
@@ -336,10 +455,52 @@ const formatDate = (value) => humanizeDate(value);
                 />
                 <DatePicker v-model="filterForm.expense_date_from" :label="$t('expenses.filters.expense_date_from')" />
                 <DatePicker v-model="filterForm.expense_date_to" :label="$t('expenses.filters.expense_date_to')" />
+                <FloatingSelect
+                    v-model="filterForm.customer_id"
+                    :label="$t('expenses.filters.customer')"
+                    :options="customerOptions"
+                    :placeholder="$t('expenses.filters.customer')"
+                    dense
+                />
+                <FloatingSelect
+                    v-model="filterForm.work_id"
+                    :label="$t('expenses.filters.work')"
+                    :options="workOptions"
+                    :placeholder="$t('expenses.filters.work')"
+                    dense
+                />
+                <FloatingSelect
+                    v-model="filterForm.sale_id"
+                    :label="$t('expenses.filters.sale')"
+                    :options="saleOptions"
+                    :placeholder="$t('expenses.filters.sale')"
+                    dense
+                />
+                <FloatingSelect
+                    v-model="filterForm.invoice_id"
+                    :label="$t('expenses.filters.invoice')"
+                    :options="invoiceOptions"
+                    :placeholder="$t('expenses.filters.invoice')"
+                    dense
+                />
+                <FloatingSelect
+                    v-model="filterForm.campaign_id"
+                    :label="$t('expenses.filters.campaign')"
+                    :options="campaignOptions"
+                    :placeholder="$t('expenses.filters.campaign')"
+                    dense
+                />
             </template>
 
             <template #actions>
                 <div class="flex flex-wrap items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                        @click="exportExpenses"
+                    >
+                        {{ $t('expenses.actions.export_csv') }}
+                    </button>
                     <button
                         v-if="canUseAiIntake"
                         type="button"
@@ -491,6 +652,15 @@ const formatDate = (value) => humanizeDate(value);
                                             {{ $t('expenses.labels.reimbursement_pending') }}
                                         </span>
                                     </div>
+                                    <div v-if="linkedContextBadges(expense).length" class="mt-2 flex flex-wrap gap-1.5">
+                                        <span
+                                            v-for="badge in linkedContextBadges(expense)"
+                                            :key="`${expense.id}-${badge.key}`"
+                                            class="inline-flex rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600 dark:bg-neutral-800 dark:text-neutral-300"
+                                        >
+                                            {{ badge.label }}: {{ badge.value }}
+                                        </span>
+                                    </div>
                                     <div v-if="expense.available_actions?.length" class="mt-2 flex flex-wrap gap-1.5 md:hidden">
                                         <button
                                             v-for="action in expense.available_actions"
@@ -594,6 +764,7 @@ const formatDate = (value) => humanizeDate(value);
                 :statuses="statuses"
                 :recurrence-frequencies="recurrenceFrequencies"
                 :team-members="teamMembers"
+                :link-options="linkOptions"
                 :tenant-currency-code="tenantCurrencyCode"
                 @submitted="editingExpense = null"
             />

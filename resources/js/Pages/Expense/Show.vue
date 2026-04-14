@@ -33,6 +33,16 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    linkOptions: {
+        type: Object,
+        default: () => ({
+            customers: [],
+            works: [],
+            sales: [],
+            invoices: [],
+            campaigns: [],
+        }),
+    },
     tenantCurrencyCode: {
         type: String,
         default: 'CAD',
@@ -98,6 +108,72 @@ const duplicateDetection = computed(() => {
     const value = aiIntake.value?.duplicate_detection;
     return value && typeof value === 'object' ? value : null;
 });
+const customerName = (customer) => {
+    if (!customer) {
+        return '';
+    }
+
+    return customer.company_name || [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim();
+};
+const workLabel = (work) => {
+    if (!work) {
+        return '';
+    }
+
+    return [work.number, work.job_title].filter(Boolean).join(' - ').trim();
+};
+const linkedContextItems = computed(() => {
+    const items = [];
+
+    const customer = customerName(props.expense?.customer);
+    if (customer && props.expense?.customer?.id) {
+        items.push({
+            key: 'customer',
+            label: t('expenses.form.customer'),
+            value: customer,
+            href: route('customer.show', props.expense.customer.id),
+        });
+    }
+
+    const work = workLabel(props.expense?.work);
+    if (work && props.expense?.work?.id) {
+        items.push({
+            key: 'work',
+            label: t('expenses.form.work'),
+            value: work,
+            href: route('work.show', props.expense.work.id),
+        });
+    }
+
+    if (props.expense?.sale?.number && props.expense?.sale?.id) {
+        items.push({
+            key: 'sale',
+            label: t('expenses.form.sale'),
+            value: props.expense.sale.number,
+            href: route('sales.show', props.expense.sale.id),
+        });
+    }
+
+    if (props.expense?.invoice?.number && props.expense?.invoice?.id) {
+        items.push({
+            key: 'invoice',
+            label: t('expenses.form.invoice'),
+            value: props.expense.invoice.number,
+            href: route('invoice.show', props.expense.invoice.id),
+        });
+    }
+
+    if (props.expense?.campaign?.name && props.expense?.campaign?.id) {
+        items.push({
+            key: 'campaign',
+            label: t('expenses.form.campaign'),
+            value: props.expense.campaign.name,
+            href: route('campaigns.show', props.expense.campaign.id),
+        });
+    }
+
+    return items;
+});
 
 const statusClass = (status) => {
     switch (status) {
@@ -106,10 +182,12 @@ const statusClass = (status) => {
             return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
         case 'due':
         case 'submitted':
+        case 'pending_approval':
             return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300';
         case 'approved':
             return 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300';
         case 'review_required':
+        case 'rejected':
         case 'cancelled':
             return 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300';
         default:
@@ -128,6 +206,8 @@ const workflowActionClass = (action) => {
     switch (action) {
         case 'approve':
             return `${base} border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-950/60`;
+        case 'reject':
+            return `${base} border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-950/60`;
         case 'mark_due':
             return `${base} border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-950/60`;
         case 'mark_paid':
@@ -419,6 +499,33 @@ const openWorkflowAction = (action) => {
 
                     <div class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                            {{ $t('expenses.detail.linked_context') }}
+                        </h2>
+
+                        <dl v-if="linkedContextItems.length" class="space-y-3 text-sm">
+                            <div
+                                v-for="item in linkedContextItems"
+                                :key="item.key"
+                                class="flex items-start justify-between gap-3"
+                            >
+                                <dt class="text-stone-500 dark:text-neutral-500">{{ item.label }}</dt>
+                                <dd class="text-right text-stone-800 dark:text-neutral-200">
+                                    <Link
+                                        :href="item.href"
+                                        class="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                    >
+                                        {{ item.value }}
+                                    </Link>
+                                </dd>
+                            </div>
+                        </dl>
+                        <p v-else class="text-sm text-stone-500 dark:text-neutral-500">
+                            {{ $t('expenses.detail.no_linked_context') }}
+                        </p>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                             {{ $t('expenses.detail.attachments') }}
                         </h2>
 
@@ -648,6 +755,7 @@ const openWorkflowAction = (action) => {
                 :statuses="statuses"
                 :recurrence-frequencies="recurrenceFrequencies"
                 :team-members="teamMembers"
+                :link-options="linkOptions"
                 :tenant-currency-code="expense.currency_code || tenantCurrencyCode"
             />
         </Modal>

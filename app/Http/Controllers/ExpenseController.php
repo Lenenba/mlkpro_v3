@@ -2,13 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Enums\CurrencyCode;
 use App\Http\Requests\Expenses\ExpenseWriteRequest;
+use App\Models\Campaign;
+use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\ExpenseAttachment;
+use App\Models\Invoice;
+use App\Models\Sale;
 use App\Models\TeamMember;
+use App\Models\Work;
 use App\Services\ExpenseAiDraftService;
 use App\Services\ExpenseRecurringService;
+use App\Services\FinanceApprovalService;
 use App\Models\User;
 use App\Utils\FileHandler;
 use Illuminate\Http\Request;
@@ -32,6 +39,11 @@ class ExpenseController extends Controller
             'category_key',
             'quick_filter',
             'supplier_name',
+            'customer_id',
+            'work_id',
+            'sale_id',
+            'invoice_id',
+            'campaign_id',
             'expense_date_from',
             'expense_date_to',
             'created_from',
@@ -50,14 +62,21 @@ class ExpenseController extends Controller
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
 
         $expenses = (clone $filteredQuery)
-            ->with(['creator:id,name'])
+            ->with([
+                'creator:id,name',
+                'customer:id,first_name,last_name,company_name',
+                'work:id,job_title,number',
+                'sale:id,number',
+                'invoice:id,number',
+                'campaign:id,name',
+            ])
             ->withCount('attachments')
             ->orderBy($sort, $direction)
             ->paginate((int) $filters['per_page'])
             ->withQueryString();
         $expenses->setCollection(
-            $expenses->getCollection()->map(function (Expense $expense) {
-                return $this->presentExpenseSummary($expense);
+            $expenses->getCollection()->map(function (Expense $expense) use ($user) {
+                return $this->presentExpenseSummary($expense, $user);
             })
         );
 
@@ -76,6 +95,17 @@ class ExpenseController extends Controller
                 ->whereIn('status', [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED])
                 ->whereBetween('paid_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
                 ->sum('total') ?? 0), 2),
+            'linked_total' => round((float) ((clone $baseQuery)
+                ->where(function ($query) {
+                    $query->whereNotNull('customer_id')
+                        ->orWhereNotNull('work_id')
+                        ->orWhereNotNull('sale_id')
+                        ->orWhereNotNull('invoice_id')
+                        ->orWhereNotNull('campaign_id');
+                })
+                ->sum('total') ?? 0), 2),
+            'top_categories' => $this->topCategoryStats(clone $baseQuery),
+            'top_suppliers' => $this->topSupplierStats(clone $baseQuery),
         ];
 
         $owner = $user && (int) $user->id === $accountId
@@ -92,6 +122,7 @@ class ExpenseController extends Controller
             'statuses' => Expense::STATUSES,
             'recurrenceFrequencies' => Expense::RECURRENCE_FREQUENCIES,
             'teamMembers' => $this->teamMemberOptions($user, $accountId),
+            'linkOptions' => $this->expenseLinkOptions($user, $accountId),
             'tenantCurrencyCode' => $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value,
             'canUseAiIntake' => ($user?->can('create', Expense::class) ?? false)
                 && ($user?->hasCompanyFeature('assistant') ?? false),
@@ -108,10 +139,15 @@ class ExpenseController extends Controller
             'payer:id,name',
             'reimburser:id,name',
             'teamMember.user:id,name',
+            'customer:id,first_name,last_name,company_name',
+            'work:id,job_title,number',
+            'sale:id,number',
+            'invoice:id,number',
+            'campaign:id,name',
             'recurrenceSource:id,title',
             'attachments.user:id,name',
         ])->loadCount('generatedRecurrences');
-        $expense = $this->presentExpenseDetail($expense);
+        $expense = $this->presentExpenseDetail($expense, $request->user());
 
         return $this->inertiaOrJson('Expense/Show', [
             'expense' => $expense,
@@ -120,6 +156,7 @@ class ExpenseController extends Controller
             'statuses' => Expense::STATUSES,
             'recurrenceFrequencies' => Expense::RECURRENCE_FREQUENCIES,
             'teamMembers' => $this->teamMemberOptions($request->user(), (int) $expense->user_id),
+            'linkOptions' => $this->expenseLinkOptions($request->user(), (int) $expense->user_id),
             'tenantCurrencyCode' => strtoupper((string) ($expense->currency_code ?: CurrencyCode::default()->value)),
             'canEdit' => $request->user()?->can('update', $expense) ?? false,
         ]);
@@ -138,14 +175,34 @@ class ExpenseController extends Controller
             $accountId,
             (int) $user->id,
             null,
-            $recurringService
+            $recurringService,
+            $user
         ));
 
         $this->storeAttachments($request, $expense, (int) $user->id);
+        $this->recordExpenseAuditEvent($user, $expense, 'created', [
+            'status' => $expense->status,
+            'approval_policy_snapshot' => data_get($expense->meta, 'approval.policy_snapshot'),
+        ], 'Expense created');
+        if (data_get($expense->meta, 'approval.policy_snapshot.auto_approved')) {
+            $this->recordExpenseAuditEvent($user, $expense, 'auto_approved', [
+                'status' => $expense->status,
+                'approval_mode' => data_get($expense->meta, 'approval.policy_snapshot.approval_mode'),
+            ], 'Expense auto-approved from plan-based workflow');
+        }
 
         $payload = [
             'message' => 'Expense created successfully.',
-            'expense' => $expense->fresh(['creator:id,name', 'teamMember.user:id,name', 'attachments']),
+            'expense' => $this->presentExpenseDetail($expense->fresh([
+                'creator:id,name',
+                'teamMember.user:id,name',
+                'customer:id,first_name,last_name,company_name',
+                'work:id,job_title,number',
+                'sale:id,number',
+                'invoice:id,number',
+                'campaign:id,name',
+                'attachments',
+            ]), $user),
         ];
 
         if ($this->shouldReturnJson($request)) {
@@ -167,14 +224,30 @@ class ExpenseController extends Controller
             (int) $expense->user_id,
             (int) $user->id,
             $expense,
-            $recurringService
+            $recurringService,
+            $user
         ))->save();
 
         $this->storeAttachments($request, $expense, (int) $user->id);
+        $this->recordExpenseAuditEvent($user, $expense, 'updated', [
+            'status' => $expense->status,
+        ], 'Expense updated');
 
         $payload = [
             'message' => 'Expense updated successfully.',
-            'expense' => $expense->fresh(['creator:id,name', 'approver:id,name', 'payer:id,name', 'reimburser:id,name', 'teamMember.user:id,name', 'attachments']),
+            'expense' => $this->presentExpenseDetail($expense->fresh([
+                'creator:id,name',
+                'approver:id,name',
+                'payer:id,name',
+                'reimburser:id,name',
+                'teamMember.user:id,name',
+                'customer:id,first_name,last_name,company_name',
+                'work:id,job_title,number',
+                'sale:id,number',
+                'invoice:id,number',
+                'campaign:id,name',
+                'attachments',
+            ]), $user),
         ];
 
         if ($this->shouldReturnJson($request)) {
@@ -205,7 +278,7 @@ class ExpenseController extends Controller
         $draft = $draftService->createFromDocument($user, $document, [
             'note' => $validated['note'] ?? null,
         ]);
-        $expense = $this->presentExpenseDetail($draft['expense']);
+        $expense = $this->presentExpenseDetail($draft['expense'], $user);
         $message = (string) ($draft['message'] ?? 'AI draft created successfully.');
 
         if ($this->shouldReturnJson($request)) {
@@ -220,15 +293,162 @@ class ExpenseController extends Controller
             ->with('success', $message);
     }
 
+    public function export(Request $request)
+    {
+        $this->authorize('viewAny', Expense::class);
+
+        $user = $request->user();
+        $accountId = (int) ($user?->accountOwnerId() ?? 0);
+        $filters = $request->only([
+            'search',
+            'status',
+            'category_key',
+            'quick_filter',
+            'supplier_name',
+            'customer_id',
+            'work_id',
+            'sale_id',
+            'invoice_id',
+            'campaign_id',
+            'expense_date_from',
+            'expense_date_to',
+            'created_from',
+            'created_to',
+            'sort',
+            'direction',
+        ]);
+
+        $query = $this->applyFilters(Expense::query()->byAccount($accountId), $filters)
+            ->with([
+                'creator:id,name',
+                'approver:id,name',
+                'payer:id,name',
+                'reimburser:id,name',
+                'customer:id,first_name,last_name,company_name',
+                'work:id,job_title,number',
+                'sale:id,number',
+                'invoice:id,number',
+                'campaign:id,name',
+                'attachments:id,expense_id',
+            ])
+            ->withCount('attachments');
+
+        $filename = 'expenses-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($query): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                'title',
+                'status',
+                'reimbursement_status',
+                'category_key',
+                'supplier_name',
+                'reference_number',
+                'currency_code',
+                'subtotal',
+                'tax_amount',
+                'total',
+                'expense_date',
+                'due_date',
+                'paid_date',
+                'payment_method',
+                'team_member',
+                'customer',
+                'work',
+                'sale',
+                'invoice',
+                'campaign',
+                'is_recurring',
+                'recurrence_frequency',
+                'recurrence_next_date',
+                'created_by',
+                'approved_by',
+                'paid_by',
+                'reimbursed_by',
+                'attachments_count',
+                'attachment_ids',
+                'created_at',
+            ]);
+
+            $query->orderByDesc('expense_date')
+                ->chunk(200, function ($expenses) use ($handle): void {
+                    foreach ($expenses as $expense) {
+                        fputcsv($handle, [
+                            $expense->title,
+                            $expense->status,
+                            $expense->reimbursement_status,
+                            $expense->category_key,
+                            $expense->supplier_name,
+                            $expense->reference_number,
+                            strtoupper((string) $expense->currency_code),
+                            $expense->subtotal,
+                            $expense->tax_amount,
+                            $expense->total,
+                            optional($expense->expense_date)->toDateString(),
+                            optional($expense->due_date)->toDateString(),
+                            optional($expense->paid_date)->toDateString(),
+                            $expense->payment_method,
+                            $expense->teamMember?->user?->name,
+                            $this->customerDisplayName($expense->customer),
+                            $expense->work?->number ?: $expense->work?->job_title,
+                            $expense->sale?->number,
+                            $expense->invoice?->number,
+                            $expense->campaign?->name,
+                            $expense->is_recurring ? '1' : '0',
+                            $expense->recurrence_frequency,
+                            optional($expense->recurrence_next_date)->toDateString(),
+                            $expense->creator?->name,
+                            $expense->approver?->name,
+                            $expense->payer?->name,
+                            $expense->reimburser?->name,
+                            $expense->attachments_count,
+                            $expense->attachments->pluck('id')->implode('|'),
+                            optional($expense->created_at)->toDateTimeString(),
+                        ]);
+                    }
+                });
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
     public function submit(Request $request, Expense $expense)
     {
+        $this->authorize('transition', $expense);
+
+        $validated = $request->validate([
+            'comment' => 'nullable|string|max:1000',
+        ]);
+
+        if (! in_array($expense->status, [Expense::STATUS_DRAFT, Expense::STATUS_REVIEW_REQUIRED, Expense::STATUS_REJECTED], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'This expense cannot move to the requested workflow state.',
+            ]);
+        }
+
+        $authorization = app(FinanceApprovalService::class)->authorizeExpenseAction($request->user(), $expense, 'submit');
+        if (! ($authorization['allowed'] ?? false)) {
+            throw ValidationException::withMessages([
+                'status' => [$authorization['message'] ?? 'You cannot submit this expense.'],
+            ]);
+        }
+
         return $this->transitionExpense(
             $request,
             $expense,
-            Expense::STATUS_SUBMITTED,
-            [Expense::STATUS_DRAFT, Expense::STATUS_REVIEW_REQUIRED],
+            (string) $authorization['status'],
+            [Expense::STATUS_DRAFT, Expense::STATUS_REVIEW_REQUIRED, Expense::STATUS_REJECTED],
             'submit',
-            'Expense submitted successfully.'
+            'Expense submitted successfully.',
+            [
+                'current_approver_role_key' => $authorization['current_approver_role_key'] ?? null,
+                'current_approval_level' => $authorization['current_approval_level'] ?? null,
+                'approval_policy_snapshot' => $authorization['approval_policy_snapshot'] ?? null,
+                'owner_override' => $authorization['owner_override'] ?? false,
+                'comment' => $validated['comment'] ?? null,
+            ]
         );
     }
 
@@ -238,9 +458,29 @@ class ExpenseController extends Controller
             $request,
             $expense,
             Expense::STATUS_APPROVED,
-            [Expense::STATUS_SUBMITTED],
+            [Expense::STATUS_SUBMITTED, Expense::STATUS_PENDING_APPROVAL],
             'approve',
-            'Expense approved successfully.'
+            'Expense approved successfully.',
+            [
+                'finance_action' => 'approve',
+                'clear_approver' => true,
+            ]
+        );
+    }
+
+    public function reject(Request $request, Expense $expense)
+    {
+        return $this->transitionExpense(
+            $request,
+            $expense,
+            Expense::STATUS_REJECTED,
+            [Expense::STATUS_SUBMITTED, Expense::STATUS_PENDING_APPROVAL],
+            'reject',
+            'Expense rejected successfully.',
+            [
+                'finance_action' => 'reject',
+                'clear_approver' => true,
+            ]
         );
     }
 
@@ -252,7 +492,10 @@ class ExpenseController extends Controller
             Expense::STATUS_DUE,
             [Expense::STATUS_APPROVED],
             'mark_due',
-            'Expense marked as due successfully.'
+            'Expense marked as due successfully.',
+            [
+                'finance_action' => 'mark_due',
+            ]
         );
     }
 
@@ -262,15 +505,25 @@ class ExpenseController extends Controller
             $request,
             $expense,
             Expense::STATUS_PAID,
-            [Expense::STATUS_APPROVED, Expense::STATUS_DUE, Expense::STATUS_SUBMITTED],
+            [Expense::STATUS_APPROVED, Expense::STATUS_DUE],
             'mark_paid',
-            'Expense marked as paid successfully.'
+            'Expense marked as paid successfully.',
+            [
+                'finance_action' => 'mark_paid',
+            ]
         );
     }
 
     public function markReimbursed(Request $request, Expense $expense)
     {
-        $this->authorize('update', $expense);
+        $this->authorize('transition', $expense);
+
+        $authorization = app(FinanceApprovalService::class)->authorizeExpenseAction($request->user(), $expense, 'mark_reimbursed');
+        if (! ($authorization['allowed'] ?? false)) {
+            throw ValidationException::withMessages([
+                'status' => [$authorization['message'] ?? 'You cannot reimburse this expense.'],
+            ]);
+        }
 
         $validated = $request->validate([
             'comment' => 'nullable|string|max:1000',
@@ -297,6 +550,7 @@ class ExpenseController extends Controller
         }
 
         $actorId = (int) $request->user()->id;
+        $fromStatus = (string) $expense->status;
         $effectivePaidDate = $validated['paid_date'] ?? $expense->paid_date?->toDateString() ?? now()->toDateString();
         $nextStatus = in_array($expense->status, [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED], true)
             ? $expense->status
@@ -310,10 +564,12 @@ class ExpenseController extends Controller
             'reimbursed_at' => Carbon::parse($effectivePaidDate)->endOfDay(),
             'reimbursed_by_user_id' => $actorId,
             'reimbursement_reference' => $validated['reimbursement_reference'] ?? $expense->reimbursement_reference,
+            'current_approver_role_key' => null,
+            'current_approval_level' => null,
             'meta' => $this->appendWorkflowHistory(
                 is_array($expense->meta) ? $expense->meta : [],
                 'mark_reimbursed',
-                $expense->status,
+                $fromStatus,
                 $nextStatus,
                 $actorId,
                 $validated['comment'] ?? null,
@@ -331,10 +587,21 @@ class ExpenseController extends Controller
             'payer:id,name',
             'reimburser:id,name',
             'teamMember.user:id,name',
+            'customer:id,first_name,last_name,company_name',
+            'work:id,job_title,number',
+            'sale:id,number',
+            'invoice:id,number',
+            'campaign:id,name',
             'recurrenceSource:id,title',
             'attachments.user:id,name',
         ])->loadCount('generatedRecurrences');
-        $expense = $this->presentExpenseDetail($expense);
+        $expense = $this->presentExpenseDetail($expense, $request->user());
+        $this->recordExpenseAuditEvent($request->user(), $expense, 'mark_reimbursed', [
+            'from' => $fromStatus,
+            'to' => $expense->status,
+            'reimbursement_status' => $expense->reimbursement_status,
+            'comment' => $validated['comment'] ?? null,
+        ], 'Expense reimbursed');
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -352,9 +619,13 @@ class ExpenseController extends Controller
             $request,
             $expense,
             Expense::STATUS_CANCELLED,
-            [Expense::STATUS_DRAFT, Expense::STATUS_SUBMITTED, Expense::STATUS_APPROVED, Expense::STATUS_DUE],
+            [Expense::STATUS_DRAFT, Expense::STATUS_REVIEW_REQUIRED, Expense::STATUS_SUBMITTED, Expense::STATUS_PENDING_APPROVAL, Expense::STATUS_APPROVED, Expense::STATUS_DUE],
             'cancel',
-            'Expense cancelled successfully.'
+            'Expense cancelled successfully.',
+            [
+                'finance_action' => 'cancel',
+                'clear_approver' => true,
+            ]
         );
     }
 
@@ -386,15 +657,26 @@ class ExpenseController extends Controller
                 $builder->where(function ($inner) use ($search) {
                     $inner->where('title', 'like', '%'.$search.'%')
                         ->orWhere('supplier_name', 'like', '%'.$search.'%')
-                        ->orWhere('reference_number', 'like', '%'.$search.'%');
+                        ->orWhere('reference_number', 'like', '%'.$search.'%')
+                        ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                            $customerQuery->where('company_name', 'like', '%'.$search.'%')
+                                ->orWhere('first_name', 'like', '%'.$search.'%')
+                                ->orWhere('last_name', 'like', '%'.$search.'%');
+                        })
+                        ->orWhereHas('campaign', fn ($campaignQuery) => $campaignQuery->where('name', 'like', '%'.$search.'%'));
                 });
             })
             ->when($filters['status'] ?? null, fn ($builder, $status) => $builder->where('status', $status))
             ->when($filters['category_key'] ?? null, fn ($builder, $category) => $builder->where('category_key', $category))
+            ->when($filters['customer_id'] ?? null, fn ($builder, $customerId) => $builder->where('customer_id', $customerId))
+            ->when($filters['work_id'] ?? null, fn ($builder, $workId) => $builder->where('work_id', $workId))
+            ->when($filters['sale_id'] ?? null, fn ($builder, $saleId) => $builder->where('sale_id', $saleId))
+            ->when($filters['invoice_id'] ?? null, fn ($builder, $invoiceId) => $builder->where('invoice_id', $invoiceId))
+            ->when($filters['campaign_id'] ?? null, fn ($builder, $campaignId) => $builder->where('campaign_id', $campaignId))
             ->when($filters['quick_filter'] ?? null, function ($builder, $quickFilter) {
                 switch ($quickFilter) {
                     case 'submitted':
-                        $builder->where('status', Expense::STATUS_SUBMITTED);
+                        $builder->whereIn('status', [Expense::STATUS_SUBMITTED, Expense::STATUS_PENDING_APPROVAL]);
                         break;
                     case 'due':
                         $builder->where('status', Expense::STATUS_DUE);
@@ -434,7 +716,8 @@ class ExpenseController extends Controller
         int $accountId,
         int $actorId,
         ?Expense $existing = null,
-        ?ExpenseRecurringService $recurringService = null
+        ?ExpenseRecurringService $recurringService = null,
+        ?User $actor = null
     ): array
     {
         $total = round((float) ($validated['total'] ?? 0), 2);
@@ -448,6 +731,8 @@ class ExpenseController extends Controller
         $approvedAt = $existing?->approved_at;
         $approvedByUserId = $existing?->approved_by_user_id;
         $paidByUserId = $existing?->paid_by_user_id;
+        $currentApproverRoleKey = $existing?->current_approver_role_key;
+        $currentApprovalLevel = $existing?->current_approval_level;
         $reimbursable = (bool) ($validated['reimbursable'] ?? false);
         $teamMemberId = $reimbursable ? ($validated['team_member_id'] ?? null) : null;
         $isRecurring = (bool) ($validated['is_recurring'] ?? false);
@@ -472,18 +757,36 @@ class ExpenseController extends Controller
         $reimbursedAt = $reimbursable ? $existing?->reimbursed_at : null;
         $reimbursedByUserId = $reimbursable ? $existing?->reimbursed_by_user_id : null;
         $reimbursementReference = $reimbursable ? $existing?->reimbursement_reference : null;
+        $existingMeta = is_array($existing?->meta) ? $existing->meta : [];
+        $approvalPolicySnapshot = data_get($existingMeta, 'approval.policy_snapshot');
+
+        if (! $existing && $actor) {
+            $creation = app(FinanceApprovalService::class)->resolveExpenseCreation(
+                $actor,
+                $total,
+                $status,
+                $status === Expense::STATUS_REVIEW_REQUIRED
+            );
+            $status = (string) ($creation['status'] ?? $status);
+            $currentApproverRoleKey = $creation['current_approver_role_key'] ?? null;
+            $currentApprovalLevel = $creation['current_approval_level'] ?? null;
+            $approvalPolicySnapshot = $creation['approval_policy_snapshot'] ?? $approvalPolicySnapshot;
+        }
+
+        if ($existing && $actor && ! $actor->isAccountOwner()) {
+            $status = $existing->status;
+        }
 
         if (in_array($status, [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED], true) && ! $paidDate) {
             $paidDate = now()->toDateString();
             $paidByUserId = $actorId;
         }
 
-        if ($status === Expense::STATUS_APPROVED && ! $approvedAt) {
+        if (in_array($status, [Expense::STATUS_APPROVED, Expense::STATUS_DUE, Expense::STATUS_PAID, Expense::STATUS_REIMBURSED], true) && ! $approvedAt) {
             $approvedAt = now();
             $approvedByUserId = $actorId;
         }
 
-        $existingMeta = is_array($existing?->meta) ? $existing->meta : [];
         $meta = $this->appendWorkflowHistory(
             $existingMeta,
             $existing ? 'manual_update' : 'created',
@@ -491,14 +794,24 @@ class ExpenseController extends Controller
             $status,
             $actorId
         );
+        if ($approvalPolicySnapshot) {
+            data_set($meta, 'approval.policy_snapshot', $approvalPolicySnapshot);
+        }
 
         return [
             'user_id' => $accountId,
             'created_by_user_id' => $existing?->created_by_user_id ?: $actorId,
             'approved_by_user_id' => $approvedByUserId,
+            'current_approver_role_key' => $currentApproverRoleKey,
+            'current_approval_level' => $currentApprovalLevel,
             'paid_by_user_id' => $paidByUserId,
             'reimbursed_by_user_id' => $reimbursedByUserId,
             'team_member_id' => $teamMemberId,
+            'customer_id' => $validated['customer_id'] ?? null,
+            'work_id' => $validated['work_id'] ?? null,
+            'sale_id' => $validated['sale_id'] ?? null,
+            'invoice_id' => $validated['invoice_id'] ?? null,
+            'campaign_id' => $validated['campaign_id'] ?? null,
             'recurrence_source_expense_id' => $existing?->recurrence_source_expense_id,
             'title' => trim((string) ($validated['title'] ?? '')),
             'category_key' => $validated['category_key'] ?? null,
@@ -537,9 +850,10 @@ class ExpenseController extends Controller
         string $targetStatus,
         array $allowedFrom,
         string $action,
-        string $message
+        string $message,
+        array $options = []
     ) {
-        $this->authorize('update', $expense);
+        $this->authorize('transition', $expense);
 
         $validated = $request->validate([
             'comment' => 'nullable|string|max:1000',
@@ -552,6 +866,22 @@ class ExpenseController extends Controller
             ]);
         }
 
+        if (! empty($options['finance_action'])) {
+            $authorization = app(FinanceApprovalService::class)->authorizeExpenseAction(
+                $request->user(),
+                $expense,
+                (string) $options['finance_action']
+            );
+
+            if (! ($authorization['allowed'] ?? false)) {
+                throw ValidationException::withMessages([
+                    'status' => [$authorization['message'] ?? 'You cannot move this expense to the requested workflow state.'],
+                ]);
+            }
+        } else {
+            $authorization = [];
+        }
+
         if (in_array($targetStatus, [Expense::STATUS_APPROVED, Expense::STATUS_DUE, Expense::STATUS_PAID], true)
             && blank($expense->category_key)) {
             throw ValidationException::withMessages([
@@ -560,17 +890,42 @@ class ExpenseController extends Controller
         }
 
         $actorId = (int) $request->user()->id;
+        $fromStatus = (string) $expense->status;
         $updates = [
             'status' => $targetStatus,
             'meta' => $this->appendWorkflowHistory(
                 is_array($expense->meta) ? $expense->meta : [],
                 $action,
-                $expense->status,
+                $fromStatus,
                 $targetStatus,
                 $actorId,
-                $validated['comment'] ?? null
+                $options['comment'] ?? ($validated['comment'] ?? null),
+                array_filter([
+                    'current_approver_role_key' => $options['current_approver_role_key'] ?? null,
+                    'current_approval_level' => $options['current_approval_level'] ?? null,
+                    'owner_override' => $options['owner_override'] ?? ($authorization['owner_override'] ?? null),
+                ], fn ($value) => $value !== null && $value !== '')
             ),
         ];
+
+        if (array_key_exists('current_approver_role_key', $options)) {
+            $updates['current_approver_role_key'] = $options['current_approver_role_key'];
+        }
+
+        if (array_key_exists('current_approval_level', $options)) {
+            $updates['current_approval_level'] = $options['current_approval_level'];
+        }
+
+        if (! empty($options['clear_approver'])) {
+            $updates['current_approver_role_key'] = null;
+            $updates['current_approval_level'] = null;
+        }
+
+        if (! empty($options['approval_policy_snapshot'])) {
+            $meta = $updates['meta'];
+            data_set($meta, 'approval.policy_snapshot', $options['approval_policy_snapshot']);
+            $updates['meta'] = $meta;
+        }
 
         if (in_array($targetStatus, [Expense::STATUS_APPROVED, Expense::STATUS_DUE, Expense::STATUS_PAID], true)
             && ! $expense->approved_at) {
@@ -590,10 +945,21 @@ class ExpenseController extends Controller
             'payer:id,name',
             'reimburser:id,name',
             'teamMember.user:id,name',
+            'customer:id,first_name,last_name,company_name',
+            'work:id,job_title,number',
+            'sale:id,number',
+            'invoice:id,number',
+            'campaign:id,name',
             'recurrenceSource:id,title',
             'attachments.user:id,name',
         ])->loadCount('generatedRecurrences');
-        $expense = $this->presentExpenseDetail($expense);
+        $expense = $this->presentExpenseDetail($expense, $request->user());
+        $this->recordExpenseAuditEvent($request->user(), $expense, $action, [
+            'from' => $fromStatus,
+            'to' => $expense->status,
+            'comment' => $validated['comment'] ?? null,
+            'owner_override' => $authorization['owner_override'] ?? false,
+        ], ucfirst(str_replace('_', ' ', $action)).' expense');
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -605,17 +971,17 @@ class ExpenseController extends Controller
         return redirect()->back()->with('success', $message);
     }
 
-    private function presentExpenseSummary(Expense $expense): Expense
+    private function presentExpenseSummary(Expense $expense, ?User $actor = null): Expense
     {
-        $expense->setAttribute('available_actions', $this->availableWorkflowActions($expense));
+        $expense->setAttribute('available_actions', $this->availableWorkflowActions($expense, $actor));
         $expense->setAttribute('ai_review_required', (bool) data_get($expense->meta, 'ai_intake.review_required', false));
 
         return $expense;
     }
 
-    private function presentExpenseDetail(Expense $expense): Expense
+    private function presentExpenseDetail(Expense $expense, ?User $actor = null): Expense
     {
-        $expense->setAttribute('available_actions', $this->availableWorkflowActions($expense));
+        $expense->setAttribute('available_actions', $this->availableWorkflowActions($expense, $actor));
         $expense->setAttribute('workflow_history', $this->workflowHistory($expense));
         $expense->setAttribute('ai_intake', $this->aiIntake($expense));
 
@@ -625,18 +991,28 @@ class ExpenseController extends Controller
     /**
      * @return array<int, string>
      */
-    private function availableWorkflowActions(Expense $expense): array
+    private function availableWorkflowActions(Expense $expense, ?User $actor = null): array
     {
         $hasCategory = filled($expense->category_key);
 
-        return match ($expense->status) {
-            Expense::STATUS_DRAFT, Expense::STATUS_REVIEW_REQUIRED => ['submit', 'cancel'],
-            Expense::STATUS_SUBMITTED => $hasCategory ? ['approve', 'mark_paid', 'cancel'] : ['cancel'],
+        $actions = match ($expense->status) {
+            Expense::STATUS_DRAFT, Expense::STATUS_REVIEW_REQUIRED, Expense::STATUS_REJECTED => ['submit', 'cancel'],
+            Expense::STATUS_SUBMITTED, Expense::STATUS_PENDING_APPROVAL => $hasCategory ? ['approve', 'reject', 'cancel'] : ['cancel'],
             Expense::STATUS_APPROVED => $hasCategory ? $this->appendReimbursementAction($expense, ['mark_due', 'mark_paid', 'cancel']) : ['cancel'],
             Expense::STATUS_DUE => $hasCategory ? $this->appendReimbursementAction($expense, ['mark_paid', 'cancel']) : ['cancel'],
             Expense::STATUS_PAID => $this->appendReimbursementAction($expense, []),
             default => [],
         };
+
+        if (! $actor) {
+            return $actions;
+        }
+
+        return array_values(array_filter($actions, function (string $action) use ($actor, $expense): bool {
+            $authorization = app(FinanceApprovalService::class)->authorizeExpenseAction($actor, $expense, $action);
+
+            return (bool) ($authorization['allowed'] ?? false);
+        }));
     }
 
     /**
@@ -738,6 +1114,162 @@ class ExpenseController extends Controller
             ->all();
     }
 
+    /**
+     * @return array{
+     *   customers: array<int, array{id:int,name:string}>,
+     *   works: array<int, array{id:int,name:string}>,
+     *   sales: array<int, array{id:int,name:string}>,
+     *   invoices: array<int, array{id:int,name:string}>,
+     *   campaigns: array<int, array{id:int,name:string}>
+     * }
+     */
+    private function expenseLinkOptions(?User $user, int $accountId): array
+    {
+        if (! $user || $accountId <= 0) {
+            return [
+                'customers' => [],
+                'works' => [],
+                'sales' => [],
+                'invoices' => [],
+                'campaigns' => [],
+            ];
+        }
+
+        $customers = Customer::query()
+            ->where('user_id', $accountId)
+            ->orderByDesc('created_at')
+            ->limit(200)
+            ->get(['id', 'company_name', 'first_name', 'last_name'])
+            ->map(fn (Customer $customer) => [
+                'id' => (int) $customer->id,
+                'name' => $this->customerDisplayName($customer),
+            ])
+            ->values()
+            ->all();
+
+        $works = $user->hasCompanyFeature('jobs')
+            ? Work::query()
+                ->where('user_id', $accountId)
+                ->orderByDesc('created_at')
+                ->limit(200)
+                ->get(['id', 'number', 'job_title'])
+                ->map(fn (Work $work) => [
+                    'id' => (int) $work->id,
+                    'name' => trim(($work->number ? $work->number.' - ' : '').($work->job_title ?: 'Work')),
+                ])
+                ->values()
+                ->all()
+            : [];
+
+        $sales = $user->hasCompanyFeature('sales')
+            ? Sale::query()
+                ->where('user_id', $accountId)
+                ->orderByDesc('created_at')
+                ->limit(200)
+                ->get(['id', 'number'])
+                ->map(fn (Sale $sale) => [
+                    'id' => (int) $sale->id,
+                    'name' => (string) ($sale->number ?: 'Sale #'.$sale->id),
+                ])
+                ->values()
+                ->all()
+            : [];
+
+        $invoices = Invoice::query()
+            ->when($user->hasCompanyFeature('invoices'), function ($query) use ($accountId) {
+                $query->where('user_id', $accountId);
+            }, fn ($query) => $query->whereRaw('1 = 0'))
+            ->orderByDesc('created_at')
+            ->limit(200)
+            ->get(['id', 'number'])
+            ->map(fn (Invoice $invoice) => [
+                'id' => (int) $invoice->id,
+                'name' => (string) ($invoice->number ?: 'Invoice #'.$invoice->id),
+            ])
+            ->values()
+            ->all();
+
+        $campaigns = $user->hasCompanyFeature('campaigns')
+            ? Campaign::query()
+                ->where('user_id', $accountId)
+                ->orderByDesc('created_at')
+                ->limit(200)
+                ->get(['id', 'name'])
+                ->map(fn (Campaign $campaign) => [
+                    'id' => (int) $campaign->id,
+                    'name' => (string) $campaign->name,
+                ])
+                ->values()
+                ->all()
+            : [];
+
+        return [
+            'customers' => $customers,
+            'works' => $works,
+            'sales' => $sales,
+            'invoices' => $invoices,
+            'campaigns' => $campaigns,
+        ];
+    }
+
+    /**
+     * @return array<int, array{key:string,label:string,total:float,count:int}>
+     */
+    private function topCategoryStats($query): array
+    {
+        return $query
+            ->selectRaw('COALESCE(category_key, ?) as category_key, COUNT(*) as total_count, COALESCE(SUM(total), 0) as total_amount', ['other'])
+            ->groupBy('category_key')
+            ->orderByDesc('total_amount')
+            ->limit(3)
+            ->get()
+            ->map(fn ($row) => [
+                'key' => (string) ($row->category_key ?: 'other'),
+                'label' => (string) ($row->category_key ?: 'other'),
+                'count' => (int) ($row->total_count ?? 0),
+                'total' => round((float) ($row->total_amount ?? 0), 2),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{name:string,total:float,count:int}>
+     */
+    private function topSupplierStats($query): array
+    {
+        return $query
+            ->selectRaw("COALESCE(NULLIF(supplier_name, ''), 'No supplier') as supplier_label, COUNT(*) as total_count, COALESCE(SUM(total), 0) as total_amount")
+            ->groupBy('supplier_name')
+            ->orderByDesc('total_amount')
+            ->limit(3)
+            ->get()
+            ->map(fn ($row) => [
+                'name' => (string) ($row->supplier_label ?: 'No supplier'),
+                'count' => (int) ($row->total_count ?? 0),
+                'total' => round((float) ($row->total_amount ?? 0), 2),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function customerDisplayName(?Customer $customer): string
+    {
+        if (! $customer) {
+            return '';
+        }
+
+        $company = trim((string) ($customer->company_name ?? ''));
+        if ($company !== '') {
+            return $company;
+        }
+
+        return trim((string) collect([
+            $customer->first_name,
+            $customer->last_name,
+        ])->filter()->implode(' '));
+    }
+
     private function storeAttachments(Request $request, Expense $expense, int $userId): void
     {
         if (! $request->hasFile('attachments')) {
@@ -782,5 +1314,10 @@ class ExpenseController extends Controller
         }
 
         return hash_file('sha256', $realPath) ?: null;
+    }
+
+    private function recordExpenseAuditEvent(?User $actor, Expense $expense, string $action, array $properties = [], ?string $description = null): void
+    {
+        ActivityLog::record($actor, $expense, $action, $properties, $description);
     }
 }

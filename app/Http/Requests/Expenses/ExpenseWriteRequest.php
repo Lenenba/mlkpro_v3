@@ -3,8 +3,13 @@
 namespace App\Http\Requests\Expenses;
 
 use App\Enums\CurrencyCode;
+use App\Models\Campaign;
+use App\Models\Customer;
 use App\Models\Expense;
+use App\Models\Invoice;
+use App\Models\Sale;
 use App\Models\TeamMember;
+use App\Models\Work;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -45,6 +50,11 @@ class ExpenseWriteRequest extends FormRequest
             'status' => ['nullable', 'string', Rule::in(Expense::STATUSES)],
             'reimbursable' => 'nullable|boolean',
             'team_member_id' => ['nullable', 'integer', Rule::exists('team_members', 'id')],
+            'customer_id' => ['nullable', 'integer', Rule::exists('customers', 'id')],
+            'work_id' => ['nullable', 'integer', Rule::exists('works', 'id')],
+            'sale_id' => ['nullable', 'integer', Rule::exists('sales', 'id')],
+            'invoice_id' => ['nullable', 'integer', Rule::exists('invoices', 'id')],
+            'campaign_id' => ['nullable', 'integer', Rule::exists('campaigns', 'id')],
             'is_recurring' => 'nullable|boolean',
             'recurrence_frequency' => ['nullable', 'string', Rule::in(Expense::RECURRENCE_FREQUENCIES)],
             'recurrence_interval' => 'nullable|integer|min:1|max:24',
@@ -65,6 +75,7 @@ class ExpenseWriteRequest extends FormRequest
             $teamMemberId = $this->input('team_member_id');
             $isRecurring = filter_var($this->input('is_recurring', false), FILTER_VALIDATE_BOOLEAN);
             $recurrenceFrequency = trim((string) $this->input('recurrence_frequency', ''));
+            $accountId = (int) ($this->user()?->accountOwnerId() ?? 0);
 
             if (in_array($status, [Expense::STATUS_APPROVED, Expense::STATUS_DUE, Expense::STATUS_PAID, Expense::STATUS_REIMBURSED], true)
                 && $categoryKey === '') {
@@ -76,7 +87,6 @@ class ExpenseWriteRequest extends FormRequest
             }
 
             if ($reimbursable && $teamMemberId) {
-                $accountId = (int) ($this->user()?->accountOwnerId() ?? 0);
                 $belongsToAccount = TeamMember::query()
                     ->whereKey($teamMemberId)
                     ->where('account_id', $accountId)
@@ -93,6 +103,30 @@ class ExpenseWriteRequest extends FormRequest
 
             if ($isRecurring && $categoryKey === '') {
                 $validator->errors()->add('category_key', 'A category is required before enabling recurrence.');
+            }
+
+            $scopedLinks = [
+                'customer_id' => [Customer::class, 'user_id'],
+                'work_id' => [Work::class, 'user_id'],
+                'sale_id' => [Sale::class, 'user_id'],
+                'invoice_id' => [Invoice::class, 'user_id'],
+                'campaign_id' => [Campaign::class, 'user_id'],
+            ];
+
+            foreach ($scopedLinks as $field => [$modelClass, $ownerColumn]) {
+                $value = $this->input($field);
+                if (! $value) {
+                    continue;
+                }
+
+                $existsForAccount = $modelClass::query()
+                    ->whereKey($value)
+                    ->where($ownerColumn, $accountId)
+                    ->exists();
+
+                if (! $existsForAccount) {
+                    $validator->errors()->add($field, 'The selected linked record is not available in this workspace.');
+                }
             }
 
             $subtotal = $this->input('subtotal');

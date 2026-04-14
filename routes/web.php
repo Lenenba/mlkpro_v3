@@ -610,12 +610,14 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
     Route::middleware('company.feature:expenses')->group(function () {
         Route::get('/expenses', [ExpenseController::class, 'index'])->name('expense.index');
+        Route::get('/expenses/export', [ExpenseController::class, 'export'])->name('expense.export');
         Route::post('/expenses', [ExpenseController::class, 'store'])->name('expense.store');
         Route::post('/expenses/scan-ai', [ExpenseController::class, 'scanWithAi'])
             ->middleware('company.feature:assistant')
             ->name('expense.scan-ai');
         Route::patch('/expenses/{expense}/submit', [ExpenseController::class, 'submit'])->name('expense.submit');
         Route::patch('/expenses/{expense}/approve', [ExpenseController::class, 'approve'])->name('expense.approve');
+        Route::patch('/expenses/{expense}/reject', [ExpenseController::class, 'reject'])->name('expense.reject');
         Route::patch('/expenses/{expense}/mark-due', [ExpenseController::class, 'markDue'])->name('expense.mark-due');
         Route::patch('/expenses/{expense}/mark-paid', [ExpenseController::class, 'markPaid'])->name('expense.mark-paid');
         Route::patch('/expenses/{expense}/mark-reimbursed', [ExpenseController::class, 'markReimbursed'])->name('expense.mark-reimbursed');
@@ -702,6 +704,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoice.show');
         Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoice.pdf');
         Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail'])->name('invoice.send.email');
+        Route::patch('/invoices/{invoice}/approve', [InvoiceController::class, 'approve'])->name('invoice.approve');
+        Route::patch('/invoices/{invoice}/reject', [InvoiceController::class, 'reject'])->name('invoice.reject');
+        Route::patch('/invoices/{invoice}/process', [InvoiceController::class, 'markProcessed'])->name('invoice.process');
         Route::post('/work/{work}/invoice', [InvoiceController::class, 'storeFromWork'])->name('invoice.store-from-work');
         Route::get('/payments/tips', [TipReportController::class, 'ownerIndex'])->name('payments.tips.index');
         Route::get('/payments/tips/export', [TipReportController::class, 'ownerExport'])->name('payments.tips.export');
