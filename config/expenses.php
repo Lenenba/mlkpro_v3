@@ -25,4 +25,3 @@ return [
         ['key' => 'other', 'label_key' => 'expenses.payment_methods.other'],
     ],
 ];
-

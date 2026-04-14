@@ -519,7 +519,7 @@ test('owner can move an expense through the operational workflow', function () {
         ->and($expense->paid_by_user_id)->toBe($owner->id)
         ->and($expense->paid_date)->not->toBeNull()
         ->and(collect($expense->meta['workflow_history'] ?? [])->pluck('action')->all())
-            ->toBe(['submit', 'approve', 'mark_due', 'mark_paid']);
+        ->toBe(['submit', 'approve', 'mark_due', 'mark_paid']);
 });
 
 test('approval requires a category on the expense record', function () {

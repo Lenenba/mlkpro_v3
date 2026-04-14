@@ -12,7 +12,7 @@ function teamPermissionRoleId(string $name): int
 {
     return (int) Role::query()->firstOrCreate(
         ['name' => $name],
-        ['description' => $name . ' role']
+        ['description' => $name.' role']
     )->id;
 }
 
@@ -20,7 +20,7 @@ function teamPermissionOwner(array $attributes = []): User
 {
     $defaults = [
         'name' => 'Team Permission Owner',
-        'email' => 'owner-' . Str::lower(Str::random(10)) . '@example.com',
+        'email' => 'owner-'.Str::lower(Str::random(10)).'@example.com',
         'password' => 'password',
         'role_id' => teamPermissionRoleId('owner'),
         'company_type' => 'services',
@@ -72,7 +72,7 @@ test('team member creation rejects permissions from disabled modules', function 
         ->from(route('team.index'))
         ->post(route('team.store'), [
             'name' => 'Member Disabled Permission',
-            'email' => 'member-' . Str::lower(Str::random(10)) . '@example.com',
+            'email' => 'member-'.Str::lower(Str::random(10)).'@example.com',
             'role' => 'member',
             'permissions' => ['reservations.view'],
         ])
@@ -89,7 +89,7 @@ test('team member default permissions are filtered by tenant module access', fun
         ->from(route('team.index'))
         ->post(route('team.store'), [
             'name' => 'Member Default Permissions',
-            'email' => 'member-default-' . Str::lower(Str::random(10)) . '@example.com',
+            'email' => 'member-default-'.Str::lower(Str::random(10)).'@example.com',
             'role' => 'member',
         ])
         ->assertRedirect(route('team.index'));
