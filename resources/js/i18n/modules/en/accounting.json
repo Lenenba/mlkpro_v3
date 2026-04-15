@@ -1,9 +1,9 @@
 {
   "accounting": {
     "title": "Accounting",
-    "badge": "Accounting phase 5",
-    "heading": "Mobile supervision now keeps accounting actionable away from the desktop",
-    "subtitle": "Phase 5 adds a mobile finance board, compact review alerts, and a journal view that stays useful for owner and finance roles on the go.",
+    "badge": "Accounting",
+    "heading": "Run accounting without scattering the team",
+    "subtitle": "Review, journal, periods, taxes, exports, and admin configuration now live in clear tabs.",
     "state": {
       "foundation_ready": "Foundation ready",
       "journal_ready": "Journal ready",
@@ -45,8 +45,8 @@
       "subtitle": "The accounting bridge now covers journal, taxes, exports, periods, reconciliation, and mobile supervision. The next slice focuses on demo and superadmin enablement."
     },
     "mobile": {
-      "title": "Mobile finance board",
-      "subtitle": "Keep accounting supervision useful on the move with the shortest path to review, taxes, periods, and exports.",
+      "title": "Quick overview",
+      "subtitle": "Keep the key accounting numbers and alerts in view before opening the detailed workspace.",
       "cards": {
         "cash_in": "Cash in",
         "cash_out": "Cash out",
@@ -57,8 +57,8 @@
       },
       "alerts": {
         "title": "Priority alerts",
-        "subtitle": "Jump straight to the accounting surfaces that still need attention.",
-        "empty": "No mobile finance alert is open for this scope.",
+        "subtitle": "Open the area that needs work directly without stretching the page.",
+        "empty": "No priority alert is open for this scope.",
         "open": "Open",
         "pending_review": {
           "title": "Pending review batches",
@@ -125,7 +125,7 @@
     },
     "periods": {
       "title": "Accounting periods",
-      "subtitle": "Move a month through open, in review, closed, and reopened states, while keeping closed periods protected from silent sync drift.",
+      "subtitle": "Move a month through the accounting statuses while keeping closed periods protected from silent sync drift.",
       "locked": "Locked",
       "closed_at": "Closed",
       "reopened_at": "Reopened",
@@ -142,15 +142,15 @@
         "reopened": "Reopened"
       },
       "actions": {
-        "open": "Back to open",
-        "in_review": "Mark in review",
+        "open": "Move to open",
+        "in_review": "Move to review",
         "close": "Close period",
-        "reopen": "Reopen"
+        "reopen": "Reopen period"
       }
     },
     "accounts": {
       "title": "Chart of accounts foundation",
-      "subtitle": "These system accounts anchor the first accounting batches and stay ready for tenant-specific overrides later.",
+      "subtitle": "Review the accounts currently used by the accounting workspace.",
       "columns": {
         "code": "Code",
         "name": "Account",
@@ -159,11 +159,48 @@
     },
     "mappings": {
       "title": "Default mapping conventions",
-      "subtitle": "Each trusted finance event will map through these conventions before custom tenant mappings are introduced.",
+      "subtitle": "Quickly verify how finance sources flow into accounting entries.",
       "debit": "Debit",
       "credit": "Credit",
       "tax": "Tax",
       "no_tax": "No dedicated tax account"
+    },
+    "tabs": {
+      "review": {
+        "label": "Review",
+        "subtitle": "Handle priorities and batches that still need reconciliation."
+      },
+      "journal": {
+        "label": "Journal",
+        "subtitle": "Filter and inspect entries without making the screen overly long."
+      },
+      "periods": {
+        "label": "Periods, tax, and exports",
+        "subtitle": "Close periods, check tax, and prepare accountant handoff in one place."
+      },
+      "configuration": {
+        "label": "Admin configuration",
+        "subtitle": "Control finance rules, the chart of accounts, and mappings."
+      }
+    },
+    "configuration": {
+      "title": "Admin configuration",
+      "subtitle": "Centralize the accounting settings that matter here and open the existing admin surfaces quickly.",
+      "open_settings": "Open company settings",
+      "open_approvals": "Open approvals",
+      "approval_mode": "Approval mode",
+      "rule_subtitle": "Review the active roles and thresholds for this document.",
+      "rule_empty": "No specific rule is configured.",
+      "level": "Level {value}",
+      "limit": "Limit",
+      "no_limit": "No limit",
+      "not_configured": "Needs setup",
+      "cards": {
+        "approvals": "Finance approvals",
+        "auto_approve": "Invoice auto-approve",
+        "accounts": "System accounts",
+        "mappings": "Mappings"
+      }
     },
     "journal": {
       "title": "Accounting journal",

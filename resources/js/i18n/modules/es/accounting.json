@@ -1,9 +1,9 @@
 {
   "accounting": {
     "title": "Contabilidad",
-    "badge": "Fase 5 contabilidad",
-    "heading": "La supervision movil ahora mantiene la contabilidad accionable fuera del escritorio",
-    "subtitle": "La Fase 5 agrega un tablero financiero movil, alertas compactas de revision y una vista del diario util para owner y roles financieros en movimiento.",
+    "badge": "Contabilidad",
+    "heading": "Gestiona la contabilidad sin dispersar al equipo",
+    "subtitle": "Revision, diario, periodos, impuestos, exportaciones y configuracion admin ahora viven en pestanas claras.",
     "state": {
       "foundation_ready": "Base lista",
       "journal_ready": "Diario listo",
@@ -45,8 +45,8 @@
       "subtitle": "El puente contable ya cubre diario, impuestos, exportaciones, periodos, conciliacion y supervision movil. La siguiente entrega se enfoca en soporte demo y superadmin."
     },
     "mobile": {
-      "title": "Tablero financiero movil",
-      "subtitle": "Mantiene la supervision contable util en movimiento con el camino mas corto hacia revision, impuestos, periodos y exportaciones.",
+      "title": "Vista rapida",
+      "subtitle": "Mantiene a la vista los numeros y alertas contables antes de abrir el detalle.",
       "cards": {
         "cash_in": "Entradas",
         "cash_out": "Salidas",
@@ -57,8 +57,8 @@
       },
       "alerts": {
         "title": "Alertas prioritarias",
-        "subtitle": "Ve directo a las superficies contables que todavia necesitan atencion.",
-        "empty": "No hay alertas financieras moviles abiertas para este alcance.",
+        "subtitle": "Abre directamente la zona a tratar sin alargar la pagina.",
+        "empty": "No hay alertas prioritarias abiertas para este alcance.",
         "open": "Abrir",
         "pending_review": {
           "title": "Lotes pendientes de revision",
@@ -125,32 +125,32 @@
     },
     "periods": {
       "title": "Periodos contables",
-      "subtitle": "Mueve un mes entre `open`, `in review`, `closed` y `reopened`, protegiendo los periodos cerrados contra desajustes silenciosos de sincronizacion.",
+      "subtitle": "Mueve un mes entre los distintos estados contables y protege los periodos cerrados contra desajustes silenciosos de sincronizacion.",
       "locked": "Bloqueado",
       "closed_at": "Cerrado",
       "reopened_at": "Reabierto",
       "statuses": {
-        "open": "Open",
-        "in_review": "In review",
-        "closed": "Closed",
-        "reopened": "Reopened"
+        "open": "Abierto",
+        "in_review": "En revision",
+        "closed": "Cerrado",
+        "reopened": "Reabierto"
       },
       "summary": {
-        "open": "Open",
-        "in_review": "In review",
-        "closed": "Closed",
-        "reopened": "Reopened"
+        "open": "Abiertos",
+        "in_review": "En revision",
+        "closed": "Cerrados",
+        "reopened": "Reabiertos"
       },
       "actions": {
-        "open": "Volver a open",
-        "in_review": "Pasar a review",
+        "open": "Volver a abierto",
+        "in_review": "Pasar a revision",
         "close": "Cerrar periodo",
-        "reopen": "Reabrir"
+        "reopen": "Reabrir periodo"
       }
     },
     "accounts": {
       "title": "Base del plan de cuentas",
-      "subtitle": "Estas cuentas del sistema anclan los primeros lotes contables y quedan listas para ajustes por tenant mas adelante.",
+      "subtitle": "Revisa las cuentas que usa actualmente el espacio contable.",
       "columns": {
         "code": "Codigo",
         "name": "Cuenta",
@@ -159,11 +159,48 @@
     },
     "mappings": {
       "title": "Convenciones de mapeo predeterminadas",
-      "subtitle": "Cada evento financiero confiable pasara por estas convenciones antes de introducir mapeos personalizados por tenant.",
+      "subtitle": "Verifica rapidamente como las fuentes financieras alimentan los asientos contables.",
       "debit": "Debito",
       "credit": "Credito",
       "tax": "Impuesto",
       "no_tax": "Sin cuenta fiscal dedicada"
+    },
+    "tabs": {
+      "review": {
+        "label": "Revision",
+        "subtitle": "Gestiona prioridades y lotes que aun necesitan conciliacion."
+      },
+      "journal": {
+        "label": "Diario",
+        "subtitle": "Filtra y revisa asientos sin hacer la pantalla demasiado larga."
+      },
+      "periods": {
+        "label": "Periodos, impuestos y exportaciones",
+        "subtitle": "Cierre, fiscalidad y entrega al contador en un mismo espacio."
+      },
+      "configuration": {
+        "label": "Configuracion admin",
+        "subtitle": "Controla reglas financieras, plan de cuentas y mapeos."
+      }
+    },
+    "configuration": {
+      "title": "Configuracion admin",
+      "subtitle": "Centraliza aqui los ajustes utiles para contabilidad y abre rapido las superficies de administracion existentes.",
+      "open_settings": "Abrir ajustes de empresa",
+      "open_approvals": "Abrir aprobaciones",
+      "approval_mode": "Modo de aprobacion",
+      "rule_subtitle": "Revisa roles y limites activos para este documento.",
+      "rule_empty": "No hay una regla especifica configurada.",
+      "level": "Nivel {value}",
+      "limit": "Limite",
+      "no_limit": "Sin limite",
+      "not_configured": "Por configurar",
+      "cards": {
+        "approvals": "Aprobaciones financieras",
+        "auto_approve": "Autoaprobacion de factura",
+        "accounts": "Cuentas del sistema",
+        "mappings": "Mapeos"
+      }
     },
     "journal": {
       "title": "Libro diario contable",

@@ -64,8 +64,12 @@
     },
     "revenue": {
       "title": "Tendance des revenus",
-      "subtitle": "Activité de facturation des 30 derniers jours.",
+      "subtitle": "Encaissements et depenses des derniers mois.",
       "view_invoices": "Voir les factures",
+      "legend": {
+        "revenue": "Revenus",
+        "expenses": "Depenses"
+      },
       "paid_to_date": "Payé à ce jour",
       "outstanding": "A recevoir",
       "overdue": "En retard"

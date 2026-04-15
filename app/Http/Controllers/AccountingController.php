@@ -46,6 +46,8 @@ class AccountingController extends Controller
             ? $actor
             : User::query()->find($accountId);
         $financeSettings = is_array($owner?->company_finance_settings) ? $owner->company_finance_settings : [];
+        $financeApproval = app(FinanceApprovalService::class);
+        $resolvedFinanceSettings = $financeApproval->settingsFor($owner ?? $actor);
         $filters = $request->only([
             'period',
             'source_type',
@@ -89,35 +91,7 @@ class AccountingController extends Controller
 
         return $this->inertiaOrJson('Accounting/Index', [
             'status' => [
-                'phase' => 'phase_5',
                 'state' => 'mobile_supervision_ready',
-                'label' => 'Accounting phase 5',
-                'dependencies' => [
-                    [
-                        'key' => 'expenses',
-                        'label' => 'Expenses',
-                        'enabled' => $actor->hasCompanyFeature('expenses'),
-                        'required' => true,
-                    ],
-                    [
-                        'key' => 'invoices',
-                        'label' => 'Invoices',
-                        'enabled' => $actor->hasCompanyFeature('invoices'),
-                        'required' => false,
-                    ],
-                    [
-                        'key' => 'sales',
-                        'label' => 'Sales',
-                        'enabled' => $actor->hasCompanyFeature('sales'),
-                        'required' => false,
-                    ],
-                    [
-                        'key' => 'assistant',
-                        'label' => 'Assistant',
-                        'enabled' => $actor->hasCompanyFeature('assistant'),
-                        'required' => false,
-                    ],
-                ],
                 'last_synced_at' => now()->toIso8601String(),
             ],
             'snapshot' => [
@@ -128,6 +102,27 @@ class AccountingController extends Controller
             ],
             'abilities' => [
                 'can_manage' => $this->canManageAccounting($actor),
+                'can_configure' => $actor->isAccountOwner(),
+                'can_access_finance_approvals' => $this->canAccessFinanceApprovals($actor),
+            ],
+            'finance_configuration' => [
+                'approval_mode' => $financeApproval->modeFor($owner ?? $actor),
+                'expense_roles' => collect(data_get($resolvedFinanceSettings, 'expense.roles', []))
+                    ->map(fn (array $role) => [
+                        'role_key' => (string) data_get($role, 'role_key'),
+                        'max_amount' => data_get($role, 'max_amount'),
+                        'approval_order' => (int) data_get($role, 'approval_order', 1),
+                    ])
+                    ->values()
+                    ->all(),
+                'invoice_roles' => collect(data_get($resolvedFinanceSettings, 'invoice.roles', []))
+                    ->map(fn (array $role) => [
+                        'role_key' => (string) data_get($role, 'role_key'),
+                        'max_amount' => data_get($role, 'max_amount'),
+                        'approval_order' => (int) data_get($role, 'approval_order', 1),
+                    ])
+                    ->values()
+                    ->all(),
             ],
             'source_counts' => [
                 'expenses' => Expense::query()->where('user_id', $accountId)->count(),
@@ -251,11 +246,6 @@ class AccountingController extends Controller
                 ],
             ],
             'sync_summary' => $syncSummary,
-            'next_steps' => [
-                'Prepare demo and superadmin enablement for the accounting journal and periods.',
-                'Add a finance snapshot to demo workspaces and superadmin accounting surfaces.',
-                'Extend accountant handoff packages beyond CSV when period closure is stable.',
-            ],
         ]);
     }
 
@@ -389,6 +379,35 @@ class AccountingController extends Controller
 
         return $membership instanceof TeamMember
             && $membership->hasPermission('accounting.manage');
+    }
+
+    private function canAccessFinanceApprovals(User $user): bool
+    {
+        if ($user->isAccountOwner()) {
+            return $user->hasCompanyFeature('expenses') || $user->hasCompanyFeature('invoices');
+        }
+
+        $membership = $user->relationLoaded('teamMembership')
+            ? $user->teamMembership
+            : $user->teamMembership()->first();
+
+        if (! ($membership instanceof TeamMember)) {
+            return false;
+        }
+
+        return (
+            $user->hasCompanyFeature('expenses')
+            && (
+                $membership->hasPermission('expenses.approve')
+                || $membership->hasPermission('expenses.approve_high')
+            )
+        ) || (
+            $user->hasCompanyFeature('invoices')
+            && (
+                $membership->hasPermission('invoices.approve')
+                || $membership->hasPermission('invoices.approve_high')
+            )
+        );
     }
 
     private function financeApprovalsEnabled(array $settings): bool

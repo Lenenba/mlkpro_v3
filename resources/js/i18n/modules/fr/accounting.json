@@ -1,9 +1,9 @@
 {
   "accounting": {
     "title": "Comptabilite",
-    "badge": "Phase 5 comptabilite",
-    "heading": "La supervision mobile garde maintenant la comptabilite actionnable hors du desktop",
-    "subtitle": "La Phase 5 ajoute un board finance mobile, des alertes compactes de revue, et une lecture du journal utile pour l owner et les roles finance en deplacement.",
+    "badge": "Comptabilite",
+    "heading": "Pilote la comptabilite sans disperser l equipe",
+    "subtitle": "La revue, le journal, les periodes, les taxes, les exports et la configuration admin sont regroupes dans des onglets clairs.",
     "state": {
       "foundation_ready": "Fondation prete",
       "journal_ready": "Journal pret",
@@ -45,8 +45,8 @@
       "subtitle": "Le bridge comptable couvre maintenant journal, taxes, exports, periodes, rapprochement et supervision mobile. La prochaine tranche se concentre sur l activation demo et superadmin."
     },
     "mobile": {
-      "title": "Board finance mobile",
-      "subtitle": "Garde une supervision comptable utile en deplacement avec le chemin le plus court vers revue, taxes, periodes et exports.",
+      "title": "Vue rapide",
+      "subtitle": "Garde les chiffres et alertes comptables utiles sous la main avant de rentrer dans le detail.",
       "cards": {
         "cash_in": "Cash in",
         "cash_out": "Cash out",
@@ -57,8 +57,8 @@
       },
       "alerts": {
         "title": "Alertes prioritaires",
-        "subtitle": "Va directement vers les surfaces comptables qui demandent encore de l attention.",
-        "empty": "Aucune alerte finance mobile n est ouverte pour ce scope.",
+        "subtitle": "Ouvre directement la zone a traiter sans allonger la page.",
+        "empty": "Aucune alerte prioritaire n est ouverte pour ce scope.",
         "open": "Ouvrir",
         "pending_review": {
           "title": "Lots en attente de revue",
@@ -125,32 +125,32 @@
     },
     "periods": {
       "title": "Periodes comptables",
-      "subtitle": "Fais avancer un mois entre `open`, `in review`, `closed` et `reopened`, tout en protegeant une periode fermee contre le drift silencieux de synchronisation.",
+      "subtitle": "Fais avancer un mois entre les differents statuts comptables tout en protegeant une periode fermee contre le drift silencieux de synchronisation.",
       "locked": "Verrouillee",
       "closed_at": "Fermee",
       "reopened_at": "Reouverte",
       "statuses": {
-        "open": "Open",
-        "in_review": "In review",
-        "closed": "Closed",
-        "reopened": "Reopened"
+        "open": "Ouverte",
+        "in_review": "En revue",
+        "closed": "Cloturee",
+        "reopened": "Reouverte"
       },
       "summary": {
-        "open": "Open",
-        "in_review": "In review",
-        "closed": "Closed",
-        "reopened": "Reopened"
+        "open": "Ouvertes",
+        "in_review": "En revue",
+        "closed": "Cloturees",
+        "reopened": "Reouvertes"
       },
       "actions": {
-        "open": "Repasser en open",
-        "in_review": "Passer en review",
-        "close": "Fermer la periode",
+        "open": "Remettre ouverte",
+        "in_review": "Passer en revue",
+        "close": "Cloturer la periode",
         "reopen": "Reouvrir"
       }
     },
     "accounts": {
       "title": "Fondation du plan comptable",
-      "subtitle": "Ces comptes systeme servent d ancrage aux premiers lots comptables et resteront personnalisables ensuite.",
+      "subtitle": "Retrouve les comptes utilises par la comptabilite pour verifier la structure actuelle.",
       "columns": {
         "code": "Code",
         "name": "Compte",
@@ -159,11 +159,48 @@
     },
     "mappings": {
       "title": "Conventions de mapping par defaut",
-      "subtitle": "Chaque evenement finance fiable passera par ces conventions avant l arrivee des mappings tenant personnalises.",
+      "subtitle": "Verifie rapidement comment les sources finance alimentent les ecritures comptables.",
       "debit": "Debit",
       "credit": "Credit",
       "tax": "Taxe",
       "no_tax": "Pas de compte taxe dedie"
+    },
+    "tabs": {
+      "review": {
+        "label": "Revue",
+        "subtitle": "Traite les priorites et les lots a rapprocher."
+      },
+      "journal": {
+        "label": "Journal",
+        "subtitle": "Consulte et filtre les ecritures sans etirer tout l ecran."
+      },
+      "periods": {
+        "label": "Periodes, taxes et exports",
+        "subtitle": "Cloture, fiscalite et handoff comptable dans le meme espace."
+      },
+      "configuration": {
+        "label": "Configuration admin",
+        "subtitle": "Controle les regles finance, le plan comptable et les mappings."
+      }
+    },
+    "configuration": {
+      "title": "Configuration admin",
+      "subtitle": "Centralise les reglages utiles a la comptabilite et ouvre rapidement les surfaces d administration existantes.",
+      "open_settings": "Ouvrir parametres societe",
+      "open_approvals": "Ouvrir approbations",
+      "approval_mode": "Mode d approbation",
+      "rule_subtitle": "Verifie les roles et plafonds actifs pour ce document.",
+      "rule_empty": "Aucune regle specifique n est configuree.",
+      "level": "Niveau {value}",
+      "limit": "Plafond",
+      "no_limit": "Sans plafond",
+      "not_configured": "A configurer",
+      "cards": {
+        "approvals": "Approbations finance",
+        "auto_approve": "Auto-approbation facture",
+        "accounts": "Comptes systeme",
+        "mappings": "Mappings"
+      }
     },
     "journal": {
       "title": "Journal comptable",

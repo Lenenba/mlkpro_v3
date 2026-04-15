@@ -1,8 +1,9 @@
 <script setup>
-import { computed, reactive } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
+import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
 const props = defineProps({
@@ -17,6 +18,14 @@ const props = defineProps({
     abilities: {
         type: Object,
         default: () => ({}),
+    },
+    finance_configuration: {
+        type: Object,
+        default: () => ({
+            approval_mode: 'team',
+            expense_roles: [],
+            invoice_roles: [],
+        }),
     },
     source_counts: {
         type: Object,
@@ -90,13 +99,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
-    next_steps: {
-        type: Array,
-        default: () => [],
-    },
 });
 
 const { t, locale } = useI18n();
+const activeTab = ref('review');
 
 const filterState = reactive({
     period: props.filters?.period ?? '',
@@ -105,10 +111,6 @@ const filterState = reactive({
     review_status: props.filters?.review_status ?? '',
     search: props.filters?.search ?? '',
 });
-
-const readinessTone = (enabled) => enabled
-    ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
-    : 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300';
 
 const sourceCards = computed(() => ([
     { key: 'expenses', value: props.source_counts?.expenses ?? 0 },
@@ -177,6 +179,109 @@ const taxCards = computed(() => ([
     { key: 'review_required_count', label: t('accounting.taxes.cards.review_required_count'), value: props.tax_summary?.review_required_count ?? 0 },
 ]));
 
+const tabs = computed(() => ([
+    {
+        id: 'review',
+        label: t('accounting.tabs.review.label'),
+        subtitle: t('accounting.tabs.review.subtitle'),
+        badge: props.review_workspace?.pending_batch_count ?? 0,
+    },
+    {
+        id: 'journal',
+        label: t('accounting.tabs.journal.label'),
+        subtitle: t('accounting.tabs.journal.subtitle'),
+        badge: props.journal_summary?.entry_count ?? 0,
+    },
+    {
+        id: 'periods',
+        label: t('accounting.tabs.periods.label'),
+        subtitle: t('accounting.tabs.periods.subtitle'),
+        badge: (props.period_summary?.open_count ?? 0) + (props.period_summary?.in_review_count ?? 0) + (props.period_summary?.reopened_count ?? 0),
+    },
+    {
+        id: 'configuration',
+        label: t('accounting.tabs.configuration.label'),
+        subtitle: t('accounting.tabs.configuration.subtitle'),
+        badge: props.system_accounts?.length ?? 0,
+    },
+]));
+
+const activeTabMeta = computed(() => (
+    tabs.value.find((tab) => tab.id === activeTab.value)
+    ?? tabs.value[0]
+    ?? null
+));
+
+const breadcrumbItems = computed(() => {
+    const items = [
+        {
+            key: 'dashboard',
+            label: t('nav.dashboard'),
+            href: route('dashboard'),
+            icon: 'home',
+        },
+        {
+            key: 'finance',
+            label: t('nav.finance'),
+            href: route('workspace.hubs.show', { category: 'finance' }),
+        },
+        {
+            key: 'accounting',
+            label: t('accounting.title'),
+            href: route('accounting.index'),
+        },
+    ];
+
+    if (activeTabMeta.value) {
+        items.push({
+            key: activeTabMeta.value.id,
+            label: activeTabMeta.value.label,
+        });
+    }
+
+    return items;
+});
+
+const configurationCards = computed(() => ([
+    {
+        key: 'approvals',
+        label: t('accounting.configuration.cards.approvals'),
+        value: financeApprovalModeLabel.value,
+    },
+    {
+        key: 'auto_approve',
+        label: t('accounting.configuration.cards.auto_approve'),
+        value: props.snapshot?.invoice_auto_approve_under_amount !== null
+            && props.snapshot?.invoice_auto_approve_under_amount !== undefined
+            && props.snapshot?.invoice_auto_approve_under_amount !== ''
+            ? formatMoney(props.snapshot.invoice_auto_approve_under_amount)
+            : t('accounting.configuration.not_configured'),
+    },
+    {
+        key: 'accounts',
+        label: t('accounting.configuration.cards.accounts'),
+        value: props.system_accounts?.length ?? 0,
+    },
+    {
+        key: 'mappings',
+        label: t('accounting.configuration.cards.mappings'),
+        value: props.mapping_conventions?.length ?? 0,
+    },
+]));
+
+const approvalGroups = computed(() => ([
+    {
+        key: 'expense',
+        label: t('settings.company.finance.documents.expense'),
+        rules: props.finance_configuration?.expense_roles ?? [],
+    },
+    {
+        key: 'invoice',
+        label: t('settings.company.finance.documents.invoice'),
+        rules: props.finance_configuration?.invoice_roles ?? [],
+    },
+]));
+
 const exportUrl = computed(() => route('accounting.export', normalizeFilters()));
 
 const directionTone = (direction) => direction === 'credit'
@@ -186,6 +291,45 @@ const directionTone = (direction) => direction === 'credit'
 const statusTone = (status) => status === 'review_required'
     ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
     : 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300';
+
+function tabButtonClass(tabId) {
+    return activeTab.value === tabId
+        ? 'border-stone-900 bg-white shadow-sm ring-1 ring-stone-900/10 dark:border-neutral-100 dark:bg-neutral-900 dark:ring-neutral-100/10'
+        : 'border-stone-200 bg-white/80 hover:border-stone-300 hover:bg-white dark:border-neutral-700 dark:bg-neutral-900/80 dark:hover:border-neutral-500 dark:hover:bg-neutral-900';
+}
+
+function tabLabelClass(tabId) {
+    return activeTab.value === tabId
+        ? 'text-stone-900 dark:text-neutral-100'
+        : 'text-stone-700 dark:text-neutral-200';
+}
+
+function tabSubtitleClass(tabId) {
+    return activeTab.value === tabId
+        ? 'text-stone-600 dark:text-neutral-300'
+        : 'text-stone-500 dark:text-neutral-400';
+}
+
+function tabBadgeClass(tabId) {
+    return activeTab.value === tabId
+        ? 'bg-stone-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
+        : 'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-200';
+}
+
+function setActiveTab(tabId) {
+    activeTab.value = tabId;
+}
+
+function openTabFromAlert(target) {
+    const targetMap = {
+        periods: 'periods',
+        taxes: 'periods',
+        review: 'review',
+        exports: 'periods',
+    };
+
+    setActiveTab(targetMap[target] || 'review');
+}
 
 function normalizeFilters() {
     return Object.fromEntries(
@@ -331,15 +475,21 @@ function mobileAlertValue(alert) {
     return alert?.value ?? 0;
 }
 
-function mobileAlertHref(target) {
-    const targets = {
-        periods: '#accounting-periods',
-        taxes: '#accounting-tax-summary',
-        review: '#accounting-review-workspace',
-        exports: '#accounting-exports',
-    };
+function financeRoleLabel(roleKey) {
+    const translationKey = `settings.company.finance.roles.${roleKey}`;
+    const translated = t(translationKey);
 
-    return targets[target] || '#accounting-mobile-board';
+    return translated === translationKey
+        ? String(roleKey || '').replace(/_/g, ' ')
+        : translated;
+}
+
+function roleLimitLabel(value) {
+    if (value === null || value === undefined || value === '') {
+        return t('accounting.configuration.no_limit');
+    }
+
+    return formatMoney(value);
 }
 </script>
 
@@ -347,6 +497,10 @@ function mobileAlertHref(target) {
     <Head :title="$t('accounting.title')" />
 
     <AuthenticatedLayout>
+        <template #breadcrumb>
+            <AppBreadcrumbs :items="breadcrumbItems" />
+        </template>
+
         <div class="space-y-5">
             <section class="overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="border-b border-stone-200 bg-gradient-to-r from-stone-900 via-stone-800 to-emerald-800 px-5 py-6 text-white dark:border-neutral-700">
@@ -415,7 +569,7 @@ function mobileAlertHref(target) {
                             >
                                 <span class="text-stone-500 dark:text-neutral-400">{{ $t('accounting.snapshot.invoice_auto_approve_under_amount') }}</span>
                                 <span class="font-semibold">
-                                    {{ snapshot.invoice_auto_approve_under_amount }} {{ snapshot.currency_code || 'CAD' }}
+                                    {{ formatMoney(snapshot.invoice_auto_approve_under_amount) }}
                                 </span>
                             </div>
                         </div>
@@ -423,9 +577,35 @@ function mobileAlertHref(target) {
                 </div>
             </section>
 
+            <section class="rounded-sm border border-stone-200 bg-stone-50/80 p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
+                <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                    <button
+                        v-for="tab in tabs"
+                        :key="tab.id"
+                        type="button"
+                        class="rounded-sm border p-4 text-left transition"
+                        :class="tabButtonClass(tab.id)"
+                        @click="setActiveTab(tab.id)"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="text-sm font-semibold" :class="tabLabelClass(tab.id)">
+                                {{ tab.label }}
+                            </div>
+                            <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="tabBadgeClass(tab.id)">
+                                {{ tab.badge }}
+                            </span>
+                        </div>
+                        <p class="mt-2 text-xs leading-5" :class="tabSubtitleClass(tab.id)">
+                            {{ tab.subtitle }}
+                        </p>
+                    </button>
+                </div>
+            </section>
+
             <section
                 id="accounting-mobile-board"
-                class="space-y-4 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 lg:hidden"
+                v-if="activeTab === 'review'"
+                class="space-y-4 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
             >
                 <div class="flex items-start justify-between gap-4">
                     <div>
@@ -441,7 +621,7 @@ function mobileAlertHref(target) {
                     </span>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
                     <div
                         v-for="card in mobileSummaryCards"
                         :key="card.key"
@@ -468,12 +648,13 @@ function mobileAlertHref(target) {
                         v-if="(mobile_alerts || []).length"
                         class="mt-3 space-y-3"
                     >
-                        <a
+                        <button
                             v-for="alert in mobile_alerts || []"
                             :key="`${alert.key}-${alert.target}`"
-                            :href="mobileAlertHref(alert.target)"
-                            class="block rounded-sm border px-4 py-3 transition hover:opacity-90"
+                            type="button"
+                            class="block w-full rounded-sm border px-4 py-3 text-left transition hover:opacity-90"
                             :class="mobileAlertTone(alert.tone)"
+                            @click="openTabFromAlert(alert.target)"
                         >
                             <div class="flex items-start justify-between gap-4">
                                 <div>
@@ -493,7 +674,7 @@ function mobileAlertHref(target) {
                                     </div>
                                 </div>
                             </div>
-                        </a>
+                        </button>
                     </div>
                     <div
                         v-else
@@ -506,13 +687,14 @@ function mobileAlertHref(target) {
 
             <section
                 id="accounting-periods"
-                class="grid gap-5 xl:grid-cols-[1.1fr,1fr]"
+                v-if="activeTab === 'periods'"
+                class="grid gap-5 xl:grid-cols-[minmax(0,1.45fr),minmax(20rem,0.95fr)]"
             >
                 <div
                     id="accounting-tax-summary"
                     class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
                 >
-                    <div class="flex items-start justify-between gap-4">
+                    <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                         <div>
                             <h2 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
                                 {{ $t('accounting.periods.title') }}
@@ -521,47 +703,47 @@ function mobileAlertHref(target) {
                                 {{ $t('accounting.periods.subtitle') }}
                             </p>
                         </div>
-                        <div class="grid grid-cols-2 gap-2 text-right sm:grid-cols-4">
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-950">
-                                <div class="text-[11px] uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-400">
+                        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[24rem]">
+                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-950">
+                                <div class="text-[11px] font-medium text-stone-500 dark:text-neutral-400">
                                     {{ $t('accounting.periods.summary.open') }}
                                 </div>
-                                <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
                                     {{ period_summary.open_count ?? 0 }}
                                 </div>
                             </div>
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-950">
-                                <div class="text-[11px] uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-400">
+                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-950">
+                                <div class="text-[11px] font-medium text-stone-500 dark:text-neutral-400">
                                     {{ $t('accounting.periods.summary.in_review') }}
                                 </div>
-                                <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
                                     {{ period_summary.in_review_count ?? 0 }}
                                 </div>
                             </div>
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-950">
-                                <div class="text-[11px] uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-400">
+                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-950">
+                                <div class="text-[11px] font-medium text-stone-500 dark:text-neutral-400">
                                     {{ $t('accounting.periods.summary.closed') }}
                                 </div>
-                                <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
                                     {{ period_summary.closed_count ?? 0 }}
                                 </div>
                             </div>
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-950">
-                                <div class="text-[11px] uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-400">
+                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-950">
+                                <div class="text-[11px] font-medium text-stone-500 dark:text-neutral-400">
                                     {{ $t('accounting.periods.summary.reopened') }}
                                 </div>
-                                <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
                                     {{ period_summary.reopened_count ?? 0 }}
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="mt-4 space-y-3">
+                    <div class="mt-4 max-h-[42rem] space-y-3 overflow-y-auto pr-1">
                         <article
                             v-for="period in periods || []"
                             :key="period.period_key"
-                            class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-950"
+                            class="rounded-sm border border-stone-200 bg-stone-50 p-5 dark:border-neutral-700 dark:bg-neutral-950"
                         >
                             <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                                 <div class="space-y-2">
@@ -579,11 +761,39 @@ function mobileAlertHref(target) {
                                             {{ $t('accounting.periods.locked') }}
                                         </span>
                                     </div>
-                                    <div class="grid gap-2 text-sm text-stone-700 dark:text-neutral-200 sm:grid-cols-2">
-                                        <div>{{ $t('accounting.journal.summary.entry_count') }}: <span class="font-semibold">{{ period.entry_count }}</span></div>
-                                        <div>{{ $t('accounting.journal.summary.batch_count') }}: <span class="font-semibold">{{ period.batch_count }}</span></div>
-                                        <div>{{ $t('accounting.journal.summary.debit_total') }}: <span class="font-semibold">{{ formatMoney(period.debit_total) }}</span></div>
-                                        <div>{{ $t('accounting.journal.summary.credit_total') }}: <span class="font-semibold">{{ formatMoney(period.credit_total) }}</span></div>
+                                    <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                                        <div class="rounded-sm border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900">
+                                            <div class="text-[11px] font-medium text-stone-500 dark:text-neutral-400">
+                                                {{ $t('accounting.journal.summary.entry_count') }}
+                                            </div>
+                                            <div class="mt-1 text-base font-semibold text-stone-900 dark:text-neutral-100">
+                                                {{ period.entry_count }}
+                                            </div>
+                                        </div>
+                                        <div class="rounded-sm border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900">
+                                            <div class="text-[11px] font-medium text-stone-500 dark:text-neutral-400">
+                                                {{ $t('accounting.journal.summary.batch_count') }}
+                                            </div>
+                                            <div class="mt-1 text-base font-semibold text-stone-900 dark:text-neutral-100">
+                                                {{ period.batch_count }}
+                                            </div>
+                                        </div>
+                                        <div class="rounded-sm border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900">
+                                            <div class="text-[11px] font-medium text-stone-500 dark:text-neutral-400">
+                                                {{ $t('accounting.journal.summary.debit_total') }}
+                                            </div>
+                                            <div class="mt-1 text-base font-semibold text-stone-900 dark:text-neutral-100">
+                                                {{ formatMoney(period.debit_total) }}
+                                            </div>
+                                        </div>
+                                        <div class="rounded-sm border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900">
+                                            <div class="text-[11px] font-medium text-stone-500 dark:text-neutral-400">
+                                                {{ $t('accounting.journal.summary.credit_total') }}
+                                            </div>
+                                            <div class="mt-1 text-base font-semibold text-stone-900 dark:text-neutral-100">
+                                                {{ formatMoney(period.credit_total) }}
+                                            </div>
+                                        </div>
                                     </div>
                                     <div
                                         v-if="period.closed_at || period.reopened_at"
@@ -600,7 +810,7 @@ function mobileAlertHref(target) {
 
                                 <div
                                     v-if="abilities.can_manage"
-                                    class="flex flex-wrap gap-2 xl:max-w-[16rem] xl:justify-end"
+                                    class="flex flex-wrap gap-2 xl:max-w-[18rem] xl:justify-end"
                                 >
                                     <button
                                         v-if="period.actions?.open"
@@ -796,7 +1006,7 @@ function mobileAlertHref(target) {
                         </h3>
                         <div
                             v-if="(export_history || []).length"
-                            class="mt-3 space-y-3"
+                            class="mt-3 max-h-[36rem] space-y-3 overflow-y-auto pr-1"
                         >
                             <article
                                 v-for="item in export_history"
@@ -842,70 +1052,142 @@ function mobileAlertHref(target) {
                 </div>
             </section>
 
-            <section class="grid gap-5 xl:grid-cols-[1.1fr,1.2fr]">
-                <div class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="flex items-center justify-between gap-3">
-                        <div>
-                            <h2 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ $t('accounting.dependencies.title') }}
-                            </h2>
-                            <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                                {{ $t('accounting.dependencies.subtitle') }}
-                            </p>
+            <section
+                v-if="activeTab === 'configuration'"
+                class="space-y-5"
+            >
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div
+                        v-for="card in configurationCards"
+                        :key="card.key"
+                        class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    >
+                        <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-stone-500 dark:text-neutral-400">
+                            {{ card.label }}
                         </div>
-                    </div>
-
-                    <div class="mt-4 grid gap-3">
-                        <div
-                            v-for="dependency in status.dependencies || []"
-                            :key="dependency.key"
-                            class="rounded-sm border p-4"
-                            :class="readinessTone(dependency.enabled)"
-                        >
-                            <div class="flex items-center justify-between gap-3">
-                                <div>
-                                    <div class="text-sm font-semibold">
-                                        {{ dependency.label }}
-                                    </div>
-                                    <div class="mt-1 text-xs">
-                                        {{ dependency.required ? $t('accounting.dependencies.required') : $t('accounting.dependencies.optional') }}
-                                    </div>
-                                </div>
-                                <span class="rounded-full border border-current/10 bg-white/40 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] dark:bg-black/10">
-                                    {{ dependency.enabled ? $t('accounting.dependencies.ready') : $t('accounting.dependencies.missing') }}
-                                </span>
-                            </div>
+                        <div class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                            {{ card.value }}
                         </div>
                     </div>
                 </div>
 
                 <div class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
-                        {{ $t('accounting.next_steps.title') }}
-                    </h2>
-                    <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                        {{ $t('accounting.next_steps.subtitle') }}
-                    </p>
+                    <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                        <div>
+                            <h2 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                                {{ $t('accounting.configuration.title') }}
+                            </h2>
+                            <p class="mt-1 max-w-3xl text-sm text-stone-600 dark:text-neutral-400">
+                                {{ $t('accounting.configuration.subtitle') }}
+                            </p>
+                        </div>
 
-                    <div class="mt-4 space-y-3">
                         <div
-                            v-for="(step, index) in next_steps || []"
-                            :key="`${index}-${step}`"
-                            class="flex items-start gap-3 rounded-sm border border-stone-200 bg-stone-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-950"
+                            v-if="abilities.can_configure || abilities.can_access_finance_approvals"
+                            class="flex flex-wrap gap-2"
                         >
-                            <div class="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-sm bg-stone-900 text-[11px] font-semibold text-white dark:bg-neutral-100 dark:text-neutral-900">
-                                {{ index + 1 }}
+                            <Link
+                                v-if="abilities.can_access_finance_approvals"
+                                :href="route('finance-approvals.index')"
+                                class="inline-flex items-center justify-center rounded-sm border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            >
+                                {{ $t('accounting.configuration.open_approvals') }}
+                            </Link>
+                            <Link
+                                v-if="abilities.can_configure"
+                                :href="route('settings.company.edit')"
+                                class="inline-flex items-center justify-center rounded-sm bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white"
+                            >
+                                {{ $t('accounting.configuration.open_settings') }}
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 grid gap-4 xl:grid-cols-2">
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-950">
+                            <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-stone-500 dark:text-neutral-400">
+                                {{ $t('accounting.configuration.approval_mode') }}
                             </div>
-                            <div class="text-sm text-stone-700 dark:text-neutral-200">
-                                {{ step }}
+                            <div class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                                {{ $t(`settings.company.finance.mode.${finance_configuration.approval_mode || 'team'}`) }}
+                            </div>
+                            <div class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                                {{ financeApprovalModeLabel }}
                             </div>
                         </div>
+
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-950">
+                            <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-stone-500 dark:text-neutral-400">
+                                {{ $t('accounting.snapshot.currency') }}
+                            </div>
+                            <div class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                                {{ snapshot.currency_code || 'CAD' }}
+                            </div>
+                            <div class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                                {{ snapshot.company_name || '-' }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 grid gap-5 xl:grid-cols-2">
+                        <article
+                            v-for="group in approvalGroups"
+                            :key="group.key"
+                            class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-950"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                                        {{ group.label }}
+                                    </h3>
+                                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('accounting.configuration.rule_subtitle') }}
+                                    </p>
+                                </div>
+                                <span class="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                    {{ group.rules.length }}
+                                </span>
+                            </div>
+
+                            <div
+                                v-if="group.rules.length"
+                                class="mt-4 space-y-3"
+                            >
+                                <div
+                                    v-for="rule in group.rules"
+                                    :key="`${group.key}-${rule.role_key}-${rule.approval_order}`"
+                                    class="rounded-sm border border-stone-200 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900"
+                                >
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="font-semibold text-stone-900 dark:text-neutral-100">
+                                            {{ financeRoleLabel(rule.role_key) }}
+                                        </div>
+                                        <span class="rounded-full border border-stone-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-600 dark:border-neutral-700 dark:text-neutral-300">
+                                            {{ $t('accounting.configuration.level', { value: rule.approval_order || 1 }) }}
+                                        </span>
+                                    </div>
+                                    <div class="mt-2 text-sm text-stone-600 dark:text-neutral-400">
+                                        {{ $t('accounting.configuration.limit') }}:
+                                        <span class="font-semibold text-stone-900 dark:text-neutral-100">
+                                            {{ roleLimitLabel(rule.max_amount) }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div
+                                v-else
+                                class="mt-4 rounded-sm border border-dashed border-stone-300 px-4 py-6 text-sm text-stone-500 dark:border-neutral-700 dark:text-neutral-400"
+                            >
+                                {{ $t('accounting.configuration.rule_empty') }}
+                            </div>
+                        </article>
                     </div>
                 </div>
             </section>
 
             <section
                 id="accounting-review-workspace"
+                v-if="activeTab === 'review'"
                 class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
             >
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -1035,7 +1317,10 @@ function mobileAlertHref(target) {
                 </div>
             </section>
 
-            <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <section
+                v-if="activeTab === 'journal'"
+                class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+            >
                 <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                     <div>
                         <h2 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
@@ -1230,7 +1515,7 @@ function mobileAlertHref(target) {
                     </article>
                 </div>
 
-                <div class="mt-5 hidden overflow-hidden rounded-sm border border-stone-200 dark:border-neutral-700 lg:block">
+                    <div class="mt-5 hidden max-h-[40rem] overflow-auto rounded-sm border border-stone-200 dark:border-neutral-700 lg:block">
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
                             <thead class="bg-stone-100 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500 dark:bg-neutral-800 dark:text-neutral-400">
@@ -1374,7 +1659,10 @@ function mobileAlertHref(target) {
                 </div>
             </section>
 
-            <section class="grid gap-5 xl:grid-cols-2">
+            <section
+                v-if="activeTab === 'journal'"
+                class="grid gap-5 xl:grid-cols-2"
+            >
                 <div class="hidden rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 lg:block">
                     <h2 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
                         {{ $t('accounting.journal.grouped.by_account_title') }}
@@ -1383,7 +1671,7 @@ function mobileAlertHref(target) {
                         {{ $t('accounting.journal.grouped.by_account_subtitle') }}
                     </p>
 
-                    <div class="mt-4 overflow-hidden rounded-sm border border-stone-200 dark:border-neutral-700">
+                    <div class="mt-4 max-h-[24rem] overflow-auto rounded-sm border border-stone-200 dark:border-neutral-700">
                         <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
                             <thead class="bg-stone-100 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500 dark:bg-neutral-800 dark:text-neutral-400">
                                 <tr>
@@ -1425,7 +1713,7 @@ function mobileAlertHref(target) {
                         {{ $t('accounting.journal.grouped.by_source_subtitle') }}
                     </p>
 
-                    <div class="mt-4 space-y-3">
+                    <div class="mt-4 max-h-[24rem] space-y-3 overflow-y-auto pr-1">
                         <article
                             v-for="group in journal_summary.by_source || []"
                             :key="`${group.source_type}-${group.source_event_key}`"
@@ -1458,7 +1746,10 @@ function mobileAlertHref(target) {
                 </div>
             </section>
 
-            <section class="hidden gap-5 xl:grid-cols-2 lg:grid">
+            <section
+                v-if="activeTab === 'configuration'"
+                class="grid gap-5 xl:grid-cols-2"
+            >
                 <div class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
                         {{ $t('accounting.accounts.title') }}
@@ -1467,7 +1758,7 @@ function mobileAlertHref(target) {
                         {{ $t('accounting.accounts.subtitle') }}
                     </p>
 
-                    <div class="mt-4 overflow-hidden rounded-sm border border-stone-200 dark:border-neutral-700">
+                    <div class="mt-4 max-h-[32rem] overflow-auto rounded-sm border border-stone-200 dark:border-neutral-700">
                         <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
                             <thead class="bg-stone-100 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500 dark:bg-neutral-800 dark:text-neutral-400">
                                 <tr>
@@ -1510,7 +1801,7 @@ function mobileAlertHref(target) {
                         {{ $t('accounting.mappings.subtitle') }}
                     </p>
 
-                    <div class="mt-4 space-y-3">
+                    <div class="mt-4 max-h-[32rem] space-y-3 overflow-y-auto pr-1">
                         <article
                             v-for="mapping in mapping_conventions"
                             :key="`${mapping.source_domain}-${mapping.source_key}`"

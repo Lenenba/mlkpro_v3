@@ -1115,6 +1115,15 @@ class DashboardController extends Controller
                 ->whereBetween('paid_at', [$start, $end])
                 ->sum('amount');
         });
+        $expenseSeries = $accountOwner?->hasCompanyFeature('expenses')
+            ? $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($userId) {
+                return (float) Expense::query()
+                    ->byAccount($userId)
+                    ->whereIn('status', [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED])
+                    ->whereBetween('paid_date', [$start->toDateString(), $end->toDateString()])
+                    ->sum('total');
+            })
+            : ['values' => []];
         $revenueOutstandingSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($invoicesQuery) {
             return (float) (clone $invoicesQuery)
                 ->whereNotIn('status', ['paid', 'void'])
@@ -1198,7 +1207,9 @@ class DashboardController extends Controller
             'tasksToday' => $tasksToday,
             'worksToday' => $worksToday,
             'agendaAlerts' => $agendaAlerts,
-            'revenueSeries' => $revenueSeries,
+            'revenueSeries' => array_merge($revenueSeries, [
+                'expenseValues' => $expenseSeries['values'],
+            ]),
             'kpiSeries' => $kpiSeries,
             'announcements' => $internalAnnouncements,
             'quickAnnouncements' => $quickAnnouncements,

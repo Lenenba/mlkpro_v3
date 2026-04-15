@@ -64,8 +64,12 @@
     },
     "revenue": {
       "title": "Tendencia de ingresos",
-      "subtitle": "Actividad de facturación de los últimos 30 días.",
+      "subtitle": "Cobros y gastos de los últimos meses.",
       "view_invoices": "Ver facturas",
+      "legend": {
+        "revenue": "Ingresos",
+        "expenses": "Gastos"
+      },
       "paid_to_date": "Pagado hasta la fecha",
       "outstanding": "Pendiente",
       "overdue": "Vencido"
