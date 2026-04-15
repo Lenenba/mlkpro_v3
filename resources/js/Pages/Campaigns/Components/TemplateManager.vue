@@ -146,8 +146,9 @@ const formSnapshot = () => JSON.stringify({
     form: normalizeFormState(form.value),
 });
 
+const currentSnapshot = ref(formSnapshot());
 const savedSnapshot = ref(formSnapshot());
-const hasUnsavedChanges = computed(() => formSnapshot() !== savedSnapshot.value);
+const hasUnsavedChanges = computed(() => currentSnapshot.value !== savedSnapshot.value);
 const draftStorageKey = computed(() => {
     const path = typeof window === 'undefined' ? 'marketing-templates' : window.location.pathname;
     const scope = editingId.value ? `template-${editingId.value}` : 'new';
@@ -227,7 +228,8 @@ const syncSavedSnapshot = async ({
 } = {}) => {
     await nextTick();
     await nextTick();
-    savedSnapshot.value = formSnapshot();
+    currentSnapshot.value = formSnapshot();
+    savedSnapshot.value = currentSnapshot.value;
     draftStatus.value = status;
     draftRestored.value = restored;
 };
@@ -262,7 +264,8 @@ const restoreDraftForCurrentScope = () => {
             form.value = normalizeFormState(parsed.form);
         });
 
-        savedSnapshot.value = formSnapshot();
+        currentSnapshot.value = formSnapshot();
+        savedSnapshot.value = currentSnapshot.value;
         draftStatus.value = 'saved';
         draftRestored.value = true;
         return true;
@@ -291,7 +294,8 @@ const persistDraft = () => {
         form: normalizeFormState(form.value),
         saved_at: new Date().toISOString(),
     }));
-    savedSnapshot.value = formSnapshot();
+    currentSnapshot.value = formSnapshot();
+    savedSnapshot.value = currentSnapshot.value;
     draftStatus.value = 'saved';
     draftRestored.value = false;
 };
@@ -622,9 +626,10 @@ watch(totalPages, (value) => {
     }
 });
 
-watch(() => formSnapshot(), () => {
+watch(form, () => {
+    currentSnapshot.value = formSnapshot();
     scheduleDraftSave();
-});
+}, { deep: true });
 
 watch(defaultTestRecipientEmail, (value) => {
     if (!String(testRecipientEmail.value || '').trim()) {

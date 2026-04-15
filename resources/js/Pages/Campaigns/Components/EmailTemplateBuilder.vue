@@ -45,6 +45,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'focus-field']);
 
 const clone = (value) => JSON.parse(JSON.stringify(value ?? {}));
+const serializeBuilderValue = (value) => JSON.stringify(normalize(value));
 
 const sectionDefinitions = [
     {
@@ -358,14 +359,37 @@ const normalize = (value = {}) => {
 const state = ref(normalize(props.modelValue));
 const uploadState = ref({});
 const activeField = ref(null);
+const syncingFromParent = ref(false);
+const lastSyncedSignature = ref(serializeBuilderValue(props.modelValue));
 
 watch(() => props.modelValue, (next) => {
-    state.value = normalize(next);
+    const normalized = normalize(next);
+    const nextSignature = JSON.stringify(normalized);
+
+    lastSyncedSignature.value = nextSignature;
+    if (nextSignature === JSON.stringify(state.value)) {
+        return;
+    }
+
+    syncingFromParent.value = true;
+    state.value = normalized;
     uploadState.value = {};
+
+    nextTick(() => {
+        syncingFromParent.value = false;
+    });
 }, { deep: true });
 
 watch(state, (next) => {
-    emit('update:modelValue', normalize(next));
+    const normalized = normalize(next);
+    const nextSignature = JSON.stringify(normalized);
+
+    if (syncingFromParent.value || nextSignature === lastSyncedSignature.value) {
+        return;
+    }
+
+    lastSyncedSignature.value = nextSignature;
+    emit('update:modelValue', normalized);
 }, { deep: true });
 
 watch(() => props.tokenInsertRequest?.nonce, async () => {
