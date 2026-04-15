@@ -11,7 +11,7 @@ import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
 import CookieBanner from '@/Components/UI/CookieBanner.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
-import { resolveWorkspaceBreadcrumbContext } from '@/utils/workspaceBreadcrumbs';
+import { resolveWorkspaceBreadcrumbItems } from '@/utils/workspaceBreadcrumbs';
 
 const page = usePage();
 const slots = useSlots();
@@ -24,56 +24,16 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
 const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
 const hasCustomBreadcrumb = computed(() => Boolean(slots.breadcrumb));
 
-const workspaceBreadcrumbContext = computed(() => {
+const autoBreadcrumbItems = computed(() => {
     locale.value;
 
-    return resolveWorkspaceBreadcrumbContext({
+    return resolveWorkspaceBreadcrumbItems({
         account: page.props.auth?.account,
         planningPendingCount: page.props.planning?.pending_count || 0,
         pageComponent: page.component,
         pageProps: page.props,
+        t,
     });
-});
-
-const autoBreadcrumbItems = computed(() => {
-    locale.value;
-
-    const category = workspaceBreadcrumbContext.value.currentCategory;
-    const module = workspaceBreadcrumbContext.value.currentModule;
-
-    if (!category) {
-        return [];
-    }
-
-    const items = [
-        {
-            key: 'dashboard',
-            label: t('nav.dashboard'),
-            href: route('dashboard'),
-            icon: 'home',
-        },
-    ];
-
-    if (module) {
-        items.push({
-            key: category.key,
-            label: t(category.labelKey),
-            href: route(category.routeName, category.routeParams),
-        });
-        items.push({
-            key: module.key,
-            label: t(module.labelKey),
-        });
-
-        return items;
-    }
-
-    items.push({
-        key: category.key,
-        label: t(category.labelKey),
-    });
-
-    return items;
 });
 
 const shouldShowAutoBreadcrumbs = computed(() => !hasCustomBreadcrumb.value && autoBreadcrumbItems.value.length > 1);

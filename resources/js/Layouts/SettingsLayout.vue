@@ -160,6 +160,29 @@ const navTabs = computed(() => {
 });
 
 const activeNavItem = computed(() => navTabs.value.find((item) => item.id === props.active) || null);
+const supportTicketBreadcrumb = computed(() => {
+    locale.value;
+
+    if (!route().current('settings.support.show')) {
+        return null;
+    }
+
+    const ticket = page.props.ticket || null;
+    const label = (
+        ticket?.reference
+        || ticket?.title
+        || (ticket?.id ? `#${ticket.id}` : null)
+    );
+
+    if (!label) {
+        return null;
+    }
+
+    return {
+        key: `support-ticket-${ticket?.id ?? 'current'}`,
+        label,
+    };
+});
 
 const breadcrumbItems = computed(() => {
     locale.value;
@@ -182,7 +205,12 @@ const breadcrumbItems = computed(() => {
         items.push({
             key: activeNavItem.value.id,
             label: activeNavItem.value.label,
+            href: supportTicketBreadcrumb.value ? activeNavItem.value.href : null,
         });
+    }
+
+    if (supportTicketBreadcrumb.value) {
+        items.push(supportTicketBreadcrumb.value);
     }
 
     return items;

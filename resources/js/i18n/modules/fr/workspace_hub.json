@@ -12,6 +12,11 @@
         "category_count": "{count} outil | {count} outils",
         "empty_title": "Rien n est disponible ici pour le moment",
         "empty_body": "Cette categorie devient utile des que les modules correspondants sont actives pour le workspace et le role.",
+        "breadcrumbs": {
+            "create": "Creer",
+            "edit": "Modifier",
+            "proofs": "Preuves"
+        },
         "badges": {
             "pending": "{count} en attente"
         },
