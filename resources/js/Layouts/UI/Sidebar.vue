@@ -6,8 +6,10 @@ import { Link, usePage } from '@inertiajs/vue3';
 import MenuDropdown from "@/Components/UI/LinkAncor2.vue";
 import LanguageSwitcherMenu from '@/Components/UI/LanguageSwitcherMenu.vue';
 import QuickCreateModals from "@/Components/QuickCreate/QuickCreateModals.vue";
+import CategoryIcon from '@/Components/Workspace/CategoryIcon.vue';
 import { isFeatureEnabled } from '@/utils/features';
 import { defaultAvatarIcon } from '@/utils/iconPresets';
+import { buildWorkspaceHubCategories } from '@/utils/workspaceHub';
 import NotificationBell from '@/Components/UI/NotificationBell.vue';
 
 const page = usePage()
@@ -80,6 +82,27 @@ const hasServiceOps = computed(() =>
 const canQuotes = computed(() =>
     isOwner.value || teamPermissions.value.includes('quotes.view') || teamPermissions.value.includes('quotes.edit')
 );
+const canExpensesNav = computed(() =>
+    isOwner.value
+    || teamPermissions.value.includes('expenses.view')
+    || teamPermissions.value.includes('expenses.create')
+    || teamPermissions.value.includes('expenses.edit')
+    || teamPermissions.value.includes('expenses.approve')
+    || teamPermissions.value.includes('expenses.approve_high')
+    || teamPermissions.value.includes('expenses.pay')
+);
+const canAccountingNav = computed(() =>
+    isOwner.value
+    || teamPermissions.value.includes('accounting.view')
+);
+const canInvoicesNav = computed(() =>
+    isOwner.value
+    || teamPermissions.value.includes('invoices.view')
+    || teamPermissions.value.includes('invoices.create')
+    || teamPermissions.value.includes('invoices.edit')
+    || teamPermissions.value.includes('invoices.approve')
+    || teamPermissions.value.includes('invoices.approve_high')
+);
 const isSeller = computed(() => teamRole.value === 'seller');
 const userName = computed(() => page.props.auth?.user?.name || '');
 const userEmail = computed(() => page.props.auth?.user?.email || '');
@@ -92,6 +115,15 @@ const showNotifications = computed(() => Boolean(page.props.notifications));
 const unreadCount = computed(() => page.props.notifications?.unread_count || 0);
 const hasUnread = computed(() => unreadCount.value > 0);
 const planningPendingCount = computed(() => page.props.planning?.pending_count || 0);
+const workspaceHubCategories = computed(() => buildWorkspaceHubCategories({
+    account: page.props.auth?.account,
+    planningPendingCount: planningPendingCount.value,
+}).filter((category) => category.visible));
+const useWorkspaceHubNav = computed(() => !showPlatformNav.value && !isClient.value);
+const isWorkspaceHubCategoryActive = (category) => (
+    page.url.startsWith(`/workspace-hubs/${category.key}`)
+    || (category.match || []).some((pattern) => route().current(pattern))
+);
 const menuIconBaseClass = 'relative inline-flex size-9 items-center justify-center rounded-sm hover:bg-stone-100 focus:outline-none focus:ring-2 dark:hover:bg-neutral-800';
 const languageButtonClass = `${menuIconBaseClass} text-sky-600 focus:ring-sky-500 dark:text-sky-400`;
 const notificationButtonClass = `${menuIconBaseClass} text-amber-600 focus:ring-amber-500 dark:text-amber-400`;
@@ -461,6 +493,22 @@ const isCustomerActive = computed(() => {
                                 </LinkAncor>
                                 <!-- End Item -->
 
+                                <template v-if="useWorkspaceHubNav">
+                                    <LinkAncor
+                                        v-for="category in workspaceHubCategories"
+                                        :key="category.key"
+                                        :label="$t(category.labelKey)"
+                                        :href="category.routeName"
+                                        :params="category.routeParams"
+                                        :tone="category.tone"
+                                        :active="isWorkspaceHubCategoryActive(category)"
+                                    >
+                                        <template #icon>
+                                            <CategoryIcon :name="category.icon" icon-class="size-6" />
+                                        </template>
+                                    </LinkAncor>
+                                </template>
+                                <template v-else>
                                 <!-- Item -->
                                 <LinkAncor v-if="((showServices && isOwner) || (companyType === 'products' && hasFeature('sales') && canSales)) && !isSeller" :label="$t('nav.customers')" :href="'customer.index'" tone="customers"
                                     :active="isCustomerActive">
@@ -761,7 +809,54 @@ const isCustomerActive = computed(() => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('invoices') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.invoices')" :href="'invoice.index'" tone="invoices"
+                                <LinkAncor
+                                    v-if="hasFeature('expenses') && canExpensesNav && !isSeller"
+                                    :label="$t('nav.expenses')"
+                                    :href="'expense.index'"
+                                    tone="expenses"
+                                    :active="route().current('expense.*')"
+                                >
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-wallet-cards">
+                                            <rect width="18" height="18" x="3" y="3" rx="2" />
+                                            <path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2" />
+                                            <path d="M3 11h3c.8 0 1.6.3 2.1.9l1.1.9c1.6 1.6 4.1 1.6 5.7 0l1.1-.9c.5-.5 1.3-.9 2.1-.9H21" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+                                <!-- Item -->
+                                <LinkAncor
+                                    v-if="hasFeature('accounting') && canAccountingNav && !isSeller"
+                                    :label="$t('nav.accounting')"
+                                    :href="'accounting.index'"
+                                    tone="accounting"
+                                    :active="route().current('accounting.*')"
+                                >
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-calculator">
+                                            <rect x="4" y="2" width="16" height="20" rx="2" />
+                                            <line x1="8" y1="6" x2="16" y2="6" />
+                                            <path d="M8 10h.01" />
+                                            <path d="M12 10h.01" />
+                                            <path d="M16 10h.01" />
+                                            <path d="M8 14h.01" />
+                                            <path d="M12 14h.01" />
+                                            <line x1="16" y1="14" x2="16" y2="18" />
+                                            <path d="M8 18h.01" />
+                                            <line x1="12" y1="18" x2="16" y2="18" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+                                <!-- Item -->
+                                <LinkAncor v-if="showServices && hasFeature('invoices') && canInvoicesNav && !isSeller" :label="$t('nav.invoices')" :href="'invoice.index'" tone="invoices"
                                     :active="route().current('invoice.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -820,6 +915,7 @@ const isCustomerActive = computed(() => {
                                     </template>
                                 </LinkAncor>
                                 <!-- End Item -->
+                                </template>
                                 </template>
                                 <li v-if="showNotifications" class="flex justify-center">
                                     <NotificationBell

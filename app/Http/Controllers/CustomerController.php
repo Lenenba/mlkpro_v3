@@ -5,11 +5,16 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CustomerRequest;
 use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\Product;
 use App\Models\Role;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
 use App\Queries\Customers\BuildCustomerDetailViewData;
 use App\Queries\Customers\CustomerReadSelects;
+use App\Services\CompanyFeatureService;
+use App\Services\Customers\CustomerBulkAudienceBridgeService;
+use App\Services\Customers\CustomerBulkContactService;
+use App\Support\BulkActions\BulkActionRegistry;
 use App\Support\Database\UserSelects;
 use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
@@ -21,6 +26,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
@@ -50,8 +56,9 @@ class CustomerController extends Controller
         if (! $user) {
             abort(403);
         }
-        [, $accountId] = $this->resolveCustomerAccount($user);
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
         $canEdit = $user->id === $accountId;
+        $campaignsFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($accountOwner, 'campaigns');
 
         $baseQuery = Customer::query()
             ->filter($filters)
@@ -124,6 +131,11 @@ class CustomerController extends Controller
             'stats' => $stats,
             'topCustomers' => $topCustomers,
             'canEdit' => $canEdit,
+            'bulkActions' => app(BulkActionRegistry::class)->definitionFor('customer', [
+                'can_edit' => $canEdit,
+                'contact_enabled' => $canEdit && $campaignsFeatureEnabled,
+                'campaign_bridge_enabled' => $campaignsFeatureEnabled,
+            ]),
         ]);
     }
 
@@ -666,6 +678,7 @@ class CustomerController extends Controller
             ->byUser($accountId)
             ->whereIn('id', $data['ids'])
             ->get();
+        $processedIds = $customers->pluck('id')->all();
 
         if ($data['action'] === 'portal_enable') {
             foreach ($customers as $customer) {
@@ -677,10 +690,11 @@ class CustomerController extends Controller
                 ->update(['portal_access' => true]);
 
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Portal access enabled.',
-                    'ids' => $data['ids'],
-                ]);
+                return response()->json($this->bulkActionResult(
+                    'Portal access enabled.',
+                    $data['ids'],
+                    $processedIds
+                ));
             }
 
             return redirect()->back()->with('success', 'Portal access enabled.');
@@ -696,10 +710,11 @@ class CustomerController extends Controller
                 ->update(['portal_access' => false]);
 
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Portal access disabled.',
-                    'ids' => $data['ids'],
-                ]);
+                return response()->json($this->bulkActionResult(
+                    'Portal access disabled.',
+                    $data['ids'],
+                    $processedIds
+                ));
             }
 
             return redirect()->back()->with('success', 'Portal access disabled.');
@@ -715,10 +730,11 @@ class CustomerController extends Controller
                 ->update(['is_active' => false]);
 
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Customers archived.',
-                    'ids' => $data['ids'],
-                ]);
+                return response()->json($this->bulkActionResult(
+                    'Customers archived.',
+                    $data['ids'],
+                    $processedIds
+                ));
             }
 
             return redirect()->back()->with('success', 'Customers archived.');
@@ -734,10 +750,11 @@ class CustomerController extends Controller
                 ->update(['is_active' => true]);
 
             if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Customers restored.',
-                    'ids' => $data['ids'],
-                ]);
+                return response()->json($this->bulkActionResult(
+                    'Customers restored.',
+                    $data['ids'],
+                    $processedIds
+                ));
             }
 
             return redirect()->back()->with('success', 'Customers restored.');
@@ -751,13 +768,230 @@ class CustomerController extends Controller
         }
 
         if ($this->shouldReturnJson($request)) {
-            return response()->json([
-                'message' => 'Customers deleted.',
-                'ids' => $data['ids'],
-            ]);
+            return response()->json($this->bulkActionResult(
+                'Customers deleted.',
+                $data['ids'],
+                $processedIds
+            ));
         }
 
         return redirect()->back()->with('success', 'Customers deleted.');
+    }
+
+    public function previewBulkContact(Request $request, CustomerBulkContactService $bulkContactService)
+    {
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        $this->ensureBulkContactAuthorized($user, $accountId);
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            'channel' => ['required', Rule::in(CustomerBulkContactService::allowedChannels())],
+            'objective' => ['required', Rule::in(CustomerBulkContactService::allowedObjectives())],
+            'offer_id' => ['nullable', 'integer'],
+        ]);
+
+        $customers = $this->resolveBulkContactCustomers($accountId, $validated['ids']);
+        if ($customers->isEmpty()) {
+            return response()->json([
+                'message' => 'No eligible customers were found in the current account.',
+                'errors' => [
+                    'ids' => ['No eligible customers were found in the current account.'],
+                ],
+            ], 422);
+        }
+
+        foreach ($customers as $customer) {
+            $this->authorize('view', $customer);
+        }
+
+        $offer = $this->resolveBulkContactOffer($accountId, $validated['offer_id'] ?? null);
+
+        return response()->json(
+            $bulkContactService->preview(
+                $accountOwner,
+                $customers,
+                (string) $validated['channel'],
+                (string) $validated['objective'],
+                $offer,
+                $user->preferredLocale()
+            )
+        );
+    }
+
+    public function sendBulkContact(Request $request, CustomerBulkContactService $bulkContactService)
+    {
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        $this->ensureBulkContactAuthorized($user, $accountId);
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            'channel' => ['required', Rule::in(CustomerBulkContactService::allowedChannels())],
+            'objective' => ['required', Rule::in(CustomerBulkContactService::allowedObjectives())],
+            'offer_id' => [
+                Rule::requiredIf(
+                    fn () => strtolower((string) ($request->input('objective') ?? '')) === CustomerBulkContactService::OBJECTIVE_PROMOTION
+                ),
+                'nullable',
+                'integer',
+            ],
+            'subject' => ['nullable', 'string', 'max:255'],
+            'body' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        if (
+            strtolower((string) $validated['objective']) !== CustomerBulkContactService::OBJECTIVE_PAYMENT_FOLLOWUP
+            && trim((string) ($validated['body'] ?? '')) === ''
+        ) {
+            return response()->json([
+                'message' => 'Message body is required for this outreach objective.',
+                'errors' => [
+                    'body' => ['Message body is required for this outreach objective.'],
+                ],
+            ], 422);
+        }
+
+        $customers = $this->resolveBulkContactCustomers($accountId, $validated['ids']);
+        if ($customers->isEmpty()) {
+            return response()->json([
+                'message' => 'No eligible customers were found in the current account.',
+                'errors' => [
+                    'ids' => ['No eligible customers were found in the current account.'],
+                ],
+            ], 422);
+        }
+
+        foreach ($customers as $customer) {
+            $this->authorize('view', $customer);
+        }
+
+        $offer = $this->resolveBulkContactOffer($accountId, $validated['offer_id'] ?? null);
+        if (
+            strtolower((string) $validated['objective']) === CustomerBulkContactService::OBJECTIVE_PROMOTION
+            && ! $offer
+        ) {
+            return response()->json([
+                'message' => 'A valid product or service is required for this promotion.',
+                'errors' => [
+                    'offer_id' => ['A valid product or service is required for this promotion.'],
+                ],
+            ], 422);
+        }
+
+        return response()->json(
+            $bulkContactService->send(
+                $accountOwner,
+                $user,
+                $customers,
+                [
+                    'channel' => (string) $validated['channel'],
+                    'objective' => (string) $validated['objective'],
+                    'subject' => (string) ($validated['subject'] ?? ''),
+                    'body' => (string) ($validated['body'] ?? ''),
+                ],
+                $offer,
+                $user->preferredLocale()
+            )
+        );
+    }
+
+    public function saveBulkContactSelection(
+        Request $request,
+        CustomerBulkAudienceBridgeService $bulkAudienceBridgeService
+    ) {
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        $this->ensureBulkContactAuthorized($user, $accountId);
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            'objective' => ['nullable', Rule::in(CustomerBulkContactService::allowedObjectives())],
+            'mailing_list_id' => ['nullable', 'integer'],
+            'mailing_list_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $customers = $this->resolveBulkContactCustomers($accountId, $validated['ids']);
+        if ($customers->isEmpty()) {
+            return response()->json([
+                'message' => 'No eligible customers were found in the current account.',
+                'errors' => [
+                    'ids' => ['No eligible customers were found in the current account.'],
+                ],
+            ], 422);
+        }
+
+        foreach ($customers as $customer) {
+            $this->authorize('view', $customer);
+        }
+
+        return response()->json(
+            $bulkAudienceBridgeService->saveSelection(
+                $accountOwner,
+                $user,
+                $customers,
+                $validated
+            )
+        );
+    }
+
+    public function openBulkContactCampaign(
+        Request $request,
+        CustomerBulkAudienceBridgeService $bulkAudienceBridgeService
+    ) {
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        $this->ensureBulkContactAuthorized($user, $accountId);
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            'objective' => ['nullable', Rule::in(CustomerBulkContactService::allowedObjectives())],
+            'mailing_list_id' => ['nullable', 'integer'],
+            'mailing_list_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $customers = $this->resolveBulkContactCustomers($accountId, $validated['ids']);
+        if ($customers->isEmpty()) {
+            return response()->json([
+                'message' => 'No eligible customers were found in the current account.',
+                'errors' => [
+                    'ids' => ['No eligible customers were found in the current account.'],
+                ],
+            ], 422);
+        }
+
+        foreach ($customers as $customer) {
+            $this->authorize('view', $customer);
+        }
+
+        return response()->json(
+            $bulkAudienceBridgeService->prepareCampaignHandoff(
+                $accountOwner,
+                $user,
+                $customers,
+                $validated
+            )
+        );
     }
 
     private function resolveCustomerAccount(User $user, bool $allowPos = false): array
@@ -789,6 +1023,41 @@ class CustomerController extends Controller
         }
 
         return [$owner, $accountId];
+    }
+
+    private function ensureBulkContactAuthorized(User $user, int $accountId): void
+    {
+        if ($user->id !== $accountId) {
+            abort(403);
+        }
+    }
+
+    private function resolveBulkContactCustomers(int $accountId, array $ids)
+    {
+        $normalizedIds = collect($ids)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        return Customer::query()
+            ->byUser($accountId)
+            ->whereIn('id', $normalizedIds)
+            ->get();
+    }
+
+    private function resolveBulkContactOffer(int $accountId, mixed $offerId): ?Product
+    {
+        $normalizedId = (int) $offerId;
+        if ($normalizedId < 1) {
+            return null;
+        }
+
+        return Product::query()
+            ->where('user_id', $accountId)
+            ->whereKey($normalizedId)
+            ->with('category')
+            ->first();
     }
 
     private function resolveClientRoleId(): int

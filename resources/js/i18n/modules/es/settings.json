@@ -1,6 +1,56 @@
 {
   "settings": {
     "company": {
+      "finance": {
+        "title": "Aprobaciones financieras",
+        "description": "Configura quien puede aprobar gastos y facturas en los planes de equipo, con limites por rol.",
+        "select_role": "Selecciona un rol",
+        "threshold_help": "Deja vacio el rol de escalacion si el propietario debe gestionar todo lo que supere el limite base.",
+        "owner_fallback": "El propietario siempre sigue siendo el aprobador final sin limite de importe.",
+        "documents": {
+          "expense": "Gastos",
+          "invoice": "Facturas"
+        },
+        "levels": {
+          "base_role": "Rol aprobador base",
+          "base_limit": "Importe maximo base",
+          "escalation_role": "Rol de escalacion",
+          "escalation_limit": "Importe maximo de escalacion"
+        },
+        "optional": {
+          "invoice_auto_approve_under_amount": "Autoaprobacion opcional por debajo del importe",
+          "invoice_auto_approve_under_amount_hint": "Dejalo vacio para exigir aprobacion en cada factura creada por un empleado."
+        },
+        "templates": {
+          "title": "Plantilla de factura",
+          "description": "Elige el modelo PDF de factura que tus clientes recibiran por defecto.",
+          "invoice_template_label": "Modelo de factura por defecto",
+          "options": {
+            "modern": {
+              "title": "Moderno premium",
+              "description": "Una composicion equilibrada con un bloque de total mas premium, mejor jerarquia y una entrega mas solida para el cliente."
+            },
+            "clean_professional": {
+              "title": "Profesional limpio",
+              "description": "Un modelo mas sobrio inspirado en plantillas clasicas de agencia, con una estructura mas ligera y un tono mas formal."
+            },
+            "minimal_corporate": {
+              "title": "Corporate minimal",
+              "description": "Una factura minimalista inspirada en una plantilla corporativa en blanco y negro, adaptada con acentos de Malikia Pro para un acabado mas limpio."
+            }
+          }
+        },
+        "mode": {
+          "solo": "Modo del plan actual: Solo. Los nuevos documentos financieros se autoaprueban al instante.",
+          "team": "Modo del plan actual: Equipo. El remitente queda aislado de la aprobacion y se aplican los limites."
+        },
+        "roles": {
+          "admin": "Admin",
+          "sales_manager": "Manager comercial",
+          "member": "Miembro",
+          "seller": "Vendedor"
+        }
+      },
       "store": {
         "title": "Configuracion de la tienda",
         "description": "Personaliza el encabezado publico de tu tienda y el producto destacado.",

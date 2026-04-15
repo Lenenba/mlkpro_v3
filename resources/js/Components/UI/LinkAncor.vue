@@ -4,6 +4,10 @@ import { Link } from '@inertiajs/vue3';
 
 const props = defineProps({
     href: String,
+    params: {
+        type: [Object, Array, String, Number],
+        default: null,
+    },
     svg: String,
     label: String,
     compact: {
@@ -57,7 +61,15 @@ const tonePalette = {
     jobs: { accent: '#6366f1', glow: 'rgba(99,102,241,0.35)', text: 'text-indigo-600 dark:text-indigo-400' },
     tasks: { accent: '#14b8a6', glow: 'rgba(20,184,166,0.35)', text: 'text-teal-600 dark:text-teal-400' },
     team: { accent: '#84cc16', glow: 'rgba(132,204,22,0.35)', text: 'text-lime-600 dark:text-lime-400' },
+    revenue: { accent: '#7c3aed', glow: 'rgba(124,58,237,0.35)', text: 'text-violet-600 dark:text-violet-400' },
+    growth: { accent: '#d946ef', glow: 'rgba(217,70,239,0.35)', text: 'text-fuchsia-600 dark:text-fuchsia-400' },
+    operations: { accent: '#2563eb', glow: 'rgba(37,99,235,0.35)', text: 'text-blue-600 dark:text-blue-400' },
+    finance: { accent: '#e11d48', glow: 'rgba(225,29,72,0.35)', text: 'text-rose-600 dark:text-rose-400' },
+    catalog: { accent: '#059669', glow: 'rgba(5,150,105,0.35)', text: 'text-emerald-600 dark:text-emerald-400' },
+    workspace: { accent: '#475569', glow: 'rgba(71,85,105,0.35)', text: 'text-slate-600 dark:text-slate-300' },
     invoices: { accent: '#f43f5e', glow: 'rgba(244,63,94,0.35)', text: 'text-rose-600 dark:text-rose-400' },
+    expenses: { accent: '#dc2626', glow: 'rgba(220,38,38,0.35)', text: 'text-red-600 dark:text-red-400' },
+    accounting: { accent: '#475569', glow: 'rgba(71,85,105,0.35)', text: 'text-slate-600 dark:text-slate-300' },
     default: { accent: '#10b981', glow: 'rgba(16,185,129,0.25)', text: 'text-emerald-600 dark:text-emerald-400' },
 };
 
@@ -152,7 +164,7 @@ onBeforeUnmount(() => {
     <li>
         <Link
             ref="anchorRef"
-            :href="route(href)"
+            :href="route(href, params || undefined)"
             class="relative group flex flex-col justify-center items-center gap-y-1 text-[11px] text-stone-600 dark:text-neutral-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-none"
             :class="toneTextClass"
             :aria-label="label"

@@ -21,12 +21,18 @@ class CompanyFeatureService
         'presence',
         'planning',
         'sales',
+        'expenses',
+        'accounting',
         'services',
         'tasks',
         'team_members',
         'assistant',
         'campaigns',
         'loyalty',
+    ];
+
+    private const MODULE_DEPENDENCIES = [
+        'accounting' => ['expenses'],
     ];
 
     private const SALON_ONLY_DISABLED_MODULES = [
@@ -39,6 +45,7 @@ class CompanyFeatureService
     ];
 
     private const OWNER_ONLY_FORCED_DISABLED_MODULES = [
+        'performance',
         'presence',
         'team_members',
     ];
@@ -96,6 +103,8 @@ class CompanyFeatureService
                 $features[$moduleKey] = false;
             }
         }
+
+        $features = $this->applyModuleDependencies($features);
 
         if (! array_key_exists('loyalty', $features)) {
             $features['loyalty'] = LoyaltyProgram::query()
@@ -222,12 +231,16 @@ class CompanyFeatureService
 
         foreach ($resolved as $planKey => $modules) {
             if (! $billingPlanService->isOwnerOnlyPlan((string) $planKey)) {
+                $resolved[$planKey] = $this->applyModuleDependencies($modules);
+
                 continue;
             }
 
             foreach (self::OWNER_ONLY_FORCED_DISABLED_MODULES as $moduleKey) {
                 $resolved[$planKey][$moduleKey] = false;
             }
+
+            $resolved[$planKey] = $this->applyModuleDependencies($resolved[$planKey]);
         }
 
         return $resolved;
@@ -269,5 +282,30 @@ class CompanyFeatureService
         }
 
         return $planModules;
+    }
+
+    /**
+     * @param  array<string, bool>  $modules
+     * @return array<string, bool>
+     */
+    private function applyModuleDependencies(array $modules): array
+    {
+        foreach (self::MODULE_DEPENDENCIES as $moduleKey => $dependencies) {
+            if (! ($modules[$moduleKey] ?? false)) {
+                continue;
+            }
+
+            foreach ($dependencies as $dependencyKey) {
+                if ($modules[$dependencyKey] ?? false) {
+                    continue;
+                }
+
+                $modules[$moduleKey] = false;
+
+                break;
+            }
+        }
+
+        return $modules;
     }
 }

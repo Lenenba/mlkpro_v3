@@ -1,0 +1,77 @@
+{
+    "workspace_hub": {
+        "page_title": "Hub espace",
+        "eyebrow": "Hub de categorie",
+        "default_title": "Hub espace",
+        "default_description": "Ouvrez une zone de travail puis accedez aux outils qui vont ensemble.",
+        "switcher_title": "Parcourir les categories",
+        "switcher_subtitle": "On garde la sidebar legere, puis on ouvre la zone dans laquelle on veut travailler.",
+        "modules_title": "Dans cette categorie",
+        "modules_subtitle": "Chaque carte ouvre directement le module.",
+        "open_module": "Ouvrir le module",
+        "category_count": "{count} outil | {count} outils",
+        "empty_title": "Rien n est disponible ici pour le moment",
+        "empty_body": "Cette categorie devient utile des que les modules correspondants sont actives pour le workspace et le role.",
+        "badges": {
+            "pending": "{count} en attente"
+        },
+        "categories": {
+            "revenue": {
+                "title": "Revenus et pipeline client",
+                "description": "Clients, demandes, devis, commandes et ventes regroupes au meme endroit."
+            },
+            "growth": {
+                "title": "Croissance et retention",
+                "description": "Campagnes, fidelite et vues performance pour l acquisition et le repeat business."
+            },
+            "operations": {
+                "title": "Operations et execution",
+                "description": "Chantiers, taches, reservations, planning et coordination equipe pour le quotidien."
+            },
+            "finance": {
+                "title": "Finance et approbations",
+                "description": "Factures, depenses, comptabilite et validations en attente dans un flux plus propre."
+            },
+            "catalog": {
+                "title": "Catalogue et structure",
+                "description": "Prestations, produits, categories et scans techniques regroupes dans un meme espace."
+            },
+            "workspace": {
+                "title": "Parametres du workspace",
+                "description": "Parametres entreprise, facturation et preferences de compte sans eparpiller la sidebar."
+            }
+        },
+        "modules": {
+            "customers": "Fiches clients, notes, tags et historique de relation.",
+            "requests": "Intake lead, qualification et suivi de conversion.",
+            "quotes": "Propositions commerciales et suivi des devis.",
+            "orders": "Prise de commandes produits et suivi de fulfillment.",
+            "sales": "Encaissement et historique des ventes finalisees.",
+            "campaigns": "Listes d audience, campagnes, automations et runs.",
+            "loyalty": "Retention, paliers VIP, recompenses et repeat business.",
+            "performance": "Vues de performance pour owner et responsables.",
+            "jobs": "Ordres de travail et execution terrain.",
+            "tasks": "Taches internes, rappels et handoffs.",
+            "reservations": "Reservations, queue et gestion du flux de service.",
+            "planning": "Horaires, shifts et demandes en attente.",
+            "presence": "Presence et visibilite equipe en direct.",
+            "team": "Equipe, roles et gestion des acces.",
+            "invoices": "Facturation, envoi, approbation et suivi paiement.",
+            "expenses": "Depenses, recus, remboursements et intake IA.",
+            "accounting": "Journal, taxes, periodes, revue et exports.",
+            "finance_approvals": "Elements en attente de validation finance avant d avancer.",
+            "tips_owner": "Vue owner pour les pourboires equipe et les exports.",
+            "tips_member": "Vue personnelle des pourboires et gains.",
+            "services": "Catalogue de prestations pret pour devis et reservation.",
+            "categories": "Categories de prestations et structure commerciale.",
+            "products": "Produits, prix, stock et catalogue vendable.",
+            "plan_scans": "Scans techniques et support d estimation.",
+            "company_settings_label": "Parametres entreprise",
+            "company_settings": "Marque, finance, entreprise et reglages du workspace.",
+            "billing_label": "Facturation",
+            "billing": "Forfait, abonnement, moyens de paiement et add-ons.",
+            "profile_label": "Profil",
+            "profile": "Profil personnel, mot de passe et preferences de compte."
+        }
+    }
+}

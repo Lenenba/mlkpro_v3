@@ -1,7 +1,9 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
+import axios from 'axios';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -14,9 +16,17 @@ import { humanizeDate } from '@/utils/date';
 import { isFeatureEnabled } from '@/utils/features';
 import { buildLeadScore, badgeClass } from '@/utils/leadScore';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
+import { useDataTableSelection } from '@/Composables/useDataTableSelection';
 import { useI18n } from 'vue-i18n';
 import RequestBoard from '@/Pages/Request/UI/RequestBoard.vue';
 import RequestTableActionsMenu from '@/Pages/Request/UI/RequestTableActionsMenu.vue';
+import {
+    createBulkActionFailureResult,
+    dispatchBulkActionToast,
+    extractBulkActionErrorMessages,
+    normalizeBulkActionResult,
+    resolveBulkActionErrorMessage,
+} from '@/utils/bulkActions';
 
 const props = defineProps({
     requests: {
@@ -38,6 +48,10 @@ const props = defineProps({
     assignees: {
         type: Array,
         default: () => [],
+    },
+    bulkActions: {
+        type: Object,
+        default: () => ({}),
     },
     leadIntake: {
         type: Object,
@@ -133,9 +147,15 @@ const statusSelectOptions = computed(() => {
 });
 
 const statusActionOptions = computed(() =>
-    (props.statuses || []).map((status) => ({
-        id: String(status.id),
-        name: statusLabel(String(status.id)),
+    (Array.isArray(props.bulkActions?.controls?.status?.options) && props.bulkActions.controls.status.options.length
+        ? props.bulkActions.controls.status.options
+        : (props.statuses || []).map((status) => ({
+            value: String(status.id),
+            label: statusLabel(String(status.id)),
+        }))
+    ).map((status) => ({
+        id: String(status.value ?? status.id),
+        name: String(status.label ?? status.name ?? status.value ?? status.id),
     }))
 );
 
@@ -148,11 +168,28 @@ const assigneeSelectOptions = computed(() => [
 ]);
 
 const bulkAssigneeOptions = computed(() =>
-    (props.assignees || []).map((assignee) => ({
-        id: String(assignee.id),
-        name: assignee.name || t('requests.labels.unassigned'),
+    (Array.isArray(props.bulkActions?.controls?.assign?.options) && props.bulkActions.controls.assign.options.length
+        ? props.bulkActions.controls.assign.options
+        : (props.assignees || []).map((assignee) => ({
+            value: String(assignee.id),
+            label: assignee.name || t('requests.labels.unassigned'),
+        }))
+    ).map((assignee) => ({
+        id: String(assignee.value ?? assignee.id),
+        name: String(assignee.label ?? assignee.name ?? assignee.value ?? assignee.id),
     }))
 );
+
+const bulkSelectionLabelKey = computed(() => props.bulkActions?.selection_label_key || 'requests.bulk.selected');
+const bulkStatusLabelKey = computed(() => props.bulkActions?.controls?.status?.label_key || 'requests.bulk.status_label');
+const bulkStatusPlaceholderKey = computed(() => props.bulkActions?.controls?.status?.placeholder_key || 'requests.bulk.status_placeholder');
+const bulkStatusSubmitLabelKey = computed(() => props.bulkActions?.controls?.status?.submit_label_key || 'requests.bulk.apply_status');
+const bulkLostReasonPlaceholderKey = computed(() => props.bulkActions?.controls?.status?.lost_reason_placeholder_key || 'requests.bulk.lost_reason');
+const bulkLostReasonPromptKey = computed(() => props.bulkActions?.controls?.status?.lost_reason_prompt_key || 'requests.bulk.lost_reason_prompt');
+const bulkLostReasonTriggerValue = computed(() => props.bulkActions?.controls?.status?.lost_reason_trigger_value || 'REQ_LOST');
+const bulkAssignLabelKey = computed(() => props.bulkActions?.controls?.assign?.label_key || 'requests.bulk.assign_label');
+const bulkAssignPlaceholderKey = computed(() => props.bulkActions?.controls?.assign?.placeholder_key || 'requests.bulk.assign_placeholder');
+const bulkAssignSubmitLabelKey = computed(() => props.bulkActions?.controls?.assign?.submit_label_key || 'requests.bulk.apply_assign');
 
 const filterPayload = () => {
     const payload = {
@@ -233,52 +270,62 @@ const tableRows = computed(() => (Array.isArray(props.requests?.data) ? props.re
 const requestTableRows = computed(() => (isLoading.value
     ? Array.from({ length: 6 }, (_, index) => ({ id: `request-skeleton-${index}`, __skeleton: true }))
     : tableRows.value));
-const selected = ref([]);
-const selectAllRef = ref(null);
-const allSelected = computed(() =>
-    tableRows.value.length > 0 && selected.value.length === tableRows.value.length
-);
-const someSelected = computed(() =>
-    selected.value.length > 0 && !allSelected.value
-);
-
-watch(tableRows, () => {
-    selected.value = [];
-}, { deep: true });
-
-watch([allSelected, someSelected], () => {
-    if (selectAllRef.value) {
-        selectAllRef.value.indeterminate = someSelected.value;
-    }
-});
-
-const toggleAll = (event) => {
-    selected.value = event.target.checked
-        ? tableRows.value.map((lead) => lead.id)
-        : [];
-};
+const {
+    selected,
+    selectedCount,
+    selectAllRef,
+    allSelected,
+    toggleAll,
+    clearSelection,
+} = useDataTableSelection(tableRows);
 
 const bulkStatus = ref('');
 const bulkAssignee = ref('');
 const bulkLostReason = ref('');
 const bulkErrors = ref({});
 const bulkProcessing = ref(false);
+const bulkResult = ref(null);
+
+const clearBulkResult = () => {
+    bulkResult.value = null;
+};
+
+const setBulkResult = (payload) => {
+    bulkResult.value = normalizeBulkActionResult(payload);
+
+    return bulkResult.value;
+};
+
+watch(selectedCount, (count, previousCount) => {
+    if (count > 0 && count !== previousCount) {
+        clearBulkResult();
+    }
+});
+
+const reloadBulkContext = () => new Promise((resolve) => {
+    router.reload({
+        only: ['requests', 'filters', 'stats', 'analytics'],
+        preserveScroll: true,
+        preserveState: true,
+        onFinish: () => resolve(),
+    });
+});
 
 watch(() => bulkStatus.value, (value) => {
-    if (value !== 'REQ_LOST') {
+    if (value !== bulkLostReasonTriggerValue.value) {
         bulkLostReason.value = '';
         bulkErrors.value = {};
     }
 });
 
-const submitBulkStatus = () => {
+const submitBulkStatus = async () => {
     if (!selected.value.length || !bulkStatus.value || bulkProcessing.value) {
         return;
     }
 
     let lostReason = bulkLostReason.value;
-    if (bulkStatus.value === 'REQ_LOST' && !lostReason) {
-        lostReason = window.prompt(t('requests.bulk.lost_reason_prompt'));
+    if (bulkStatus.value === bulkLostReasonTriggerValue.value && !lostReason) {
+        lostReason = window.prompt(t(bulkLostReasonPromptKey.value));
         if (!lostReason) {
             return;
         }
@@ -286,50 +333,92 @@ const submitBulkStatus = () => {
     }
 
     bulkErrors.value = {};
+    clearBulkResult();
     bulkProcessing.value = true;
-    router.patch(route('request.bulk'), {
-        ids: selected.value,
-        status: bulkStatus.value,
-        lost_reason: bulkStatus.value === 'REQ_LOST' ? lostReason : null,
-    }, {
-        preserveScroll: true,
-        onError: (errors) => {
-            bulkErrors.value = errors || {};
-        },
-        onFinish: () => {
-            bulkProcessing.value = false;
-        },
-        onSuccess: () => {
-            selected.value = [];
-            bulkStatus.value = '';
-            bulkLostReason.value = '';
-        },
-    });
+
+    try {
+        const { data } = await axios.patch(route('request.bulk'), {
+            ids: selected.value,
+            status: bulkStatus.value,
+            lost_reason: bulkStatus.value === bulkLostReasonTriggerValue.value ? lostReason : null,
+        }, {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        const result = setBulkResult(data);
+        clearSelection();
+        bulkStatus.value = '';
+        bulkLostReason.value = '';
+        dispatchBulkActionToast(result, t);
+        await reloadBulkContext();
+    } catch (error) {
+        if (error?.response?.status === 422) {
+            bulkErrors.value = error?.response?.data?.errors || {};
+
+            return;
+        }
+
+        const errors = extractBulkActionErrorMessages(error);
+        const message = resolveBulkActionErrorMessage(error, t);
+        const result = createBulkActionFailureResult({
+            message,
+            errors: errors.length ? errors : [message],
+            selectedCount: selected.value.length,
+        });
+
+        bulkResult.value = result;
+        dispatchBulkActionToast(result, t);
+    } finally {
+        bulkProcessing.value = false;
+    }
 };
 
-const submitBulkAssign = () => {
+const submitBulkAssign = async () => {
     if (!selected.value.length || bulkProcessing.value || !bulkAssignee.value) {
         return;
     }
 
     bulkErrors.value = {};
+    clearBulkResult();
     bulkProcessing.value = true;
-    router.patch(route('request.bulk'), {
-        ids: selected.value,
-        assigned_team_member_id: Number(bulkAssignee.value),
-    }, {
-        preserveScroll: true,
-        onError: (errors) => {
-            bulkErrors.value = errors || {};
-        },
-        onFinish: () => {
-            bulkProcessing.value = false;
-        },
-        onSuccess: () => {
-            selected.value = [];
-            bulkAssignee.value = '';
-        },
-    });
+
+    try {
+        const { data } = await axios.patch(route('request.bulk'), {
+            ids: selected.value,
+            assigned_team_member_id: Number(bulkAssignee.value),
+        }, {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        const result = setBulkResult(data);
+        clearSelection();
+        bulkAssignee.value = '';
+        dispatchBulkActionToast(result, t);
+        await reloadBulkContext();
+    } catch (error) {
+        if (error?.response?.status === 422) {
+            bulkErrors.value = error?.response?.data?.errors || {};
+
+            return;
+        }
+
+        const errors = extractBulkActionErrorMessages(error);
+        const message = resolveBulkActionErrorMessage(error, t);
+        const result = createBulkActionFailureResult({
+            message,
+            errors: errors.length ? errors : [message],
+            selectedCount: selected.value.length,
+        });
+
+        bulkResult.value = result;
+        dispatchBulkActionToast(result, t);
+    } finally {
+        bulkProcessing.value = false;
+    }
 };
 
 const convertModalId = 'hs-request-convert';
@@ -931,25 +1020,27 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
             </div>
         </div>
 
-        <div v-if="viewMode === 'table' && selected.length" class="flex flex-wrap items-center gap-2">
-            <span class="text-xs text-stone-500 dark:text-neutral-400">
-                {{ $t('requests.bulk.selected', { count: selected.length }) }}
-            </span>
+        <AdminDataTableBulkBar
+            v-if="viewMode === 'table'"
+            :count="selectedCount"
+            :label="$t(bulkSelectionLabelKey, { count: selectedCount })"
+            :result="bulkResult"
+        >
             <div class="flex flex-wrap items-end gap-2">
                 <FloatingSelect
                     v-model="bulkStatus"
-                    :label="$t('requests.bulk.status_label')"
+                    :label="$t(bulkStatusLabelKey)"
                     :options="statusActionOptions"
-                    :placeholder="$t('requests.bulk.status_placeholder')"
+                    :placeholder="$t(bulkStatusPlaceholderKey)"
                     dense
                     class="min-w-[170px]"
                 />
                 <input
-                    v-if="bulkStatus === 'REQ_LOST'"
+                    v-if="bulkStatus === bulkLostReasonTriggerValue"
                     v-model="bulkLostReason"
                     type="text"
                     class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('requests.bulk.lost_reason')"
+                    :placeholder="$t(bulkLostReasonPlaceholderKey)"
                 />
                 <button
                     type="button"
@@ -957,15 +1048,15 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                     :disabled="bulkProcessing || !bulkStatus"
                     @click="submitBulkStatus"
                 >
-                    {{ $t('requests.bulk.apply_status') }}
+                    {{ $t(bulkStatusSubmitLabelKey) }}
                 </button>
             </div>
             <div class="flex flex-wrap items-end gap-2">
                 <FloatingSelect
                     v-model="bulkAssignee"
-                    :label="$t('requests.bulk.assign_label')"
+                    :label="$t(bulkAssignLabelKey)"
                     :options="bulkAssigneeOptions"
-                    :placeholder="$t('requests.bulk.assign_placeholder')"
+                    :placeholder="$t(bulkAssignPlaceholderKey)"
                     dense
                     class="min-w-[180px]"
                 />
@@ -975,11 +1066,11 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                     :disabled="bulkProcessing || !bulkAssignee"
                     @click="submitBulkAssign"
                 >
-                    {{ $t('requests.bulk.apply_assign') }}
+                    {{ $t(bulkAssignSubmitLabelKey) }}
                 </button>
             </div>
-            <InputError class="mt-1 w-full" :message="bulkErrors.lost_reason" />
-        </div>
+            <InputError class="mt-1 w-full basis-full" :message="bulkErrors.lost_reason" />
+        </AdminDataTableBulkBar>
 
         <div v-if="viewMode === 'board'" class="pt-2">
             <RequestBoard :requests="requests.data" :statuses="statuses" />

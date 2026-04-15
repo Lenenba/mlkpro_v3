@@ -34,7 +34,16 @@
     "jobs": "Jobs",
     "tasks": "Tasks",
     "team": "Team",
+    "expenses": "Expenses",
+    "accounting": "Accounting",
+    "finance_approvals": "Finance approvals",
     "invoices": "Invoices",
-    "tips": "Tips"
+    "tips": "Tips",
+    "revenue": "Revenue",
+    "growth": "Growth",
+    "operations": "Operations",
+    "finance": "Finance",
+    "catalog": "Catalog",
+    "workspace": "Workspace"
   }
 }

@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, useSlots } from 'vue';
 import Header from '@/Layouts/UI/Header.vue';
 import Sidebar from '@/Layouts/UI/Sidebar.vue';
 import ValidationSummary from '@/Components/ValidationSummary.vue';
@@ -7,16 +7,76 @@ import DemoBanner from '@/Components/Demo/DemoBanner.vue';
 import DemoTourProvider from '@/Components/Demo/DemoTourProvider.vue';
 import GlobalAssistant from '@/Components/Assistant/GlobalAssistant.vue';
 import FlashToaster from '@/Components/UI/FlashToaster.vue';
+import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
 import CookieBanner from '@/Components/UI/CookieBanner.vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
+import { resolveWorkspaceBreadcrumbContext } from '@/utils/workspaceBreadcrumbs';
 
-const page = usePage()
+const page = usePage();
+const slots = useSlots();
+const { t, locale } = useI18n();
 
 const validationErrors = computed(() => page.props.errors || {});
 const maintenance = computed(() => page.props.platform?.maintenance || { enabled: false, message: '' });
 const impersonator = computed(() => page.props.auth?.impersonator || null);
 const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superadmin));
 const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
+const hasCustomBreadcrumb = computed(() => Boolean(slots.breadcrumb));
+
+const workspaceBreadcrumbContext = computed(() => {
+    locale.value;
+
+    return resolveWorkspaceBreadcrumbContext({
+        account: page.props.auth?.account,
+        planningPendingCount: page.props.planning?.pending_count || 0,
+        pageComponent: page.component,
+        pageProps: page.props,
+    });
+});
+
+const autoBreadcrumbItems = computed(() => {
+    locale.value;
+
+    const category = workspaceBreadcrumbContext.value.currentCategory;
+    const module = workspaceBreadcrumbContext.value.currentModule;
+
+    if (!category) {
+        return [];
+    }
+
+    const items = [
+        {
+            key: 'dashboard',
+            label: t('nav.dashboard'),
+            href: route('dashboard'),
+            icon: 'home',
+        },
+    ];
+
+    if (module) {
+        items.push({
+            key: category.key,
+            label: t(category.labelKey),
+            href: route(category.routeName, category.routeParams),
+        });
+        items.push({
+            key: module.key,
+            label: t(module.labelKey),
+        });
+
+        return items;
+    }
+
+    items.push({
+        key: category.key,
+        label: t(category.labelKey),
+    });
+
+    return items;
+});
+
+const shouldShowAutoBreadcrumbs = computed(() => !hasCustomBreadcrumb.value && autoBreadcrumbItems.value.length > 1);
 </script>
 
 <template>
@@ -71,6 +131,11 @@ const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
                 <DemoBanner />
 
                 <ValidationSummary :errors="validationErrors" />
+                <slot v-if="hasCustomBreadcrumb" name="breadcrumb" />
+                <AppBreadcrumbs
+                    v-else-if="shouldShowAutoBreadcrumbs"
+                    :items="autoBreadcrumbItems"
+                />
                 <slot />
             </div>
         </main>

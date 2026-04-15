@@ -17,6 +17,17 @@
     "warning": {
       "title": "Warning."
     },
+    "bulk_action": {
+      "summary": {
+        "processed": "{count} processed",
+        "succeeded": "{count} succeeded",
+        "failed": "{count} failed",
+        "skipped": "{count} skipped"
+      },
+      "errors_title": "Main issues",
+      "more_errors": "+{count} more",
+      "request_failed": "Bulk action failed."
+    },
     "validation_toast": {
       "single": "1 form error. Check the highlighted field.",
       "plural": "{count} form errors. Check the highlighted fields.",

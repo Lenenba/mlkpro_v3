@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
 import { useI18n } from 'vue-i18n';
 import { defaultAvatarIcon } from '@/utils/iconPresets';
@@ -158,6 +159,35 @@ const navTabs = computed(() => {
         }));
 });
 
+const activeNavItem = computed(() => navTabs.value.find((item) => item.id === props.active) || null);
+
+const breadcrumbItems = computed(() => {
+    locale.value;
+
+    const items = [
+        {
+            key: 'dashboard',
+            label: t('nav.dashboard'),
+            href: route('dashboard'),
+            icon: 'home',
+        },
+        {
+            key: 'workspace',
+            label: t('nav.workspace'),
+            href: route('workspace.hubs.show', { category: 'workspace' }),
+        },
+    ];
+
+    if (activeNavItem.value) {
+        items.push({
+            key: activeNavItem.value.id,
+            label: activeNavItem.value.label,
+        });
+    }
+
+    return items;
+});
+
 const openCookiePreferences = () => {
     if (typeof window === 'undefined') {
         return;
@@ -168,6 +198,10 @@ const openCookiePreferences = () => {
 
 <template>
     <AuthenticatedLayout>
+        <template #breadcrumb>
+            <AppBreadcrumbs :items="breadcrumbItems" />
+        </template>
+
         <div class="settings-shell">
             <header class="settings-hero">
                 <div class="settings-hero__inner" :class="props.contentClass">
@@ -377,4 +411,3 @@ const openCookiePreferences = () => {
     min-width: 0;
 }
 </style>
-

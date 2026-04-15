@@ -11,6 +11,10 @@ const props = defineProps({
     count: Number,
     stats: Object,
     topCustomers: Array,
+    bulkActions: {
+        type: Object,
+        default: () => ({}),
+    },
     canEdit: {
         type: Boolean,
         default: false,
@@ -24,7 +28,7 @@ const props = defineProps({
         <CustomerStats :stats="stats" />
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
             <div class="col-span-1 lg:col-span-3">
-                <CustomerTable :customers="customers" :filters="filters" :count="count" :can-edit="canEdit" />
+                <CustomerTable :customers="customers" :filters="filters" :count="count" :bulk-actions="bulkActions" :can-edit="canEdit" />
             </div>
             <CustomerActivityStat :items="topCustomers" />
         </div>

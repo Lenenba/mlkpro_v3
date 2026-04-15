@@ -46,7 +46,7 @@ const props = defineProps({
     },
     revenueSeries: {
         type: Object,
-        default: () => ({ labels: [], values: [] }),
+        default: () => ({ labels: [], values: [], expenseValues: [] }),
     },
     kpiSeries: {
         type: Object,
@@ -71,6 +71,10 @@ const props = defineProps({
     marketingKpis: {
         type: Object,
         default: null,
+    },
+    financeSummary: {
+        type: Object,
+        default: () => ({}),
     },
 });
 
@@ -397,22 +401,41 @@ const catalogEmpty = computed(() => stat('products_total') <= 0);
 const quotesEmpty = computed(() => stat('quotes_total') <= 0);
 const planScansEmpty = computed(() => stat('plan_scans_total') <= 0);
 
+const expenseSeriesValues = computed(() => props.revenueSeries?.expenseValues || []);
+const hasExpenseTrend = computed(() => hasFeature('expenses') && expenseSeriesValues.value.length > 0);
 const revenueMax = computed(() => {
-    const values = props.revenueSeries?.values || [];
+    const values = [
+        ...(props.revenueSeries?.values || []),
+        ...(hasExpenseTrend.value ? expenseSeriesValues.value : []),
+    ];
     const maxValue = Math.max(...values, 0);
     return maxValue > 0 ? maxValue : 1;
 });
+const revenueBarHeight = (value) => {
+    const numericValue = Number(value || 0);
+
+    if (numericValue <= 0) {
+        return '0px';
+    }
+
+    return `${Math.max(6, Math.round((numericValue / revenueMax.value) * 120))}px`;
+};
 
 const revenuePoints = computed(() => {
     const labels = props.revenueSeries?.labels || [];
     const values = props.revenueSeries?.values || [];
+    const expenseValues = expenseSeriesValues.value;
+
     return labels.map((label, index) => {
         const value = Number(values[index] || 0);
-        const height = Math.max(6, Math.round((value / revenueMax.value) * 120));
+        const expenseValue = Number(expenseValues[index] || 0);
+
         return {
             label,
             value,
-            height: `${height}px`,
+            expenseValue,
+            height: revenueBarHeight(value),
+            expenseHeight: revenueBarHeight(expenseValue),
         };
     });
 });
@@ -1091,11 +1114,33 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                 {{ $t('dashboard.revenue.view_invoices') }}
                             </Link>
                         </div>
+                        <div v-if="hasExpenseTrend" class="mt-3 flex flex-wrap items-center gap-4 text-[11px] text-stone-500 dark:text-neutral-400">
+                            <span class="inline-flex items-center gap-2">
+                                <span class="size-2 rounded-full bg-emerald-400 dark:bg-emerald-300"></span>
+                                {{ $t('dashboard.revenue.legend.revenue') }}
+                            </span>
+                            <span class="inline-flex items-center gap-2">
+                                <span class="size-2 rounded-full bg-rose-400 dark:bg-rose-300"></span>
+                                {{ $t('dashboard.revenue.legend.expenses') }}
+                            </span>
+                        </div>
                         <div class="mt-4 flex items-end gap-2 h-36">
                             <div v-for="point in revenuePoints" :key="point.label"
-                                class="flex-1 flex flex-col items-center gap-2">
-                                <div class="w-full rounded-sm bg-emerald-200 dark:bg-emerald-500/30"
-                                    :style="{ height: point.height }"></div>
+                                class="flex-1 flex flex-col items-center gap-2 self-stretch">
+                                <div class="flex w-full flex-1 items-end justify-center gap-1">
+                                    <div
+                                        class="rounded-sm bg-emerald-200 dark:bg-emerald-500/30"
+                                        :class="hasExpenseTrend ? 'flex-1' : 'w-full'"
+                                        :style="{ height: point.height }"
+                                        :title="`${$t('dashboard.revenue.legend.revenue')}: ${formatCurrency(point.value)}`"
+                                    ></div>
+                                    <div
+                                        v-if="hasExpenseTrend"
+                                        class="flex-1 rounded-sm bg-rose-200 dark:bg-rose-400/30"
+                                        :style="{ height: point.expenseHeight }"
+                                        :title="`${$t('dashboard.revenue.legend.expenses')}: ${formatCurrency(point.expenseValue)}`"
+                                    ></div>
+                                </div>
                                 <div class="text-[11px] text-stone-500 dark:text-neutral-400">
                                     {{ point.label }}
                                 </div>

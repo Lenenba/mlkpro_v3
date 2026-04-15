@@ -30,6 +30,7 @@ const props = defineProps({
 const filterForm = useForm({
     search: props.filters?.search ?? '',
     status: props.filters?.status ?? '',
+    approval_status: props.filters?.approval_status ?? '',
     customer_id: props.filters?.customer_id ?? '',
     total_min: props.filters?.total_min ?? '',
     total_max: props.filters?.total_max ?? '',
@@ -92,10 +93,21 @@ const customerOptions = computed(() => ([
     })),
 ]));
 
+const approvalStatusOptions = computed(() => ([
+    { value: '', label: t('invoices.filters.approval_status.all') },
+    { value: 'draft', label: t('invoices.approval_status.draft') },
+    { value: 'submitted', label: t('invoices.approval_status.submitted') },
+    { value: 'pending_approval', label: t('invoices.approval_status.pending_approval') },
+    { value: 'approved', label: t('invoices.approval_status.approved') },
+    { value: 'rejected', label: t('invoices.approval_status.rejected') },
+    { value: 'processed', label: t('invoices.approval_status.processed') },
+]));
+
 const filterPayload = () => {
     const payload = {
         search: filterForm.search,
         status: filterForm.status,
+        approval_status: filterForm.approval_status,
         customer_id: filterForm.customer_id,
         total_min: filterForm.total_min,
         total_max: filterForm.total_max,
@@ -141,6 +153,7 @@ watch(() => filterForm.search, () => {
 
 watch(() => [
     filterForm.status,
+    filterForm.approval_status,
     filterForm.customer_id,
     filterForm.total_min,
     filterForm.total_max,
@@ -155,6 +168,7 @@ watch(() => [
 const clearFilters = () => {
     filterForm.search = '';
     filterForm.status = '';
+    filterForm.approval_status = '';
     filterForm.customer_id = '';
     filterForm.total_min = '';
     filterForm.total_max = '';
@@ -231,7 +245,50 @@ const statusMeta = computed(() => ({
 
 const getStatusMeta = (invoice) => statusMeta.value[invoice?.status] || statusMeta.value.draft;
 
-const canSendInvoice = (invoice) => Boolean(invoice?.customer?.email) && invoice?.status !== 'void';
+const approvalStatusMeta = computed(() => ({
+    draft: {
+        label: t('invoices.approval_status.draft'),
+        classes: 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200',
+    },
+    submitted: {
+        label: t('invoices.approval_status.submitted'),
+        classes: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200',
+    },
+    pending_approval: {
+        label: t('invoices.approval_status.pending_approval'),
+        classes: 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-200',
+    },
+    approved: {
+        label: t('invoices.approval_status.approved'),
+        classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200',
+    },
+    rejected: {
+        label: t('invoices.approval_status.rejected'),
+        classes: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200',
+    },
+    processed: {
+        label: t('invoices.approval_status.processed'),
+        classes: 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-200',
+    },
+    paid: {
+        label: t('invoices.approval_status.paid'),
+        classes: 'bg-violet-100 text-violet-800 dark:bg-violet-500/15 dark:text-violet-200',
+    },
+}));
+
+const getApprovalStatusMeta = (invoice) => (
+    approvalStatusMeta.value[invoice?.approval_status] || approvalStatusMeta.value.draft
+);
+
+const canSendInvoice = (invoice) => {
+    if (typeof invoice?.can_send_email === 'boolean') {
+        return invoice.can_send_email;
+    }
+
+    return Boolean(invoice?.customer?.email)
+        && invoice?.status !== 'void'
+        && ['approved', 'processed'].includes(invoice?.approval_status);
+};
 
 const invoiceActionLabel = (invoice) => (
     invoice?.status === 'draft'
@@ -298,6 +355,12 @@ const invoiceResultsLabel = computed(() => `${props.invoices?.total ?? props.inv
                     v-model="filterForm.status"
                     :label="$t('invoices.table.status')"
                     :options="statusOptions"
+                    dense
+                />
+                <FloatingSelect
+                    v-model="filterForm.approval_status"
+                    :label="$t('invoices.table.approval_status')"
+                    :options="approvalStatusOptions"
                     dense
                 />
                 <FloatingSelect
@@ -470,49 +533,57 @@ const invoiceResultsLabel = computed(() => `${props.invoices?.total ?? props.inv
                         </span>
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2">
-                        <span class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-semibold rounded-full"
-                            :class="getStatusMeta(invoice).classes">
-                            <span class="inline-flex size-3.5 items-center justify-center" :class="getStatusMeta(invoice).iconClass">
-                                <svg v-if="getStatusMeta(invoice).icon === 'draft'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                    class="size-3.5">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
-                                    <path d="M14 2v6h6" />
-                                    <path d="M8 13h8" />
-                                </svg>
-                                <svg v-else-if="getStatusMeta(invoice).icon === 'sent'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                    class="size-3.5">
-                                    <path d="m22 2-7 20-4-9-9-4Z" />
-                                    <path d="M22 2 11 13" />
-                                </svg>
-                                <svg v-else-if="getStatusMeta(invoice).icon === 'partial'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                    class="size-3.5">
-                                    <path d="M21 12A9 9 0 1 1 12 3v9z" />
-                                </svg>
-                                <svg v-else-if="getStatusMeta(invoice).icon === 'paid'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                    class="size-3.5">
-                                    <circle cx="12" cy="12" r="9" />
-                                    <path d="m8.5 12.5 2.5 2.5 4.5-5" />
-                                </svg>
-                                <svg v-else-if="getStatusMeta(invoice).icon === 'overdue'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                    class="size-3.5">
-                                    <circle cx="12" cy="12" r="9" />
-                                    <path d="M12 8v4" />
-                                    <path d="M12 16h.01" />
-                                </svg>
-                                <svg v-else-if="getStatusMeta(invoice).icon === 'void'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                    class="size-3.5">
-                                    <circle cx="12" cy="12" r="9" />
-                                    <path d="m5 5 14 14" />
-                                </svg>
+                        <div class="flex flex-col items-start gap-1.5">
+                            <span class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-semibold rounded-full"
+                                :class="getStatusMeta(invoice).classes">
+                                <span class="inline-flex size-3.5 items-center justify-center" :class="getStatusMeta(invoice).iconClass">
+                                    <svg v-if="getStatusMeta(invoice).icon === 'draft'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
+                                        <path d="M14 2v6h6" />
+                                        <path d="M8 13h8" />
+                                    </svg>
+                                    <svg v-else-if="getStatusMeta(invoice).icon === 'sent'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <path d="m22 2-7 20-4-9-9-4Z" />
+                                        <path d="M22 2 11 13" />
+                                    </svg>
+                                    <svg v-else-if="getStatusMeta(invoice).icon === 'partial'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <path d="M21 12A9 9 0 1 1 12 3v9z" />
+                                    </svg>
+                                    <svg v-else-if="getStatusMeta(invoice).icon === 'paid'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <circle cx="12" cy="12" r="9" />
+                                        <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+                                    </svg>
+                                    <svg v-else-if="getStatusMeta(invoice).icon === 'overdue'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <circle cx="12" cy="12" r="9" />
+                                        <path d="M12 8v4" />
+                                        <path d="M12 16h.01" />
+                                    </svg>
+                                    <svg v-else-if="getStatusMeta(invoice).icon === 'void'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <circle cx="12" cy="12" r="9" />
+                                        <path d="m5 5 14 14" />
+                                    </svg>
+                                </span>
+                                <span>{{ getStatusMeta(invoice).label }}</span>
                             </span>
-                            <span>{{ getStatusMeta(invoice).label }}</span>
-                        </span>
+                            <span
+                                class="inline-flex items-center rounded-full px-2 py-1 text-[11px] font-medium"
+                                :class="getApprovalStatusMeta(invoice).classes"
+                            >
+                                {{ getApprovalStatusMeta(invoice).label }}
+                            </span>
+                        </div>
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <StarRating :value="invoice.work?.ratings_avg_rating" icon-class="h-3.5 w-3.5" empty-label="-" />
@@ -638,6 +709,12 @@ const invoiceResultsLabel = computed(() => `${props.invoices?.total ?? props.inv
                                     </svg>
                                 </span>
                                 <span>{{ getStatusMeta(invoice).label }}</span>
+                            </span>
+                            <span
+                                class="inline-flex items-center rounded-full px-2 py-1 text-[11px] font-medium"
+                                :class="getApprovalStatusMeta(invoice).classes"
+                            >
+                                {{ getApprovalStatusMeta(invoice).label }}
                             </span>
                             <InvoiceActionsMenu
                                 :invoice="invoice"

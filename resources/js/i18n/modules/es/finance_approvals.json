@@ -1,0 +1,50 @@
+{
+  "finance_approvals": {
+    "title": "Aprobaciones financieras",
+    "subtitle": "Revisa las facturas y gastos que siguen esperando una decision financiera.",
+    "stats": {
+      "total_pending": "Documentos pendientes",
+      "expenses_pending": "Gastos por revisar",
+      "invoices_pending": "Facturas por revisar"
+    },
+    "sections": {
+      "expenses": "Gastos pendientes de aprobacion",
+      "invoices": "Facturas pendientes de aprobacion"
+    },
+    "empty": {
+      "all": "No hay aprobaciones financieras pendientes.",
+      "expenses": "No hay gastos pendientes de aprobacion.",
+      "invoices": "No hay facturas pendientes de aprobacion."
+    },
+    "labels": {
+      "created_by": "Creado por",
+      "customer": "Cliente",
+      "job": "Trabajo",
+      "current_role": "Rol aprobador actual",
+      "status": "Estado",
+      "approval_status": "Estado de aprobacion",
+      "expense_date": "Fecha del gasto",
+      "created_at": "Creacion"
+    },
+    "actions": {
+      "open": "Abrir",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "process": "Marcar procesada"
+    },
+    "search": {
+      "label": "Busqueda rapida",
+      "placeholder": "Buscar por titulo, numero, cliente, trabajo o creador",
+      "helper": "Filtra a la vez los gastos y las facturas pendientes.",
+      "loading": "Actualizando la lista..."
+    },
+    "load_more": {
+      "button": "Cargar mas",
+      "loading": "Cargando..."
+    },
+    "fallbacks": {
+      "customer": "Sin cliente",
+      "job": "Sin trabajo vinculado"
+    }
+  }
+}

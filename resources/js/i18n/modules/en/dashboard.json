@@ -64,8 +64,12 @@
     },
     "revenue": {
       "title": "Revenue trend",
-      "subtitle": "Invoicing activity for the last 30 days.",
+      "subtitle": "Revenue collections and expenses over recent months.",
       "view_invoices": "View invoices",
+      "legend": {
+        "revenue": "Revenue",
+        "expenses": "Expenses"
+      },
       "paid_to_date": "Paid to date",
       "outstanding": "Outstanding",
       "overdue": "Overdue"

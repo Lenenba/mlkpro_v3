@@ -1,0 +1,50 @@
+{
+  "finance_approvals": {
+    "title": "Approbations finance",
+    "subtitle": "Relis les factures et depenses qui attendent encore une decision finance.",
+    "stats": {
+      "total_pending": "Documents en attente",
+      "expenses_pending": "Depenses a relire",
+      "invoices_pending": "Factures a relire"
+    },
+    "sections": {
+      "expenses": "Depenses en attente d'approbation",
+      "invoices": "Factures en attente d'approbation"
+    },
+    "empty": {
+      "all": "Aucune approbation finance en attente.",
+      "expenses": "Aucune depense en attente d'approbation.",
+      "invoices": "Aucune facture en attente d'approbation."
+    },
+    "labels": {
+      "created_by": "Cree par",
+      "customer": "Client",
+      "job": "Chantier",
+      "current_role": "Role approbateur courant",
+      "status": "Statut",
+      "approval_status": "Statut d'approbation",
+      "expense_date": "Date de depense",
+      "created_at": "Creation"
+    },
+    "actions": {
+      "open": "Ouvrir",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "process": "Marquer traitee"
+    },
+    "search": {
+      "label": "Recherche rapide",
+      "placeholder": "Chercher par titre, numero, client, chantier ou createur",
+      "helper": "Filtre simultanement les depenses et les factures en attente.",
+      "loading": "Mise a jour de la liste..."
+    },
+    "load_more": {
+      "button": "Charger plus",
+      "loading": "Chargement..."
+    },
+    "fallbacks": {
+      "customer": "Aucun client",
+      "job": "Aucun chantier lie"
+    }
+  }
+}

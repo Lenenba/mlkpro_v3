@@ -13,13 +13,32 @@ test('public pricing api exposes the default audience without comparison section
         ->assertJsonPath('highlighted_plan_key', 'solo_pro')
         ->assertJsonPath('plans.0.key', 'solo_essential')
         ->assertJsonPath('plans.0.name', 'Solo Core')
+        ->assertJsonPath('plans.0.features', [
+            'Demandes, devis, factures, jobs et taches',
+            'Catalogue, ventes et operations du quotidien',
+            'Portail client et page publique',
+            'Execution solo simple sans modules avances',
+        ])
         ->assertJsonPath('plans.1.key', 'solo_pro')
         ->assertJsonPath('plans.1.name', 'Solo Growth')
+        ->assertJsonPath('plans.1.features', [
+            'Tout Solo Core',
+            'Plus de volume pour jobs et taches',
+            'Catalogue et ventes sans logique equipe',
+            'Plan solo recommande',
+        ])
         ->assertJsonPath('plans.1.audience', 'solo')
         ->assertJsonPath('plans.1.onboarding_enabled', true)
         ->assertJsonPath('plans.1.prices_by_period.monthly.billing_period', 'monthly')
         ->assertJsonPath('plans.1.prices_by_period.yearly.billing_period', 'yearly')
         ->assertJsonPath('plans.1.annual_discount_percent', 0)
+        ->assertJsonPath('plans.2.features', [
+            'Tout Solo Growth',
+            'Reservations et planning en mode solo limite',
+            'Assistant, scan de plan, campagnes et fidelite',
+            'Automatisation et capacite premium pour scaler seul',
+            'Support prioritaire',
+        ])
         ->assertJsonCount(3, 'plans')
         ->assertJsonCount(0, 'comparison_sections');
 });

@@ -14,6 +14,9 @@
       "customer": {
         "all": "Tous les clients"
       },
+      "approval_status": {
+        "all": "Tous les statuts d'approbation"
+      },
       "total_min": "Total min",
       "total_max": "Total max",
       "created_from": "Cree du",
@@ -27,10 +30,30 @@
       "overdue": "En retard",
       "void": "Annulee"
     },
+    "approval_status": {
+      "draft": "Brouillon",
+      "submitted": "Soumise",
+      "pending_approval": "En attente d'approbation",
+      "approved": "Approuvee",
+      "rejected": "Rejetee",
+      "paid": "Payee",
+      "processed": "Traitee"
+    },
+    "approval_actions": {
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "process": "Marquer traitee"
+    },
+    "approval_history": {
+      "approve": "Approuvee",
+      "reject": "Rejetee",
+      "process": "Marquee traitee"
+    },
     "table": {
       "invoice": "Facture",
       "customer": "Client",
       "status": "Statut",
+      "approval_status": "Approbation",
       "rating": "Note",
       "total": "Total",
       "balance_due": "Solde du",
@@ -67,6 +90,19 @@
       "invoice_for": "Facture pour {customer}",
       "timeline": "Chronologie",
       "download_pdf": "Telecharger PDF",
+      "finance_approval": {
+        "title": "Approbation finance",
+        "current_status": "Statut d'approbation",
+        "current_role": "Role approbateur actuel",
+        "approved_by": "Approuvee par",
+        "processed_by": "Traitee par",
+        "history": "Historique d'approbation",
+        "comment_placeholder": "Note d'approbation optionnelle",
+        "send_blocked": "Cette facture ne peut pas etre envoyee tant que l'approbation finance n'est pas terminee.",
+        "from": "Depuis",
+        "to": "Vers",
+        "by": "Par"
+      },
       "property_address": "Adresse du bien",
       "no_property": "Aucune propriete selectionnee.",
       "contact_details": "Coordonnees",

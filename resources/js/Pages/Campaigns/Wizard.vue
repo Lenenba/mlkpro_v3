@@ -19,6 +19,9 @@ import OfferSelector from '@/Pages/Campaigns/Components/OfferSelector.vue';
 const props = defineProps({
     campaign: { type: Object, default: null },
     selectedOffers: { type: Array, default: () => [] },
+    seedAudience: { type: Object, default: () => ({}) },
+    seedCampaign: { type: Object, default: () => ({}) },
+    seedStep: { type: Number, default: null },
     segments: { type: Array, default: () => [] },
     mailingLists: { type: Array, default: () => [] },
     vipTiers: { type: Array, default: () => [] },
@@ -228,10 +231,12 @@ const initialChannels = channels.map((channel) => {
 
 const initialOffers = Array.isArray(props.selectedOffers) ? props.selectedOffers : [];
 const existingSettings = props.campaign?.settings || {};
+const seedCampaign = !props.campaign && props.seedCampaign ? props.seedCampaign : {};
+const seedAudience = !props.campaign && props.seedAudience ? props.seedAudience : {};
 
 const form = useForm({
-    name: props.campaign?.name || '',
-    campaign_type: props.campaign?.campaign_type || props.campaign?.type || types[0],
+    name: props.campaign?.name || seedCampaign?.name || '',
+    campaign_type: props.campaign?.campaign_type || props.campaign?.type || seedCampaign?.campaign_type || types[0],
     prospecting_enabled: Boolean(props.campaign?.prospecting_enabled ?? false),
     campaign_direction: props.campaign?.campaign_direction || 'customer_marketing',
     offer_mode: props.campaign?.offer_mode || offerModes[0],
@@ -270,6 +275,8 @@ const form = useForm({
 const includeMailingListIds = ref(
     Array.isArray(props.campaign?.audience?.include_mailing_list_ids)
         ? props.campaign.audience.include_mailing_list_ids.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)
+        : Array.isArray(seedAudience?.include_mailing_list_ids)
+            ? seedAudience.include_mailing_list_ids.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)
         : []
 );
 const excludeMailingListIds = ref(
@@ -278,7 +285,7 @@ const excludeMailingListIds = ref(
         : []
 );
 const sourceLogic = ref(
-    String(props.campaign?.audience?.source_logic || props.marketingSettings?.audience?.source_logic_default || 'UNION').toUpperCase()
+    String(props.campaign?.audience?.source_logic || seedAudience?.source_logic || props.marketingSettings?.audience?.source_logic_default || 'UNION').toUpperCase()
 );
 
 const initialManualCustomerIds = Array.isArray(props.campaign?.audience?.manual_customer_ids)
@@ -3023,6 +3030,8 @@ onMounted(async () => {
     const restoredStep = restoreWizardStep();
     if (restoredStep) {
         step.value = restoredStep;
+    } else if (!isEdit.value && Number.isInteger(props.seedStep) && props.seedStep >= 1 && props.seedStep <= totalWizardSteps) {
+        step.value = props.seedStep;
     }
 
     if (isProspectingMode.value && campaignId.value) {

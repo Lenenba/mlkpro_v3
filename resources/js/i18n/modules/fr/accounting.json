@@ -1,0 +1,257 @@
+{
+  "accounting": {
+    "title": "Comptabilite",
+    "badge": "Comptabilite",
+    "heading": "Pilote la comptabilite sans disperser l equipe",
+    "subtitle": "La revue, le journal, les periodes, les taxes, les exports et la configuration admin sont regroupes dans des onglets clairs.",
+    "state": {
+      "foundation_ready": "Fondation prete",
+      "journal_ready": "Journal pret",
+      "tax_export_ready": "Taxes et exports prets",
+      "period_discipline_ready": "Periodes comptables pretes",
+      "review_reconciliation_ready": "Revue et rapprochement prets",
+      "mobile_supervision_ready": "Supervision mobile prete"
+    },
+    "sync": {
+      "batches_synced": "Lots synchronises",
+      "entries_written": "Ecritures generees"
+    },
+    "source_counts": {
+      "expenses": "Depenses",
+      "invoices": "Factures",
+      "payments": "Paiements",
+      "sales": "Ventes"
+    },
+    "snapshot": {
+      "title": "Snapshot finance de l espace",
+      "company": "Espace",
+      "currency": "Devise business",
+      "finance_approvals": "Approbations finance",
+      "finance_approvals_enabled": "Configurees",
+      "finance_approvals_not_configured": "Pas encore configurees",
+      "invoice_auto_approve_under_amount": "Auto-approbation facture sous",
+      "last_sync": "Derniere synchronisation"
+    },
+    "dependencies": {
+      "title": "Dependances source",
+      "subtitle": "La comptabilite lit des evenements finance fiables issus des modules existants. `Expenses` reste la seule dependance dure pour l activation.",
+      "required": "Requis",
+      "optional": "Optionnel",
+      "ready": "Pret",
+      "missing": "Manquant"
+    },
+    "next_steps": {
+      "title": "Ce qui vient apres la Phase 5",
+      "subtitle": "Le bridge comptable couvre maintenant journal, taxes, exports, periodes, rapprochement et supervision mobile. La prochaine tranche se concentre sur l activation demo et superadmin."
+    },
+    "mobile": {
+      "title": "Vue rapide",
+      "subtitle": "Garde les chiffres et alertes comptables utiles sous la main avant de rentrer dans le detail.",
+      "cards": {
+        "cash_in": "Cash in",
+        "cash_out": "Cash out",
+        "net_tax_due": "Net de taxe",
+        "open_periods": "Periodes ouvertes",
+        "unreconciled_entries": "Non rapprochees",
+        "pending_batches": "Lots en attente"
+      },
+      "alerts": {
+        "title": "Alertes prioritaires",
+        "subtitle": "Ouvre directement la zone a traiter sans allonger la page.",
+        "empty": "Aucune alerte prioritaire n est ouverte pour ce scope.",
+        "open": "Ouvrir",
+        "pending_review": {
+          "title": "Lots en attente de revue",
+          "description": "Des lots comptables attendent encore une revue avant un handoff propre."
+        },
+        "open_periods": {
+          "title": "Periodes encore actives",
+          "description": "Une ou plusieurs periodes sont encore ouvertes, en review ou reouvertes."
+        },
+        "tax_due": {
+          "title": "Position taxe a verifier",
+          "description": "Un net de taxe positif demande encore une supervision avant declaration."
+        },
+        "tax_credit": {
+          "title": "Position credit de taxe",
+          "description": "Le scope courant montre un credit de taxe qui doit etre verifie."
+        },
+        "export_missing": {
+          "title": "Pas encore d export comptable",
+          "description": "Cet espace n a pas encore genere d export de handoff comptable."
+        }
+      }
+    },
+    "review": {
+      "title": "Espace de revue",
+      "subtitle": "Traite rapidement les lots comptables en attente avant le handoff de fin de mois.",
+      "pending_batches": "Ecritures en attente",
+      "empty": "Tous les lots comptables courants sont rapproches pour ce scope.",
+      "actions": {
+        "unreviewed": "Remettre non revue",
+        "reviewed": "Marquer revue",
+        "reconciled": "Marquer rapprochee"
+      }
+    },
+    "taxes": {
+      "title": "Synthese taxes",
+      "subtitle": "Relis les taxes collectees, les taxes payees et la position nette sur le scope courant sans quitter le journal.",
+      "all_periods": "Toutes les periodes",
+      "review_required_title": "Lignes de taxe encore a revoir",
+      "review_required_subtitle": "Ces sources avec taxe doivent encore etre relues avant envoi comptable ou declaration.",
+      "directions": {
+        "collected": "Collectees",
+        "paid": "Payees"
+      },
+      "cards": {
+        "taxes_collected": "Taxes collectees",
+        "taxes_paid": "Taxes payees",
+        "net_tax_due": "Net de taxe a payer",
+        "review_required_count": "Lignes taxe a revoir"
+      }
+    },
+    "exports": {
+      "title": "Exports pour le comptable",
+      "subtitle": "Genere un CSV reproductible depuis le scope comptable courant et garde une petite trace d audit des exports deja produits.",
+      "generate_csv": "Exporter en CSV",
+      "handoff_title": "Snapshot de handoff courant",
+      "scope": "Scope",
+      "last_export_at": "Dernier export",
+      "history_title": "Exports recents",
+      "generated_by": "Genere par",
+      "rows": "Lignes",
+      "download": "Telecharger",
+      "empty": "Aucun export comptable n a encore ete genere."
+    },
+    "periods": {
+      "title": "Periodes comptables",
+      "subtitle": "Fais avancer un mois entre les differents statuts comptables tout en protegeant une periode fermee contre le drift silencieux de synchronisation.",
+      "locked": "Verrouillee",
+      "closed_at": "Fermee",
+      "reopened_at": "Reouverte",
+      "statuses": {
+        "open": "Ouverte",
+        "in_review": "En revue",
+        "closed": "Cloturee",
+        "reopened": "Reouverte"
+      },
+      "summary": {
+        "open": "Ouvertes",
+        "in_review": "En revue",
+        "closed": "Cloturees",
+        "reopened": "Reouvertes"
+      },
+      "actions": {
+        "open": "Remettre ouverte",
+        "in_review": "Passer en revue",
+        "close": "Cloturer la periode",
+        "reopen": "Reouvrir"
+      }
+    },
+    "accounts": {
+      "title": "Fondation du plan comptable",
+      "subtitle": "Retrouve les comptes utilises par la comptabilite pour verifier la structure actuelle.",
+      "columns": {
+        "code": "Code",
+        "name": "Compte",
+        "type": "Type"
+      }
+    },
+    "mappings": {
+      "title": "Conventions de mapping par defaut",
+      "subtitle": "Verifie rapidement comment les sources finance alimentent les ecritures comptables.",
+      "debit": "Debit",
+      "credit": "Credit",
+      "tax": "Taxe",
+      "no_tax": "Pas de compte taxe dedie"
+    },
+    "tabs": {
+      "review": {
+        "label": "Revue",
+        "subtitle": "Traite les priorites et les lots a rapprocher."
+      },
+      "journal": {
+        "label": "Journal",
+        "subtitle": "Consulte et filtre les ecritures sans etirer tout l ecran."
+      },
+      "periods": {
+        "label": "Periodes, taxes et exports",
+        "subtitle": "Cloture, fiscalite et handoff comptable dans le meme espace."
+      },
+      "configuration": {
+        "label": "Configuration admin",
+        "subtitle": "Controle les regles finance, le plan comptable et les mappings."
+      }
+    },
+    "configuration": {
+      "title": "Configuration admin",
+      "subtitle": "Centralise les reglages utiles a la comptabilite et ouvre rapidement les surfaces d administration existantes.",
+      "open_settings": "Ouvrir parametres societe",
+      "open_approvals": "Ouvrir approbations",
+      "approval_mode": "Mode d approbation",
+      "rule_subtitle": "Verifie les roles et plafonds actifs pour ce document.",
+      "rule_empty": "Aucune regle specifique n est configuree.",
+      "level": "Niveau {value}",
+      "limit": "Plafond",
+      "no_limit": "Sans plafond",
+      "not_configured": "A configurer",
+      "cards": {
+        "approvals": "Approbations finance",
+        "auto_approve": "Auto-approbation facture",
+        "accounts": "Comptes systeme",
+        "mappings": "Mappings"
+      }
+    },
+    "journal": {
+      "title": "Journal comptable",
+      "subtitle": "Relis les ecritures generees par periode, source, compte et statut de revue sans sortir du module.",
+      "tax_label": "Taxe",
+      "view_source": "Voir la source",
+      "unknown_account": "Compte inconnu",
+      "empty": "Aucune ecriture comptable ne correspond encore a ces filtres.",
+      "columns": {
+        "date": "Date",
+        "source": "Source",
+        "account": "Compte",
+        "direction": "Sens",
+        "amount": "Montant",
+        "review": "Revue",
+        "actions": "Actions"
+      },
+      "directions": {
+        "debit": "Debit",
+        "credit": "Credit"
+      },
+      "filters": {
+        "search_placeholder": "Chercher par reference, compte ou description",
+        "all_sources": "Toutes les sources",
+        "all_accounts": "Tous les comptes",
+        "all_review_statuses": "Tous les statuts de revue",
+        "apply": "Appliquer",
+        "reset": "Reinitialiser"
+      },
+      "summary": {
+        "entry_count": "Ecritures",
+        "batch_count": "Lots",
+        "debit_total": "Total debit",
+        "credit_total": "Total credit",
+        "review_required_count": "A revoir"
+      },
+      "review_statuses": {
+        "unreviewed": "Non revue",
+        "reviewed": "Revue",
+        "reconciled": "Rapprochee"
+      },
+      "batch_statuses": {
+        "generated": "Genere",
+        "review_required": "A revoir"
+      },
+      "grouped": {
+        "by_account_title": "Totaux par compte",
+        "by_account_subtitle": "Vois quels comptes portent le volume du journal filtre.",
+        "by_source_title": "Totaux par source",
+        "by_source_subtitle": "Vois quels domaines metier alimentent la tranche courante du journal."
+      }
+    }
+  }
+}

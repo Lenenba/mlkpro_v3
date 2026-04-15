@@ -97,8 +97,14 @@ beforeEach(function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
 });
 
-test('owner-only solo plans keep team and presence modules unavailable even with manual feature overrides', function () {
-    $owner = createOwnerOnlySoloTenant();
+test('owner-only solo plans keep team, performance, and presence modules unavailable even with manual feature overrides', function () {
+    $owner = createOwnerOnlySoloTenant([
+        'company_features' => [
+            'team_members' => true,
+            'presence' => true,
+            'performance' => true,
+        ],
+    ]);
     assignSoloSubscription($owner);
 
     $this->actingAs($owner)
@@ -106,9 +112,16 @@ test('owner-only solo plans keep team and presence modules unavailable even with
         ->get(route('settings.company.edit'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('auth.account.features', fn ($features) => ! collect($features)->has('team_members')
+            ->where('auth.account.features', fn ($features) => ! collect($features)->has('performance')
+                && ! collect($features)->has('team_members')
                 && ! collect($features)->has('presence'))
         );
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('performance.index'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'Module unavailable for your plan.');
 
     $this->actingAs($owner)
         ->withSession(['two_factor_passed' => true])
@@ -146,6 +159,7 @@ test('solo pro ignores stale platform plan module flags and hides unavailable da
                 && ! collect($features)->has('campaigns')
                 && ! collect($features)->has('assistant')
                 && ! collect($features)->has('plan_scans')
+                && ! collect($features)->has('performance')
                 && ! collect($features)->has('loyalty')
                 && ! collect($features)->has('planning')
                 && ! collect($features)->has('reservations')
@@ -199,6 +213,7 @@ test('solo pro usage alerts ignore unavailable modules when stale plan settings 
             ->where('auth.account.features', fn ($features) => ! collect($features)->has('campaigns')
                 && ! collect($features)->has('assistant')
                 && ! collect($features)->has('plan_scans')
+                && ! collect($features)->has('performance')
                 && ! collect($features)->has('loyalty')
                 && ! collect($features)->has('planning')
                 && ! collect($features)->has('reservations')

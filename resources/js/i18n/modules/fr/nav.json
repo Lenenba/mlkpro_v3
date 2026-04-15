@@ -34,7 +34,16 @@
     "jobs": "Chantiers",
     "tasks": "Tâches",
     "team": "Équipe",
+    "expenses": "Depenses",
+    "accounting": "Comptabilite",
+    "finance_approvals": "Approbations finance",
     "invoices": "Factures",
-    "tips": "Pourboires"
+    "tips": "Pourboires",
+    "revenue": "Revenus",
+    "growth": "Croissance",
+    "operations": "Operations",
+    "finance": "Finance",
+    "catalog": "Catalogue",
+    "workspace": "Espace"
   }
 }

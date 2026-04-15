@@ -14,6 +14,10 @@ const props = defineProps({
     customers: Array,
     statuses: Array,
     assignees: Array,
+    bulkActions: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 </script>
 
@@ -32,6 +36,7 @@ const props = defineProps({
                 :customers="customers"
                 :statuses="statuses"
                 :assignees="assignees"
+                :bulk-actions="bulkActions"
             />
         </div>
     </AuthenticatedLayout>

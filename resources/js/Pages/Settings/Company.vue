@@ -48,6 +48,18 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    finance_role_options: {
+        type: Array,
+        default: () => [],
+    },
+    finance_approval_mode: {
+        type: String,
+        default: 'team',
+    },
+    invoice_templates: {
+        type: Array,
+        default: () => [],
+    },
     store_products: {
         type: Array,
         default: () => [],
@@ -128,6 +140,59 @@ const apiTokenTypeOptions = computed(() => ([
     { value: 'public', label: t('settings.company.api.fields.type_public') },
     { value: 'private', label: t('settings.company.api.fields.type_private') },
 ]));
+const financeRoleOptions = computed(() => ([
+    { id: '', name: t('settings.company.finance.select_role') },
+    ...(props.finance_role_options || []).map((role) => ({
+        id: role.key,
+        name: t(role.label_key),
+    })),
+]));
+const invoiceTemplatePreviewMap = {
+    modern: {
+        frameClass: 'border-stone-200 bg-white shadow-sm',
+        accentClass: 'bg-emerald-500',
+        headerClass: 'bg-gradient-to-r from-emerald-500 via-emerald-400 to-lime-300',
+        titleClass: 'text-white',
+        metaClass: 'text-emerald-50',
+        badgeClass: 'bg-white/20 text-white',
+        tableHeaderClass: 'bg-stone-900 text-white',
+        summaryClass: 'border-stone-900 bg-stone-900 text-white',
+        noteClass: 'border-stone-200 bg-stone-50',
+    },
+    clean_professional: {
+        frameClass: 'border-stone-200 bg-white shadow-sm',
+        accentClass: 'bg-emerald-500',
+        headerClass: 'bg-stone-50',
+        titleClass: 'text-stone-900',
+        metaClass: 'text-stone-500',
+        badgeClass: 'bg-emerald-100 text-emerald-700',
+        tableHeaderClass: 'bg-stone-900 text-white',
+        summaryClass: 'border-emerald-500 bg-white text-stone-900',
+        noteClass: 'border-stone-200 bg-white',
+    },
+    minimal_corporate: {
+        frameClass: 'border-stone-200 bg-white shadow-sm',
+        accentClass: 'bg-emerald-500',
+        headerClass: 'bg-white',
+        titleClass: 'text-stone-950',
+        metaClass: 'text-stone-500',
+        badgeClass: 'bg-stone-100 text-stone-700',
+        tableHeaderClass: 'bg-white text-stone-700 border-b border-stone-900',
+        summaryClass: 'border-stone-200 bg-stone-50 text-stone-900',
+        noteClass: 'border-stone-200 bg-white',
+    },
+};
+const invoiceTemplatePreviewCards = computed(() => (props.invoice_templates || []).map((template) => ({
+    ...template,
+    label: t(template.label_key),
+    description: template.description_key ? t(template.description_key) : '',
+    preview: invoiceTemplatePreviewMap[template.key] || invoiceTemplatePreviewMap.modern,
+})));
+const financeRoleAt = (documentType, index, field, fallback = '') => {
+    const value = props.company.company_finance_settings?.[documentType]?.roles?.[index]?.[field];
+
+    return value === null || value === undefined ? fallback : value;
+};
 
 const PROVINCES_BY_COUNTRY = {
     Canada: [
@@ -288,6 +353,9 @@ const form = useForm({
     fulfillment_delivery_notes: props.company.fulfillment?.delivery_notes ?? '',
     fulfillment_pickup_notes: props.company.fulfillment?.pickup_notes ?? '',
     store_header_color: props.company.store_settings?.header_color ?? '',
+    store_invoice_template_key: props.company.store_settings?.invoice_template_key
+        || props.invoice_templates?.[0]?.key
+        || 'modern',
     store_featured_product_id: props.company.store_settings?.featured_product_id
         ? String(props.company.store_settings.featured_product_id)
         : '',
@@ -307,6 +375,27 @@ const form = useForm({
     notification_task_day_whatsapp: props.company.company_notification_settings?.task_day?.whatsapp ?? false,
     notification_security_two_factor_sms:
         props.company.company_notification_settings?.security?.two_factor_sms ?? false,
+    finance_expense_role_1: financeRoleAt('expense', 0, 'role_key', ''),
+    finance_expense_max_1: financeRoleAt('expense', 0, 'max_amount', '') !== ''
+        ? String(financeRoleAt('expense', 0, 'max_amount', ''))
+        : '',
+    finance_expense_role_2: financeRoleAt('expense', 1, 'role_key', ''),
+    finance_expense_max_2: financeRoleAt('expense', 1, 'max_amount', '') !== ''
+        ? String(financeRoleAt('expense', 1, 'max_amount', ''))
+        : '',
+    finance_invoice_role_1: financeRoleAt('invoice', 0, 'role_key', ''),
+    finance_invoice_max_1: financeRoleAt('invoice', 0, 'max_amount', '') !== ''
+        ? String(financeRoleAt('invoice', 0, 'max_amount', ''))
+        : '',
+    finance_invoice_role_2: financeRoleAt('invoice', 1, 'role_key', ''),
+    finance_invoice_max_2: financeRoleAt('invoice', 1, 'max_amount', '') !== ''
+        ? String(financeRoleAt('invoice', 1, 'max_amount', ''))
+        : '',
+    finance_invoice_auto_approve_under_amount:
+        props.company.company_finance_settings?.invoice?.auto_approve_under_amount !== null
+        && props.company.company_finance_settings?.invoice?.auto_approve_under_amount !== undefined
+            ? String(props.company.company_finance_settings.invoice.auto_approve_under_amount)
+            : '',
     presence_auto_clock_in: toBool(props.company.time_settings?.auto_clock_in ?? true),
     presence_auto_clock_out: toBool(props.company.time_settings?.auto_clock_out ?? true),
     presence_manual_clock: toBool(props.company.time_settings?.manual_clock ?? true),
@@ -939,6 +1028,7 @@ const submit = () => {
 
             payload.company_store_settings = {
                 header_color: normalizeText(data.store_header_color),
+                invoice_template_key: normalizeText(data.store_invoice_template_key),
                 featured_product_id: data.store_featured_product_id !== ''
                     ? Number(data.store_featured_product_id)
                     : null,
@@ -973,6 +1063,39 @@ const submit = () => {
                 },
             };
 
+            const buildFinanceRoles = (documentType) => {
+                const roles = [
+                    {
+                        role_key: normalizeText(data[`finance_${documentType}_role_1`]),
+                        max_amount: data[`finance_${documentType}_max_1`] !== ''
+                            ? Number(data[`finance_${documentType}_max_1`])
+                            : null,
+                        approval_order: 1,
+                    },
+                    {
+                        role_key: normalizeText(data[`finance_${documentType}_role_2`]),
+                        max_amount: data[`finance_${documentType}_max_2`] !== ''
+                            ? Number(data[`finance_${documentType}_max_2`])
+                            : null,
+                        approval_order: 2,
+                    },
+                ];
+
+                return roles.filter((role) => Boolean(role.role_key));
+            };
+
+            payload.company_finance_settings = {
+                expense: {
+                    roles: buildFinanceRoles('expense'),
+                },
+                invoice: {
+                    auto_approve_under_amount: data.finance_invoice_auto_approve_under_amount !== ''
+                        ? Number(data.finance_invoice_auto_approve_under_amount)
+                        : null,
+                    roles: buildFinanceRoles('invoice'),
+                },
+            };
+
             if (hasPresenceFeature.value) {
                 payload.company_time_settings = {
                     auto_clock_in: Boolean(data.presence_auto_clock_in),
@@ -990,6 +1113,7 @@ const submit = () => {
             delete payload.fulfillment_delivery_notes;
             delete payload.fulfillment_pickup_notes;
             delete payload.store_header_color;
+            delete payload.store_invoice_template_key;
             delete payload.store_featured_product_id;
             delete payload.store_hero_images_text;
             delete payload.store_hero_copy_fr;
@@ -1002,6 +1126,15 @@ const submit = () => {
             delete payload.notification_task_day_sms;
             delete payload.notification_task_day_whatsapp;
             delete payload.notification_security_two_factor_sms;
+            delete payload.finance_expense_role_1;
+            delete payload.finance_expense_max_1;
+            delete payload.finance_expense_role_2;
+            delete payload.finance_expense_max_2;
+            delete payload.finance_invoice_role_1;
+            delete payload.finance_invoice_max_1;
+            delete payload.finance_invoice_role_2;
+            delete payload.finance_invoice_max_2;
+            delete payload.finance_invoice_auto_approve_under_amount;
             delete payload.presence_auto_clock_in;
             delete payload.presence_auto_clock_out;
             delete payload.presence_manual_clock;
@@ -1346,6 +1479,224 @@ watch(activeTab, (value) => {
                         </div>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             {{ $t('settings.company.notifications.two_factor_sms_hint') }}
+                        </p>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-4 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div>
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ $t('settings.company.finance.title') }}
+                            </h3>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('settings.company.finance.description') }}
+                            </p>
+                            <p class="mt-2 text-xs font-medium text-stone-600 dark:text-neutral-300">
+                                {{ $t(`settings.company.finance.mode.${finance_approval_mode}`) }}
+                            </p>
+                        </div>
+
+                        <div class="grid gap-4 lg:grid-cols-2">
+                            <div class="rounded-sm border border-stone-200 bg-white p-4 space-y-3 dark:border-neutral-800 dark:bg-neutral-950">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                        {{ $t('settings.company.finance.documents.expense') }}
+                                    </h4>
+                                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('settings.company.finance.threshold_help') }}
+                                    </p>
+                                </div>
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div>
+                                        <FloatingSelect
+                                            v-model="form.finance_expense_role_1"
+                                            :label="$t('settings.company.finance.levels.base_role')"
+                                            :options="financeRoleOptions"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.expense.roles.0.role_key']" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="form.finance_expense_max_1"
+                                            type="number"
+                                            step="0.01"
+                                            :label="$t('settings.company.finance.levels.base_limit')"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.expense.roles.0.max_amount']" />
+                                    </div>
+                                    <div>
+                                        <FloatingSelect
+                                            v-model="form.finance_expense_role_2"
+                                            :label="$t('settings.company.finance.levels.escalation_role')"
+                                            :options="financeRoleOptions"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.expense.roles.1.role_key']" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="form.finance_expense_max_2"
+                                            type="number"
+                                            step="0.01"
+                                            :label="$t('settings.company.finance.levels.escalation_limit')"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.expense.roles.1.max_amount']" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="rounded-sm border border-stone-200 bg-white p-4 space-y-3 dark:border-neutral-800 dark:bg-neutral-950">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                        {{ $t('settings.company.finance.documents.invoice') }}
+                                    </h4>
+                                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('settings.company.finance.threshold_help') }}
+                                    </p>
+                                </div>
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div>
+                                        <FloatingSelect
+                                            v-model="form.finance_invoice_role_1"
+                                            :label="$t('settings.company.finance.levels.base_role')"
+                                            :options="financeRoleOptions"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.invoice.roles.0.role_key']" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="form.finance_invoice_max_1"
+                                            type="number"
+                                            step="0.01"
+                                            :label="$t('settings.company.finance.levels.base_limit')"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.invoice.roles.0.max_amount']" />
+                                    </div>
+                                    <div>
+                                        <FloatingSelect
+                                            v-model="form.finance_invoice_role_2"
+                                            :label="$t('settings.company.finance.levels.escalation_role')"
+                                            :options="financeRoleOptions"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.invoice.roles.1.role_key']" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput
+                                            v-model="form.finance_invoice_max_2"
+                                            type="number"
+                                            step="0.01"
+                                            :label="$t('settings.company.finance.levels.escalation_limit')"
+                                        />
+                                        <InputError class="mt-1" :message="form.errors['company_finance_settings.invoice.roles.1.max_amount']" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <FloatingInput
+                                        v-model="form.finance_invoice_auto_approve_under_amount"
+                                        type="number"
+                                        step="0.01"
+                                        :label="$t('settings.company.finance.optional.invoice_auto_approve_under_amount')"
+                                    />
+                                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('settings.company.finance.optional.invoice_auto_approve_under_amount_hint') }}
+                                    </p>
+                                    <InputError class="mt-1" :message="form.errors['company_finance_settings.invoice.auto_approve_under_amount']" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-sm border border-stone-200 bg-white p-4 space-y-3 dark:border-neutral-800 dark:bg-neutral-950">
+                            <div>
+                                <h4 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                    {{ $t('settings.company.finance.templates.title') }}
+                                </h4>
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.company.finance.templates.description') }}
+                                </p>
+                            </div>
+                            <div class="grid grid-cols-1 gap-3 xl:grid-cols-3">
+                                <button
+                                    v-for="template in invoiceTemplatePreviewCards"
+                                    :key="template.key"
+                                    type="button"
+                                    class="rounded-sm border p-3 text-left transition hover:border-green-400 hover:shadow-sm"
+                                    :class="form.store_invoice_template_key === template.key
+                                        ? 'border-green-500 bg-green-50/40 ring-1 ring-green-500/20 dark:border-green-500 dark:bg-green-950/20'
+                                        : 'border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-900'"
+                                    @click="form.store_invoice_template_key = template.key"
+                                >
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                            {{ template.label }}
+                                        </div>
+                                        <div
+                                            class="size-4 rounded-full border"
+                                            :class="form.store_invoice_template_key === template.key
+                                                ? 'border-green-600 bg-green-600'
+                                                : 'border-stone-300 bg-white dark:border-neutral-600 dark:bg-neutral-900'"
+                                        />
+                                    </div>
+
+                                    <div
+                                        class="mt-3 overflow-hidden rounded-sm border"
+                                        :class="template.preview.frameClass"
+                                    >
+                                        <div class="h-1.5" :class="template.preview.accentClass" />
+                                        <div class="p-3" :class="template.preview.headerClass">
+                                            <div class="flex items-start justify-between gap-3">
+                                                <div class="space-y-1">
+                                                    <div class="h-2 w-20 rounded-sm bg-current/15" :class="template.preview.titleClass" />
+                                                    <div class="h-1.5 w-12 rounded-sm bg-current/10" :class="template.preview.metaClass" />
+                                                </div>
+                                                <div class="rounded-sm px-2 py-1 text-[10px] font-semibold" :class="template.preview.badgeClass">
+                                                    PDF
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="border-t border-stone-200 dark:border-neutral-700">
+                                            <div class="px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em]" :class="template.preview.tableHeaderClass">
+                                                Items
+                                            </div>
+                                            <div class="border-t border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
+                                                <div class="flex items-center justify-between px-3 py-2 text-[10px] text-stone-700 dark:text-neutral-300">
+                                                    <div class="h-1.5 w-20 rounded-sm bg-stone-300 dark:bg-neutral-600" />
+                                                    <div class="h-1.5 w-10 rounded-sm bg-stone-300 dark:bg-neutral-600" />
+                                                </div>
+                                                <div class="flex items-center justify-between bg-stone-50/70 px-3 py-2 text-[10px] text-stone-700 dark:bg-neutral-800/60 dark:text-neutral-300">
+                                                    <div class="h-1.5 w-24 rounded-sm bg-stone-300 dark:bg-neutral-600" />
+                                                    <div class="h-1.5 w-12 rounded-sm bg-stone-300 dark:bg-neutral-600" />
+                                                </div>
+                                                <div class="flex items-center justify-between px-3 py-2 text-[10px] text-stone-700 dark:text-neutral-300">
+                                                    <div class="h-1.5 w-16 rounded-sm bg-stone-300 dark:bg-neutral-600" />
+                                                    <div class="h-1.5 w-10 rounded-sm bg-stone-300 dark:bg-neutral-600" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-2 border-t border-stone-200 p-3 dark:border-neutral-700">
+                                            <div class="rounded-sm border p-2" :class="template.preview.noteClass">
+                                                <div class="h-1.5 w-12 rounded-sm bg-stone-300 dark:bg-neutral-600" />
+                                                <div class="mt-2 h-1.5 w-full rounded-sm bg-stone-200 dark:bg-neutral-700" />
+                                                <div class="mt-1 h-1.5 w-5/6 rounded-sm bg-stone-200 dark:bg-neutral-700" />
+                                            </div>
+                                            <div class="rounded-sm border p-2" :class="template.preview.summaryClass">
+                                                <div class="h-1.5 w-14 rounded-sm bg-current/25" />
+                                                <div class="mt-2 flex items-center justify-between">
+                                                    <div class="h-1.5 w-10 rounded-sm bg-current/20" />
+                                                    <div class="h-1.5 w-12 rounded-sm bg-current/40" />
+                                                </div>
+                                                <div class="mt-2 h-2 w-16 rounded-sm bg-current/50" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <p class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ template.description }}
+                                    </p>
+                                </button>
+                            </div>
+                            <InputError class="mt-1" :message="form.errors['company_store_settings.invoice_template_key']" />
+                        </div>
+
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('settings.company.finance.owner_fallback') }}
                         </p>
                     </div>
 
@@ -2105,4 +2456,3 @@ watch(activeTab, (value) => {
         </div>
     </SettingsLayout>
 </template>
-

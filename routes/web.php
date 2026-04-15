@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\AiImageController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\CampaignAutomationController;
@@ -12,6 +13,8 @@ use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DemoController;
 use App\Http\Controllers\DemoTourController;
+use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\FinanceApprovalInboxController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LegalController;
@@ -103,6 +106,7 @@ use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WorkController;
 use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkProofController;
+use App\Http\Controllers\WorkspaceCategoryController;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsurePlatformAdmin;
@@ -236,6 +240,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::get('/pipeline/timeline/{entityType}/{entityId}', [PipelineController::class, 'timeline'])
         ->name('pipeline.timeline');
     Route::get('/pipeline', [PipelineController::class, 'data'])->name('pipeline.data');
+    Route::get('/workspace-hubs/{category}', [WorkspaceCategoryController::class, 'show'])
+        ->where('category', 'revenue|growth|operations|finance|catalog|workspace')
+        ->name('workspace.hubs.show');
 
     Route::middleware('not.superadmin')->group(function () {
         Route::get('/settings/support', [SupportTicketController::class, 'index'])->name('settings.support.index');
@@ -408,6 +415,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/services/quick', [ServiceController::class, 'storeQuick'])->name('service.quick.store');
         Route::get('/services/categories', [ServiceController::class, 'categories'])->name('service.categories');
     });
+    Route::get('/catalog/search', ProductsSearchController::class)->name('catalog.search');
     Route::get('/customers/options', [CustomerController::class, 'options'])->name('customer.options');
     Route::post('/customers/quick', [CustomerController::class, 'storeQuick'])->name('customer.quick.store');
 
@@ -606,6 +614,44 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/sales/{sale}', [SaleController::class, 'show'])->name('sales.show');
     });
 
+    Route::middleware('company.feature:expenses')->group(function () {
+        Route::get('/expenses', [ExpenseController::class, 'index'])->name('expense.index');
+        Route::get('/expenses/export', [ExpenseController::class, 'export'])->name('expense.export');
+        Route::post('/expenses', [ExpenseController::class, 'store'])->name('expense.store');
+        Route::post('/expenses/scan-ai', [ExpenseController::class, 'scanWithAi'])
+            ->middleware('company.feature:assistant')
+            ->name('expense.scan-ai');
+        Route::patch('/expenses/{expense}/submit', [ExpenseController::class, 'submit'])->name('expense.submit');
+        Route::patch('/expenses/{expense}/approve', [ExpenseController::class, 'approve'])->name('expense.approve');
+        Route::patch('/expenses/{expense}/reject', [ExpenseController::class, 'reject'])->name('expense.reject');
+        Route::patch('/expenses/{expense}/mark-due', [ExpenseController::class, 'markDue'])->name('expense.mark-due');
+        Route::patch('/expenses/{expense}/mark-paid', [ExpenseController::class, 'markPaid'])->name('expense.mark-paid');
+        Route::patch('/expenses/{expense}/mark-reimbursed', [ExpenseController::class, 'markReimbursed'])->name('expense.mark-reimbursed');
+        Route::patch('/expenses/{expense}/cancel', [ExpenseController::class, 'cancel'])->name('expense.cancel');
+        Route::get('/expenses/{expense}', [ExpenseController::class, 'show'])->name('expense.show');
+        Route::put('/expenses/{expense}', [ExpenseController::class, 'update'])->name('expense.update');
+        Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expense.destroy');
+    });
+
+    Route::middleware('company.feature:accounting')->group(function () {
+        Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
+        Route::get('/accounting/export', [AccountingController::class, 'export'])->name('accounting.export');
+        Route::get('/accounting/exports/{accountingExport}', [AccountingController::class, 'downloadExport'])->name('accounting.exports.download');
+        Route::patch('/accounting/periods/{periodKey}/open', [AccountingController::class, 'openPeriod'])->where('periodKey', '\d{4}-\d{2}')->name('accounting.periods.open');
+        Route::patch('/accounting/periods/{periodKey}/in-review', [AccountingController::class, 'markPeriodInReview'])->where('periodKey', '\d{4}-\d{2}')->name('accounting.periods.in-review');
+        Route::patch('/accounting/periods/{periodKey}/close', [AccountingController::class, 'closePeriod'])->where('periodKey', '\d{4}-\d{2}')->name('accounting.periods.close');
+        Route::patch('/accounting/periods/{periodKey}/reopen', [AccountingController::class, 'reopenPeriod'])->where('periodKey', '\d{4}-\d{2}')->name('accounting.periods.reopen');
+        Route::patch('/accounting/entries/{accountingEntry}/unreview', [AccountingController::class, 'markEntryUnreviewed'])->name('accounting.entries.unreview');
+        Route::patch('/accounting/entries/{accountingEntry}/review', [AccountingController::class, 'markEntryReviewed'])->name('accounting.entries.review');
+        Route::patch('/accounting/entries/{accountingEntry}/reconcile', [AccountingController::class, 'markEntryReconciled'])->name('accounting.entries.reconcile');
+        Route::patch('/accounting/batches/{accountingEntryBatch}/unreview', [AccountingController::class, 'markBatchUnreviewed'])->name('accounting.batches.unreview');
+        Route::patch('/accounting/batches/{accountingEntryBatch}/review', [AccountingController::class, 'markBatchReviewed'])->name('accounting.batches.review');
+        Route::patch('/accounting/batches/{accountingEntryBatch}/reconcile', [AccountingController::class, 'markBatchReconciled'])->name('accounting.batches.reconcile');
+    });
+
+    Route::get('/finance-approvals', [FinanceApprovalInboxController::class, 'index'])
+        ->name('finance-approvals.index');
+
     // Customer Management
     Route::scopeBindings()->group(function () {
         Route::post('/customer/{customer}/properties', [CustomerPropertyController::class, 'store'])
@@ -626,6 +672,18 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('customer.auto-validation.update');
     Route::post('/customer/bulk', [CustomerController::class, 'bulk'])
         ->name('customer.bulk');
+    Route::post('/customer/bulk-contact/preview', [CustomerController::class, 'previewBulkContact'])
+        ->middleware('company.feature:campaigns')
+        ->name('customer.bulk-contact.preview');
+    Route::post('/customer/bulk-contact/send', [CustomerController::class, 'sendBulkContact'])
+        ->middleware('company.feature:campaigns')
+        ->name('customer.bulk-contact.send');
+    Route::post('/customer/bulk-contact/save-selection', [CustomerController::class, 'saveBulkContactSelection'])
+        ->middleware('company.feature:campaigns')
+        ->name('customer.bulk-contact.save-selection');
+    Route::post('/customer/bulk-contact/open-campaign', [CustomerController::class, 'openBulkContactCampaign'])
+        ->middleware('company.feature:campaigns')
+        ->name('customer.bulk-contact.open-campaign');
 
     Route::resource('customer', CustomerController::class)
         ->only(['index', 'store', 'update', 'create', 'edit', 'show', 'destroy']);
@@ -671,6 +729,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoice.show');
         Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoice.pdf');
         Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail'])->name('invoice.send.email');
+        Route::patch('/invoices/{invoice}/approve', [InvoiceController::class, 'approve'])->name('invoice.approve');
+        Route::patch('/invoices/{invoice}/reject', [InvoiceController::class, 'reject'])->name('invoice.reject');
+        Route::patch('/invoices/{invoice}/process', [InvoiceController::class, 'markProcessed'])->name('invoice.process');
         Route::post('/work/{work}/invoice', [InvoiceController::class, 'storeFromWork'])->name('invoice.store-from-work');
         Route::get('/payments/tips', [TipReportController::class, 'ownerIndex'])->name('payments.tips.index');
         Route::get('/payments/tips/export', [TipReportController::class, 'ownerExport'])->name('payments.tips.export');

@@ -62,6 +62,7 @@ class User extends Authenticatable implements HasLocalePreferenceContract
         'company_notification_settings',
         'company_store_settings',
         'company_time_settings',
+        'company_finance_settings',
         'is_suspended',
         'suspended_at',
         'suspension_reason',
@@ -128,6 +129,7 @@ class User extends Authenticatable implements HasLocalePreferenceContract
             'company_notification_settings' => 'array',
             'company_store_settings' => 'array',
             'company_time_settings' => 'array',
+            'company_finance_settings' => 'array',
             'is_suspended' => 'boolean',
             'suspended_at' => 'datetime',
             'is_demo' => 'boolean',
@@ -210,6 +212,11 @@ class User extends Authenticatable implements HasLocalePreferenceContract
     public function customers()
     {
         return $this->hasMany(Customer::class);
+    }
+
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
     }
 
     public function campaigns(): HasMany

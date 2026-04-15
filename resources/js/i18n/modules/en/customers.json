@@ -62,6 +62,152 @@
       "disable_portal": "Disable portal access",
       "delete_confirm": "Delete selected customers?"
     },
+    "bulk_contact": {
+      "action": "Contact selected",
+      "title": "Contact selected customers",
+      "subtitle": "Send an email or SMS directly from the customer list.",
+      "selection_summary": "{count} customer(s) selected",
+      "fields": {
+        "objective": "Objective",
+        "channel": "Channel",
+        "template": "Saved template",
+        "offer": "Product or service",
+        "subject": "Subject",
+        "body": "Message"
+      },
+      "objectives": {
+        "payment_followup": "Payment follow-up",
+        "promotion": "Promotion",
+        "announcement": "Announcement",
+        "manual_message": "Manual message"
+      },
+      "channels": {
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "payment_followup_hint": "If subject or message stay empty, a suggested reminder will be used.",
+      "template_hint_email": "You can keep the suggested Malikia template or apply a saved template from Campaigns.",
+      "template_applied_hint": "The saved template is applied. You can still adjust the content before sending.",
+      "template_default_option": "No saved template",
+      "clear_template": "Clear template",
+      "loading_templates": "Loading templates...",
+      "no_templates": "No saved template is available for this channel or objective.",
+      "template_load_error": "Unable to load marketing templates right now.",
+      "offer_search_placeholder": "Search for a product or service to promote",
+      "no_offer_results": "No product or service matches this search.",
+      "clear_offer": "Clear",
+      "offer_required_hint": "For a promotion, select the offer you want to highlight.",
+      "loading_offers": "Searching catalog...",
+      "body_required_hint": "A message is required for this send.",
+      "sms_length": "{count} characters",
+      "preview_title": "Recipient preview",
+      "preview_subtitle": "The system checks eligible recipients before sending.",
+      "preview": {
+        "selected": "Selected",
+        "eligible": "Eligible",
+        "excluded": "Excluded",
+        "selected_offer": "Selected offer",
+        "reasons_title": "Main exclusion reasons",
+        "eligible_examples": "Eligible examples",
+        "excluded_examples": "Excluded examples",
+        "invoice_summary": "{count} open invoice(s), {amount} {currency}"
+      },
+      "actions": {
+        "refresh_preview": "Refresh preview",
+        "refreshing": "Refreshing...",
+        "close": "Close",
+        "send": "Send",
+        "sending": "Sending..."
+      },
+      "preview_error": "Unable to validate recipients right now.",
+      "send_error": "Unable to send this bulk message.",
+      "result_summary": "Sent: {sent}, failed: {failed}, skipped: {skipped}",
+      "result": {
+        "processed": "Processed",
+        "sent": "Sent",
+        "failed": "Failed",
+        "skipped": "Skipped",
+        "reasons_title": "Main reasons",
+        "failures_title": "Delivery issues"
+      },
+      "tokens_title": "Available tokens",
+      "tokens_hint": "You can use these tokens in the subject or message.",
+      "reasons": {
+        "channel_disabled": "Channel disabled",
+        "missing_destination": "Missing or invalid destination",
+        "no_open_invoices": "No open invoices",
+        "consent_missing": "Missing consent",
+        "consent_revoked": "Consent revoked",
+        "opted_out": "Recipient opted out",
+        "quiet_hours": "Blocked during quiet hours",
+        "fatigue_limit": "Fatigue limit reached",
+        "mail_exception": "Email send failed",
+        "sms_error": "SMS send failed",
+        "invalid_recipient": "Invalid recipient",
+        "send_failed": "Send failed"
+      },
+      "tokens_map": {
+        "customerName": "Customer full name",
+        "firstName": "Customer first name",
+        "companyName": "Customer company",
+        "customerEmail": "Customer email",
+        "customerPhone": "Customer phone",
+        "unpaidInvoiceCount": "Open invoice count",
+        "balanceDue": "Balance due",
+        "offerName": "Offer name",
+        "offerPrice": "Offer price",
+        "offerUrl": "Offer link",
+        "offerImageUrl": "Offer image",
+        "promoPercent": "Promotion percent",
+        "promoCode": "Promotion code",
+        "promoEndDate": "Promotion end date",
+        "productName": "Product name",
+        "serviceName": "Service name",
+        "brandName": "Your company name",
+        "brandReplyToEmail": "Reply-to email",
+        "brandPhone": "Company phone"
+      },
+      "template_types": {
+        "general": "General",
+        "promotion": "Promotion",
+        "announcement": "Announcement"
+      },
+      "offer_types": {
+        "product": "Product",
+        "service": "Service"
+      },
+      "campaign_bridge": {
+        "title": "Reuse this selection in marketing",
+        "subtitle": "Add the selected customers to a mailing list or open the Campaigns wizard directly with this audience.",
+        "existing_label": "Existing mailing list",
+        "existing_placeholder": "Choose an existing mailing list",
+        "new_label": "New mailing list",
+        "helper": "If an existing mailing list is selected, the chosen customers will be added to it. Otherwise a new list will be created for the Campaigns handoff.",
+        "loading_lists": "Loading mailing lists...",
+        "actions": {
+          "add_to_existing": "Add to list",
+          "create_list": "Create list",
+          "open_campaigns": "Open in Campaigns",
+          "opening_campaigns": "Opening Campaigns..."
+        },
+        "messages": {
+          "saved_existing": "{added} customers added to {list}. Already present: {alreadyPresent}. Total: {total}.",
+          "created": "Mailing list {list} was created with {total} customers."
+        },
+        "errors": {
+          "load_lists": "Unable to load marketing mailing lists right now.",
+          "save_selection": "Unable to add this selection to the chosen mailing list.",
+          "create_list": "Unable to create a mailing list for this selection.",
+          "open_campaign": "Unable to open Campaigns with this audience right now."
+        },
+        "default_names": {
+          "promotion": "Promotion audience",
+          "announcement": "Announcement audience",
+          "payment_followup": "Payment follow-up audience",
+          "manual_message": "Customer audience"
+        }
+      }
+    },
     "table": {
       "company": "Company",
       "contact": "Contact",

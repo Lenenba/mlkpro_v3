@@ -8,6 +8,7 @@ test('company settings update stores spanish store hero translations', function 
         'company_type' => 'products',
         'company_store_settings' => [
             'header_color' => '#0f172a',
+            'invoice_template_key' => 'modern',
             'hero_images' => ['https://example.com/existing-hero.jpg'],
             'hero_copy' => [
                 'fr' => '<p>Bonjour {company}</p>',
@@ -28,6 +29,7 @@ test('company settings update stores spanish store hero translations', function 
             'company_type' => 'products',
             'company_store_settings' => [
                 'header_color' => '#123456',
+                'invoice_template_key' => 'clean_professional',
                 'hero_images' => [
                     'https://example.com/hero-1.jpg',
                     'https://example.com/hero-2.jpg',
@@ -55,6 +57,7 @@ test('company settings update stores spanish store hero translations', function 
     ksort($heroCopy);
 
     expect($settings['header_color'])->toBe('#123456')
+        ->and($settings['invoice_template_key'])->toBe('clean_professional')
         ->and($settings['hero_images'])->toBe([
             'https://example.com/hero-1.jpg',
             'https://example.com/hero-2.jpg',
@@ -76,4 +79,31 @@ test('company settings update stores spanish store hero translations', function 
             '<p>Slide EN 1</p>',
             null,
         ]);
+});
+
+test('company settings update stores the minimal corporate invoice template key', function () {
+    $owner = User::factory()->create([
+        'company_name' => 'Casa Norte',
+        'company_type' => 'products',
+        'company_store_settings' => [
+            'invoice_template_key' => 'modern',
+        ],
+    ]);
+
+    $response = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->from(route('settings.company.edit'))
+        ->put(route('settings.company.update'), [
+            'company_name' => 'Casa Norte',
+            'company_type' => 'products',
+            'company_store_settings' => [
+                'invoice_template_key' => 'minimal_corporate',
+            ],
+        ]);
+
+    $response
+        ->assertRedirect(route('settings.company.edit'))
+        ->assertSessionHasNoErrors();
+
+    expect($owner->fresh()->company_store_settings['invoice_template_key'])->toBe('minimal_corporate');
 });

@@ -1,0 +1,77 @@
+{
+    "workspace_hub": {
+        "page_title": "Workspace hub",
+        "eyebrow": "Category hub",
+        "default_title": "Workspace hub",
+        "default_description": "Open a work area and jump to the tools that belong together.",
+        "switcher_title": "Browse categories",
+        "switcher_subtitle": "Keep the sidebar light, then open the area you want to work in.",
+        "modules_title": "In this category",
+        "modules_subtitle": "Each card takes you straight to the module.",
+        "open_module": "Open module",
+        "category_count": "{count} tool | {count} tools",
+        "empty_title": "Nothing is available here yet",
+        "empty_body": "This category becomes useful as soon as the matching modules are enabled for the workspace and role.",
+        "badges": {
+            "pending": "{count} pending"
+        },
+        "categories": {
+            "revenue": {
+                "title": "Revenue and customer pipeline",
+                "description": "Customers, lead intake, quotes, orders, and sales in one place."
+            },
+            "growth": {
+                "title": "Growth and retention",
+                "description": "Campaigns, loyalty, and performance views for acquisition and repeat business."
+            },
+            "operations": {
+                "title": "Operations and delivery",
+                "description": "Jobs, tasks, bookings, planning, and team coordination for daily execution."
+            },
+            "finance": {
+                "title": "Finance and approvals",
+                "description": "Invoices, expenses, accounting, and pending approvals with a cleaner finance flow."
+            },
+            "catalog": {
+                "title": "Catalog and structure",
+                "description": "Services, products, categories, and technical scans grouped in one product space."
+            },
+            "workspace": {
+                "title": "Workspace settings",
+                "description": "Company settings, billing, and account preferences without scattering them in the sidebar."
+            }
+        },
+        "modules": {
+            "customers": "Customer records, notes, tags, and relationship history.",
+            "requests": "Lead intake, qualification, and conversion follow-up.",
+            "quotes": "Commercial proposals and quote follow-up.",
+            "orders": "Product order intake and fulfillment tracking.",
+            "sales": "Checkout and completed sale history.",
+            "campaigns": "Audience lists, campaigns, automations, and runs.",
+            "loyalty": "Retention, VIP tiers, rewards, and repeat business tools.",
+            "performance": "Key performance views for owners and leads.",
+            "jobs": "Operational work orders and field execution flow.",
+            "tasks": "Internal tasks, reminders, and handoffs.",
+            "reservations": "Bookings, queue, and service flow management.",
+            "planning": "Schedules, shifts, and pending time-off approvals.",
+            "presence": "Attendance and live team visibility.",
+            "team": "Team members, roles, and access management.",
+            "invoices": "Billing, sending, approval, and payment follow-up.",
+            "expenses": "Operational spend, receipts, reimbursement, and AI intake.",
+            "accounting": "Journal, taxes, periods, reviews, and exports.",
+            "finance_approvals": "Items waiting for finance validation before moving forward.",
+            "tips_owner": "Owner view for team tip reporting and exports.",
+            "tips_member": "Personal view for tips and earnings.",
+            "services": "Service catalog ready for quoting and booking.",
+            "categories": "Service categories and commercial structure.",
+            "products": "Products, prices, stock, and sellable catalog items.",
+            "plan_scans": "Technical scans and estimation support.",
+            "company_settings_label": "Company settings",
+            "company_settings": "Brand, finance, company, and workspace-level settings.",
+            "billing_label": "Billing",
+            "billing": "Plan, subscription, payment methods, and add-ons.",
+            "profile_label": "Profile",
+            "profile": "Personal profile, password, and account preferences."
+        }
+    }
+}

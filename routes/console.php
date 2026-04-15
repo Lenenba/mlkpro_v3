@@ -35,6 +35,7 @@ use App\Services\Campaigns\VipService;
 use App\Services\Capacity\CapacityReportService;
 use App\Services\DailyAgendaService;
 use App\Services\Demo\DemoWorkspacePurgeService;
+use App\Services\ExpenseRecurringService;
 use App\Services\Observability\ObservabilityReportService;
 use App\Services\PlanEntitlementSyncService;
 use App\Services\PlatformAdminNotifier;
@@ -2075,6 +2076,31 @@ Artisan::command('public-copy:sync {--only=* : Targets to sync (pages, welcome, 
     return 0;
 })->purpose('Rewrite public-facing database copy from the repository source content');
 
+Artisan::command('expenses:generate-recurring {--account= : Optional account owner id scope}', function (ExpenseRecurringService $service): int {
+    $accountOption = $this->option('account');
+    $accountId = null;
+
+    if ($accountOption !== null && $accountOption !== '') {
+        if (! is_numeric($accountOption)) {
+            $this->error('The --account option must be numeric.');
+
+            return 1;
+        }
+
+        $accountId = (int) $accountOption;
+    }
+
+    $summary = $service->generateDueExpenses($accountId);
+
+    $this->info(sprintf(
+        'Generated %d recurring expense(s); updated %d template(s).',
+        (int) ($summary['generated'] ?? 0),
+        (int) ($summary['updated_templates'] ?? 0),
+    ));
+
+    return 0;
+})->purpose('Generate due expenses from recurring expense templates');
+
 Schedule::command('platform:notifications-digest --frequency=daily')->dailyAt('08:00');
 Schedule::command('platform:notifications-digest --frequency=weekly')->weeklyOn(1, '08:00');
 Schedule::command('platform:notifications-scan')->dailyAt('07:30');
@@ -2091,6 +2117,7 @@ Schedule::command('campaigns:automations')->everyFiveMinutes()->withoutOverlappi
 Schedule::command('campaigns:vip-auto-sync')->dailyAt('02:35')->withoutOverlapping();
 Schedule::command('campaigns:interest-scores')->dailyAt('02:15');
 Schedule::command('campaigns:reconcile-delivery')->everyTenMinutes()->withoutOverlapping();
+Schedule::command('expenses:generate-recurring')->dailyAt('05:15')->withoutOverlapping();
 Schedule::command('demo:purge-expired')->dailyAt('03:10')->withoutOverlapping();
 Schedule::command('observability:report --notify')->everyTenMinutes()->withoutOverlapping();
 Schedule::command('notifications:retry-failed --notification=App\\Notifications\\InviteUserNotification --max=20 --within-hours=24 --cooldown=30')

@@ -425,6 +425,56 @@
         "two_factor_sms": "Autoriser le 2FA par SMS",
         "two_factor_sms_hint": "Si active, le proprietaire peut choisir SMS comme methode 2FA dans Securite."
       },
+      "finance": {
+        "title": "Approbations finance",
+        "description": "Configure qui peut approuver les depenses et les factures sur les plans equipe, avec des seuils par role.",
+        "select_role": "Selectionner un role",
+        "threshold_help": "Laisse le role d escalation vide si le proprietaire doit gerer tout ce qui depasse le seuil de base.",
+        "owner_fallback": "Le proprietaire reste toujours l approbateur final sans limite de montant.",
+        "documents": {
+          "expense": "Depenses",
+          "invoice": "Factures"
+        },
+        "levels": {
+          "base_role": "Role approbateur de base",
+          "base_limit": "Montant max de base",
+          "escalation_role": "Role d escalation",
+          "escalation_limit": "Montant max d escalation"
+        },
+        "optional": {
+          "invoice_auto_approve_under_amount": "Auto-approbation optionnelle sous montant",
+          "invoice_auto_approve_under_amount_hint": "Laisse vide pour garder une approbation sur chaque facture creee par un employe."
+        },
+        "templates": {
+          "title": "Modele de facture",
+          "description": "Choisis le modele PDF de facture envoye par defaut a tes clients.",
+          "invoice_template_label": "Modele de facture par defaut",
+          "options": {
+            "modern": {
+              "title": "Moderne premium",
+              "description": "Une mise en page equilibree avec un bloc total plus premium, une meilleure hierarchie et une finition plus rassurante cote client."
+            },
+            "clean_professional": {
+              "title": "Professionnel epure",
+              "description": "Un modele plus sobre inspire des factures d agence classiques, avec une structure legere et un rendu plus formel."
+            },
+            "minimal_corporate": {
+              "title": "Minimal corporate",
+              "description": "Une facture minimaliste inspiree d un modele corporate noir et blanc, adaptee avec les accents Malikia Pro pour un rendu tres net."
+            }
+          }
+        },
+        "mode": {
+          "solo": "Mode du plan actuel : Solo. Les nouveaux documents finance sont auto-approuves immediatement.",
+          "team": "Mode du plan actuel : Equipe. Le submitter est isole des approbations et les seuils s appliquent."
+        },
+        "roles": {
+          "admin": "Admin",
+          "sales_manager": "Manager des ventes",
+          "member": "Membre",
+          "seller": "Vendeur"
+        }
+      },
       "presence": {
         "title": "Presence & pointage",
         "description": "Configurez le pointage auto et manuel.",

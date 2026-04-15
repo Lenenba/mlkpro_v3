@@ -425,6 +425,56 @@
         "two_factor_sms": "Allow SMS 2FA",
         "two_factor_sms_hint": "If enabled, the account owner can choose SMS as the 2FA method in Security."
       },
+      "finance": {
+        "title": "Finance approvals",
+        "description": "Configure who can approve expenses and invoices on team plans, with amount thresholds per role.",
+        "select_role": "Select a role",
+        "threshold_help": "Leave the escalation role empty if the owner should handle anything above the base threshold.",
+        "owner_fallback": "The owner always remains the final fallback approver with no amount limit.",
+        "documents": {
+          "expense": "Expenses",
+          "invoice": "Invoices"
+        },
+        "levels": {
+          "base_role": "Base approver role",
+          "base_limit": "Base max amount",
+          "escalation_role": "Escalation role",
+          "escalation_limit": "Escalation max amount"
+        },
+        "optional": {
+          "invoice_auto_approve_under_amount": "Optional auto-approve under amount",
+          "invoice_auto_approve_under_amount_hint": "Leave this empty to keep approval required on every employee-created invoice."
+        },
+        "templates": {
+          "title": "Invoice template",
+          "description": "Choose the PDF invoice model your clients receive by default.",
+          "invoice_template_label": "Default invoice model",
+          "options": {
+            "modern": {
+              "title": "Modern premium",
+              "description": "Balanced layout with a premium summary block, stronger hierarchy, and a polished client-facing finish."
+            },
+            "clean_professional": {
+              "title": "Clean professional",
+              "description": "A cleaner business invoice inspired by classic agency templates, with a lighter structure and a more formal feel."
+            },
+            "minimal_corporate": {
+              "title": "Minimal corporate",
+              "description": "A minimalist corporate invoice inspired by a black-and-white Canva layout, adapted with Malikia Pro accents for a sharper finish."
+            }
+          }
+        },
+        "mode": {
+          "solo": "Current plan mode: Solo. New finance records are auto-approved immediately.",
+          "team": "Current plan mode: Team. Submitters are isolated from approval actions and thresholds apply."
+        },
+        "roles": {
+          "admin": "Admin",
+          "sales_manager": "Sales manager",
+          "member": "Member",
+          "seller": "Seller"
+        }
+      },
       "presence": {
         "title": "Attendance & presence",
         "description": "Configure auto clock-in/out and manual time tracking.",

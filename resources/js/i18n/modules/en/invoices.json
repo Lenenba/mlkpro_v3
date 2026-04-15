@@ -14,6 +14,9 @@
       "customer": {
         "all": "All customers"
       },
+      "approval_status": {
+        "all": "All approval states"
+      },
       "total_min": "Min total",
       "total_max": "Max total",
       "created_from": "Created from",
@@ -27,10 +30,30 @@
       "overdue": "Overdue",
       "void": "Void"
     },
+    "approval_status": {
+      "draft": "Draft",
+      "submitted": "Submitted",
+      "pending_approval": "Pending approval",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "paid": "Paid",
+      "processed": "Processed"
+    },
+    "approval_actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "process": "Mark processed"
+    },
+    "approval_history": {
+      "approve": "Approved",
+      "reject": "Rejected",
+      "process": "Marked processed"
+    },
     "table": {
       "invoice": "Invoice",
       "customer": "Customer",
       "status": "Status",
+      "approval_status": "Approval",
       "rating": "Rating",
       "total": "Total",
       "balance_due": "Balance due",
@@ -67,6 +90,19 @@
       "invoice_for": "Invoice for {customer}",
       "timeline": "Timeline",
       "download_pdf": "Download PDF",
+      "finance_approval": {
+        "title": "Finance approval",
+        "current_status": "Approval status",
+        "current_role": "Current approver role",
+        "approved_by": "Approved by",
+        "processed_by": "Processed by",
+        "history": "Approval history",
+        "comment_placeholder": "Optional approval note",
+        "send_blocked": "This invoice cannot be sent until finance approval is completed.",
+        "from": "From",
+        "to": "To",
+        "by": "By"
+      },
       "property_address": "Property address",
       "no_property": "No property selected.",
       "contact_details": "Contact details",

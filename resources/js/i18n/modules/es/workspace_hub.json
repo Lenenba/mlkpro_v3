@@ -1,0 +1,77 @@
+{
+    "workspace_hub": {
+        "page_title": "Hub del espacio",
+        "eyebrow": "Hub de categoria",
+        "default_title": "Hub del espacio",
+        "default_description": "Abre un area de trabajo y entra en las herramientas que van juntas.",
+        "switcher_title": "Explorar categorias",
+        "switcher_subtitle": "La sidebar queda ligera y luego se abre el area donde quieres trabajar.",
+        "modules_title": "En esta categoria",
+        "modules_subtitle": "Cada tarjeta abre el modulo directamente",
+        "open_module": "Abrir modulo",
+        "category_count": "{count} herramienta | {count} herramientas",
+        "empty_title": "Todavia no hay nada disponible aqui",
+        "empty_body": "Esta categoria se vuelve util en cuanto los modulos correspondientes esten activados para el espacio y el rol.",
+        "badges": {
+            "pending": "{count} pendientes"
+        },
+        "categories": {
+            "revenue": {
+                "title": "Ingresos y pipeline de clientes",
+                "description": "Clientes, solicitudes, cotizaciones, pedidos y ventas en un mismo lugar."
+            },
+            "growth": {
+                "title": "Crecimiento y retencion",
+                "description": "Campanas, fidelizacion y vistas de rendimiento para adquisicion y repeticion."
+            },
+            "operations": {
+                "title": "Operaciones y ejecucion",
+                "description": "Trabajos, tareas, reservas, planificacion y coordinacion del equipo."
+            },
+            "finance": {
+                "title": "Finanzas y aprobaciones",
+                "description": "Facturas, gastos, contabilidad y validaciones pendientes en un flujo mas limpio."
+            },
+            "catalog": {
+                "title": "Catalogo y estructura",
+                "description": "Servicios, productos, categorias y escaneos tecnicos en un mismo espacio."
+            },
+            "workspace": {
+                "title": "Configuracion del espacio",
+                "description": "Configuracion de empresa, facturacion y preferencias de cuenta sin saturar la sidebar."
+            }
+        },
+        "modules": {
+            "customers": "Fichas de clientes, notas, etiquetas e historial de relacion.",
+            "requests": "Entrada de leads, calificacion y seguimiento de conversion.",
+            "quotes": "Propuestas comerciales y seguimiento de cotizaciones.",
+            "orders": "Entrada de pedidos de productos y seguimiento del fulfillment.",
+            "sales": "Cobro e historial de ventas terminadas.",
+            "campaigns": "Listas de audiencia, campanas, automatizaciones y ejecuciones.",
+            "loyalty": "Retencion, niveles VIP, recompensas y recompra.",
+            "performance": "Vistas de rendimiento para owner y responsables.",
+            "jobs": "Ordenes de trabajo y ejecucion operativa.",
+            "tasks": "Tareas internas, recordatorios y handoffs.",
+            "reservations": "Reservas, cola y gestion del flujo de servicio.",
+            "planning": "Horarios, turnos y solicitudes pendientes.",
+            "presence": "Presencia y visibilidad del equipo en vivo.",
+            "team": "Equipo, roles y gestion de accesos.",
+            "invoices": "Facturacion, envio, aprobacion y seguimiento de pagos.",
+            "expenses": "Gastos, recibos, reembolsos y intake con IA.",
+            "accounting": "Libro diario, impuestos, periodos, revision y exportaciones.",
+            "finance_approvals": "Elementos esperando validacion financiera antes de avanzar.",
+            "tips_owner": "Vista owner de propinas del equipo y exportaciones.",
+            "tips_member": "Vista personal de propinas y ganancias.",
+            "services": "Catalogo de servicios listo para cotizar y reservar.",
+            "categories": "Categorias de servicios y estructura comercial.",
+            "products": "Productos, precios, stock y catalogo vendible.",
+            "plan_scans": "Escaneos tecnicos y apoyo de estimacion.",
+            "company_settings_label": "Configuracion de empresa",
+            "company_settings": "Marca, finanzas, empresa y ajustes del espacio.",
+            "billing_label": "Facturacion",
+            "billing": "Plan, suscripcion, metodos de pago y complementos.",
+            "profile_label": "Perfil",
+            "profile": "Perfil personal, contrasena y preferencias de cuenta."
+        }
+    }
+}

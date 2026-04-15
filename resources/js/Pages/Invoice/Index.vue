@@ -16,7 +16,9 @@ const props = defineProps({
 <template>
     <Head :title="$t('invoices.title')" />
     <AuthenticatedLayout>
-        <InvoiceStats :stats="stats" />
+        <div class="space-y-3">
+            <InvoiceStats :stats="stats" />
+        </div>
         <div class="mt-3">
             <InvoiceTable :invoices="invoices" :filters="filters" :customers="customers" />
         </div>

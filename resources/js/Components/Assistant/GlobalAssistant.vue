@@ -193,6 +193,10 @@ const buildAssistantMeta = (payload) => {
         };
     }
 
+    if (payload?.expense_choice && typeof payload.expense_choice === 'object') {
+        meta.expenseChoice = payload.expense_choice;
+    }
+
     return Object.keys(meta).length > 0 ? meta : null;
 };
 
@@ -381,7 +385,7 @@ const handleAttachmentChange = async (event) => {
     }
 
     attachment.value = null;
-    attachmentError.value = 'Unsupported file type. Use a PDF, JPG, PNG, or WEBP plan.';
+    attachmentError.value = 'Unsupported file type. Use a PDF, JPG, PNG, or WEBP document.';
 };
 
 const openAssistantUrl = (url) => {
@@ -390,6 +394,133 @@ const openAssistantUrl = (url) => {
     }
 
     router.get(url);
+};
+
+const buildRequestContext = () => ({
+    ...(context.value || {}),
+    ...(currentCustomer.value ? { current_customer: currentCustomer.value } : {}),
+    ...(currentQuote.value ? { current_quote: currentQuote.value } : {}),
+    ...(currentWork.value ? { current_work: currentWork.value } : {}),
+    ...(currentInvoice.value ? { current_invoice: currentInvoice.value } : {}),
+    page: {
+        component: page.component,
+        url: page.url,
+    },
+});
+
+const handleAssistantPayload = (payload) => {
+    if (payload.context !== undefined) {
+        context.value = payload.context;
+    }
+
+    const assistantMessage = formatAssistantMessage(payload);
+    const assistantMeta = buildAssistantMeta(payload);
+    addMessage('assistant', assistantMessage, assistantMeta);
+    if (voiceReplyEnabled.value) {
+        speakMessage(assistantMessage);
+    }
+
+    if (payload?.action?.type === 'quote_created' && payload?.action?.quote_id) {
+        router.get(route('customer.quote.edit', payload.action.quote_id));
+    }
+
+    if (payload?.action?.type === 'work_created' && payload?.action?.work_id) {
+        router.get(route('work.edit', payload.action.work_id));
+    }
+
+    if (payload?.action?.type === 'invoice_created' && payload?.action?.invoice_id) {
+        router.get(route('invoice.show', payload.action.invoice_id));
+    }
+
+    if (['expense_created', 'open_expense', 'expense_existing_opened'].includes(payload?.action?.type) && payload?.action?.expense_id) {
+        router.get(route('expense.show', payload.action.expense_id));
+    }
+
+    if (payload?.action?.type === 'campaign_draft_ready' && payload?.action?.campaign_id && !payload?.campaign_review) {
+        router.get(route('campaigns.edit', payload.action.campaign_id));
+    }
+};
+
+const postAssistantMessage = async (messageText, selectedAttachment = null) => {
+    const requestContext = buildRequestContext();
+
+    if (selectedAttachment) {
+        const formData = new FormData();
+        formData.append('message', messageText);
+        formData.append('context', JSON.stringify(requestContext));
+        formData.append('attachment', selectedAttachment);
+
+        const response = await window.axios.post(route('assistant.message'), formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        return response?.data || {};
+    }
+
+    const response = await window.axios.post(route('assistant.message'), {
+        message: messageText,
+        context: requestContext,
+    });
+
+    return response?.data || {};
+};
+
+const expenseChoiceButtonClass = (choice) => {
+    const base = 'rounded-md px-2 py-1 text-[11px] font-medium transition disabled:opacity-50';
+
+    switch (choice?.variant) {
+        case 'primary':
+            return `${base} border border-transparent bg-emerald-600 text-white hover:bg-emerald-700`;
+        case 'ghost':
+            return `${base} border border-transparent bg-transparent text-stone-500 hover:text-stone-700`;
+        default:
+            return `${base} border border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100`;
+    }
+};
+
+const formatExpenseChoiceReason = (reason) => {
+    switch (reason) {
+        case 'same_file':
+            return 'Meme fichier';
+        case 'same_reference':
+            return 'Meme reference';
+        case 'same_supplier':
+            return 'Meme fournisseur';
+        case 'same_total':
+            return 'Meme montant';
+        case 'same_expense_date':
+            return 'Meme date';
+        default:
+            return reason;
+    }
+};
+
+const runExpenseChoice = async (choice) => {
+    const command = String(choice?.command || '').trim();
+    if (!command || isLoading.value) {
+        return;
+    }
+
+    addMessage('user', command);
+    isLoading.value = true;
+
+    try {
+        const payload = await postAssistantMessage(command);
+        handleAssistantPayload(payload);
+    } catch (error) {
+        const status = error?.response?.status;
+        const data = error?.response?.data || {};
+        const message = data.message || (status ? 'Assistant indisponible. Reessayez plus tard.' : 'Assistant indisponible.');
+        addMessage('assistant', message);
+        if (voiceReplyEnabled.value) {
+            speakMessage(message);
+        }
+    } finally {
+        isLoading.value = false;
+        persistState();
+    }
 };
 
 const canSend = computed(() => {
@@ -412,64 +543,8 @@ const sendMessage = async () => {
     isLoading.value = true;
 
     try {
-        const requestContext = {
-            ...(context.value || {}),
-            ...(currentCustomer.value ? { current_customer: currentCustomer.value } : {}),
-            ...(currentQuote.value ? { current_quote: currentQuote.value } : {}),
-            ...(currentWork.value ? { current_work: currentWork.value } : {}),
-            ...(currentInvoice.value ? { current_invoice: currentInvoice.value } : {}),
-            page: {
-                component: page.component,
-                url: page.url,
-            },
-        };
-
-        let response;
-        if (selectedAttachment) {
-            const formData = new FormData();
-            formData.append('message', trimmed);
-            formData.append('context', JSON.stringify(requestContext));
-            formData.append('attachment', selectedAttachment);
-
-            response = await window.axios.post(route('assistant.message'), formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-        } else {
-            response = await window.axios.post(route('assistant.message'), {
-                message: trimmed,
-                context: requestContext,
-            });
-        }
-
-        const payload = response?.data || {};
-        if (payload.context !== undefined) {
-            context.value = payload.context;
-        }
-
-        const assistantMessage = formatAssistantMessage(payload);
-        const assistantMeta = buildAssistantMeta(payload);
-        addMessage('assistant', assistantMessage, assistantMeta);
-        if (voiceReplyEnabled.value) {
-            speakMessage(assistantMessage);
-        }
-
-        if (payload?.action?.type === 'quote_created' && payload?.action?.quote_id) {
-            router.get(route('customer.quote.edit', payload.action.quote_id));
-        }
-
-        if (payload?.action?.type === 'work_created' && payload?.action?.work_id) {
-            router.get(route('work.edit', payload.action.work_id));
-        }
-
-        if (payload?.action?.type === 'invoice_created' && payload?.action?.invoice_id) {
-            router.get(route('invoice.show', payload.action.invoice_id));
-        }
-
-        if (payload?.action?.type === 'campaign_draft_ready' && payload?.action?.campaign_id && !payload?.campaign_review) {
-            router.get(route('campaigns.edit', payload.action.campaign_id));
-        }
+        const payload = await postAssistantMessage(trimmed, selectedAttachment);
+        handleAssistantPayload(payload);
     } catch (error) {
         const status = error?.response?.status;
         const data = error?.response?.data || {};
@@ -614,6 +689,7 @@ onMounted(() => {
         <div id="assistant-messages" class="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm">
             <div v-if="messages.length === 0" class="text-stone-400">
                 <div>Try: "Create a quote for Acme with Service A at 120 and add taxes."</div>
+                <div class="mt-2">Try: "Scan this supplier invoice and create an expense draft."</div>
                 <div class="mt-2 text-xs text-stone-400">Voice commands:</div>
                 <div class="text-xs text-stone-400 space-y-1">
                     <div>- "Cree un devis pour Acme avec Service A a 120."</div>
@@ -779,6 +855,80 @@ onMounted(() => {
                                 @click="openAssistantUrl(message.meta.planScan.quote.urls.edit)"
                             >
                                 Open quote
+                            </button>
+                        </div>
+                    </div>
+                    <div
+                        v-if="message.role === 'assistant' && message.meta?.expenseChoice"
+                        class="mt-3 rounded-md border border-stone-200 bg-white p-3 text-xs text-stone-700 space-y-3"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-700">
+                                    Doublon facture
+                                </div>
+                                <div class="mt-1 text-sm font-semibold text-stone-900">
+                                    {{ message.meta.expenseChoice.title }}
+                                </div>
+                                <div class="text-[11px] text-stone-500">
+                                    {{ message.meta.expenseChoice.subtitle }}
+                                </div>
+                            </div>
+                            <div class="rounded-full bg-rose-50 px-2 py-1 text-[10px] font-semibold uppercase text-rose-700">
+                                Review
+                            </div>
+                        </div>
+
+                        <div
+                            v-if="message.meta.expenseChoice.existing_expense"
+                            class="rounded-md border border-stone-200 bg-stone-50 px-3 py-3"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <div class="text-xs font-semibold text-stone-800">
+                                        {{ message.meta.expenseChoice.existing_expense.title || 'Existing expense' }}
+                                    </div>
+                                    <div class="mt-1 text-[11px] text-stone-500">
+                                        {{ message.meta.expenseChoice.existing_expense.supplier_name || 'No supplier' }}
+                                        <span v-if="message.meta.expenseChoice.existing_expense.reference_number">
+                                            • {{ message.meta.expenseChoice.existing_expense.reference_number }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xs font-semibold text-stone-800">
+                                        {{ message.meta.expenseChoice.existing_expense.total }} {{ message.meta.expenseChoice.existing_expense.currency_code || '' }}
+                                    </div>
+                                    <div class="mt-1 text-[11px] text-stone-500">
+                                        {{ message.meta.expenseChoice.existing_expense.status || 'draft' }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                v-if="(message.meta.expenseChoice.existing_expense.reasons || []).length > 0"
+                                class="mt-2 flex flex-wrap gap-2"
+                            >
+                                <span
+                                    v-for="reason in message.meta.expenseChoice.existing_expense.reasons"
+                                    :key="`${message.id}-expense-choice-${reason}`"
+                                    class="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-stone-600"
+                                >
+                                    {{ formatExpenseChoiceReason(reason) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                v-for="choice in message.meta.expenseChoice.choices || []"
+                                :key="`${message.id}-expense-choice-${choice.type}`"
+                                type="button"
+                                :class="expenseChoiceButtonClass(choice)"
+                                :disabled="isLoading"
+                                @click="runExpenseChoice(choice)"
+                            >
+                                {{ choice.label }}
                             </button>
                         </div>
                     </div>

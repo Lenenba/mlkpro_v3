@@ -2,6 +2,8 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
+import AdminDataTableBulkActionMenu from '@/Components/DataTable/AdminDataTableBulkActionMenu.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import { humanizeDate } from '@/utils/date';
 import ProductForm from './ProductForm.vue';
@@ -13,7 +15,15 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import axios from 'axios';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
+import { useDataTableSelection } from '@/Composables/useDataTableSelection';
 import { useCurrencyFormatter } from '@/utils/currency';
+import {
+    createBulkActionFailureResult,
+    dispatchBulkActionToast,
+    extractBulkActionErrorMessages,
+    normalizeBulkActionResult,
+    resolveBulkActionErrorMessage,
+} from '@/utils/bulkActions';
 
 const props = defineProps({
     filters: Object,
@@ -36,6 +46,10 @@ const props = defineProps({
     count: {
         type: Number,
         required: true,
+    },
+    bulkActions: {
+        type: Object,
+        default: () => ({}),
     },
     warehouses: {
         type: Array,
@@ -538,18 +552,16 @@ const toggleSort = (column) => {
     filterForm.direction = 'asc';
 };
 
-const selected = ref([]);
-const selectAllRef = ref(null);
-const allSelected = computed(() =>
-    productRows.value.length > 0 && selected.value.length === productRows.value.length
-);
-const someSelected = computed(() =>
-    selected.value.length > 0 && !allSelected.value
-);
-
-watch(productRows, () => {
-    selected.value = [];
-}, { deep: true });
+const {
+    selected,
+    selectedCount,
+    selectAllRef,
+    allSelected,
+    toggleAll,
+    clearSelection,
+} = useDataTableSelection(productRows);
+const bulkResult = ref(null);
+const bulkProcessing = ref(false);
 
 watch(
     () => props.aiImage,
@@ -561,39 +573,114 @@ watch(
     { deep: true }
 );
 
+const fallbackBulkActions = [
+    {
+        key: 'archive',
+        kind: 'submit',
+        action: 'archive',
+        label_key: 'products.actions.archive',
+        tone: 'neutral',
+    },
+    {
+        key: 'restore',
+        kind: 'submit',
+        action: 'restore',
+        label_key: 'products.actions.restore',
+        tone: 'success',
+    },
+    {
+        key: 'delete',
+        kind: 'submit',
+        action: 'delete',
+        label_key: 'products.actions.delete',
+        tone: 'danger',
+        divider_before: true,
+        confirm_key: 'products.bulk.delete_confirm',
+    },
+];
+const bulkMenuLabelKey = computed(() => props.bulkActions?.menu_label_key || 'products.bulk.actions');
+const bulkSelectionLabelKey = computed(() => props.bulkActions?.selection_label_key || 'products.bulk.selected');
+const bulkMenuActions = computed(() => (
+    Array.isArray(props.bulkActions?.actions) && props.bulkActions.actions.length
+        ? props.bulkActions.actions
+        : fallbackBulkActions
+));
 
-watch([allSelected, someSelected], () => {
-    if (selectAllRef.value) {
-        selectAllRef.value.indeterminate = someSelected.value;
-    }
-});
-
-const toggleAll = (event) => {
-    selected.value = event.target.checked
-        ? productRows.value.map((product) => product.id)
-        : [];
+const clearBulkResult = () => {
+    bulkResult.value = null;
 };
 
-const bulkForm = useForm({
-    action: '',
-    ids: [],
+const setBulkResult = (payload) => {
+    bulkResult.value = normalizeBulkActionResult(payload);
+
+    return bulkResult.value;
+};
+
+watch(selectedCount, (count, previousCount) => {
+    if (count > 0 && count !== previousCount) {
+        clearBulkResult();
+    }
 });
 
-const runBulk = (action) => {
-    if (!selected.value.length) {
-        return;
-    }
-    if (action === 'delete' && !confirm(t('products.bulk.delete_confirm'))) {
-        return;
-    }
-    bulkForm.action = action;
-    bulkForm.ids = selected.value;
-    bulkForm.post(route('product.bulk'), {
+const reloadBulkContext = () => new Promise((resolve) => {
+    router.reload({
+        only: ['products', 'filters', 'stats', 'count', 'topProducts'],
         preserveScroll: true,
-        onSuccess: () => {
-            selected.value = [];
-        },
+        preserveState: true,
+        onFinish: () => resolve(),
     });
+});
+
+const runBulk = async (action, confirmKey = null) => {
+    if (!selected.value.length || bulkProcessing.value) {
+        return;
+    }
+    if (confirmKey && !confirm(t(confirmKey))) {
+        return;
+    }
+
+    clearBulkResult();
+    bulkProcessing.value = true;
+
+    try {
+        const { data } = await axios.post(route('product.bulk'), {
+            action,
+            ids: selected.value,
+        }, {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        const result = setBulkResult(data);
+        clearSelection();
+        dispatchBulkActionToast(result, t);
+        await reloadBulkContext();
+    } catch (error) {
+        const errors = extractBulkActionErrorMessages(error);
+        const message = resolveBulkActionErrorMessage(error, t);
+        const result = createBulkActionFailureResult({
+            message,
+            errors: errors.length ? errors : [message],
+            selectedCount: selected.value.length,
+        });
+
+        bulkResult.value = result;
+        dispatchBulkActionToast(result, t);
+    } finally {
+        bulkProcessing.value = false;
+    }
+};
+
+const handleBulkAction = (definition) => {
+    if (!definition || typeof definition !== 'object') {
+        return;
+    }
+
+    runBulk(
+        String(definition.action || definition.key || ''),
+        definition.confirm_key || null
+    );
 };
 
 const syncAiUsage = (payload) => {
@@ -1091,36 +1178,19 @@ const submitImport = () => {
                     />
                 </div>
 
-                <div v-if="canEdit && selected.length" class="flex items-center gap-2">
-                    <span class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('products.bulk.selected', { count: selected.length }) }}
-                    </span>
-                    <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                        <button type="button"
-                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 action-feedback"
-                            aria-haspopup="menu" aria-expanded="false" :aria-label="$t('products.aria.dropdown')">
-                            {{ $t('products.bulk.actions') }}
-                        </button>
-                        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-36 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                            role="menu" aria-orientation="vertical">
-                            <div class="p-1">
-                                <button type="button" @click="runBulk('archive')"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
-                                    {{ $t('products.actions.archive') }}
-                                </button>
-                                <button type="button" @click="runBulk('restore')"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                    {{ $t('products.actions.restore') }}
-                                </button>
-                                <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                <button type="button" @click="runBulk('delete')"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                    {{ $t('products.actions.delete') }}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <AdminDataTableBulkBar
+                    v-if="canEdit"
+                    :count="selectedCount"
+                    :label="$t(bulkSelectionLabelKey, { count: selectedCount })"
+                    :result="bulkResult"
+                >
+                    <AdminDataTableBulkActionMenu
+                        :actions="bulkMenuActions"
+                        :disabled="bulkProcessing || !selectedCount"
+                        :menu-label-key="bulkMenuLabelKey"
+                        @select="handleBulkAction"
+                    />
+                </AdminDataTableBulkBar>
             </div>
 
         </div>

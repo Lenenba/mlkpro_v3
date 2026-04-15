@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\CurrencyCode;
+use App\Services\FinanceApprovalService;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,19 +28,37 @@ class Invoice extends Model
         'void',
     ];
 
+    public const APPROVAL_STATUSES = FinanceApprovalService::APPROVAL_STATUSES;
+
     protected $fillable = [
         'work_id',
         'customer_id',
         'user_id',
+        'created_by_user_id',
+        'approved_by_user_id',
+        'rejected_by_user_id',
+        'processed_by_user_id',
         'number',
         'status',
+        'approval_status',
+        'current_approver_role_key',
+        'current_approval_level',
         'total',
         'currency_code',
+        'approved_at',
+        'rejected_at',
+        'processed_at',
+        'approval_meta',
     ];
 
     protected $casts = [
         'total' => 'decimal:2',
         'currency_code' => 'string',
+        'current_approval_level' => 'integer',
+        'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
+        'processed_at' => 'datetime',
+        'approval_meta' => 'array',
     ];
 
     protected $appends = [
@@ -59,6 +78,10 @@ class Invoice extends Model
             if (! $invoice->currency_code) {
                 $owner = $invoice->user_id ? User::query()->find($invoice->user_id) : null;
                 $invoice->currency_code = $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value;
+            }
+
+            if (! $invoice->approval_status) {
+                $invoice->approval_status = FinanceApprovalService::APPROVAL_STATUS_DRAFT;
             }
         });
     }
@@ -85,6 +108,26 @@ class Invoice extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by_user_id');
+    }
+
+    public function rejector(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by_user_id');
+    }
+
+    public function processor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'processed_by_user_id');
     }
 
     public function payments(): HasMany
@@ -123,6 +166,10 @@ class Invoice extends Model
             ->when(
                 $filters['status'] ?? null,
                 fn (Builder $query, $status) => $query->where('status', $status)
+            )
+            ->when(
+                $filters['approval_status'] ?? null,
+                fn (Builder $query, $status) => $query->where('approval_status', $status)
             )
             ->when(
                 $filters['customer_id'] ?? null,

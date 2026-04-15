@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Card from '@/Components/UI/Card.vue';
 import { humanizeDate } from '@/utils/date';
@@ -32,9 +32,30 @@ const props = defineProps({
         type: Object,
         default: null,
     },
+    announcements: {
+        type: Array,
+        default: () => [],
+    },
+    quickAnnouncements: {
+        type: Array,
+        default: () => [],
+    },
+    usage_limits: {
+        type: Object,
+        default: () => ({ items: [] }),
+    },
+    billing: {
+        type: Object,
+        default: () => ({}),
+    },
+    financeSummary: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
+const page = usePage();
 
 const isHydrating = ref(true);
 
@@ -300,7 +321,6 @@ const stockSignalClasses = {
 };
 
 const formatDate = (value) => humanizeDate(value);
-
 const requestSupplierStock = (product) => {
     if (!product?.supplier_email) {
         return;

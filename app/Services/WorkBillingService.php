@@ -189,6 +189,11 @@ class WorkBillingService
         }
 
         $invoiceTotal = max(0, round($baseTotal - $depositTotal, 2));
+        $approval = app(FinanceApprovalService::class)->resolveInvoiceCreation(
+            User::findOrFail($work->user_id),
+            $actor,
+            $invoiceTotal
+        );
 
         if ($lineItems->isNotEmpty()) {
             $adjustment = round($invoiceTotal - $itemsTotal, 2);
@@ -210,12 +215,25 @@ class WorkBillingService
             }
         }
 
-        $invoice = DB::transaction(function () use ($work, $invoiceTotal, $lineItems) {
+        $invoice = DB::transaction(function () use ($work, $invoiceTotal, $lineItems, $actor, $approval) {
             $invoice = Invoice::create([
                 'user_id' => $work->user_id,
+                'created_by_user_id' => $actor?->id ?: $work->user_id,
                 'customer_id' => $work->customer_id,
                 'work_id' => $work->id,
                 'status' => 'sent',
+                'approval_status' => $approval['approval_status'],
+                'current_approver_role_key' => $approval['current_approver_role_key'],
+                'current_approval_level' => $approval['current_approval_level'],
+                'approved_by_user_id' => ($approval['auto_approved'] ?? false)
+                    ? (array_key_exists('approved_by_user_id', $approval)
+                        ? $approval['approved_by_user_id']
+                        : ($actor?->id ?: $work->user_id))
+                    : null,
+                'approved_at' => ($approval['auto_approved'] ?? false) ? now() : null,
+                'approval_meta' => [
+                    'approval_policy_snapshot' => $approval['approval_policy_snapshot'] ?? null,
+                ],
                 'total' => $invoiceTotal,
             ]);
 
@@ -231,11 +249,25 @@ class WorkBillingService
                 'work_id' => $work->id,
                 'total' => $invoice->total,
             ], 'Invoice created from job');
+
+            if ($approval['auto_approved'] ?? false) {
+                ActivityLog::record($actor, $invoice, 'approval_auto_approved', [
+                    'approval_status' => $invoice->approval_status,
+                    'approval_mode' => data_get($approval, 'approval_policy_snapshot.approval_mode'),
+                ], 'Invoice auto-approved from plan-based workflow');
+            }
         }
 
-        $this->sendInvoiceAvailableNotification($invoice, [
-            'work_id' => $work->id,
-        ]);
+        app(FinanceApprovalNotificationService::class)->notifyInvoicePendingApproval($invoice);
+
+        if (in_array($invoice->approval_status, [
+            FinanceApprovalService::APPROVAL_STATUS_APPROVED,
+            FinanceApprovalService::APPROVAL_STATUS_PROCESSED,
+        ], true)) {
+            $this->sendInvoiceAvailableNotification($invoice, [
+                'work_id' => $work->id,
+            ]);
+        }
 
         return $invoice;
     }

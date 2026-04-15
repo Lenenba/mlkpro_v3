@@ -10,7 +10,9 @@ use Illuminate\Support\Str;
 class DemoAccountService
 {
     public const TYPE_SERVICE = 'service';
+
     public const TYPE_PRODUCT = 'product';
+
     public const TYPE_GUIDED = 'guided';
 
     public function resolveDemoAccount(string $type): User
@@ -120,6 +122,8 @@ class DemoAccountService
             'jobs' => true,
             'tasks' => true,
             'invoices' => true,
+            'expenses' => true,
+            'accounting' => true,
             'products' => true,
             'performance' => true,
             'presence' => true,
@@ -149,7 +153,7 @@ class DemoAccountService
 
     private function guardType(string $type): void
     {
-        if (!in_array($type, [self::TYPE_SERVICE, self::TYPE_PRODUCT, self::TYPE_GUIDED], true)) {
+        if (! in_array($type, [self::TYPE_SERVICE, self::TYPE_PRODUCT, self::TYPE_GUIDED], true)) {
             abort(400, 'Invalid demo type.');
         }
     }

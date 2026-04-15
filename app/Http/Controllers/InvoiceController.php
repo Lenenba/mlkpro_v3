@@ -7,13 +7,14 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Work;
+use App\Services\FinanceApprovalService;
 use App\Services\InvoiceDocumentService;
 use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
 use App\Support\TenantPaymentMethodsResolver;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\ValidationException;
 
 class InvoiceController extends Controller
 {
@@ -22,9 +23,12 @@ class InvoiceController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Invoice::class);
+
         $filters = $request->only([
             'search',
             'status',
+            'approval_status',
             'customer_id',
             'total_min',
             'total_max',
@@ -35,12 +39,13 @@ class InvoiceController extends Controller
         ]);
         $filters['per_page'] = $this->resolveDataTablePerPage($request);
 
-        $userId = Auth::id();
+        $actor = $request->user();
+        $userId = (int) $actor->accountOwnerId();
         $baseQuery = Invoice::query()
             ->filter($filters)
             ->byUser($userId);
 
-        $sort = in_array($filters['sort'] ?? null, ['created_at', 'total', 'status', 'number'], true)
+        $sort = in_array($filters['sort'] ?? null, ['created_at', 'total', 'status', 'approval_status', 'number'], true)
             ? $filters['sort']
             : 'created_at';
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
@@ -54,6 +59,9 @@ class InvoiceController extends Controller
             ->orderBy($sort, $direction)
             ->paginate((int) $filters['per_page'])
             ->withQueryString();
+        $invoices->setCollection(
+            $invoices->getCollection()->map(fn (Invoice $invoice) => $this->presentInvoiceSummary($invoice, $actor))
+        );
 
         $totalCount = (clone $baseQuery)->count();
         $totalValue = (clone $baseQuery)->sum('total');
@@ -91,9 +99,7 @@ class InvoiceController extends Controller
      */
     public function show(Request $request, Invoice $invoice)
     {
-        if ($invoice->user_id !== Auth::id()) {
-            abort(403);
-        }
+        $this->authorize('view', $invoice);
 
         $invoice->load([
             'customer.properties',
@@ -102,7 +108,12 @@ class InvoiceController extends Controller
             'work.quote.property',
             'work.ratings',
             'payments.tipAssignee:id,name',
+            'creator:id,name',
+            'approver:id,name',
+            'rejector:id,name',
+            'processor:id,name',
         ]);
+        $invoice = $this->presentInvoiceDetail($invoice, $request->user());
 
         $payload = [
             'invoice' => $invoice,
@@ -122,9 +133,7 @@ class InvoiceController extends Controller
 
     public function pdf(Request $request, Invoice $invoice, InvoiceDocumentService $invoiceDocumentService)
     {
-        if ($invoice->user_id !== Auth::id()) {
-            abort(403);
-        }
+        $this->authorize('view', $invoice);
 
         return $invoiceDocumentService
             ->buildPdf($invoice, $request->user())
@@ -136,7 +145,9 @@ class InvoiceController extends Controller
      */
     public function storeFromWork(Request $request, Work $work, WorkBillingService $billingService)
     {
-        if ($work->user_id !== Auth::id()) {
+        $this->authorize('create', Invoice::class);
+
+        if ($work->user_id !== (int) $request->user()->accountOwnerId()) {
             abort(403);
         }
 
@@ -166,8 +177,22 @@ class InvoiceController extends Controller
 
     public function sendEmail(Request $request, Invoice $invoice, WorkBillingService $billingService)
     {
-        if ($invoice->user_id !== Auth::id()) {
-            abort(403);
+        $this->authorize('send', $invoice);
+
+        $authorization = app(FinanceApprovalService::class)->authorizeInvoiceAction($request->user(), $invoice, 'send');
+        if (! ($authorization['allowed'] ?? false)) {
+            $message = $authorization['message'] ?? 'You cannot send this invoice.';
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => [
+                        'approval_status' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return redirect()->back()->with('warning', $message);
         }
 
         $invoice->loadMissing(['customer', 'work']);
@@ -240,5 +265,251 @@ class InvoiceController extends Controller
         }
 
         return redirect()->back()->with('success', 'Invoice sent successfully to '.$invoice->customer->email);
+    }
+
+    public function approve(Request $request, Invoice $invoice)
+    {
+        return $this->transitionApprovalStatus(
+            $request,
+            $invoice,
+            FinanceApprovalService::APPROVAL_STATUS_APPROVED,
+            [
+                FinanceApprovalService::APPROVAL_STATUS_SUBMITTED,
+                FinanceApprovalService::APPROVAL_STATUS_PENDING_APPROVAL,
+            ],
+            'approve',
+            'Invoice approved successfully.',
+            [
+                'finance_action' => 'approve',
+                'clear_approver' => true,
+            ]
+        );
+    }
+
+    public function reject(Request $request, Invoice $invoice)
+    {
+        return $this->transitionApprovalStatus(
+            $request,
+            $invoice,
+            FinanceApprovalService::APPROVAL_STATUS_REJECTED,
+            [
+                FinanceApprovalService::APPROVAL_STATUS_SUBMITTED,
+                FinanceApprovalService::APPROVAL_STATUS_PENDING_APPROVAL,
+            ],
+            'reject',
+            'Invoice rejected successfully.',
+            [
+                'finance_action' => 'reject',
+                'clear_approver' => true,
+            ]
+        );
+    }
+
+    public function markProcessed(Request $request, Invoice $invoice)
+    {
+        return $this->transitionApprovalStatus(
+            $request,
+            $invoice,
+            FinanceApprovalService::APPROVAL_STATUS_PROCESSED,
+            [
+                FinanceApprovalService::APPROVAL_STATUS_APPROVED,
+            ],
+            'process',
+            'Invoice marked as processed successfully.',
+            [
+                'finance_action' => 'process',
+                'clear_approver' => true,
+            ]
+        );
+    }
+
+    private function transitionApprovalStatus(
+        Request $request,
+        Invoice $invoice,
+        string $targetStatus,
+        array $allowedFrom,
+        string $action,
+        string $message,
+        array $options = []
+    ) {
+        $this->authorize('transition', $invoice);
+
+        $validated = $request->validate([
+            'comment' => 'nullable|string|max:1000',
+        ]);
+
+        if (! in_array((string) $invoice->approval_status, $allowedFrom, true)) {
+            throw ValidationException::withMessages([
+                'approval_status' => ['This invoice cannot move to the requested approval state.'],
+            ]);
+        }
+
+        if (! empty($options['finance_action'])) {
+            $authorization = app(FinanceApprovalService::class)->authorizeInvoiceAction(
+                $request->user(),
+                $invoice,
+                (string) $options['finance_action']
+            );
+
+            if (! ($authorization['allowed'] ?? false)) {
+                throw ValidationException::withMessages([
+                    'approval_status' => [$authorization['message'] ?? 'You cannot update this invoice approval state.'],
+                ]);
+            }
+        }
+
+        $fromStatus = (string) $invoice->approval_status;
+        $actor = $request->user();
+        $actorId = (int) $actor->id;
+
+        $approvalMeta = is_array($invoice->approval_meta) ? $invoice->approval_meta : [];
+        $history = $approvalMeta['history'] ?? [];
+        if (! is_array($history)) {
+            $history = [];
+        }
+        $history[] = array_filter([
+            'action' => $action,
+            'from' => $fromStatus,
+            'to' => $targetStatus,
+            'actor_id' => $actorId,
+            'actor_name' => $actor->name,
+            'comment' => $validated['comment'] ?? null,
+            'created_at' => now()->toIso8601String(),
+        ], fn ($value) => $value !== null && $value !== '');
+
+        $approvalMeta['history'] = array_slice($history, -20);
+
+        $updates = [
+            'approval_status' => $targetStatus,
+            'approval_meta' => $approvalMeta,
+        ];
+
+        if (! empty($options['clear_approver'])) {
+            $updates['current_approver_role_key'] = null;
+            $updates['current_approval_level'] = null;
+        }
+
+        if ($targetStatus === FinanceApprovalService::APPROVAL_STATUS_APPROVED) {
+            $updates['approved_by_user_id'] = $actorId;
+            $updates['approved_at'] = now();
+            $updates['rejected_by_user_id'] = null;
+            $updates['rejected_at'] = null;
+        }
+
+        if ($targetStatus === FinanceApprovalService::APPROVAL_STATUS_REJECTED) {
+            $updates['rejected_by_user_id'] = $actorId;
+            $updates['rejected_at'] = now();
+        }
+
+        if ($targetStatus === FinanceApprovalService::APPROVAL_STATUS_PROCESSED) {
+            $updates['processed_by_user_id'] = $actorId;
+            $updates['processed_at'] = now();
+        }
+
+        $invoice->fill($updates)->save();
+        $invoice->loadMissing([
+            'customer',
+            'work',
+            'creator:id,name',
+            'approver:id,name',
+            'rejector:id,name',
+            'processor:id,name',
+        ]);
+        $invoice = $this->presentInvoiceDetail($invoice->fresh([
+            'customer.properties',
+            'items',
+            'work.products',
+            'work.quote.property',
+            'work.ratings',
+            'payments.tipAssignee:id,name',
+            'creator:id,name',
+            'approver:id,name',
+            'rejector:id,name',
+            'processor:id,name',
+        ]), $actor);
+
+        ActivityLog::record($actor, $invoice, 'approval_'.$action, [
+            'from' => $fromStatus,
+            'to' => $targetStatus,
+            'comment' => $validated['comment'] ?? null,
+        ], 'Invoice approval workflow updated');
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => $message,
+                'invoice' => $invoice,
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    private function presentInvoiceSummary(Invoice $invoice, $actor): Invoice
+    {
+        $invoice->setAttribute('can_send_email', $this->canSendInvoice($actor, $invoice));
+        $invoice->setAttribute('available_approval_actions', $this->availableApprovalActions($actor, $invoice));
+
+        return $invoice;
+    }
+
+    private function presentInvoiceDetail(Invoice $invoice, $actor): Invoice
+    {
+        $invoice = $this->presentInvoiceSummary($invoice, $actor);
+        $approvalMeta = is_array($invoice->approval_meta) ? $invoice->approval_meta : [];
+        $history = $approvalMeta['history'] ?? [];
+        $invoice->setAttribute('approval_history', is_array($history) ? array_values($history) : []);
+
+        return $invoice;
+    }
+
+    private function canSendInvoice($actor, Invoice $invoice): bool
+    {
+        if (! $actor) {
+            return false;
+        }
+
+        if ($invoice->status === 'void') {
+            return false;
+        }
+
+        if (! $invoice->customer?->email) {
+            return false;
+        }
+
+        $policy = $actor->can('send', $invoice);
+        if (! $policy) {
+            return false;
+        }
+
+        $authorization = app(FinanceApprovalService::class)->authorizeInvoiceAction($actor, $invoice, 'send');
+
+        return (bool) ($authorization['allowed'] ?? false);
+    }
+
+    private function availableApprovalActions($actor, Invoice $invoice): array
+    {
+        if (! $actor) {
+            return [];
+        }
+
+        $actions = [];
+        if (in_array((string) $invoice->approval_status, [
+            FinanceApprovalService::APPROVAL_STATUS_SUBMITTED,
+            FinanceApprovalService::APPROVAL_STATUS_PENDING_APPROVAL,
+        ], true)) {
+            $actions = ['approve', 'reject'];
+        } elseif ((string) $invoice->approval_status === FinanceApprovalService::APPROVAL_STATUS_APPROVED) {
+            $actions = ['process'];
+        }
+
+        return array_values(array_filter($actions, function (string $action) use ($actor, $invoice): bool {
+            if (! $actor->can('transition', $invoice)) {
+                return false;
+            }
+
+            $authorization = app(FinanceApprovalService::class)->authorizeInvoiceAction($actor, $invoice, $action);
+
+            return (bool) ($authorization['allowed'] ?? false);
+        }));
     }
 }

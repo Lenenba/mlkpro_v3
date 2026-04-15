@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Models\User;
 use App\Services\Assistant\AssistantCampaignService;
+use App\Services\Assistant\AssistantExpenseService;
 use App\Services\Assistant\AssistantInterpreter;
 use App\Services\Assistant\AssistantPlanScanService;
 use App\Services\Assistant\AssistantQuoteService;
@@ -32,6 +33,7 @@ class AssistantController extends Controller
         Request $request,
         AssistantInterpreter $interpreter,
         AssistantCampaignService $campaignService,
+        AssistantExpenseService $assistantExpenseService,
         CampaignAssistantContextService $campaignContextService,
         AssistantQuoteService $quoteService,
         AssistantWorkflowService $workflowService,
@@ -59,12 +61,24 @@ class AssistantController extends Controller
 
         if (! empty($context['pending_action'])) {
             $pendingAction = $context['pending_action'];
+            $type = $pendingAction['type'] ?? '';
 
-            if ($this->isConfirmation($message)) {
-                $type = $pendingAction['type'] ?? '';
+            if ($type === 'create_expense_from_attachment' && $assistantExpenseService->wantsOpenExisting($message, $pendingAction)) {
+                return response()->json(
+                    $assistantExpenseService->openExisting($pendingAction, $user)
+                );
+            }
+
+            if ($this->isConfirmation($message) || ($type === 'create_expense_from_attachment' && $assistantExpenseService->wantsCreateAnyway($message))) {
                 if ($type === 'create_quote') {
                     return response()->json(
                         $quoteService->execute($pendingAction['payload'] ?? [], $user)
+                    );
+                }
+
+                if ($type === 'create_expense_from_attachment') {
+                    return response()->json(
+                        $assistantExpenseService->executePending($pendingAction, $user)
                     );
                 }
 
@@ -74,6 +88,10 @@ class AssistantController extends Controller
             }
 
             if ($this->isRejection($message)) {
+                if (($pendingAction['type'] ?? '') === 'create_expense_from_attachment') {
+                    $assistantExpenseService->cancelPending($pendingAction);
+                }
+
                 return response()->json([
                     'status' => 'cancelled',
                     'message' => 'Action annulee.',
@@ -81,6 +99,12 @@ class AssistantController extends Controller
                         'pending_action' => null,
                     ],
                 ]);
+            }
+
+            if ($type === 'create_expense_from_attachment') {
+                return response()->json(
+                    $assistantExpenseService->presentPendingChoice($pendingAction)
+                );
             }
 
             $summary = $pendingAction['summary'] ?? 'Une action est en attente.';
@@ -103,7 +127,7 @@ class AssistantController extends Controller
             ], 422);
         }
 
-        if ($this->isStructureChangeRequest($validated['message'])) {
+        if ($this->isStructureChangeRequest($message)) {
             return response()->json([
                 'status' => 'not_allowed',
                 'message' => 'Assistant cannot change the app structure. It can only create or read workflow data.',
@@ -150,6 +174,35 @@ class AssistantController extends Controller
             }
 
             if ($attachment instanceof UploadedFile) {
+                if ($assistantExpenseService->matchesAttachmentIntent($user, $attachment, $message, $context)) {
+                    if (! $user->hasCompanyFeature('expenses')) {
+                        if ($creditConsumed) {
+                            $creditService->refund($user, 1, ['meta' => ['reason' => 'expenses_unavailable']]);
+                        }
+
+                        return response()->json([
+                            'status' => 'not_allowed',
+                            'message' => 'Le module depenses n est pas actif sur ce compte.',
+                        ], 403);
+                    }
+
+                    $payload = $assistantExpenseService->handle($user, $attachment, $message, $context);
+                    $usagePayload = is_array($payload['usage'] ?? null) ? $payload['usage'] : [
+                        'prompt_tokens' => 0,
+                        'completion_tokens' => 0,
+                        'total_tokens' => 0,
+                    ];
+                    unset($payload['usage']);
+
+                    $usageService->record(
+                        $user,
+                        $usagePayload,
+                        isset($usagePayload['model']) ? (string) $usagePayload['model'] : null
+                    );
+
+                    return response()->json($payload);
+                }
+
                 if (! $user->hasCompanyFeature('plan_scans')) {
                     if ($creditConsumed) {
                         $creditService->refund($user, 1, ['meta' => ['reason' => 'plan_scans_unavailable']]);

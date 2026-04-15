@@ -2,10 +2,16 @@
 
 namespace App\Services\Demo;
 
+use App\Models\AccountingEntry;
+use App\Models\AccountingEntryBatch;
+use App\Models\AccountingExport;
+use App\Models\AccountingPeriod;
 use App\Models\AvailabilityException;
 use App\Models\Campaign;
 use App\Models\Customer;
 use App\Models\DemoWorkspace;
+use App\Models\Expense;
+use App\Models\ExpenseAttachment;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\LoyaltyProgram;
@@ -31,6 +37,8 @@ use App\Models\VipTier;
 use App\Models\WeeklyAvailability;
 use App\Models\Work;
 use App\Services\AccountDeletionService;
+use App\Services\Accounting\AccountingPeriodService;
+use App\Services\Accounting\AccountingSyncService;
 use App\Services\Campaigns\MarketingSettingsService;
 use App\Support\CampaignTemplateLanguage;
 use Illuminate\Support\Arr;
@@ -38,6 +46,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class DemoWorkspaceProvisioner
@@ -1084,7 +1093,16 @@ class DemoWorkspaceProvisioner
             (string) $workspace->company_sector
         );
         $sales = $this->createSales($owner, $selectedModules, $customers, $catalog['products'], (int) ($counts['sales'] ?? 0));
+        $expenses = $this->createExpenses(
+            $owner,
+            $selectedModules,
+            $teamMembers,
+            $catalog,
+            (int) ($counts['expenses'] ?? 0),
+            (string) $workspace->company_sector
+        );
         $marketing = $this->createMarketing($owner, $selectedModules, $customers);
+        $accountingSummary = $this->createAccountingSummary($owner, $selectedModules);
 
         return [
             'customers' => $customers->count(),
@@ -1100,9 +1118,61 @@ class DemoWorkspaceProvisioner
             'queue_items' => $reservationSummary['queue_items'],
             'waitlist_entries' => $reservationSummary['waitlist_entries'],
             'sales' => $sales->count(),
+            'expenses' => $expenses->count(),
+            'expenses_due' => $expenses->where('status', Expense::STATUS_DUE)->count(),
+            'expenses_paid' => $expenses->filter(
+                fn (Expense $expense) => in_array($expense->status, [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED], true)
+            )->count(),
+            'expense_attachments' => (int) $expenses->sum(fn (Expense $expense) => $expense->attachments->count()),
             'campaigns' => $marketing['campaigns'],
             'mailing_lists' => $marketing['mailing_lists'],
             'loyalty_program_enabled' => $loyalty ? 1 : 0,
+            ...$accountingSummary,
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $selectedModules
+     * @return array<string, int>
+     */
+    private function createAccountingSummary(User $owner, array $selectedModules): array
+    {
+        if (! in_array('accounting', $selectedModules, true)) {
+            return [];
+        }
+
+        /** @var AccountingSyncService $syncService */
+        $syncService = app(AccountingSyncService::class);
+        /** @var AccountingPeriodService $periodService */
+        $periodService = app(AccountingPeriodService::class);
+
+        $accountId = (int) $owner->id;
+
+        $syncService->syncAccount($accountId);
+
+        $activePeriods = collect($periodService->timeline($accountId)['periods'] ?? [])
+            ->filter(function (array $period): bool {
+                $status = (string) ($period['status'] ?? AccountingPeriod::STATUS_OPEN);
+
+                return ((int) ($period['entry_count'] ?? 0)) > 0
+                    || ((int) ($period['batch_count'] ?? 0)) > 0
+                    || in_array($status, [
+                        AccountingPeriod::STATUS_IN_REVIEW,
+                        AccountingPeriod::STATUS_CLOSED,
+                        AccountingPeriod::STATUS_REOPENED,
+                    ], true);
+            })
+            ->count();
+
+        return [
+            'accounting_entries' => AccountingEntry::query()->forUser($accountId)->count(),
+            'accounting_batches' => AccountingEntryBatch::query()->forUser($accountId)->count(),
+            'accounting_review_required_batches' => AccountingEntryBatch::query()
+                ->forUser($accountId)
+                ->where('status', AccountingEntryBatch::STATUS_REVIEW_REQUIRED)
+                ->count(),
+            'accounting_active_periods' => $activePeriods,
+            'accounting_exports' => AccountingExport::query()->forUser($accountId)->count(),
         ];
     }
 
@@ -1919,6 +1989,145 @@ class DemoWorkspaceProvisioner
 
     /**
      * @param  array<int, string>  $selectedModules
+     * @param  Collection<int, TeamMember>  $teamMembers
+     * @param  array{services: Collection<int, Product>, products: Collection<int, Product>}  $catalog
+     * @return Collection<int, Expense>
+     */
+    private function createExpenses(
+        User $owner,
+        array $selectedModules,
+        Collection $teamMembers,
+        array $catalog,
+        int $count,
+        string $sector
+    ): Collection {
+        if (! in_array('expenses', $selectedModules, true)) {
+            return collect();
+        }
+
+        $templates = $this->expenseTemplatesForContext($owner->company_type, $sector);
+        $targetCount = max(4, $count);
+
+        return collect(range(1, $targetCount))->map(function (int $index) use ($owner, $teamMembers, $catalog, $templates) {
+            $template = $templates[($index - 1) % count($templates)];
+            $creatorUserId = $owner->id;
+
+            if (($template['created_by'] ?? 'owner') === 'team' && $teamMembers->isNotEmpty()) {
+                $creatorUserId = (int) ($teamMembers[($index - 1) % $teamMembers->count()]->user_id ?: $owner->id);
+            }
+
+            $subtotal = round((float) ($template['subtotal'] ?? 0), 2);
+            $taxRate = (float) ($template['tax_rate'] ?? 0.15);
+            $taxAmount = round($subtotal * $taxRate, 2);
+            $total = round($subtotal + $taxAmount, 2);
+            $status = (string) ($template['status'] ?? Expense::STATUS_DRAFT);
+            $expenseDate = now()->copy()->subDays((int) ($template['expense_days_ago'] ?? 0) + $index);
+            $dueDate = $status === Expense::STATUS_DUE || $status === Expense::STATUS_SUBMITTED || $status === Expense::STATUS_APPROVED
+                ? $expenseDate->copy()->addDays((int) ($template['due_in_days'] ?? 7))
+                : null;
+            $paidDate = in_array($status, [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED], true)
+                ? $expenseDate->copy()->addDays((int) ($template['paid_after_days'] ?? 1))
+                : null;
+            $approvedAt = in_array($status, [Expense::STATUS_APPROVED, Expense::STATUS_PAID, Expense::STATUS_REIMBURSED], true)
+                ? $expenseDate->copy()->addDay()->setTime(10, 0)
+                : null;
+            $reference = sprintf('DEMO-EXP-%04d-%02d', $owner->id, $index);
+            $linkedCatalog = $this->pickExpenseLinkedCatalogItem($template, $catalog, $index);
+
+            $expense = Expense::create([
+                'user_id' => $owner->id,
+                'created_by_user_id' => $creatorUserId,
+                'approved_by_user_id' => $approvedAt ? $owner->id : null,
+                'paid_by_user_id' => $paidDate ? $owner->id : null,
+                'title' => (string) $template['title'],
+                'category_key' => $template['category_key'] ?? null,
+                'supplier_name' => $template['supplier_name'] ?? null,
+                'reference_number' => $reference,
+                'currency_code' => $owner->businessCurrencyCode(),
+                'subtotal' => $subtotal,
+                'tax_amount' => $taxAmount,
+                'total' => $total,
+                'expense_date' => $expenseDate->toDateString(),
+                'due_date' => $dueDate?->toDateString(),
+                'paid_date' => $paidDate?->toDateString(),
+                'approved_at' => $approvedAt,
+                'payment_method' => $template['payment_method'] ?? null,
+                'status' => $status,
+                'reimbursable' => (bool) ($template['reimbursable'] ?? false),
+                'is_recurring' => (bool) ($template['is_recurring'] ?? false),
+                'description' => (string) ($template['description'] ?? 'Demo-seeded expense for finance walkthroughs.'),
+                'notes' => (string) ($template['notes'] ?? 'Prepared automatically for the demo workspace.'),
+                'meta' => array_filter([
+                    'seed_source' => 'demo_workspace',
+                    'seed_template' => $template['key'] ?? Str::slug((string) $template['title']),
+                    'linked_catalog_item' => $linkedCatalog?->name,
+                    'linked_catalog_type' => $linkedCatalog?->item_type,
+                ], fn ($value) => $value !== null && $value !== ''),
+            ]);
+
+            if (($template['attach_receipt'] ?? false) === true) {
+                $this->createExpenseAttachmentDemoFile($expense, $owner, $template, $reference);
+            }
+
+            return $expense->load(['creator:id,name', 'approver:id,name', 'payer:id,name', 'attachments']);
+        })->values();
+    }
+
+    /**
+     * @param  array{services: Collection<int, Product>, products: Collection<int, Product>}  $catalog
+     */
+    private function pickExpenseLinkedCatalogItem(array $template, array $catalog, int $index): ?Product
+    {
+        $catalogType = $template['linked_catalog'] ?? null;
+        $items = match ($catalogType) {
+            'services' => $catalog['services'] ?? collect(),
+            'products' => $catalog['products'] ?? collect(),
+            default => collect(),
+        };
+
+        if (! $items instanceof Collection || $items->isEmpty()) {
+            return null;
+        }
+
+        return $items[($index - 1) % $items->count()];
+    }
+
+    /**
+     * @param  array<string, mixed>  $template
+     */
+    private function createExpenseAttachmentDemoFile(Expense $expense, User $owner, array $template, string $reference): ExpenseAttachment
+    {
+        $fileName = Str::slug($expense->title).'-'.$expense->id.'.txt';
+        $path = 'demo/expenses/'.$owner->id.'/'.$fileName;
+        $content = implode(PHP_EOL, [
+            'Demo expense receipt',
+            'Reference: '.$reference,
+            'Company: '.$owner->company_name,
+            'Title: '.$expense->title,
+            'Supplier: '.($expense->supplier_name ?: 'N/A'),
+            'Category: '.($expense->category_key ?: 'other'),
+            'Status: '.$expense->status,
+            'Total: '.$expense->total.' '.$expense->currency_code,
+            'Notes: '.((string) ($template['notes'] ?? 'Prepared for the finance walkthrough.')),
+        ]);
+
+        Storage::disk('public')->put($path, $content);
+
+        return ExpenseAttachment::create([
+            'expense_id' => $expense->id,
+            'user_id' => $owner->id,
+            'path' => $path,
+            'original_name' => 'receipt-'.$reference.'.txt',
+            'mime' => 'text/plain',
+            'size' => strlen($content),
+            'meta' => [
+                'seed_source' => 'demo_workspace',
+            ],
+        ]);
+    }
+
+    /**
+     * @param  array<int, string>  $selectedModules
      * @param  Collection<int, Customer>  $customers
      * @return array{campaigns:int, mailing_lists:int}
      */
@@ -2347,6 +2556,251 @@ class DemoWorkspaceProvisioner
                 ['first_name' => 'Michael', 'last_name' => 'Stone', 'company_name' => 'Stone Logistics', 'description' => 'Needs rapid response and reporting.', 'tags' => ['priority']],
                 ['first_name' => 'Chloe', 'last_name' => 'Benoit', 'company_name' => 'Benoit Design', 'description' => 'Values polished quoting flow.', 'tags' => ['quote']],
                 ['first_name' => 'Ethan', 'last_name' => 'Cole', 'company_name' => 'Cole Ventures', 'description' => 'Good upsell and maintenance potential.', 'tags' => ['upsell']],
+            ],
+        };
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function expenseTemplatesForContext(string $companyType, string $sector): array
+    {
+        if ($companyType === 'products') {
+            return [
+                [
+                    'key' => 'inventory-restock',
+                    'title' => 'Inventory restock order',
+                    'category_key' => 'inventory',
+                    'supplier_name' => 'North Supply Distribution',
+                    'subtotal' => 420,
+                    'tax_rate' => 0.15,
+                    'status' => Expense::STATUS_DUE,
+                    'payment_method' => 'bank_transfer',
+                    'expense_days_ago' => 9,
+                    'due_in_days' => 7,
+                    'description' => 'Restock order seeded to support the commerce margin and cash-out demo.',
+                    'notes' => 'Vendor terms are net 7 to show upcoming outflow.',
+                    'linked_catalog' => 'products',
+                    'attach_receipt' => true,
+                ],
+                [
+                    'key' => 'packaging-supplies',
+                    'title' => 'Packaging and shipping supplies',
+                    'category_key' => 'materials',
+                    'supplier_name' => 'Parcel Ready Depot',
+                    'subtotal' => 165,
+                    'tax_rate' => 0.15,
+                    'status' => Expense::STATUS_PAID,
+                    'payment_method' => 'card',
+                    'expense_days_ago' => 14,
+                    'paid_after_days' => 1,
+                    'description' => 'Consumables tied to order fulfillment and delivery prep.',
+                    'notes' => 'Paid on the operations card.',
+                    'attach_receipt' => true,
+                ],
+                [
+                    'key' => 'pos-subscription',
+                    'title' => 'Point-of-sale software subscription',
+                    'category_key' => 'software',
+                    'supplier_name' => 'Checkout Cloud',
+                    'subtotal' => 89,
+                    'tax_rate' => 0.15,
+                    'status' => Expense::STATUS_PAID,
+                    'payment_method' => 'card',
+                    'expense_days_ago' => 21,
+                    'paid_after_days' => 0,
+                    'is_recurring' => true,
+                    'description' => 'Recurring software cost used in the monthly operating spend view.',
+                    'notes' => 'Auto-renews monthly.',
+                    'attach_receipt' => true,
+                ],
+                [
+                    'key' => 'seasonal-campaign',
+                    'title' => 'Seasonal campaign creative spend',
+                    'category_key' => 'marketing',
+                    'supplier_name' => 'Studio Meridian',
+                    'subtotal' => 230,
+                    'tax_rate' => 0.15,
+                    'status' => Expense::STATUS_APPROVED,
+                    'payment_method' => 'bank_transfer',
+                    'expense_days_ago' => 5,
+                    'due_in_days' => 5,
+                    'description' => 'Creative production spend prepared for launch week marketing.',
+                    'notes' => 'Approved and waiting for finance release.',
+                ],
+                [
+                    'key' => 'merchant-fees',
+                    'title' => 'Merchant and platform fees',
+                    'category_key' => 'taxes_fees',
+                    'supplier_name' => 'Demo Payments',
+                    'subtotal' => 58,
+                    'tax_rate' => 0,
+                    'status' => Expense::STATUS_PAID,
+                    'payment_method' => 'bank_transfer',
+                    'expense_days_ago' => 11,
+                    'paid_after_days' => 1,
+                    'description' => 'Processing and payout fees aligned with seeded sales activity.',
+                    'notes' => 'Collected from last payout batch.',
+                ],
+            ];
+        }
+
+        return match ($sector) {
+            'salon', 'wellness' => [
+                [
+                    'key' => 'color-stock',
+                    'title' => 'Color and treatment stock refill',
+                    'category_key' => 'materials',
+                    'supplier_name' => 'Beauty Pro Supply',
+                    'subtotal' => 285,
+                    'tax_rate' => 0.15,
+                    'status' => Expense::STATUS_PAID,
+                    'payment_method' => 'card',
+                    'expense_days_ago' => 8,
+                    'paid_after_days' => 0,
+                    'description' => 'Routine refill for color, treatment, and front-desk consumables.',
+                    'notes' => 'Restocked before the weekend rush.',
+                    'linked_catalog' => 'services',
+                    'attach_receipt' => true,
+                ],
+                [
+                    'key' => 'booking-software',
+                    'title' => 'Booking and reminder software',
+                    'category_key' => 'software',
+                    'supplier_name' => 'Schedule Flow',
+                    'subtotal' => 79,
+                    'tax_rate' => 0.15,
+                    'status' => Expense::STATUS_PAID,
+                    'payment_method' => 'card',
+                    'expense_days_ago' => 18,
+                    'paid_after_days' => 0,
+                    'is_recurring' => true,
+                    'description' => 'Recurring operating cost for reminders, forms, and calendar sync.',
+                    'notes' => 'Auto-billed to the owner card.',
+                    'attach_receipt' => true,
+                ],
+                [
+                    'key' => 'stylist-reimbursement',
+                    'title' => 'Stylist mileage reimbursement',
+                    'category_key' => 'reimbursement',
+                    'supplier_name' => 'Internal reimbursement',
+                    'subtotal' => 42,
+                    'tax_rate' => 0,
+                    'status' => Expense::STATUS_REIMBURSED,
+                    'payment_method' => 'mobile_money',
+                    'expense_days_ago' => 6,
+                    'paid_after_days' => 1,
+                    'reimbursable' => true,
+                    'created_by' => 'team',
+                    'description' => 'Travel reimbursement seeded to show staff-related spend.',
+                    'notes' => 'Submitted by a team member and reimbursed by finance.',
+                ],
+                [
+                    'key' => 'equipment-maintenance',
+                    'title' => 'Chair and dryer maintenance',
+                    'category_key' => 'equipment',
+                    'supplier_name' => 'Studio Repair Co.',
+                    'subtotal' => 165,
+                    'tax_rate' => 0.15,
+                    'status' => Expense::STATUS_DUE,
+                    'payment_method' => 'bank_transfer',
+                    'expense_days_ago' => 4,
+                    'due_in_days' => 6,
+                    'description' => 'Upcoming maintenance invoice for salon hardware upkeep.',
+                    'notes' => 'Scheduled before the holiday peak.',
+                    'attach_receipt' => true,
+                ],
+                [
+                    'key' => 'local-promo',
+                    'title' => 'Local flyer and promo print run',
+                    'category_key' => 'marketing',
+                    'supplier_name' => 'Print Loft',
+                    'subtotal' => 110,
+                    'tax_rate' => 0.15,
+                    'status' => Expense::STATUS_SUBMITTED,
+                    'payment_method' => 'bank_transfer',
+                    'expense_days_ago' => 3,
+                    'due_in_days' => 10,
+                    'description' => 'Offline marketing spend created for the local acquisition story.',
+                    'notes' => 'Submitted for approval before launch.',
+                ],
+            ],
+            default => [
+                [
+                    'key' => 'vehicle-fuel',
+                    'title' => 'Fleet fuel refill',
+                    'category_key' => 'fuel',
+                    'supplier_name' => 'Route 24 Energy',
+                    'subtotal' => 126,
+                    'tax_rate' => 0.15,
+                    'status' => Expense::STATUS_PAID,
+                    'payment_method' => 'card',
+                    'expense_days_ago' => 7,
+                    'paid_after_days' => 0,
+                    'created_by' => 'team',
+                    'description' => 'Field operations spend to support route-based service demos.',
+                    'notes' => 'Charged during weekly route prep.',
+                    'attach_receipt' => true,
+                ],
+                [
+                    'key' => 'software-suite',
+                    'title' => 'Operations software suite',
+                    'category_key' => 'software',
+                    'supplier_name' => 'Ops Desk',
+                    'subtotal' => 119,
+                    'tax_rate' => 0.15,
+                    'status' => Expense::STATUS_PAID,
+                    'payment_method' => 'card',
+                    'expense_days_ago' => 16,
+                    'paid_after_days' => 0,
+                    'is_recurring' => true,
+                    'description' => 'Recurring software spend for project, quote, and internal ops.',
+                    'notes' => 'Monthly subscription.',
+                    'attach_receipt' => true,
+                ],
+                [
+                    'key' => 'subcontractor-bill',
+                    'title' => 'Subcontractor invoice',
+                    'category_key' => 'professional_services',
+                    'supplier_name' => 'Precision Partners',
+                    'subtotal' => 340,
+                    'tax_rate' => 0.15,
+                    'status' => Expense::STATUS_APPROVED,
+                    'payment_method' => 'bank_transfer',
+                    'expense_days_ago' => 5,
+                    'due_in_days' => 4,
+                    'description' => 'External specialist cost used to show approval and due states.',
+                    'notes' => 'Approved after job review.',
+                ],
+                [
+                    'key' => 'permit-fee',
+                    'title' => 'Permit and filing fees',
+                    'category_key' => 'taxes_fees',
+                    'supplier_name' => 'City Services',
+                    'subtotal' => 74,
+                    'tax_rate' => 0,
+                    'status' => Expense::STATUS_PAID,
+                    'payment_method' => 'bank_transfer',
+                    'expense_days_ago' => 12,
+                    'paid_after_days' => 1,
+                    'description' => 'Administrative fees associated with compliant service delivery.',
+                    'notes' => 'Paid during pre-job preparation.',
+                ],
+                [
+                    'key' => 'tool-rental',
+                    'title' => 'Specialty equipment rental',
+                    'category_key' => 'equipment',
+                    'supplier_name' => 'Field Gear Rental',
+                    'subtotal' => 210,
+                    'tax_rate' => 0.15,
+                    'status' => Expense::STATUS_DUE,
+                    'payment_method' => 'cheque',
+                    'expense_days_ago' => 2,
+                    'due_in_days' => 8,
+                    'description' => 'Rental invoice created to show upcoming short-term equipment costs.',
+                    'notes' => 'Reserved for the next project sprint.',
+                    'attach_receipt' => true,
+                ],
             ],
         };
     }

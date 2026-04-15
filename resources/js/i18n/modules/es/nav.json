@@ -34,7 +34,16 @@
     "jobs": "Trabajos",
     "tasks": "Tareas",
     "team": "Equipo",
+    "expenses": "Gastos",
+    "accounting": "Contabilidad",
+    "finance_approvals": "Aprobaciones financieras",
     "invoices": "Facturas",
-    "tips": "Propinas"
+    "tips": "Propinas",
+    "revenue": "Ingresos",
+    "growth": "Crecimiento",
+    "operations": "Operaciones",
+    "finance": "Finanzas",
+    "catalog": "Catalogo",
+    "workspace": "Espacio"
   }
 }

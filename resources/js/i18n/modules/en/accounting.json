@@ -1,0 +1,257 @@
+{
+  "accounting": {
+    "title": "Accounting",
+    "badge": "Accounting",
+    "heading": "Run accounting without scattering the team",
+    "subtitle": "Review, journal, periods, taxes, exports, and admin configuration now live in clear tabs.",
+    "state": {
+      "foundation_ready": "Foundation ready",
+      "journal_ready": "Journal ready",
+      "tax_export_ready": "Tax and export ready",
+      "period_discipline_ready": "Period discipline ready",
+      "review_reconciliation_ready": "Review and reconciliation ready",
+      "mobile_supervision_ready": "Mobile supervision ready"
+    },
+    "sync": {
+      "batches_synced": "Batches synced",
+      "entries_written": "Entries written"
+    },
+    "source_counts": {
+      "expenses": "Expenses",
+      "invoices": "Invoices",
+      "payments": "Payments",
+      "sales": "Sales"
+    },
+    "snapshot": {
+      "title": "Workspace finance snapshot",
+      "company": "Workspace",
+      "currency": "Business currency",
+      "finance_approvals": "Finance approvals",
+      "finance_approvals_enabled": "Configured",
+      "finance_approvals_not_configured": "Not configured yet",
+      "invoice_auto_approve_under_amount": "Invoice auto-approve under",
+      "last_sync": "Last sync"
+    },
+    "dependencies": {
+      "title": "Source dependencies",
+      "subtitle": "Accounting reads trusted finance events from existing modules. Expenses stays the only hard dependency for activation.",
+      "required": "Required",
+      "optional": "Optional",
+      "ready": "Ready",
+      "missing": "Missing"
+    },
+    "next_steps": {
+      "title": "What comes after Phase 5",
+      "subtitle": "The accounting bridge now covers journal, taxes, exports, periods, reconciliation, and mobile supervision. The next slice focuses on demo and superadmin enablement."
+    },
+    "mobile": {
+      "title": "Quick overview",
+      "subtitle": "Keep the key accounting numbers and alerts in view before opening the detailed workspace.",
+      "cards": {
+        "cash_in": "Cash in",
+        "cash_out": "Cash out",
+        "net_tax_due": "Net tax due",
+        "open_periods": "Open periods",
+        "unreconciled_entries": "Unreconciled",
+        "pending_batches": "Pending batches"
+      },
+      "alerts": {
+        "title": "Priority alerts",
+        "subtitle": "Open the area that needs work directly without stretching the page.",
+        "empty": "No priority alert is open for this scope.",
+        "open": "Open",
+        "pending_review": {
+          "title": "Pending review batches",
+          "description": "Accounting batches still need review before clean handoff."
+        },
+        "open_periods": {
+          "title": "Periods still active",
+          "description": "One or more periods are still open, in review, or reopened."
+        },
+        "tax_due": {
+          "title": "Tax position to verify",
+          "description": "A positive net tax due still needs supervision before filing."
+        },
+        "tax_credit": {
+          "title": "Tax credit position",
+          "description": "The selected scope currently shows a tax credit to verify."
+        },
+        "export_missing": {
+          "title": "No accountant export yet",
+          "description": "This workspace has not generated an accounting handoff export yet."
+        }
+      }
+    },
+    "review": {
+      "title": "Review workspace",
+      "subtitle": "Work through pending accounting batches quickly before month-end handoff.",
+      "pending_batches": "Pending entries",
+      "empty": "All current accounting batches are reconciled for this scope.",
+      "actions": {
+        "unreviewed": "Mark unreviewed",
+        "reviewed": "Mark reviewed",
+        "reconciled": "Mark reconciled"
+      }
+    },
+    "taxes": {
+      "title": "Tax summary",
+      "subtitle": "Review collected taxes, paid taxes, and the net position for the selected scope without leaving the journal.",
+      "all_periods": "All periods",
+      "review_required_title": "Tax lines that still need review",
+      "review_required_subtitle": "These tax-bearing sources still need accounting review before handoff or filing.",
+      "directions": {
+        "collected": "Collected",
+        "paid": "Paid"
+      },
+      "cards": {
+        "taxes_collected": "Taxes collected",
+        "taxes_paid": "Taxes paid",
+        "net_tax_due": "Net tax due",
+        "review_required_count": "Tax lines to review"
+      }
+    },
+    "exports": {
+      "title": "Accountant handoff exports",
+      "subtitle": "Generate a reproducible CSV from the current accounting scope and keep a small audit trail of what was exported.",
+      "generate_csv": "Export CSV",
+      "handoff_title": "Current handoff snapshot",
+      "scope": "Scope",
+      "last_export_at": "Last export",
+      "history_title": "Recent exports",
+      "generated_by": "Generated by",
+      "rows": "Rows",
+      "download": "Download",
+      "empty": "No accounting export has been generated yet."
+    },
+    "periods": {
+      "title": "Accounting periods",
+      "subtitle": "Move a month through the accounting statuses while keeping closed periods protected from silent sync drift.",
+      "locked": "Locked",
+      "closed_at": "Closed",
+      "reopened_at": "Reopened",
+      "statuses": {
+        "open": "Open",
+        "in_review": "In review",
+        "closed": "Closed",
+        "reopened": "Reopened"
+      },
+      "summary": {
+        "open": "Open",
+        "in_review": "In review",
+        "closed": "Closed",
+        "reopened": "Reopened"
+      },
+      "actions": {
+        "open": "Move to open",
+        "in_review": "Move to review",
+        "close": "Close period",
+        "reopen": "Reopen period"
+      }
+    },
+    "accounts": {
+      "title": "Chart of accounts foundation",
+      "subtitle": "Review the accounts currently used by the accounting workspace.",
+      "columns": {
+        "code": "Code",
+        "name": "Account",
+        "type": "Type"
+      }
+    },
+    "mappings": {
+      "title": "Default mapping conventions",
+      "subtitle": "Quickly verify how finance sources flow into accounting entries.",
+      "debit": "Debit",
+      "credit": "Credit",
+      "tax": "Tax",
+      "no_tax": "No dedicated tax account"
+    },
+    "tabs": {
+      "review": {
+        "label": "Review",
+        "subtitle": "Handle priorities and batches that still need reconciliation."
+      },
+      "journal": {
+        "label": "Journal",
+        "subtitle": "Filter and inspect entries without making the screen overly long."
+      },
+      "periods": {
+        "label": "Periods, tax, and exports",
+        "subtitle": "Close periods, check tax, and prepare accountant handoff in one place."
+      },
+      "configuration": {
+        "label": "Admin configuration",
+        "subtitle": "Control finance rules, the chart of accounts, and mappings."
+      }
+    },
+    "configuration": {
+      "title": "Admin configuration",
+      "subtitle": "Centralize the accounting settings that matter here and open the existing admin surfaces quickly.",
+      "open_settings": "Open company settings",
+      "open_approvals": "Open approvals",
+      "approval_mode": "Approval mode",
+      "rule_subtitle": "Review the active roles and thresholds for this document.",
+      "rule_empty": "No specific rule is configured.",
+      "level": "Level {value}",
+      "limit": "Limit",
+      "no_limit": "No limit",
+      "not_configured": "Needs setup",
+      "cards": {
+        "approvals": "Finance approvals",
+        "auto_approve": "Invoice auto-approve",
+        "accounts": "System accounts",
+        "mappings": "Mappings"
+      }
+    },
+    "journal": {
+      "title": "Accounting journal",
+      "subtitle": "Review generated entries by period, source, account, and review status without leaving the module.",
+      "tax_label": "Tax",
+      "view_source": "View source",
+      "unknown_account": "Unknown account",
+      "empty": "No accounting entries match these filters yet.",
+      "columns": {
+        "date": "Date",
+        "source": "Source",
+        "account": "Account",
+        "direction": "Direction",
+        "amount": "Amount",
+        "review": "Review",
+        "actions": "Actions"
+      },
+      "directions": {
+        "debit": "Debit",
+        "credit": "Credit"
+      },
+      "filters": {
+        "search_placeholder": "Search by source reference, account, or description",
+        "all_sources": "All sources",
+        "all_accounts": "All accounts",
+        "all_review_statuses": "All review statuses",
+        "apply": "Apply",
+        "reset": "Reset"
+      },
+      "summary": {
+        "entry_count": "Entries",
+        "batch_count": "Batches",
+        "debit_total": "Debit total",
+        "credit_total": "Credit total",
+        "review_required_count": "Review required"
+      },
+      "review_statuses": {
+        "unreviewed": "Unreviewed",
+        "reviewed": "Reviewed",
+        "reconciled": "Reconciled"
+      },
+      "batch_statuses": {
+        "generated": "Generated",
+        "review_required": "Review required"
+      },
+      "grouped": {
+        "by_account_title": "Totals by account",
+        "by_account_subtitle": "See which accounts carry the filtered accounting volume.",
+        "by_source_title": "Totals by source",
+        "by_source_subtitle": "Check which operational domains are generating the current journal slice."
+      }
+    }
+  }
+}
