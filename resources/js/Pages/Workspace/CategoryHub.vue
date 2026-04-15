@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
 import CategoryIcon from '@/Components/Workspace/CategoryIcon.vue';
 import WorkspaceModuleIcon from '@/Components/Workspace/WorkspaceModuleIcon.vue';
 import { buildWorkspaceHubCategories } from '@/utils/workspaceHub';
@@ -96,6 +97,25 @@ const categoryDescription = computed(() => currentCategory.value ? t(currentCate
 const pageTitle = computed(() => currentCategory.value ? `${t(currentCategory.value.labelKey)} - ${t('workspace_hub.page_title')}` : t('workspace_hub.page_title'));
 const moduleIconClass = (tone) => moduleIconToneClass[tone] || moduleIconToneClass.workspace;
 
+const breadcrumbItems = computed(() => {
+    if (!currentCategory.value) {
+        return [];
+    }
+
+    return [
+        {
+            key: 'dashboard',
+            label: t('nav.dashboard'),
+            href: route('dashboard'),
+            icon: 'home',
+        },
+        {
+            key: currentCategory.value.key,
+            label: t(currentCategory.value.labelKey),
+        },
+    ];
+});
+
 const categoryChipClass = (categoryKey) => (
     categoryKey === currentCategory.value?.key
         ? `${currentTheme.value.chip} shadow-sm`
@@ -107,7 +127,13 @@ const categoryChipClass = (categoryKey) => (
     <AuthenticatedLayout>
         <Head :title="pageTitle" />
 
-        <div class="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        <template #breadcrumb>
+            <div class="px-4 pt-6 sm:px-6 lg:px-8">
+                <AppBreadcrumbs :items="breadcrumbItems" />
+            </div>
+        </template>
+
+        <div class="space-y-6 px-4 pb-6 sm:px-6 lg:px-8">
             <section
                 class="relative overflow-hidden rounded-sm border p-6 shadow-sm lg:p-8"
                 :class="currentTheme.hero"
@@ -140,21 +166,17 @@ const categoryChipClass = (categoryKey) => (
             </section>
 
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <Link
-                            v-for="categoryItem in visibleCategories"
-                            :key="categoryItem.key"
-                            :href="route(categoryItem.routeName, categoryItem.routeParams)"
-                            class="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition"
-                            :class="categoryChipClass(categoryItem.key)"
-                        >
-                            <CategoryIcon :name="categoryItem.icon" icon-class="size-4" />
-                            <span>{{ t(categoryItem.labelKey) }}</span>
-                        </Link>
-                    </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <Link
+                        v-for="categoryItem in visibleCategories"
+                        :key="categoryItem.key"
+                        :href="route(categoryItem.routeName, categoryItem.routeParams)"
+                        class="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition"
+                        :class="categoryChipClass(categoryItem.key)"
+                    >
+                        <CategoryIcon :name="categoryItem.icon" icon-class="size-4" />
+                        <span>{{ t(categoryItem.labelKey) }}</span>
+                    </Link>
                 </div>
             </section>
 
