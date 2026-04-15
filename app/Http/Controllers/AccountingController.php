@@ -88,9 +88,11 @@ class AccountingController extends Controller
         $latestExport = $exportHistory[0] ?? null;
         $mobileSummary = $this->mobileSummary($accountId, $filters, $periodTimeline['summary'], $reviewWorkspace, $taxSummary, $latestExport);
         $mobileAlerts = $this->mobileAlerts($mobileSummary, $latestExport);
+        $nextSteps = $this->nextSteps($mobileSummary, $latestExport);
 
         return $this->inertiaOrJson('Accounting/Index', [
             'status' => [
+                'phase' => 'phase_5',
                 'state' => 'mobile_supervision_ready',
                 'last_synced_at' => now()->toIso8601String(),
             ],
@@ -220,6 +222,7 @@ class AccountingController extends Controller
             'review_workspace' => $reviewWorkspace,
             'mobile_summary' => $mobileSummary,
             'mobile_alerts' => $mobileAlerts,
+            'next_steps' => $nextSteps,
             'handoff_summary' => [
                 'selected_period_label' => $taxSummary['period_label'] ?? 'All periods',
                 'selected_period_key' => $taxSummary['period_key'],
@@ -519,6 +522,39 @@ class AccountingController extends Controller
         }
 
         return $alerts;
+    }
+
+    /**
+     * @param  array<string, mixed>  $mobileSummary
+     * @param  array<string, mixed>|null  $latestExport
+     * @return array<int, array<string, mixed>>
+     */
+    private function nextSteps(array $mobileSummary, ?array $latestExport): array
+    {
+        $steps = [];
+
+        if ((int) data_get($mobileSummary, 'pending_batch_count', 0) > 0) {
+            $steps[] = [
+                'key' => 'review_batches',
+                'target' => 'review',
+            ];
+        }
+
+        if ((int) data_get($mobileSummary, 'open_period_count', 0) > 0) {
+            $steps[] = [
+                'key' => 'close_periods',
+                'target' => 'periods',
+            ];
+        }
+
+        if (! $latestExport) {
+            $steps[] = [
+                'key' => 'generate_export',
+                'target' => 'periods',
+            ];
+        }
+
+        return $steps;
     }
 
     private function applyPeriodToQuery(Builder $query, ?string $periodKey, string $column): void

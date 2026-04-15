@@ -83,6 +83,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    next_steps: {
+        type: Array,
+        default: () => [],
+    },
     filters: {
         type: Object,
         default: () => ({}),
