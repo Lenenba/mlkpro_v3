@@ -246,17 +246,19 @@ class CompanySettingsController extends Controller
             'pickup_notes' => $normalizeText($fulfillmentInput['pickup_notes'] ?? null),
         ];
         $fulfillmentErrors = [];
-        if (! empty($fulfillment['delivery_enabled'])) {
-            if (! $deliveryZone) {
-                $fulfillmentErrors['company_fulfillment.delivery_zone'] = ['Zone de livraison requise.'];
+        if (($validated['company_type'] ?? null) === 'products') {
+            if (! empty($fulfillment['delivery_enabled'])) {
+                if (! $deliveryZone) {
+                    $fulfillmentErrors['company_fulfillment.delivery_zone'] = ['Zone de livraison requise.'];
+                }
             }
-        }
-        if (! empty($fulfillment['pickup_enabled'])) {
-            if (! $pickupAddress) {
-                $fulfillmentErrors['company_fulfillment.pickup_address'] = ['Adresse de retrait requise.'];
-            }
-            if ($prepTime === null) {
-                $fulfillmentErrors['company_fulfillment.prep_time_minutes'] = ['Temps de preparation requis.'];
+            if (! empty($fulfillment['pickup_enabled'])) {
+                if (! $pickupAddress) {
+                    $fulfillmentErrors['company_fulfillment.pickup_address'] = ['Adresse de retrait requise.'];
+                }
+                if ($prepTime === null) {
+                    $fulfillmentErrors['company_fulfillment.prep_time_minutes'] = ['Temps de preparation requis.'];
+                }
             }
         }
         if ($fulfillmentErrors) {
