@@ -15,6 +15,7 @@ import AppModal from '@/Components/Modal.vue';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     customers: {
@@ -54,15 +55,10 @@ const form = useForm({
 });
 
 const page = usePage();
+const { hasFeature, visibleFeaturePayload } = useAccountFeatures();
 const lastSaleId = computed(() => page.props.flash?.last_sale_id || null);
-const loyaltyFeatureEnabled = computed(() => {
-    const featureFlag = page.props.auth?.account?.features?.loyalty;
-    if (typeof featureFlag === 'boolean') {
-        return featureFlag;
-    }
-
-    return Boolean(props.loyaltyProgram?.feature_enabled ?? false);
-});
+const loyaltyProgram = computed(() => visibleFeaturePayload('loyalty', props.loyaltyProgram, {}));
+const loyaltyFeatureEnabled = computed(() => hasFeature('loyalty'));
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
 const {
     allowedPaymentMethods,
@@ -307,14 +303,16 @@ const totalBeforeLoyalty = computed(() =>
     Math.max(0, subtotal.value - discountTotal.value) + discountedTaxTotal.value
 );
 const loyaltyEnabled = computed(() =>
-    loyaltyFeatureEnabled.value && Boolean(props.loyaltyProgram?.is_enabled)
+    loyaltyFeatureEnabled.value && Boolean(loyaltyProgram.value?.is_enabled)
 );
 const loyaltyRate = computed(() => {
-    const value = Number(props.loyaltyProgram?.points_per_currency_unit || 0);
+    const value = Number(loyaltyProgram.value?.points_per_currency_unit || 0);
     return Number.isFinite(value) && value > 0 ? value : 0;
 });
-const loyaltyLabel = computed(() => String(props.loyaltyProgram?.points_label || 'points'));
-const customerLoyaltyBalance = computed(() => Number(selectedCustomer.value?.loyalty_points_balance || 0));
+const loyaltyLabel = computed(() => String(loyaltyProgram.value?.points_label || 'points'));
+const customerLoyaltyBalance = computed(() =>
+    loyaltyEnabled.value ? Number(selectedCustomer.value?.loyalty_points_balance || 0) : 0
+);
 const maxRedeemablePoints = computed(() => {
     if (!selectedCustomer.value || !loyaltyEnabled.value || loyaltyRate.value <= 0) {
         return 0;

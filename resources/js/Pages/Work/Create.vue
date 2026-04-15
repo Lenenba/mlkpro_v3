@@ -19,7 +19,7 @@ import Checkbox from '@/Components/Checkbox.vue';
 import ProductTableList from '@/Components/ProductTableList.vue';
 import InputError from '@/Components/InputError.vue';
 import { useI18n } from 'vue-i18n';
-import { isFeatureEnabled } from '@/utils/features';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     works: Object,
@@ -39,10 +39,10 @@ const props = defineProps({
 
 const page = usePage();
 const { t } = useI18n();
+const { hasFeature } = useAccountFeatures();
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('jobs.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
-const hasTeamMembersFeature = computed(() => isFeatureEnabled(featureFlags.value, 'team_members'));
+const hasTeamMembersFeature = computed(() => hasFeature('team_members'));
 const teamPanelTitle = computed(() => (
     hasTeamMembersFeature.value ? t('jobs.form.team.title') : t('jobs.form.team.solo_panel_title')
 ));

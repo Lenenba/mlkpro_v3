@@ -6,7 +6,7 @@ import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
 import { useI18n } from 'vue-i18n';
 import { defaultAvatarIcon } from '@/utils/iconPresets';
-import { isFeatureEnabled } from '@/utils/features';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     active: {
@@ -38,9 +38,8 @@ const avatarInitial = computed(() => {
 });
 
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
 const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
-const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
+const { hasFeature } = useAccountFeatures();
 const canManageReservations = computed(() =>
     isOwner.value
     || teamPermissions.value.includes('reservations.manage')

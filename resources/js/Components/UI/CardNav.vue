@@ -10,9 +10,8 @@ import InvoiceList from './InvoiceList.vue';
 import OverviewSkeletonList from './OverviewSkeletonList.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { computed, reactive, ref, watch } from 'vue';
-import { usePage } from '@inertiajs/vue3';
-import { isFeatureEnabled } from '@/utils/features';
 import { useI18n } from 'vue-i18n';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 dayjs.extend(isSameOrAfter);
 
@@ -24,9 +23,7 @@ const props = defineProps({
     },
 });
 
-const page = usePage();
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
-const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
+const { hasFeature } = useAccountFeatures();
 const { t } = useI18n();
 const canJobs = computed(() => hasFeature('jobs'));
 const canRequests = computed(() => hasFeature('requests'));

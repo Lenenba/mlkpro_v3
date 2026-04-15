@@ -137,7 +137,7 @@
     },
     "prospect_provider_manager": {
       "title": "Prospect providers",
-      "description": "Create secure tenant-owned provider connections before provider preview and import flows are added to campaign audience.",
+      "description": "Connect lead providers with a modern tenant-owned flow so teams can click a provider, authorize it, and return with the connector ready inside campaigns.",
       "summary": {
         "configured": "Configured connections",
         "connected": "Connected and ready",
@@ -155,12 +155,26 @@
         "last_validated": "Last validated"
       },
       "statuses": {
+        "not_connected": "Not connected",
+        "setup_required": "Setup required",
+        "pending": "Pending",
         "draft": "Draft",
         "connected": "Connected",
+        "error": "Error",
+        "reconnect_required": "Reconnect needed",
         "invalid": "Invalid",
         "expired": "Expired",
         "rate_limited": "Rate limited",
         "disconnected": "Disconnected"
+      },
+      "actions": {
+        "connect": "Connect",
+        "reconnect": "Reconnect",
+        "refresh": "Refresh status",
+        "disconnect": "Disconnect",
+        "manage": "Manage",
+        "resume": "Resume connection",
+        "save": "Save"
       },
       "create_connection": "Create connection",
       "update_connection": "Update connection",
@@ -173,15 +187,38 @@
       "secret_store_hint": "Secrets are stored encrypted. After creation, use Validate to confirm the connection state.",
       "secret_update_hint": "Leave the API key empty to keep the existing secret. Fill it only when replacing the saved secret.",
       "confirm_disconnect": "Disconnect provider connection \"{name}\"?",
+      "info_connected": "Provider connection updated.",
+      "info_refreshed": "Provider connection refreshed.",
       "info_created": "Provider connection created.",
       "info_updated": "Provider connection updated.",
       "info_validated": "{provider} connection validated.",
       "info_disconnected": "Provider connection disconnected.",
       "error_load": "Unable to load provider connections.",
+      "error_connect": "Unable to connect this provider.",
+      "error_refresh": "Unable to refresh this provider.",
       "error_save": "Unable to save provider connection.",
       "error_validate": "Unable to validate provider connection.",
       "error_disconnect": "Unable to disconnect provider connection.",
       "no_connection_found": "No provider connection found.",
+      "not_connected": "Not connected",
+      "oauth_hint": "This provider uses a redirect flow. We will send the user to the provider, let them sign in and approve access, then return here automatically with the connection linked.",
+      "view_details": "View details",
+      "card": {
+        "ready_title": "Ready to connect",
+        "connected_at": "Connected {date}",
+        "no_connection": "No active connection"
+      },
+      "modal": {
+        "connection_title": "Connection status",
+        "manage_title": "Manage connection",
+        "details_title": "Connection details",
+        "connected_as": "Connected account",
+        "connected_at": "Connected at",
+        "last_refresh": "Last refresh",
+        "expires_at": "Expires at",
+        "requested_scopes": "Requested permissions",
+        "no_connection_description": "This provider is not linked yet. Start the connection flow to make it available in campaign audience."
+      },
       "read_only_title": "View-only access",
       "read_only_description": "Only the account owner can add, replace, validate, or disconnect provider credentials. Team members can still review provider health here before using available connections in campaign audience.",
       "view_only_actions": "View only"

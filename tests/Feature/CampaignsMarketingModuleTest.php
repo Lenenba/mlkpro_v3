@@ -171,10 +171,39 @@ function forceCurrentTimeWithinMarketingQuietHours(User $owner): void
     ]);
 }
 
-function fakeApolloHealthCheck(int $status = 200, array $body = ['ok' => true]): void
+function fakeApolloProfileResponse(int $status = 200, array $body = [
+    'user' => [
+        'id' => 'apollo-user-1',
+        'name' => 'Apollo Owner',
+        'email' => 'apollo-owner@example.com',
+    ],
+]): void
 {
     Http::fake([
-        'https://api.apollo.io/v1/auth/health' => Http::response($body, $status),
+        'https://app.apollo.io/api/v1/users/api_profile' => Http::response($body, $status),
+        '*' => Http::response(['message' => 'Unexpected Apollo request'], 500),
+    ]);
+}
+
+function fakeApolloOauthExchange(
+    array $tokenBody = [
+        'access_token' => 'apollo-access-token-1',
+        'refresh_token' => 'apollo-refresh-token-1',
+        'token_type' => 'Bearer',
+        'expires_in' => 3600,
+        'scope' => 'read_user_profile contacts_search person_read',
+    ],
+    array $profileBody = [
+        'user' => [
+            'id' => 'apollo-user-1',
+            'name' => 'Apollo Owner',
+            'email' => 'apollo-owner@example.com',
+        ],
+    ]
+): void {
+    Http::fake([
+        'https://app.apollo.io/api/v1/oauth/token' => Http::response($tokenBody, 200),
+        'https://app.apollo.io/api/v1/users/api_profile' => Http::response($profileBody, 200),
         '*' => Http::response(['message' => 'Unexpected Apollo request'], 500),
     ]);
 }
@@ -242,7 +271,7 @@ function fakeUpLeadPreviewResponse(array $results): void
 function fakeApolloValidationTimeout(): void
 {
     Http::fake([
-        'https://api.apollo.io/v1/auth/health' => function () {
+        'https://app.apollo.io/api/v1/oauth/token' => function () {
             throw new \Illuminate\Http\Client\ConnectionException('Apollo timeout');
         },
         '*' => Http::response(['message' => 'Unexpected Apollo request'], 500),
@@ -306,44 +335,56 @@ test('offer search supports cursor pagination', function () {
     expect($secondIds->intersect($firstIds))->toHaveCount(0);
 });
 
-test('marketing owner can create validate and disconnect prospect provider connections', function () {
+test('marketing owner can start Apollo OAuth flow and link the connection on callback', function () {
     $owner = marketingOwner();
-    fakeApolloHealthCheck();
 
-    $create = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.store'), [
+    config()->set('services.apollo.oauth.client_id', 'apollo-client-id');
+    config()->set('services.apollo.oauth.client_secret', 'apollo-client-secret');
+    config()->set('services.apollo.oauth.redirect_uri', route('marketing.prospect-providers.oauth.callback', ['provider' => 'apollo']));
+
+    $start = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.connect'), [
         'provider_key' => 'apollo',
-        'label' => 'Apollo main',
-        'credentials' => [
-            'api_key' => 'apollo-secret-12345',
-        ],
+        'label' => 'Apollo workspace',
     ]);
 
-    $create->assertCreated()
+    $start->assertCreated()
+        ->assertJsonPath('flow', 'redirect')
         ->assertJsonPath('provider_connection.provider_key', 'apollo')
-        ->assertJsonPath('provider_connection.label', 'Apollo main')
-        ->assertJsonMissingPath('provider_connection.credentials');
+        ->assertJsonPath('provider_connection.label', 'Apollo workspace')
+        ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_PENDING);
 
-    $connectionId = (int) $create->json('provider_connection.id');
-    $connection = CampaignProspectProviderConnection::query()->findOrFail($connectionId);
+    $connection = CampaignProspectProviderConnection::query()->findOrFail((int) $start->json('provider_connection.id'));
 
-    expect($connection->status)->toBe(CampaignProspectProviderConnection::STATUS_DRAFT);
-    expect($connection->credentials)->toBe(['api_key' => 'apollo-secret-12345']);
-    expect((string) $connection->getRawOriginal('credentials'))->not->toContain('apollo-secret-12345');
+    expect($connection->auth_method)->toBe(CampaignProspectProviderConnection::AUTH_METHOD_OAUTH)
+        ->and($connection->oauth_state)->not->toBeNull();
 
-    $validated = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.validate', $connectionId));
+    fakeApolloOauthExchange();
 
-    $validated->assertOk()
-        ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_CONNECTED)
-        ->assertJsonPath('provider_connection.is_active', true);
+    $callback = $this->actingAs($owner)->get(route('marketing.prospect-providers.oauth.callback', [
+        'provider' => 'apollo',
+        'state' => $connection->oauth_state,
+        'code' => 'apollo-auth-code-1',
+    ]));
+
+    $callback->assertRedirect(route('campaigns.prospect-providers.manage'));
 
     $connection->refresh();
-    expect($connection->last_validated_at)->not->toBeNull();
 
-    $disconnected = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.disconnect', $connectionId));
+    expect($connection->status)->toBe(CampaignProspectProviderConnection::STATUS_CONNECTED)
+        ->and($connection->is_active)->toBeTrue()
+        ->and($connection->auth_method)->toBe(CampaignProspectProviderConnection::AUTH_METHOD_OAUTH)
+        ->and($connection->credentials['access_token'] ?? null)->toBe('apollo-access-token-1')
+        ->and($connection->credentials['refresh_token'] ?? null)->toBe('apollo-refresh-token-1')
+        ->and((string) $connection->getRawOriginal('credentials'))->not->toContain('apollo-access-token-1')
+        ->and($connection->external_account_label)->toContain('apollo-owner@example.com')
+        ->and($connection->last_validated_at)->not->toBeNull();
+
+    $disconnected = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.disconnect', $connection));
 
     $disconnected->assertOk()
         ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_DISCONNECTED)
-        ->assertJsonPath('provider_connection.is_active', false);
+        ->assertJsonPath('provider_connection.is_active', false)
+        ->assertJsonPath('provider_connection.has_credentials', false);
 });
 
 test('marketing owner can update prospect provider connection without replacing saved secret', function () {
@@ -399,24 +440,28 @@ test('marketing meta exposes prospect provider definitions and connections', fun
     expect($providerKeys)->toContain('uplead');
 });
 
-test('marketing owner can validate lusha prospect provider connection', function () {
+test('marketing owner can connect lusha prospect provider with api key', function () {
     $owner = marketingOwner();
     fakeLushaValidationResponse();
 
-    $connection = CampaignProspectProviderConnection::query()->create([
-        'user_id' => $owner->id,
+    $connect = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.connect'), [
         'provider_key' => CampaignProspectProviderConnection::PROVIDER_LUSHA,
         'label' => 'Lusha main',
-        'credentials' => ['api_key' => 'lusha-secret-12345'],
-        'status' => CampaignProspectProviderConnection::STATUS_DRAFT,
-        'is_active' => true,
+        'credentials' => [
+            'api_key' => 'lusha-secret-12345',
+        ],
     ]);
 
-    $validated = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.validate', $connection));
-
-    $validated->assertOk()
+    $connect->assertCreated()
+        ->assertJsonPath('flow', 'manual')
         ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_CONNECTED)
-        ->assertJsonPath('provider_connection.is_active', true);
+        ->assertJsonPath('provider_connection.is_active', true)
+        ->assertJsonPath('provider_connection.auth_method', CampaignProspectProviderConnection::AUTH_METHOD_API_KEY);
+
+    $connection = CampaignProspectProviderConnection::query()->findOrFail((int) $connect->json('provider_connection.id'));
+
+    expect($connection->credentials)->toBe(['api_key' => 'lusha-secret-12345'])
+        ->and((string) $connection->getRawOriginal('credentials'))->not->toContain('lusha-secret-12345');
 });
 
 test('marketing owner can validate uplead prospect provider connection', function () {
@@ -439,25 +484,118 @@ test('marketing owner can validate uplead prospect provider connection', functio
         ->assertJsonPath('provider_connection.is_active', true);
 });
 
+test('marketing owner can refresh Apollo OAuth connection tokens', function () {
+    $owner = marketingOwner();
+
+    config()->set('services.apollo.oauth.client_id', 'apollo-client-id');
+    config()->set('services.apollo.oauth.client_secret', 'apollo-client-secret');
+    config()->set('services.apollo.oauth.redirect_uri', route('marketing.prospect-providers.oauth.callback', ['provider' => 'apollo']));
+
+    fakeApolloOauthExchange(
+        tokenBody: [
+            'access_token' => 'apollo-access-token-2',
+            'refresh_token' => 'apollo-refresh-token-2',
+            'token_type' => 'Bearer',
+            'expires_in' => 7200,
+            'scope' => 'read_user_profile contacts_search person_read',
+        ],
+        profileBody: [
+            'user' => [
+                'id' => 'apollo-user-2',
+                'name' => 'Apollo Refresh',
+                'email' => 'apollo-refresh@example.com',
+            ],
+        ],
+    );
+
+    $connection = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
+        'label' => 'Apollo refresh',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_OAUTH,
+        'credentials' => [
+            'access_token' => 'apollo-access-token-1',
+            'refresh_token' => 'apollo-refresh-token-1',
+            'token_type' => 'Bearer',
+        ],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now()->subDay(),
+        'token_expires_at' => now()->subMinute(),
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.refresh', $connection));
+
+    $response->assertOk()
+        ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_CONNECTED)
+        ->assertJsonPath('provider_connection.is_active', true)
+        ->assertJsonPath('provider_connection.has_refresh_token', true);
+
+    $connection->refresh();
+
+    expect($connection->credentials['access_token'] ?? null)->toBe('apollo-access-token-2')
+        ->and($connection->credentials['refresh_token'] ?? null)->toBe('apollo-refresh-token-2')
+        ->and($connection->external_account_label)->toContain('apollo-refresh@example.com')
+        ->and($connection->last_refreshed_at)->not->toBeNull();
+});
+
+test('marketing owner sees Apollo authorization denial as reconnect required', function () {
+    $owner = marketingOwner();
+
+    config()->set('services.apollo.oauth.client_id', 'apollo-client-id');
+    config()->set('services.apollo.oauth.client_secret', 'apollo-client-secret');
+    config()->set('services.apollo.oauth.redirect_uri', route('marketing.prospect-providers.oauth.callback', ['provider' => 'apollo']));
+
+    $start = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.connect'), [
+        'provider_key' => 'apollo',
+        'label' => 'Apollo denied',
+    ]);
+
+    $connection = CampaignProspectProviderConnection::query()->findOrFail((int) $start->json('provider_connection.id'));
+
+    $callback = $this->actingAs($owner)->get(route('marketing.prospect-providers.oauth.callback', [
+        'provider' => 'apollo',
+        'state' => $connection->oauth_state,
+        'error_message' => 'Authorization denied by Apollo user',
+    ]));
+
+    $callback->assertRedirect(route('campaigns.prospect-providers.manage'));
+
+    $connection->refresh();
+
+    expect($connection->status)->toBe(CampaignProspectProviderConnection::STATUS_RECONNECT_REQUIRED)
+        ->and($connection->is_active)->toBeFalse()
+        ->and($connection->last_error)->toBe('Authorization denied by Apollo user');
+});
+
 test('marketing provider validation handles provider timeout gracefully', function () {
     $owner = marketingOwner();
+
+    config()->set('services.apollo.oauth.client_id', 'apollo-client-id');
+    config()->set('services.apollo.oauth.client_secret', 'apollo-client-secret');
+    config()->set('services.apollo.oauth.redirect_uri', route('marketing.prospect-providers.oauth.callback', ['provider' => 'apollo']));
+
     fakeApolloValidationTimeout();
 
     $connection = CampaignProspectProviderConnection::query()->create([
         'user_id' => $owner->id,
         'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
         'label' => 'Apollo timeout',
-        'credentials' => ['api_key' => 'apollo-secret-12345'],
-        'status' => CampaignProspectProviderConnection::STATUS_DRAFT,
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_OAUTH,
+        'credentials' => [
+            'access_token' => 'apollo-access-token-timeout',
+            'refresh_token' => 'apollo-refresh-token-timeout',
+        ],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
         'is_active' => true,
     ]);
 
-    $validated = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.validate', $connection));
+    $validated = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.refresh', $connection));
 
     $validated->assertOk()
-        ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_DISCONNECTED)
+        ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_ERROR)
         ->assertJsonPath('provider_connection.is_active', false)
-        ->assertJsonPath('provider_connection.last_error', 'The provider could not be reached while validating this connection.');
+        ->assertJsonPath('provider_connection.last_error', 'The provider could not be reached while refreshing this connection.');
 });
 
 test('campaign team member can view prospect provider workspace in read only mode', function () {

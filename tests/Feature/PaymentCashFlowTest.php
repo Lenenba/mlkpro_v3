@@ -27,7 +27,7 @@ function createOwnerUser(array $attributes = []): User
 
     $defaults = [
         'name' => 'Owner Test',
-        'email' => 'owner-' . Str::random(8) . '@example.com',
+        'email' => 'owner-'.Str::random(8).'@example.com',
         'password' => 'password',
         'role_id' => $roleId,
         'company_type' => 'services',
@@ -43,13 +43,13 @@ function createOwnerUser(array $attributes = []): User
 function createSaleProduct(User $owner, array $attributes = []): Product
 {
     $category = ProductCategory::query()->create([
-        'name' => 'Test category ' . Str::random(6),
+        'name' => 'Test category '.Str::random(6),
         'user_id' => $owner->id,
         'created_by_user_id' => $owner->id,
     ]);
 
     return Product::query()->create(array_merge([
-        'name' => 'Product ' . Str::random(5),
+        'name' => 'Product '.Str::random(5),
         'description' => 'Test product',
         'category_id' => $category->id,
         'user_id' => $owner->id,
@@ -71,7 +71,7 @@ test('invoice cash payment is created as pending and can be marked as paid', fun
         'company_type' => 'services',
         'payment_methods' => ['cash'],
         'default_payment_method' => 'cash',
-        'company_features' => ['invoices' => true],
+        'company_features' => ['invoices' => true, 'loyalty' => true],
     ]);
 
     $customer = Customer::factory()->create([
@@ -142,7 +142,7 @@ test('sale manual cash payment is created as pending', function () {
         'company_type' => 'products',
         'payment_methods' => ['cash'],
         'default_payment_method' => 'cash',
-        'company_features' => ['sales' => true],
+        'company_features' => ['sales' => true, 'loyalty' => true],
     ]);
 
     $customer = Customer::factory()->create([
@@ -194,7 +194,7 @@ test('marking pending sale cash payment as paid updates sale status', function (
         'company_type' => 'products',
         'payment_methods' => ['cash'],
         'default_payment_method' => 'cash',
-        'company_features' => ['sales' => true],
+        'company_features' => ['sales' => true, 'loyalty' => true],
     ]);
 
     $customer = Customer::factory()->create([
@@ -247,7 +247,7 @@ test('refund status removes loyalty points earned by the payment', function () {
         'company_type' => 'services',
         'payment_methods' => ['cash', 'card'],
         'default_payment_method' => 'card',
-        'company_features' => ['invoices' => true],
+        'company_features' => ['invoices' => true, 'loyalty' => true],
     ]);
 
     $customer = Customer::factory()->create([
@@ -286,7 +286,7 @@ test('pos sale can redeem loyalty points at checkout', function () {
         'company_type' => 'products',
         'payment_methods' => ['cash', 'card'],
         'default_payment_method' => 'cash',
-        'company_features' => ['sales' => true],
+        'company_features' => ['sales' => true, 'loyalty' => true],
     ]);
 
     $customer = Customer::factory()->create([
@@ -351,7 +351,7 @@ test('canceling pending sale restores redeemed loyalty points', function () {
         'company_type' => 'products',
         'payment_methods' => ['cash'],
         'default_payment_method' => 'cash',
-        'company_features' => ['sales' => true],
+        'company_features' => ['sales' => true, 'loyalty' => true],
     ]);
 
     $customer = Customer::factory()->create([

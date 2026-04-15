@@ -12,6 +12,7 @@ import {
 import Modal from '@/Components/Modal.vue';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     billing: {
@@ -94,6 +95,7 @@ const props = defineProps({
 
 const { t, locale } = useI18n();
 const page = usePage();
+const { visibleFeaturePayload } = useAccountFeatures();
 
 const ALLOWED_PAYMENT_METHOD_IDS = ['cash', 'card', 'bank_transfer', 'check'];
 const FALLBACK_PAYMENT_METHOD_OPTIONS = [
@@ -242,14 +244,8 @@ const assistantAddonSubtitle = computed(() =>
         ? t('settings.billing.assistant_addon.subtitle_credit')
         : t('settings.billing.assistant_addon.subtitle')
 );
-const loyaltyFeatureEnabled = computed(() => {
-    const featureFlag = page.props.auth?.account?.features?.loyalty;
-    if (typeof featureFlag === 'boolean') {
-        return featureFlag;
-    }
-
-    return Boolean(props.loyaltyProgram?.feature_enabled ?? false);
-});
+const loyaltyProgram = computed(() => visibleFeaturePayload('loyalty', props.loyaltyProgram, {}));
+const loyaltyFeatureEnabled = computed(() => Boolean(loyaltyProgram.value));
 
 const isSubscribed = computed(() => Boolean(props.subscription?.active));
 const hasSubscription = computed(() => Boolean(props.subscription?.provider_id));
@@ -2045,7 +2041,6 @@ watch(
                     </div>
 
                     <div
-                        v-if="loyaltyFeatureEnabled"
                         class="rounded-sm border border-stone-200 bg-white px-4 py-4 dark:border-neutral-700 dark:bg-neutral-900"
                     >
                         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -2158,7 +2153,7 @@ watch(
                         </div>
                     </div>
 
-                    <div class="rounded-sm border border-stone-200 bg-white px-4 py-4 dark:border-neutral-700 dark:bg-neutral-900">
+                    <div v-if="loyaltyFeatureEnabled" class="rounded-sm border border-stone-200 bg-white px-4 py-4 dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">

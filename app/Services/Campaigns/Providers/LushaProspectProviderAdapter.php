@@ -28,6 +28,16 @@ class LushaProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapter
         return 'Lusha';
     }
 
+    protected function shortDescription(): string
+    {
+        return 'Connect Lusha for prospect search and enrichment when your team needs a tenant-owned data source inside campaigns.';
+    }
+
+    protected function connectDescription(): string
+    {
+        return 'Lusha currently documents API key authentication for this API, so the connection uses an encrypted tenant-owned key instead of a redirect flow.';
+    }
+
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -314,7 +324,7 @@ class LushaProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapter
         if ($response->status() === 401) {
             return [
                 'ok' => false,
-                'status' => CampaignProspectProviderConnection::STATUS_INVALID,
+                'status' => CampaignProspectProviderConnection::STATUS_RECONNECT_REQUIRED,
                 'message' => $message,
                 'errors' => ['api_key' => 'Lusha rejected the API key.'],
             ];
@@ -322,7 +332,7 @@ class LushaProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapter
 
         return [
             'ok' => false,
-            'status' => CampaignProspectProviderConnection::STATUS_DISCONNECTED,
+            'status' => CampaignProspectProviderConnection::STATUS_ERROR,
             'message' => $message,
             'errors' => ['api_key' => 'Lusha validation failed unexpectedly.'],
         ];

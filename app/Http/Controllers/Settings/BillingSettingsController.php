@@ -233,10 +233,11 @@ class BillingSettingsController extends Controller
             'period_end' => $usageEnd,
         ];
         $paymentMethodsResolved = TenantPaymentMethodsResolver::forUser($user);
-        $loyaltyFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($user, 'loyalty');
-        $loyaltyProgram = null;
-        if ($loyaltyFeatureEnabled) {
-            $loyaltyProgram = LoyaltyProgram::query()->firstOrCreate(
+        $featureService = app(CompanyFeatureService::class);
+        $loyaltyProgram = $featureService->resolveFeatureValue(
+            $user,
+            'loyalty',
+            fn (): LoyaltyProgram => LoyaltyProgram::query()->firstOrCreate(
                 ['user_id' => $user->id],
                 [
                     'is_enabled' => true,
@@ -245,8 +246,8 @@ class BillingSettingsController extends Controller
                     'rounding_mode' => LoyaltyProgram::ROUND_FLOOR,
                     'points_label' => 'points',
                 ]
-            );
-        }
+            )
+        );
 
         $pageProps = [
             'billing' => [
@@ -265,14 +266,7 @@ class BillingSettingsController extends Controller
             'cashAllowedContexts' => $paymentMethodsResolved['cash_allowed_contexts'],
             'paymentMethodSettings' => $paymentMethodsResolved,
             'tipSettings' => TipSettingsResolver::forUser($user),
-            'loyaltyProgram' => [
-                'feature_enabled' => $loyaltyFeatureEnabled,
-                'is_enabled' => (bool) ($loyaltyProgram?->is_enabled ?? false),
-                'points_per_currency_unit' => (float) ($loyaltyProgram?->points_per_currency_unit ?? 1),
-                'minimum_spend' => (float) ($loyaltyProgram?->minimum_spend ?? 0),
-                'rounding_mode' => (string) ($loyaltyProgram?->rounding_mode ?? LoyaltyProgram::ROUND_FLOOR),
-                'points_label' => (string) (($loyaltyProgram?->points_label) ?: 'points'),
-            ],
+            'loyaltyProgram' => $this->serializeLoyaltyProgram($loyaltyProgram),
             'plans' => $plans,
             'subscription' => $subscriptionSummary,
             'seatQuantity' => $seatQuantity,
@@ -585,7 +579,8 @@ class BillingSettingsController extends Controller
         if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
-        $loyaltyFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($user, 'loyalty');
+        $featureService = app(CompanyFeatureService::class);
+        $loyaltyFeatureEnabled = $featureService->hasFeature($user, 'loyalty');
 
         $allowed = collect(self::AVAILABLE_METHODS)->pluck('id')->all();
 
@@ -642,7 +637,6 @@ class BillingSettingsController extends Controller
         }
 
         $loyaltySetupRequested = is_array($validated['loyalty'] ?? null);
-        $loyaltyFeatureEnabled = $loyaltyFeatureEnabled || $loyaltySetupRequested;
         $incomingLoyalty = $loyaltyFeatureEnabled && $loyaltySetupRequested
             ? $validated['loyalty']
             : [];
@@ -712,14 +706,7 @@ class BillingSettingsController extends Controller
                 'cash_allowed_contexts' => $paymentMethodsResolved['cash_allowed_contexts'],
                 'payment_method_settings' => $paymentMethodsResolved,
                 'tips' => TipSettingsResolver::forUser($user),
-                'loyalty' => [
-                    'feature_enabled' => $loyaltyFeatureEnabled,
-                    'is_enabled' => (bool) ($loyaltyProgram?->is_enabled ?? false),
-                    'points_per_currency_unit' => (float) ($loyaltyProgram?->points_per_currency_unit ?? 1),
-                    'minimum_spend' => (float) ($loyaltyProgram?->minimum_spend ?? 0),
-                    'rounding_mode' => (string) ($loyaltyProgram?->rounding_mode ?? LoyaltyProgram::ROUND_FLOOR),
-                    'points_label' => (string) (($loyaltyProgram?->points_label) ?: 'points'),
-                ],
+                'loyalty' => $this->serializeLoyaltyProgram($loyaltyProgram),
             ]);
         }
 
@@ -747,7 +734,7 @@ class BillingSettingsController extends Controller
                 'stripe_connect' => $pageProps['stripeConnect'] ?? [],
             ],
             'payment_methods' => $this->buildApiPaymentMethodsPayload($pageProps),
-            'loyalty' => $pageProps['loyaltyProgram'] ?? [],
+            'loyalty' => $pageProps['loyaltyProgram'] ?? null,
             'flow_state' => [
                 'checkout' => [
                     'status' => $pageProps['checkoutStatus'] ?? null,
@@ -788,7 +775,6 @@ class BillingSettingsController extends Controller
         $billing = is_array($pageProps['billing'] ?? null) ? $pageProps['billing'] : [];
         $subscription = is_array($pageProps['subscription'] ?? null) ? $pageProps['subscription'] : [];
         $assistant = is_array($pageProps['assistantAddon'] ?? null) ? $pageProps['assistantAddon'] : [];
-        $loyalty = is_array($pageProps['loyaltyProgram'] ?? null) ? $pageProps['loyaltyProgram'] : [];
         $isStripe = ($billing['provider_effective'] ?? null) === 'stripe';
         $providerReady = (bool) ($billing['provider_ready'] ?? false);
         $hasActiveSubscription = (bool) ($subscription['active'] ?? false);
@@ -821,8 +807,23 @@ class BillingSettingsController extends Controller
             'can_buy_assistant_credits' => $assistantCreditsEnabled
                 && $assistantAddonEnabled
                 && $this->hasAssistantCreditCheckoutApiRoute(),
-            'can_configure_loyalty' => (bool) ($loyalty['feature_enabled'] ?? false),
+            'can_configure_loyalty' => $user->hasCompanyFeature('loyalty'),
             'is_owner' => $user->isAccountOwner(),
+        ];
+    }
+
+    private function serializeLoyaltyProgram(?LoyaltyProgram $program): ?array
+    {
+        if (! $program) {
+            return null;
+        }
+
+        return [
+            'is_enabled' => (bool) $program->is_enabled,
+            'points_per_currency_unit' => (float) ($program->points_per_currency_unit ?? 1),
+            'minimum_spend' => (float) ($program->minimum_spend ?? 0),
+            'rounding_mode' => (string) ($program->rounding_mode ?? LoyaltyProgram::ROUND_FLOOR),
+            'points_label' => (string) (($program->points_label) ?: 'points'),
         ];
     }
 

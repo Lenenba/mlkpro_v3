@@ -82,7 +82,7 @@ class ProspectProviderPreviewService
 
         try {
             $rows = $adapter->fetchPreview(
-                credentials: (array) ($connection->credentials ?? []),
+                credentials: $this->connectionService->runtimeCredentials($owner, $connection),
                 queryContext: $queryContext,
                 limit: $limit,
             );

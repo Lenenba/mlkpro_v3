@@ -1,10 +1,10 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
-import { isFeatureEnabled } from '@/utils/features';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     task: {
@@ -18,9 +18,8 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
-const page = usePage();
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
-const hasTeamMembersFeature = computed(() => isFeatureEnabled(featureFlags.value, 'team_members'));
+const { hasFeature } = useAccountFeatures();
+const hasTeamMembersFeature = computed(() => hasFeature('team_members'));
 
 const statusClass = (status) => {
     switch (status) {

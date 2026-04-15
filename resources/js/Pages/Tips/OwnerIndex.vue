@@ -1,13 +1,13 @@
 <script setup>
 import { computed, reactive } from 'vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import { humanizeDate } from '@/utils/date';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useI18n } from 'vue-i18n';
-import { isFeatureEnabled } from '@/utils/features';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     filters: {
@@ -41,9 +41,8 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
-const page = usePage();
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
-const hasTeamMembersFeature = computed(() => isFeatureEnabled(featureFlags.value, 'team_members'));
+const { hasFeature } = useAccountFeatures();
+const hasTeamMembersFeature = computed(() => hasFeature('team_members'));
 const showTeamMemberFilter = computed(() => hasTeamMembersFeature.value && (props.teamMembers || []).length > 0);
 const topCollectorsLabel = computed(() => (
     hasTeamMembersFeature.value ? t('tips_reports.kpi.top_members') : t('tips_reports.kpi.top_collectors')

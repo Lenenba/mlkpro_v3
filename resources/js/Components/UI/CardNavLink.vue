@@ -1,8 +1,7 @@
 <script setup>
 import { computed } from 'vue';
-import { usePage } from '@inertiajs/vue3';
-import { isFeatureEnabled } from '@/utils/features';
 import { useI18n } from 'vue-i18n';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     customer: Object,
@@ -16,9 +15,7 @@ const props = defineProps({
     },
 });
 
-const page = usePage();
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
-const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
+const { hasFeature } = useAccountFeatures();
 const { t } = useI18n();
 const canJobs = computed(() => hasFeature('jobs'));
 const canRequests = computed(() => hasFeature('requests'));
@@ -168,4 +165,3 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
         </button>
     </nav>
 </template>
-

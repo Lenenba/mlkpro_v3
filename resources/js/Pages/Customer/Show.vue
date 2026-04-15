@@ -17,6 +17,7 @@ import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import CustomerPreviewCard from './UI/CustomerPreviewCard.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     customer: Object,
@@ -89,17 +90,12 @@ const props = defineProps({
 const { t } = useI18n();
 
 const page = usePage();
+const { visibleFeaturePayload } = useAccountFeatures();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showSales = computed(() => companyType.value === 'products');
 const showServiceOps = computed(() => companyType.value !== 'products');
-const loyaltyFeatureEnabled = computed(() => {
-    const featureFlag = page.props.auth?.account?.features?.loyalty;
-    if (typeof featureFlag === 'boolean') {
-        return featureFlag;
-    }
-
-    return Boolean(props.loyalty?.feature_enabled ?? false);
-});
+const loyalty = computed(() => visibleFeaturePayload('loyalty', props.loyalty));
+const loyaltyFeatureEnabled = computed(() => Boolean(loyalty.value));
 
 const properties = computed(() => props.customer?.properties || []);
 const tags = computed(() => props.customer?.tags || []);
@@ -130,7 +126,6 @@ const formatStatus = (status, keyPrefix = '') => {
 };
 const hasValue = (value) => value !== null && value !== undefined;
 const topProducts = computed(() => props.topProducts || []);
-const loyalty = computed(() => props.loyalty || {});
 const loyaltyPointLabel = computed(() => loyalty.value?.label || t('customers.details.loyalty.points_unit'));
 const loyaltyRecent = computed(() => loyalty.value?.recent || []);
 const loyaltyRoundingLabel = computed(() => {
@@ -675,7 +670,7 @@ const deleteProperty = (property) => {
                     </div>
                 </Card>
 
-                <Card v-if="loyaltyFeatureEnabled" class="mt-5">
+                <Card class="mt-5">
                     <template #title>
                         <div class="flex items-center justify-between gap-3">
                             <span>{{ $t('customers.properties.title') }}</span>
@@ -1302,7 +1297,7 @@ const deleteProperty = (property) => {
                         </div>
                     </div>
                 </Card>
-                <Card class="mt-5">
+                <Card v-if="loyaltyFeatureEnabled" class="mt-5">
                     <template #title>{{ $t('customers.details.loyalty.title') }}</template>
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">

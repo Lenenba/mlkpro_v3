@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\LoyaltyProgram;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use Illuminate\Support\Str;
@@ -106,12 +105,6 @@ class CompanyFeatureService
 
         $features = $this->applyModuleDependencies($features);
 
-        if (! array_key_exists('loyalty', $features)) {
-            $features['loyalty'] = LoyaltyProgram::query()
-                ->where('user_id', $owner->id)
-                ->exists();
-        }
-
         $this->featureCache[$owner->id] = $features;
 
         return $features;
@@ -132,6 +125,15 @@ class CompanyFeatureService
         $features = $this->resolveEffectiveFeatures($user);
 
         return array_filter($features, static fn ($enabled): bool => (bool) $enabled);
+    }
+
+    public function resolveFeatureValue(User $user, string $feature, callable $resolver, mixed $fallback = null): mixed
+    {
+        if (! $this->hasFeature($user, $feature)) {
+            return $fallback;
+        }
+
+        return $resolver();
     }
 
     /**

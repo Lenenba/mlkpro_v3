@@ -137,7 +137,7 @@
     },
     "prospect_provider_manager": {
       "title": "Fournisseurs de prospects",
-      "description": "Creez des connexions fournisseur securisees par tenant avant d ajouter la preview provider et l import dans l audience de campagne.",
+      "description": "Connectez vos fournisseurs de leads avec une experience moderne par tenant pour cliquer, autoriser, revenir et utiliser le connecteur directement dans les campagnes.",
       "summary": {
         "configured": "Connexions configurees",
         "connected": "Connectees et pretes",
@@ -155,12 +155,26 @@
         "last_validated": "Derniere validation"
       },
       "statuses": {
+        "not_connected": "Non connecte",
+        "setup_required": "Configuration requise",
+        "pending": "En attente",
         "draft": "Brouillon",
         "connected": "Connecte",
+        "error": "Erreur",
+        "reconnect_required": "Reconnecter",
         "invalid": "Invalide",
         "expired": "Expire",
         "rate_limited": "Limite atteinte",
         "disconnected": "Deconnecte"
+      },
+      "actions": {
+        "connect": "Connecter",
+        "reconnect": "Reconnecter",
+        "refresh": "Rafraichir le statut",
+        "disconnect": "Deconnecter",
+        "manage": "Gerer",
+        "resume": "Reprendre la connexion",
+        "save": "Enregistrer"
       },
       "create_connection": "Creer la connexion",
       "update_connection": "Mettre a jour la connexion",
@@ -173,15 +187,38 @@
       "secret_store_hint": "Les secrets sont stockes chiffres. Apres creation, utilisez Valider pour confirmer l etat de la connexion.",
       "secret_update_hint": "Laissez la cle API vide pour conserver le secret existant. Renseignez-la seulement pour remplacer le secret enregistre.",
       "confirm_disconnect": "Deconnecter la connexion fournisseur \"{name}\" ?",
+      "info_connected": "Connexion fournisseur mise a jour.",
+      "info_refreshed": "Connexion fournisseur rafraichie.",
       "info_created": "Connexion fournisseur creee.",
       "info_updated": "Connexion fournisseur mise a jour.",
       "info_validated": "Connexion {provider} validee.",
       "info_disconnected": "Connexion fournisseur deconnectee.",
       "error_load": "Impossible de charger les connexions fournisseur.",
+      "error_connect": "Impossible de connecter ce fournisseur.",
+      "error_refresh": "Impossible de rafraichir ce fournisseur.",
       "error_save": "Impossible d enregistrer la connexion fournisseur.",
       "error_validate": "Impossible de valider la connexion fournisseur.",
       "error_disconnect": "Impossible de deconnecter la connexion fournisseur.",
       "no_connection_found": "Aucune connexion fournisseur trouvee.",
+      "not_connected": "Non connecte",
+      "oauth_hint": "Ce fournisseur utilise une redirection OAuth. Nous envoyons l utilisateur vers le fournisseur, il se connecte et autorise l acces, puis revient ici automatiquement avec la connexion liee.",
+      "view_details": "Voir les details",
+      "card": {
+        "ready_title": "Pret a connecter",
+        "connected_at": "Connecte le {date}",
+        "no_connection": "Aucune connexion active"
+      },
+      "modal": {
+        "connection_title": "Etat de la connexion",
+        "manage_title": "Gerer la connexion",
+        "details_title": "Details de la connexion",
+        "connected_as": "Compte connecte",
+        "connected_at": "Connecte le",
+        "last_refresh": "Dernier rafraichissement",
+        "expires_at": "Expire le",
+        "requested_scopes": "Permissions demandees",
+        "no_connection_description": "Ce fournisseur n est pas encore lie. Lancez le flux de connexion pour le rendre disponible dans l audience des campagnes."
+      },
       "read_only_title": "Acces lecture seule",
       "read_only_description": "Seul le proprietaire du compte peut ajouter, remplacer, valider ou deconnecter les identifiants fournisseur. Les membres de l equipe peuvent quand meme verifier l etat des connexions ici avant de les utiliser dans l audience de campagne.",
       "view_only_actions": "Lecture seule"

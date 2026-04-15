@@ -188,7 +188,7 @@ test('solo pro billing settings do not mark assistant or loyalty as included whe
         ->assertInertia(fn (Assert $page) => $page
             ->where('assistantAddon.included', false)
             ->where('assistantAddon.enabled', false)
-            ->where('loyaltyProgram.feature_enabled', false)
+            ->where('loyaltyProgram', null)
         );
 });
 

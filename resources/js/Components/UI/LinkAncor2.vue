@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
-import { isFeatureEnabled } from '@/utils/features';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const isOpen = ref(false);
 const { t, locale } = useI18n();
@@ -12,14 +12,13 @@ const menuStyle = ref({});
 let listenersBound = false;
 
 const page = usePage();
+const { hasFeature } = useAccountFeatures();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
 const showProducts = computed(() => true);
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
 const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
-const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
 const canSales = computed(() =>
     isOwner.value || teamPermissions.value.includes('sales.manage') || teamPermissions.value.includes('sales.pos')
 );

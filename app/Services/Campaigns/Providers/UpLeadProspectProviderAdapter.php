@@ -26,6 +26,16 @@ class UpLeadProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
         return 'UpLead';
     }
 
+    protected function shortDescription(): string
+    {
+        return 'Connect UpLead when your team needs another tenant-owned prospecting source alongside Apollo and Lusha.';
+    }
+
+    protected function connectDescription(): string
+    {
+        return 'UpLead uses an encrypted tenant-owned API key connection for this provider workflow.';
+    }
+
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -237,7 +247,7 @@ class UpLeadProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
         if ($response->status() === 401) {
             return [
                 'ok' => false,
-                'status' => CampaignProspectProviderConnection::STATUS_INVALID,
+                'status' => CampaignProspectProviderConnection::STATUS_RECONNECT_REQUIRED,
                 'message' => $message,
                 'errors' => ['api_key' => 'UpLead rejected the API key.'],
             ];
@@ -245,7 +255,7 @@ class UpLeadProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
 
         return [
             'ok' => false,
-            'status' => CampaignProspectProviderConnection::STATUS_DISCONNECTED,
+            'status' => CampaignProspectProviderConnection::STATUS_ERROR,
             'message' => $message,
             'errors' => ['api_key' => 'UpLead validation failed unexpectedly.'],
         ];

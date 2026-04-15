@@ -116,6 +116,10 @@ Route::get('/favicon.ico', function () {
     return response()->file(public_path('favicon.ico'));
 })->name('favicon');
 
+Route::get('/integrations/prospect-providers/{provider}/callback', [MarketingProspectProviderConnectionController::class, 'oauthCallback'])
+    ->whereIn('provider', ['apollo'])
+    ->name('marketing.prospect-providers.oauth.callback');
+
 // Paddle webhook is registered by Cashier Paddle at `/{CASHIER_PATH}/webhook`.
 
 // Guest Routes
@@ -537,10 +541,16 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('marketing.vip.customer.update');
         Route::get('/marketing/prospect-providers', [MarketingProspectProviderConnectionController::class, 'index'])
             ->name('marketing.prospect-providers.index');
+        Route::post('/marketing/prospect-providers/connect', [MarketingProspectProviderConnectionController::class, 'connect'])
+            ->name('marketing.prospect-providers.connect');
         Route::post('/marketing/prospect-providers', [MarketingProspectProviderConnectionController::class, 'store'])
             ->name('marketing.prospect-providers.store');
         Route::put('/marketing/prospect-providers/{connection}', [MarketingProspectProviderConnectionController::class, 'update'])
             ->name('marketing.prospect-providers.update');
+        Route::post('/marketing/prospect-providers/{connection}/reconnect', [MarketingProspectProviderConnectionController::class, 'reconnect'])
+            ->name('marketing.prospect-providers.reconnect');
+        Route::post('/marketing/prospect-providers/{connection}/refresh', [MarketingProspectProviderConnectionController::class, 'refresh'])
+            ->name('marketing.prospect-providers.refresh');
         Route::post('/marketing/prospect-providers/{connection}/validate', [MarketingProspectProviderConnectionController::class, 'validateConnection'])
             ->name('marketing.prospect-providers.validate');
         Route::post('/marketing/prospect-providers/{connection}/disconnect', [MarketingProspectProviderConnectionController::class, 'disconnect'])
