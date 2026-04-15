@@ -11,6 +11,10 @@ const props = defineProps({
         type: Array,
         default: () => ([]),
     },
+    provider_cards: {
+        type: Array,
+        default: () => ([]),
+    },
     provider_connections: {
         type: Array,
         default: () => ([]),
@@ -66,8 +70,7 @@ const { t } = useI18n();
 
             <section class="space-y-4">
                 <ProspectProviderManager
-                    :initial-definitions="props.provider_definitions"
-                    :initial-connections="props.provider_connections"
+                    :initial-cards="props.provider_cards"
                     :initial-summary="props.provider_summary"
                     :can-manage-secrets="Boolean(props.access?.can_manage_secrets)"
                 />

@@ -6,9 +6,39 @@ use App\Models\CampaignProspect;
 use App\Models\CampaignProspectProviderConnection;
 use App\Services\Campaigns\Providers\Contracts\ProspectProviderAdapter;
 use Illuminate\Support\Str;
+use LogicException;
 
 abstract class AbstractApiKeyProspectProviderAdapter implements ProspectProviderAdapter
 {
+    public function authStrategy(): string
+    {
+        return CampaignProspectProviderConnection::AUTH_METHOD_API_KEY;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function definition(): array
+    {
+        return [
+            'key' => $this->key(),
+            'label' => $this->label(),
+            'logo_key' => $this->key(),
+            'auth_strategy' => $this->authStrategy(),
+            'short_description' => $this->shortDescription(),
+            'connect_description' => $this->connectDescription(),
+            'credential_fields' => $this->credentialFields(),
+            'supports_redirect' => false,
+            'supports_manual_credentials' => true,
+            'supports_refresh' => true,
+            'scopes' => [],
+            'connect_button_label' => sprintf('Connect %s', $this->label()),
+            'reconnect_button_label' => sprintf('Reconnect %s', $this->label()),
+            'setup_required' => false,
+            'setup_message' => null,
+        ];
+    }
+
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -26,6 +56,32 @@ abstract class AbstractApiKeyProspectProviderAdapter implements ProspectProvider
         ];
     }
 
+    public function beginAuthorization(CampaignProspectProviderConnection $connection, string $state): ?string
+    {
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function completeAuthorization(array $payload): array
+    {
+        throw new LogicException(sprintf('%s does not support an OAuth callback.', $this->label()));
+    }
+
+    /**
+     * @param  array<string, mixed>  $credentials
+     * @return array<string, mixed>
+     */
+    public function refreshCredentials(array $credentials): array
+    {
+        return [
+            'credentials' => $credentials,
+            ...$this->validateCredentials($credentials),
+        ];
+    }
+
     /**
      * @param  array<string, mixed>  $credentials
      * @return array{ok: bool, status: string, message: string, errors?: array<string, string>}
@@ -37,7 +93,7 @@ abstract class AbstractApiKeyProspectProviderAdapter implements ProspectProvider
         if ($apiKey === '') {
             return [
                 'ok' => false,
-                'status' => CampaignProspectProviderConnection::STATUS_INVALID,
+                'status' => CampaignProspectProviderConnection::STATUS_ERROR,
                 'message' => 'API key is required.',
                 'errors' => [
                     'api_key' => 'API key is required.',
@@ -48,7 +104,7 @@ abstract class AbstractApiKeyProspectProviderAdapter implements ProspectProvider
         if (mb_strlen($apiKey) < 8) {
             return [
                 'ok' => false,
-                'status' => CampaignProspectProviderConnection::STATUS_INVALID,
+                'status' => CampaignProspectProviderConnection::STATUS_ERROR,
                 'message' => 'API key looks incomplete.',
                 'errors' => [
                     'api_key' => 'API key looks incomplete.',
@@ -238,6 +294,16 @@ abstract class AbstractApiKeyProspectProviderAdapter implements ProspectProvider
             })
             ->values()
             ->all();
+    }
+
+    protected function shortDescription(): string
+    {
+        return 'Connect this provider to source prospects directly inside campaigns.';
+    }
+
+    protected function connectDescription(): string
+    {
+        return 'This provider currently uses a secure tenant-owned API key connection.';
     }
 
     /**

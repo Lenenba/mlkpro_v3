@@ -98,6 +98,21 @@ return [
         'plan_scan_timeout' => env('OPENAI_PLAN_SCAN_TIMEOUT', 90),
     ],
 
+    'apollo' => [
+        'oauth' => [
+            'client_id' => env('APOLLO_OAUTH_CLIENT_ID'),
+            'client_secret' => env('APOLLO_OAUTH_CLIENT_SECRET'),
+            'redirect_uri' => env('APOLLO_OAUTH_REDIRECT_URI'),
+            'authorize_url' => env('APOLLO_OAUTH_AUTHORIZE_URL', 'https://app.apollo.io/#/oauth/authorize'),
+            'token_url' => env('APOLLO_OAUTH_TOKEN_URL', 'https://app.apollo.io/api/v1/oauth/token'),
+            'profile_url' => env('APOLLO_OAUTH_PROFILE_URL', 'https://app.apollo.io/api/v1/users/api_profile'),
+            'scopes' => array_values(array_filter(array_map(
+                static fn (string $scope): string => trim($scope),
+                preg_split('/[\s,]+/', (string) env('APOLLO_OAUTH_SCOPES', 'read_user_profile contacts_search person_read')) ?: []
+            ))),
+        ],
+    ],
+
     'rate_limits' => [
         'api_per_user' => env('API_RATE_LIMIT_PER_MINUTE', 120),
         'public_signed_per_minute' => env('PUBLIC_SIGNED_RATE_LIMIT_PER_MINUTE', 30),

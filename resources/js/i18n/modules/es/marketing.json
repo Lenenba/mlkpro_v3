@@ -274,7 +274,7 @@
     },
     "prospect_provider_manager": {
       "title": "Proveedores de prospectos",
-      "description": "Crea conexiones seguras propiedad del tenant antes de agregar a la audiencia de campanas las vistas previas e importaciones de proveedores.",
+      "description": "Conecta proveedores de leads con una experiencia moderna por tenant para hacer clic, autorizar, volver y dejar el conector listo dentro de las campanas.",
       "summary": {
         "configured": "Conexiones configuradas",
         "connected": "Conectadas y listas",
@@ -292,12 +292,26 @@
         "last_validated": "Ultima validacion"
       },
       "statuses": {
+        "not_connected": "No conectada",
+        "setup_required": "Configuracion requerida",
+        "pending": "Pendiente",
         "draft": "Borrador",
         "connected": "Conectada",
+        "error": "Error",
+        "reconnect_required": "Reconectar",
         "invalid": "Invalida",
         "expired": "Caducada",
         "rate_limited": "Limitada por cuota",
         "disconnected": "Desconectada"
+      },
+      "actions": {
+        "connect": "Conectar",
+        "reconnect": "Reconectar",
+        "refresh": "Actualizar estado",
+        "disconnect": "Desconectar",
+        "manage": "Gestionar",
+        "resume": "Reanudar conexion",
+        "save": "Guardar"
       },
       "create_connection": "Crear conexion",
       "update_connection": "Actualizar conexion",
@@ -310,15 +324,38 @@
       "secret_store_hint": "Los secretos se almacenan cifrados. Despues de crear la conexion, usa Validar para confirmar su estado.",
       "secret_update_hint": "Deja vacia la clave API para conservar el secreto actual. Rellenala solo si sustituyes el secreto guardado.",
       "confirm_disconnect": "Desconectar la conexion del proveedor \"{name}\"?",
+      "info_connected": "Conexion del proveedor actualizada.",
+      "info_refreshed": "Conexion del proveedor actualizada.",
       "info_created": "Conexion del proveedor creada.",
       "info_updated": "Conexion del proveedor actualizada.",
       "info_validated": "Conexion de {provider} validada.",
       "info_disconnected": "Conexion del proveedor desconectada.",
       "error_load": "No se pueden cargar las conexiones de proveedores.",
+      "error_connect": "No se puede conectar este proveedor.",
+      "error_refresh": "No se puede actualizar este proveedor.",
       "error_save": "No se puede guardar la conexion del proveedor.",
       "error_validate": "No se puede validar la conexion del proveedor.",
       "error_disconnect": "No se puede desconectar la conexion del proveedor.",
       "no_connection_found": "No se encontro ninguna conexion de proveedor.",
+      "not_connected": "No conectada",
+      "oauth_hint": "Este proveedor usa un flujo con redireccion OAuth. Enviamos al usuario al proveedor, inicia sesion y autoriza el acceso, y luego vuelve aqui automaticamente con la conexion vinculada.",
+      "view_details": "Ver detalles",
+      "card": {
+        "ready_title": "Lista para conectar",
+        "connected_at": "Conectada {date}",
+        "no_connection": "Sin conexion activa"
+      },
+      "modal": {
+        "connection_title": "Estado de la conexion",
+        "manage_title": "Gestionar conexion",
+        "details_title": "Detalles de la conexion",
+        "connected_as": "Cuenta conectada",
+        "connected_at": "Conectada el",
+        "last_refresh": "Ultima actualizacion",
+        "expires_at": "Caduca el",
+        "requested_scopes": "Permisos solicitados",
+        "no_connection_description": "Este proveedor todavia no esta vinculado. Inicia el flujo de conexion para dejarlo disponible en la audiencia de campanas."
+      },
       "read_only_title": "Acceso de solo lectura",
       "read_only_description": "Solo el propietario de la cuenta puede agregar, sustituir, validar o desconectar credenciales de proveedores. Los miembros del equipo aun pueden revisar aqui el estado del proveedor antes de usar las conexiones disponibles en la audiencia de campanas.",
       "view_only_actions": "Solo lectura"

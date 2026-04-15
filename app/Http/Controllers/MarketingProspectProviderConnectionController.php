@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Campaigns\ProspectProviderConnectionService;
 use App\Services\Campaigns\ProspectProviderRegistry;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class MarketingProspectProviderConnectionController extends Controller
 {
@@ -24,6 +25,7 @@ class MarketingProspectProviderConnectionController extends Controller
 
         return $this->inertiaOrJson('Campaigns/ProspectProviders', [
             'provider_definitions' => $this->registry->definitions(),
+            'provider_cards' => $this->connectionService->cardsPayloads($owner),
             'provider_connections' => $this->connectionService->listPayloads($owner),
             'provider_summary' => $this->connectionService->summaryForOwner($owner),
             'access' => [
@@ -43,6 +45,7 @@ class MarketingProspectProviderConnectionController extends Controller
 
         return response()->json([
             'provider_definitions' => $this->registry->definitions(),
+            'provider_cards' => $this->connectionService->cardsPayloads($owner),
             'provider_connections' => $this->connectionService->listPayloads($owner),
             'provider_summary' => $this->connectionService->summaryForOwner($owner),
             'access' => [
@@ -53,7 +56,7 @@ class MarketingProspectProviderConnectionController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function connect(Request $request)
     {
         [$owner, , $canManageSecrets] = $this->resolveAccess($request->user());
         if (! $canManageSecrets) {
@@ -62,16 +65,19 @@ class MarketingProspectProviderConnectionController extends Controller
 
         $validated = $request->validate([
             'provider_key' => ['required', 'string', 'max:40', 'in:apollo,lusha,uplead'],
-            'label' => ['required', 'string', 'max:120', 'min:1'],
-            'credentials' => ['required', 'array'],
+            'label' => ['nullable', 'string', 'max:120', 'min:1'],
+            'credentials' => ['nullable', 'array'],
+            'connection_id' => ['nullable', 'integer'],
         ]);
 
-        $connection = $this->connectionService->create($owner, $validated);
+        $result = $this->connectionService->connect($owner, $validated);
 
-        return response()->json([
-            'message' => 'Prospect provider connection created.',
-            'provider_connection' => $this->connectionService->payload($connection),
-        ], 201);
+        return response()->json($result, ($result['created'] ?? false) ? 201 : 200);
+    }
+
+    public function store(Request $request)
+    {
+        return $this->connect($request);
     }
 
     public function update(Request $request, CampaignProspectProviderConnection $connection)
@@ -95,19 +101,45 @@ class MarketingProspectProviderConnectionController extends Controller
         ]);
     }
 
-    public function validateConnection(Request $request, CampaignProspectProviderConnection $connection)
+    public function reconnect(Request $request, CampaignProspectProviderConnection $connection)
     {
         [$owner, , $canManageSecrets] = $this->resolveAccess($request->user());
         if (! $canManageSecrets) {
             abort(403);
         }
 
-        $validated = $this->connectionService->validateConnection($owner, $connection);
+        $validated = $request->validate([
+            'label' => ['nullable', 'string', 'max:120', 'min:1'],
+            'credentials' => ['nullable', 'array'],
+        ]);
+
+        $result = $this->connectionService->connect($owner, [
+            ...$validated,
+            'connection_id' => $connection->id,
+            'provider_key' => $connection->provider_key,
+        ]);
+
+        return response()->json($result);
+    }
+
+    public function refresh(Request $request, CampaignProspectProviderConnection $connection)
+    {
+        [$owner, , $canManageSecrets] = $this->resolveAccess($request->user());
+        if (! $canManageSecrets) {
+            abort(403);
+        }
+
+        $refreshed = $this->connectionService->refreshConnection($owner, $connection);
 
         return response()->json([
-            'message' => 'Prospect provider connection validated.',
-            'provider_connection' => $this->connectionService->payload($validated),
+            'message' => 'Prospect provider connection refreshed.',
+            'provider_connection' => $this->connectionService->payload($refreshed),
         ]);
+    }
+
+    public function validateConnection(Request $request, CampaignProspectProviderConnection $connection)
+    {
+        return $this->refresh($request, $connection);
     }
 
     public function disconnect(Request $request, CampaignProspectProviderConnection $connection)
@@ -123,6 +155,27 @@ class MarketingProspectProviderConnectionController extends Controller
             'message' => 'Prospect provider connection disconnected.',
             'provider_connection' => $this->connectionService->payload($disconnected),
         ]);
+    }
+
+    public function oauthCallback(Request $request, string $provider)
+    {
+        try {
+            $result = $this->connectionService->completeAuthorization($provider, $request->query());
+        } catch (ValidationException $exception) {
+            $message = collect($exception->errors())
+                ->flatten()
+                ->filter(fn ($value) => is_string($value) && trim($value) !== '')
+                ->map(fn ($value) => trim((string) $value))
+                ->first() ?: 'The provider callback could not be processed.';
+
+            return redirect()
+                ->route('campaigns.prospect-providers.manage')
+                ->with('error', $message);
+        }
+
+        return redirect()
+            ->route('campaigns.prospect-providers.manage')
+            ->with(($result['success'] ?? false) ? 'success' : 'error', (string) ($result['message'] ?? 'Provider connection updated.'));
     }
 
     private function resolveAccess(?User $user): array

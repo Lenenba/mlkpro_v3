@@ -33,11 +33,7 @@ class ProspectProviderRegistry
     public function definitions(): array
     {
         return collect($this->adapters)
-            ->map(fn (ProspectProviderAdapter $adapter) => [
-                'key' => $adapter->key(),
-                'label' => $adapter->label(),
-                'credential_fields' => $adapter->credentialFields(),
-            ])
+            ->map(fn (ProspectProviderAdapter $adapter) => $adapter->definition())
             ->values()
             ->all();
     }

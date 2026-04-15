@@ -8,15 +8,17 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 
-class ApolloProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapter
+class ApolloProspectProviderAdapter extends AbstractOauthProspectProviderAdapter
 {
-    private const API_BASE_URL = 'https://api.apollo.io';
+    private const AUTHORIZATION_ENDPOINT = 'https://app.apollo.io/#/oauth/authorize';
 
-    private const AUTH_HEALTH_ENDPOINT = self::API_BASE_URL.'/v1/auth/health';
+    private const TOKEN_ENDPOINT = 'https://app.apollo.io/api/v1/oauth/token';
 
-    private const PEOPLE_SEARCH_ENDPOINT = self::API_BASE_URL.'/api/v1/mixed_people/api_search';
+    private const PROFILE_ENDPOINT = 'https://app.apollo.io/api/v1/users/api_profile';
 
-    private const PEOPLE_BULK_MATCH_ENDPOINT = self::API_BASE_URL.'/api/v1/people/bulk_match';
+    private const PEOPLE_SEARCH_ENDPOINT = 'https://api.apollo.io/api/v1/mixed_people/api_search';
+
+    private const PEOPLE_BULK_MATCH_ENDPOINT = 'https://api.apollo.io/api/v1/people/bulk_match';
 
     public function key(): string
     {
@@ -29,19 +31,103 @@ class ApolloProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * @return array<int, string>
      */
-    public function credentialFields(): array
+    public function scopes(): array
     {
+        $configuredScopes = config('services.apollo.oauth.scopes', [
+            'read_user_profile',
+            'contacts_search',
+            'person_read',
+        ]);
+
+        if (! is_array($configuredScopes)) {
+            return ['read_user_profile', 'contacts_search', 'person_read'];
+        }
+
+        return collect($configuredScopes)
+            ->map(fn ($value) => trim((string) $value))
+            ->filter(fn (string $value) => $value !== '')
+            ->values()
+            ->all();
+    }
+
+    public function setupRequired(): bool
+    {
+        return trim((string) config('services.apollo.oauth.client_id')) === ''
+            || trim((string) config('services.apollo.oauth.client_secret')) === '';
+    }
+
+    public function setupMessage(): ?string
+    {
+        if (! $this->setupRequired()) {
+            return null;
+        }
+
+        return 'Configure APOLLO_OAUTH_CLIENT_ID and APOLLO_OAUTH_CLIENT_SECRET to enable the Apollo redirect flow.';
+    }
+
+    public function beginAuthorization(CampaignProspectProviderConnection $connection, string $state): ?string
+    {
+        if ($this->setupRequired()) {
+            throw ValidationException::withMessages([
+                'provider_key' => $this->setupMessage() ?? 'Apollo OAuth is not configured yet.',
+            ]);
+        }
+
+        return config('services.apollo.oauth.authorize_url', self::AUTHORIZATION_ENDPOINT).'?'.http_build_query([
+            'client_id' => (string) config('services.apollo.oauth.client_id'),
+            'redirect_uri' => $this->redirectUri(),
+            'response_type' => 'code',
+            'scope' => implode(' ', $this->scopes()),
+            'state' => $state,
+        ], '', '&', PHP_QUERY_RFC3986);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function completeAuthorization(array $payload): array
+    {
+        $code = trim((string) ($payload['code'] ?? ''));
+
+        if ($code === '') {
+            throw ValidationException::withMessages([
+                'provider' => 'Apollo did not return an authorization code.',
+            ]);
+        }
+
+        $tokenPayload = $this->exchangeToken([
+            'grant_type' => 'authorization_code',
+            'code' => $code,
+        ]);
+
+        return $this->buildOauthAuthorizationResult($tokenPayload);
+    }
+
+    /**
+     * @param  array<string, mixed>  $credentials
+     * @return array<string, mixed>
+     */
+    public function refreshCredentials(array $credentials): array
+    {
+        $refreshToken = trim((string) ($credentials['refresh_token'] ?? ''));
+        if ($refreshToken === '') {
+            throw ValidationException::withMessages([
+                'provider' => 'Apollo must be reconnected because no refresh token is available.',
+            ]);
+        }
+
+        $tokenPayload = $this->exchangeToken([
+            'grant_type' => 'refresh_token',
+            'refresh_token' => $refreshToken,
+        ]);
+
         return [
-            [
-                'key' => 'api_key',
-                'label' => 'Apollo API key',
-                'type' => 'password',
-                'required' => true,
-                'placeholder' => 'Paste your Apollo master API key',
-                'help' => 'Requires People Search and Enrichment access. Stored encrypted for this tenant only.',
-            ],
+            ...$this->buildOauthAuthorizationResult($tokenPayload),
+            'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+            'message' => 'Apollo tokens refreshed.',
         ];
     }
 
@@ -51,13 +137,16 @@ class ApolloProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
      */
     public function validateCredentials(array $credentials): array
     {
-        $baseValidation = parent::validateCredentials($credentials);
-        if (! ($baseValidation['ok'] ?? false)) {
-            return $baseValidation;
+        $token = $this->runtimeToken($credentials);
+        if ($token === '') {
+            return [
+                'ok' => false,
+                'status' => CampaignProspectProviderConnection::STATUS_RECONNECT_REQUIRED,
+                'message' => 'Apollo must be reconnected before it can be used.',
+            ];
         }
 
-        $response = $this->apolloRequest((string) $credentials['api_key'])
-            ->get(self::AUTH_HEALTH_ENDPOINT);
+        $response = $this->profileRequest($token)->get(config('services.apollo.oauth.profile_url', self::PROFILE_ENDPOINT));
 
         if ($response->successful()) {
             return [
@@ -71,31 +160,22 @@ class ApolloProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
             return [
                 'ok' => false,
                 'status' => CampaignProspectProviderConnection::STATUS_RATE_LIMITED,
-                'message' => $this->responseMessage($response, 'Apollo rate limit reached while validating the API key.'),
-                'errors' => [
-                    'api_key' => 'Apollo rate limit reached while validating the API key.',
-                ],
+                'message' => $this->responseMessage($response, 'Apollo rate limit reached while validating this connection.'),
             ];
         }
 
         if (in_array($response->status(), [401, 403], true)) {
             return [
                 'ok' => false,
-                'status' => CampaignProspectProviderConnection::STATUS_INVALID,
-                'message' => $this->responseMessage($response, 'Apollo rejected the API key.'),
-                'errors' => [
-                    'api_key' => 'Apollo rejected the API key.',
-                ],
+                'status' => CampaignProspectProviderConnection::STATUS_RECONNECT_REQUIRED,
+                'message' => $this->responseMessage($response, 'Apollo authorization has expired or no longer grants the required scopes.'),
             ];
         }
 
         return [
             'ok' => false,
-            'status' => CampaignProspectProviderConnection::STATUS_DISCONNECTED,
+            'status' => CampaignProspectProviderConnection::STATUS_ERROR,
             'message' => $this->responseMessage($response, 'Apollo validation failed unexpectedly.'),
-            'errors' => [
-                'api_key' => 'Apollo validation failed unexpectedly.',
-            ],
         ];
     }
 
@@ -106,12 +186,12 @@ class ApolloProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
      */
     public function fetchPreview(array $credentials, array $queryContext, int $limit = 25): array
     {
-        $apiKey = trim((string) ($credentials['api_key'] ?? ''));
+        $token = $this->runtimeToken($credentials);
         $query = trim((string) ($queryContext['query'] ?? ''));
 
-        if ($apiKey === '') {
+        if ($token === '') {
             throw ValidationException::withMessages([
-                'provider_connection_id' => 'Apollo API key is required.',
+                'provider_connection_id' => 'Apollo must be connected before previewing prospects.',
             ]);
         }
 
@@ -121,7 +201,7 @@ class ApolloProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
             ]);
         }
 
-        $searchResponse = $this->apolloRequest($apiKey)->post(self::PEOPLE_SEARCH_ENDPOINT, [
+        $searchResponse = $this->apolloRequest($credentials)->post(self::PEOPLE_SEARCH_ENDPOINT, [
             'q_keywords' => $query,
             'page' => 1,
             'per_page' => max(1, min(25, $limit)),
@@ -134,7 +214,7 @@ class ApolloProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
             return [];
         }
 
-        $enrichmentByPersonId = $this->fetchBulkEnrichment($apiKey, $searchRows);
+        $enrichmentByPersonId = $this->fetchBulkEnrichment($credentials, $searchRows);
 
         return collect($searchRows)
             ->map(function (array $row) use ($enrichmentByPersonId): array {
@@ -269,10 +349,91 @@ class ApolloProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
         ]);
     }
 
+    protected function shortDescription(): string
+    {
+        return 'Connect Apollo with a native OAuth redirect so the tenant can approve access without copying secrets.';
+    }
+
+    protected function connectDescription(): string
+    {
+        return 'Your team signs into Apollo, reviews the requested scopes, and returns with the workspace linked automatically.';
+    }
+
+    /**
+     * @param  array<string, mixed>  $tokenPayload
+     * @return array<string, mixed>
+     */
+    private function buildOauthAuthorizationResult(array $tokenPayload): array
+    {
+        $normalizedTokenPayload = $this->normalizeOauthTokenPayload($tokenPayload);
+        $runtimeCredentials = (array) ($normalizedTokenPayload['credentials'] ?? []);
+        $profileResponse = $this->profileRequest((string) ($runtimeCredentials['access_token'] ?? ''))
+            ->get(config('services.apollo.oauth.profile_url', self::PROFILE_ENDPOINT));
+
+        if (! $profileResponse->successful()) {
+            throw ValidationException::withMessages([
+                'provider' => $this->responseMessage($profileResponse, 'Apollo connected, but the user profile could not be loaded.'),
+            ]);
+        }
+
+        $externalAccount = $this->normalizeExternalAccount((array) $profileResponse->json());
+
+        return [
+            ...$normalizedTokenPayload,
+            'external_account_id' => $externalAccount['external_account_id'] ?? null,
+            'external_account_label' => $externalAccount['external_account_label'] ?? null,
+            'metadata' => [
+                ...((array) ($normalizedTokenPayload['metadata'] ?? [])),
+                ...((array) ($externalAccount['metadata'] ?? [])),
+                'oauth_provider' => $this->key(),
+                'oauth_connected' => true,
+            ],
+            'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+            'message' => 'Apollo connected.',
+        ];
+    }
+
+    /**
+     * @param  array<string, string>  $payload
+     * @return array<string, mixed>
+     */
+    private function exchangeToken(array $payload): array
+    {
+        if ($this->setupRequired()) {
+            throw ValidationException::withMessages([
+                'provider' => $this->setupMessage() ?? 'Apollo OAuth is not configured yet.',
+            ]);
+        }
+
+        $response = Http::acceptJson()
+            ->asForm()
+            ->timeout(20)
+            ->post(config('services.apollo.oauth.token_url', self::TOKEN_ENDPOINT), [
+                ...$payload,
+                'client_id' => (string) config('services.apollo.oauth.client_id'),
+                'client_secret' => (string) config('services.apollo.oauth.client_secret'),
+                'redirect_uri' => $this->redirectUri(),
+            ]);
+
+        if ($response->successful()) {
+            return (array) $response->json();
+        }
+
+        if (in_array($response->status(), [400, 401, 403], true)) {
+            throw ValidationException::withMessages([
+                'provider' => $this->responseMessage($response, 'Apollo rejected the authorization response. Reconnect the account and try again.'),
+            ]);
+        }
+
+        throw ValidationException::withMessages([
+            'provider' => $this->responseMessage($response, 'Apollo token exchange failed unexpectedly.'),
+        ]);
+    }
+
     /**
      * @return array<string, array<string, mixed>>
      */
-    private function fetchBulkEnrichment(string $apiKey, array $searchRows): array
+    private function fetchBulkEnrichment(array $credentials, array $searchRows): array
     {
         $people = collect($searchRows)
             ->map(fn (array $row) => $this->apolloPersonId($row))
@@ -292,7 +453,7 @@ class ApolloProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
                 ->values()
                 ->all();
 
-            $response = $this->apolloRequest($apiKey)->post(self::PEOPLE_BULK_MATCH_ENDPOINT, [
+            $response = $this->apolloRequest($credentials)->post(self::PEOPLE_BULK_MATCH_ENDPOINT, [
                 'details' => $details,
                 'reveal_phone_number' => true,
                 'reveal_personal_emails' => false,
@@ -313,13 +474,40 @@ class ApolloProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
         return $enriched;
     }
 
-    private function apolloRequest(string $apiKey): PendingRequest
+    /**
+     * @param  array<string, mixed>  $credentials
+     */
+    private function apolloRequest(array $credentials): PendingRequest
+    {
+        $token = $this->runtimeToken($credentials);
+
+        return Http::acceptJson()
+            ->timeout(20)
+            ->withToken($token);
+    }
+
+    private function profileRequest(string $token): PendingRequest
     {
         return Http::acceptJson()
             ->timeout(20)
-            ->withHeaders([
-                'X-Api-Key' => $apiKey,
-            ]);
+            ->withToken($token);
+    }
+
+    /**
+     * @param  array<string, mixed>  $credentials
+     */
+    private function runtimeToken(array $credentials): string
+    {
+        return trim((string) ($credentials['access_token'] ?? $credentials['api_key'] ?? ''));
+    }
+
+    private function redirectUri(): string
+    {
+        $configured = trim((string) config('services.apollo.oauth.redirect_uri', ''));
+
+        return $configured !== ''
+            ? $configured
+            : route('marketing.prospect-providers.oauth.callback', ['provider' => $this->key()]);
     }
 
     private function assertApolloPreviewResponse(Response $response, string $fallbackMessage): void
@@ -338,7 +526,7 @@ class ApolloProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
 
         if (in_array($response->status(), [401, 403], true)) {
             throw ValidationException::withMessages([
-                'provider_connection_id' => $message !== '' ? $message : 'Apollo rejected the API key or permissions for this request.',
+                'provider_connection_id' => $message !== '' ? $message : 'Apollo authorization has expired or no longer grants the required scopes.',
             ]);
         }
 
@@ -422,31 +610,5 @@ class ApolloProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapte
         $normalized = trim((string) $value);
 
         return $normalized !== '' ? $normalized : null;
-    }
-
-    /**
-     * @param  array<int, mixed>  $candidates
-     */
-    private function firstNonEmptyString(array $candidates): string
-    {
-        foreach ($candidates as $candidate) {
-            $value = trim((string) $candidate);
-            if ($value !== '') {
-                return $value;
-            }
-        }
-
-        return '';
-    }
-
-    private function responseMessage(Response $response, string $fallback): string
-    {
-        return $this->firstNonEmptyString([
-            data_get($response->json(), 'message'),
-            data_get($response->json(), 'error'),
-            data_get($response->json(), 'errors.0.message'),
-            data_get($response->json(), 'errors.message'),
-            $fallback,
-        ]);
     }
 }
