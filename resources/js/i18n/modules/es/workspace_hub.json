@@ -12,6 +12,11 @@
         "category_count": "{count} herramienta | {count} herramientas",
         "empty_title": "Todavia no hay nada disponible aqui",
         "empty_body": "Esta categoria se vuelve util en cuanto los modulos correspondientes esten activados para el espacio y el rol.",
+        "breadcrumbs": {
+            "create": "Crear",
+            "edit": "Editar",
+            "proofs": "Pruebas"
+        },
         "badges": {
             "pending": "{count} pendientes"
         },

@@ -12,6 +12,11 @@
         "category_count": "{count} tool | {count} tools",
         "empty_title": "Nothing is available here yet",
         "empty_body": "This category becomes useful as soon as the matching modules are enabled for the workspace and role.",
+        "breadcrumbs": {
+            "create": "Create",
+            "edit": "Edit",
+            "proofs": "Proofs"
+        },
         "badges": {
             "pending": "{count} pending"
         },
