@@ -58,6 +58,7 @@ test('billing settings update persists phase1 payment fields', function () {
         'payment_methods' => ['cash', 'card'],
         'default_payment_method' => 'cash',
         'cash_allowed_contexts' => ['invoice'],
+        'company_features' => ['loyalty' => true],
     ]);
 
     $response = $this

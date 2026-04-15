@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
-import { Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
@@ -13,13 +13,13 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
-import { isFeatureEnabled } from '@/utils/features';
 import { buildLeadScore, badgeClass } from '@/utils/leadScore';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useDataTableSelection } from '@/Composables/useDataTableSelection';
 import { useI18n } from 'vue-i18n';
 import RequestBoard from '@/Pages/Request/UI/RequestBoard.vue';
 import RequestTableActionsMenu from '@/Pages/Request/UI/RequestTableActionsMenu.vue';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 import {
     createBulkActionFailureResult,
     dispatchBulkActionToast,
@@ -60,6 +60,7 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const { hasFeature } = useAccountFeatures();
 
 const allowedViews = ['table', 'board'];
 const resolveView = (value) => (allowedViews.includes(value) ? value : 'table');
@@ -655,10 +656,8 @@ const setLeadStatus = (lead, status) => {
     });
 };
 
-const page = usePage();
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
-const canUseRequests = computed(() => isFeatureEnabled(featureFlags.value, 'requests'));
-const canUseQuotes = computed(() => isFeatureEnabled(featureFlags.value, 'quotes'));
+const canUseRequests = computed(() => hasFeature('requests'));
+const canUseQuotes = computed(() => hasFeature('quotes'));
 
 const openQuickCreate = () => {
     if (window.HSOverlay) {

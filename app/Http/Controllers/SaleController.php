@@ -282,12 +282,17 @@ class SaleController extends Controller
         }
         [$accountOwner] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
-        $loyaltyFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($accountOwner, 'loyalty');
+        $featureService = app(CompanyFeatureService::class);
+        $loyaltyFeatureEnabled = $featureService->hasFeature($accountOwner, 'loyalty');
+        $customerColumns = ['id', 'first_name', 'last_name', 'company_name', 'email', 'phone', 'discount_rate'];
+        if ($loyaltyFeatureEnabled) {
+            $customerColumns[] = 'loyalty_points_balance';
+        }
 
         $customers = Customer::query()
             ->where('user_id', $accountId)
             ->orderBy('company_name')
-            ->get(['id', 'first_name', 'last_name', 'company_name', 'email', 'phone', 'discount_rate', 'loyalty_points_balance']);
+            ->get($customerColumns);
 
         $products = Product::query()
             ->where('user_id', $accountId)
@@ -310,10 +315,6 @@ class SaleController extends Controller
             ]);
         $this->hydrateSellableStock($products);
 
-        $loyaltyProgram = $loyaltyFeatureEnabled
-            ? app(LoyaltyPointService::class)->resolveProgramForAccount((int) $accountId, true)
-            : null;
-
         return $this->inertiaOrJson('Sales/Create', [
             'customers' => $customers,
             'products' => $products,
@@ -321,14 +322,21 @@ class SaleController extends Controller
                 'enabled' => app(StripeSaleService::class)->isConfigured(),
             ],
             'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $accountId),
-            'loyaltyProgram' => [
-                'feature_enabled' => $loyaltyFeatureEnabled,
-                'is_enabled' => (bool) ($loyaltyFeatureEnabled && ($loyaltyProgram?->is_enabled ?? false)),
-                'points_per_currency_unit' => (float) ($loyaltyProgram?->points_per_currency_unit ?? 1),
-                'minimum_spend' => (float) ($loyaltyProgram?->minimum_spend ?? 0),
-                'rounding_mode' => (string) ($loyaltyProgram?->rounding_mode ?? LoyaltyProgram::ROUND_FLOOR),
-                'points_label' => (string) (($loyaltyProgram?->points_label) ?: 'points'),
-            ],
+            'loyaltyProgram' => $featureService->resolveFeatureValue(
+                $accountOwner,
+                'loyalty',
+                function () use ($accountId): array {
+                    $loyaltyProgram = app(LoyaltyPointService::class)->resolveProgramForAccount((int) $accountId, true);
+
+                    return [
+                        'is_enabled' => (bool) ($loyaltyProgram?->is_enabled ?? false),
+                        'points_per_currency_unit' => (float) ($loyaltyProgram?->points_per_currency_unit ?? 1),
+                        'minimum_spend' => (float) ($loyaltyProgram?->minimum_spend ?? 0),
+                        'rounding_mode' => (string) ($loyaltyProgram?->rounding_mode ?? LoyaltyProgram::ROUND_FLOOR),
+                        'points_label' => (string) (($loyaltyProgram?->points_label) ?: 'points'),
+                    ];
+                }
+            ),
         ]);
     }
 

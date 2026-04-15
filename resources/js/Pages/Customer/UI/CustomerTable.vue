@@ -5,7 +5,7 @@ import {
     watch,
 } from 'vue';
 import axios from 'axios';
-import { Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
@@ -21,7 +21,6 @@ import Checkbox from '@/Components/Checkbox.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { useI18n } from 'vue-i18n';
-import { isFeatureEnabled } from '@/utils/features';
 import {
     createBulkActionFailureResult,
     dispatchBulkActionToast,
@@ -29,6 +28,7 @@ import {
     normalizeBulkActionResult,
     resolveBulkActionErrorMessage,
 } from '@/utils/bulkActions';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     filters: Object,
@@ -51,8 +51,7 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
-const page = usePage();
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
+const { hasFeature } = useAccountFeatures();
 
 const canEdit = computed(() => Boolean(props.canEdit));
 const campaignsFeatureEnabled = computed(() => {
@@ -62,7 +61,7 @@ const campaignsFeatureEnabled = computed(() => {
         return Boolean(capability);
     }
 
-    return canEdit.value && isFeatureEnabled(featureFlags.value, 'campaigns');
+    return canEdit.value && hasFeature('campaigns');
 });
 
 const filterForm = useForm({

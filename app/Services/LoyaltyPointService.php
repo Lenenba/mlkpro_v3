@@ -8,6 +8,7 @@ use App\Models\LoyaltyPointLedger;
 use App\Models\LoyaltyProgram;
 use App\Models\Payment;
 use App\Models\Sale;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -23,23 +24,23 @@ class LoyaltyPointService
 
     public function awardForPayment(Payment $payment): void
     {
-        if (!$this->isSettled($payment)) {
+        if (! $this->isSettled($payment)) {
             return;
         }
 
         $customer = $this->resolveCustomer($payment);
-        if (!$customer) {
+        if (! $customer) {
             return;
         }
 
         $accountId = $this->resolveAccountId($payment, $customer);
-        if (!$accountId) {
+        if (! $accountId) {
             return;
         }
 
         $program = $this->resolveProgramForAccount($accountId);
 
-        if (!$program || !$program->is_enabled) {
+        if (! $program || ! $program->is_enabled) {
             return;
         }
 
@@ -71,12 +72,12 @@ class LoyaltyPointService
                 ]
             );
 
-            if (!$ledger->wasRecentlyCreated) {
+            if (! $ledger->wasRecentlyCreated) {
                 return;
             }
 
             $customerForUpdate = Customer::query()->lockForUpdate()->find($customer->id);
-            if (!$customerForUpdate) {
+            if (! $customerForUpdate) {
                 return;
             }
 
@@ -94,8 +95,13 @@ class LoyaltyPointService
             return null;
         }
 
+        $accountOwner = User::query()->find($accountId);
+        if (! $accountOwner || ! app(CompanyFeatureService::class)->hasFeature($accountOwner, 'loyalty')) {
+            return null;
+        }
+
         $query = LoyaltyProgram::query()->where('user_id', $accountId);
-        if (!$createIfMissing) {
+        if (! $createIfMissing) {
             return $query->first();
         }
 
@@ -134,14 +140,14 @@ class LoyaltyPointService
             ];
         }
 
-        if (!$sale->customer_id) {
+        if (! $sale->customer_id) {
             throw ValidationException::withMessages([
                 'loyalty_points_redeem' => 'Selectionnez un client pour utiliser ses points.',
             ]);
         }
 
         $program = $this->resolveProgramForAccount((int) $sale->user_id, true);
-        if (!$program || !$program->is_enabled) {
+        if (! $program || ! $program->is_enabled) {
             throw ValidationException::withMessages([
                 'loyalty_points_redeem' => 'Le programme fidelite est desactive.',
             ]);
@@ -164,7 +170,7 @@ class LoyaltyPointService
 
         return DB::transaction(function () use ($sale, $requestedPoints, $maxPointsByAmount, $maxAmount, $program): array {
             $customer = Customer::query()->lockForUpdate()->find($sale->customer_id);
-            if (!$customer || (int) $customer->user_id !== (int) $sale->user_id) {
+            if (! $customer || (int) $customer->user_id !== (int) $sale->user_id) {
                 throw ValidationException::withMessages([
                     'customer_id' => 'Client invalide pour ce compte.',
                 ]);
@@ -214,7 +220,7 @@ class LoyaltyPointService
     {
         return DB::transaction(function () use ($sale, $reason): array {
             $saleForUpdate = Sale::query()->lockForUpdate()->find($sale->id);
-            if (!$saleForUpdate) {
+            if (! $saleForUpdate) {
                 return [
                     'points' => 0,
                     'amount' => 0.0,
@@ -240,7 +246,7 @@ class LoyaltyPointService
                 ];
             }
 
-            if (!$saleForUpdate->customer_id) {
+            if (! $saleForUpdate->customer_id) {
                 $saleForUpdate->forceFill([
                     'loyalty_points_redeemed' => 0,
                     'loyalty_discount_total' => 0,
@@ -306,7 +312,7 @@ class LoyaltyPointService
             ->where('event', LoyaltyPointLedger::EVENT_ACCRUAL)
             ->first();
 
-        if (!$accrual || (int) $accrual->points <= 0) {
+        if (! $accrual || (int) $accrual->points <= 0) {
             return;
         }
 
@@ -328,12 +334,12 @@ class LoyaltyPointService
                 ]
             );
 
-            if (!$refund->wasRecentlyCreated) {
+            if (! $refund->wasRecentlyCreated) {
                 return;
             }
 
             $customerForUpdate = Customer::query()->lockForUpdate()->find($accrual->customer_id);
-            if (!$customerForUpdate) {
+            if (! $customerForUpdate) {
                 return;
             }
 

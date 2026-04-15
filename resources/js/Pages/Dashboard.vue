@@ -8,8 +8,8 @@ import KpiTrendBadge from '@/Components/Dashboard/KpiTrendBadge.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
-import { isFeatureEnabled } from '@/utils/features';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     stats: {
@@ -80,6 +80,7 @@ const props = defineProps({
 
 const page = usePage();
 const { t } = useI18n();
+const { hasFeature } = useAccountFeatures();
 const userName = computed(() => page.props.auth?.user?.name || '');
 const greeting = computed(() =>
     userName.value
@@ -89,8 +90,6 @@ const greeting = computed(() =>
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
-const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
 const hasCatalogFeature = computed(() =>
     showServices.value ? hasFeature('services') : hasFeature('products')
 );

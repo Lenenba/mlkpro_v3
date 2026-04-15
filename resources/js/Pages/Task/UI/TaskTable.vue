@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import draggable from 'vuedraggable';
 import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
-import { Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import Modal from '@/Components/UI/Modal.vue';
@@ -15,7 +15,7 @@ import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import TaskActionsMenu from '@/Pages/Task/UI/TaskActionsMenu.vue';
 import { humanizeDate } from '@/utils/date';
-import { isFeatureEnabled } from '@/utils/features';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     tasks: {
@@ -69,9 +69,8 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
-const page = usePage();
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
-const hasTeamMembersFeature = computed(() => isFeatureEnabled(featureFlags.value, 'team_members'));
+const { hasFeature } = useAccountFeatures();
+const hasTeamMembersFeature = computed(() => hasFeature('team_members'));
 
 const filterForm = useForm({
     search: props.filters?.search ?? '',

@@ -100,3 +100,37 @@ it('disables accounting automatically when expenses are not enabled', function (
     expect($resolved['expenses'] ?? null)->toBeFalse()
         ->and($resolved['accounting'] ?? null)->toBeFalse();
 });
+
+it('does not infer loyalty availability from stored loyalty data when the feature is disabled', function () {
+    $ownerRoleId = \App\Models\Role::query()->firstOrCreate(
+        ['name' => 'owner'],
+        ['description' => 'Account owner role']
+    )->id;
+
+    $owner = \App\Models\User::query()->create([
+        'name' => 'Loyalty Disabled Owner',
+        'email' => 'loyalty-disabled-owner@example.com',
+        'password' => 'password',
+        'role_id' => $ownerRoleId,
+        'company_type' => 'services',
+        'onboarding_completed_at' => now(),
+        'company_features' => [
+            'loyalty' => false,
+        ],
+    ]);
+
+    \App\Models\LoyaltyProgram::query()->create([
+        'user_id' => $owner->id,
+        'is_enabled' => true,
+        'points_per_currency_unit' => 2,
+        'minimum_spend' => 10,
+        'rounding_mode' => 'round',
+        'points_label' => 'pts',
+    ]);
+
+    $resolved = app(CompanyFeatureService::class)->resolveEffectiveFeatures($owner);
+
+    expect($resolved['loyalty'] ?? null)->toBeFalse()
+        ->and(app(CompanyFeatureService::class)->hasFeature($owner, 'loyalty'))->toBeFalse()
+        ->and(app(CompanyFeatureService::class)->resolveEnabledFeatures($owner))->not->toHaveKey('loyalty');
+});

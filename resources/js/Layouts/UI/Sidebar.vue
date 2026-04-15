@@ -7,10 +7,10 @@ import MenuDropdown from "@/Components/UI/LinkAncor2.vue";
 import LanguageSwitcherMenu from '@/Components/UI/LanguageSwitcherMenu.vue';
 import QuickCreateModals from "@/Components/QuickCreate/QuickCreateModals.vue";
 import CategoryIcon from '@/Components/Workspace/CategoryIcon.vue';
-import { isFeatureEnabled } from '@/utils/features';
 import { defaultAvatarIcon } from '@/utils/iconPresets';
 import { buildWorkspaceHubCategories } from '@/utils/workspaceHub';
 import NotificationBell from '@/Components/UI/NotificationBell.vue';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const page = usePage()
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
@@ -24,8 +24,7 @@ const platformPermissions = computed(() => page.props.auth?.account?.platform?.p
 const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
 const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
 const isTeamMember = computed(() => Boolean(teamRole.value));
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
-const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
+const { hasFeature } = useAccountFeatures();
 const showPlatformNav = computed(() => isSuperadmin.value || isPlatformAdmin.value);
 const canPlatform = (permission) => isSuperadmin.value || platformPermissions.value.includes(permission);
 const homeRoute = computed(() => (showPlatformNav.value ? 'superadmin.dashboard' : 'dashboard'));

@@ -39,6 +39,7 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
         $ownerId = $user?->accountOwnerId();
         $siteUrl = rtrim((string) (config('app.url') ?: $request->getSchemeAndHttpHost()), '/');
+        $featureService = app(CompanyFeatureService::class);
 
         $accountOwner = null;
         $accountFeatures = null;
@@ -60,7 +61,7 @@ class HandleInertiaRequests extends Middleware
                     ->find($ownerId);
         }
         if ($user && $accountOwner) {
-            $accountFeatures = app(CompanyFeatureService::class)->resolveEnabledFeatures($accountOwner);
+            $accountFeatures = $featureService->resolveEnabledFeatures($accountOwner);
         }
 
         $impersonatorId = $request->session()->get('impersonator_id');
@@ -107,31 +108,53 @@ class HandleInertiaRequests extends Middleware
             ];
         }
 
-        $planningPendingCount = 0;
-        if ($user && $accountOwner && ($accountFeatures['planning'] ?? false) && ($accountFeatures['team_members'] ?? false)) {
-            $isServiceCompany = $accountOwner->company_type !== 'products';
-            $canApproveTimeOff = $user->id === $accountOwner->id;
-            if ($teamMembership) {
-                $isRoleApprover = in_array($teamMembership->role, ['admin', 'sales_manager'], true);
-                $hasManagePermission = $isServiceCompany
-                    ? ($teamMembership->hasPermission('jobs.edit') || $teamMembership->hasPermission('tasks.edit'))
-                    : $teamMembership->hasPermission('sales.manage');
-                $canApproveTimeOff = $canApproveTimeOff || $isRoleApprover || $hasManagePermission;
-            }
-            if ($canApproveTimeOff) {
-                $planningPendingCount = TeamMemberShift::query()
-                    ->where('account_id', $accountOwner->id)
-                    ->whereIn('kind', ['absence', 'leave'])
-                    ->where('status', 'pending')
-                    ->count();
-            }
+        $planning = null;
+        if ($user && $accountOwner) {
+            $planning = $featureService->resolveFeatureValue(
+                $accountOwner,
+                'planning',
+                function () use ($accountFeatures, $accountOwner, $teamMembership, $user): array {
+                    $planningPendingCount = 0;
+
+                    if (! ($accountFeatures['team_members'] ?? false)) {
+                        return [
+                            'pending_count' => $planningPendingCount,
+                        ];
+                    }
+
+                    $isServiceCompany = $accountOwner->company_type !== 'products';
+                    $canApproveTimeOff = $user->id === $accountOwner->id;
+
+                    if ($teamMembership) {
+                        $isRoleApprover = in_array($teamMembership->role, ['admin', 'sales_manager'], true);
+                        $hasManagePermission = $isServiceCompany
+                            ? ($teamMembership->hasPermission('jobs.edit') || $teamMembership->hasPermission('tasks.edit'))
+                            : $teamMembership->hasPermission('sales.manage');
+                        $canApproveTimeOff = $canApproveTimeOff || $isRoleApprover || $hasManagePermission;
+                    }
+
+                    if ($canApproveTimeOff) {
+                        $planningPendingCount = TeamMemberShift::query()
+                            ->where('account_id', $accountOwner->id)
+                            ->whereIn('kind', ['absence', 'leave'])
+                            ->where('status', 'pending')
+                            ->count();
+                    }
+
+                    return [
+                        'pending_count' => $planningPendingCount,
+                    ];
+                }
+            );
         }
 
-        $assistantEnabled = (bool) config('services.openai.key');
-        if (! $user) {
-            $assistantEnabled = false;
-        } elseif ($accountFeatures !== null) {
-            $assistantEnabled = $assistantEnabled && (bool) ($accountFeatures['assistant'] ?? false);
+        $assistant = null;
+        if ($user && $accountOwner && (bool) config('services.openai.key')) {
+            $assistant = $featureService->resolveFeatureValue(
+                $accountOwner,
+                'assistant',
+                static fn (): array => ['enabled' => true]
+            );
         }
 
         $demoWorkspace = null;
@@ -176,9 +199,7 @@ class HandleInertiaRequests extends Middleware
                 'maintenance' => $maintenance,
             ],
             'notifications' => $notifications,
-            'planning' => [
-                'pending_count' => $planningPendingCount,
-            ],
+            'planning' => $planning,
             'locale' => app()->getLocale(),
             'locales' => LocalePreference::supported(),
             'branding' => [
@@ -202,9 +223,7 @@ class HandleInertiaRequests extends Middleware
                 'workspace_prospect_name' => $demoWorkspace?->prospect_name,
                 'expires_at' => $demoWorkspace?->expires_at?->toIso8601String(),
             ],
-            'assistant' => [
-                'enabled' => $assistantEnabled,
-            ],
+            'assistant' => $assistant,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

@@ -1,23 +1,21 @@
 <script setup>
 import { computed, ref } from 'vue';
 import axios from 'axios';
-import { usePage } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import ProductQuickForm from '@/Components/QuickCreate/ProductQuickForm.vue';
 import ServiceQuickForm from '@/Components/QuickCreate/ServiceQuickForm.vue';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
 import QuoteQuickDialog from '@/Components/QuickCreate/QuoteQuickDialog.vue';
 import RequestQuickForm from '@/Components/QuickCreate/RequestQuickForm.vue';
-import { isFeatureEnabled } from '@/utils/features';
 import { useI18n } from 'vue-i18n';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
-const page = usePage();
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
-const canProducts = computed(() => isFeatureEnabled(featureFlags.value, 'products'));
-const canServices = computed(() => isFeatureEnabled(featureFlags.value, 'services'));
-const canQuotes = computed(() => isFeatureEnabled(featureFlags.value, 'quotes'));
-const canRequests = computed(() => isFeatureEnabled(featureFlags.value, 'requests'));
-const canSales = computed(() => isFeatureEnabled(featureFlags.value, 'sales'));
+const { hasFeature } = useAccountFeatures();
+const canProducts = computed(() => hasFeature('products'));
+const canServices = computed(() => hasFeature('services'));
+const canQuotes = computed(() => hasFeature('quotes'));
+const canRequests = computed(() => hasFeature('requests'));
+const canSales = computed(() => hasFeature('sales'));
 const categoryOptionsRoutes = computed(() => {
     const routes = [];
     if (canProducts.value) {

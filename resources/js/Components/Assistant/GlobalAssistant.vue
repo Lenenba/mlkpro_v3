@@ -2,10 +2,13 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { MEDIA_LIMITS, formatBytes, resizeImageFile } from '@/utils/media';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const page = usePage();
+const { visibleFeaturePayload } = useAccountFeatures();
 
-const assistantEnabled = computed(() => Boolean(page.props.assistant?.enabled));
+const assistantState = computed(() => visibleFeaturePayload('assistant', page.props.assistant));
+const assistantEnabled = computed(() => Boolean(assistantState.value?.enabled));
 const locale = computed(() => page.props.locale || 'fr');
 const normalizedLocale = computed(() => String(locale.value || 'fr').toLowerCase());
 const speechLocale = computed(() => {

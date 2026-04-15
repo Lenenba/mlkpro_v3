@@ -3,10 +3,11 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
-import { isFeatureEnabled } from '@/utils/features';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const page = usePage();
 const { t } = useI18n();
+const { hasFeature } = useAccountFeatures();
 
 const isOpen = ref(false);
 const query = ref('');
@@ -24,8 +25,6 @@ const canSearch = computed(() => !isClient.value);
 const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
 const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
 const isSeller = computed(() => teamRole.value === 'seller');
-const featureFlags = computed(() => page.props.auth?.account?.features || {});
-const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
 const searchPlaceholder = computed(() => (
     hasFeature('team_members')
         ? t('global_search.placeholder')

@@ -67,7 +67,13 @@ class BuildCustomerDetailViewData
             ? $this->featureService->hasFeature($accountOwner, 'campaigns')
             : false;
         $canManageMailingLists = $this->canManageMailingLists($user, $accountOwner, $campaignsFeatureEnabled);
-        $loyalty = $this->buildLoyalty($customer, $accountId, $accountOwner);
+        $loyalty = $accountOwner
+            ? $this->featureService->resolveFeatureValue(
+                $accountOwner,
+                'loyalty',
+                fn (): array => $this->buildLoyalty($customer, $accountId),
+            )
+            : null;
         $vipTiers = $campaignsFeatureEnabled
             ? VipTier::query()
                 ->where('user_id', $accountId)
@@ -155,14 +161,9 @@ class BuildCustomerDetailViewData
         );
     }
 
-    private function buildLoyalty(Customer $customer, int $accountId, ?User $accountOwner): array
+    private function buildLoyalty(Customer $customer, int $accountId): array
     {
-        $loyaltyFeatureEnabled = $accountOwner
-            ? $this->featureService->hasFeature($accountOwner, 'loyalty')
-            : false;
-
         $loyalty = [
-            'feature_enabled' => $loyaltyFeatureEnabled,
             'enabled' => false,
             'label' => 'points',
             'balance' => (int) ($customer->loyalty_points_balance ?? 0),
@@ -171,10 +172,6 @@ class BuildCustomerDetailViewData
             'rounding_mode' => 'floor',
             'recent' => [],
         ];
-
-        if (! $loyaltyFeatureEnabled) {
-            return $loyalty;
-        }
 
         $loyaltyProgram = LoyaltyProgram::query()
             ->where('user_id', $accountId)
