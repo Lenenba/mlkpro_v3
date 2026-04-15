@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { MEDIA_LIMITS, formatBytes, resizeImageFile } from '@/utils/media';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
@@ -99,6 +99,7 @@ const pendingAutoSend = ref(false);
 const attachment = ref(null);
 const attachmentError = ref('');
 const attachmentInputRef = ref(null);
+let persistTimeout = null;
 
 const MAX_PLAN_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 
@@ -125,10 +126,29 @@ const scrollToBottom = async () => {
 };
 
 const persistState = () => {
-    localStorage.setItem(storageKey.value, JSON.stringify(context.value || {}));
-    localStorage.setItem(messagesKey.value, JSON.stringify(messages.value || []));
-    localStorage.setItem(voiceReplyKey.value, voiceReplyEnabled.value ? '1' : '0');
-    localStorage.setItem(autoSendKey.value, autoSendVoice.value ? '1' : '0');
+    try {
+        const persistedMessages = Array.isArray(messages.value)
+            ? messages.value.slice(-60)
+            : [];
+
+        localStorage.setItem(storageKey.value, JSON.stringify(context.value || {}));
+        localStorage.setItem(messagesKey.value, JSON.stringify(persistedMessages));
+        localStorage.setItem(voiceReplyKey.value, voiceReplyEnabled.value ? '1' : '0');
+        localStorage.setItem(autoSendKey.value, autoSendVoice.value ? '1' : '0');
+    } catch (error) {
+        // Ignore storage write failures so the assistant UI stays responsive.
+    }
+};
+
+const schedulePersistState = () => {
+    if (persistTimeout) {
+        clearTimeout(persistTimeout);
+    }
+
+    persistTimeout = setTimeout(() => {
+        persistState();
+        persistTimeout = null;
+    }, 180);
 };
 
 const restoreState = () => {
@@ -633,7 +653,7 @@ const toggleListening = () => {
     startListening();
 };
 
-watch([messages, context], persistState, { deep: true });
+watch([messages, context], schedulePersistState, { deep: true });
 watch(accountKey, () => {
     context.value = {};
     messages.value = [];
@@ -643,6 +663,13 @@ watch(accountKey, () => {
 
 onMounted(() => {
     restoreState();
+});
+
+onBeforeUnmount(() => {
+    if (persistTimeout) {
+        clearTimeout(persistTimeout);
+        persistTimeout = null;
+    }
 });
 </script>
 

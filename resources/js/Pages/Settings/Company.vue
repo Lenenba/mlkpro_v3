@@ -1211,6 +1211,16 @@ const usageStatusClass = (status) => {
 
 const isProductCompany = computed(() => form.company_type === 'products');
 const isServiceCompany = computed(() => form.company_type === 'services');
+const hasFulfillmentErrors = computed(() => {
+    const keys = [
+        'company_fulfillment.delivery_zone',
+        'company_fulfillment.pickup_address',
+        'company_fulfillment.prep_time_minutes',
+        'company_fulfillment.delivery_fee',
+    ];
+    return keys.some((k) => Boolean(form.errors[k]));
+});
+const showFulfillmentSection = computed(() => isProductCompany.value || hasFulfillmentErrors.value);
 const storeTabLabel = computed(() => (
     isProductCompany.value
         ? t('settings.company.tabs.store.label')
@@ -1728,7 +1738,7 @@ watch(activeTab, (value) => {
                         </p>
                     </div>
 
-                    <div v-if="isProductCompany" class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
+                    <div v-if="showFulfillmentSection" class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
                         <div>
                             <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ $t('settings.company.delivery.title') }}
