@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\AiImageController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\CampaignAutomationController;
@@ -105,6 +106,7 @@ use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WorkController;
 use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkProofController;
+use App\Http\Controllers\WorkspaceCategoryController;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsurePlatformAdmin;
@@ -238,6 +240,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::get('/pipeline/timeline/{entityType}/{entityId}', [PipelineController::class, 'timeline'])
         ->name('pipeline.timeline');
     Route::get('/pipeline', [PipelineController::class, 'data'])->name('pipeline.data');
+    Route::get('/workspace-hubs/{category}', [WorkspaceCategoryController::class, 'show'])
+        ->where('category', 'revenue|growth|operations|finance|catalog|workspace')
+        ->name('workspace.hubs.show');
 
     Route::middleware('not.superadmin')->group(function () {
         Route::get('/settings/support', [SupportTicketController::class, 'index'])->name('settings.support.index');
@@ -626,6 +631,22 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/expenses/{expense}', [ExpenseController::class, 'show'])->name('expense.show');
         Route::put('/expenses/{expense}', [ExpenseController::class, 'update'])->name('expense.update');
         Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expense.destroy');
+    });
+
+    Route::middleware('company.feature:accounting')->group(function () {
+        Route::get('/accounting', [AccountingController::class, 'index'])->name('accounting.index');
+        Route::get('/accounting/export', [AccountingController::class, 'export'])->name('accounting.export');
+        Route::get('/accounting/exports/{accountingExport}', [AccountingController::class, 'downloadExport'])->name('accounting.exports.download');
+        Route::patch('/accounting/periods/{periodKey}/open', [AccountingController::class, 'openPeriod'])->where('periodKey', '\d{4}-\d{2}')->name('accounting.periods.open');
+        Route::patch('/accounting/periods/{periodKey}/in-review', [AccountingController::class, 'markPeriodInReview'])->where('periodKey', '\d{4}-\d{2}')->name('accounting.periods.in-review');
+        Route::patch('/accounting/periods/{periodKey}/close', [AccountingController::class, 'closePeriod'])->where('periodKey', '\d{4}-\d{2}')->name('accounting.periods.close');
+        Route::patch('/accounting/periods/{periodKey}/reopen', [AccountingController::class, 'reopenPeriod'])->where('periodKey', '\d{4}-\d{2}')->name('accounting.periods.reopen');
+        Route::patch('/accounting/entries/{accountingEntry}/unreview', [AccountingController::class, 'markEntryUnreviewed'])->name('accounting.entries.unreview');
+        Route::patch('/accounting/entries/{accountingEntry}/review', [AccountingController::class, 'markEntryReviewed'])->name('accounting.entries.review');
+        Route::patch('/accounting/entries/{accountingEntry}/reconcile', [AccountingController::class, 'markEntryReconciled'])->name('accounting.entries.reconcile');
+        Route::patch('/accounting/batches/{accountingEntryBatch}/unreview', [AccountingController::class, 'markBatchUnreviewed'])->name('accounting.batches.unreview');
+        Route::patch('/accounting/batches/{accountingEntryBatch}/review', [AccountingController::class, 'markBatchReviewed'])->name('accounting.batches.review');
+        Route::patch('/accounting/batches/{accountingEntryBatch}/reconcile', [AccountingController::class, 'markBatchReconciled'])->name('accounting.batches.reconcile');
     });
 
     Route::get('/finance-approvals', [FinanceApprovalInboxController::class, 'index'])

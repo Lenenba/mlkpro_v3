@@ -202,6 +202,13 @@ class DemoWorkspaceCatalog
                 'category' => 'Finance',
                 'company_types' => ['services', 'products'],
             ],
+            'accounting' => [
+                'key' => 'accounting',
+                'label' => 'Accounting',
+                'description' => 'Accounting journal, taxes, review workflow, periods, and mobile-ready finance supervision.',
+                'category' => 'Finance',
+                'company_types' => ['services', 'products'],
+            ],
             'reservations' => [
                 'key' => 'reservations',
                 'label' => 'Reservations & queue',

@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Jobs\ProvisionDemoWorkspaceJob;
+use App\Models\AccountingEntry;
+use App\Models\AccountingEntryBatch;
 use App\Models\ActivityLog;
 use App\Models\DemoWorkspace;
 use App\Models\DemoWorkspaceTemplate;
@@ -176,7 +178,8 @@ it('allows platform admins with demo permissions to access the demo builder page
             ->component('SuperAdmin/DemoWorkspaces/Create')
             ->has('templates')
             ->has('options.modules')
-            ->where('options.modules', fn ($modules) => collect($modules)->pluck('key')->contains('expenses'))
+            ->where('options.modules', fn ($modules) => collect($modules)->pluck('key')->contains('expenses')
+                && collect($modules)->pluck('key')->contains('accounting'))
             ->has('options.scenario_packs')
             ->has('options.extra_access_roles')
             ->has('defaults.selected_modules')
@@ -189,7 +192,9 @@ it('includes expenses in default demo module packs for service and commerce demo
     $catalog = app(DemoWorkspaceCatalog::class);
 
     expect($catalog->moduleKeys())->toContain('expenses')
+        ->and($catalog->moduleKeys())->toContain('accounting')
         ->and($catalog->defaultModules('services', 'salon'))->toContain('expenses')
+        ->and($catalog->defaultModules('services', 'salon'))->not->toContain('accounting')
         ->and($catalog->defaultModules('products', 'retail'))->toContain('expenses');
 });
 
@@ -454,6 +459,44 @@ it('exposes a finance snapshot on the superadmin demo detail page when expenses 
             ->where('workspace.seed_summary.expenses_due', $workspace->seed_summary['expenses_due'] ?? 0)
             ->where('workspace.seed_summary.expenses_paid', $workspace->seed_summary['expenses_paid'] ?? 0)
             ->where('workspace.seed_summary.expense_attachments', $workspace->seed_summary['expense_attachments'] ?? 0)
+        );
+});
+
+it('seeds accounting snapshot data for finance-focused demo workspaces', function () {
+    $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
+    $modules = array_values(array_unique([
+        ...demoWorkspacePayload()['selected_modules'],
+        'accounting',
+    ]));
+
+    $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.store'), demoWorkspacePayload([
+            'selected_modules' => $modules,
+            'scenario_packs' => app(DemoWorkspaceCatalog::class)->defaultScenarioPacks('services', 'salon', $modules),
+        ]))
+        ->assertRedirect(route('superadmin.demo-workspaces.index'));
+
+    $workspace = DemoWorkspace::query()->latest('id')->firstOrFail();
+    $workspace = provisionDemoWorkspaceIfNeeded($workspace, $admin);
+    $ownerId = $workspace->owner_user_id;
+
+    expect($workspace->seed_summary['accounting_entries'] ?? 0)->toBeGreaterThan(0);
+    expect($workspace->seed_summary['accounting_batches'] ?? 0)->toBeGreaterThan(0);
+    expect($workspace->seed_summary['accounting_review_required_batches'] ?? 0)->toBeGreaterThanOrEqual(0);
+    expect($workspace->seed_summary['accounting_active_periods'] ?? 0)->toBeGreaterThan(0);
+    expect(AccountingEntry::query()->where('user_id', $ownerId)->count())->toBe($workspace->seed_summary['accounting_entries'] ?? 0);
+    expect(AccountingEntryBatch::query()->where('user_id', $ownerId)->count())->toBe($workspace->seed_summary['accounting_batches'] ?? 0);
+
+    $this->actingAs($admin)
+        ->get(route('superadmin.demo-workspaces.show', $workspace))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('SuperAdmin/DemoWorkspaces/Show')
+            ->where('workspace.id', $workspace->id)
+            ->where('workspace.seed_summary.accounting_entries', $workspace->seed_summary['accounting_entries'] ?? 0)
+            ->where('workspace.seed_summary.accounting_batches', $workspace->seed_summary['accounting_batches'] ?? 0)
+            ->where('workspace.seed_summary.accounting_review_required_batches', $workspace->seed_summary['accounting_review_required_batches'] ?? 0)
+            ->where('workspace.seed_summary.accounting_active_periods', $workspace->seed_summary['accounting_active_periods'] ?? 0)
         );
 });
 

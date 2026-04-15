@@ -93,6 +93,7 @@ const moduleKeys = computed(() => [
     { key: 'presence', label: t('super_admin.settings.modules.presence') },
     { key: 'planning', label: t('super_admin.settings.modules.planning') },
     { key: 'expenses', label: t('super_admin.settings.modules.expenses') },
+    { key: 'accounting', label: t('super_admin.settings.modules.accounting') },
     { key: 'services', label: t('super_admin.settings.modules.services') },
     { key: 'tasks', label: t('super_admin.settings.modules.tasks') },
     { key: 'team_members', label: t('super_admin.settings.modules.team_members') },

@@ -72,6 +72,10 @@ const props = defineProps({
         type: Object,
         default: null,
     },
+    financeSummary: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const page = usePage();

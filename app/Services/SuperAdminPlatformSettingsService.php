@@ -33,6 +33,7 @@ class SuperAdminPlatformSettingsService
         'presence',
         'planning',
         'expenses',
+        'accounting',
         'services',
         'tasks',
         'team_members',
@@ -46,6 +47,7 @@ class SuperAdminPlatformSettingsService
         $rawPlans = config('billing.plans', []);
         $planLimits = PlatformSetting::getValue('plan_limits', []);
         $planModules = PlatformSetting::getValue('plan_modules', []);
+        $defaultPlanModules = CompanyFeatureService::defaultPlanModules();
 
         $plans = collect($rawPlans)
             ->map(function (array $plan, string $key) {
@@ -73,9 +75,10 @@ class SuperAdminPlatformSettingsService
 
             $moduleInput = $planModules[$planKey] ?? [];
             foreach ($this->moduleKeys as $moduleKey) {
+                $defaultModuleState = (bool) ($defaultPlanModules[$planKey][$moduleKey] ?? true);
                 $planModules[$planKey][$moduleKey] = array_key_exists($moduleKey, $moduleInput)
                     ? (bool) $moduleInput[$moduleKey]
-                    : true;
+                    : $defaultModuleState;
             }
         }
 
@@ -232,13 +235,16 @@ class SuperAdminPlatformSettingsService
     private function buildModulePayload(array $inputModules): array
     {
         $payload = [];
+        $defaultPlanModules = CompanyFeatureService::defaultPlanModules();
 
         foreach (config('billing.plans', []) as $planKey => $plan) {
             $planInput = $inputModules[$planKey] ?? [];
 
             foreach ($this->moduleKeys as $moduleKey) {
                 $value = $planInput[$moduleKey] ?? null;
-                $payload[$planKey][$moduleKey] = $value === null ? true : (bool) $value;
+                $payload[$planKey][$moduleKey] = $value === null
+                    ? (bool) ($defaultPlanModules[$planKey][$moduleKey] ?? true)
+                    : (bool) $value;
             }
         }
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\AiImageController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Integration\InventoryController as IntegrationInventoryController;
@@ -346,6 +347,22 @@ Route::name('api.')->group(function () {
 
             Route::get('finance-approvals', [FinanceApprovalInboxController::class, 'index'])
                 ->name('finance-approvals.index');
+
+            Route::middleware('company.feature:accounting')->group(function () {
+                Route::get('accounting', [AccountingController::class, 'index']);
+                Route::get('accounting/export', [AccountingController::class, 'export']);
+                Route::get('accounting/exports/{accountingExport}', [AccountingController::class, 'downloadExport']);
+                Route::patch('accounting/periods/{periodKey}/open', [AccountingController::class, 'openPeriod'])->where('periodKey', '\d{4}-\d{2}');
+                Route::patch('accounting/periods/{periodKey}/in-review', [AccountingController::class, 'markPeriodInReview'])->where('periodKey', '\d{4}-\d{2}');
+                Route::patch('accounting/periods/{periodKey}/close', [AccountingController::class, 'closePeriod'])->where('periodKey', '\d{4}-\d{2}');
+                Route::patch('accounting/periods/{periodKey}/reopen', [AccountingController::class, 'reopenPeriod'])->where('periodKey', '\d{4}-\d{2}');
+                Route::patch('accounting/entries/{accountingEntry}/unreview', [AccountingController::class, 'markEntryUnreviewed']);
+                Route::patch('accounting/entries/{accountingEntry}/review', [AccountingController::class, 'markEntryReviewed']);
+                Route::patch('accounting/entries/{accountingEntry}/reconcile', [AccountingController::class, 'markEntryReconciled']);
+                Route::patch('accounting/batches/{accountingEntryBatch}/unreview', [AccountingController::class, 'markBatchUnreviewed']);
+                Route::patch('accounting/batches/{accountingEntryBatch}/review', [AccountingController::class, 'markBatchReviewed']);
+                Route::patch('accounting/batches/{accountingEntryBatch}/reconcile', [AccountingController::class, 'markBatchReconciled']);
+            });
 
             Route::middleware('company.feature:expenses')->group(function () {
                 Route::get('expenses', [ExpenseController::class, 'index']);

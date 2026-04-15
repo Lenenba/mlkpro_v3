@@ -1,0 +1,220 @@
+{
+  "accounting": {
+    "title": "Contabilidad",
+    "badge": "Fase 5 contabilidad",
+    "heading": "La supervision movil ahora mantiene la contabilidad accionable fuera del escritorio",
+    "subtitle": "La Fase 5 agrega un tablero financiero movil, alertas compactas de revision y una vista del diario util para owner y roles financieros en movimiento.",
+    "state": {
+      "foundation_ready": "Base lista",
+      "journal_ready": "Diario listo",
+      "tax_export_ready": "Impuestos y exportaciones listos",
+      "period_discipline_ready": "Periodos contables listos",
+      "review_reconciliation_ready": "Revision y conciliacion listas",
+      "mobile_supervision_ready": "Supervision movil lista"
+    },
+    "sync": {
+      "batches_synced": "Lotes sincronizados",
+      "entries_written": "Asientos generados"
+    },
+    "source_counts": {
+      "expenses": "Gastos",
+      "invoices": "Facturas",
+      "payments": "Pagos",
+      "sales": "Ventas"
+    },
+    "snapshot": {
+      "title": "Resumen financiero del espacio",
+      "company": "Espacio",
+      "currency": "Moneda del negocio",
+      "finance_approvals": "Aprobaciones financieras",
+      "finance_approvals_enabled": "Configuradas",
+      "finance_approvals_not_configured": "Aun no configuradas",
+      "invoice_auto_approve_under_amount": "Autoaprobacion de factura por debajo de",
+      "last_sync": "Ultima sincronizacion"
+    },
+    "dependencies": {
+      "title": "Dependencias de origen",
+      "subtitle": "La contabilidad lee eventos financieros confiables desde los modulos existentes. `Expenses` sigue siendo la unica dependencia obligatoria para activar el modulo.",
+      "required": "Requerido",
+      "optional": "Opcional",
+      "ready": "Listo",
+      "missing": "Falta"
+    },
+    "next_steps": {
+      "title": "Lo que sigue despues de la Fase 5",
+      "subtitle": "El puente contable ya cubre diario, impuestos, exportaciones, periodos, conciliacion y supervision movil. La siguiente entrega se enfoca en soporte demo y superadmin."
+    },
+    "mobile": {
+      "title": "Tablero financiero movil",
+      "subtitle": "Mantiene la supervision contable util en movimiento con el camino mas corto hacia revision, impuestos, periodos y exportaciones.",
+      "cards": {
+        "cash_in": "Entradas",
+        "cash_out": "Salidas",
+        "net_tax_due": "Impuesto neto",
+        "open_periods": "Periodos abiertos",
+        "unreconciled_entries": "Sin conciliar",
+        "pending_batches": "Lotes pendientes"
+      },
+      "alerts": {
+        "title": "Alertas prioritarias",
+        "subtitle": "Ve directo a las superficies contables que todavia necesitan atencion.",
+        "empty": "No hay alertas financieras moviles abiertas para este alcance.",
+        "open": "Abrir",
+        "pending_review": {
+          "title": "Lotes pendientes de revision",
+          "description": "Todavia hay lotes contables por revisar antes de una entrega limpia."
+        },
+        "open_periods": {
+          "title": "Periodos aun activos",
+          "description": "Uno o mas periodos siguen abiertos, en revision o reabiertos."
+        },
+        "tax_due": {
+          "title": "Posicion fiscal a revisar",
+          "description": "Una posicion fiscal neta positiva todavia requiere supervision antes de declarar."
+        },
+        "tax_credit": {
+          "title": "Posicion de credito fiscal",
+          "description": "El alcance actual muestra un credito fiscal que debe verificarse."
+        },
+        "export_missing": {
+          "title": "Todavia no hay exportacion contable",
+          "description": "Este espacio aun no ha generado una exportacion de entrega contable."
+        }
+      }
+    },
+    "review": {
+      "title": "Espacio de revision",
+      "subtitle": "Procesa rapidamente los lotes contables pendientes antes de la entrega de fin de mes.",
+      "pending_batches": "Asientos pendientes",
+      "empty": "Todos los lotes contables actuales estan conciliados para este alcance.",
+      "actions": {
+        "unreviewed": "Marcar sin revisar",
+        "reviewed": "Marcar revisado",
+        "reconciled": "Marcar conciliado"
+      }
+    },
+    "taxes": {
+      "title": "Resumen de impuestos",
+      "subtitle": "Revisa impuestos cobrados, impuestos pagados y la posicion neta del alcance seleccionado sin salir del diario.",
+      "all_periods": "Todos los periodos",
+      "review_required_title": "Lineas de impuestos que aun requieren revision",
+      "review_required_subtitle": "Estas fuentes con impuestos todavia necesitan revision contable antes de la entrega o declaracion.",
+      "directions": {
+        "collected": "Cobrados",
+        "paid": "Pagados"
+      },
+      "cards": {
+        "taxes_collected": "Impuestos cobrados",
+        "taxes_paid": "Impuestos pagados",
+        "net_tax_due": "Impuesto neto a pagar",
+        "review_required_count": "Lineas fiscales a revisar"
+      }
+    },
+    "exports": {
+      "title": "Exportaciones para el contador",
+      "subtitle": "Genera un CSV reproducible desde el alcance contable actual y conserva una pequena traza de auditoria de los archivos exportados.",
+      "generate_csv": "Exportar CSV",
+      "handoff_title": "Resumen actual para entrega",
+      "scope": "Alcance",
+      "last_export_at": "Ultima exportacion",
+      "history_title": "Exportaciones recientes",
+      "generated_by": "Generado por",
+      "rows": "Filas",
+      "download": "Descargar",
+      "empty": "Todavia no se ha generado ninguna exportacion contable."
+    },
+    "periods": {
+      "title": "Periodos contables",
+      "subtitle": "Mueve un mes entre `open`, `in review`, `closed` y `reopened`, protegiendo los periodos cerrados contra desajustes silenciosos de sincronizacion.",
+      "locked": "Bloqueado",
+      "closed_at": "Cerrado",
+      "reopened_at": "Reabierto",
+      "statuses": {
+        "open": "Open",
+        "in_review": "In review",
+        "closed": "Closed",
+        "reopened": "Reopened"
+      },
+      "summary": {
+        "open": "Open",
+        "in_review": "In review",
+        "closed": "Closed",
+        "reopened": "Reopened"
+      },
+      "actions": {
+        "open": "Volver a open",
+        "in_review": "Pasar a review",
+        "close": "Cerrar periodo",
+        "reopen": "Reabrir"
+      }
+    },
+    "accounts": {
+      "title": "Base del plan de cuentas",
+      "subtitle": "Estas cuentas del sistema anclan los primeros lotes contables y quedan listas para ajustes por tenant mas adelante.",
+      "columns": {
+        "code": "Codigo",
+        "name": "Cuenta",
+        "type": "Tipo"
+      }
+    },
+    "mappings": {
+      "title": "Convenciones de mapeo predeterminadas",
+      "subtitle": "Cada evento financiero confiable pasara por estas convenciones antes de introducir mapeos personalizados por tenant.",
+      "debit": "Debito",
+      "credit": "Credito",
+      "tax": "Impuesto",
+      "no_tax": "Sin cuenta fiscal dedicada"
+    },
+    "journal": {
+      "title": "Libro diario contable",
+      "subtitle": "Revisa los asientos generados por periodo, fuente, cuenta y estado de revision sin salir del modulo.",
+      "tax_label": "Impuesto",
+      "view_source": "Ver fuente",
+      "unknown_account": "Cuenta desconocida",
+      "empty": "Todavia no hay asientos contables para estos filtros.",
+      "columns": {
+        "date": "Fecha",
+        "source": "Fuente",
+        "account": "Cuenta",
+        "direction": "Sentido",
+        "amount": "Monto",
+        "review": "Revision",
+        "actions": "Acciones"
+      },
+      "directions": {
+        "debit": "Debito",
+        "credit": "Credito"
+      },
+      "filters": {
+        "search_placeholder": "Buscar por referencia, cuenta o descripcion",
+        "all_sources": "Todas las fuentes",
+        "all_accounts": "Todas las cuentas",
+        "all_review_statuses": "Todos los estados de revision",
+        "apply": "Aplicar",
+        "reset": "Restablecer"
+      },
+      "summary": {
+        "entry_count": "Asientos",
+        "batch_count": "Lotes",
+        "debit_total": "Total debito",
+        "credit_total": "Total credito",
+        "review_required_count": "Requiere revision"
+      },
+      "review_statuses": {
+        "unreviewed": "Sin revisar",
+        "reviewed": "Revisado",
+        "reconciled": "Conciliado"
+      },
+      "batch_statuses": {
+        "generated": "Generado",
+        "review_required": "Requiere revision"
+      },
+      "grouped": {
+        "by_account_title": "Totales por cuenta",
+        "by_account_subtitle": "Mira que cuentas concentran el volumen del diario filtrado.",
+        "by_source_title": "Totales por fuente",
+        "by_source_subtitle": "Mira que dominios operativos alimentan el tramo actual del diario."
+      }
+    }
+  }
+}

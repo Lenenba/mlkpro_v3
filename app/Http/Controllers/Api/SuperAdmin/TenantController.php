@@ -52,11 +52,15 @@ class TenantController extends BaseController
         'performance',
         'presence',
         'planning',
+        'expenses',
+        'accounting',
         'services',
         'tasks',
         'team_members',
         'assistant',
         'loyalty',
+        'campaigns',
+        'sales',
     ];
 
     public function index(Request $request)
@@ -389,6 +393,7 @@ class TenantController extends BaseController
             'planning' => 'Planning',
             'sales' => 'Sales',
             'expenses' => 'Expenses',
+            'accounting' => 'Accounting',
             'services' => 'Services',
             'tasks' => 'Tasks',
             'team_members' => 'Team members',
@@ -405,16 +410,20 @@ class TenantController extends BaseController
             : [];
         $sectorDefaults = CompanyFeatureService::sectorFeatureDefaults((string) ($tenant->company_sector ?? null));
         $effectiveDefaults = array_replace($planDefaults, $sectorDefaults);
+        $effectiveFeatures = app(CompanyFeatureService::class)->resolveEffectiveFeatures($tenant);
         $featureKeys = array_values(array_unique(array_merge(
             array_keys($labels),
             array_keys($planDefaults),
             array_keys($sectorDefaults),
             array_keys($current),
+            array_keys($effectiveFeatures),
         )));
 
-        return collect($featureKeys)->map(function (string $key) use ($labels, $current, $effectiveDefaults) {
-            $enabled = true;
-            if (array_key_exists($key, $current)) {
+        return collect($featureKeys)->map(function (string $key) use ($labels, $current, $effectiveDefaults, $effectiveFeatures) {
+            $enabled = false;
+            if (array_key_exists($key, $effectiveFeatures)) {
+                $enabled = (bool) $effectiveFeatures[$key];
+            } elseif (array_key_exists($key, $current)) {
                 $enabled = (bool) $current[$key];
             } elseif (array_key_exists($key, $effectiveDefaults)) {
                 $enabled = (bool) $effectiveDefaults[$key];

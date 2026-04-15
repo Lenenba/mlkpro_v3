@@ -3,7 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\AccountingEntryBatch;
+use App\Models\AccountingExport;
+use App\Models\AccountingPeriod;
 use App\Models\Customer;
+use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PlanScan;
@@ -20,6 +24,7 @@ use App\Queries\Dashboard\DashboardProductsOverviewQuery;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
 use App\Services\Campaigns\DashboardKpiService;
+use App\Services\FinanceApprovalService;
 use App\Services\StripeInvoiceService;
 use App\Services\StripeSaleService;
 use App\Services\UsageLimitService;
@@ -580,11 +585,37 @@ class DashboardController extends Controller
 
             $performance = $this->buildProductPerformance($accountId, $now);
             $marketingKpis = $this->resolveMarketingKpis($accountOwner);
+            $billingService = app(BillingSubscriptionService::class);
+            $subscriptionSummary = $accountOwner
+                ? $billingService->subscriptionSummary($accountOwner)
+                : [
+                    'active' => false,
+                    'on_trial' => false,
+                    'status' => null,
+                    'price_id' => null,
+                    'ends_at' => null,
+                    'trial_ends_at' => null,
+                    'provider_id' => null,
+                ];
+            $usageLimits = $accountOwner
+                ? app(UsageLimitService::class)->buildForUser($accountOwner)
+                : ['items' => []];
+            $plans = $accountOwner
+                ? app(BillingPlanService::class)->plansForTenant($accountOwner)
+                : app(BillingPlanService::class)->plansForCurrency(config('app.currency', 'CAD'));
 
             $props = [
                 ...$overview,
                 'performance' => $performance,
                 'marketingKpis' => $marketingKpis,
+                'announcements' => $internalAnnouncements,
+                'quickAnnouncements' => $quickAnnouncements,
+                'usage_limits' => $usageLimits,
+                'billing' => [
+                    'plans' => $plans,
+                    'subscription' => $subscriptionSummary,
+                ],
+                'financeSummary' => $accountOwner ? $this->buildDashboardFinanceSummary($accountOwner) : [],
             ];
 
             return $respond('DashboardProductsOwner', $props, $cacheKey);
@@ -1171,6 +1202,7 @@ class DashboardController extends Controller
             'kpiSeries' => $kpiSeries,
             'announcements' => $internalAnnouncements,
             'quickAnnouncements' => $quickAnnouncements,
+            'financeSummary' => $accountOwner ? $this->buildDashboardFinanceSummary($accountOwner) : [],
             'marketingKpis' => $marketingKpis,
             'usage_limits' => $usageLimits,
             'billing' => [
@@ -1721,6 +1753,92 @@ class DashboardController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    private function buildDashboardFinanceSummary(User $accountOwner): array
+    {
+        $accountId = (int) $accountOwner->id;
+        $summary = [
+            'outstanding_invoices_count' => 0,
+            'outstanding_invoices_amount' => 0.0,
+            'overdue_invoices_count' => 0,
+            'pending_invoice_approvals_count' => 0,
+            'due_expenses_count' => 0,
+            'review_required_expenses_count' => 0,
+            'pending_expense_approvals_count' => 0,
+            'reimbursement_pending_count' => 0,
+            'pending_finance_actions_count' => 0,
+            'accounting_review_required_batches' => 0,
+            'accounting_active_periods_count' => 0,
+            'accounting_recent_exports_count' => 0,
+        ];
+
+        if ($accountOwner->hasCompanyFeature('invoices')) {
+            $outstandingInvoices = Invoice::query()
+                ->byUser($accountId)
+                ->whereNotIn('status', ['paid', 'void']);
+
+            $summary['outstanding_invoices_count'] = (clone $outstandingInvoices)->count();
+            $summary['outstanding_invoices_amount'] = (float) (clone $outstandingInvoices)->sum('total');
+            $summary['overdue_invoices_count'] = Invoice::query()
+                ->byUser($accountId)
+                ->where('status', 'overdue')
+                ->count();
+            $summary['pending_invoice_approvals_count'] = Invoice::query()
+                ->byUser($accountId)
+                ->whereIn('approval_status', [
+                    FinanceApprovalService::APPROVAL_STATUS_SUBMITTED,
+                    FinanceApprovalService::APPROVAL_STATUS_PENDING_APPROVAL,
+                ])
+                ->count();
+        }
+
+        if ($accountOwner->hasCompanyFeature('expenses')) {
+            $summary['due_expenses_count'] = Expense::query()
+                ->byAccount($accountId)
+                ->where('status', Expense::STATUS_DUE)
+                ->count();
+            $summary['review_required_expenses_count'] = Expense::query()
+                ->byAccount($accountId)
+                ->where('status', Expense::STATUS_REVIEW_REQUIRED)
+                ->count();
+            $summary['pending_expense_approvals_count'] = Expense::query()
+                ->byAccount($accountId)
+                ->whereIn('status', [
+                    Expense::STATUS_SUBMITTED,
+                    Expense::STATUS_PENDING_APPROVAL,
+                ])
+                ->count();
+            $summary['reimbursement_pending_count'] = Expense::query()
+                ->byAccount($accountId)
+                ->where('reimbursable', true)
+                ->where('reimbursement_status', Expense::REIMBURSEMENT_STATUS_PENDING)
+                ->count();
+        }
+
+        if ($accountOwner->hasCompanyFeature('accounting')) {
+            $summary['accounting_review_required_batches'] = AccountingEntryBatch::query()
+                ->forUser($accountId)
+                ->where('status', AccountingEntryBatch::STATUS_REVIEW_REQUIRED)
+                ->count();
+            $summary['accounting_active_periods_count'] = AccountingPeriod::query()
+                ->forUser($accountId)
+                ->whereIn('status', [
+                    AccountingPeriod::STATUS_OPEN,
+                    AccountingPeriod::STATUS_IN_REVIEW,
+                    AccountingPeriod::STATUS_REOPENED,
+                ])
+                ->count();
+            $summary['accounting_recent_exports_count'] = AccountingExport::query()
+                ->forUser($accountId)
+                ->where('generated_at', '>=', now()->subDays(30))
+                ->count();
+        }
+
+        $summary['pending_finance_actions_count'] = $summary['pending_invoice_approvals_count']
+            + $summary['pending_expense_approvals_count'];
+
+        return $summary;
     }
 
     private function resolveMarketingKpis(?User $accountOwner): ?array

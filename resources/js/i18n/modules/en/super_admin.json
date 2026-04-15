@@ -651,6 +651,7 @@
         "presence": "Presence",
         "planning": "Planning",
         "expenses": "Expenses",
+        "accounting": "Accounting",
         "services": "Services",
         "tasks": "Tasks",
         "team_members": "Team members",

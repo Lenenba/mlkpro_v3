@@ -112,6 +112,7 @@ test('team member page exposes finance permissions when expenses and invoices ar
             'team_members' => true,
             'tasks' => false,
             'expenses' => true,
+            'accounting' => true,
             'invoices' => true,
         ],
     ]);
@@ -131,6 +132,8 @@ test('team member page exposes finance permissions when expenses and invoices ar
                     'expenses.approve',
                     'expenses.approve_high',
                     'expenses.pay',
+                    'accounting.view',
+                    'accounting.manage',
                     'invoices.view',
                     'invoices.create',
                     'invoices.edit',

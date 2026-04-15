@@ -2,6 +2,10 @@
 
 namespace App\Services\Demo;
 
+use App\Models\AccountingEntry;
+use App\Models\AccountingEntryBatch;
+use App\Models\AccountingExport;
+use App\Models\AccountingPeriod;
 use App\Models\AvailabilityException;
 use App\Models\Campaign;
 use App\Models\Customer;
@@ -33,6 +37,8 @@ use App\Models\VipTier;
 use App\Models\WeeklyAvailability;
 use App\Models\Work;
 use App\Services\AccountDeletionService;
+use App\Services\Accounting\AccountingPeriodService;
+use App\Services\Accounting\AccountingSyncService;
 use App\Services\Campaigns\MarketingSettingsService;
 use App\Support\CampaignTemplateLanguage;
 use Illuminate\Support\Arr;
@@ -1096,6 +1102,7 @@ class DemoWorkspaceProvisioner
             (string) $workspace->company_sector
         );
         $marketing = $this->createMarketing($owner, $selectedModules, $customers);
+        $accountingSummary = $this->createAccountingSummary($owner, $selectedModules);
 
         return [
             'customers' => $customers->count(),
@@ -1120,6 +1127,52 @@ class DemoWorkspaceProvisioner
             'campaigns' => $marketing['campaigns'],
             'mailing_lists' => $marketing['mailing_lists'],
             'loyalty_program_enabled' => $loyalty ? 1 : 0,
+            ...$accountingSummary,
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $selectedModules
+     * @return array<string, int>
+     */
+    private function createAccountingSummary(User $owner, array $selectedModules): array
+    {
+        if (! in_array('accounting', $selectedModules, true)) {
+            return [];
+        }
+
+        /** @var AccountingSyncService $syncService */
+        $syncService = app(AccountingSyncService::class);
+        /** @var AccountingPeriodService $periodService */
+        $periodService = app(AccountingPeriodService::class);
+
+        $accountId = (int) $owner->id;
+
+        $syncService->syncAccount($accountId);
+
+        $activePeriods = collect($periodService->timeline($accountId)['periods'] ?? [])
+            ->filter(function (array $period): bool {
+                $status = (string) ($period['status'] ?? AccountingPeriod::STATUS_OPEN);
+
+                return ((int) ($period['entry_count'] ?? 0)) > 0
+                    || ((int) ($period['batch_count'] ?? 0)) > 0
+                    || in_array($status, [
+                        AccountingPeriod::STATUS_IN_REVIEW,
+                        AccountingPeriod::STATUS_CLOSED,
+                        AccountingPeriod::STATUS_REOPENED,
+                    ], true);
+            })
+            ->count();
+
+        return [
+            'accounting_entries' => AccountingEntry::query()->forUser($accountId)->count(),
+            'accounting_batches' => AccountingEntryBatch::query()->forUser($accountId)->count(),
+            'accounting_review_required_batches' => AccountingEntryBatch::query()
+                ->forUser($accountId)
+                ->where('status', AccountingEntryBatch::STATUS_REVIEW_REQUIRED)
+                ->count(),
+            'accounting_active_periods' => $activePeriods,
+            'accounting_exports' => AccountingExport::query()->forUser($accountId)->count(),
         ];
     }
 

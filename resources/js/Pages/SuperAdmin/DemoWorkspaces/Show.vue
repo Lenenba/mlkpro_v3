@@ -72,40 +72,76 @@ const formatDate = (value) => value ? new Date(value).toLocaleDateString() : 'No
 const formatDateTime = (value) => value ? new Date(value).toLocaleString() : 'Not set';
 const formatNumber = (value) => new Intl.NumberFormat().format(Number(value || 0));
 
-const showFinanceSnapshot = computed(() => (props.workspace.selected_modules || []).includes('expenses'));
+const selectedModules = computed(() => props.workspace.selected_modules || []);
+const showFinanceSnapshot = computed(() => selectedModules.value.includes('expenses') || selectedModules.value.includes('accounting'));
 const financeSnapshotCards = computed(() => {
     const summary = props.workspace.seed_summary || {};
+    const cards = [];
 
-    return [
-        {
-            key: 'expenses',
-            label: 'Expenses seeded',
-            value: summary.expenses ?? 0,
-            tone: 'stone',
-        },
-        {
-            key: 'expenses_due',
-            label: 'Due now',
-            value: summary.expenses_due ?? 0,
-            tone: 'amber',
-        },
-        {
-            key: 'expenses_paid',
-            label: 'Paid or reimbursed',
-            value: summary.expenses_paid ?? 0,
-            tone: 'emerald',
-        },
-        {
-            key: 'expense_attachments',
-            label: 'Receipt files',
-            value: summary.expense_attachments ?? 0,
-            tone: 'blue',
-        },
-    ];
+    if (selectedModules.value.includes('expenses')) {
+        cards.push(
+            {
+                key: 'expenses',
+                label: 'Expenses seeded',
+                value: summary.expenses ?? 0,
+                tone: 'stone',
+            },
+            {
+                key: 'expenses_due',
+                label: 'Due now',
+                value: summary.expenses_due ?? 0,
+                tone: 'amber',
+            },
+            {
+                key: 'expenses_paid',
+                label: 'Paid or reimbursed',
+                value: summary.expenses_paid ?? 0,
+                tone: 'emerald',
+            },
+            {
+                key: 'expense_attachments',
+                label: 'Receipt files',
+                value: summary.expense_attachments ?? 0,
+                tone: 'blue',
+            },
+        );
+    }
+
+    if (selectedModules.value.includes('accounting')) {
+        cards.push(
+            {
+                key: 'accounting_entries',
+                label: 'Journal entries',
+                value: summary.accounting_entries ?? 0,
+                tone: 'slate',
+            },
+            {
+                key: 'accounting_batches',
+                label: 'Generated batches',
+                value: summary.accounting_batches ?? 0,
+                tone: 'slate',
+            },
+            {
+                key: 'accounting_review_required_batches',
+                label: 'Review required',
+                value: summary.accounting_review_required_batches ?? 0,
+                tone: 'amber',
+            },
+            {
+                key: 'accounting_active_periods',
+                label: 'Active periods',
+                value: summary.accounting_active_periods ?? 0,
+                tone: 'blue',
+            },
+        );
+    }
+
+    return cards;
 });
 
 const financeSnapshotCardClass = (tone) => ({
     stone: 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200',
+    slate: 'border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-900/60 dark:bg-slate-950/30 dark:text-slate-200',
     amber: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200',
     emerald: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200',
     blue: 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200',
@@ -641,7 +677,7 @@ const copyAccessKit = async () => {
                     >
                         <div class="text-xs uppercase tracking-[0.2em] text-stone-500 dark:text-neutral-400">Finance snapshot</div>
                         <p class="mt-2 text-sm text-stone-600 dark:text-neutral-400">
-                            Quick demo QA block driven by the seeded finance summary. Use it to confirm that the workspace is ready for an expense walkthrough before opening the tenant.
+                            Quick demo QA block driven by the seeded finance summary. Use it to confirm that the workspace is ready for expense and accounting walkthroughs before opening the tenant.
                         </p>
 
                         <div class="mt-4 grid gap-3 sm:grid-cols-2">

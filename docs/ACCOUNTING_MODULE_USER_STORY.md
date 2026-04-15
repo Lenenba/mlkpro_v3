@@ -2,108 +2,247 @@
 
 Last updated: 2026-04-14
 
+Current implementation status:
+- `Phase 0`: delivered
+- `Phase 1`: delivered
+- `Phase 2`: delivered
+- `Phase 3`: delivered
+- `Phase 4`: delivered
+- `Phase 5`: delivered
+- `Phase 6`: delivered
+- `Phase 7+`: pending
+
+Related docs:
+- `Expenses`: `docs/EXPENSES_MODULE_USER_STORY.md`
+- `Roadmap`: `docs/NEXT_HIGH_VALUE_MODULES_USER_STORY.md`
+
 ## Goal
-Ajouter une couche `Accounting` au-dessus des revenus et des depenses afin de transformer les operations quotidiennes en verite financiere exploitable pour:
-- cloture mensuelle
-- preparation comptable
-- suivi taxes
-- collaboration avec un comptable
+Ajouter un module `Accounting` qui transforme les flux deja presents dans la plateforme en verite comptable lisible, controlable et exportable, afin que l owner ou le finance admin puisse:
+- suivre une periode comptable
+- preparer les taxes
+- produire un journal fiable
+- faire une cloture simple
+- transmettre un package propre au comptable
 
 ## Product Vision
-Le module `Accounting` ne doit pas commencer comme un ERP complet et lourd.
+Le module `Accounting` ne doit pas commencer comme un ERP lourd.
 
-La bonne approche est une `accounting bridge layer`:
-- relier `Sales`, `Invoices`, `Payments`, `Products` et `Expenses`
-- mapper les flux vers une structure comptable simple
-- produire des journaux, syntheses taxes et exports fiables
-- permettre a l owner de comprendre la situation sans sortir dans des fichiers bricolages
+La bonne approche est une `accounting bridge layer` au-dessus de:
+- `Invoices`
+- `Payments`
+- `Sales`
+- `Expenses`
+- `Products`
 
 Autrement dit:
-- `Expenses` capture la sortie d argent
-- `Accounting` organise cette realite pour la cloture et la lecture financiere
+- `Expenses` capture les sorties
+- `Invoices`, `Sales` et `Payments` capturent les entrees
+- `Accounting` transforme cette realite metier en ecritures, periodes, taxes et exports
+
+Le module doit donner une vraie lecture finance, sans forcer l equipe a re-saisir dans des tableurs ce que la plateforme sait deja.
 
 ## Why This Matters
-- beaucoup de petites entreprises vendent, encaissent et depensent sans avoir une lecture finance propre
-- la preparation pour le comptable est souvent manuelle et repetitive
-- les taxes deviennent vite un point de friction si les categories et paiements ne sont pas relies
+- beaucoup de petites structures gerent ventes et depenses, mais restent faibles au moment de la cloture
+- les taxes deviennent vite floues si les flux ne sont pas relies
+- un comptable perd du temps quand les justificatifs, references et periodes ne sont pas propres
 - sans couche comptable, les dashboards restent operationnels mais pas financiers
-- la plateforme gagne un vrai niveau de maturite en passant de gestion metier a pilotage financier
+- le produit passe a un autre niveau quand il peut expliquer `ce qui s est passe` en compta, pas seulement `ce qui a ete vendu`
 
 ## Scope
+- module `accounting` first-class avec feature flag
 - plan comptable simplifie
 - mapping entre categories metier et comptes comptables
-- ecritures generees depuis `Invoices`, `Payments`, `Sales` et `Expenses`
+- moteur backend de generation d ecritures
 - journal comptable consultable
-- synthese taxes
-- cloture mensuelle simple
-- exports comptables
-- statut de rapprochement leger
-- audit et verrouillage de periode
-- experience mobile pour lecture, validation, alertes et supervision
+- lots d ecritures relies a leur source
+- synthese taxes par periode
+- periodes comptables `open / in_review / closed / reopened`
+- review et reconciliation legeres
+- exports comptables standards
+- audit log des actions finance
+- experience mobile de supervision et de validation
+- surfaces `superadmin` et `demo` pour que le module soit visible et testable
 
 ## Non-goals
 - comptabilite exhaustive multi-pays en V1
 - paie et ecritures RH
 - amortissements complexes et immobilisations detaillees
 - synchronisation bancaire automatique complete en V1
-- consolidation multi-societes
-- edition libre de toutes les ecritures par tous les utilisateurs
+- rapprochement bancaire lourd en V1
+- consolidation multi-entites
+- edition libre et silencieuse des ecritures generees
 
 ## Dependency And Sequencing
-- `Accounting` doit etre pense comme dependant de `Expenses`
-- `Accounting` reutilise aussi `Sales`, `Invoices`, `Payments`, `Products` et leurs signaux existants
-- la priorite de livraison recommande est:
+- `accounting` doit dependre du module `expenses`
+- `accounting` reutilise aussi `sales`, `invoices`, `payments`, `products`
+- `expenses` peut vivre seul
+- `accounting` ne doit pas etre activable si les bases `expenses` et `finance approvals` ne sont pas stables
+- sequence recommandee:
   1. `Expenses`
   2. `Accounting`
 
 ## Current Baseline In This Repo
-- les modules revenus sont deja presents et matures: `Sales`, `Invoices`, `Payments`, `Quotes`
-- `Product` expose deja des signaux simples de cout et marge
-- aucune couche `Accounting` structuree n existe encore
-- les plans et feature flags ne connaissent pas encore un module `accounting`
-- le futur module `Expenses` doit devenir une des entrees fondatrices de cette couche
+- les briques revenus sont deja solides: `Sales`, `Invoices`, `Payments`, `Quotes`, `Work`
+- le module `Expenses` existe maintenant comme module first-class avec:
+  - intake manuel
+  - scan IA
+  - recurrence
+  - remboursements
+  - liens metier
+  - reporting
+  - approvals partages avec `Invoices`
+- `Company settings` expose deja une couche finance:
+  - devise business
+  - approbations finance
+  - seuils et roles
+- le repo sait deja gerer:
+  - exports CSV
+  - audit trails metier
+  - gating par feature flags et plans
+  - surfaces `superadmin` et `demo`
+- ce qui manque encore:
+  - aucun module `accounting` first-class dans les plans et feature flags
+  - aucune table ou modele de journal comptable
+  - aucun ecran `Accounting`
+  - aucune periode comptable
+  - aucune synthese taxes centralisee
+  - aucun export comptable structure comme produit dedie
 
 ## Core Product Proposal
-Le module `Accounting` doit etre structure autour de 5 blocs.
+Le module `Accounting` doit etre construit autour de 7 blocs.
 
-### 1. Lightweight chart of accounts
-Un plan comptable simple mais suffisant pour V1:
+### 1. Chart of accounts
+Un plan comptable simple mais utile pour V1:
 - revenus
-- taxes collectees
+- comptes clients
 - encaissements
+- taxes collectees
 - depenses d exploitation
-- achats stock / couts directs
+- achats et couts directs
 - remboursements
-- comptes d attente simples si necessaire
+- comptes d attente simples
 
-### 2. System-generated entries
-Le systeme doit produire des ecritures a partir des flux applicatifs:
+### 2. Event-to-entry engine
+Le systeme doit generer des ecritures a partir d evenements metier fiables:
 - emission de facture
-- encaissement paiement
-- vente produit
+- encaissement
+- vente comptoir
 - depense approuvee ou payee
 - remboursement
+- ajustement controle si necessaire
 
-### 3. Tax-ready summaries
-Le module doit aider a voir:
+### 3. Journal and batches
+Les ecritures doivent etre lisibles dans un journal:
+- filtre par periode
+- filtre par source
+- filtre par compte
+- filtre par statut review / reconciliation
+- regroupement par lot d origine
+
+### 4. Tax center
+Le module doit aider a suivre:
 - taxes collectees
 - taxes payees
-- ecarts ou montants a verifier
+- ecarts a verifier
 - periodes concernees
+- export des lignes utiles au comptable
 
-### 4. Month-end discipline
-Le module doit introduire une hygiene simple:
-- periode ouverte
-- periode en revue
-- periode cloturee
-- verrouillage leger apres cloture
+### 5. Period discipline
+Le module doit introduire une hygiene finance:
+- `open`
+- `in_review`
+- `closed`
+- `reopened`
 
-### 5. Accountant handoff
-Le produit doit simplifier la transmission au comptable:
-- export standardise
+Une periode cloturee ne doit plus deriv­er silencieusement.
+
+### 6. Accountant handoff
+Le produit doit rendre la transmission comptable simple:
+- export par periode
+- references de source
 - pieces justificatives reliees
-- historique clair
-- moins de retraitements manuels
+- moins de retraitement manuel
+
+### 7. Mobile supervision
+Le mobile ne doit pas refaire toute la compta.
+Il doit permettre:
+- lecture des KPI finance
+- revue rapide
+- actions de supervision owner / finance
+- verification de periode et d alertes
+
+## Suggested Data Model
+Le design recommande pour V1:
+
+### `accounting_accounts`
+- `id`
+- `user_id`
+- `code`
+- `name`
+- `type`
+- `is_system`
+- `is_active`
+- `sort_order`
+
+### `accounting_mappings`
+- `id`
+- `user_id`
+- `source_domain`
+- `source_key`
+- `debit_account_id`
+- `credit_account_id`
+- `tax_account_id`
+- `meta`
+
+### `accounting_entry_batches`
+- `id`
+- `user_id`
+- `source_type`
+- `source_id`
+- `source_reference`
+- `period_id`
+- `generated_at`
+- `status`
+- `meta`
+
+### `accounting_entries`
+- `id`
+- `user_id`
+- `batch_id`
+- `account_id`
+- `direction`
+- `amount`
+- `tax_amount`
+- `currency_code`
+- `entry_date`
+- `description`
+- `review_status`
+- `reconciliation_status`
+- `locked_at`
+- `meta`
+
+### `accounting_periods`
+- `id`
+- `user_id`
+- `period_key`
+- `start_date`
+- `end_date`
+- `status`
+- `closed_at`
+- `closed_by`
+- `reopened_at`
+- `reopened_by`
+- `meta`
+
+### `accounting_exports`
+- `id`
+- `user_id`
+- `period_id`
+- `format`
+- `status`
+- `path`
+- `generated_by`
+- `generated_at`
 
 ## Primary User Story
 
@@ -113,90 +252,185 @@ I want the platform to transform daily operations into structured accounting dat
 so month-end and tax preparation stop depending on manual spreadsheets.
 
 Acceptance criteria:
-- the module can read operational events from revenue and expense domains
-- entries are generated through trusted backend rules, not client-side inference
-- each entry stays traceable to its operational source
-- access is limited to authorized finance roles
+- the module reads operational events from revenue and expense domains
+- entries are generated through backend rules, not client-side inference
+- each entry stays traceable to its source
+- finance access stays restricted to authorized roles
 
 ## Supporting User Stories
 
-### US-ACC-002 - Maintain a simple account mapping
+### US-ACC-002 - Maintain a simple chart of accounts
 As a finance operator,
-I want categories and business events mapped to accounting accounts,
-so exports and summaries stay consistent.
+I want a manageable chart of accounts,
+so the system can classify financial reality consistently.
 
 Acceptance criteria:
-- the system exposes a manageable chart of accounts in V1
-- expense categories can map to accounting accounts
-- core revenue events have default mappings
-- mappings are editable by authorized users only
+- the module ships with a safe default account set
+- the owner can activate, deactivate, and reorder accounts
+- destructive changes are restricted when entries already exist
+- system accounts stay protected
 
-### US-ACC-003 - Generate journal entries automatically
+### US-ACC-003 - Map business events to accounting accounts
+As a finance operator,
+I want business categories and events mapped to accounts,
+so accounting outputs stay consistent and exportable.
+
+Acceptance criteria:
+- expense categories can map to default accounts
+- core invoice, payment, and sale events have default mappings
+- mappings are editable only by authorized finance roles
+- missing mappings surface a review state instead of silent bad output
+
+### US-ACC-004 - Generate accounting entries automatically
 As an owner,
-I want invoices, payments, sales, and expenses to create accounting traces automatically,
-so I do not re-enter the same reality twice.
+I want invoices, payments, sales, and expenses to generate accounting traces automatically,
+so I do not enter the same reality twice.
 
 Acceptance criteria:
-- journal entries are generated from trusted domain events
-- each entry references its source entity and source type
-- generated entries cannot be silently edited without audit
-- the system distinguishes generated entries from future manual adjustments
+- entry batches are created from trusted domain events
+- each batch references `source_type` and `source_id`
+- generated entries are auditable
+- manual adjustments, when introduced later, stay clearly separated
 
-### US-ACC-004 - Review tax summaries by period
+### US-ACC-005 - Review a journal by period
+As a finance admin,
+I want a filterable accounting journal,
+so I can review what happened in a selected period without digging through multiple modules.
+
+Acceptance criteria:
+- filters support period, source, account, and review status
+- the journal opens back to the source record
+- totals can be grouped by account or source
+- large result sets are paginated or progressively loaded
+
+### US-ACC-006 - Review tax summaries by period
 As an owner or accountant,
 I want a tax summary by period,
 so I can prepare filings and verify what is due.
 
 Acceptance criteria:
 - the module shows taxes collected and taxes paid by selected period
-- the summary can be filtered by open or closed periods
-- tax calculations use stored transactional data, not frontend approximations
-- the result can be exported
+- tax summaries use stored transactional data
+- discrepancies can be isolated for review
+- exports preserve source references
 
-### US-ACC-005 - Close a month safely
+### US-ACC-007 - Close a month safely
 As an owner,
 I want to close a month after review,
 so the accounting view of that period stops drifting.
 
 Acceptance criteria:
-- a period can move through `open`, `in_review`, and `closed`
-- closing a period requires permission
-- closed periods restrict sensitive edits or require explicit reopen flow
-- the close action is audited
+- a period can move through `open`, `in_review`, `closed`, `reopened`
+- closing a period requires authorization
+- closed periods protect against silent regeneration drift
+- close and reopen actions are audited
 
-### US-ACC-006 - Export data for an accountant
+### US-ACC-008 - Follow lightweight reconciliation
+As a finance operator,
+I want a simple reconciliation state,
+so I can see what has been checked and what still needs review.
+
+Acceptance criteria:
+- entries or batches can be marked `unreviewed`, `reviewed`, or `reconciled`
+- reconciliation state is visible in period summaries
+- actor and timestamp are preserved
+
+### US-ACC-009 - Export a clean accountant package
 As an owner,
 I want a structured accounting export,
 so my accountant can work from a cleaner package.
 
 Acceptance criteria:
-- exports support at least CSV in V1
-- export can be filtered by period
+- exports support CSV in V1
+- export can be scoped by period
 - exported rows preserve account, amount, tax, source, and reference metadata
-- export can reference linked justification documents or internal ids
+- linked internal ids or file references remain available
 
-### US-ACC-007 - Follow reconciliation status lightly
-As a finance operator,
-I want a lightweight reconciliation state,
-so I can see what has been checked versus what still needs review.
-
-Acceptance criteria:
-- entries or batches can be marked `unreviewed`, `reviewed`, or `reconciled`
-- reconciliation status is visible in period summaries
-- actor and timestamp are preserved for reconciliation actions
-
-### US-ACC-008 - Separate operational users from finance users
+### US-ACC-010 - Keep accounting access separate from operations
 As an owner,
 I want finance permissions clearly separated from daily operational permissions,
 so accounting data stays safe.
 
 Acceptance criteria:
 - non-finance users cannot browse accounting screens by default
-- generated accounting traces still exist even when the user cannot see them
-- role and plan restrictions are enforced server-side
+- source modules still generate traces even when users cannot see accounting
+- server-side permissions control every screen and action
+
+## Accounting Status Model
+Le module doit garder ses propres statuts, distincts des statuts metier sources.
+
+### Entry review status
+- `unreviewed`
+- `reviewed`
+- `reconciled`
+
+### Period status
+- `open`
+- `in_review`
+- `closed`
+- `reopened`
+
+Important:
+- `invoice.status`, `invoice.approval_status`, `expense.status`, etc. restent dans leur domaine
+- `accounting` lit ces flux, mais ne les remplace pas
+
+## Business Rules
+- `accounting` ne doit pas etre activable sans `expenses`
+- les ecritures generees doivent toujours rester reliees a leur source
+- aucun calcul comptable critique ne doit vivre seulement dans le frontend
+- une periode `closed` ne doit pas accepter de drift silencieux
+- les exports doivent etre reproductibles a partir des donnees stockees
+- les actions finance sensibles doivent toutes laisser un audit trail
+
+## Solo vs Team Rules
+
+### Solo
+- acces owner-only par defaut
+- pas de separation de roles complexe obligatoire
+- review et cloture simplifiees
+- experience mobile centree owner
+
+### Team
+- roles finance dedies possibles
+- separation claire entre operationnel et finance
+- revue et reconciliation partagees
+- cloture reservee a l owner ou au finance admin
+
+## Permissions And Roles
+- owner: acces complet
+- finance_admin: acces complet hors parametres globaux les plus sensibles si besoin
+- finance_reviewer: lecture, review, reconciliation, export selon role
+- accountant_readonly: lecture et export futur
+- operator standard: pas d acces par defaut
+
+## Module And Plan Strategy
+- introduire un module `accounting`
+- `accounting` depend du module `expenses`
+- `accounting` doit etre backend-gated par feature flags et capabilities
+- `superadmin` doit pouvoir l activer et le voir dans les settings, les tenants, les demos
+- recommandation produit:
+  - `solo`: version owner-only possible
+  - `team`: version complete avec roles finance
+  - plans basiques: pas d `accounting` en V1
+
+## Screens And UX Proposal
+
+### Web V1
+- `Accounting / Dashboard`
+- `Accounting / Journal`
+- `Accounting / Accounts and mappings`
+- `Accounting / Taxes`
+- `Accounting / Periods`
+- `Accounting / Exports`
+
+### Mobile V1
+- `Accounting / Summary`
+- `Accounting / Period detail`
+- `Accounting / Journal review`
+- `Accounting / Alerts and pending review`
 
 ## Mobile Experience
-Le module `Accounting` doit avoir une experience mobile utile, mais pas essayer de refaire toute la compta lourde sur petit ecran.
+Le module `Accounting` doit avoir une vraie experience mobile utile, mais sans essayer de refaire toute la compta lourde sur petit ecran.
 
 ### Mobile goals
 - supervision financiere rapide
@@ -205,71 +439,128 @@ Le module `Accounting` doit avoir une experience mobile utile, mais pas essayer 
 - validation owner ou finance admin en deplacement
 
 ### Mobile V1 expectations
-- ecran resume `cash in / cash out / taxes / overdue / unreconciled`
+- ecran resume `cash in / cash out / taxes / open periods / unreconciled`
 - detail de periode avec statut `open / in_review / closed`
 - consultation d un journal filtre avec lecture confortable
-- action mobile pour `mark reviewed`, `approve`, `close period` si autorise
-- partage ou telechargement simple des exports deja generes
+- action mobile pour `mark reviewed`, `mark reconciled`, `close period` si autorise
+- acces rapide aux exports deja generes
 
 ### Mobile constraints
 - edition avancee du plan comptable reste web-first en V1
-- ecriture manuelle complexe reste web-first
+- mappings comptables complexes restent web-first
 - mobile ne doit jamais recalculer lui-meme la logique comptable
 - les ecrans mobiles doivent se baser sur des contrats backend stables
 
-## Business Rules
-- `accounting` ne doit pas etre activable sans base de donnees fiable pour `expenses`
-- les ecritures generees doivent rester tracees a leur source
-- la cloture de periode doit laisser un audit trail complet
-- les permissions finance doivent etre distinctes des permissions commerciales ou operationnelles
-- les resumes taxes doivent utiliser les donnees de transaction stockees
-
-## Permissions And Roles
-- owner: acces complet
-- finance admin: acces complet hors configuration globale sensible selon role
-- operator standard: pas d acces par defaut
-- comptable externe: lecture / export futur selon role dedie
-
-## Module And Plan Strategy
-- introduire un module `accounting`
-- `accounting` depend du module `expenses`
-- `expenses` peut exister seul
-- `accounting` doit etre backend-gated par feature flags et capabilities explicites
-- sur mobile comme sur web, la visibilite doit venir du backend et jamais du plan seul
-
 ## Delivery Plan
 
-### Phase 0 - Prerequisite
-- livrer `Expenses` comme source fiable de depenses
-- figer les categories utiles et les champs fiscaux necessaires
+### Phase 0 - Prerequisites and module plumbing
+- ajouter le module `accounting` dans les feature flags et plans
+- brancher `superadmin`, `demo`, `tenant labels`, navigation, permissions
+- figer les champs minimums utilises par `expenses`, `invoices`, `payments`, `sales`
+- definir les premiers comptes systeme et conventions de mapping
+
+Phase 0 delivery notes:
+- module `accounting` expose dans feature flags, billing defaults, `superadmin`, `demo`, labels tenant et navigation
+- dependance `accounting -> expenses` enforcee serveur
+- page `Accounting` V0 disponible en web et API comme point d entree safe
+- premier fichier `config/accounting.php` cree pour figer comptes systeme et conventions de mapping
 
 ### Phase 1 - Accounting bridge foundation
-- plan comptable simple
-- mappings par categorie et par evenement
-- generation des ecritures depuis revenus et depenses
-- journal consultable
+- tables `accounts`, `mappings`, `entry_batches`, `entries`
+- generation des ecritures depuis `Invoices`, `Payments`, `Sales`, `Expenses`
+- journal comptable consultable
+- liens vers les sources metier
+
+Phase 1 delivery notes:
+- tables `accounting_accounts`, `accounting_mappings`, `accounting_entry_batches` et `accounting_entries` creees
+- bootstrap automatique des comptes systeme et mappings par owner workspace
+- generation serveur des lots/ecritures depuis `Invoices`, `Payments`, `Sales` et `Expenses`
+- support des depenses remboursables avec lot de charge puis lot de remboursement
+- journal `Accounting` disponible en web et API avec filtres `period / source / account / review status`
+- regroupements lisibles par compte et par source, avec liens vers les sources metier
 
 ### Phase 2 - Tax and export layer
-- synthese taxes
-- exports par periode
+- synthese taxes par periode
+- exports CSV
 - references documentaires et audit
+- premier package `accountant handoff`
 
-### Phase 3 - Period discipline and mobile supervision
-- workflow `open / in_review / closed`
-- verrouillage leger
-- lecture mobile des chiffres clefs
-- alertes et actions mobiles de supervision
+Phase 2 delivery notes:
+- synthese taxes disponible en web et API avec `taxes collected / taxes paid / net tax due`
+- lecture des lignes taxe encore a revoir pour isoler les anomalies avant declaration ou handoff
+- table `accounting_exports` ajoutee pour garder un historique des exports generes
+- export CSV comptable reproductible depuis le scope filtre courant
+- telechargement des exports deja generes depuis l historique recent
+- audit trail sur la generation des exports comptables
 
-### Phase 4 - Deeper accounting capabilities
-- rapprochement plus riche
-- ajustements manuels controles
-- integrations comptables futures si la demande le justifie
+### Phase 3 - Period discipline
+- table `accounting_periods`
+- workflow `open / in_review / closed / reopened`
+- verrouillage leger des periodes
+- audit log des clotures et reouvertures
+
+Phase 3 delivery notes:
+- table `accounting_periods` ajoutee avec statuts `open / in_review / closed / reopened`
+- timeline recente des periodes visible dans l ecran `Accounting`
+- actions web et API pour `open`, `in review`, `close` et `reopen`
+- audit trail des transitions de periode
+- la synchro comptable ne regenere plus silencieusement les lots d une periode `closed`
+- reouverture d une periode permet de reprendre la synchro normale sur ce mois
+
+### Phase 4 - Review and reconciliation
+- statuts `unreviewed / reviewed / reconciled`
+- filtres de journal par review status
+- vues de lots a verifier
+- actions de review/reconciliation cote web et mobile
+
+Phase 4 delivery notes:
+- workspace de revue visible dans l ecran `Accounting` avec compteurs `unreviewed / reviewed / reconciled`
+- actions web et API pour marquer une ecriture ou un lot `unreviewed`, `reviewed` ou `reconciled`
+- audit trail sur les transitions de revue et de rapprochement
+- les statuts de revue survivent maintenant aux resynchronisations du journal quand le lot source reste coherent
+- separation permissionnelle entre simple lecture comptable et gestion/reconciliation
+
+### Phase 5 - Mobile supervision
+- dashboard mobile finance
+- journal mobile ergonomique
+- detail de periode mobile
+- alertes et actions owner / finance admin
+
+Phase 5 delivery notes:
+- contrat backend `mobile_summary` expose pour garder les ecrans mobiles stables cote web et API
+- board mobile finance ajoute avec `cash in / cash out / net tax / open periods / unreconciled / pending batches`
+- alertes mobiles prioritaires pour revue en attente, periodes actives, position taxe et export manquant
+- journal mobile rendu en cartes lisibles avec actions `reviewed / reconciled` quand autorise
+- sections avancees `accounts / mappings` gardees web-first pour ne pas surcharger le mobile
+
+### Phase 6 - Cross-cutting demo and superadmin enablement
+- module visible dans `superadmin`
+- support `demo workspace`
+- seed comptable minimal pour demos
+- snapshot finance lisible depuis les surfaces admin/demo
+
+Phase 6 delivery notes:
+- `accounting` reste visible dans `superadmin`, `tenant labels`, `demo builder` et `demo account` surfaces
+- `demo workspace provisioner` synchronise maintenant le journal comptable quand le module `accounting` est selectionne
+- `seed_summary` expose des compteurs comptables utiles pour la QA demo: `accounting_entries`, `accounting_batches`, `accounting_review_required_batches`, `accounting_active_periods`, `accounting_exports`
+- la fiche detail `superadmin / demo workspace` affiche ces compteurs dans le bloc `Finance snapshot`
+- la description du module demo `Accounting` est alignee avec le scope reel livre (`journal + taxes + review + periods + mobile supervision`)
 
 ## Definition Of Done
 - la plateforme peut transformer flux revenus + depenses en donnees comptables lisibles
-- un owner peut suivre une periode, ses taxes, et son etat de cloture
-- le journal preserve la source de chaque ecriture
-- les exports sont assez propres pour reduire le bricolage comptable
+- un owner peut suivre une periode, ses taxes, son journal, et son etat de cloture
+- chaque ecriture garde une trace de sa source
+- les exports reduisent clairement le bricolage comptable
+- le module respecte les feature flags, permissions, dependances et plans
 - mobile permet la supervision financiere essentielle sans imposer le desktop pour chaque verification
-- le module respecte strictement les feature flags, permissions et dependances
 
+## Recommended Starting Point
+Si on demarre l implementation maintenant, le meilleur premier slice est:
+1. `Phase 0`
+2. `Phase 1`
+3. un journal simple avec generation d ecritures depuis `Expenses`, `Invoices` et `Payments`
+
+Pourquoi:
+- c est la premiere vraie valeur comptable
+- ca reutilise directement le socle deja livre
+- ca pose les contrats backend qui serviront au reste du module
