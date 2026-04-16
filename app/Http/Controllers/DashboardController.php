@@ -946,156 +946,206 @@ class DashboardController extends Controller
             ->whereDate('paid_at', '>=', $startOfMonth)
             ->sum('amount');
 
-        $tasksQuery = Task::query()->forAccount($accountId);
-        $tasks = (clone $tasksQuery)
-            ->with('assignee.user:id,name')
-            ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
-            ->orderBy('due_date')
-            ->orderByDesc('created_at')
-            ->limit(10)
-            ->get([
-                'id',
-                'title',
-                'status',
-                'due_date',
-                'start_time',
-                'end_time',
-                'auto_started_at',
-                'auto_completed_at',
-                'assigned_team_member_id',
-            ])
-            ->map(function ($task) {
-                return [
-                    'id' => $task->id,
-                    'title' => $task->title,
-                    'status' => $task->status,
-                    'due_date' => $task->due_date,
-                    'start_time' => $task->start_time,
-                    'end_time' => $task->end_time,
-                    'auto_started_at' => $task->auto_started_at,
-                    'auto_completed_at' => $task->auto_completed_at,
-                    'assignee' => $task->assignee?->user ? [
-                        'name' => $task->assignee->user->name,
-                    ] : null,
-                ];
-            });
+        $canViewTasks = $accountOwner?->hasCompanyFeature('tasks') ?? false;
+        $canViewJobs = $accountOwner?->hasCompanyFeature('jobs') ?? false;
+        $canViewQuotes = $accountOwner?->hasCompanyFeature('quotes') ?? false;
+        $canViewInvoices = $accountOwner?->hasCompanyFeature('invoices') ?? false;
+        $canViewCatalogActivity = ($accountOwner?->hasCompanyFeature('services') ?? false)
+            || ($accountOwner?->hasCompanyFeature('products') ?? false);
 
-        $tasksToday = (clone $tasksQuery)
-            ->with('assignee.user:id,name')
-            ->whereDate('due_date', $today)
-            ->whereIn('status', ['todo', 'in_progress'])
-            ->orderByRaw('CASE WHEN start_time IS NULL THEN 1 ELSE 0 END')
-            ->orderBy('start_time')
-            ->orderByDesc('created_at')
-            ->limit(12)
-            ->get([
-                'id',
-                'title',
-                'status',
-                'due_date',
-                'start_time',
-                'end_time',
-                'auto_started_at',
-                'auto_completed_at',
-                'assigned_team_member_id',
-            ])
-            ->map(function ($task) {
-                return [
-                    'id' => $task->id,
-                    'title' => $task->title,
-                    'status' => $task->status,
-                    'due_date' => $task->due_date,
-                    'start_time' => $task->start_time,
-                    'end_time' => $task->end_time,
-                    'auto_started_at' => $task->auto_started_at,
-                    'auto_completed_at' => $task->auto_completed_at,
-                    'assignee' => $task->assignee?->user ? [
-                        'name' => $task->assignee->user->name,
-                    ] : null,
-                ];
-            });
+        $tasksQuery = Task::query()->forAccount($accountId);
+        $visibleTasksQuery = $canViewTasks
+            ? $tasksQuery
+            : Task::query()->forAccount($accountId)->whereRaw('1 = 0');
+        $tasks = $canViewTasks
+            ? (clone $visibleTasksQuery)
+                ->with('assignee.user:id,name')
+                ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('due_date')
+                ->orderByDesc('created_at')
+                ->limit(10)
+                ->get([
+                    'id',
+                    'title',
+                    'status',
+                    'due_date',
+                    'start_time',
+                    'end_time',
+                    'auto_started_at',
+                    'auto_completed_at',
+                    'assigned_team_member_id',
+                ])
+                ->map(function ($task) {
+                    return [
+                        'id' => $task->id,
+                        'title' => $task->title,
+                        'status' => $task->status,
+                        'due_date' => $task->due_date,
+                        'start_time' => $task->start_time,
+                        'end_time' => $task->end_time,
+                        'auto_started_at' => $task->auto_started_at,
+                        'auto_completed_at' => $task->auto_completed_at,
+                        'assignee' => $task->assignee?->user ? [
+                            'name' => $task->assignee->user->name,
+                        ] : null,
+                    ];
+                })
+            : collect();
+
+        $tasksToday = $canViewTasks
+            ? (clone $visibleTasksQuery)
+                ->with('assignee.user:id,name')
+                ->whereDate('due_date', $today)
+                ->whereIn('status', ['todo', 'in_progress'])
+                ->orderByRaw('CASE WHEN start_time IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('start_time')
+                ->orderByDesc('created_at')
+                ->limit(12)
+                ->get([
+                    'id',
+                    'title',
+                    'status',
+                    'due_date',
+                    'start_time',
+                    'end_time',
+                    'auto_started_at',
+                    'auto_completed_at',
+                    'assigned_team_member_id',
+                ])
+                ->map(function ($task) {
+                    return [
+                        'id' => $task->id,
+                        'title' => $task->title,
+                        'status' => $task->status,
+                        'due_date' => $task->due_date,
+                        'start_time' => $task->start_time,
+                        'end_time' => $task->end_time,
+                        'auto_started_at' => $task->auto_started_at,
+                        'auto_completed_at' => $task->auto_completed_at,
+                        'assignee' => $task->assignee?->user ? [
+                            'name' => $task->assignee->user->name,
+                        ] : null,
+                    ];
+                })
+            : collect();
 
         $worksQuery = Work::query()->byUser($accountId);
-        $worksToday = $this->buildWorksToday($worksQuery, $today);
-        $agendaAlerts = $this->buildAgendaAlerts($tasksQuery, $worksQuery, $today);
+        $visibleWorksQuery = $canViewJobs
+            ? $worksQuery
+            : Work::query()->byUser($accountId)->whereRaw('1 = 0');
+        $worksToday = $canViewJobs
+            ? $this->buildWorksToday($visibleWorksQuery, $today)
+            : [];
+        $agendaAlerts = ($canViewTasks || $canViewJobs)
+            ? $this->buildAgendaAlerts($visibleTasksQuery, $visibleWorksQuery, $today)
+            : [];
+        $weekSchedule = ($canViewTasks || $canViewJobs)
+            ? $this->buildDashboardWeekSchedule($visibleTasksQuery, $visibleWorksQuery, $now)
+            : ['days' => [], 'rows' => [], 'summary' => []];
 
-        $recentQuotes = Quote::byUser($userId)
-            ->with('customer:id,company_name,first_name,last_name')
-            ->latest()
-            ->limit(5)
-            ->get(['id', 'number', 'status', 'total', 'customer_id', 'created_at'])
-            ->map(function ($quote) {
-                return [
-                    'id' => $quote->id,
-                    'number' => $quote->number,
-                    'status' => $quote->status,
-                    'total' => (float) $quote->total,
-                    'created_at' => $quote->created_at,
-                    'customer' => $quote->customer ? [
-                        'company_name' => $quote->customer->company_name,
-                        'first_name' => $quote->customer->first_name,
-                        'last_name' => $quote->customer->last_name,
-                    ] : null,
-                ];
-            });
+        $recentQuotes = $canViewQuotes
+            ? Quote::byUser($userId)
+                ->with('customer:id,company_name,first_name,last_name')
+                ->latest()
+                ->limit(5)
+                ->get(['id', 'number', 'status', 'total', 'customer_id', 'created_at'])
+                ->map(function ($quote) {
+                    return [
+                        'id' => $quote->id,
+                        'number' => $quote->number,
+                        'status' => $quote->status,
+                        'total' => (float) $quote->total,
+                        'created_at' => $quote->created_at,
+                        'customer' => $quote->customer ? [
+                            'company_name' => $quote->customer->company_name,
+                            'first_name' => $quote->customer->first_name,
+                            'last_name' => $quote->customer->last_name,
+                        ] : null,
+                    ];
+                })
+            : collect();
 
-        $upcomingJobs = Work::byUser($userId)
-            ->with('customer:id,company_name,first_name,last_name')
-            ->whereIn('status', ['scheduled', 'in_progress'])
-            ->orderBy('start_date')
-            ->orderBy('start_time')
-            ->limit(5)
-            ->get(['id', 'job_title', 'status', 'start_date', 'start_time', 'customer_id'])
-            ->map(function ($work) {
-                return [
-                    'id' => $work->id,
-                    'job_title' => $work->job_title,
-                    'status' => $work->status,
-                    'start_date' => $work->start_date,
-                    'start_time' => $work->start_time,
-                    'customer' => $work->customer ? [
-                        'company_name' => $work->customer->company_name,
-                        'first_name' => $work->customer->first_name,
-                        'last_name' => $work->customer->last_name,
-                    ] : null,
-                ];
-            });
+        $upcomingJobs = $canViewJobs
+            ? Work::byUser($userId)
+                ->with('customer:id,company_name,first_name,last_name')
+                ->whereIn('status', ['scheduled', 'in_progress'])
+                ->orderBy('start_date')
+                ->orderBy('start_time')
+                ->limit(5)
+                ->get(['id', 'job_title', 'status', 'start_date', 'start_time', 'customer_id'])
+                ->map(function ($work) {
+                    return [
+                        'id' => $work->id,
+                        'job_title' => $work->job_title,
+                        'status' => $work->status,
+                        'start_date' => $work->start_date,
+                        'start_time' => $work->start_time,
+                        'customer' => $work->customer ? [
+                            'company_name' => $work->customer->company_name,
+                            'first_name' => $work->customer->first_name,
+                            'last_name' => $work->customer->last_name,
+                        ] : null,
+                    ];
+                })
+            : collect();
 
-        $outstandingInvoices = Invoice::byUser($userId)
-            ->with('customer:id,company_name,first_name,last_name')
-            ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
-            ->whereNotIn('status', ['paid', 'void'])
-            ->orderByDesc('total')
-            ->limit(5)
-            ->get(['id', 'number', 'status', 'total', 'customer_id', 'created_at'])
-            ->map(function ($invoice) {
-                return [
-                    'id' => $invoice->id,
-                    'number' => $invoice->number,
-                    'status' => $invoice->status,
-                    'total' => (float) $invoice->total,
-                    'amount_paid' => (float) ($invoice->payments_sum_amount ?? 0),
-                    'balance_due' => $invoice->balance_due,
-                    'created_at' => $invoice->created_at,
-                    'customer' => $invoice->customer ? [
-                        'company_name' => $invoice->customer->company_name,
-                        'first_name' => $invoice->customer->first_name,
-                        'last_name' => $invoice->customer->last_name,
-                    ] : null,
-                ];
-            });
+        $outstandingInvoices = $canViewInvoices
+            ? Invoice::byUser($userId)
+                ->with('customer:id,company_name,first_name,last_name')
+                ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
+                ->whereNotIn('status', ['paid', 'void'])
+                ->orderByDesc('total')
+                ->limit(5)
+                ->get(['id', 'number', 'status', 'total', 'customer_id', 'created_at'])
+                ->map(function ($invoice) {
+                    return [
+                        'id' => $invoice->id,
+                        'number' => $invoice->number,
+                        'status' => $invoice->status,
+                        'total' => (float) $invoice->total,
+                        'amount_paid' => (float) ($invoice->payments_sum_amount ?? 0),
+                        'balance_due' => $invoice->balance_due,
+                        'created_at' => $invoice->created_at,
+                        'customer' => $invoice->customer ? [
+                            'company_name' => $invoice->customer->company_name,
+                            'first_name' => $invoice->customer->first_name,
+                            'last_name' => $invoice->customer->last_name,
+                        ] : null,
+                    ];
+                })
+            : collect();
 
         $subjectLabels = [
             Quote::class => 'Quote',
             Work::class => 'Job',
+            Task::class => 'Task',
             Invoice::class => 'Invoice',
             Payment::class => 'Payment',
             Product::class => 'Product',
             Customer::class => 'Customer',
         ];
 
+        $visibleActivityTypes = [Customer::class];
+        if ($canViewCatalogActivity) {
+            $visibleActivityTypes[] = Product::class;
+        }
+        if ($canViewQuotes) {
+            $visibleActivityTypes[] = Quote::class;
+        }
+        if ($canViewJobs) {
+            $visibleActivityTypes[] = Work::class;
+        }
+        if ($canViewTasks) {
+            $visibleActivityTypes[] = Task::class;
+        }
+        if ($canViewInvoices) {
+            $visibleActivityTypes[] = Invoice::class;
+            $visibleActivityTypes[] = Payment::class;
+        }
+
         $activity = ActivityLog::query()
             ->where('user_id', $userId)
+            ->whereIn('subject_type', $visibleActivityTypes)
             ->latest()
             ->limit(8)
             ->get(['id', 'action', 'description', 'subject_type', 'subject_id', 'created_at'])
@@ -1142,6 +1192,12 @@ class DashboardController extends Controller
                 ->whereBetween('created_at', [$start, $end])
                 ->count();
         });
+        $worksScheduledSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($worksQuery, $scheduledStatuses) {
+            return (clone $worksQuery)
+                ->whereIn('status', $scheduledStatuses)
+                ->whereBetween('created_at', [$start, $end])
+                ->count();
+        });
         $customersSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($customersQuery) {
             return (clone $customersQuery)
                 ->whereBetween('created_at', [$start, $end])
@@ -1170,6 +1226,7 @@ class DashboardController extends Controller
             'revenue_paid' => $revenueSeries['values'],
             'revenue_outstanding' => $revenueOutstandingSeries['values'],
             'quotes_open' => $quotesOpenSeries['values'],
+            'works_scheduled' => $worksScheduledSeries['values'],
             'works_in_progress' => $worksInProgressSeries['values'],
             'customers_total' => $customersSeries['values'],
             'products_low_stock' => $lowStockSeries['values'],
@@ -1207,6 +1264,7 @@ class DashboardController extends Controller
             'tasksToday' => $tasksToday,
             'worksToday' => $worksToday,
             'agendaAlerts' => $agendaAlerts,
+            'weekSchedule' => $weekSchedule,
             'revenueSeries' => array_merge($revenueSeries, [
                 'expenseValues' => $expenseSeries['values'],
             ]),
@@ -1702,6 +1760,168 @@ class DashboardController extends Controller
         ];
     }
 
+    private function buildDashboardWeekSchedule($tasksQuery, $worksQuery, Carbon $now): array
+    {
+        $weekStart = $now->copy()->startOfWeek(Carbon::MONDAY);
+        $weekEnd = $weekStart->copy()->addDays(6);
+        $weekStartDate = $weekStart->toDateString();
+        $weekEndDate = $weekEnd->toDateString();
+
+        $days = [];
+        $dayKeys = [];
+        for ($offset = 0; $offset < 7; $offset += 1) {
+            $date = $weekStart->copy()->addDays($offset);
+            $key = $date->toDateString();
+            $dayKeys[] = $key;
+            $days[] = [
+                'key' => $key,
+                'is_today' => $date->isSameDay($now),
+            ];
+        }
+
+        $rows = [];
+
+        $calendarTasks = (clone $tasksQuery)
+            ->with('assignee.user:id,name')
+            ->whereBetween('due_date', [$weekStartDate, $weekEndDate])
+            ->whereIn('status', ['todo', 'in_progress'])
+            ->orderBy('due_date')
+            ->orderByRaw('CASE WHEN start_time IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('start_time')
+            ->get([
+                'id',
+                'title',
+                'status',
+                'due_date',
+                'start_time',
+                'end_time',
+                'assigned_team_member_id',
+            ]);
+
+        foreach ($calendarTasks as $task) {
+            $resourceKey = $task->assigned_team_member_id
+                ? 'team-member-'.$task->assigned_team_member_id
+                : 'unassigned';
+            $resourceName = $task->assignee?->user?->name;
+
+            $this->pushDashboardScheduleEvent($rows, $dayKeys, $resourceKey, $resourceName, [
+                'key' => 'task-'.$task->id,
+                'type' => 'task',
+                'title' => $task->title,
+                'status' => $task->status,
+                'day_key' => $task->due_date?->toDateString(),
+                'start_time' => $task->start_time,
+                'end_time' => $task->end_time,
+                'time_label' => $this->formatScheduleTimeLabel($task->start_time, $task->end_time),
+            ]);
+        }
+
+        $calendarWorks = (clone $worksQuery)
+            ->with('teamMembers.user:id,name')
+            ->whereBetween('start_date', [$weekStartDate, $weekEndDate])
+            ->whereNotIn('status', array_merge(Work::COMPLETED_STATUSES, [Work::STATUS_CANCELLED]))
+            ->orderBy('start_date')
+            ->orderByRaw('CASE WHEN start_time IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('start_time')
+            ->get([
+                'id',
+                'job_title',
+                'status',
+                'start_date',
+                'start_time',
+                'end_time',
+            ]);
+
+        foreach ($calendarWorks as $work) {
+            $members = $work->teamMembers
+                ->filter(fn ($member) => filled($member->user?->name))
+                ->values();
+
+            if ($members->isEmpty()) {
+                $this->pushDashboardScheduleEvent($rows, $dayKeys, 'unassigned', null, [
+                    'key' => 'work-'.$work->id.'-unassigned',
+                    'type' => 'work',
+                    'title' => $work->job_title,
+                    'status' => $work->status,
+                    'day_key' => $work->start_date?->toDateString(),
+                    'start_time' => $work->start_time,
+                    'end_time' => $work->end_time,
+                    'time_label' => $this->formatScheduleTimeLabel($work->start_time, $work->end_time),
+                ]);
+
+                continue;
+            }
+
+            foreach ($members as $member) {
+                $this->pushDashboardScheduleEvent($rows, $dayKeys, 'team-member-'.$member->id, $member->user?->name, [
+                    'key' => 'work-'.$work->id.'-member-'.$member->id,
+                    'type' => 'work',
+                    'title' => $work->job_title,
+                    'status' => $work->status,
+                    'day_key' => $work->start_date?->toDateString(),
+                    'start_time' => $work->start_time,
+                    'end_time' => $work->end_time,
+                    'time_label' => $this->formatScheduleTimeLabel($work->start_time, $work->end_time),
+                ]);
+            }
+        }
+
+        foreach ($rows as &$row) {
+            foreach ($dayKeys as $dayKey) {
+                usort($row['days'][$dayKey], function (array $left, array $right) {
+                    return [$left['start_time'] ?? '', $left['title'] ?? '']
+                        <=> [$right['start_time'] ?? '', $right['title'] ?? ''];
+                });
+            }
+        }
+        unset($row);
+
+        uasort($rows, function (array $left, array $right) {
+            if (($left['is_unassigned'] ?? false) !== ($right['is_unassigned'] ?? false)) {
+                return ($left['is_unassigned'] ?? false) ? 1 : -1;
+            }
+
+            return ($right['event_count'] ?? 0) <=> ($left['event_count'] ?? 0)
+                ?: strcasecmp($left['name'] ?? '', $right['name'] ?? '');
+        });
+
+        $pendingTaskCount = (clone $tasksQuery)
+            ->whereBetween('due_date', [$weekStartDate, $weekEndDate])
+            ->where('status', 'todo')
+            ->count();
+        $activeTaskCount = (clone $tasksQuery)
+            ->whereBetween('due_date', [$weekStartDate, $weekEndDate])
+            ->where('status', 'in_progress')
+            ->count();
+        $completedTaskCount = (clone $tasksQuery)
+            ->whereBetween('due_date', [$weekStartDate, $weekEndDate])
+            ->where('status', 'done')
+            ->count();
+        $pendingWorkCount = (clone $worksQuery)
+            ->whereBetween('start_date', [$weekStartDate, $weekEndDate])
+            ->whereIn('status', [Work::STATUS_TO_SCHEDULE, Work::STATUS_SCHEDULED])
+            ->count();
+        $activeWorkCount = (clone $worksQuery)
+            ->whereBetween('start_date', [$weekStartDate, $weekEndDate])
+            ->whereIn('status', [Work::STATUS_EN_ROUTE, Work::STATUS_IN_PROGRESS])
+            ->count();
+        $completedWorkCount = (clone $worksQuery)
+            ->whereBetween('start_date', [$weekStartDate, $weekEndDate])
+            ->whereIn('status', Work::COMPLETED_STATUSES)
+            ->count();
+
+        return [
+            'days' => $days,
+            'rows' => array_values($rows),
+            'summary' => [
+                'total' => $pendingTaskCount + $activeTaskCount + $completedTaskCount + $pendingWorkCount + $activeWorkCount + $completedWorkCount,
+                'to_go' => $pendingTaskCount + $pendingWorkCount,
+                'active' => $activeTaskCount + $activeWorkCount,
+                'complete' => $completedTaskCount + $completedWorkCount,
+            ],
+        ];
+    }
+
     private function buildAgendaAlerts($tasksQuery, $worksQuery, string $today): array
     {
         $tasksStarted = (clone $tasksQuery)
@@ -1727,6 +1947,28 @@ class DashboardController extends Controller
             'works_started' => $worksStarted,
             'works_completed' => $worksCompleted,
         ];
+    }
+
+    private function pushDashboardScheduleEvent(array &$rows, array $dayKeys, string $resourceKey, ?string $resourceName, array $event): void
+    {
+        if (! isset($rows[$resourceKey])) {
+            $rows[$resourceKey] = [
+                'key' => $resourceKey,
+                'name' => $resourceName,
+                'initials' => $this->scheduleResourceInitials($resourceName),
+                'is_unassigned' => $resourceKey === 'unassigned',
+                'event_count' => 0,
+                'days' => array_fill_keys($dayKeys, []),
+            ];
+        }
+
+        $dayKey = $event['day_key'] ?? null;
+        if (! $dayKey || ! array_key_exists($dayKey, $rows[$resourceKey]['days'])) {
+            return;
+        }
+
+        $rows[$resourceKey]['days'][$dayKey][] = $event;
+        $rows[$resourceKey]['event_count'] += 1;
     }
 
     private function buildWorksToday($query, string $today): array
@@ -1764,6 +2006,34 @@ class DashboardController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    private function formatScheduleTimeLabel(?string $startTime, ?string $endTime): string
+    {
+        $start = $startTime ? substr($startTime, 0, 5) : '';
+        $end = $endTime ? substr($endTime, 0, 5) : '';
+
+        if ($start !== '' && $end !== '') {
+            return $start.' - '.$end;
+        }
+
+        return $start !== '' ? $start : $end;
+    }
+
+    private function scheduleResourceInitials(?string $name): string
+    {
+        if (! filled($name)) {
+            return 'U';
+        }
+
+        $parts = preg_split('/\s+/', trim($name)) ?: [];
+        $initials = collect($parts)
+            ->filter()
+            ->take(2)
+            ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
+            ->implode('');
+
+        return $initials !== '' ? $initials : 'U';
     }
 
     private function buildDashboardFinanceSummary(User $accountOwner): array

@@ -62,6 +62,22 @@
       "auto_alerts": "Alertes auto",
       "empty": "Aucune tâche ni aucun chantier prévu aujourd'hui."
     },
+    "weekly": {
+      "title": "Planning de la semaine",
+      "subtitle": "Vue équipe des tâches et chantiers planifiés sur 7 jours.",
+      "sync_calendar": "Synchroniser le calendrier",
+      "empty": "Aucun créneau planifié pour cette semaine.",
+      "team_label": "Équipe",
+      "assignees": "{count} intervenants",
+      "unassigned": "Non assigné",
+      "slots": "{count} créneaux",
+      "summary": {
+        "total": "Total",
+        "to_go": "À venir",
+        "active": "Actifs",
+        "complete": "Terminés"
+      }
+    },
     "revenue": {
       "title": "Tendance des revenus",
       "subtitle": "Encaissements et depenses des derniers mois.",
@@ -82,6 +98,19 @@
     },
     "actions": {
       "view_all": "Voir tout"
+    },
+    "insights": {
+      "title": "Insights",
+      "subtitle": "On regroupe ici les signaux utiles sans empiler plusieurs panneaux.",
+      "open": "Ouvrir",
+      "invoice_label": "Facture à relancer",
+      "invoice_meta": "{amount} à traiter",
+      "job_label": "Prochain chantier",
+      "job_meta": "{date} · {status}",
+      "quote_label": "Devis à suivre",
+      "quote_meta": "{amount} · {status}",
+      "activity_label": "Dernière activité",
+      "activity_meta": "{subject} · {date}"
     },
     "table": {
       "quote": "Devis",
@@ -107,10 +136,17 @@
       "revenue_billed": "Facturé {amount}",
       "outstanding_balance": "Solde en attente",
       "partial_invoices": "{count} factures partielles",
+      "client_follow_up": "Relances clients",
+      "client_follow_up_amount": "{amount} à encaisser",
+      "expenses_due": "Dépenses à traiter",
+      "expenses_pending_approval": "{count} en attente d'approbation",
       "open_quotes": "Devis ouverts",
       "accepted_quotes": "{count} devis acceptés",
       "jobs_in_progress": "Chantiers en cours",
+      "jobs_scheduled_label": "Chantiers planifiés",
       "jobs_scheduled": "{count} planifiés",
+      "jobs_completed": "{count} terminés",
+      "jobs_total": "{count} au total",
       "customers": "Clients",
       "customers_new": "{count} nouveaux clients",
       "low_stock": "Stock faible",
@@ -119,6 +155,24 @@
       "invoices_total": "{count} au total",
       "inventory_value": "Valeur du stock",
       "products_total": "{count} produits"
+    },
+    "kpi_panels": {
+      "finance_title": "Finances",
+      "finance_subtitle": "Encaissements, relances clients et dépenses à surveiller.",
+      "billed_total": "Facturé",
+      "partial_label": "Partielles",
+      "overdue_label": "En retard",
+      "pending_actions_label": "Actions finance",
+      "pipeline_title": "Pipeline",
+      "pipeline_subtitle": "Suivi des devis et des chantiers en cours.",
+      "accepted_label": "Acceptés",
+      "scheduled_label": "Planifiés",
+      "completed_label": "Terminés",
+      "quotes_month_label": "Ce mois-ci",
+      "today_load_label": "Charge du jour",
+      "overview_title": "Repères rapides",
+      "overview_subtitle": "Les indicateurs transverses regroupés dans un seul panneau pour garder le cap.",
+      "overview_action": "Ouvrir l'espace"
     },
     "announcements": {
       "title": "Annonces",

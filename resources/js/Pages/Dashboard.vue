@@ -3,8 +3,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
-import KpiSparkline from '@/Components/Dashboard/KpiSparkline.vue';
-import KpiTrendBadge from '@/Components/Dashboard/KpiTrendBadge.vue';
+import KpiCompositePanel from '@/Components/Dashboard/KpiCompositePanel.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
@@ -35,6 +34,10 @@ const props = defineProps({
     agendaAlerts: {
         type: Object,
         default: () => ({}),
+    },
+    weekSchedule: {
+        type: Object,
+        default: () => ({ days: [], rows: [], summary: {} }),
     },
     outstandingInvoices: {
         type: Array,
@@ -79,7 +82,7 @@ const props = defineProps({
 });
 
 const page = usePage();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const { hasFeature } = useAccountFeatures();
 const userName = computed(() => page.props.auth?.user?.name || '');
 const greeting = computed(() =>
@@ -90,6 +93,31 @@ const greeting = computed(() =>
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
+const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
+const hasAnyPermission = (permissions = []) => permissions.some((permission) => teamPermissions.value.includes(permission));
+const canQuotes = computed(() => isOwner.value || hasAnyPermission(['quotes.view', 'quotes.edit', 'quotes.send']));
+const canJobs = computed(() => isOwner.value || hasAnyPermission(['jobs.view', 'jobs.edit']));
+const canTasks = computed(() => isOwner.value || hasAnyPermission(['tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete']));
+const canInvoices = computed(() => isOwner.value || hasAnyPermission([
+    'invoices.view',
+    'invoices.create',
+    'invoices.edit',
+    'invoices.approve',
+    'invoices.approve_high',
+]));
+const canExpenses = computed(() => isOwner.value || hasAnyPermission([
+    'expenses.view',
+    'expenses.create',
+    'expenses.edit',
+    'expenses.approve',
+    'expenses.approve_high',
+    'expenses.pay',
+]));
+const canCampaigns = computed(() => isOwner.value || hasAnyPermission([
+    'campaigns.view',
+    'campaigns.manage',
+    'campaigns.send',
+]));
 const hasCatalogFeature = computed(() =>
     showServices.value ? hasFeature('services') : hasFeature('products')
 );
@@ -100,23 +128,6 @@ const billing = computed(() => props.billing || {});
 const billingPlans = computed(() => billing.value.plans || []);
 const billingSubscription = computed(() => billing.value.subscription || {});
 const hasPlanChoices = computed(() => isOwner.value && billingPlans.value.length > 0);
-const usageItems = computed(() => props.usage_limits?.items || []);
-const usageAlerts = computed(() => usageItems.value.filter((item) => item.status !== 'ok'));
-const hasUsageAlerts = computed(() => usageAlerts.value.length > 0);
-const planName = computed(() => props.usage_limits?.plan_name || props.usage_limits?.plan_key || '');
-const usagePlanSuffix = computed(() =>
-    planName.value ? t('dashboard.usage.plan_suffix', { plan: planName.value }) : ''
-);
-const limitLabelMap = {
-    quotes: 'dashboard.limits.quotes',
-    requests: 'dashboard.limits.requests',
-    invoices: 'dashboard.limits.invoices',
-    jobs: 'dashboard.limits.jobs',
-    products: 'dashboard.limits.products',
-    services: 'dashboard.limits.services',
-    tasks: 'dashboard.limits.tasks',
-    team_members: 'dashboard.limits.team_members',
-};
 
 const isPlanActive = (plan) =>
     Boolean(billingSubscription.value?.price_id && plan?.price_id === billingSubscription.value.price_id);
@@ -139,7 +150,9 @@ const formatPercent = (value, maxFractionDigits = 2) => {
 };
 
 const formatDate = (value) => humanizeDate(value);
-const marketingKpiPayload = computed(() => props.marketingKpis || null);
+const marketingKpiPayload = computed(() => (
+    hasFeature('campaigns') && canCampaigns.value ? (props.marketingKpis || null) : null
+));
 const marketingRange = computed(() => marketingKpiPayload.value?.range || null);
 const marketingMetrics = computed(() => marketingKpiPayload.value?.marketing || null);
 const marketingCrossModule = computed(() => marketingKpiPayload.value?.cross_module || null);
@@ -193,9 +206,21 @@ const audienceGrowthDeltaClass = computed(() => {
 
     return 'text-stone-600 dark:text-neutral-300';
 });
-const tasksToday = computed(() => props.tasksToday || []);
-const worksToday = computed(() => props.worksToday || []);
-const agendaAlerts = computed(() => props.agendaAlerts || {});
+const recentQuotes = computed(() => (hasFeature('quotes') && canQuotes.value ? (props.recentQuotes || []) : []));
+const upcomingJobs = computed(() => (hasFeature('jobs') && canJobs.value ? (props.upcomingJobs || []) : []));
+const tasksToday = computed(() => (hasFeature('tasks') && canTasks.value ? (props.tasksToday || []) : []));
+const worksToday = computed(() => (hasFeature('jobs') && canJobs.value ? (props.worksToday || []) : []));
+const canViewWeekPlanning = computed(() => (
+    (hasFeature('tasks') && canTasks.value) || (hasFeature('jobs') && canJobs.value)
+));
+const agendaAlerts = computed(() => (canViewWeekPlanning.value ? (props.agendaAlerts || {}) : {}));
+const outstandingInvoices = computed(() => (hasFeature('invoices') && canInvoices.value ? (props.outstandingInvoices || []) : []));
+const activityFeed = computed(() => (isOwner.value ? (props.activity || []) : []));
+const weekSchedule = computed(() => (canViewWeekPlanning.value ? (props.weekSchedule || {}) : { days: [], rows: [], summary: {} }));
+const weekDays = computed(() => weekSchedule.value.days || []);
+const weekRows = computed(() => weekSchedule.value.rows || []);
+const weekSummary = computed(() => weekSchedule.value.summary || {});
+const hasWeekPlanning = computed(() => weekDays.value.length > 0 && weekRows.value.length > 0);
 const formatTime = (value) => {
     if (!value) {
         return '';
@@ -205,20 +230,6 @@ const formatTime = (value) => {
         return value;
     }
     return `${hours}:${minutes}`;
-};
-const formatTimeRange = (task) => {
-    const start = formatTime(task.start_time);
-    const end = formatTime(task.end_time);
-    if (start && end) {
-        return `${start} - ${end}`;
-    }
-    if (start) {
-        return start;
-    }
-    if (end) {
-        return end;
-    }
-    return t('dashboard.time.any');
 };
 const buildItemDateTime = (item) => {
     if (!item?.due_date) {
@@ -232,34 +243,6 @@ const buildItemDateTime = (item) => {
     }
     return new Date(year, (month - 1), day, Number.isFinite(hour) ? hour : 0, Number.isFinite(minute) ? minute : 0, 0);
 };
-const resolvePriorityKey = (item) => {
-    const dateTime = buildItemDateTime(item);
-    if (!dateTime) {
-        return 'low';
-    }
-    const diffMinutes = Math.round((dateTime.getTime() - Date.now()) / 60000);
-    if (diffMinutes <= 120) {
-        return 'high';
-    }
-    if (diffMinutes <= 360) {
-        return 'medium';
-    }
-    return 'low';
-};
-const priorityConfig = computed(() => ({
-    high: {
-        label: t('dashboard.priority.high'),
-        class: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200',
-    },
-    medium: {
-        label: t('dashboard.priority.medium'),
-        class: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200',
-    },
-    low: {
-        label: t('dashboard.priority.low'),
-        class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
-    },
-}));
 const autoBadgeConfig = computed(() => ({
     started: {
         label: t('dashboard.auto.started'),
@@ -270,25 +253,6 @@ const autoBadgeConfig = computed(() => ({
         class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
     },
 }));
-const resolvePriority = (task) => priorityConfig.value[resolvePriorityKey(task)];
-const resolveAutoBadges = (item) => {
-    const badges = [];
-    if (item?.auto_started_at) {
-        badges.push({
-            key: `${item.key}-auto-start`,
-            label: autoBadgeConfig.value.started.label,
-            class: autoBadgeConfig.value.started.class,
-        });
-    }
-    if (item?.auto_completed_at) {
-        badges.push({
-            key: `${item.key}-auto-complete`,
-            label: autoBadgeConfig.value.completed.label,
-            class: autoBadgeConfig.value.completed.class,
-        });
-    }
-    return badges;
-};
 const resolveStatusLabel = (key, fallback) => {
     const label = t(key);
     return label === key ? fallback : label;
@@ -308,12 +272,6 @@ const taskStatusLabel = (status) => {
 const invoiceStatusLabel = (status) => {
     const key = status || 'draft';
     return resolveStatusLabel(`dashboard.status.invoice.${key}`, key.replace('_', ' '));
-};
-const formatStatus = (item) => {
-    if (!item?.status) {
-        return '-';
-    }
-    return item.type === 'work' ? workStatusLabel(item.status) : taskStatusLabel(item.status);
 };
 const todayItems = computed(() => {
     const taskItems = (tasksToday.value || []).map((task) => ({
@@ -395,55 +353,176 @@ const agendaAlertItems = computed(() => {
     return items;
 });
 const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
+const dateFromKey = (value) => new Date(`${value}T12:00:00`);
+const formatWeekdayShort = (value) =>
+    new Intl.DateTimeFormat(locale.value || undefined, { weekday: 'short' }).format(dateFromKey(value));
+const formatWeekdayDate = (value) =>
+    new Intl.DateTimeFormat(locale.value || undefined, { day: 'numeric', month: 'short' }).format(dateFromKey(value));
+const weekEventsFor = (row, dayKey) => row?.days?.[dayKey] || [];
+const weekRowName = (row) => row?.name || t('dashboard.weekly.unassigned');
+const weekRowLoad = (row) => t('dashboard.weekly.slots', { count: formatNumber(row?.event_count || 0) });
+const MAX_VISIBLE_WEEK_EVENTS = 1;
+const weekDayStats = computed(() => weekDays.value.reduce((stats, day) => {
+    let total = 0;
+    let resources = 0;
+
+    weekRows.value.forEach((row) => {
+        const events = weekEventsFor(row, day.key);
+        if (events.length > 0) {
+            total += events.length;
+            resources += 1;
+        }
+    });
+
+    stats[day.key] = { total, resources };
+    return stats;
+}, {}));
+const weekDayStat = (dayKey) => weekDayStats.value?.[dayKey] || { total: 0, resources: 0 };
+const visibleWeekEvents = (row, dayKey) => weekEventsFor(row, dayKey).slice(0, MAX_VISIBLE_WEEK_EVENTS);
+const hiddenWeekEventsCount = (row, dayKey) => Math.max(weekEventsFor(row, dayKey).length - MAX_VISIBLE_WEEK_EVENTS, 0);
+const scheduleSummaryCards = computed(() => ([
+    {
+        key: 'total',
+        label: t('dashboard.weekly.summary.total'),
+        value: formatNumber(weekSummary.value.total || 0),
+        class: 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200',
+    },
+    {
+        key: 'to-go',
+        label: t('dashboard.weekly.summary.to_go'),
+        value: formatNumber(weekSummary.value.to_go || 0),
+        class: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',
+    },
+    {
+        key: 'active',
+        label: t('dashboard.weekly.summary.active'),
+        value: formatNumber(weekSummary.value.active || 0),
+        class: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200',
+    },
+    {
+        key: 'complete',
+        label: t('dashboard.weekly.summary.complete'),
+        value: formatNumber(weekSummary.value.complete || 0),
+        class: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200',
+    },
+]));
+const scheduleEventClass = (event) => {
+    if (event?.type === 'work') {
+        if (['en_route', 'in_progress'].includes(event?.status)) {
+            return 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200';
+        }
+
+        return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200';
+    }
+
+    if (event?.status === 'in_progress') {
+        return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200';
+    }
+
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200';
+};
+const planningActionHref = computed(() => {
+    if (hasFeature('tasks')) {
+        return route('task.index');
+    }
+
+    if (hasFeature('jobs')) {
+        return route('jobs.index');
+    }
+
+    return '';
+});
+const planningActionLabel = computed(() => (
+    hasFeature('tasks')
+        ? t('dashboard.timeline.view_tasks')
+        : t('dashboard.actions.view_all')
+));
+const insightItems = computed(() => {
+    const items = [];
+    const biggestInvoice = [...outstandingInvoices.value]
+        .sort((left, right) => Number(right.balance_due || 0) - Number(left.balance_due || 0))[0];
+    const nextJob = upcomingJobs.value[0];
+    const latestQuote = recentQuotes.value[0];
+    const latestActivity = activityFeed.value[0];
+
+    if (biggestInvoice) {
+        items.push({
+            key: 'invoice',
+            label: t('dashboard.insights.invoice_label'),
+            metric: formatCurrency(biggestInvoice.balance_due),
+            title: biggestInvoice.number || t('dashboard.labels.invoice_fallback'),
+            context: displayCustomer(biggestInvoice.customer),
+            badge: biggestInvoice.status ? String(biggestInvoice.status).replace(/_/g, ' ') : '',
+            href: route('invoice.show', biggestInvoice.id),
+            class: 'border-rose-200 bg-rose-50/70 dark:border-rose-500/30 dark:bg-rose-500/10',
+        });
+    }
+
+    if (nextJob) {
+        items.push({
+            key: 'job',
+            label: t('dashboard.insights.job_label'),
+            metric: `${formatDate(nextJob.start_date)}${nextJob.start_time ? ` · ${formatTime(nextJob.start_time)}` : ''}`,
+            title: nextJob.job_title,
+            context: displayCustomer(nextJob.customer),
+            badge: workStatusLabel(nextJob.status),
+            href: route('work.show', nextJob.id),
+            class: 'border-sky-200 bg-sky-50/70 dark:border-sky-500/30 dark:bg-sky-500/10',
+        });
+    }
+
+    if (latestQuote) {
+        items.push({
+            key: 'quote',
+            label: t('dashboard.insights.quote_label'),
+            metric: formatCurrency(latestQuote.total),
+            title: latestQuote.number || t('dashboard.labels.quote_fallback'),
+            context: displayCustomer(latestQuote.customer),
+            badge: quoteStatusLabel(latestQuote.status),
+            href: route('customer.quote.show', latestQuote.id),
+            class: 'border-amber-200 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/10',
+        });
+    }
+
+    if (latestActivity) {
+        items.push({
+            key: 'activity',
+            label: t('dashboard.insights.activity_label'),
+            metric: formatDate(latestActivity.created_at),
+            title: latestActivity.description || latestActivity.action,
+            context: latestActivity.subject,
+            badge: '',
+            href: '',
+            class: 'border-stone-200 bg-stone-50/90 dark:border-neutral-700 dark:bg-neutral-800',
+        });
+    }
+
+    return items;
+});
 const customersEmpty = computed(() => stat('customers_total') <= 0);
 const catalogEmpty = computed(() => stat('products_total') <= 0);
 const quotesEmpty = computed(() => stat('quotes_total') <= 0);
 const planScansEmpty = computed(() => stat('plan_scans_total') <= 0);
 
-const expenseSeriesValues = computed(() => props.revenueSeries?.expenseValues || []);
-const hasExpenseTrend = computed(() => hasFeature('expenses') && expenseSeriesValues.value.length > 0);
-const revenueMax = computed(() => {
-    const values = [
-        ...(props.revenueSeries?.values || []),
-        ...(hasExpenseTrend.value ? expenseSeriesValues.value : []),
-    ];
-    const maxValue = Math.max(...values, 0);
-    return maxValue > 0 ? maxValue : 1;
-});
-const revenueBarHeight = (value) => {
-    const numericValue = Number(value || 0);
-
-    if (numericValue <= 0) {
-        return '0px';
-    }
-
-    return `${Math.max(6, Math.round((numericValue / revenueMax.value) * 120))}px`;
-};
-
-const revenuePoints = computed(() => {
-    const labels = props.revenueSeries?.labels || [];
-    const values = props.revenueSeries?.values || [];
-    const expenseValues = expenseSeriesValues.value;
-
-    return labels.map((label, index) => {
-        const value = Number(values[index] || 0);
-        const expenseValue = Number(expenseValues[index] || 0);
-
-        return {
-            label,
-            value,
-            expenseValue,
-            height: revenueBarHeight(value),
-            expenseHeight: revenueBarHeight(expenseValue),
-        };
-    });
-});
+const expenseSeriesValues = computed(() => (
+    hasFeature('expenses') && canExpenses.value ? (props.revenueSeries?.expenseValues || []) : []
+));
+const financeInsights = computed(() => (
+    hasFeature('invoices') && canInvoices.value ? (props.financeSummary || {}) : {}
+));
+const hasExpenseTrend = computed(() => hasFeature('expenses') && canExpenses.value && expenseSeriesValues.value.length > 0);
+const expenseKpiData = computed(() => ({
+    points: hasExpenseTrend.value ? buildSparklinePoints(expenseSeriesValues.value) : [],
+    trend: hasExpenseTrend.value ? buildTrend(expenseSeriesValues.value, 'down') : null,
+}));
 
 const kpiSeries = computed(() => props.kpiSeries || {});
+const financeCount = (key) => Number(financeInsights.value?.[key] || 0);
 const kpiConfig = {
     revenue_paid: { direction: 'up' },
     revenue_outstanding: { direction: 'down' },
     quotes_open: { direction: 'up' },
+    works_scheduled: { direction: 'up' },
     works_in_progress: { direction: 'up' },
     customers_total: { direction: 'up' },
     products_low_stock: { direction: 'down' },
@@ -461,90 +540,216 @@ const kpiData = computed(() => {
     });
     return data;
 });
+const financePanelMetrics = computed(() => {
+    if (!hasFeature('invoices') || !canInvoices.value) {
+        return [];
+    }
+
+    const items = [
+        {
+            key: 'revenue-paid',
+            label: t('dashboard.kpi.revenue_paid'),
+            value: formatCurrency(stat('revenue_paid')),
+            context: t('dashboard.kpi.revenue_billed', { amount: formatCurrency(stat('revenue_billed')) }),
+            trend: kpiData.value.revenue_paid.trend,
+            points: kpiData.value.revenue_paid.points,
+            colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+        },
+        {
+            key: 'revenue-outstanding',
+            label: t('dashboard.kpi.outstanding_balance'),
+            value: formatCurrency(stat('revenue_outstanding')),
+            context: t('dashboard.kpi.partial_invoices', { count: formatNumber(stat('invoices_partial')) }),
+            trend: kpiData.value.revenue_outstanding.trend,
+            points: kpiData.value.revenue_outstanding.points,
+            colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
+        },
+        {
+            key: 'client-follow-up',
+            label: t('dashboard.kpi.client_follow_up'),
+            value: formatNumber(financeCount('outstanding_invoices_count')),
+            context: t('dashboard.kpi.client_follow_up_amount', {
+                amount: formatCurrency(stat('revenue_outstanding')),
+            }),
+            colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
+        },
+    ];
+
+    if (hasFeature('expenses') && canExpenses.value) {
+        items.push({
+            key: 'expenses-due',
+            label: t('dashboard.kpi.expenses_due'),
+            value: formatNumber(financeCount('due_expenses_count')),
+            context: t('dashboard.kpi.expenses_pending_approval', {
+                count: formatNumber(financeCount('pending_expense_approvals_count')),
+            }),
+            trend: expenseKpiData.value.trend,
+            points: expenseKpiData.value.points,
+            colorClass: 'bg-rose-500/70 dark:bg-rose-400/50',
+        });
+    }
+
+    return items;
+});
+const pipelinePanelMetrics = computed(() => {
+    const items = [];
+
+    if (hasFeature('quotes') && canQuotes.value) {
+        items.push({
+            key: 'quotes-open',
+            label: t('dashboard.kpi.open_quotes'),
+            value: formatNumber(stat('quotes_open')),
+            context: t('dashboard.kpi.accepted_quotes', { count: formatNumber(stat('quotes_accepted')) }),
+            trend: kpiData.value.quotes_open.trend,
+            points: kpiData.value.quotes_open.points,
+            colorClass: 'bg-blue-500/70 dark:bg-blue-400/50',
+        });
+    }
+
+    if (hasFeature('jobs') && canJobs.value) {
+        items.push({
+            key: 'jobs-scheduled',
+            label: t('dashboard.kpi.jobs_scheduled_label'),
+            value: formatNumber(stat('works_scheduled')),
+            context: t('dashboard.kpi.jobs_completed', { count: formatNumber(stat('works_completed')) }),
+            trend: kpiData.value.works_scheduled.trend,
+            points: kpiData.value.works_scheduled.points,
+            colorClass: 'bg-cyan-500/70 dark:bg-cyan-400/50',
+        });
+
+        items.push({
+            key: 'jobs-progress',
+            label: t('dashboard.kpi.jobs_in_progress'),
+            value: formatNumber(stat('works_in_progress')),
+            context: t('dashboard.kpi.jobs_total', { count: formatNumber(stat('works_total')) }),
+            trend: kpiData.value.works_in_progress.trend,
+            points: kpiData.value.works_in_progress.points,
+            colorClass: 'bg-indigo-500/70 dark:bg-indigo-400/50',
+        });
+    }
+
+    return items;
+});
+const pipelinePanelActionHref = computed(() => {
+    if (hasFeature('jobs') && canJobs.value) {
+        return route('jobs.index');
+    }
+
+    if (hasFeature('quotes') && canQuotes.value) {
+        return route('quote.index');
+    }
+
+    return '';
+});
+const financePanelSummary = computed(() => {
+    if (!hasFeature('invoices') || !canInvoices.value) {
+        return [];
+    }
+
+    return [
+        {
+            key: 'finance-billed',
+            label: t('dashboard.kpi_panels.billed_total'),
+            value: formatCurrency(stat('revenue_billed')),
+        },
+        {
+            key: 'finance-partial',
+            label: t('dashboard.kpi_panels.partial_label'),
+            value: formatNumber(stat('invoices_partial')),
+        },
+        {
+            key: 'finance-overdue',
+            label: t('dashboard.kpi_panels.overdue_label'),
+            value: formatNumber(stat('invoices_overdue')),
+        },
+        {
+            key: 'finance-pending-actions',
+            label: t('dashboard.kpi_panels.pending_actions_label'),
+            value: formatNumber(financeCount('pending_finance_actions_count')),
+        },
+    ];
+});
+const pipelinePanelSummary = computed(() => {
+    const items = [];
+
+    if (hasFeature('quotes') && canQuotes.value) {
+        items.push({
+            key: 'pipeline-accepted',
+            label: t('dashboard.kpi_panels.accepted_label'),
+            value: formatNumber(stat('quotes_accepted')),
+        });
+        items.push({
+            key: 'pipeline-month',
+            label: t('dashboard.kpi_panels.quotes_month_label'),
+            value: formatNumber(stat('quotes_month')),
+        });
+    }
+
+    if (hasFeature('jobs') && canJobs.value) {
+        items.push({
+            key: 'pipeline-completed',
+            label: t('dashboard.kpi_panels.completed_label'),
+            value: formatNumber(stat('works_completed')),
+        });
+    }
+
+    items.push({
+        key: 'pipeline-today',
+        label: t('dashboard.kpi_panels.today_load_label'),
+        value: formatNumber(todayItems.value.length),
+    });
+
+    return items;
+});
+const financePanelGridClass = computed(() => {
+    if (financePanelMetrics.value.length >= 4) {
+        return 'sm:grid-cols-2 xl:grid-cols-4';
+    }
+
+    if (financePanelMetrics.value.length === 3) {
+        return 'sm:grid-cols-2 xl:grid-cols-3';
+    }
+
+    return 'sm:grid-cols-2';
+});
+const pipelinePanelGridClass = computed(() => {
+    if (pipelinePanelMetrics.value.length >= 3) {
+        return 'sm:grid-cols-2 xl:grid-cols-3';
+    }
+
+    return 'sm:grid-cols-2';
+});
+const financePanelSummaryGridClass = computed(() => {
+    if (financePanelSummary.value.length >= 4) {
+        return 'sm:grid-cols-2 xl:grid-cols-4';
+    }
+
+    if (financePanelSummary.value.length === 3) {
+        return 'sm:grid-cols-3';
+    }
+
+    return 'sm:grid-cols-2';
+});
+const pipelinePanelSummaryGridClass = computed(() => {
+    if (pipelinePanelSummary.value.length >= 4) {
+        return 'sm:grid-cols-2 xl:grid-cols-4';
+    }
+
+    if (pipelinePanelSummary.value.length === 3) {
+        return 'sm:grid-cols-3';
+    }
+
+    return 'sm:grid-cols-2';
+});
+const hasFinancePanel = computed(() => financePanelMetrics.value.length > 0);
+const hasPipelinePanel = computed(() => pipelinePanelMetrics.value.length > 0);
+const financePanelClass = computed(() => (hasPipelinePanel.value ? 'xl:col-span-6' : 'xl:col-span-12'));
+const pipelinePanelClass = computed(() => (hasFinancePanel.value ? 'xl:col-span-6' : 'xl:col-span-12'));
 
 const displayCustomer = (customer) =>
     customer?.company_name ||
     `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim() ||
     t('dashboard.labels.unknown_customer');
-
-const quoteStatusClass = (status) => {
-    switch (status) {
-        case 'accepted':
-            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
-        case 'declined':
-            return 'bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400';
-        case 'sent':
-            return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400';
-        default:
-            return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
-    }
-};
-
-const jobStatusClass = (status) => {
-    switch (status) {
-        case 'to_schedule':
-            return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400';
-        case 'scheduled':
-            return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/10 dark:text-yellow-400';
-        case 'en_route':
-            return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-400';
-        case 'completed':
-            return 'bg-lime-100 text-lime-800 dark:bg-lime-500/10 dark:text-lime-400';
-        case 'in_progress':
-            return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400';
-        case 'tech_complete':
-            return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/10 dark:text-indigo-400';
-        case 'pending_review':
-            return 'bg-violet-100 text-violet-800 dark:bg-violet-500/10 dark:text-violet-400';
-        case 'validated':
-            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
-        case 'auto_validated':
-            return 'bg-teal-100 text-teal-800 dark:bg-teal-500/10 dark:text-teal-400';
-        case 'dispute':
-            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-400';
-        case 'closed':
-            return 'bg-slate-200 text-slate-800 dark:bg-slate-500/10 dark:text-slate-300';
-        case 'cancelled':
-            return 'bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400';
-        default:
-            return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
-    }
-};
-
-const invoiceStatusClass = (status) => {
-    switch (status) {
-        case 'paid':
-            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
-        case 'partial':
-            return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400';
-        case 'overdue':
-            return 'bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400';
-        case 'sent':
-            return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400';
-        default:
-            return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
-    }
-};
-
-const displayLimitLabel = (item) => {
-    const translationKey = limitLabelMap[item.key];
-    if (translationKey) {
-        const label = t(translationKey);
-        if (label !== translationKey) {
-            return label;
-        }
-    }
-    return item.label || item.key;
-};
-const displayLimitValue = (item) => {
-    if (item.limit === null || item.limit === undefined) {
-        return t('dashboard.usage.unlimited');
-    }
-    if (Number(item.limit) <= 0) {
-        return t('dashboard.usage.not_available');
-    }
-    return item.limit;
-};
 
 const onboardingChecklist = computed(() => {
     const steps = [];
@@ -568,7 +773,7 @@ const onboardingChecklist = computed(() => {
         completed: stat('customers_total') > 0,
     });
 
-    if (hasFeature('quotes')) {
+    if (hasFeature('quotes') && canQuotes.value) {
         steps.push({
             key: 'quote',
             label: t('dashboard.onboarding.create_first_quote'),
@@ -619,7 +824,7 @@ const suggestionActions = computed(() => {
         });
     }
 
-    if (hasFeature('quotes')) {
+    if (hasFeature('quotes') && canQuotes.value) {
         actions.push({
             key: 'quote',
             label: t('dashboard.suggestions.create_quote'),
@@ -649,7 +854,7 @@ const suggestionActions = computed(() => {
         });
     }
 
-    if (hasFeature('jobs')) {
+    if (hasFeature('jobs') && canJobs.value) {
         actions.push({
             key: 'jobs',
             label: t('dashboard.suggestions.review_jobs'),
@@ -711,199 +916,36 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                 </div>
             </section>
 
-            <section v-if="hasUsageAlerts" class="rounded-sm border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <div class="font-semibold">{{ $t('dashboard.usage.title') }}</div>
-                        <p class="text-xs text-amber-700 dark:text-amber-200">
-                            {{ $t('dashboard.usage.description', { planSuffix: usagePlanSuffix }) }}
-                        </p>
-                    </div>
-                    <Link :href="route('settings.company.edit')" class="text-xs font-semibold text-amber-800 hover:underline dark:text-amber-200">
-                        {{ $t('dashboard.usage.view_limits') }}
-                    </Link>
-                </div>
-                <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    <div v-for="item in usageAlerts" :key="item.key" class="rounded-sm border border-amber-200 bg-white px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-neutral-900 dark:text-amber-200">
-                        <div class="font-semibold">{{ displayLimitLabel(item) }}</div>
-                        <div class="mt-1 text-[11px] text-amber-700 dark:text-amber-200">
-                            {{ item.used }} / {{ displayLimitValue(item) }}
-                            <span v-if="item.percent !== null">({{ item.percent }}%)</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <div :class="['grid gap-4', hasTopAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
-                <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3" data-testid="demo-dashboard-overview">
-                <div v-if="hasFeature('invoices')"
-                    class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <div class="space-y-1">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard.kpi.revenue_paid') }}
-                            </p>
-                            <KpiTrendBadge :trend="kpiData.revenue_paid.trend" />
-                        </div>
-                        <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ formatCurrency(stat('revenue_paid')) }}
-                        </p>
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('dashboard.kpi.revenue_billed', { amount: formatCurrency(stat('revenue_billed')) }) }}
-                        </p>
-                        <KpiSparkline
-                            :points="kpiData.revenue_paid.points"
-                            color-class="bg-emerald-500/70 dark:bg-emerald-400/50"
-                        />
-                    </div>
-                </div>
-                <div v-if="hasFeature('invoices')"
-                    class="p-4 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <div class="space-y-1">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard.kpi.outstanding_balance') }}
-                            </p>
-                            <KpiTrendBadge :trend="kpiData.revenue_outstanding.trend" />
-                        </div>
-                        <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ formatCurrency(stat('revenue_outstanding')) }}
-                        </p>
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('dashboard.kpi.partial_invoices', { count: formatNumber(stat('invoices_partial')) }) }}
-                        </p>
-                        <KpiSparkline
-                            :points="kpiData.revenue_outstanding.points"
-                            color-class="bg-amber-500/70 dark:bg-amber-400/50"
-                        />
-                    </div>
-                </div>
-                <div v-if="hasFeature('quotes')"
-                    class="p-4 bg-white border border-t-4 border-t-blue-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <div class="space-y-1">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard.kpi.open_quotes') }}
-                            </p>
-                            <KpiTrendBadge :trend="kpiData.quotes_open.trend" />
-                        </div>
-                        <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ formatNumber(stat('quotes_open')) }}
-                        </p>
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('dashboard.kpi.accepted_quotes', { count: formatNumber(stat('quotes_accepted')) }) }}
-                        </p>
-                        <KpiSparkline
-                            :points="kpiData.quotes_open.points"
-                            color-class="bg-blue-500/70 dark:bg-blue-400/50"
-                        />
-                    </div>
-                </div>
-                <div v-if="hasFeature('jobs')"
-                    class="p-4 bg-white border border-t-4 border-t-indigo-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <div class="space-y-1">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard.kpi.jobs_in_progress') }}
-                            </p>
-                            <KpiTrendBadge :trend="kpiData.works_in_progress.trend" />
-                        </div>
-                        <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ formatNumber(stat('works_in_progress')) }}
-                        </p>
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('dashboard.kpi.jobs_scheduled', { count: formatNumber(stat('works_scheduled')) }) }}
-                        </p>
-                        <KpiSparkline
-                            :points="kpiData.works_in_progress.points"
-                            color-class="bg-indigo-500/70 dark:bg-indigo-400/50"
-                        />
-                    </div>
-                </div>
-                <div
-                    class="p-4 bg-white border border-t-4 border-t-sky-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <div class="space-y-1">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard.kpi.customers') }}
-                            </p>
-                            <KpiTrendBadge :trend="kpiData.customers_total.trend" />
-                        </div>
-                        <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ formatNumber(stat('customers_total')) }}
-                        </p>
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('dashboard.kpi.customers_new', { count: formatNumber(stat('customers_new')) }) }}
-                        </p>
-                        <KpiSparkline
-                            :points="kpiData.customers_total.points"
-                            color-class="bg-sky-500/70 dark:bg-sky-400/50"
-                        />
-                    </div>
-                </div>
-                <div v-if="hasFeature('products')"
-                    class="p-4 bg-white border border-t-4 border-t-red-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <div class="space-y-1">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard.kpi.low_stock') }}
-                            </p>
-                            <KpiTrendBadge :trend="kpiData.products_low_stock.trend" />
-                        </div>
-                        <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ formatNumber(stat('products_low_stock')) }}
-                        </p>
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('dashboard.kpi.out_of_stock', { count: formatNumber(stat('products_out')) }) }}
-                        </p>
-                        <KpiSparkline
-                            :points="kpiData.products_low_stock.points"
-                            color-class="bg-red-500/70 dark:bg-red-400/50"
-                        />
-                    </div>
-                </div>
-                <div v-if="hasFeature('invoices')"
-                    class="p-4 bg-white border border-t-4 border-t-teal-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <div class="space-y-1">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard.kpi.invoices_paid') }}
-                            </p>
-                            <KpiTrendBadge :trend="kpiData.invoices_paid.trend" />
-                        </div>
-                        <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ formatNumber(stat('invoices_paid')) }}
-                        </p>
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('dashboard.kpi.invoices_total', { count: formatNumber(stat('invoices_total')) }) }}
-                        </p>
-                        <KpiSparkline
-                            :points="kpiData.invoices_paid.points"
-                            color-class="bg-teal-500/70 dark:bg-teal-400/50"
-                        />
-                    </div>
-                </div>
-                <div v-if="hasFeature('products')"
-                    class="p-4 bg-white border border-t-4 border-t-stone-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <div class="space-y-1">
-                        <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard.kpi.inventory_value') }}
-                            </p>
-                            <KpiTrendBadge :trend="kpiData.inventory_value.trend" />
-                        </div>
-                        <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ formatCurrency(stat('inventory_value')) }}
-                        </p>
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('dashboard.kpi.products_total', { count: formatNumber(stat('products_total')) }) }}
-                        </p>
-                        <KpiSparkline
-                            :points="kpiData.inventory_value.points"
-                            color-class="bg-stone-500/70 dark:bg-stone-400/50"
-                        />
-                    </div>
-                </div>
+            <div :class="['grid gap-4 items-start', hasTopAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
+                <section class="grid grid-cols-1 gap-4 xl:grid-cols-12" data-testid="demo-dashboard-overview">
+                    <KpiCompositePanel
+                        v-if="financePanelMetrics.length"
+                        :class="financePanelClass"
+                        :title="$t('dashboard.kpi_panels.finance_title')"
+                        :subtitle="$t('dashboard.kpi_panels.finance_subtitle')"
+                        :metrics="financePanelMetrics"
+                        :metrics-grid-class="financePanelGridClass"
+                        :summary-items="financePanelSummary"
+                        :summary-grid-class="financePanelSummaryGridClass"
+                        :action-href="route('invoice.index')"
+                        :action-label="$t('dashboard.revenue.view_invoices')"
+                        accent-class="border-t-emerald-600"
+                        compact-metrics
+                    />
+                    <KpiCompositePanel
+                        v-if="pipelinePanelMetrics.length"
+                        :class="pipelinePanelClass"
+                        :title="$t('dashboard.kpi_panels.pipeline_title')"
+                        :subtitle="$t('dashboard.kpi_panels.pipeline_subtitle')"
+                        :metrics="pipelinePanelMetrics"
+                        :metrics-grid-class="pipelinePanelGridClass"
+                        :summary-items="pipelinePanelSummary"
+                        :summary-grid-class="pipelinePanelSummaryGridClass"
+                        :action-href="pipelinePanelActionHref"
+                        :action-label="$t('dashboard.actions.view_all')"
+                        accent-class="border-t-blue-600"
+                        compact-metrics
+                    />
                 </section>
                 <AnnouncementsPanel
                     v-if="hasTopAnnouncements"
@@ -1017,10 +1059,10 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                    {{ $t('dashboard.timeline.title') }}
+                                    {{ $t('dashboard.weekly.title') }}
                                 </h2>
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('dashboard.timeline.subtitle') }}
+                                    {{ $t('dashboard.weekly.subtitle') }}
                                 </p>
                             </div>
                             <div class="flex items-center gap-3">
@@ -1031,10 +1073,14 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                     rel="noreferrer"
                                     download
                                 >
-                                    {{ $t('dashboard.timeline.sync_calendar') }}
+                                    {{ $t('dashboard.weekly.sync_calendar') }}
                                 </a>
-                                <Link :href="route('task.index')" class="text-xs font-medium text-stone-500 hover:text-stone-700 dark:text-neutral-400 dark:hover:text-neutral-200">
-                                    {{ $t('dashboard.timeline.view_tasks') }}
+                                <Link
+                                    v-if="planningActionHref"
+                                    :href="planningActionHref"
+                                    class="text-xs font-medium text-stone-500 hover:text-stone-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+                                >
+                                    {{ planningActionLabel }}
                                 </Link>
                             </div>
                         </div>
@@ -1051,226 +1097,114 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                     </span>
                                 </div>
                             </div>
-                            <div v-if="!todayItems.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard.timeline.empty') }}
-                            </div>
-                            <div v-else class="space-y-3">
-                                <div v-for="(item, index) in todayItems" :key="item.key" class="flex gap-3">
-                                    <div class="flex flex-col items-center">
-                                        <div class="mt-1 h-2 w-2 rounded-full bg-emerald-500"></div>
-                                        <div v-if="index < todayItems.length - 1" class="mt-1 flex-1 w-px bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="grid grid-cols-2 gap-2 xl:grid-cols-4">
+                                <div
+                                    v-for="card in scheduleSummaryCards"
+                                    :key="card.key"
+                                    class="rounded-sm border px-3 py-2.5"
+                                    :class="card.class"
+                                >
+                                    <div class="text-[11px] font-semibold uppercase tracking-[0.1em]">
+                                        {{ card.label }}
                                     </div>
-                                    <div class="flex-1 rounded-sm border border-stone-200 p-3 text-sm dark:border-neutral-700">
-                                        <div class="flex items-start justify-between gap-3">
-                                            <div class="min-w-0">
-                                                <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                                    {{ formatTimeRange(item) }}
+                                    <div class="mt-1.5 text-xl font-semibold">
+                                        {{ card.value }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-if="!hasWeekPlanning" class="mt-4 text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('dashboard.weekly.empty') }}
+                            </div>
+                            <div v-else class="mt-4 overflow-x-auto">
+                                <div class="min-w-[980px] overflow-hidden rounded-sm border border-stone-200 dark:border-neutral-700">
+                                    <div class="grid grid-cols-[180px_repeat(7,minmax(112px,1fr))]">
+                                        <div class="border-b border-emerald-200 bg-emerald-600 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-stone-100 dark:border-neutral-700 dark:bg-neutral-950">
+                                            {{ $t('dashboard.weekly.team_label') }}
+                                        </div>
+                                        <div
+                                            v-for="day in weekDays"
+                                            :key="day.key"
+                                            class="border-b border-l border-stone-200 px-3 py-3 dark:border-neutral-700"
+                                            :class="day.is_today ? 'bg-emerald-50/80 dark:bg-emerald-500/10' : 'bg-stone-50 dark:bg-neutral-900/80'"
+                                        >
+                                            <div class="flex items-start justify-between gap-2">
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-500 dark:text-neutral-400">
+                                                        {{ formatWeekdayShort(day.key) }}
+                                                    </div>
+                                                    <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                                        {{ formatWeekdayDate(day.key) }}
+                                                    </div>
                                                 </div>
-                                                <div class="truncate font-medium text-stone-900 dark:text-neutral-100">
-                                                    {{ item.title || (item.type === 'work' ? $t('dashboard.labels.job') : $t('dashboard.labels.task')) }}
-                                                </div>
-                                            </div>
-                                            <div class="flex flex-col items-end gap-1">
-                                                <span :class="['rounded-full px-2 py-0.5 text-xs font-medium', resolvePriority(item).class]">
-                                                    {{ resolvePriority(item).label }}
-                                                </span>
-                                                <span
-                                                    v-for="badge in resolveAutoBadges(item)"
-                                                    :key="badge.key"
-                                                    :class="['rounded-full px-2 py-0.5 text-xs font-medium', badge.class]"
+                                                <div
+                                                    class="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                                    :class="day.is_today
+                                                        ? 'bg-emerald-600 text-white dark:bg-emerald-500'
+                                                        : 'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200'"
                                                 >
-                                                    {{ badge.label }}
-                                                </span>
-                                                <span class="text-[11px] uppercase text-stone-400 dark:text-neutral-500">
-                                                    {{ item.type === 'work' ? $t('dashboard.labels.job') : $t('dashboard.labels.task') }}
-                                                </span>
-                                                <span class="text-[11px] uppercase text-stone-400 dark:text-neutral-500">
-                                                    {{ formatStatus(item) }}
-                                                </span>
+                                                    {{ formatNumber(weekDayStat(day.key).total) }}
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div v-if="item.assignee?.name" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ $t('dashboard.labels.assignee', { name: item.assignee.name }) }}
-                                        </div>
+                                            <div class="mt-2 text-[10px] text-stone-500 dark:text-neutral-400">
+                                                {{ $t('dashboard.weekly.assignees', { count: formatNumber(weekDayStat(day.key).resources) }) }}
+                                            </div>
+                                         </div>
+
+                                        <template v-for="row in weekRows" :key="row.key">
+                                            <div class="border-b border-stone-200 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-800">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="flex size-9 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-stone-700 dark:bg-neutral-700 dark:text-neutral-200">
+                                                        {{ row.initials }}
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <div class="truncate text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                                            {{ weekRowName(row) }}
+                                                        </div>
+                                                        <div class="mt-1 inline-flex rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-medium text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">{{ weekRowLoad(row) }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div
+                                                v-for="day in weekDays"
+                                                :key="`${row.key}-${day.key}`"
+                                                class="border-b border-l border-stone-200 px-2 py-2 dark:border-neutral-700"
+                                                :class="day.is_today ? 'bg-emerald-50/40 dark:bg-emerald-500/5' : 'bg-white dark:bg-neutral-800'"
+                                            >
+                                                <div v-if="visibleWeekEvents(row, day.key).length" class="space-y-1.5">
+                                                    <div
+                                                        v-for="event in visibleWeekEvents(row, day.key)"
+                                                        :key="event.key"
+                                                        class="rounded-sm border px-2 py-2 text-[11px] shadow-sm"
+                                                        :class="scheduleEventClass(event)"
+                                                    >
+                                                        <div class="flex items-center gap-1.5">
+                                                            <span class="rounded bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold text-current dark:bg-neutral-950/50">
+                                                                {{ event.time_label || $t('dashboard.time.any') }}
+                                                            </span>
+                                                        </div>
+                                                        <div class="mt-1 line-clamp-2 font-medium leading-4">
+                                                            {{ event.title }}
+                                                        </div>
+                                                    </div>
+                                                    <div
+                                                        v-if="hiddenWeekEventsCount(row, day.key)"
+                                                        class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-2 py-1 text-[10px] font-semibold text-stone-500 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
+                                                    >
+                                                        +{{ formatNumber(hiddenWeekEventsCount(row, day.key)) }}
+                                                    </div>
+                                                </div>
+                                                <div
+                                                    v-else
+                                                    class="min-h-[74px] rounded-sm border border-dashed border-stone-200/80 bg-stone-50/60 dark:border-neutral-700/80 dark:bg-neutral-900/40"
+                                                ></div>
+                                            </div>
+                                        </template>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div v-if="hasFeature('invoices')" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                    {{ $t('dashboard.revenue.title') }}
-                                </h2>
-                                <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('dashboard.revenue.subtitle') }}
-                                </p>
-                            </div>
-                            <Link :href="route('invoice.index')"
-                                class="text-xs font-medium text-green-600 hover:text-green-700">
-                                {{ $t('dashboard.revenue.view_invoices') }}
-                            </Link>
-                        </div>
-                        <div v-if="hasExpenseTrend" class="mt-3 flex flex-wrap items-center gap-4 text-[11px] text-stone-500 dark:text-neutral-400">
-                            <span class="inline-flex items-center gap-2">
-                                <span class="size-2 rounded-full bg-emerald-400 dark:bg-emerald-300"></span>
-                                {{ $t('dashboard.revenue.legend.revenue') }}
-                            </span>
-                            <span class="inline-flex items-center gap-2">
-                                <span class="size-2 rounded-full bg-rose-400 dark:bg-rose-300"></span>
-                                {{ $t('dashboard.revenue.legend.expenses') }}
-                            </span>
-                        </div>
-                        <div class="mt-4 flex items-end gap-2 h-36">
-                            <div v-for="point in revenuePoints" :key="point.label"
-                                class="flex-1 flex flex-col items-center gap-2 self-stretch">
-                                <div class="flex w-full flex-1 items-end justify-center gap-1">
-                                    <div
-                                        class="rounded-sm bg-emerald-200 dark:bg-emerald-500/30"
-                                        :class="hasExpenseTrend ? 'flex-1' : 'w-full'"
-                                        :style="{ height: point.height }"
-                                        :title="`${$t('dashboard.revenue.legend.revenue')}: ${formatCurrency(point.value)}`"
-                                    ></div>
-                                    <div
-                                        v-if="hasExpenseTrend"
-                                        class="flex-1 rounded-sm bg-rose-200 dark:bg-rose-400/30"
-                                        :style="{ height: point.expenseHeight }"
-                                        :title="`${$t('dashboard.revenue.legend.expenses')}: ${formatCurrency(point.expenseValue)}`"
-                                    ></div>
-                                </div>
-                                <div class="text-[11px] text-stone-500 dark:text-neutral-400">
-                                    {{ point.label }}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                            <div>
-                                <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('dashboard.revenue.paid_to_date') }}
-                                </div>
-                                <div class="font-semibold text-stone-800 dark:text-neutral-100">
-                                    {{ formatCurrency(stat('revenue_paid')) }}
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('dashboard.revenue.outstanding') }}
-                                </div>
-                                <div class="font-semibold text-stone-800 dark:text-neutral-100">
-                                    {{ formatCurrency(stat('revenue_outstanding')) }}
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('dashboard.revenue.overdue') }}
-                                </div>
-                                <div class="font-semibold text-stone-800 dark:text-neutral-100">
-                                    {{ formatNumber(stat('invoices_overdue')) }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div v-if="hasFeature('quotes')" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('dashboard.sections.recent_quotes') }}
-                            </h2>
-                            <Link :href="route('quote.index')" class="text-xs font-medium text-green-600 hover:text-green-700">
-                                {{ $t('dashboard.actions.view_all') }}
-                            </Link>
-                        </div>
-                        <div class="mt-3 overflow-x-auto">
-                            <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                                <thead>
-                                    <tr>
-                                        <th class="py-2 text-left text-xs font-medium text-stone-500 dark:text-neutral-400">
-                                            {{ $t('dashboard.table.quote') }}
-                                        </th>
-                                        <th class="py-2 text-left text-xs font-medium text-stone-500 dark:text-neutral-400">
-                                            {{ $t('dashboard.table.customer') }}
-                                        </th>
-                                        <th class="py-2 text-left text-xs font-medium text-stone-500 dark:text-neutral-400">
-                                            {{ $t('dashboard.table.status') }}
-                                        </th>
-                                        <th class="py-2 text-right text-xs font-medium text-stone-500 dark:text-neutral-400">
-                                            {{ $t('dashboard.table.total') }}
-                                        </th>
-                                        <th class="py-2 text-right text-xs font-medium text-stone-500 dark:text-neutral-400">
-                                            {{ $t('dashboard.table.created') }}
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                                    <tr v-for="quote in recentQuotes" :key="quote.id">
-                                        <td class="py-2 text-sm text-stone-700 dark:text-neutral-200">
-                                            <Link :href="route('customer.quote.show', quote.id)" class="hover:underline">
-                                                {{ quote.number || $t('dashboard.labels.quote_fallback') }}
-                                            </Link>
-                                        </td>
-                                        <td class="py-2 text-sm text-stone-600 dark:text-neutral-300">
-                                            {{ displayCustomer(quote.customer) }}
-                                        </td>
-                                        <td class="py-2">
-                                            <span class="px-2 py-1 text-xs font-medium rounded-full"
-                                                :class="quoteStatusClass(quote.status)">
-                                                {{ quoteStatusLabel(quote.status) }}
-                                            </span>
-                                        </td>
-                                        <td class="py-2 text-sm text-right text-stone-600 dark:text-neutral-300">
-                                            {{ formatCurrency(quote.total) }}
-                                        </td>
-                                        <td class="py-2 text-sm text-right text-stone-500 dark:text-neutral-400">
-                                            {{ formatDate(quote.created_at) }}
-                                        </td>
-                                    </tr>
-                                    <tr v-if="!recentQuotes.length">
-                                        <td colspan="5" class="py-4 text-sm text-center text-stone-500 dark:text-neutral-400">
-                                            {{ $t('dashboard.empty.quotes') }}
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div v-if="hasFeature('jobs')" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('dashboard.sections.upcoming_jobs') }}
-                            </h2>
-                            <Link :href="route('jobs.index')" class="text-xs font-medium text-green-600 hover:text-green-700">
-                                {{ $t('dashboard.actions.view_all') }}
-                            </Link>
-                        </div>
-                        <div class="mt-3 space-y-3">
-                            <div v-for="job in upcomingJobs" :key="job.id"
-                                class="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
-                                <div>
-                                    <Link :href="route('work.show', job.id)" class="font-medium text-stone-800 hover:underline dark:text-neutral-200">
-                                        {{ job.job_title }}
-                                    </Link>
-                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ displayCustomer(job.customer) }}
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-3">
-                                    <span class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ formatDate(job.start_date) }} {{ job.start_time || '' }}
-                                    </span>
-                                    <span class="px-2 py-1 text-xs font-medium rounded-full"
-                                        :class="jobStatusClass(job.status)">
-                                        {{ workStatusLabel(job.status) }}
-                                    </span>
-                                </div>
-                            </div>
-                            <div v-if="!upcomingJobs.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard.empty.jobs') }}
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="space-y-4">
@@ -1419,64 +1353,51 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                             </div>
                         </div>
                     </div>
-
-                    <div v-if="hasFeature('invoices')" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                        <div class="flex items-center justify-between">
+                    <div v-if="insightItems.length" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                        <div class="flex items-center justify-between gap-3">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('dashboard.sections.outstanding_invoices') }}
+                                {{ $t('dashboard.insights.title') }}
                             </h2>
-                            <Link :href="route('invoice.index')" class="text-xs font-medium text-green-600 hover:text-green-700">
-                                {{ $t('dashboard.actions.view_all') }}
-                            </Link>
+                            <span class="rounded-full bg-stone-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-500 dark:bg-neutral-700 dark:text-neutral-300">
+                                {{ formatNumber(insightItems.length) }}
+                            </span>
                         </div>
-                        <div class="mt-3 space-y-3">
-                            <div v-for="invoice in outstandingInvoices" :key="invoice.id"
-                                class="flex items-center justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
-                                <div>
-                                    <Link :href="route('invoice.show', invoice.id)" class="font-medium text-stone-800 hover:underline dark:text-neutral-200">
-                                        {{ invoice.number || $t('dashboard.labels.invoice_fallback') }}
-                                    </Link>
-                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ displayCustomer(invoice.customer) }}
+                        <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <component
+                                :is="item.href ? Link : 'div'"
+                                v-for="item in insightItems"
+                                :key="item.key"
+                                v-bind="item.href ? { href: item.href } : {}"
+                                class="rounded-sm border px-3 py-3 transition"
+                                :class="[item.class, item.href ? 'hover:-translate-y-0.5 hover:shadow-sm' : '']"
+                            >
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="text-[10px] font-semibold uppercase tracking-[0.1em] text-stone-500 dark:text-neutral-400">
+                                        {{ item.label }}
                                     </div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">
-                                        {{ formatCurrency(invoice.balance_due) }}
-                                    </div>
-                                    <span class="px-2 py-0.5 text-xs font-medium rounded-full"
-                                        :class="invoiceStatusClass(invoice.status)">
-                                        {{ invoiceStatusLabel(invoice.status) }}
+                                    <span
+                                        v-if="item.badge"
+                                        class="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium capitalize text-stone-600 dark:bg-neutral-900/70 dark:text-neutral-300"
+                                    >
+                                        {{ item.badge }}
                                     </span>
                                 </div>
-                            </div>
-                            <div v-if="!outstandingInvoices.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard.empty.invoices') }}
-                            </div>
+                                <div class="mt-3 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ item.metric }}
+                                </div>
+                                <div class="mt-1 truncate text-xs font-medium text-stone-700 dark:text-neutral-200">
+                                    {{ item.title }}
+                                </div>
+                                <div class="mt-1 flex items-center justify-between gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
+                                    <span class="truncate">{{ item.context }}</span>
+                                    <span v-if="item.href" class="shrink-0 font-semibold text-emerald-700 dark:text-emerald-300">
+                                        {{ $t('dashboard.insights.open') }}
+                                    </span>
+                                </div>
+                            </component>
                         </div>
                     </div>
 
-                    <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700" data-testid="demo-dashboard-activity">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('dashboard.sections.recent_activity') }}
-                            </h2>
-                        </div>
-                        <div class="mt-3 space-y-3 text-sm">
-                            <div v-for="log in activity" :key="log.id"
-                                class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
-                                <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
-                                    {{ log.subject }} - {{ formatDate(log.created_at) }}
-                                </div>
-                                <div class="text-sm text-stone-700 dark:text-neutral-200">
-                                    {{ log.description || log.action }}
-                                </div>
-                            </div>
-                            <div v-if="!activity.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard.empty.activity') }}
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </section>
         </div>

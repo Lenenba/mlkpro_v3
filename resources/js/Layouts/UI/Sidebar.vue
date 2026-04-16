@@ -2,14 +2,12 @@
 import { computed } from 'vue';
 import ApplicationLogo from "@/Components/ApplicationLogo.vue";
 import LinkAncor from "@/Components/UI/LinkAncor.vue";
-import { Link, usePage } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import MenuDropdown from "@/Components/UI/LinkAncor2.vue";
 import LanguageSwitcherMenu from '@/Components/UI/LanguageSwitcherMenu.vue';
 import QuickCreateModals from "@/Components/QuickCreate/QuickCreateModals.vue";
 import CategoryIcon from '@/Components/Workspace/CategoryIcon.vue';
-import { defaultAvatarIcon } from '@/utils/iconPresets';
 import { buildWorkspaceHubCategories } from '@/utils/workspaceHub';
-import NotificationBell from '@/Components/UI/NotificationBell.vue';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const page = usePage()
@@ -103,33 +101,19 @@ const canInvoicesNav = computed(() =>
     || teamPermissions.value.includes('invoices.approve_high')
 );
 const isSeller = computed(() => teamRole.value === 'seller');
-const userName = computed(() => page.props.auth?.user?.name || '');
-const userEmail = computed(() => page.props.auth?.user?.email || '');
-const avatarUrl = computed(() =>
-    page.props.auth?.user?.profile_picture_url
-    || page.props.auth?.user?.profile_picture
-    || defaultAvatarIcon
-);
-const showNotifications = computed(() => Boolean(page.props.notifications));
-const unreadCount = computed(() => page.props.notifications?.unread_count || 0);
-const hasUnread = computed(() => unreadCount.value > 0);
 const planningPendingCount = computed(() => page.props.planning?.pending_count || 0);
 const workspaceHubCategories = computed(() => buildWorkspaceHubCategories({
     account: page.props.auth?.account,
     planningPendingCount: planningPendingCount.value,
 }).filter((category) => category.visible));
 const useWorkspaceHubNav = computed(() => !showPlatformNav.value && !isClient.value);
+const showQuickCreateMenu = computed(() => !showPlatformNav.value && !isClient.value && !isSeller.value);
 const isWorkspaceHubCategoryActive = (category) => (
     page.url.startsWith(`/workspace-hubs/${category.key}`)
     || (category.match || []).some((pattern) => route().current(pattern))
 );
 const menuIconBaseClass = 'relative inline-flex size-9 items-center justify-center rounded-sm hover:bg-stone-100 focus:outline-none focus:ring-2 dark:hover:bg-neutral-800';
 const languageButtonClass = `${menuIconBaseClass} text-sky-600 focus:ring-sky-500 dark:text-sky-400`;
-const notificationButtonClass = `${menuIconBaseClass} text-amber-600 focus:ring-amber-500 dark:text-amber-400`;
-const avatarInitial = computed(() => {
-    const label = (userName.value || userEmail.value || '?').trim();
-    return label.length ? label[0].toUpperCase() : '?';
-});
 const isCustomerActive = computed(() => {
     const isCustomerRoute = route().current('customer.*')
         || page.url.startsWith('/customer')
@@ -164,11 +148,27 @@ const isCustomerActive = computed(() => {
 
                     <!-- Content -->
                     <div class="w-16 flex-1 min-h-0 flex flex-col">
+                        <div class="mb-3 flex shrink-0 flex-col items-center gap-3 border-b border-stone-100 pb-3 dark:border-neutral-800">
+                            <LanguageSwitcherMenu :button-class="languageButtonClass" :icon-class="'size-6'" />
+
+                            <MenuDropdown v-if="showQuickCreateMenu" active-item="/profile">
+                                <template #toggle-icon>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round"
+                                        class="lucide lucide-circle-plus text-emerald-600 dark:text-emerald-400">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M8 12h8" />
+                                        <path d="M12 8v8" />
+                                    </svg>
+                                </template>
+                            </MenuDropdown>
+                        </div>
+
                         <!-- Nav -->
-                        <nav class="mt-2 flex-1 overflow-y-auto">
+                        <nav class="flex-1 overflow-y-auto">
                             <ul class="text-center space-y-3 pb-2">
                                 <template v-if="showPlatformNav">
-                                    <LanguageSwitcherMenu :button-class="languageButtonClass" :icon-class="'size-6'" />
                                     <LinkAncor v-if="isSuperadmin" :label="$t('nav.dashboard')" :href="'superadmin.dashboard'" tone="dashboard"
                                         :active="route().current('superadmin.dashboard')">
                                         <template #icon>
@@ -379,19 +379,6 @@ const isCustomerActive = computed(() => {
                                     </LinkAncor>
                                 </template>
                                 <template v-else>
-                                <LanguageSwitcherMenu :button-class="languageButtonClass" :icon-class="'size-6'" />
-                                <MenuDropdown v-if="!isClient && !isSeller" active-item="/profile">
-                                    <template #toggle-icon>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="lucide lucide-circle-plus text-emerald-600 dark:text-emerald-400">
-                                            <circle cx="12" cy="12" r="10" />
-                                            <path d="M8 12h8" />
-                                            <path d="M12 8v8" />
-                                        </svg>
-                                    </template>
-                                </MenuDropdown>
                                 <!-- Item -->
                                 <LinkAncor :label="$t('nav.dashboard')" :href="'dashboard'" tone="dashboard"
                                     :active="route().current('dashboard')">
@@ -916,124 +903,11 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
                                 </template>
                                 </template>
-                                <li v-if="showNotifications" class="flex justify-center">
-                                    <NotificationBell
-                                        :button-class="notificationButtonClass"
-                                        :badge-class="'absolute -top-1 -end-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white'"
-                                        :icon-class="'size-6'"
-                                    />
-                                </li>
                             </ul>
                         </nav>
                         <!-- End Nav -->
                     </div>
                     <!-- End Content -->
-
-                    <!-- Footer -->
-                    <footer class="w-16 text-center space-y-3">
-                        <!-- Account Dropdown -->
-                        <div class="inline-flex justify-center w-full">
-                            <div
-                                class="hs-dropdown relative [--strategy:absolute] [--auto-close:inside] [--placement:bottom-right] inline-flex">
-                                <button id="hs-pro-chmsad" type="button"
-                                    class="flex justify-center items-center gap-x-3 size-8 text-start disabled:opacity-50 disabled:pointer-events-none focus:outline-none"
-                                    aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                    <img v-if="avatarUrl" class="shrink-0 size-8 rounded-full object-cover" :src="avatarUrl"
-                                        :alt="userName || 'Avatar'">
-                                    <div v-else class="size-8 rounded-full bg-stone-200 text-stone-700 flex items-center justify-center text-xs font-semibold dark:bg-neutral-800 dark:text-neutral-200">
-                                        {{ avatarInitial }}
-                                    </div>
-                                    <span
-                                        v-if="hasUnread"
-                                        class="absolute -top-0 -end-0 flex size-2">
-                                        <span
-                                            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
-                                        <span
-                                            class="relative inline-flex h-2 w-2 rounded-full bg-amber-500 ring-2 ring-stone-100 dark:ring-neutral-800"></span>
-                                    </span>
-                                    <span
-                                        v-else
-                                        class="absolute -bottom-0 -end-0 block size-2 rounded-full ring-2 ring-stone-100 bg-green-500 dark:ring-neutral-800"></span>
-                                </button>
-
-                                <!-- Account Dropdown -->
-                                <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-48 transition-[opacity,margin] duration opacity-0 hidden z-20 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                    role="menu" aria-orientation="vertical" aria-labelledby="hs-pro-chmsad">
-                                    <div class="px-3 pt-3 pb-2">
-                                        <div class="text-sm font-semibold text-stone-700 dark:text-neutral-100">
-                                            {{ userName || $t('account.default_name') }}
-                                        </div>
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400 truncate">
-                                            {{ userEmail }}
-                                        </div>
-                                        <div v-if="page.props.auth?.account?.company?.name" class="mt-1 text-xs text-stone-500 dark:text-neutral-400 truncate">
-                                            {{ $t('account.company_label') }}: {{ page.props.auth.account.company.name }}
-                                        </div>
-                                    </div>
-                                    <div class="p-1">
-                                        <Link v-if="isOwner && !isSuperadmin" :href="route('settings.company.edit')"
-                                            class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-sm text-sm text-stone-700 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                                            <svg class="shrink-0 mt-0.5 size-4" xmlns="http://www.w3.org/2000/svg"
-                                                width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                stroke-linejoin="round">
-                                                <path d="M3 21V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14" />
-                                                <path d="M9 21V9h6v12" />
-                                            </svg>
-                                            {{ $t('account.settings') }}
-                                        </Link>
-
-                                        <Link v-if="isOwner && !isSuperadmin" :href="route('settings.billing.edit')"
-                                            class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-sm text-sm text-stone-700 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                                            <svg class="shrink-0 mt-0.5 size-4" xmlns="http://www.w3.org/2000/svg"
-                                                width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                stroke-linejoin="round">
-                                                <rect width="20" height="14" x="2" y="5" rx="2" />
-                                                <line x1="2" x2="22" y1="10" y2="10" />
-                                            </svg>
-                                            {{ $t('account.billing') }}
-                                        </Link>
-
-                                        <Link :href="route('profile.edit')"
-                                            class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-sm text-sm text-stone-700 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                                            <svg class="shrink-0 mt-0.5 size-4" xmlns="http://www.w3.org/2000/svg"
-                                                width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                stroke-linejoin="round">
-                                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                                                <circle cx="12" cy="7" r="4" />
-                                            </svg>
-                                            {{ $t('account.profile') }}
-                                        </Link>
-                                    </div>
-                                    <div class="py-1.5 px-3.5 border-y border-stone-200 dark:border-neutral-800">
-                                        <!-- Switch/Toggle -->
-                                        <div class="flex justify-between items-center">
-                                            <label for="hs-pro-chmsaddm"
-                                                class="text-sm text-stone-700 dark:text-neutral-300">{{ $t('account.dark_mode') }}</label>
-                                            <div class="relative inline-block">
-                                                <input data-hs-theme-switch type="checkbox" id="hs-pro-chmsaddm"
-                                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-blue-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-blue-600 checked:border-blue-600 focus:checked:border-blue-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-neutral-900
-
-                      before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
-                                            </div>
-                                        </div>
-                                        <!-- End Switch/Toggle -->
-                                    </div>
-                                    <div class="p-1">
-                                        <Link :href="route('logout')" method="post" as="button" type="button"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2.5 rounded-sm text-sm text-stone-700 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                                            {{ $t('account.logout') }}
-                                        </Link>
-                                    </div>
-                                </div>
-                                <!-- End Account Dropdown -->
-                            </div>
-                        </div>
-                        <!-- End Account Dropdown -->
-                    </footer>
-                    <!-- End Footer -->
                 </div>
             </div>
         </div>
