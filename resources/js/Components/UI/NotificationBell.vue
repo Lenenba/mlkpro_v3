@@ -1,7 +1,8 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import { useFloatingMenu } from '@/Composables/useFloatingMenu';
 
 const props = defineProps({
     buttonClass: {
@@ -26,11 +27,7 @@ const unreadCount = computed(() => page.props.notifications?.unread_count || 0);
 const hasNotifications = computed(() => notifications.value.length > 0);
 const shouldPoll = computed(() => Boolean(page.props.notifications));
 
-const isOpen = ref(false);
-const toggleRef = ref(null);
-const menuRef = ref(null);
-const menuStyle = ref({});
-let listenersBound = false;
+const { isOpen, toggleRef, menuRef, menuStyle, closeMenu, toggleMenu } = useFloatingMenu();
 const pollIntervalMs = 30000;
 let pollTimer = null;
 
@@ -43,80 +40,6 @@ const formatDate = (value) => {
         return '';
     }
     return date.toLocaleString();
-};
-
-const updatePosition = () => {
-    const button = toggleRef.value;
-    if (!button || !menuRef.value) {
-        return;
-    }
-    const rect = button.getBoundingClientRect();
-    const menuRect = menuRef.value.getBoundingClientRect();
-    const padding = 12;
-    let left = rect.right - menuRect.width;
-    if (left < padding) {
-        left = padding;
-    }
-    if (left + menuRect.width > window.innerWidth - padding) {
-        left = Math.max(padding, window.innerWidth - menuRect.width - padding);
-    }
-    let top = rect.bottom + 8;
-    const maxTop = window.innerHeight - menuRect.height - padding;
-    if (top > maxTop) {
-        top = Math.max(padding, rect.top - menuRect.height - 8);
-    }
-    menuStyle.value = { left: `${left}px`, top: `${top}px` };
-};
-
-const addListeners = () => {
-    if (listenersBound) {
-        return;
-    }
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
-    document.addEventListener('click', handleOutsideClick, true);
-    listenersBound = true;
-};
-
-const removeListeners = () => {
-    if (!listenersBound) {
-        return;
-    }
-    window.removeEventListener('resize', updatePosition);
-    window.removeEventListener('scroll', updatePosition, true);
-    document.removeEventListener('click', handleOutsideClick, true);
-    listenersBound = false;
-};
-
-const toggleMenu = () => {
-    isOpen.value = !isOpen.value;
-    if (isOpen.value) {
-        nextTick(() => {
-            updatePosition();
-            addListeners();
-        });
-        return;
-    }
-    removeListeners();
-};
-
-const closeMenu = () => {
-    isOpen.value = false;
-    removeListeners();
-};
-
-const handleOutsideClick = (event) => {
-    if (!isOpen.value) {
-        return;
-    }
-    const target = event.target;
-    if (toggleRef.value && toggleRef.value.contains(target)) {
-        return;
-    }
-    if (menuRef.value && menuRef.value.contains(target)) {
-        return;
-    }
-    closeMenu();
 };
 
 const pollNotifications = () => {
@@ -213,7 +136,6 @@ const openNotification = (notification, event) => {
 onBeforeUnmount(() => {
     stopPolling();
     document.removeEventListener('visibilitychange', handleVisibilityChange);
-    removeListeners();
 });
 
 onMounted(() => {

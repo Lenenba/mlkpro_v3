@@ -62,6 +62,22 @@
       "auto_alerts": "Auto alerts",
       "empty": "No tasks or jobs scheduled today."
     },
+    "weekly": {
+      "title": "Weekly schedule",
+      "subtitle": "Team view of scheduled jobs and tasks across 7 days.",
+      "sync_calendar": "Sync calendar",
+      "empty": "No scheduled slots for this week.",
+      "team_label": "Team",
+      "assignees": "{count} assignees",
+      "unassigned": "Unassigned",
+      "slots": "{count} slots",
+      "summary": {
+        "total": "Total",
+        "to_go": "To go",
+        "active": "Active",
+        "complete": "Complete"
+      }
+    },
     "revenue": {
       "title": "Revenue trend",
       "subtitle": "Revenue collections and expenses over recent months.",
@@ -82,6 +98,19 @@
     },
     "actions": {
       "view_all": "View all"
+    },
+    "insights": {
+      "title": "Insights",
+      "subtitle": "Useful signals are grouped here instead of stacking multiple panels.",
+      "open": "Open",
+      "invoice_label": "Invoice to follow up",
+      "invoice_meta": "{amount} to handle",
+      "job_label": "Next job",
+      "job_meta": "{date} · {status}",
+      "quote_label": "Quote to watch",
+      "quote_meta": "{amount} · {status}",
+      "activity_label": "Latest activity",
+      "activity_meta": "{subject} · {date}"
     },
     "table": {
       "quote": "Quote",
@@ -107,10 +136,17 @@
       "revenue_billed": "Billed {amount}",
       "outstanding_balance": "Outstanding balance",
       "partial_invoices": "{count} partial invoices",
+      "client_follow_up": "Client follow-up",
+      "client_follow_up_amount": "{amount} to collect",
+      "expenses_due": "Expenses to handle",
+      "expenses_pending_approval": "{count} pending approval",
       "open_quotes": "Open quotes",
       "accepted_quotes": "{count} accepted quotes",
       "jobs_in_progress": "Jobs in progress",
+      "jobs_scheduled_label": "Scheduled jobs",
       "jobs_scheduled": "{count} scheduled",
+      "jobs_completed": "{count} completed",
+      "jobs_total": "{count} total",
       "customers": "Customers",
       "customers_new": "{count} new customers",
       "low_stock": "Low stock",
@@ -119,6 +155,24 @@
       "invoices_total": "{count} total",
       "inventory_value": "Inventory value",
       "products_total": "{count} products"
+    },
+    "kpi_panels": {
+      "finance_title": "Finance",
+      "finance_subtitle": "Collections, client follow-up, and expenses to keep in view.",
+      "billed_total": "Billed",
+      "partial_label": "Partial",
+      "overdue_label": "Overdue",
+      "pending_actions_label": "Finance actions",
+      "pipeline_title": "Pipeline",
+      "pipeline_subtitle": "Track open quotes and active jobs in one view.",
+      "accepted_label": "Accepted",
+      "scheduled_label": "Scheduled",
+      "completed_label": "Completed",
+      "quotes_month_label": "This month",
+      "today_load_label": "Today's load",
+      "overview_title": "Quick overview",
+      "overview_subtitle": "Cross-functional indicators grouped into one panel to keep the business in view.",
+      "overview_action": "Open workspace"
     },
     "announcements": {
       "title": "Announcements",
