@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import ClientPortalTabs from '@/Components/Portal/ClientPortalTabs.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
@@ -148,6 +149,58 @@ const selectedSlotLabel = computed(() => {
 
     return `${dayjs(selectedSlot.value.starts_at).format('ddd, MMM D HH:mm')} - ${dayjs(selectedSlot.value.ends_at).format('HH:mm')} (${selectedSlot.value.team_member_name}${resourceLabel})`;
 });
+
+const serviceTabs = computed(() => ([
+    {
+        id: 'reservations',
+        label: t('reservations.client.index.title'),
+        description: t('reservations.client.index.subtitle'),
+        href: route('client.reservations.index'),
+        badge: upcomingReservations.value.length,
+        tone: 'emerald',
+    },
+    {
+        id: 'book',
+        label: t('reservations.client.book.title'),
+        description: t('reservations.client.book.subtitle'),
+        href: route('client.reservations.book'),
+        badge: props.services.length,
+        tone: 'indigo',
+        active: true,
+    },
+]));
+
+const bookOverviewCards = computed(() => ([
+    {
+        key: 'services',
+        label: t('reservations.form.item'),
+        value: props.services.length,
+        meta: selectedService.value?.name || t('reservations.client.book.default_service'),
+        tone: 'indigo',
+    },
+    {
+        key: 'upcoming',
+        label: t('reservations.client.book.upcoming_title'),
+        value: upcomingReservations.value.length,
+        meta: selectedSlot.value ? selectedSlotLabel.value : t('reservations.client.book.no_upcoming'),
+        tone: 'emerald',
+    },
+    {
+        key: 'waitlist',
+        label: t('reservations.client.book.waitlist.title'),
+        value: waitlistEntries.value.length,
+        meta: queueTickets.value.length
+            ? t('reservations.queue.client.title')
+            : t('reservations.client.book.waitlist.none'),
+        tone: 'amber',
+    },
+]));
+
+const overviewTone = {
+    emerald: 'from-emerald-500/12 via-emerald-50 to-white text-emerald-700 dark:from-emerald-500/10 dark:via-emerald-500/5 dark:to-neutral-900 dark:text-emerald-200',
+    indigo: 'from-indigo-500/12 via-indigo-50 to-white text-indigo-700 dark:from-indigo-500/10 dark:via-indigo-500/5 dark:to-neutral-900 dark:text-indigo-200',
+    amber: 'from-amber-500/12 via-amber-50 to-white text-amber-700 dark:from-amber-500/10 dark:via-amber-500/5 dark:to-neutral-900 dark:text-amber-200',
+};
 
 const waitlistEnabled = computed(() => Boolean(props.settings?.waitlist_enabled));
 const queueModeEnabled = computed(() => Boolean(props.settings?.queue_mode_enabled));
@@ -448,24 +501,78 @@ onBeforeUnmount(() => {
     <Head :title="$t('reservations.client.book.title')" />
     <AuthenticatedLayout>
         <div class="space-y-4">
-            <section class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ $t('reservations.client.book.title') }}</h1>
-                        <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('reservations.client.book.subtitle') }}</p>
+            <section class="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_30px_80px_-50px_rgba(15,23,42,0.45)] dark:border-neutral-800 dark:bg-neutral-900">
+                <div class="grid gap-0 lg:grid-cols-[1.45fr_0.95fr]">
+                    <div class="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-500 to-indigo-400 px-6 py-7 text-white sm:px-8">
+                        <div class="absolute -right-8 top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
+                        <div class="absolute bottom-0 right-20 h-28 w-28 rounded-full border border-white/15"></div>
+
+                        <div class="relative flex h-full flex-col justify-between gap-6">
+                            <div class="space-y-4">
+                                <div class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/16">
+                                        <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 3v18" />
+                                            <path d="M3 12h18" />
+                                        </svg>
+                                    </span>
+                                    {{ $t('reservations.client.book.title') }}
+                                </div>
+
+                                <div>
+                                    <h1 class="text-3xl font-semibold tracking-tight sm:text-[2.1rem]">
+                                        {{ $t('reservations.client.book.title') }}
+                                    </h1>
+                                    <p class="mt-2 max-w-xl text-sm leading-6 text-white/85 sm:text-base">
+                                        {{ $t('reservations.client.book.subtitle') }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-3">
+                                <Link
+                                    :href="route('client.reservations.index')"
+                                    class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:-translate-y-0.5 hover:shadow-md"
+                                >
+                                    {{ $t('reservations.client.book.my_reservations') }}
+                                </Link>
+                                <span class="rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium text-white/80">
+                                    {{ $t('reservations.form.item') }}: {{ services.length }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                    <Link
-                        :href="route('client.reservations.index')"
-                        class="rounded-sm border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 dark:border-neutral-700 dark:text-neutral-200"
-                    >
-                        {{ $t('reservations.client.book.my_reservations') }}
-                    </Link>
+
+                    <div class="flex flex-col justify-between gap-3 bg-stone-50/80 p-5 dark:bg-neutral-950/70">
+                        <article
+                            v-for="card in bookOverviewCards"
+                            :key="card.key"
+                            class="rounded-[1.4rem] border border-stone-200/80 bg-gradient-to-br px-4 py-4 shadow-sm dark:border-neutral-800"
+                            :class="overviewTone[card.tone]"
+                        >
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em]">
+                                {{ card.label }}
+                            </p>
+                            <p class="mt-2 text-2xl font-semibold text-stone-900 dark:text-white">
+                                {{ card.value }}
+                            </p>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-300">
+                                {{ card.meta }}
+                            </p>
+                        </article>
+                    </div>
                 </div>
             </section>
 
+            <ClientPortalTabs
+                :tabs="serviceTabs"
+                aria-label="Service client sections"
+                :columns="2"
+            />
+
             <section class="grid gap-4 xl:grid-cols-3">
                 <div class="space-y-4 xl:col-span-2">
-                    <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="rounded-[1.75rem] border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                         <div
                             v-if="ownerOnlyMode"
                             class="mb-3 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
@@ -552,7 +659,7 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="space-y-4">
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <section class="rounded-[1.75rem] border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('reservations.client.book.summary_title') }}</h2>
                         <div class="mt-3 space-y-3">
                             <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-800">
@@ -621,7 +728,7 @@ onBeforeUnmount(() => {
                         </div>
                     </section>
 
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <section class="rounded-[1.75rem] border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('reservations.client.book.upcoming_title') }}</h2>
                         <div class="mt-3 space-y-2">
                             <div
@@ -650,7 +757,7 @@ onBeforeUnmount(() => {
 
                     <section
                         v-if="waitlistEnabled"
-                        class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        class="rounded-[1.75rem] border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
                     >
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('reservations.client.book.waitlist.my_entries') }}</h2>
                         <div class="mt-3 space-y-2">

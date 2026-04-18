@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { Link, router, useForm } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableBulkActionMenu from '@/Components/DataTable/AdminDataTableBulkActionMenu.vue';
@@ -101,8 +101,11 @@ const filterForm = useForm({
 });
 
 const { t } = useI18n();
+const page = usePage();
 
 const canEdit = computed(() => Boolean(props.canEdit));
+const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
+const canCreateBulkOrder = computed(() => companyType.value === 'products');
 const aiImage = computed(() => (props.aiImage && typeof props.aiImage === 'object' ? props.aiImage : {}));
 const aiImageEnabled = computed(() => Boolean(aiImage.value.enabled) && Boolean(aiImage.value.generate_url));
 const aiImageLimit = computed(() => Number(aiImage.value.daily_limit ?? 1));
@@ -575,11 +578,27 @@ watch(
 
 const fallbackBulkActions = [
     {
+        key: 'create-order',
+        kind: 'navigate',
+        client_action: 'create_order',
+        label_key: 'products.bulk.create_order',
+        tone: 'info',
+    },
+    {
+        key: 'supplier-request',
+        kind: 'submit',
+        action: 'supplier_request',
+        label_key: 'products.bulk.request_supplier',
+        tone: 'warning',
+        confirm_key: 'products.bulk.request_supplier_confirm',
+    },
+    {
         key: 'archive',
         kind: 'submit',
         action: 'archive',
         label_key: 'products.actions.archive',
         tone: 'neutral',
+        divider_before: true,
     },
     {
         key: 'restore',
@@ -601,10 +620,16 @@ const fallbackBulkActions = [
 const bulkMenuLabelKey = computed(() => props.bulkActions?.menu_label_key || 'products.bulk.actions');
 const bulkSelectionLabelKey = computed(() => props.bulkActions?.selection_label_key || 'products.bulk.selected');
 const bulkMenuActions = computed(() => (
-    Array.isArray(props.bulkActions?.actions) && props.bulkActions.actions.length
+    (Array.isArray(props.bulkActions?.actions) && props.bulkActions.actions.length
         ? props.bulkActions.actions
         : fallbackBulkActions
+    ).filter((action) => !(action?.client_action === 'create_order' && !canCreateBulkOrder.value))
 ));
+const selectedProductRows = computed(() => {
+    const selectedIds = new Set((selected.value || []).map((value) => String(value)));
+
+    return productRows.value.filter((product) => selectedIds.has(String(product.id)));
+});
 
 const clearBulkResult = () => {
     bulkResult.value = null;
@@ -672,8 +697,45 @@ const runBulk = async (action, confirmKey = null) => {
     }
 };
 
+const openBulkOrder = () => {
+    if (!selected.value.length || !canCreateBulkOrder.value) {
+        return;
+    }
+
+    const selectedRows = selectedProductRows.value;
+    const availableRows = selectedRows.filter((product) => getAvailableStock(product) > 0);
+
+    if (!selectedRows.length || !availableRows.length) {
+        const result = setBulkResult({
+            message: t('products.bulk.create_order_unavailable'),
+            selected_count: selected.value.length,
+            processed_count: 0,
+            success_count: 0,
+            failed_count: 0,
+            skipped_count: selected.value.length,
+            errors: [t('products.bulk.create_order_unavailable')],
+        });
+        dispatchBulkActionToast(result, t);
+
+        return;
+    }
+
+    router.get(route('sales.create'), {
+        product_ids: selectedRows.map((product) => product.id),
+    }, {
+        preserveState: false,
+        preserveScroll: false,
+    });
+};
+
 const handleBulkAction = (definition) => {
     if (!definition || typeof definition !== 'object') {
+        return;
+    }
+
+    if (definition.kind === 'navigate' && definition.client_action === 'create_order') {
+        openBulkOrder();
+
         return;
     }
 

@@ -70,8 +70,37 @@ test('product bulk action registry exposes submit actions and delete confirmatio
             'selection_label_key' => 'products.bulk.selected',
         ])
         ->and($definition['endpoint'])->toBe(route('product.bulk'))
-        ->and($definition['actions'])->toHaveCount(3)
-        ->and(collect($definition['actions'])->pluck('action')->all())->toBe(['archive', 'restore', 'delete']);
+        ->and($definition['actions'])->toHaveCount(4)
+        ->and($definition['actions'][0])->toMatchArray([
+            'key' => 'supplier-request',
+            'kind' => 'submit',
+            'action' => 'supplier_request',
+            'label_key' => 'products.bulk.request_supplier',
+            'confirm_key' => 'products.bulk.request_supplier_confirm',
+        ])
+        ->and(collect($definition['actions'])->pluck('action')->filter()->values()->all())
+        ->toBe(['supplier_request', 'archive', 'restore', 'delete']);
+});
+
+test('product bulk action registry only exposes create order shortcut for product companies', function () {
+    $servicesDefinition = app(BulkActionRegistry::class)->definitionFor('product', [
+        'can_edit' => true,
+        'company_type' => 'services',
+    ]);
+
+    $productsDefinition = app(BulkActionRegistry::class)->definitionFor('product', [
+        'can_edit' => true,
+        'company_type' => 'products',
+    ]);
+
+    expect(collect($servicesDefinition['actions'])->pluck('key')->contains('create-order'))->toBeFalse()
+        ->and(collect($productsDefinition['actions'])->pluck('key')->contains('create-order'))->toBeTrue()
+        ->and(collect($productsDefinition['actions'])->firstWhere('key', 'create-order'))
+        ->toMatchArray([
+            'kind' => 'navigate',
+            'client_action' => 'create_order',
+            'label_key' => 'products.bulk.create_order',
+        ]);
 });
 
 test('request bulk action registry exposes status and assignee controls', function () {

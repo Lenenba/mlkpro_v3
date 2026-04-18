@@ -38,17 +38,33 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    prefillItems: {
+        type: Array,
+        default: () => [],
+    },
+    prefillContext: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
 
 const localCustomers = ref([...props.customers]);
+const normalizedPrefillItems = Array.isArray(props.prefillItems)
+    ? props.prefillItems.map((item) => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.price,
+        description: item.description,
+    }))
+    : [];
 
 const form = useForm({
     customer_id: '',
     status: 'pending',
     notes: '',
-    items: [],
+    items: normalizedPrefillItems,
     payment_method: '',
     pay_with_stripe: false,
     loyalty_points_redeem: 0,
@@ -158,6 +174,12 @@ const customerOptions = computed(() =>
 const selectedCustomer = computed(() =>
     localCustomers.value.find((customer) => customer.id === form.customer_id) || null
 );
+const prefillContext = computed(() => ({
+    requestedCount: Number(props.prefillContext?.requested_count ?? 0),
+    addedCount: Number(props.prefillContext?.added_count ?? 0),
+    skippedCount: Number(props.prefillContext?.skipped_count ?? 0),
+}));
+const hasPrefillNotice = computed(() => prefillContext.value.requestedCount > 0);
 
 const searchQuery = ref('');
 const scanQuery = ref('');
@@ -479,6 +501,21 @@ const submit = () => {
                 <Link :href="route('sales.show', lastSaleId)" class="font-semibold underline">
                     {{ $t('sales.create.flash_view') }}
                 </Link>
+            </div>
+
+            <div
+                v-if="hasPrefillNotice"
+                class="rounded-sm border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100"
+            >
+                <p class="font-semibold">
+                    {{ $t('sales.create.prefill.title') }}
+                </p>
+                <p class="mt-1">
+                    {{ $t('sales.create.prefill.added', { count: prefillContext.addedCount }) }}
+                </p>
+                <p v-if="prefillContext.skippedCount > 0" class="mt-1 text-xs text-sky-800/80 dark:text-sky-100/80">
+                    {{ $t('sales.create.prefill.skipped', { count: prefillContext.skippedCount }) }}
+                </p>
             </div>
 
             <form @submit.prevent="submit" class="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">

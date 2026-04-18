@@ -1,8 +1,9 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import Modal from '@/Components/Modal.vue';
+import ClientPortalTabs from '@/Components/Portal/ClientPortalTabs.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -48,6 +49,7 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const page = usePage();
 
 const cartRestored = ref(false);
 
@@ -406,6 +408,68 @@ const canCheckout = computed(() => {
     return true;
 });
 
+const productTabs = computed(() => ([
+    {
+        id: 'shop',
+        label: t('portal_shop.header.section'),
+        description: headerSubtitle.value,
+        href: route('portal.orders.index'),
+        badge: cartItemCount.value > 0 ? cartItemCount.value : null,
+        tone: 'indigo',
+        active: true,
+    },
+    {
+        id: 'orders',
+        label: t('client_orders.title'),
+        description: companyName.value,
+        href: route('dashboard'),
+        tone: 'orange',
+    },
+]));
+
+const shopOverviewCards = computed(() => ([
+    {
+        key: 'cart',
+        label: t('portal_shop.cart.title'),
+        value: formatCurrency(subtotal.value),
+        meta: t('portal_shop.cart.items_count', { count: cartItemCount.value }),
+        tone: 'indigo',
+    },
+    {
+        key: 'orders',
+        label: t('client_orders.title'),
+        value: isEditing.value ? orderLabel.value : companyName.value,
+        meta: isEditing.value ? orderStatusLabel.value : t('client_orders.subtitle_default'),
+        tone: 'orange',
+        href: route('dashboard'),
+    },
+    {
+        key: 'fulfillment',
+        label: t('portal_shop.fulfillment.title'),
+        value: form.fulfillment_method === 'delivery'
+            ? t('portal_shop.fulfillment.delivery')
+            : t('portal_shop.fulfillment.pickup'),
+        meta: form.fulfillment_method === 'delivery'
+            ? (
+                deliveryFee.value > 0
+                    ? t('portal_shop.fulfillment.delivery_fee', { amount: formatCurrency(deliveryFee.value) })
+                    : t('portal_shop.fulfillment.delivery_free')
+            )
+            : (
+                props.fulfillment?.prep_time_minutes
+                    ? t('portal_shop.fulfillment.pickup_ready', { minutes: props.fulfillment.prep_time_minutes })
+                    : t('portal_shop.fulfillment.pickup')
+            ),
+        tone: 'emerald',
+    },
+]));
+
+const overviewTone = {
+    indigo: 'from-indigo-500/12 via-indigo-50 to-white text-indigo-700 dark:from-indigo-500/10 dark:via-indigo-500/5 dark:to-neutral-900 dark:text-indigo-200',
+    orange: 'from-orange-500/12 via-orange-50 to-white text-orange-700 dark:from-orange-500/10 dark:via-orange-500/5 dark:to-neutral-900 dark:text-orange-200',
+    emerald: 'from-emerald-500/12 via-emerald-50 to-white text-emerald-700 dark:from-emerald-500/10 dark:via-emerald-500/5 dark:to-neutral-900 dark:text-emerald-200',
+};
+
 const selectMethod = (method) => {
     if (isLocked.value) {
         return;
@@ -595,37 +659,111 @@ const startPayment = (type) => {
         <Head :title="pageTitle" />
 
         <div class="space-y-5">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-3">
-                    <div class="h-12 w-12 overflow-hidden rounded-sm border border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
-                        <img
-                            v-if="company?.logo_url"
-                            :src="company.logo_url"
-                            :alt="company?.name || $t('portal_shop.header.logo_alt')"
-                            class="h-full w-full object-cover"
-                            loading="lazy"
-                            decoding="async"
-                        >
+            <section class="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_30px_80px_-50px_rgba(15,23,42,0.45)] dark:border-neutral-800 dark:bg-neutral-900">
+                <div class="grid gap-0 lg:grid-cols-[1.45fr_0.95fr]">
+                    <div class="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-500 to-indigo-400 px-6 py-7 text-white sm:px-8">
+                        <div class="absolute -right-8 top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
+                        <div class="absolute bottom-0 right-20 h-28 w-28 rounded-full border border-white/15"></div>
+
+                        <div class="relative flex h-full flex-col justify-between gap-6">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="space-y-4">
+                                    <div class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
+                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/16">
+                                            <img
+                                                v-if="company?.logo_url"
+                                                :src="company.logo_url"
+                                                :alt="company?.name || $t('portal_shop.header.logo_alt')"
+                                                class="h-full w-full rounded-full object-cover"
+                                                loading="lazy"
+                                                decoding="async"
+                                            >
+                                            <svg v-else class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M6 6h15l-1.5 9h-12z" />
+                                                <path d="M6 6 4 3H2" />
+                                                <circle cx="9" cy="20" r="1" />
+                                                <circle cx="18" cy="20" r="1" />
+                                            </svg>
+                                        </span>
+                                        {{ $t('portal_shop.header.section') }}
+                                    </div>
+
+                                    <div>
+                                        <h1 class="text-3xl font-semibold tracking-tight sm:text-[2.15rem]">
+                                            {{ headerTitle }}
+                                        </h1>
+                                        <p class="mt-2 max-w-xl text-sm leading-6 text-white/85 sm:text-base">
+                                            {{ headerSubtitle }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="rounded-[1.35rem] border border-white/20 bg-white/10 px-4 py-3 text-right backdrop-blur">
+                                    <p class="text-xs uppercase tracking-[0.18em] text-white/70">
+                                        {{ $t('portal_shop.search.results', { count: products.length }) }}
+                                    </p>
+                                    <p class="mt-2 text-3xl font-semibold">
+                                        {{ cartItemCount }}
+                                    </p>
+                                    <p class="mt-1 text-xs text-white/75">
+                                        {{ $t('portal_shop.cart.items_count', { count: cartItemCount }) }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-3">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:-translate-y-0.5 hover:shadow-md"
+                                    @click="openCart"
+                                >
+                                    {{ $t('portal_shop.cart.label', { count: cartItemCount }) }}
+                                </button>
+                                <Link
+                                    :href="route('dashboard')"
+                                    class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15"
+                                >
+                                    {{ $t('portal_shop.actions.back_to_dashboard') }}
+                                </Link>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.header.section') }}</p>
-                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ headerTitle }}
-                        </h1>
-                        <p class="text-sm text-stone-500 dark:text-neutral-400">
-                            {{ headerSubtitle }}
-                        </p>
+
+                    <div class="flex flex-col justify-between gap-3 bg-stone-50/80 p-5 dark:bg-neutral-950/70">
+                        <component
+                            :is="card.href ? Link : 'button'"
+                            v-for="card in shopOverviewCards"
+                            :key="card.key"
+                            :href="card.href || null"
+                            :type="card.href ? null : 'button'"
+                            class="rounded-[1.4rem] border border-stone-200/80 bg-gradient-to-br px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800"
+                            :class="overviewTone[card.tone]"
+                            @click="card.key === 'cart' ? openCart() : null"
+                        >
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em]">
+                                {{ card.label }}
+                            </p>
+                            <p class="mt-2 text-xl font-semibold text-stone-900 dark:text-white">
+                                {{ card.value }}
+                            </p>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-300">
+                                {{ card.meta }}
+                            </p>
+                        </component>
                     </div>
                 </div>
-                <Link :href="route('dashboard')" class="text-xs font-semibold text-green-700 hover:underline dark:text-green-400">
-                    {{ $t('portal_shop.actions.back_to_dashboard') }}
-                </Link>
-            </div>
+            </section>
 
-            <div v-if="isLocked" class="rounded-sm border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            <ClientPortalTabs
+                :tabs="productTabs"
+                aria-label="Product client sections"
+                :columns="2"
+            />
+
+            <div v-if="isLocked" class="rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
                 {{ $t('portal_shop.locked_notice') }}
             </div>
-            <div v-if="isEditing" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div v-if="isEditing" class="rounded-[1.75rem] border border-stone-200/80 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.status.order_status') }}</p>
@@ -716,7 +854,7 @@ const startPayment = (type) => {
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
                 <aside class="space-y-4">
-                    <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="rounded-[1.75rem] border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <span class="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-stone-200 bg-stone-50 text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
@@ -804,7 +942,7 @@ const startPayment = (type) => {
                 </aside>
                 <div class="space-y-4">
                     <div v-if="timeline.length || showPickupQr" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                        <div v-if="timeline.length" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <div v-if="timeline.length" class="rounded-[1.6rem] border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('portal_shop.timeline.title') }}</h2>
                             <div class="mt-3 space-y-3">
                                 <div v-for="event in timeline" :key="event.id" class="flex items-start gap-3 text-sm">
@@ -821,7 +959,7 @@ const startPayment = (type) => {
                             </div>
                         </div>
 
-                        <div v-if="showPickupQr && pickupCode" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <div v-if="showPickupQr && pickupCode" class="rounded-[1.6rem] border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('portal_shop.timeline.pickup_qr_title') }}</h2>
                             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                 {{ $t('portal_shop.timeline.pickup_qr_note') }}
@@ -841,8 +979,9 @@ const startPayment = (type) => {
                             </div>
                         </div>
                     </div>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <div class="relative flex-1">
+                    <div class="rounded-[1.75rem] border border-stone-200/80 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <div class="relative flex-1">
                             <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
                                 <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
                                     xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -855,43 +994,44 @@ const startPayment = (type) => {
                             <input
                                 v-model="search"
                                 type="text"
-                                class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
+                                class="block w-full rounded-[1.25rem] border border-stone-200 bg-stone-50 py-[11px] ps-10 pe-8 text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200 dark:placeholder:text-neutral-400"
                                 :placeholder="$t('portal_shop.search.placeholder')"
                             >
                         </div>
-                        <div class="flex items-center gap-3 text-xs text-stone-500 dark:text-neutral-400">
-                            <span>{{ $t('portal_shop.search.results', { count: filteredProducts.length }) }}</span>
-                            <button
-                                type="button"
-                                class="relative inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:-translate-y-0.5 hover:bg-stone-50 hover:shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                                @click="openCart"
-                            >
-                                <span class="relative flex h-5 w-5 items-center justify-center">
-                                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round">
-                                        <circle cx="8" cy="21" r="1" />
-                                        <circle cx="19" cy="21" r="1" />
-                                        <path d="M2.05 2.05h2l2.76 12.2a2 2 0 0 0 2 1.6h9.72a2 2 0 0 0 2-1.6l1.38-7.6H6.1" />
-                                    </svg>
-                                    <span v-if="cartItemCount" class="absolute -right-1 -top-1 flex h-3 w-3">
-                                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                                        <span class="relative inline-flex h-3 w-3 rounded-full bg-emerald-500"></span>
+                            <div class="flex items-center gap-3 text-xs text-stone-500 dark:text-neutral-400">
+                                <span>{{ $t('portal_shop.search.results', { count: filteredProducts.length }) }}</span>
+                                <button
+                                    type="button"
+                                    class="relative inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:-translate-y-0.5 hover:bg-stone-50 hover:shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    @click="openCart"
+                                >
+                                    <span class="relative flex h-5 w-5 items-center justify-center">
+                                        <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <circle cx="8" cy="21" r="1" />
+                                            <circle cx="19" cy="21" r="1" />
+                                            <path d="M2.05 2.05h2l2.76 12.2a2 2 0 0 0 2 1.6h9.72a2 2 0 0 0 2-1.6l1.38-7.6H6.1" />
+                                        </svg>
+                                        <span v-if="cartItemCount" class="absolute -right-1 -top-1 flex h-3 w-3">
+                                            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                                            <span class="relative inline-flex h-3 w-3 rounded-full bg-emerald-500"></span>
+                                        </span>
                                     </span>
-                                </span>
-                                <span>{{ $t('portal_shop.cart.label', { count: cartItemCount }) }}</span>
-                            </button>
+                                    <span>{{ $t('portal_shop.cart.label', { count: cartItemCount }) }}</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <div v-if="!filteredProducts.length" class="rounded-sm border border-stone-200 bg-white p-6 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                    <div v-if="!filteredProducts.length" class="rounded-[1.75rem] border border-stone-200/80 bg-white p-6 text-sm text-stone-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
                         {{ $t('portal_shop.empty.no_products') }}
                     </div>
                     <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         <div
                             v-for="(product, index) in filteredProducts"
                             :key="product.id"
-                            class="shop-card group relative flex h-full cursor-pointer flex-col rounded-sm border border-stone-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-900"
+                            class="shop-card group relative flex h-full cursor-pointer flex-col rounded-[1.6rem] border border-stone-200/80 bg-white p-3.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900"
                             :style="{ animationDelay: `${Math.min(index, 10) * 40}ms` }"
                             @click="openProductDetails(product)"
                         >
@@ -901,7 +1041,7 @@ const startPayment = (type) => {
                             >
                                 {{ stockMeta(product).label }}
                             </span>
-                            <div class="relative h-40 w-full overflow-hidden rounded-sm border border-stone-200 bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800">
+                            <div class="relative h-40 w-full overflow-hidden rounded-[1.25rem] border border-stone-200 bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800">
                                 <img
                                     v-if="product.image_url || product.image"
                                     :src="product.image_url || product.image"

@@ -258,6 +258,9 @@
     },
     "marketing_panel": {
       "title": "Marketing KPI",
+      "show": "Show panel",
+      "hide": "Hide panel",
+      "collapsed_hint": "Marketing details stay hidden until you need them.",
       "range": "Range: {label} ({start} -> {end})",
       "open_campaigns": "Open campaigns",
       "top_campaign": "Top campaign",

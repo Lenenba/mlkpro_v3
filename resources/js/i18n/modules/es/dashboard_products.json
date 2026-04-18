@@ -3,6 +3,8 @@
     "common": {
       "customer_fallback": "Cliente",
       "confirm_supplier_request": "¿Enviar una solicitud de stock al proveedor?",
+      "inventory_title": "Salud del inventario",
+      "stock_panel_subtitle": "Rupturas, reservas y lotes sensibles reunidos en un solo panel.",
       "recent_sales_title": "Ventas recientes",
       "recent_sales_empty": "No hay ventas recientes.",
       "sale_label": "Venta #{id}",
@@ -15,7 +17,14 @@
       "request_stock": "Solicitar stock",
       "top_products_title": "Productos destacados",
       "top_products_empty": "Aún no hay productos destacados.",
-      "quantity": "Cantidad: {count}"
+      "quantity": "Cantidad: {count}",
+      "metrics": {
+        "revenue_month": "Ingresos del mes",
+        "reserved": "Reservados",
+        "damaged": "Dañados",
+        "expired_lots": "Lotes vencidos",
+        "expiring_lots": "Lotes por vencer"
+      }
     },
     "owner": {
       "page_title": "Dashboard de productos",
@@ -39,6 +48,18 @@
         "damaged": "Dañado {count}",
         "expired": "Caducado {count}",
         "expiring": "Venciendo {count}"
+      },
+      "insights": {
+        "title": "Insights",
+        "subtitle": "Productos destacados, alertas de stock y ventas recientes en un solo bloque.",
+        "live": "Vista rapida",
+        "view_details": "Ver detalles",
+        "close": "Cerrar",
+        "counts": {
+          "recent_sales": "{count} ventas seguidas",
+          "stock_alerts": "{count} alertas activas",
+          "top_products": "{count} productos destacados"
+        }
       },
       "performance": {
         "title": "Rendimiento del vendedor",

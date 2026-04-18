@@ -213,6 +213,11 @@
       "flash_view": "View and print",
       "save_sale": "Save sale",
       "save_order": "Save order",
+      "prefill": {
+        "title": "Product selection imported",
+        "added": "{count} product(s) were added to the order.",
+        "skipped": "{count} product(s) were skipped because they are unavailable or missing."
+      },
       "status": {
         "pending": {
           "label": "Order",

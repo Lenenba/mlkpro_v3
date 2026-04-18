@@ -105,7 +105,8 @@ const describeAlert = (item) => {
     if (item.status === 'over') {
         return translate(
             'sidebar.messages.alert_over',
-            `Limit exceeded. ${item.used} used out of ${displayLimitValue(item)}.`
+            `Limit exceeded. ${item.used} used out of ${displayLimitValue(item)}.`,
+            { used: item.used, limit: displayLimitValue(item) }
         );
     }
 

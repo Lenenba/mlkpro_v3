@@ -580,7 +580,10 @@ class DashboardController extends Controller
             );
 
             if ($membership) {
-                return $respond('DashboardProductsTeam', $overview, $cacheKey);
+                return $respond('DashboardProductsTeam', [
+                    ...$overview,
+                    'announcements' => $internalAnnouncements,
+                ], $cacheKey);
             }
 
             $performance = $this->buildProductPerformance($accountId, $now);

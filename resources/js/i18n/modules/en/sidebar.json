@@ -1,0 +1,17 @@
+{
+  "sidebar": {
+    "messages": {
+      "title": "Messages",
+      "subtitle_empty": "No operational alert right now.",
+      "subtitle_count": "{count} usage alerts",
+      "empty": "Your usage alerts will appear here when a limit needs attention.",
+      "action": "View limits",
+      "alert_over": "Limit exceeded. {used} used out of {limit}.",
+      "alert_unlimited": "This limit is not capped on your current plan.",
+      "alert_warning": "{remaining} remaining before you reach the limit.",
+      "status_over": "Critical",
+      "status_warning": "Watch",
+      "no_cap": "No cap"
+    }
+  }
+}
