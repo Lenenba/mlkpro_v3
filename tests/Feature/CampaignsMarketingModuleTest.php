@@ -959,6 +959,93 @@ test('campaign provider preview returns normalized rows without creating batches
         ->and(ActivityLog::query()->where('action', 'campaign_provider_preview_generated')->count())->toBe(1);
 });
 
+test('lusha provider preview sends a valid contact filter when searching by text', function () {
+    $owner = marketingOwner();
+    fakeLushaPreviewResponses(
+        contacts: [
+            [
+                'id' => 'lusha-contact-1',
+                'firstName' => 'Lea',
+                'lastName' => 'Martin',
+                'fullName' => 'Lea Martin',
+                'jobTitle' => 'Owner',
+                'company' => [
+                    'id' => 'lusha-company-1',
+                    'name' => 'Clean Nord',
+                    'website' => 'https://clean-nord.example',
+                    'city' => 'Montreal',
+                    'state' => 'Quebec',
+                    'country' => 'Canada',
+                    'industry' => 'Cleaning Services',
+                    'employeeCount' => 12,
+                ],
+            ],
+        ],
+        enrichedContacts: [
+            [
+                'id' => 'lusha-contact-1',
+                'emails' => [
+                    ['email' => 'lea@clean-nord.example'],
+                ],
+                'phones' => [
+                    ['number' => '+15145550123'],
+                ],
+            ],
+        ],
+    );
+
+    $provider = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_LUSHA,
+        'label' => 'Lusha account',
+        'credentials' => ['api_key' => 'lusha-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Lusha provider preview campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
+        'provider_connection_id' => $provider->id,
+        'query_label' => 'Montreal cleaning',
+        'query' => 'Cleaning companies in Montreal',
+        'limit' => 1,
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('preview.count', 1)
+        ->assertJsonPath('rows.0.provider_key', CampaignProspectProviderConnection::PROVIDER_LUSHA)
+        ->assertJsonPath('rows.0.metadata.lusha_contact_id', 'lusha-contact-1')
+        ->assertJsonPath('rows.0.email', 'lea@clean-nord.example');
+
+    Http::assertSent(function ($request): bool {
+        if ($request->url() !== 'https://api.lusha.com/prospecting/contact/search') {
+            return false;
+        }
+
+        $payload = $request->data();
+
+        return ($payload['includePartialContact'] ?? null) === true
+            && ($payload['filters']['contacts']['include']['searchText'] ?? null) === 'Cleaning companies in Montreal'
+            && ($payload['filters']['contacts']['include']['existing_data_points'] ?? null) === ['work_email']
+            && ($payload['filters']['companies']['include']['searchText'] ?? null) === 'Cleaning companies in Montreal';
+    });
+});
+
 test('campaign provider preview rejects disconnected provider connection', function () {
     $owner = marketingOwner();
 
