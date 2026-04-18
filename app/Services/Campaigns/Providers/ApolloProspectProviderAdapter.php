@@ -35,14 +35,10 @@ class ApolloProspectProviderAdapter extends AbstractOauthProspectProviderAdapter
      */
     public function scopes(): array
     {
-        $configuredScopes = config('services.apollo.oauth.scopes', [
-            'read_user_profile',
-            'contacts_search',
-            'person_read',
-        ]);
+        $configuredScopes = config('services.apollo.oauth.scopes', []);
 
         if (! is_array($configuredScopes)) {
-            return ['read_user_profile', 'contacts_search', 'person_read'];
+            return [];
         }
 
         return collect($configuredScopes)
@@ -75,13 +71,19 @@ class ApolloProspectProviderAdapter extends AbstractOauthProspectProviderAdapter
             ]);
         }
 
-        return config('services.apollo.oauth.authorize_url', self::AUTHORIZATION_ENDPOINT).'?'.http_build_query([
+        $query = [
             'client_id' => (string) config('services.apollo.oauth.client_id'),
             'redirect_uri' => $this->redirectUri(),
             'response_type' => 'code',
-            'scope' => implode(' ', $this->scopes()),
             'state' => $state,
-        ], '', '&', PHP_QUERY_RFC3986);
+        ];
+
+        $scopes = $this->scopes();
+        if ($scopes !== []) {
+            $query['scope'] = implode(' ', $scopes);
+        }
+
+        return config('services.apollo.oauth.authorize_url', self::AUTHORIZATION_ENDPOINT).'?'.http_build_query($query, '', '&', PHP_QUERY_RFC3986);
     }
 
     /**
@@ -192,13 +194,6 @@ class ApolloProspectProviderAdapter extends AbstractOauthProspectProviderAdapter
         if ($token === '') {
             throw ValidationException::withMessages([
                 'provider_connection_id' => 'Apollo must be connected before previewing prospects.',
-            ]);
-        }
-
-        if (trim((string) ($credentials['access_token'] ?? '')) !== ''
-            && trim((string) ($credentials['api_key'] ?? '')) === '') {
-            throw ValidationException::withMessages([
-                'provider_connection_id' => 'Apollo OAuth connected successfully, but People API Search requires an Apollo API key with endpoint access. The current OAuth access token cannot preview prospects on this endpoint.',
             ]);
         }
 
