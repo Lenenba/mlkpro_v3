@@ -111,6 +111,9 @@ class LushaProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapter
             'filters' => [
                 'contacts' => [
                     'include' => [
+                        'existing_data_points' => [
+                            'work_email',
+                        ],
                         'searchText' => $query,
                     ],
                 ],
