@@ -907,6 +907,7 @@
         "save_draft_description": "Un brouillon de campagne doit exister avant de lancer une analyse de prospects par CSV ou saisie manuelle.",
         "source_title": "Source des prospects",
         "batch_cap_hint": "Unité de revue par défaut : 100 prospects par lot.",
+        "batch_size_readonly_hint": "Le lot d analyse est actuellement plafonne a {batch} prospects. En mode fournisseur, la preview charge jusqu a {preview} lignes par requete.",
         "no_file_selected": "Aucun fichier sélectionné.",
         "manual_placeholder": "entreprise|contact|email|telephone|site|industrie|pays|tags",
         "manual_hint": "Collez une ligne par prospect. Délimiteurs supportés : tabulation, | ou virgule. La ligne d entête est optionnelle.",

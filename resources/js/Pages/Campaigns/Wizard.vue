@@ -347,6 +347,7 @@ const providerPreviewMessage = ref('');
 const providerPreviewRows = ref([]);
 const providerPreviewMeta = ref(null);
 const providerPreviewConnection = ref(null);
+const providerPreviewLimit = 25;
 const selectedProviderPreviewRefs = ref([]);
 const providerImportSummary = ref(null);
 const prospectingBatchSize = ref(100);
@@ -1383,7 +1384,7 @@ const previewProviderProspects = async () => {
             provider_connection_id: Number(prospectingProviderConnectionId.value || 0),
             query_label: String(prospectingProviderQueryLabel.value || '').trim() || null,
             query: String(normalizedProspectingProviderQuery.value || '').trim(),
-            limit: 25,
+            limit: providerPreviewLimit,
         });
 
         providerPreviewRows.value = Array.isArray(response.data?.rows) ? response.data.rows : [];
@@ -3379,6 +3380,12 @@ watch(isProspectingMode, async (enabled) => {
                                 readonly
                             />
                         </div>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ t('marketing.campaign_wizard.prospecting.batch_size_readonly_hint', {
+                                batch: prospectingBatchSize || 100,
+                                preview: providerPreviewLimit,
+                            }) }}
+                        </p>
 
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
                             <div class="flex flex-wrap items-center justify-between gap-2">
