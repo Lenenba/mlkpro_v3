@@ -223,6 +223,11 @@
       "flash_view": "Ver e imprimir",
       "save_sale": "Guardar venta",
       "save_order": "Guardar pedido",
+      "prefill": {
+        "title": "Seleccion de productos importada",
+        "added": "{count} producto(s) se agregaron al pedido.",
+        "skipped": "{count} producto(s) se omitieron por no estar disponibles o no encontrarse."
+      },
       "status": {
         "pending": {
           "label": "Orden",

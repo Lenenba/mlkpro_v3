@@ -213,6 +213,11 @@
       "flash_view": "Voir et imprimer",
       "save_sale": "Enregistrer la vente",
       "save_order": "Enregistrer la commande",
+      "prefill": {
+        "title": "Selection produits importee",
+        "added": "{count} produit(s) ont ete ajoutes a la commande.",
+        "skipped": "{count} produit(s) ont ete ignores car indisponibles ou introuvables."
+      },
       "status": {
         "pending": {
           "label": "Commande",

@@ -2,6 +2,7 @@
 import { computed, ref, reactive, watchEffect } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import ClientPortalTabs from '@/Components/Portal/ClientPortalTabs.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
@@ -89,6 +90,7 @@ const formatDateTime = (value) => {
 };
 
 const orderNumber = computed(() => order.value?.number || t('client_orders.labels.order_label', { id: order.value?.id || '-' }));
+const companyName = computed(() => props.company?.name || t('portal_shop.header.company_fallback'));
 
 const paymentStatusLabels = computed(() => ({
     draft: t('client_orders.status.draft'),
@@ -239,6 +241,24 @@ const companyInitials = computed(() => {
     }
     return parts.map((part) => part[0]).join('').toUpperCase();
 });
+
+const productTabs = computed(() => ([
+    {
+        id: 'shop',
+        label: t('portal_shop.header.section'),
+        description: t('portal_shop.header.create_subtitle'),
+        href: route('portal.orders.index'),
+        tone: 'indigo',
+    },
+    {
+        id: 'orders',
+        label: t('client_orders.title'),
+        description: companyName.value,
+        href: route('dashboard'),
+        tone: 'orange',
+        active: true,
+    },
+]));
 
 const productImage = (item) => item?.product?.image_url || item?.product?.image || null;
 const productFallback = (item) => {
@@ -426,58 +446,95 @@ const submitProductReview = (productId) => {
         <Head :title="t('portal_order.title', { number: orderNumber })" />
 
         <div class="space-y-4">
-            <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-                    <div class="flex items-center gap-3">
-                        <div class="h-12 w-12 overflow-hidden rounded-sm border border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
-                            <img
-                                v-if="company?.logo_url"
-                                :src="company.logo_url"
-                                :alt="company?.name || t('portal_shop.header.logo_alt')"
-                                class="h-full w-full object-cover"
-                                loading="lazy"
-                                decoding="async"
-                            >
-                            <div v-else class="flex h-full w-full items-center justify-center text-xs font-semibold text-stone-500 dark:text-neutral-400">
-                                {{ companyInitials }}
+            <section class="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_30px_80px_-50px_rgba(15,23,42,0.45)] dark:border-neutral-800 dark:bg-neutral-900">
+                <div class="grid gap-0 lg:grid-cols-[1.45fr_0.95fr]">
+                    <div class="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-400 to-orange-300 px-6 py-7 text-white sm:px-8">
+                        <div class="absolute -right-8 top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
+                        <div class="absolute bottom-0 right-20 h-28 w-28 rounded-full border border-white/15"></div>
+
+                        <div class="relative flex h-full flex-col justify-between gap-6">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="space-y-4">
+                                    <div class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
+                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/16">
+                                            <img
+                                                v-if="company?.logo_url"
+                                                :src="company.logo_url"
+                                                :alt="company?.name || t('portal_shop.header.logo_alt')"
+                                                class="h-full w-full rounded-full object-cover"
+                                                loading="lazy"
+                                                decoding="async"
+                                            >
+                                            <span v-else>{{ companyInitials }}</span>
+                                        </span>
+                                        {{ companyName }}
+                                    </div>
+
+                                    <div>
+                                        <h1 class="text-3xl font-semibold tracking-tight sm:text-[2.1rem]">
+                                            {{ t('portal_order.title', { number: orderNumber }) }}
+                                        </h1>
+                                        <p class="mt-2 max-w-xl text-sm leading-6 text-white/85 sm:text-base">
+                                            {{ t('portal_order.subtitle') }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="rounded-[1.35rem] border border-white/20 bg-white/10 px-4 py-3 text-right backdrop-blur">
+                                    <p class="text-xs uppercase tracking-[0.18em] text-white/70">
+                                        {{ t('portal_shop.summary.total') }}
+                                    </p>
+                                    <p class="mt-2 text-3xl font-semibold">
+                                        {{ formatCurrency(order.total) }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span
+                                    class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white"
+                                >
+                                    {{ t('portal_order.labels.order_status') }}: {{ orderStatusLabel }}
+                                </span>
+                                <span
+                                    class="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white"
+                                >
+                                    {{ t('portal_order.labels.payment_status') }}: {{ paymentStatusLabel }}
+                                </span>
                             </div>
                         </div>
-                        <div class="space-y-1">
-                            <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                {{ company?.name || t('portal_shop.header.company_fallback') }}
-                            </p>
-                            <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ t('portal_order.title', { number: orderNumber }) }}
-                            </h1>
-                            <p class="text-sm text-stone-600 dark:text-neutral-400">
-                                {{ t('portal_order.subtitle') }}
-                            </p>
-                        </div>
                     </div>
-                    <div class="space-y-1 text-sm text-stone-600 dark:text-neutral-400">
-                        <div class="flex items-center justify-end gap-2">
-                            <span
-                                class="rounded-full px-2 py-0.5 text-xs font-semibold"
-                                :class="orderStatusClass"
-                            >
-                                {{ t('portal_order.labels.order_status') }}: {{ orderStatusLabel }}
-                            </span>
-                            <span
-                                class="rounded-full px-2 py-0.5 text-xs font-semibold"
-                                :class="paymentStatusClass"
-                            >
-                                {{ t('portal_order.labels.payment_status') }}: {{ paymentStatusLabel }}
-                            </span>
+
+                    <div class="flex flex-col justify-between gap-3 bg-stone-50/80 p-5 dark:bg-neutral-950/70">
+                        <div class="rounded-[1.4rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
+                                {{ t('portal_order.labels.created_on', { date: formatDate(order.created_at) }) }}
+                            </p>
+                            <p class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                                {{ humanizeDate(order.created_at) }}
+                            </p>
                         </div>
-                        <div class="text-right text-xs text-stone-500 dark:text-neutral-400">
-                            {{ t('portal_order.labels.created_on', { date: formatDate(order.created_at) }) }}
-                        </div>
-                        <div v-if="order.paid_at" class="text-right text-xs text-stone-500 dark:text-neutral-400">
-                            {{ t('portal_order.labels.paid_on', { date: formatDate(order.paid_at) }) }}
+
+                        <div
+                            v-if="order.paid_at"
+                            class="rounded-[1.4rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
+                        >
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
+                                {{ t('portal_order.labels.paid_on', { date: formatDate(order.paid_at) }) }}
+                            </p>
+                            <p class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                                {{ humanizeDate(order.paid_at) }}
+                            </p>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
+
+            <ClientPortalTabs
+                :tabs="productTabs"
+                aria-label="Product client sections"
+                :columns="2"
+            />
 
             <div class="flex flex-wrap items-center justify-end gap-2">
                 <button

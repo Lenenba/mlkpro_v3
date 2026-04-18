@@ -1,8 +1,10 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
+import KpiCompositePanel from '@/Components/Dashboard/KpiCompositePanel.vue';
 import Card from '@/Components/UI/Card.vue';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
@@ -24,9 +26,21 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    announcements: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const { t } = useI18n();
+const page = usePage();
+const userName = computed(() => page.props.auth?.user?.name || '');
+const greeting = computed(() => (
+    userName.value
+        ? t('dashboard.welcome_named', { name: userName.value })
+        : t('dashboard.welcome_generic')
+));
+const hasAnnouncements = computed(() => (props.announcements || []).length > 0);
 
 const isHydrating = ref(true);
 
@@ -41,30 +55,48 @@ const { formatCurrency } = useCurrencyFormatter();
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
-const kpiCards = computed(() => ([
+const overviewMetrics = computed(() => ([
     {
+        key: 'sales-today',
         label: t('dashboard_products.team.kpi.sales_today'),
         value: formatNumber(props.stats.sales_today),
-        icon: 'bag',
-        tone: 'emerald',
+        colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
     },
     {
+        key: 'revenue-today',
         label: t('dashboard_products.team.kpi.revenue_today'),
         value: formatCurrency(props.stats.revenue_today),
-        icon: 'cash',
-        tone: 'sky',
+        colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
     },
     {
+        key: 'low-stock',
         label: t('dashboard_products.team.kpi.low_stock'),
         value: formatNumber(props.stats.low_stock),
-        icon: 'alert',
-        tone: 'amber',
+        colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
     },
     {
+        key: 'out-of-stock',
         label: t('dashboard_products.team.kpi.out_of_stock'),
         value: formatNumber(props.stats.out_of_stock),
-        icon: 'warning',
-        tone: 'red',
+        colorClass: 'bg-rose-500/70 dark:bg-rose-400/50',
+    },
+]));
+
+const overviewSummaryItems = computed(() => ([
+    {
+        key: 'sales-month',
+        label: t('dashboard_products.owner.kpi.sales_month'),
+        value: formatNumber(props.stats.sales_month),
+    },
+    {
+        key: 'revenue-month',
+        label: t('dashboard_products.common.metrics.revenue_month'),
+        value: formatCurrency(props.stats.revenue_month),
+    },
+    {
+        key: 'products-total',
+        label: t('dashboard.limits.products'),
+        value: formatNumber(props.stats.products_total),
     },
 ]));
 
@@ -105,21 +137,6 @@ const requestSupplierStock = (product) => {
     });
 };
 
-const kpiIconStyles = {
-    emerald: 'bg-emerald-500/90 text-white shadow-emerald-500/30',
-    sky: 'bg-sky-500/90 text-white shadow-sky-500/30',
-    amber: 'bg-amber-500/90 text-white shadow-amber-500/30',
-    red: 'bg-red-500/90 text-white shadow-red-500/30',
-};
-
-const kpiBorderStyles = {
-    emerald: 'border-t-emerald-500 dark:border-t-emerald-400',
-    sky: 'border-t-sky-500 dark:border-t-sky-400',
-    amber: 'border-t-amber-500 dark:border-t-amber-400',
-    red: 'border-t-red-500 dark:border-t-red-400',
-};
-
-const skeletonKpis = Array.from({ length: 4 }, (_, index) => index);
 const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
 </script>
 
@@ -127,79 +144,57 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
     <AuthenticatedLayout>
         <Head :title="$t('dashboard_products.team.page_title')" />
 
-        <div class="space-y-5">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ $t('dashboard_products.team.title') }}
-                    </h1>
-                    <p class="text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('dashboard_products.team.subtitle') }}
-                    </p>
+        <div class="mx-auto w-full max-w-6xl space-y-5">
+            <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="space-y-1">
+                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('dashboard_products.team.title') }}
+                        </h1>
+                        <p class="text-sm text-stone-600 dark:text-neutral-400">
+                            {{ greeting }}
+                        </p>
+                        <div class="flex flex-wrap gap-3 text-xs text-stone-500 dark:text-neutral-400">
+                            <span>{{ $t('dashboard_products.team.subtitle') }}</span>
+                            <span>
+                                {{ $t('dashboard_products.owner.kpi.sales_month') }}:
+                                {{ formatNumber(stats.sales_month) }}
+                            </span>
+                            <span>
+                                {{ $t('dashboard_products.common.metrics.revenue_month') }}:
+                                {{ formatCurrency(stats.revenue_month) }}
+                            </span>
+                        </div>
+                    </div>
+                    <Link
+                        :href="route('sales.create')"
+                        class="rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+                    >
+                        {{ $t('dashboard_products.team.actions.new_sale') }}
+                    </Link>
                 </div>
-                <Link
-                    :href="route('sales.create')"
-                    class="rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
-                >
-                    {{ $t('dashboard_products.team.actions.new_sale') }}
-                </Link>
-            </div>
+            </section>
 
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div
-                    v-if="isHydrating"
-                    v-for="index in skeletonKpis"
-                    :key="`team-kpi-skeleton-${index}`"
-                    class="rise-in rounded-sm border border-t-4 border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900"
-                    :style="{ animationDelay: `${index * 80}ms` }"
-                >
-                    <div class="flex items-center justify-between gap-3 animate-pulse">
-                        <div class="space-y-2">
-                            <div class="h-3 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                            <div class="h-5 w-24 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                        </div>
-                        <div class="h-9 w-9 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                    </div>
-                </div>
-                <div
-                    v-else
-                    v-for="(card, index) in kpiCards"
-                    :key="card.label"
-                    class="rise-in rounded-sm border border-t-4 border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
-                    :class="kpiBorderStyles[card.tone] || 'border-t-stone-300 dark:border-t-neutral-600'"
-                    :style="{ animationDelay: `${index * 80}ms` }"
-                >
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-xs uppercase text-stone-400">{{ card.label }}</p>
-                            <p class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
-                        </div>
-                        <span
-                            class="flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-1 ring-white/20 animate-[pulse_3s_ease-in-out_infinite]"
-                            :class="kpiIconStyles[card.tone] || 'bg-stone-600/90 text-white shadow-stone-500/30'"
-                        >
-                            <svg v-if="card.icon === 'bag'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="m6 2 1.5 6h9L18 2" />
-                                <path d="M4 8h16l-1 12H5z" />
-                                <path d="M9 12h6" />
-                            </svg>
-                            <svg v-else-if="card.icon === 'cash'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="2" y="5" width="20" height="14" rx="2" />
-                                <path d="M16 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />
-                            </svg>
-                            <svg v-else-if="card.icon === 'alert'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                                <path d="M12 9v4" />
-                                <path d="M12 17h.01" />
-                            </svg>
-                            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 9v4" />
-                                <path d="M12 17h.01" />
-                                <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                            </svg>
-                        </span>
-                    </div>
-                </div>
+            <div :class="['grid gap-4 items-start', hasAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
+                <KpiCompositePanel
+                    class="rise-in"
+                    :style="{ animationDelay: '40ms' }"
+                    :title="$t('dashboard.kpi_panels.overview_title')"
+                    :subtitle="$t('dashboard_products.team.subtitle')"
+                    :metrics="overviewMetrics"
+                    metrics-grid-class="sm:grid-cols-2 xl:grid-cols-4"
+                    :summary-items="overviewSummaryItems"
+                    summary-grid-class="sm:grid-cols-3"
+                    compact-metrics
+                />
+                <AnnouncementsPanel
+                    v-if="hasAnnouncements"
+                    :announcements="announcements"
+                    variant="side"
+                    :title="$t('dashboard.announcements.title')"
+                    :subtitle="$t('dashboard.announcements.subtitle')"
+                    :limit="3"
+                />
             </div>
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">

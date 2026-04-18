@@ -9,6 +9,7 @@ use App\Models\ProductCategory;
 use App\Models\Sale;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Notifications\SupplierBulkStockRequestNotification;
 use App\Notifications\SupplierStockRequestNotification;
 use App\Services\AiImageUsageService;
 use App\Services\Assistant\OpenAiClient;
@@ -65,7 +66,7 @@ class ProductController extends Controller
         if (! $user) {
             abort(403);
         }
-        [, $accountId, $canEdit] = $this->resolveProductAccount($user);
+        [$owner, $accountId, $canEdit] = $this->resolveProductAccount($user);
         $tenantCurrencyCode = User::query()->whereKey($accountId)->value('currency_code') ?: $user->businessCurrencyCode();
 
         $today = now()->toDateString();
@@ -246,6 +247,7 @@ class ProductController extends Controller
             'canEdit' => $canEdit,
             'bulkActions' => app(BulkActionRegistry::class)->definitionFor('product', [
                 'can_edit' => $canEdit,
+                'company_type' => $owner->company_type,
             ]),
             'ai_image' => $aiImagePayload,
             'tenantCurrencyCode' => $tenantCurrencyCode,
@@ -883,7 +885,7 @@ class ProductController extends Controller
     public function bulk(Request $request)
     {
         $data = $request->validate([
-            'action' => 'required|in:archive,restore,delete',
+            'action' => 'required|in:archive,restore,delete,supplier_request',
             'ids' => 'required|array',
             'ids.*' => 'integer',
         ]);
@@ -894,6 +896,96 @@ class ProductController extends Controller
             ->whereIn('id', $data['ids'])
             ->get();
         $processedIds = $products->pluck('id')->all();
+
+        if ($data['action'] === 'supplier_request') {
+            $actor = $request->user() ?? Auth::user();
+
+            foreach ($products as $product) {
+                $this->authorize('update', $product);
+            }
+
+            $successfulIds = [];
+            $failedIds = [];
+            $errors = [];
+            $selectedIds = collect($data['ids'])
+                ->map(fn (mixed $id) => (int) $id)
+                ->filter(fn (int $id) => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
+
+            $groupedBySupplier = $products->groupBy(function (Product $product) {
+                return Str::lower(trim((string) ($product->supplier_email ?? '')));
+            });
+
+            $productsWithoutSupplier = $groupedBySupplier->pull('', collect());
+            if ($productsWithoutSupplier->isNotEmpty()) {
+                $errors[] = $productsWithoutSupplier->count() === 1
+                    ? 'Supplier email missing for one selected product.'
+                    : 'Supplier email missing for '.$productsWithoutSupplier->count().' selected products.';
+            }
+
+            foreach ($groupedBySupplier as $supplierEmail => $supplierProducts) {
+                if (! $supplierEmail || ! ($supplierProducts instanceof Collection) || $supplierProducts->isEmpty()) {
+                    continue;
+                }
+
+                $supplierProducts = $supplierProducts->values();
+                $sent = NotificationDispatcher::sendToMail(
+                    $supplierEmail,
+                    new SupplierBulkStockRequestNotification($supplierProducts, $actor),
+                    ['product_ids' => $supplierProducts->pluck('id')->all()]
+                );
+
+                if ($sent) {
+                    foreach ($supplierProducts as $product) {
+                        $successfulIds[] = (int) $product->id;
+                        ActivityLog::record($actor, $product, 'supplier_bulk_stock_request', [
+                            'supplier_email' => $supplierEmail,
+                            'group_size' => $supplierProducts->count(),
+                        ], 'Supplier bulk stock request sent');
+                    }
+
+                    continue;
+                }
+
+                $errors[] = 'Unable to send stock request to '.$supplierEmail.'.';
+
+                foreach ($supplierProducts as $product) {
+                    $failedIds[] = (int) $product->id;
+                    ActivityLog::record($actor, $product, 'supplier_bulk_stock_request_failed', [
+                        'supplier_email' => $supplierEmail,
+                        'group_size' => $supplierProducts->count(),
+                    ], 'Supplier bulk stock request failed');
+                }
+            }
+
+            $successfulIds = array_values(array_unique($successfulIds));
+            $failedIds = array_values(array_unique($failedIds));
+            $skippedCount = max(0, count($selectedIds) - count($successfulIds) - count($failedIds));
+            $message = count($successfulIds) > 0
+                ? 'Supplier restock requests sent.'
+                : 'No supplier request was sent.';
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json($this->bulkActionResult(
+                    $message,
+                    $data['ids'],
+                    $successfulIds,
+                    [
+                        'success_count' => count($successfulIds),
+                        'failed_count' => count($failedIds),
+                        'skipped_count' => $skippedCount,
+                        'errors' => $errors,
+                    ]
+                ));
+            }
+
+            return redirect()->back()->with(
+                count($successfulIds) > 0 ? 'success' : 'warning',
+                $message
+            );
+        }
 
         if ($data['action'] === 'archive') {
             foreach ($products as $product) {

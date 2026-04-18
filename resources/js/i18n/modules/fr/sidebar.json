@@ -1,0 +1,17 @@
+{
+  "sidebar": {
+    "messages": {
+      "title": "Messages",
+      "subtitle_empty": "Aucune alerte operationnelle pour le moment.",
+      "subtitle_count": "{count} alertes d'usage",
+      "empty": "Vos alertes d'usage apparaitront ici lorsqu'une limite demandera votre attention.",
+      "action": "Voir les limites",
+      "alert_over": "Limite depassee. {used} utilises sur {limit}.",
+      "alert_unlimited": "Cette limite n'est pas plafonnee sur votre plan actuel.",
+      "alert_warning": "{remaining} restants avant d'atteindre la limite.",
+      "status_over": "Critique",
+      "status_warning": "Surveiller",
+      "no_cap": "Sans plafond"
+    }
+  }
+}

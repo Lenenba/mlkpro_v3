@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
@@ -157,6 +157,8 @@ const marketingRange = computed(() => marketingKpiPayload.value?.range || null);
 const marketingMetrics = computed(() => marketingKpiPayload.value?.marketing || null);
 const marketingCrossModule = computed(() => marketingKpiPayload.value?.cross_module || null);
 const hasMarketingKpis = computed(() => Boolean(marketingMetrics.value));
+const marketingPanelStorageKey = computed(() => `dashboard:marketing-panel:${companyType.value || 'services'}`);
+const showMarketingPanel = ref(false);
 const marketingCards = computed(() => {
     if (!marketingMetrics.value) {
         return [];
@@ -206,6 +208,16 @@ const audienceGrowthDeltaClass = computed(() => {
 
     return 'text-stone-600 dark:text-neutral-300';
 });
+const setMarketingPanelVisibility = (visible) => {
+    showMarketingPanel.value = visible;
+
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.localStorage.setItem(marketingPanelStorageKey.value, visible ? '1' : '0');
+};
+const toggleMarketingPanel = () => setMarketingPanelVisibility(!showMarketingPanel.value);
 const recentQuotes = computed(() => (hasFeature('quotes') && canQuotes.value ? (props.recentQuotes || []) : []));
 const upcomingJobs = computed(() => (hasFeature('jobs') && canJobs.value ? (props.upcomingJobs || []) : []));
 const tasksToday = computed(() => (hasFeature('tasks') && canTasks.value ? (props.tasksToday || []) : []));
@@ -869,6 +881,17 @@ const suggestionActions = computed(() => {
 
 const primaryAction = computed(() => suggestionActions.value[0] || null);
 const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
+
+onMounted(() => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const storedValue = window.localStorage.getItem(marketingPanelStorageKey.value);
+    if (storedValue === '1' || storedValue === '0') {
+        showMarketingPanel.value = storedValue === '1';
+    }
+});
 </script>
 
 <template>
@@ -971,16 +994,28 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                 end: marketingRange?.end || '-',
                             }) }}
                         </p>
+                        <p v-if="!showMarketingPanel" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('dashboard.marketing_panel.collapsed_hint') }}
+                        </p>
                     </div>
-                    <Link
-                        :href="route('campaigns.index')"
-                        class="rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                    >
-                        {{ $t('dashboard.marketing_panel.open_campaigns') }}
-                    </Link>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            @click="toggleMarketingPanel"
+                        >
+                            {{ showMarketingPanel ? $t('dashboard.marketing_panel.hide') : $t('dashboard.marketing_panel.show') }}
+                        </button>
+                        <Link
+                            :href="route('campaigns.index')"
+                            class="rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                        >
+                            {{ $t('dashboard.marketing_panel.open_campaigns') }}
+                        </Link>
+                    </div>
                 </div>
 
-                <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div v-if="showMarketingPanel" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div
                         v-for="card in marketingCards"
                         :key="card.key"
@@ -991,7 +1026,7 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     </div>
                 </div>
 
-                <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div v-if="showMarketingPanel" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('dashboard.marketing_panel.top_campaign') }}</div>
                         <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -1034,7 +1069,7 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     </div>
                 </div>
 
-                <div v-if="marketingCrossModule" class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <div v-if="showMarketingPanel && marketingCrossModule" class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
                         {{ $t('dashboard.marketing_panel.reservations_created', {
                             count: formatNumber(marketingCrossModule.reservations_created || 0),

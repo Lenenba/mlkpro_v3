@@ -258,6 +258,9 @@
     },
     "marketing_panel": {
       "title": "KPI marketing",
+      "show": "Afficher le panneau",
+      "hide": "Masquer le panneau",
+      "collapsed_hint": "Le detail marketing reste masque jusqu'a ce que vous en ayez besoin.",
       "range": "Periode : {label} ({start} -> {end})",
       "open_campaigns": "Campagnes actives",
       "top_campaign": "Campagne phare",

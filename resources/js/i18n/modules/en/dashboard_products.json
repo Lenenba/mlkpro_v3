@@ -3,6 +3,8 @@
     "common": {
       "customer_fallback": "Customer",
       "confirm_supplier_request": "Send a stock request to the supplier?",
+      "inventory_title": "Inventory health",
+      "stock_panel_subtitle": "Stock pressure, reserved units, and sensitive lots in one panel.",
       "recent_sales_title": "Recent sales",
       "recent_sales_empty": "No recent sales.",
       "sale_label": "Sale #{id}",
@@ -15,7 +17,14 @@
       "request_stock": "Request stock",
       "top_products_title": "Top products",
       "top_products_empty": "No top products yet.",
-      "quantity": "Qty: {count}"
+      "quantity": "Qty: {count}",
+      "metrics": {
+        "revenue_month": "Revenue this month",
+        "reserved": "Reserved",
+        "damaged": "Damaged",
+        "expired_lots": "Expired lots",
+        "expiring_lots": "Expiring lots"
+      }
     },
     "owner": {
       "page_title": "Products dashboard",
@@ -39,6 +48,18 @@
         "damaged": "Damaged {count}",
         "expired": "Expired {count}",
         "expiring": "Expiring {count}"
+      },
+      "insights": {
+        "title": "Insights",
+        "subtitle": "Top products, stock alerts, and recent sales grouped into one compact block.",
+        "live": "Quick view",
+        "view_details": "View details",
+        "close": "Close",
+        "counts": {
+          "recent_sales": "{count} sales tracked",
+          "stock_alerts": "{count} active alerts",
+          "top_products": "{count} featured products"
+        }
       },
       "performance": {
         "title": "Seller performance",

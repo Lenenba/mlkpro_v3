@@ -3,7 +3,10 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
+import KpiCompositePanel from '@/Components/Dashboard/KpiCompositePanel.vue';
 import Card from '@/Components/UI/Card.vue';
+import Modal from '@/Components/Modal.vue';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
 
@@ -56,10 +59,25 @@ const props = defineProps({
 
 const { t } = useI18n();
 const page = usePage();
+const userName = computed(() => page.props.auth?.user?.name || '');
+const greeting = computed(() => (
+    userName.value
+        ? t('dashboard.welcome_named', { name: userName.value })
+        : t('dashboard.welcome_generic')
+));
+const hasTopAnnouncements = computed(() => (props.announcements || []).length > 0);
+const hasQuickAnnouncements = computed(() => (props.quickAnnouncements || []).length > 0);
 
 const isHydrating = ref(true);
 
 onMounted(() => {
+    if (typeof window !== 'undefined') {
+        const storedValue = window.localStorage.getItem(marketingPanelStorageKey);
+        if (storedValue === '1' || storedValue === '0') {
+            showMarketingPanel.value = storedValue === '1';
+        }
+    }
+
     setTimeout(() => {
         isHydrating.value = false;
     }, 450);
@@ -88,6 +106,8 @@ const marketingRange = computed(() => marketingKpiPayload.value?.range || null);
 const marketingMetrics = computed(() => marketingKpiPayload.value?.marketing || null);
 const marketingCrossModule = computed(() => marketingKpiPayload.value?.cross_module || null);
 const hasMarketingKpis = computed(() => Boolean(marketingMetrics.value));
+const marketingPanelStorageKey = 'dashboard:marketing-panel:products';
+const showMarketingPanel = ref(false);
 const marketingCards = computed(() => {
     if (!marketingMetrics.value) {
         return [];
@@ -137,6 +157,16 @@ const audienceGrowthDeltaClass = computed(() => {
 
     return 'text-stone-600 dark:text-neutral-300';
 });
+const setMarketingPanelVisibility = (visible) => {
+    showMarketingPanel.value = visible;
+
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.localStorage.setItem(marketingPanelStorageKey, visible ? '1' : '0');
+};
+const toggleMarketingPanel = () => setMarketingPanelVisibility(!showMarketingPanel.value);
 
 const periodOptions = computed(() => ([
     { key: 'day', label: t('dashboard_products.owner.performance.period.day') },
@@ -218,6 +248,79 @@ const kpiCards = computed(() => ([
         value: formatNumber(props.stats.out_of_stock),
         icon: 'warning',
         tone: 'red',
+    },
+]));
+
+const panelMetricColors = {
+    emerald: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+    sky: 'bg-sky-500/70 dark:bg-sky-400/50',
+    amber: 'bg-amber-500/70 dark:bg-amber-400/50',
+    red: 'bg-rose-500/70 dark:bg-rose-400/50',
+};
+
+const overviewMetrics = computed(() => (
+    kpiCards.value
+        .slice(0, 4)
+        .map((card, index) => ({
+            key: `overview-${card.icon || index}`,
+            label: card.label,
+            value: card.value,
+            colorClass: panelMetricColors[card.tone] || 'bg-stone-400/70 dark:bg-neutral-500/50',
+        }))
+));
+
+const overviewSummaryItems = computed(() => ([
+    {
+        key: 'revenue-month',
+        label: t('dashboard_products.common.metrics.revenue_month'),
+        value: formatCurrency(props.stats.revenue_month),
+    },
+    {
+        key: 'products-total',
+        label: t('dashboard.limits.products'),
+        value: formatNumber(props.stats.products_total),
+    },
+]));
+
+const inventoryMetrics = computed(() => ([
+    {
+        key: 'low-stock',
+        label: t('dashboard_products.owner.kpi.low_stock'),
+        value: formatNumber(props.stats.low_stock),
+        colorClass: panelMetricColors.amber,
+    },
+    {
+        key: 'out-of-stock',
+        label: t('dashboard_products.owner.kpi.out_of_stock'),
+        value: formatNumber(props.stats.out_of_stock),
+        colorClass: panelMetricColors.red,
+    },
+    {
+        key: 'reserved-stock',
+        label: t('dashboard_products.common.metrics.reserved'),
+        value: formatNumber(props.stats.reserved_total),
+        colorClass: panelMetricColors.sky,
+    },
+    {
+        key: 'damaged-stock',
+        label: t('dashboard_products.common.metrics.damaged'),
+        value: formatNumber(props.stats.damaged_total),
+        colorClass: panelMetricColors.red,
+    },
+]));
+
+const inventorySummaryItems = computed(() => ([
+    {
+        key: 'expired-lots',
+        label: t('dashboard_products.common.metrics.expired_lots'),
+        value: formatNumber(props.stats.expired_lots),
+        toneClass: 'border-rose-200 bg-rose-50/70 dark:border-rose-500/30 dark:bg-rose-500/10',
+    },
+    {
+        key: 'expiring-lots',
+        label: t('dashboard_products.common.metrics.expiring_lots'),
+        value: formatNumber(props.stats.expiring_lots),
+        toneClass: 'border-amber-200 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/10',
     },
 ]));
 
@@ -320,6 +423,123 @@ const stockSignalClasses = {
     emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300',
 };
 
+const insightToneClasses = {
+    emerald: {
+        summary: 'border-emerald-200 bg-emerald-50/80 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200',
+        section: 'border-emerald-200/80 bg-emerald-50/40 dark:border-emerald-500/20 dark:bg-emerald-500/5',
+        icon: 'border-emerald-200 bg-white text-emerald-700 dark:border-emerald-500/30 dark:bg-neutral-900 dark:text-emerald-200',
+        button: 'border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-neutral-900 dark:text-emerald-200 dark:hover:bg-emerald-500/10',
+    },
+    amber: {
+        summary: 'border-amber-200 bg-amber-50/80 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',
+        section: 'border-amber-200/80 bg-amber-50/40 dark:border-amber-500/20 dark:bg-amber-500/5',
+        icon: 'border-amber-200 bg-white text-amber-700 dark:border-amber-500/30 dark:bg-neutral-900 dark:text-amber-200',
+        button: 'border-amber-200 bg-white text-amber-700 hover:bg-amber-50 dark:border-amber-500/30 dark:bg-neutral-900 dark:text-amber-200 dark:hover:bg-amber-500/10',
+    },
+    sky: {
+        summary: 'border-sky-200 bg-sky-50/80 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200',
+        section: 'border-sky-200/80 bg-sky-50/40 dark:border-sky-500/20 dark:bg-sky-500/5',
+        icon: 'border-sky-200 bg-white text-sky-700 dark:border-sky-500/30 dark:bg-neutral-900 dark:text-sky-200',
+        button: 'border-sky-200 bg-white text-sky-700 hover:bg-sky-50 dark:border-sky-500/30 dark:bg-neutral-900 dark:text-sky-200 dark:hover:bg-sky-500/10',
+    },
+};
+
+const insightDetailKey = ref(null);
+
+const insightSections = computed(() => {
+    const recentSalesItems = (props.recentSales || []).map((sale) => ({
+        id: sale.id,
+        title: sale.number || t('dashboard_products.common.sale_label', { id: sale.id }),
+        meta: `${customerLabel(sale)} - ${formatDate(sale.created_at)}`,
+        sideText: formatCurrency(sale.total),
+        badge: statusLabels.value[sale.status] || sale.status,
+        badgeClass: statusClasses[sale.status] || statusClasses.draft,
+        raw: sale,
+    }));
+
+    const stockAlertItems = (props.stockAlerts || []).map((product) => ({
+        id: product.id,
+        title: product.name,
+        meta: t('dashboard_products.common.stock_line', {
+            stock: formatNumber(product.stock),
+            min: formatNumber(product.minimum_stock),
+        }),
+        sideText: product.supplier_name || t('dashboard_products.common.supplier_unknown'),
+        badge: product.stock <= 0 ? t('dashboard_products.common.stock_out') : t('dashboard_products.common.stock_low'),
+        badgeClass: product.stock <= 0
+            ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300'
+            : 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
+        raw: product,
+    }));
+
+    const topProductItems = (props.topProducts || []).map((product) => ({
+        id: product.id,
+        title: product.name,
+        meta: t('dashboard_products.common.quantity', {
+            count: formatNumber(product.quantity),
+        }),
+        sideText: null,
+        badge: null,
+        badgeClass: '',
+        imageUrl: product.image_url,
+        raw: product,
+    }));
+
+    return [
+        {
+            key: 'recent-sales',
+            title: t('dashboard_products.common.recent_sales_title'),
+            summary: t('dashboard_products.owner.insights.counts.recent_sales', {
+                count: formatNumber(recentSalesItems.length),
+            }),
+            emptyLabel: t('dashboard_products.common.recent_sales_empty'),
+            tone: 'emerald',
+            symbol: 'V',
+            items: recentSalesItems,
+            previewItems: recentSalesItems.slice(0, 3),
+        },
+        {
+            key: 'stock-alerts',
+            title: t('dashboard_products.common.stock_alerts_title'),
+            summary: t('dashboard_products.owner.insights.counts.stock_alerts', {
+                count: formatNumber(stockAlertItems.length),
+            }),
+            emptyLabel: t('dashboard_products.common.stock_alerts_empty'),
+            tone: 'amber',
+            symbol: '!',
+            items: stockAlertItems,
+            previewItems: stockAlertItems.slice(0, 3),
+        },
+        {
+            key: 'top-products',
+            title: t('dashboard_products.common.top_products_title'),
+            summary: t('dashboard_products.owner.insights.counts.top_products', {
+                count: formatNumber(topProductItems.length),
+            }),
+            emptyLabel: t('dashboard_products.common.top_products_empty'),
+            tone: 'sky',
+            symbol: 'P',
+            items: topProductItems,
+            previewItems: topProductItems.slice(0, 3),
+        },
+    ].filter((section) => section.items.length > 0);
+});
+
+const hasInsightSections = computed(() => insightSections.value.length > 0);
+const hasProductSideColumn = computed(() => hasInsightSections.value || hasQuickAnnouncements.value);
+
+const activeInsightSection = computed(() => (
+    insightSections.value.find((section) => section.key === insightDetailKey.value) || null
+));
+
+const openInsightDialog = (key) => {
+    insightDetailKey.value = key;
+};
+
+const closeInsightDialog = () => {
+    insightDetailKey.value = null;
+};
+
 const formatDate = (value) => humanizeDate(value);
 const requestSupplierStock = (product) => {
     if (!product?.supplier_email) {
@@ -341,109 +561,100 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
     <AuthenticatedLayout>
         <Head :title="$t('dashboard_products.owner.page_title')" />
 
-        <div class="space-y-5">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ $t('dashboard_products.owner.title') }}
-                    </h1>
-                    <p class="text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('dashboard_products.owner.subtitle') }}
-                    </p>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <Link
-                        :href="route('sales.create')"
-                        class="rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
-                    >
-                        {{ $t('dashboard_products.owner.actions.new_sale') }}
-                    </Link>
-                    <Link
-                        :href="route('product.index')"
-                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                    >
-                        {{ $t('dashboard_products.owner.actions.products') }}
-                    </Link>
-                    <Link
-                        :href="route('customer.index')"
-                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                    >
-                        {{ $t('dashboard_products.owner.actions.customers') }}
-                    </Link>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <div
-                    v-if="isHydrating"
-                    v-for="index in skeletonKpis"
-                    :key="`kpi-skeleton-${index}`"
-                    class="rise-in rounded-sm border border-t-4 border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900"
-                    :style="{ animationDelay: `${index * 80}ms` }"
-                >
-                    <div class="flex items-center justify-between gap-3 animate-pulse">
-                        <div class="space-y-2">
-                            <div class="h-3 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                            <div class="h-5 w-24 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+        <div class="space-y-6">
+            <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="space-y-1">
+                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('dashboard_products.owner.title') }}
+                        </h1>
+                        <p class="text-sm text-stone-600 dark:text-neutral-400">
+                            {{ greeting }}
+                        </p>
+                        <div class="flex flex-wrap gap-3 text-xs text-stone-500 dark:text-neutral-400">
+                            <span>{{ $t('dashboard_products.owner.subtitle') }}</span>
+                            <span>
+                                {{ $t('dashboard_products.owner.kpi.sales_month') }}:
+                                {{ formatNumber(stats.sales_month) }}
+                            </span>
+                            <span>
+                                {{ $t('dashboard_products.owner.kpi.inventory_value') }}:
+                                {{ formatCurrency(stats.inventory_value) }}
+                            </span>
                         </div>
-                        <div class="h-10 w-10 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
                     </div>
-                </div>
-                <div
-                    v-else
-                    v-for="(card, index) in kpiCards"
-                    :key="card.label"
-                    class="rise-in rounded-sm border border-t-4 border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
-                    :class="kpiBorderStyles[card.tone] || 'border-t-stone-300 dark:border-t-neutral-600'"
-                    :style="{ animationDelay: `${index * 80}ms` }"
-                >
-                    <div class="flex items-center justify-between gap-3">
-                        <div>
-                            <p class="text-xs uppercase text-stone-400">{{ card.label }}</p>
-                            <p class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
-                        </div>
-                        <span
-                            class="flex h-10 w-10 items-center justify-center rounded-full shadow-lg ring-1 ring-white/20 animate-[pulse_3s_ease-in-out_infinite]"
-                            :class="kpiIconStyles[card.tone] || 'bg-stone-600/90 text-white shadow-stone-500/30'"
+                    <div class="flex flex-wrap items-center gap-2">
+                        <Link
+                            :href="route('sales.create')"
+                            class="rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
                         >
-                            <svg v-if="card.icon === 'bag'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="m6 2 1.5 6h9L18 2" />
-                                <path d="M4 8h16l-1 12H5z" />
-                                <path d="M9 12h6" />
-                            </svg>
-                            <svg v-else-if="card.icon === 'cash'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="2" y="5" width="20" height="14" rx="2" />
-                                <path d="M16 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />
-                            </svg>
-                            <svg v-else-if="card.icon === 'trend'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="m3 17 6-6 4 4 7-7" />
-                                <path d="M14 7h7v7" />
-                            </svg>
-                            <svg v-else-if="card.icon === 'box'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="m7.5 4.27 9 5.15" />
-                                <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-                                <path d="m3.3 7 8.7 5 8.7-5" />
-                                <path d="M12 22V12" />
-                            </svg>
-                            <svg v-else-if="card.icon === 'alert'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                                <path d="M12 9v4" />
-                                <path d="M12 17h.01" />
-                            </svg>
-                            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 9v4" />
-                                <path d="M12 17h.01" />
-                                <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                            </svg>
-                        </span>
+                            {{ $t('dashboard_products.owner.actions.new_sale') }}
+                        </Link>
+                        <Link
+                            :href="route('product.index')"
+                            class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                        >
+                            {{ $t('dashboard_products.owner.actions.products') }}
+                        </Link>
+                        <Link
+                            :href="route('customer.index')"
+                            class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                        >
+                            {{ $t('dashboard_products.owner.actions.customers') }}
+                        </Link>
                     </div>
                 </div>
+            </section>
+
+            <div :class="['grid gap-4 items-start', hasTopAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
+                <section class="grid grid-cols-1 gap-4 xl:grid-cols-12">
+                    <KpiCompositePanel
+                        class="rise-in xl:col-span-6"
+                        :style="{ animationDelay: '40ms' }"
+                        :title="$t('dashboard.kpi_panels.overview_title')"
+                        :subtitle="$t('dashboard_products.owner.subtitle')"
+                        :metrics="overviewMetrics"
+                        metrics-grid-class="sm:grid-cols-2 xl:grid-cols-2"
+                        :summary-items="overviewSummaryItems"
+                        summary-grid-class="sm:grid-cols-2"
+                        :action-href="route('product.index')"
+                        :action-label="$t('dashboard_products.owner.actions.products')"
+                        accent-class="border-t-emerald-600"
+                        compact-metrics
+                    />
+                    <KpiCompositePanel
+                        class="rise-in xl:col-span-6"
+                        :style="{ animationDelay: '80ms' }"
+                        :title="$t('dashboard_products.common.inventory_title')"
+                        :subtitle="$t('dashboard_products.common.stock_panel_subtitle')"
+                        :metrics="inventoryMetrics"
+                        metrics-grid-class="sm:grid-cols-2 xl:grid-cols-2"
+                        :summary-items="inventorySummaryItems"
+                        summary-grid-class="sm:grid-cols-2"
+                        :action-href="route('product.index')"
+                        :action-label="$t('dashboard_products.owner.actions.products')"
+                        accent-class="border-t-amber-600"
+                        compact-metrics
+                    />
+                </section>
+                <AnnouncementsPanel
+                    v-if="hasTopAnnouncements"
+                    :announcements="announcements"
+                    variant="side"
+                    :title="$t('dashboard.announcements.title')"
+                    :subtitle="$t('dashboard.announcements.subtitle')"
+                    :limit="3"
+                />
             </div>
 
-            <Card v-if="hasMarketingKpis" class="rise-in" :style="{ animationDelay: '95ms' }">
-                <template #title>{{ $t('dashboard.marketing_panel.title') }}</template>
-                <div class="space-y-3">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
+            <section
+                v-if="hasMarketingKpis"
+                class="rise-in rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                :style="{ animationDelay: '95ms' }"
+            >
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('dashboard.marketing_panel.title') }}</h2>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             {{ $t('dashboard.marketing_panel.range', {
                                 label: marketingRange?.label || '30d',
@@ -451,6 +662,18 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 end: marketingRange?.end || '-',
                             }) }}
                         </p>
+                        <p v-if="!showMarketingPanel" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('dashboard.marketing_panel.collapsed_hint') }}
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            @click="toggleMarketingPanel"
+                        >
+                            {{ showMarketingPanel ? $t('dashboard.marketing_panel.hide') : $t('dashboard.marketing_panel.show') }}
+                        </button>
                         <Link
                             :href="route('campaigns.index')"
                             class="rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
@@ -458,7 +681,9 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                             {{ $t('dashboard.marketing_panel.open_campaigns') }}
                         </Link>
                     </div>
+                </div>
 
+                <div v-if="showMarketingPanel" class="mt-3 space-y-3">
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                         <div
                             v-for="card in marketingCards"
@@ -523,11 +748,15 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                         </div>
                     </div>
                 </div>
-            </Card>
+            </section>
 
+            <section :class="[
+                'grid grid-cols-1 gap-4 xl:items-start',
+                hasProductSideColumn ? 'xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,420px)]' : '',
+            ]">
             <Card class="rise-in" :style="{ animationDelay: '100ms' }">
                 <template #title>{{ $t('dashboard_products.owner.performance.title') }}</template>
-                <div class="space-y-4">
+                <div v-if="hasProductSideColumn" class="space-y-4">
                     <div class="flex flex-wrap items-center gap-2">
                         <button
                             v-for="period in periodOptions"
@@ -671,51 +900,6 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 </div>
                             </div>
 
-                            <div>
-                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                    {{ $t('dashboard_products.owner.performance.top_products') }}
-                                </h3>
-                                <div v-if="isHydrating" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                                    <div
-                                        v-for="index in skeletonRows"
-                                        :key="`product-skeleton-${index}`"
-                                        class="flex items-center gap-3 rounded-sm border border-stone-200 bg-white p-3 text-sm animate-pulse dark:border-neutral-700 dark:bg-neutral-900"
-                                    >
-                                        <div class="h-12 w-12 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="flex-1 space-y-2">
-                                            <div class="h-3 w-28 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                                            <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div v-else-if="!periodStats.top_products?.length" class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
-                                    {{ $t('dashboard_products.owner.performance.no_products') }}
-                                </div>
-                                <div v-else class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                                    <div
-                                        v-for="product in periodStats.top_products"
-                                        :key="product.id"
-                                        class="flex items-center gap-3 rounded-sm border border-stone-200 bg-white p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-                                    >
-                                        <img
-                                            :src="product.image_url"
-                                            :alt="product.name"
-                                            class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
-                                            loading="lazy"
-                                            decoding="async"
-                                        />
-                                        <div class="flex-1">
-                                            <p class="font-semibold text-stone-800 dark:text-neutral-100">{{ product.name }}</p>
-                                            <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                                {{ $t('dashboard_products.owner.performance.product_line', {
-                                                    revenue: formatCurrency(product.revenue),
-                                                    quantity: formatNumber(product.quantity),
-                                                }) }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         <div class="space-y-3">
@@ -764,168 +948,258 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                 </div>
             </Card>
 
-            <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                <Card class="rise-in lg:col-span-2" :style="{ animationDelay: '120ms' }">
-                    <template #title>{{ $t('dashboard_products.common.recent_sales_title') }}</template>
-                    <div v-if="isHydrating" class="divide-y divide-stone-200 dark:divide-neutral-700">
-                        <div
-                            v-for="index in skeletonRows"
-                            :key="`recent-sale-skeleton-${index}`"
-                            class="flex items-center justify-between gap-3 py-3 text-sm animate-pulse"
-                        >
-                            <div class="space-y-2">
-                                <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                                <div class="h-3 w-40 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                            </div>
-                            <div class="space-y-2 text-right">
-                                <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                                <div class="h-4 w-14 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div v-else-if="!recentSales.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('dashboard_products.common.recent_sales_empty') }}
-                    </div>
-                    <div v-else class="divide-y divide-stone-200 dark:divide-neutral-700">
-                        <div v-for="sale in recentSales" :key="sale.id" class="flex items-center justify-between gap-3 py-3 text-sm">
-                            <div>
-                                <p class="font-semibold text-stone-800 dark:text-neutral-200">
-                                    {{ sale.number || $t('dashboard_products.common.sale_label', { id: sale.id }) }}
-                                </p>
-                                <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ customerLabel(sale) }} - {{ formatDate(sale.created_at) }}
-                                </p>
-                            </div>
-                            <div class="text-right">
-                                <p class="font-semibold text-stone-800 dark:text-neutral-200">
-                                    {{ formatCurrency(sale.total) }}
-                                </p>
-                                <span
-                                    class="rounded-full px-2 py-1 text-[10px] font-semibold"
-                                    :class="statusClasses[sale.status] || statusClasses.draft"
-                                >
-                                    {{ statusLabels[sale.status] || sale.status }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card class="rise-in" :style="{ animationDelay: '160ms' }">
-                    <template #title>{{ $t('dashboard_products.common.stock_alerts_title') }}</template>
-                    <div class="flex flex-wrap gap-2 text-xs">
-                        <span
-                            v-if="isHydrating"
-                            v-for="index in 3"
-                            :key="`stock-chip-skeleton-${index}`"
-                            class="rounded-full px-2 py-1 font-semibold bg-stone-200 text-stone-200 animate-pulse dark:bg-neutral-700 dark:text-neutral-700"
-                        >
-                            ---
-                        </span>
-                        <span
-                            v-else
-                            v-for="signal in stockSignals"
-                            :key="signal.label"
-                            class="rounded-full px-2 py-1 font-semibold"
-                            :class="stockSignalClasses[signal.tone]"
-                        >
-                            {{ signal.label }}
-                        </span>
-                    </div>
-                    <div class="mt-4 space-y-2 text-sm">
-                        <div v-if="isHydrating" class="space-y-3">
-                            <div
-                                v-for="index in skeletonRows"
-                                :key="`stock-alert-skeleton-${index}`"
-                                class="space-y-2 animate-pulse"
-                            >
-                                <div class="flex items-center justify-between">
-                                    <div class="space-y-2">
-                                        <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                                        <div class="h-3 w-40 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                                    </div>
-                                    <div class="h-4 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <div class="h-3 w-24 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                                    <div class="h-6 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div v-else-if="!stockAlerts.length" class="text-stone-500 dark:text-neutral-400">
-                            {{ $t('dashboard_products.common.stock_alerts_empty') }}
-                        </div>
-                        <div v-else class="space-y-3">
-                            <div v-for="product in stockAlerts" :key="product.id" class="space-y-2">
-                                <div class="flex items-center justify-between">
+                <div class="space-y-4">
+                    <Card v-if="hasInsightSections" class="rise-in" :style="{ animationDelay: '120ms' }">
+                        <template #title>{{ $t('dashboard_products.owner.insights.title') }}</template>
+                        <div class="space-y-4">
+                            <div class="rounded-sm border border-stone-200 bg-gradient-to-br from-stone-50 via-white to-emerald-50/50 p-4 dark:border-neutral-700 dark:from-neutral-900 dark:via-neutral-900 dark:to-emerald-500/10">
+                                <div class="flex items-start justify-between gap-3">
                                     <div>
-                                        <p class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ product.name }}</p>
-                                        <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ $t('dashboard_products.common.stock_line', { stock: product.stock, min: product.minimum_stock }) }}
+                                        <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
+                                            {{ $t('dashboard_products.owner.insights.live') }}
+                                        </p>
+                                        <p class="mt-1 text-sm text-stone-600 dark:text-neutral-300">
+                                            {{ $t('dashboard_products.owner.insights.subtitle') }}
                                         </p>
                                     </div>
-                                    <span
-                                        class="rounded-full px-2 py-1 text-[10px] font-semibold"
-                                        :class="product.stock <= 0
-                                            ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300'
-                                            : 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'"
-                                    >
-                                        {{ product.stock <= 0 ? $t('dashboard_products.common.stock_out') : $t('dashboard_products.common.stock_low') }}
-                                    </span>
                                 </div>
-                                <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
-                                    <span>{{ product.supplier_name || $t('dashboard_products.common.supplier_unknown') }}</span>
-                                    <button
-                                        type="button"
-                                        class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-[11px] font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                                        :disabled="!product.supplier_email"
-                                        @click="requestSupplierStock(product)"
+
+                                <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                    <div
+                                        v-for="section in insightSections"
+                                        :key="`insight-summary-${section.key}`"
+                                        class="rounded-sm border px-3 py-2"
+                                        :class="insightToneClasses[section.tone]?.summary"
                                     >
-                                        {{ $t('dashboard_products.common.request_stock') }}
-                                    </button>
+                                        <p class="text-lg font-semibold leading-none">
+                                            {{ formatNumber(section.items.length) }}
+                                        </p>
+                                        <p class="mt-1 text-[11px] font-semibold uppercase tracking-wide">
+                                            {{ section.title }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-3">
+                                <section
+                                    v-for="section in insightSections"
+                                    :key="section.key"
+                                    class="rounded-sm border p-3"
+                                    :class="insightToneClasses[section.tone]?.section"
+                                >
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <h3 class="truncate text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                                {{ section.title }}
+                                            </h3>
+                                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                                {{ section.summary }}
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            class="shrink-0 rounded-sm border px-2.5 py-1.5 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+                                            :class="insightToneClasses[section.tone]?.button"
+                                            :disabled="!section.items.length"
+                                            @click="openInsightDialog(section.key)"
+                                        >
+                                            {{ $t('dashboard_products.owner.insights.view_details') }}
+                                        </button>
+                                    </div>
+
+                                    <div class="mt-3 space-y-2">
+                                        <div v-if="isHydrating" class="space-y-2">
+                                            <div
+                                                v-for="index in skeletonRows.slice(0, 2)"
+                                                :key="`insight-skeleton-${section.key}-${index}`"
+                                                class="flex items-center gap-3 rounded-sm border border-stone-200 bg-white/80 px-3 py-2 animate-pulse dark:border-neutral-700 dark:bg-neutral-900/80"
+                                            >
+                                                <div class="h-10 w-10 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                                <div class="flex-1 space-y-2">
+                                                    <div class="h-3 w-24 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                                    <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div v-else class="space-y-2">
+                                            <div
+                                                v-for="item in section.previewItems"
+                                                :key="`${section.key}-${item.id}`"
+                                                class="flex items-center gap-3 rounded-sm border border-stone-200 bg-white/80 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900/80"
+                                            >
+                                                <div
+                                                    class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-sm border text-xs font-semibold"
+                                                    :class="insightToneClasses[section.tone]?.icon"
+                                                >
+                                                    <img
+                                                        v-if="item.imageUrl"
+                                                        :src="item.imageUrl"
+                                                        :alt="item.title"
+                                                        class="h-full w-full object-cover"
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                    />
+                                                    <span v-else>{{ section.symbol }}</span>
+                                                </div>
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="truncate text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                                        {{ item.title }}
+                                                    </p>
+                                                    <p class="truncate text-xs text-stone-500 dark:text-neutral-400">
+                                                        {{ item.meta }}
+                                                    </p>
+                                                </div>
+                                                <div
+                                                    v-if="item.sideText || item.badge"
+                                                    class="shrink-0 text-right"
+                                                >
+                                                    <p
+                                                        v-if="item.sideText"
+                                                        class="text-xs font-semibold text-stone-700 dark:text-neutral-200"
+                                                    >
+                                                        {{ item.sideText }}
+                                                    </p>
+                                                    <span
+                                                        v-if="item.badge"
+                                                        class="mt-1 inline-flex rounded-full px-2 py-1 text-[10px] font-semibold"
+                                                        :class="item.badgeClass"
+                                                    >
+                                                        {{ item.badge }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+                        </div>
+                    </Card>
+
+                    <AnnouncementsPanel
+                        v-if="hasQuickAnnouncements"
+                        :announcements="quickAnnouncements"
+                        variant="side"
+                        :fill-height="false"
+                        :title="$t('dashboard.announcements.quick_title')"
+                        :subtitle="$t('dashboard.announcements.quick_subtitle')"
+                        :limit="3"
+                    />
+                </div>
+            </section>
+
+            <Modal :show="Boolean(activeInsightSection)" max-width="3xl" @close="closeInsightDialog">
+                <div v-if="activeInsightSection">
+                    <div class="flex items-start justify-between gap-4 border-b border-stone-200 px-5 py-4 dark:border-neutral-700">
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
+                                {{ $t('dashboard_products.owner.insights.title') }}
+                            </p>
+                            <h3 class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                                {{ activeInsightSection.title }}
+                            </h3>
+                            <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
+                                {{ activeInsightSection.summary }}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            @click="closeInsightDialog"
+                        >
+                            {{ $t('dashboard_products.owner.insights.close') }}
+                        </button>
+                    </div>
+
+                    <div class="space-y-4 px-5 py-5">
+                        <div
+                            v-if="activeInsightSection.key === 'stock-alerts'"
+                            class="flex flex-wrap gap-2 text-xs"
+                        >
+                            <span
+                                v-for="signal in stockSignals"
+                                :key="signal.label"
+                                class="rounded-full px-2 py-1 font-semibold"
+                                :class="stockSignalClasses[signal.tone]"
+                            >
+                                {{ signal.label }}
+                            </span>
+                        </div>
+
+                        <div v-if="!activeInsightSection.items.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                            {{ activeInsightSection.emptyLabel }}
+                        </div>
+                        <div v-else class="space-y-3">
+                            <div
+                                v-for="item in activeInsightSection.items"
+                                :key="`dialog-${activeInsightSection.key}-${item.id}`"
+                                class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+                            >
+                                <div class="flex items-start gap-3">
+                                    <div
+                                        class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-sm border text-sm font-semibold"
+                                        :class="insightToneClasses[activeInsightSection.tone]?.icon"
+                                    >
+                                        <img
+                                            v-if="item.imageUrl"
+                                            :src="item.imageUrl"
+                                            :alt="item.title"
+                                            class="h-full w-full object-cover"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                        <span v-else>{{ activeInsightSection.symbol }}</span>
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                            <div class="min-w-0">
+                                                <p class="truncate text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                                                    {{ item.title }}
+                                                </p>
+                                                <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                                    {{ item.meta }}
+                                                </p>
+                                            </div>
+                                            <div
+                                                v-if="item.sideText || item.badge"
+                                                class="text-right"
+                                            >
+                                                <p
+                                                    v-if="item.sideText"
+                                                    class="text-sm font-semibold text-stone-800 dark:text-neutral-100"
+                                                >
+                                                    {{ item.sideText }}
+                                                </p>
+                                                <span
+                                                    v-if="item.badge"
+                                                    class="mt-1 inline-flex rounded-full px-2 py-1 text-[10px] font-semibold"
+                                                    :class="item.badgeClass"
+                                                >
+                                                    {{ item.badge }}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            v-if="activeInsightSection.key === 'stock-alerts'"
+                                            class="mt-3 flex justify-end"
+                                        >
+                                            <button
+                                                type="button"
+                                                class="rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-stone-700 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                                :disabled="!item.raw?.supplier_email"
+                                                @click="requestSupplierStock(item.raw)"
+                                            >
+                                                {{ $t('dashboard_products.common.request_stock') }}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </Card>
-            </div>
-
-            <Card class="rise-in" :style="{ animationDelay: '200ms' }">
-                <template #title>{{ $t('dashboard_products.common.top_products_title') }}</template>
-                <div v-if="isHydrating" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div
-                        v-for="index in skeletonRows"
-                        :key="`top-product-skeleton-${index}`"
-                        class="flex items-center gap-3 rounded-sm border border-stone-200 p-3 animate-pulse dark:border-neutral-700"
-                    >
-                        <div class="h-12 w-12 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                        <div class="flex-1 space-y-2">
-                            <div class="h-3 w-28 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                            <div class="h-3 w-24 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                        </div>
-                    </div>
                 </div>
-                <div v-else-if="!topProducts.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                    {{ $t('dashboard_products.common.top_products_empty') }}
-                </div>
-                <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div v-for="product in topProducts" :key="product.id" class="flex items-center gap-3 rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                        <img
-                            :src="product.image_url"
-                            :alt="product.name"
-                            class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
-                            loading="lazy"
-                            decoding="async"
-                        />
-                        <div class="flex-1">
-                            <p class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ product.name }}</p>
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('dashboard_products.common.quantity', { count: product.quantity }) }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </Card>
+            </Modal>
         </div>
     </AuthenticatedLayout>
 </template>

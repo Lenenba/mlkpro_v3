@@ -315,9 +315,46 @@ class SaleController extends Controller
             ]);
         $this->hydrateSellableStock($products);
 
+        $requestedProductIds = collect($request->input('product_ids', []))
+            ->map(fn (mixed $id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values();
+
+        $productMap = $products->keyBy('id');
+        $prefillItems = [];
+        $prefillAddedCount = 0;
+
+        foreach ($requestedProductIds as $productId) {
+            $product = $productMap->get($productId);
+            if (! $product) {
+                continue;
+            }
+
+            if ($this->resolveProductAvailableStock($product) <= 0) {
+                continue;
+            }
+
+            $prefillItems[] = [
+                'product_id' => (int) $product->id,
+                'quantity' => 1,
+                'price' => (float) ($product->price ?? 0),
+                'description' => (string) ($product->name ?? ''),
+            ];
+            $prefillAddedCount++;
+        }
+
+        $prefillContext = [
+            'requested_count' => $requestedProductIds->count(),
+            'added_count' => $prefillAddedCount,
+            'skipped_count' => max(0, $requestedProductIds->count() - $prefillAddedCount),
+        ];
+
         return $this->inertiaOrJson('Sales/Create', [
             'customers' => $customers,
             'products' => $products,
+            'prefillItems' => $prefillItems,
+            'prefillContext' => $prefillContext,
             'stripe' => [
                 'enabled' => app(StripeSaleService::class)->isConfigured(),
             ],

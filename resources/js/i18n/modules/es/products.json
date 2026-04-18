@@ -198,7 +198,11 @@
     "bulk": {
       "selected": "{count} seleccionado",
       "actions": "Acciones masivas",
-      "delete_confirm": "¿Eliminar productos seleccionados?"
+      "delete_confirm": "¿Eliminar productos seleccionados?",
+      "create_order": "Crear pedido",
+      "create_order_unavailable": "Ninguno de los productos seleccionados esta disponible para crear un pedido.",
+      "request_supplier": "Solicitar stock a proveedores",
+      "request_supplier_confirm": "¿Enviar una solicitud agrupada a los proveedores para los productos seleccionados?"
     },
     "table": {
       "name": "Nombre",
