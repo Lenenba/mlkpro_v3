@@ -105,7 +105,7 @@ class LushaProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapter
         $searchResponse = $this->lushaRequest($apiKey)->post(self::CONTACT_SEARCH_ENDPOINT, [
             'pages' => [
                 'page' => 0,
-                'size' => max(1, min(25, $limit)),
+                'size' => max(10, min(25, $limit)),
             ],
             'includePartialContact' => true,
             'filters' => [
@@ -114,11 +114,6 @@ class LushaProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapter
                         'existing_data_points' => [
                             'work_email',
                         ],
-                        'searchText' => $query,
-                    ],
-                ],
-                'companies' => [
-                    'include' => [
                         'searchText' => $query,
                     ],
                 ],
@@ -199,28 +194,36 @@ class LushaProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapter
                     'website' => $this->firstNonEmptyString([
                         $company['website'] ?? null,
                         $company['websiteUrl'] ?? null,
+                        $company['fqdn'] ?? null,
+                        $company['domain'] ?? null,
                         $row['companyWebsite'] ?? null,
                         $row['website'] ?? null,
+                        $row['fqdn'] ?? null,
                     ]),
                     'city' => $this->firstNonEmptyString([
                         $company['city'] ?? null,
+                        data_get($company, 'location.city'),
                         $row['city'] ?? null,
                     ]),
                     'state' => $this->firstNonEmptyString([
                         $company['state'] ?? null,
                         $company['region'] ?? null,
+                        data_get($company, 'location.state'),
                         $row['state'] ?? null,
                     ]),
                     'country' => $this->firstNonEmptyString([
                         $company['country'] ?? null,
+                        data_get($company, 'location.country'),
+                        data_get($row, 'location.country'),
                         $row['country'] ?? null,
                     ]),
                     'industry' => $this->firstNonEmptyString([
                         $company['industry'] ?? null,
+                        $company['mainIndustry'] ?? null,
                         $row['industry'] ?? null,
                     ]),
                     'company_size' => $this->normalizeCompanySize(
-                        $company['employeeCount'] ?? $company['employeeCountRange'] ?? $row['employeeCount'] ?? null
+                        $company['employeeCount'] ?? $company['employeeCountRange'] ?? $company['employees'] ?? $row['employeeCount'] ?? null
                     ),
                     'tags' => array_values(array_filter([
                         $this->label(),
@@ -285,7 +288,17 @@ class LushaProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapter
                     return [];
                 }
 
-                return [$contactId => $row];
+                $flattened = is_array($row['data'] ?? null)
+                    ? array_replace_recursive($row, $row['data'])
+                    : $row;
+
+                return [$contactId => array_replace_recursive(
+                    $flattened,
+                    [
+                        'id' => $contactId,
+                        'contactId' => $contactId,
+                    ]
+                )];
             })
             ->all();
     }
@@ -379,6 +392,7 @@ class LushaProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapter
             $payload['contacts'] ?? null,
             $payload['results'] ?? null,
             $payload['items'] ?? null,
+            $payload['data'] ?? null,
             data_get($payload, 'data.contacts'),
             data_get($payload, 'data.results'),
             data_get($payload, 'data.items'),
@@ -461,6 +475,10 @@ class LushaProspectProviderAdapter extends AbstractApiKeyProspectProviderAdapter
         }
 
         $normalized = trim((string) $value);
+
+        if ($normalized === '' || str_contains(strtolower($normalized), 'undefined')) {
+            return null;
+        }
 
         return $normalized !== '' ? $normalized : null;
     }

@@ -195,6 +195,13 @@ class ApolloProspectProviderAdapter extends AbstractOauthProspectProviderAdapter
             ]);
         }
 
+        if (trim((string) ($credentials['access_token'] ?? '')) !== ''
+            && trim((string) ($credentials['api_key'] ?? '')) === '') {
+            throw ValidationException::withMessages([
+                'provider_connection_id' => 'Apollo OAuth connected successfully, but People API Search requires an Apollo API key with endpoint access. The current OAuth access token cannot preview prospects on this endpoint.',
+            ]);
+        }
+
         if ($query === '') {
             throw ValidationException::withMessages([
                 'query' => 'Apollo preview requires a query or ICP.',

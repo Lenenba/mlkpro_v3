@@ -907,6 +907,7 @@
         "save_draft_description": "A campaign draft must exist before CSV or manual prospect analysis can run.",
         "source_title": "Prospect source intake",
         "batch_cap_hint": "Default review unit: 100 prospects per batch.",
+        "batch_size_readonly_hint": "The review batch is currently capped at {batch} prospects. In provider mode, the preview loads up to {preview} rows per request.",
         "no_file_selected": "No file selected.",
         "manual_placeholder": "company|contact|email|phone|website|industry|country|tags",
         "manual_hint": "Paste one row per line. Supported delimiters: tab, |, or comma. Header row is optional.",

@@ -1039,11 +1039,114 @@ test('lusha provider preview sends a valid contact filter when searching by text
 
         $payload = $request->data();
 
-        return ($payload['includePartialContact'] ?? null) === true
+        return ($payload['pages']['size'] ?? null) === 10
+            && ($payload['includePartialContact'] ?? null) === true
             && ($payload['filters']['contacts']['include']['searchText'] ?? null) === 'Cleaning companies in Montreal'
             && ($payload['filters']['contacts']['include']['existing_data_points'] ?? null) === ['work_email']
-            && ($payload['filters']['companies']['include']['searchText'] ?? null) === 'Cleaning companies in Montreal';
+            && ! isset($payload['filters']['companies']);
     });
+});
+
+test('lusha provider preview parses real search and enrichment payload shapes', function () {
+    $owner = marketingOwner();
+
+    Http::fake([
+        'https://api.lusha.com/prospecting/contact/search' => Http::response([
+            'requestId' => 'lusha-request-real-shape',
+            'currentPage' => 0,
+            'pageLength' => 10,
+            'totalResults' => 1,
+            'data' => [
+                [
+                    'contactId' => 'lusha-contact-real-1',
+                    'name' => 'Julien Courtemanche',
+                    'jobTitle' => 'Cleaning and Construction Foreman',
+                    'companyName' => 'Ville de Montreal',
+                    'fqdn' => 'montreal.ca',
+                    'hasWorkEmail' => true,
+                ],
+            ],
+        ], 201),
+        'https://api.lusha.com/prospecting/contact/enrich' => Http::response([
+            'requestId' => 'lusha-request-real-shape',
+            'contacts' => [
+                [
+                    'id' => 'lusha-contact-real-1',
+                    'isSuccess' => true,
+                    'error' => null,
+                    'data' => [
+                        'firstName' => 'Julien',
+                        'lastName' => 'Courtemanche',
+                        'fullName' => 'Julien Courtemanche',
+                        'jobTitle' => 'Cleaning and Construction Foreman',
+                        'companyName' => 'Ville de Montreal',
+                        'company' => [
+                            'fqdn' => 'montreal.ca',
+                            'location' => [
+                                'city' => 'Montreal',
+                                'country' => 'Canada',
+                                'state' => 'Quebec',
+                            ],
+                            'mainIndustry' => 'Government',
+                            'employees' => '10001 - 100000',
+                        ],
+                        'emailAddresses' => [
+                            ['email' => 'julien.courtemanche@montreal.ca'],
+                        ],
+                        'phoneNumbers' => [
+                            ['number' => '+1 514-444-5256'],
+                        ],
+                    ],
+                ],
+            ],
+            'creditsCharged' => 7,
+        ], 201),
+        '*' => Http::response(['message' => 'Unexpected Lusha request'], 500),
+    ]);
+
+    $provider = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_LUSHA,
+        'label' => 'Lusha account',
+        'credentials' => ['api_key' => 'lusha-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Lusha real payload preview campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
+        'provider_connection_id' => $provider->id,
+        'query_label' => 'Montreal cleaning',
+        'query' => 'cleaning companies in Montreal',
+        'limit' => 10,
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('preview.count', 1)
+        ->assertJsonPath('rows.0.provider_key', CampaignProspectProviderConnection::PROVIDER_LUSHA)
+        ->assertJsonPath('rows.0.metadata.lusha_contact_id', 'lusha-contact-real-1')
+        ->assertJsonPath('rows.0.first_name', 'Julien')
+        ->assertJsonPath('rows.0.last_name', 'Courtemanche')
+        ->assertJsonPath('rows.0.email', 'julien.courtemanche@montreal.ca')
+        ->assertJsonPath('rows.0.phone', '+1 514-444-5256')
+        ->assertJsonPath('rows.0.website', 'https://montreal.ca')
+        ->assertJsonPath('rows.0.city', 'Montreal')
+        ->assertJsonPath('rows.0.country', 'Canada');
 });
 
 test('campaign provider preview rejects disconnected provider connection', function () {
@@ -1080,6 +1183,51 @@ test('campaign provider preview rejects disconnected provider connection', funct
 
     $response->assertStatus(422)
         ->assertJsonValidationErrors(['provider_connection_id']);
+});
+
+test('apollo oauth preview explains that people search needs api key access', function () {
+    $owner = marketingOwner();
+
+    $provider = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
+        'label' => 'Apollo oauth',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_OAUTH,
+        'credentials' => [
+            'access_token' => 'apollo-oauth-access-token',
+            'refresh_token' => 'apollo-oauth-refresh-token',
+        ],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Apollo oauth preview blocked',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
+        'provider_connection_id' => $provider->id,
+        'query' => 'Cleaning companies in Montreal',
+        'limit' => 10,
+    ]);
+
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['provider_connection_id']);
+
+    expect((string) data_get($response->json(), 'errors.provider_connection_id.0'))
+        ->toContain('People API Search requires an Apollo API key');
 });
 
 test('campaign provider selection import reuses prospect batch analysis pipeline', function () {
