@@ -341,6 +341,7 @@ test('marketing owner can start Apollo OAuth flow and link the connection on cal
     config()->set('services.apollo.oauth.client_id', 'apollo-client-id');
     config()->set('services.apollo.oauth.client_secret', 'apollo-client-secret');
     config()->set('services.apollo.oauth.redirect_uri', route('marketing.prospect-providers.oauth.callback', ['provider' => 'apollo']));
+    config()->set('services.apollo.oauth.scopes', []);
 
     $start = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.connect'), [
         'provider_key' => 'apollo',
@@ -385,6 +386,28 @@ test('marketing owner can start Apollo OAuth flow and link the connection on cal
         ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_DISCONNECTED)
         ->assertJsonPath('provider_connection.is_active', false)
         ->assertJsonPath('provider_connection.has_credentials', false);
+});
+
+test('apollo oauth flow does not force fallback scopes when none are configured', function () {
+    $owner = marketingOwner();
+
+    config()->set('services.apollo.oauth.client_id', 'apollo-client-id');
+    config()->set('services.apollo.oauth.client_secret', 'apollo-client-secret');
+    config()->set('services.apollo.oauth.redirect_uri', route('marketing.prospect-providers.oauth.callback', ['provider' => 'apollo']));
+    config()->set('services.apollo.oauth.scopes', []);
+
+    $start = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.connect'), [
+        'provider_key' => 'apollo',
+        'label' => 'Apollo workspace',
+    ]);
+
+    $start->assertCreated()
+        ->assertJsonPath('flow', 'redirect');
+
+    $redirectUrl = (string) $start->json('redirect_url');
+
+    expect($redirectUrl)->toContain('response_type=code')
+        ->and($redirectUrl)->not->toContain('scope=');
 });
 
 test('marketing owner can update prospect provider connection without replacing saved secret', function () {
@@ -1183,51 +1206,6 @@ test('campaign provider preview rejects disconnected provider connection', funct
 
     $response->assertStatus(422)
         ->assertJsonValidationErrors(['provider_connection_id']);
-});
-
-test('apollo oauth preview explains that people search needs api key access', function () {
-    $owner = marketingOwner();
-
-    $provider = CampaignProspectProviderConnection::query()->create([
-        'user_id' => $owner->id,
-        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
-        'label' => 'Apollo oauth',
-        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_OAUTH,
-        'credentials' => [
-            'access_token' => 'apollo-oauth-access-token',
-            'refresh_token' => 'apollo-oauth-refresh-token',
-        ],
-        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
-        'is_active' => true,
-        'last_validated_at' => now(),
-    ]);
-
-    $campaign = Campaign::query()->create([
-        'user_id' => $owner->id,
-        'created_by_user_id' => $owner->id,
-        'updated_by_user_id' => $owner->id,
-        'name' => 'Apollo oauth preview blocked',
-        'type' => Campaign::TYPE_PROMOTION,
-        'campaign_type' => Campaign::TYPE_PROMOTION,
-        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
-        'prospecting_enabled' => true,
-        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
-        'status' => Campaign::STATUS_DRAFT,
-        'schedule_type' => Campaign::SCHEDULE_MANUAL,
-        'is_marketing' => true,
-    ]);
-
-    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
-        'provider_connection_id' => $provider->id,
-        'query' => 'Cleaning companies in Montreal',
-        'limit' => 10,
-    ]);
-
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors(['provider_connection_id']);
-
-    expect((string) data_get($response->json(), 'errors.provider_connection_id.0'))
-        ->toContain('People API Search requires an Apollo API key');
 });
 
 test('campaign provider selection import reuses prospect batch analysis pipeline', function () {

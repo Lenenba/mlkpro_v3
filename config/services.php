@@ -108,7 +108,7 @@ return [
             'profile_url' => env('APOLLO_OAUTH_PROFILE_URL', 'https://app.apollo.io/api/v1/users/api_profile'),
             'scopes' => array_values(array_filter(array_map(
                 static fn (string $scope): string => trim($scope),
-                preg_split('/[\s,]+/', (string) env('APOLLO_OAUTH_SCOPES', 'read_user_profile contacts_search person_read')) ?: []
+                preg_split('/[\s,]+/', (string) env('APOLLO_OAUTH_SCOPES', '')) ?: []
             ))),
         ],
     ],
