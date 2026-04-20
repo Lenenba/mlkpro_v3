@@ -110,6 +110,27 @@
         "none": "No tax"
       }
     },
+    "saved_segments": {
+      "title": "Saved segments",
+      "select_label": "Saved segment",
+      "select_placeholder": "Choose a segment",
+      "name_label": "Segment name",
+      "name_placeholder": "Ex. Priority recovery quotes",
+      "apply": "Apply",
+      "save_current": "Save filters",
+      "update_selected": "Update",
+      "delete_selected": "Delete",
+      "cached_count": "{count} cached",
+      "updated_at": "Updated {value}",
+      "current_snapshot_ready": "The current filter snapshot is ready to save.",
+      "info_created": "Saved segment created.",
+      "info_updated": "Saved segment updated.",
+      "info_deleted": "Saved segment deleted.",
+      "error_load": "Unable to load saved segments.",
+      "error_save": "Unable to save this segment.",
+      "error_delete": "Unable to delete this segment.",
+      "confirm_delete": "Delete saved segment \"{name}\"?"
+    },
     "status": {
       "draft": "Draft",
       "sent": "Sent",

@@ -23,6 +23,7 @@ use App\Models\ProductCategory;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
 use App\Models\Sale;
+use App\Models\SavedSegment;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\Campaigns\AudienceResolver;
@@ -2364,6 +2365,60 @@ test('segment can be saved loaded and counted', function () {
             'blocked_by_reason',
         ],
     ]);
+});
+
+test('marketing segments remain isolated when crm saved segments exist for the same owner', function () {
+    $owner = marketingOwner();
+    $customer = marketingCustomer($owner);
+
+    SavedSegment::create([
+        'user_id' => $owner->id,
+        'module' => SavedSegment::MODULE_CUSTOMER,
+        'name' => 'VIP Segment',
+        'filters' => [
+            'status' => 'active',
+            'is_vip' => true,
+        ],
+    ]);
+
+    CustomerConsent::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'status' => CustomerConsent::STATUS_GRANTED,
+        'granted_at' => now(),
+    ]);
+
+    $create = $this->actingAs($owner)->postJson(route('marketing.segments.store'), [
+        'name' => 'VIP Segment',
+        'description' => 'Marketing segment kept separate from CRM segments',
+        'filters' => [
+            'operator' => 'AND',
+            'rules' => [],
+        ],
+        'exclusions' => [
+            'operator' => 'AND',
+            'rules' => [],
+        ],
+        'tags' => ['vip'],
+    ]);
+
+    $create->assertCreated()
+        ->assertJsonPath('segment.name', 'VIP Segment');
+
+    $segmentId = (int) $create->json('segment.id');
+
+    $this->actingAs($owner)
+        ->getJson(route('marketing.segments.show', $segmentId))
+        ->assertOk()
+        ->assertJsonPath('segment.id', $segmentId);
+
+    $this->actingAs($owner)
+        ->getJson(route('marketing.segments.count', $segmentId))
+        ->assertOk()
+        ->assertJsonPath('segment_id', $segmentId);
+
+    expect(SavedSegment::query()->where('user_id', $owner->id)->where('module', SavedSegment::MODULE_CUSTOMER)->count())->toBe(1);
 });
 
 test('template library resolves most specific default template', function () {

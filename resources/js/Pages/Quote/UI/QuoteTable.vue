@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
+import SavedSegmentBar from '@/Components/CRM/SavedSegmentBar.vue';
 import QuoteActionsMenu from '@/Pages/Quote/UI/QuoteActionsMenu.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -35,6 +36,14 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    savedSegments: {
+        type: Array,
+        default: () => [],
+    },
+    canManageSavedSegments: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const filterForm = useForm({
@@ -58,11 +67,33 @@ const { hasFeature } = useAccountFeatures();
 const showAdvanced = ref(false);
 const newQuoteCustomerId = ref('');
 const isLoading = ref(false);
+const compactObject = (payload) => Object.fromEntries(
+    Object.entries(payload || {}).filter(([, value]) => value !== '' && value !== null && value !== undefined)
+);
 const isViewSwitching = ref(false);
 const processingId = ref(null);
 const allowedViews = ['table', 'cards'];
 const viewMode = ref('table');
 const isBusy = computed(() => isLoading.value || isViewSwitching.value);
+const shouldShowSavedSegments = computed(() =>
+    Boolean(props.canManageSavedSegments) || (Array.isArray(props.savedSegments) && props.savedSegments.length > 0)
+);
+const savedSegmentFilters = computed(() => compactObject({
+    status: filterForm.status,
+    customer_id: filterForm.customer_id,
+    queue: filterForm.queue,
+    total_min: filterForm.total_min,
+    total_max: filterForm.total_max,
+    created_from: filterForm.created_from,
+    created_to: filterForm.created_to,
+    has_deposit: filterForm.has_deposit,
+    has_tax: filterForm.has_tax,
+}));
+const savedSegmentSort = computed(() => compactObject({
+    sort: filterForm.sort,
+    direction: filterForm.direction,
+}));
+const savedSegmentSearchTerm = computed(() => String(filterForm.search || '').trim());
 let viewSwitchTimeout;
 
 if (typeof window !== 'undefined') {
@@ -163,6 +194,25 @@ const clearFilters = () => {
     filterForm.has_tax = '';
     filterForm.sort = 'recovery_priority';
     filterForm.direction = 'desc';
+    autoFilter();
+};
+
+const applySavedSegment = (segment) => {
+    const filters = segment?.filters && typeof segment.filters === 'object' ? segment.filters : {};
+    const sort = segment?.sort && typeof segment.sort === 'object' ? segment.sort : {};
+
+    filterForm.search = String(segment?.search_term || '');
+    filterForm.status = String(filters.status || '');
+    filterForm.customer_id = String(filters.customer_id || '');
+    filterForm.queue = String(filters.queue || '');
+    filterForm.total_min = String(filters.total_min || '');
+    filterForm.total_max = String(filters.total_max || '');
+    filterForm.created_from = String(filters.created_from || '');
+    filterForm.created_to = String(filters.created_to || '');
+    filterForm.has_deposit = String(filters.has_deposit || '');
+    filterForm.has_tax = String(filters.has_tax || '');
+    filterForm.sort = String(sort.sort || 'recovery_priority');
+    filterForm.direction = String(sort.direction || 'desc');
     autoFilter();
 };
 
@@ -552,6 +602,19 @@ const quoteResultsLabel = computed(() => `${props.count} ${t('quotes.table.resul
 <template>
     <div
         class="p-5 space-y-4 flex flex-col border-t-4 border-t-sky-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
+        <SavedSegmentBar
+            v-if="shouldShowSavedSegments"
+            module="quote"
+            :segments="savedSegments"
+            :can-manage="canManageSavedSegments"
+            :current-filters="savedSegmentFilters"
+            :current-sort="savedSegmentSort"
+            :current-search-term="savedSegmentSearchTerm"
+            :history-href="route('crm.playbook-runs.index', { module: 'quote' })"
+            :history-label="t('marketing.playbook_runs.actions.open_history')"
+            i18n-prefix="quotes"
+            @apply="applySavedSegment"
+        />
         <AdminDataTableToolbar
             :show-filters="showAdvanced"
             :show-apply="false"

@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
+use App\Models\SavedSegment;
 use App\Models\Task;
 use App\Queries\Quotes\BuildQuoteRecoveryIndexData;
 use App\Models\Tax;
@@ -44,6 +45,28 @@ class QuoteController extends Controller
             ->orderBy('company_name')
             ->get(['id', 'company_name', 'first_name', 'last_name']);
 
+        $canManageSavedSegments = (int) ($user?->id ?? 0) === (int) $accountId;
+        $savedSegments = $canManageSavedSegments
+            ? SavedSegment::query()
+                ->byUser($accountId)
+                ->where('module', SavedSegment::MODULE_QUOTE)
+                ->orderByDesc('updated_at')
+                ->orderBy('name')
+                ->get([
+                    'id',
+                    'module',
+                    'name',
+                    'description',
+                    'filters',
+                    'sort',
+                    'search_term',
+                    'is_shared',
+                    'cached_count',
+                    'last_resolved_at',
+                    'updated_at',
+                ])
+            : collect();
+
         return $this->inertiaOrJson('Quote/Index', [
             'quotes' => $indexData['quotes'],
             'filters' => $indexData['filters'],
@@ -51,6 +74,8 @@ class QuoteController extends Controller
             'stats' => $indexData['stats'],
             'topQuotes' => $indexData['topQuotes'],
             'customers' => $customers,
+            'savedSegments' => $savedSegments,
+            'canManageSavedSegments' => $canManageSavedSegments,
         ]);
     }
 

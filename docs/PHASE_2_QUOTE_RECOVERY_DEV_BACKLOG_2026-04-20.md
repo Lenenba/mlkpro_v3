@@ -49,7 +49,8 @@ Bloc actuellement en cours:
 
 - phase 2 quote recovery complete
 - sprint 4 cloture
-- en attente de lancement phase 3
+- phase 3 saved segments and scheduled playbooks ouverte
+- sprint 5 en preparation
 
 ## 1. But du document
 

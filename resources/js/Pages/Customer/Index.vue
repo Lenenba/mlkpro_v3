@@ -19,6 +19,14 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    savedSegments: {
+        type: Array,
+        default: () => [],
+    },
+    canManageSavedSegments: {
+        type: Boolean,
+        default: false,
+    },
 });
 </script>
 <template>
@@ -28,7 +36,15 @@ const props = defineProps({
         <CustomerStats :stats="stats" />
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
             <div class="col-span-1 lg:col-span-3">
-                <CustomerTable :customers="customers" :filters="filters" :count="count" :bulk-actions="bulkActions" :can-edit="canEdit" />
+                <CustomerTable
+                    :customers="customers"
+                    :filters="filters"
+                    :count="count"
+                    :bulk-actions="bulkActions"
+                    :can-edit="canEdit"
+                    :saved-segments="savedSegments"
+                    :can-manage-saved-segments="canManageSavedSegments"
+                />
             </div>
             <CustomerActivityStat :items="topCustomers" />
         </div>

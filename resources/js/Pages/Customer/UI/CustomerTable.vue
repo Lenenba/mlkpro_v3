@@ -11,6 +11,7 @@ import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vu
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableBulkActionMenu from '@/Components/DataTable/AdminDataTableBulkActionMenu.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import SavedSegmentBar from '@/Components/CRM/SavedSegmentBar.vue';
 import CustomerActionsMenu from '@/Pages/Customer/UI/CustomerActionsMenu.vue';
 import CustomerBulkContactModal from '@/Pages/Customer/UI/CustomerBulkContactModal.vue';
 import CustomerEmptyState from '@/Pages/Customer/UI/CustomerEmptyState.vue';
@@ -48,6 +49,14 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    savedSegments: {
+        type: Array,
+        default: () => [],
+    },
+    canManageSavedSegments: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const { t } = useI18n();
@@ -79,6 +88,9 @@ const filterForm = useForm({
 
 const showAdvanced = ref(false);
 const isLoading = ref(false);
+const compactObject = (payload) => Object.fromEntries(
+    Object.entries(payload || {}).filter(([, value]) => value !== '' && value !== null && value !== undefined)
+);
 const quoteFilterOptions = computed(() => ([
     { value: '', label: t('customers.filters.quotes') },
     { value: '1', label: t('customers.filters.with_quotes') },
@@ -98,6 +110,23 @@ const isViewSwitching = ref(false);
 const allowedViews = ['table', 'cards'];
 const viewMode = ref('table');
 const isBusy = computed(() => isLoading.value || isViewSwitching.value);
+const shouldShowSavedSegments = computed(() =>
+    Boolean(props.canManageSavedSegments) || (Array.isArray(props.savedSegments) && props.savedSegments.length > 0)
+);
+const savedSegmentFilters = computed(() => compactObject({
+    city: filterForm.city,
+    country: filterForm.country,
+    has_quotes: filterForm.has_quotes,
+    has_works: filterForm.has_works,
+    status: filterForm.status,
+    created_from: filterForm.created_from,
+    created_to: filterForm.created_to,
+}));
+const savedSegmentSort = computed(() => compactObject({
+    sort: filterForm.sort,
+    direction: filterForm.direction,
+}));
+const savedSegmentSearchTerm = computed(() => String(filterForm.name || '').trim());
 let viewSwitchTimeout;
 
 if (typeof window !== 'undefined') {
@@ -197,6 +226,23 @@ const clearFilters = () => {
     filterForm.created_to = '';
     filterForm.sort = 'created_at';
     filterForm.direction = 'desc';
+    autoFilter();
+};
+
+const applySavedSegment = (segment) => {
+    const filters = segment?.filters && typeof segment.filters === 'object' ? segment.filters : {};
+    const sort = segment?.sort && typeof segment.sort === 'object' ? segment.sort : {};
+
+    filterForm.name = String(segment?.search_term || '');
+    filterForm.city = String(filters.city || '');
+    filterForm.country = String(filters.country || '');
+    filterForm.has_quotes = String(filters.has_quotes || '');
+    filterForm.has_works = String(filters.has_works || '');
+    filterForm.status = String(filters.status || '');
+    filterForm.created_from = String(filters.created_from || '');
+    filterForm.created_to = String(filters.created_to || '');
+    filterForm.sort = String(sort.sort || 'created_at');
+    filterForm.direction = String(sort.direction || 'desc');
     autoFilter();
 };
 
@@ -435,6 +481,19 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
     <div
         class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
         <div class="space-y-3">
+            <SavedSegmentBar
+                v-if="shouldShowSavedSegments"
+                module="customer"
+                :segments="savedSegments"
+                :can-manage="canManageSavedSegments"
+                :current-filters="savedSegmentFilters"
+                :current-sort="savedSegmentSort"
+                :current-search-term="savedSegmentSearchTerm"
+                :history-href="route('crm.playbook-runs.index', { module: 'customer' })"
+                :history-label="t('marketing.playbook_runs.actions.open_history')"
+                i18n-prefix="customers"
+                @apply="applySavedSegment"
+            />
             <AdminDataTableToolbar
                 :show-filters="showAdvanced"
                 :show-apply="false"

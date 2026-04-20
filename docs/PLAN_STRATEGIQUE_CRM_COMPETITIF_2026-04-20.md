@@ -360,6 +360,11 @@ Une fois le triage leads et la recuperation devis rendus visibles, il faut autom
 - moyen a fort
 - 3 a 5 semaines
 
+### Document de reference
+
+- `docs/PHASE_3_SAVED_SEGMENTS_SCHEDULED_PLAYBOOKS_2026-04-20.md`
+- `docs/PHASE_3_SAVED_SEGMENTS_PLAYBOOKS_DEV_BACKLOG_2026-04-20.md`
+
 ## Phase 4 - Sales Activity Layer
 
 ### Objectif
@@ -784,5 +789,7 @@ Pourquoi:
 - `docs/PHASE_1_REQUEST_INBOX_DEV_BACKLOG_2026-04-20.md`
 - `docs/PHASE_2_QUOTE_RECOVERY_CONVERSION_COCKPIT_2026-04-20.md`
 - `docs/PHASE_2_QUOTE_RECOVERY_DEV_BACKLOG_2026-04-20.md`
+- `docs/PHASE_3_SAVED_SEGMENTS_SCHEDULED_PLAYBOOKS_2026-04-20.md`
+- `docs/PHASE_3_SAVED_SEGMENTS_PLAYBOOKS_DEV_BACKLOG_2026-04-20.md`
 - `docs/NEXT_HIGH_VALUE_MODULES_USER_STORY.md`
 - `docs/CAMPAIGNS_MODULE.md`

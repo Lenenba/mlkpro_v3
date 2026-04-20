@@ -34,6 +34,8 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\PipelineController;
 use App\Http\Controllers\PlanningController;
+use App\Http\Controllers\PlaybookController;
+use App\Http\Controllers\PlaybookRunController;
 use App\Http\Controllers\PlanScanController;
 use App\Http\Controllers\Portal\PortalInvoiceController;
 use App\Http\Controllers\Portal\PortalLoyaltyController;
@@ -63,6 +65,7 @@ use App\Http\Controllers\QuoteEmaillingController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\RequestMediaController;
 use App\Http\Controllers\RequestNoteController;
+use App\Http\Controllers\SavedSegmentController;
 use App\Http\Controllers\Reservation\ClientReservationController;
 use App\Http\Controllers\Reservation\PublicKioskReservationController;
 use App\Http\Controllers\Reservation\ReservationSettingsController;
@@ -323,6 +326,21 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/settings/billing/payment-method', [SubscriptionController::class, 'paymentMethodTransaction'])
             ->name('settings.billing.payment-method');
     });
+
+    Route::get('/crm/saved-segments', [SavedSegmentController::class, 'index'])
+        ->name('crm.saved-segments.index');
+    Route::post('/crm/saved-segments', [SavedSegmentController::class, 'store'])
+        ->name('crm.saved-segments.store');
+    Route::put('/crm/saved-segments/{savedSegment}', [SavedSegmentController::class, 'update'])
+        ->name('crm.saved-segments.update');
+    Route::delete('/crm/saved-segments/{savedSegment}', [SavedSegmentController::class, 'destroy'])
+        ->name('crm.saved-segments.destroy');
+    Route::post('/crm/playbooks', [PlaybookController::class, 'store'])
+        ->name('crm.playbooks.store');
+    Route::post('/crm/playbooks/{playbook}/run', [PlaybookController::class, 'run'])
+        ->name('crm.playbooks.run');
+    Route::get('/crm/playbook-runs', [PlaybookRunController::class, 'index'])
+        ->name('crm.playbook-runs.index');
 
     // Lead Requests
     Route::middleware('company.feature:requests')->group(function () {

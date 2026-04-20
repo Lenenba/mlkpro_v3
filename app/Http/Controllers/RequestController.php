@@ -12,6 +12,7 @@ use App\Http\Requests\Leads\UpdateLeadRequest;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Request as LeadRequest;
+use App\Models\SavedSegment;
 use App\Models\TeamMember;
 use App\Queries\Requests\BuildRequestAnalyticsData;
 use App\Queries\Requests\BuildRequestInboxIndexData;
@@ -102,6 +103,25 @@ class RequestController extends Controller
             'api_endpoint' => route('api.integrations.requests.store'),
         ];
 
+        $savedSegments = SavedSegment::query()
+            ->byUser($accountId)
+            ->where('module', SavedSegment::MODULE_REQUEST)
+            ->orderByDesc('updated_at')
+            ->orderBy('name')
+            ->get([
+                'id',
+                'module',
+                'name',
+                'description',
+                'filters',
+                'sort',
+                'search_term',
+                'is_shared',
+                'cached_count',
+                'last_resolved_at',
+                'updated_at',
+            ]);
+
         return $this->inertiaOrJson('Request/Index', [
             'requests' => $requests,
             'filters' => $filters,
@@ -113,6 +133,8 @@ class RequestController extends Controller
                 'statuses' => $statuses,
                 'assignees' => $assignees,
             ]),
+            'savedSegments' => $savedSegments,
+            'canManageSavedSegments' => true,
             'lead_intake' => $leadIntake,
             'analytics' => app(BuildRequestAnalyticsData::class)->execute($accountId),
         ]);

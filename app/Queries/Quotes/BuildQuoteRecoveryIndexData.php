@@ -73,6 +73,38 @@ class BuildQuoteRecoveryIndexData
         ];
     }
 
+    public function resolveCollection(int $accountId, array $filters = [], ?Carbon $referenceTime = null): Collection
+    {
+        $normalizedFilters = [
+            'search' => $filters['search'] ?? null,
+            'status' => $filters['status'] ?? null,
+            'customer_id' => $filters['customer_id'] ?? null,
+            'total_min' => $filters['total_min'] ?? null,
+            'total_max' => $filters['total_max'] ?? null,
+            'created_from' => $filters['created_from'] ?? null,
+            'created_to' => $filters['created_to'] ?? null,
+            'has_deposit' => $filters['has_deposit'] ?? null,
+            'has_tax' => $filters['has_tax'] ?? null,
+            'sort' => $this->normalizeSort($filters['sort'] ?? null),
+            'direction' => ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc',
+            'queue' => $this->normalizeQueueFilter($filters['queue'] ?? null),
+        ];
+
+        $classifiedItems = $this->classifyQuotes(
+            $this->baseQuery($accountId, $normalizedFilters)
+                ->with(['customer', 'property'])
+                ->withAvg('ratings', 'rating')
+                ->withCount('ratings')
+                ->get(),
+            $referenceTime?->copy() ?? now()
+        );
+
+        return $this->sortQuotes(
+            $this->filterQuotes($classifiedItems, $normalizedFilters['queue']),
+            $normalizedFilters
+        );
+    }
+
     private function baseQuery(int $accountId, array $filters): Builder
     {
         $statusFilter = $filters['status'] ?? null;

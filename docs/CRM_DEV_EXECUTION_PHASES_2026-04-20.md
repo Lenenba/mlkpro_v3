@@ -457,6 +457,11 @@ Reutiliser `BulkActionRegistry`, les campagnes et les filtres existants pour cre
 - un historique de run existe
 - les feature flags sont respectes
 
+### Document de reference
+
+- `docs/PHASE_3_SAVED_SEGMENTS_SCHEDULED_PLAYBOOKS_2026-04-20.md`
+- `docs/PHASE_3_SAVED_SEGMENTS_PLAYBOOKS_DEV_BACKLOG_2026-04-20.md`
+
 ## 10. Phase 4 - Sales Activity Layer
 
 ### Objectif business

@@ -17,6 +17,27 @@
       "all_statuses": "Todos los estados",
       "all_customers": "Todos los clientes"
     },
+    "saved_segments": {
+      "title": "Segmentos guardados",
+      "select_label": "Segmento guardado",
+      "select_placeholder": "Elegir un segmento",
+      "name_label": "Nombre del segmento",
+      "name_placeholder": "Ej. Leads Montreal por atender",
+      "apply": "Aplicar",
+      "save_current": "Guardar filtros",
+      "update_selected": "Actualizar",
+      "delete_selected": "Eliminar",
+      "cached_count": "{count} en cache",
+      "updated_at": "Actualizado {value}",
+      "current_snapshot_ready": "El filtro actual esta listo para guardarse.",
+      "info_created": "Segmento guardado creado.",
+      "info_updated": "Segmento guardado actualizado.",
+      "info_deleted": "Segmento guardado eliminado.",
+      "error_load": "No se pudieron cargar los segmentos guardados.",
+      "error_save": "No se pudo guardar este segmento.",
+      "error_delete": "No se pudo eliminar este segmento.",
+      "confirm_delete": "Eliminar el segmento guardado \"{name}\"?"
+    },
     "triage": {
       "label": "Triage",
       "priority_short": "P{value}",

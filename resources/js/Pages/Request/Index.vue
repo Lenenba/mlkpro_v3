@@ -18,6 +18,14 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    savedSegments: {
+        type: Array,
+        default: () => [],
+    },
+    canManageSavedSegments: {
+        type: Boolean,
+        default: false,
+    },
 });
 </script>
 
@@ -37,6 +45,8 @@ const props = defineProps({
                 :statuses="statuses"
                 :assignees="assignees"
                 :bulk-actions="bulkActions"
+                :saved-segments="savedSegments"
+                :can-manage-saved-segments="canManageSavedSegments"
             />
         </div>
     </AuthenticatedLayout>

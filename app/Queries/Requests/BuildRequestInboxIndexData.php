@@ -56,6 +56,30 @@ class BuildRequestInboxIndexData
         ];
     }
 
+    public function resolveCollection(int $accountId, array $filters = [], ?Carbon $referenceTime = null): Collection
+    {
+        $normalizedFilters = [
+            'search' => $filters['search'] ?? null,
+            'status' => $filters['status'] ?? null,
+            'customer_id' => $filters['customer_id'] ?? null,
+            'queue' => $this->normalizeQueueFilter($filters['queue'] ?? null),
+        ];
+
+        $classifiedItems = $this->classifyInboxItems(
+            (clone $this->baseQuery($accountId, $normalizedFilters))->with([
+                'customer:id,company_name,first_name,last_name,email,phone',
+                'quote:id,number,status,customer_id,request_id',
+                'assignee:id,user_id,account_id',
+                'assignee.user:id,name',
+            ])->get(),
+            $referenceTime?->copy() ?? now()
+        );
+
+        return $this->sortInboxItems(
+            $this->filterInboxItems($classifiedItems, $normalizedFilters['queue'])
+        );
+    }
+
     private function baseQuery(int $accountId, array $filters): Builder
     {
         return LeadRequest::query()

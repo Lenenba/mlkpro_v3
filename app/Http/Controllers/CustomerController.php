@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Role;
+use App\Models\SavedSegment;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
 use App\Queries\Customers\BuildCustomerDetailViewData;
@@ -58,6 +59,7 @@ class CustomerController extends Controller
         }
         [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
         $canEdit = $user->id === $accountId;
+        $canManageSavedSegments = (int) $user->id === (int) $user->accountOwnerId();
         $campaignsFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($accountOwner, 'campaigns');
 
         $baseQuery = Customer::query()
@@ -123,6 +125,27 @@ class CustomerController extends Controller
             ->limit(5)
             ->get(['id', 'company_name', 'first_name', 'last_name', 'logo', 'header_image']);
 
+        $savedSegments = $canManageSavedSegments
+            ? SavedSegment::query()
+                ->byUser($accountOwner->id)
+                ->where('module', SavedSegment::MODULE_CUSTOMER)
+                ->orderByDesc('updated_at')
+                ->orderBy('name')
+                ->get([
+                    'id',
+                    'module',
+                    'name',
+                    'description',
+                    'filters',
+                    'sort',
+                    'search_term',
+                    'is_shared',
+                    'cached_count',
+                    'last_resolved_at',
+                    'updated_at',
+                ])
+            : collect();
+
         // Pass data to Inertia view
         return $this->inertiaOrJson('Customer/Index', [
             'customers' => $customers,
@@ -131,6 +154,8 @@ class CustomerController extends Controller
             'stats' => $stats,
             'topCustomers' => $topCustomers,
             'canEdit' => $canEdit,
+            'savedSegments' => $savedSegments,
+            'canManageSavedSegments' => $canManageSavedSegments,
             'bulkActions' => app(BulkActionRegistry::class)->definitionFor('customer', [
                 'can_edit' => $canEdit,
                 'contact_enabled' => $canEdit && $campaignsFeatureEnabled,

@@ -5,6 +5,7 @@ import { Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import SavedSegmentBar from '@/Components/CRM/SavedSegmentBar.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
@@ -56,6 +57,14 @@ const props = defineProps({
     leadIntake: {
         type: Object,
         default: () => ({}),
+    },
+    savedSegments: {
+        type: Array,
+        default: () => [],
+    },
+    canManageSavedSegments: {
+        type: Boolean,
+        default: false,
     },
 });
 
@@ -323,6 +332,18 @@ const queueFilterOptions = computed(() => ([
         count: Number(props.stats?.breached || 0),
     },
 ]));
+const compactObject = (payload) => Object.fromEntries(
+    Object.entries(payload || {}).filter(([, value]) => value !== '' && value !== null && value !== undefined)
+);
+const shouldShowSavedSegments = computed(() =>
+    Boolean(props.canManageSavedSegments) || (Array.isArray(props.savedSegments) && props.savedSegments.length > 0)
+);
+const savedSegmentFilters = computed(() => compactObject({
+    status: filterForm.status,
+    customer_id: filterForm.customer_id,
+    queue: filterForm.queue,
+}));
+const savedSegmentSearchTerm = computed(() => String(filterForm.search || '').trim());
 
 const filterPayload = () => {
     const payload = {
@@ -381,6 +402,16 @@ const clearFilters = () => {
 
 const setQueueFilter = (queue) => {
     filterForm.queue = filterForm.queue === queue ? '' : queue;
+};
+
+const applySavedSegment = (segment) => {
+    const filters = segment?.filters && typeof segment.filters === 'object' ? segment.filters : {};
+
+    filterForm.search = String(segment?.search_term || '');
+    filterForm.status = String(filters.status || '');
+    filterForm.customer_id = String(filters.customer_id || '');
+    filterForm.queue = String(filters.queue || '');
+    autoFilter();
 };
 
 const requestLinks = computed(() => props.requests?.links || []);
@@ -1096,6 +1127,18 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
         class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700"
     >
         <div class="space-y-3">
+            <SavedSegmentBar
+                v-if="shouldShowSavedSegments"
+                module="request"
+                :segments="savedSegments"
+                :can-manage="canManageSavedSegments"
+                :current-filters="savedSegmentFilters"
+                :current-search-term="savedSegmentSearchTerm"
+                :history-href="route('crm.playbook-runs.index', { module: 'request' })"
+                :history-label="t('marketing.playbook_runs.actions.open_history')"
+                i18n-prefix="requests"
+                @apply="applySavedSegment"
+            />
             <AdminDataTableToolbar
                 :show-clear="false"
                 :show-apply="false"

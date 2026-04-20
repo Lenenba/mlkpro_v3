@@ -17,6 +17,27 @@
       "all_statuses": "Tous statuts",
       "all_customers": "Tous clients"
     },
+    "saved_segments": {
+      "title": "Segments sauvegardes",
+      "select_label": "Segment sauvegarde",
+      "select_placeholder": "Choisir un segment",
+      "name_label": "Nom du segment",
+      "name_placeholder": "Ex. Leads Montreal a traiter",
+      "apply": "Appliquer",
+      "save_current": "Sauver filtres",
+      "update_selected": "Mettre a jour",
+      "delete_selected": "Supprimer",
+      "cached_count": "{count} en cache",
+      "updated_at": "Mis a jour {value}",
+      "current_snapshot_ready": "Le filtre actuel est pret a etre sauvegarde.",
+      "info_created": "Segment sauvegarde cree.",
+      "info_updated": "Segment sauvegarde mis a jour.",
+      "info_deleted": "Segment sauvegarde supprime.",
+      "error_load": "Impossible de charger les segments sauvegardes.",
+      "error_save": "Impossible d'enregistrer ce segment sauvegarde.",
+      "error_delete": "Impossible de supprimer ce segment sauvegarde.",
+      "confirm_delete": "Supprimer le segment sauvegarde \"{name}\" ?"
+    },
     "triage": {
       "label": "Triage",
       "priority_short": "P{value}",
