@@ -5,6 +5,9 @@
       "total": "Solicitudes totales",
       "new": "Nuevo",
       "in_progress": "En progreso",
+      "due_soon": "Por vencer",
+      "stale": "Sin actividad",
+      "breached": "SLA vencido",
       "won": "Ganado",
       "lost": "perdido",
       "unassigned": "No asignado"
@@ -13,6 +16,29 @@
       "search_placeholder": "Solicitudes de búsqueda...",
       "all_statuses": "Todos los estados",
       "all_customers": "Todos los clientes"
+    },
+    "triage": {
+      "label": "Triage",
+      "priority_short": "P{value}",
+      "inactive_days": "{count}d sin accion",
+      "queues": {
+        "all": "Todos",
+        "new": "Nuevos",
+        "due_soon": "Por vencer",
+        "stale": "Sin actividad",
+        "breached": "SLA vencido",
+        "active": "Activos",
+        "closed": "Cerrados",
+        "unknown": "Desconocido"
+      },
+      "risk_levels": {
+        "critical": "Riesgo critico",
+        "high": "Riesgo alto",
+        "medium": "Riesgo medio",
+        "low": "Riesgo bajo",
+        "closed": "Cerrado",
+        "unknown": "Riesgo desconocido"
+      }
     },
     "actions": {
       "clear": "Borrar",
@@ -251,10 +277,16 @@
       "subtitle": "Información continua para realizar un seguimiento del rendimiento de los clientes potenciales.",
       "first_response": "Promedio de primera respuesta",
       "first_response_note": "Basado en la primera acción después de la creación del cliente potencial.",
+      "time_to_intake": "Tiempo medio de atención",
+      "time_to_intake_note": "Mide cuánto tarda un lead en ser atendido de verdad.",
       "conversion_rate": "Tasa de conversión",
       "conversion_note": "Clientes potenciales ganados vs total creado.",
       "total_leads": "Nuevos clientes potenciales",
       "total_note": "Creado en los últimos {days} días.",
+      "stale_count": "Leads sin actividad",
+      "stale_note": "Leads abiertos sin actividad durante al menos 7 días.",
+      "breached_count": "Leads vencidos",
+      "breached_note": "Leads abiertos con seguimiento atrasado o SLA vencido.",
       "form": {
         "title": "Rendimiento del formulario de clientes potenciales",
         "window": "Últimos {days} días",
@@ -435,6 +467,11 @@
       "assignee": "Cesionario",
       "follow_up": "Próximo seguimiento",
       "lost_reason": "razón perdida"
+    },
+    "quick_actions": {
+      "follow_up_tomorrow": "Mañana",
+      "follow_up_three_days": "+3d",
+      "follow_up_seven_days": "+7d"
     },
     "quick_form": {
       "new_customer": "Nuevo cliente",

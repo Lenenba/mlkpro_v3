@@ -5,6 +5,9 @@
       "total": "Total requests",
       "new": "New",
       "in_progress": "In progress",
+      "due_soon": "Due soon",
+      "stale": "Stale",
+      "breached": "Breached",
       "won": "Won",
       "lost": "Lost",
       "unassigned": "Unassigned"
@@ -13,6 +16,29 @@
       "search_placeholder": "Search requests...",
       "all_statuses": "All statuses",
       "all_customers": "All customers"
+    },
+    "triage": {
+      "label": "Triage",
+      "priority_short": "P{value}",
+      "inactive_days": "{count}d idle",
+      "queues": {
+        "all": "All",
+        "new": "New",
+        "due_soon": "Due soon",
+        "stale": "Stale",
+        "breached": "Breached",
+        "active": "Active",
+        "closed": "Closed",
+        "unknown": "Unknown"
+      },
+      "risk_levels": {
+        "critical": "Critical risk",
+        "high": "High risk",
+        "medium": "Medium risk",
+        "low": "Low risk",
+        "closed": "Closed",
+        "unknown": "Unknown risk"
+      }
     },
     "actions": {
       "clear": "Clear",
@@ -251,10 +277,16 @@
       "subtitle": "Rolling insights to track lead performance.",
       "first_response": "Avg first response",
       "first_response_note": "Based on first action after lead creation.",
+      "time_to_intake": "Avg time to intake",
+      "time_to_intake_note": "Measures how long a lead stays untouched before real handling starts.",
       "conversion_rate": "Conversion rate",
       "conversion_note": "Won leads vs total created.",
       "total_leads": "New leads",
       "total_note": "Created in the last {days} days.",
+      "stale_count": "Stale leads",
+      "stale_note": "Open leads with no activity for at least 7 days.",
+      "breached_count": "Breached leads",
+      "breached_note": "Open leads with an overdue follow-up or missed SLA.",
       "form": {
         "title": "Lead form performance",
         "window": "Last {days} days",
@@ -435,6 +467,11 @@
       "assignee": "Assignee",
       "follow_up": "Next follow-up",
       "lost_reason": "Lost reason"
+    },
+    "quick_actions": {
+      "follow_up_tomorrow": "Tomorrow",
+      "follow_up_three_days": "+3d",
+      "follow_up_seven_days": "+7d"
     },
     "quick_form": {
       "new_customer": "New customer",

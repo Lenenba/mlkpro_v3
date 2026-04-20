@@ -66,6 +66,105 @@ const statusPillClass = (status) => {
     }
 };
 
+const triageQueueLabel = (queue) => {
+    switch (queue) {
+        case 'new':
+            return t('requests.triage.queues.new');
+        case 'due_soon':
+            return t('requests.triage.queues.due_soon');
+        case 'stale':
+            return t('requests.triage.queues.stale');
+        case 'breached':
+            return t('requests.triage.queues.breached');
+        case 'active':
+            return t('requests.triage.queues.active');
+        case 'closed':
+            return t('requests.triage.queues.closed');
+        default:
+            return queue || t('requests.triage.queues.unknown');
+    }
+};
+
+const triageQueueClass = (queue) => {
+    switch (queue) {
+        case 'new':
+            return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300';
+        case 'due_soon':
+            return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-500/10 dark:text-cyan-300';
+        case 'stale':
+            return 'bg-orange-100 text-orange-800 dark:bg-orange-500/10 dark:text-orange-300';
+        case 'breached':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
+        case 'active':
+            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300';
+        default:
+            return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
+    }
+};
+
+const triageRiskLabel = (riskLevel) => {
+    switch (riskLevel) {
+        case 'critical':
+            return t('requests.triage.risk_levels.critical');
+        case 'high':
+            return t('requests.triage.risk_levels.high');
+        case 'medium':
+            return t('requests.triage.risk_levels.medium');
+        case 'low':
+            return t('requests.triage.risk_levels.low');
+        case 'closed':
+            return t('requests.triage.risk_levels.closed');
+        default:
+            return riskLevel || t('requests.triage.risk_levels.unknown');
+    }
+};
+
+const triageRiskClass = (riskLevel) => {
+    switch (riskLevel) {
+        case 'critical':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
+        case 'high':
+            return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300';
+        case 'medium':
+            return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-300';
+        case 'low':
+            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300';
+        default:
+            return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
+    }
+};
+
+const triagePriorityClass = (priority) => {
+    const value = Number(priority || 0);
+
+    if (value >= 90) {
+        return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300';
+    }
+
+    if (value >= 70) {
+        return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300';
+    }
+
+    if (value > 0) {
+        return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300';
+    }
+
+    return 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300';
+};
+
+const triageCardClass = (lead) => {
+    switch (lead?.triage_queue) {
+        case 'breached':
+            return 'border-rose-200 bg-rose-50/40 shadow-rose-100/40 dark:border-rose-500/30 dark:bg-rose-500/5';
+        case 'due_soon':
+            return 'border-cyan-200 bg-cyan-50/40 shadow-cyan-100/40 dark:border-cyan-500/30 dark:bg-cyan-500/5';
+        case 'stale':
+            return 'border-amber-200 bg-amber-50/30 shadow-amber-100/40 dark:border-amber-500/30 dark:bg-amber-500/5';
+        default:
+            return 'border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-900';
+    }
+};
+
 const boardStatuses = computed(() => {
     if (props.statuses?.length) {
         return props.statuses.map((status) => String(status.id));
@@ -227,16 +326,36 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                 >
                     <template #item="{ element }">
                         <div
-                            class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm transition hover:border-stone-300 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-900"
+                            class="rounded-sm border p-3 shadow-sm transition hover:border-stone-300 hover:shadow-md"
+                            :class="triageCardClass(element)"
+                            :data-testid="`request-board-card-${element.id}`"
                         >
                             <div class="flex items-start justify-between gap-2">
-                                <Link
-                                    :href="route('request.show', element.id)"
-                                    class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-100"
-                                    @click="(event) => { if (!canOpenCard()) event.preventDefault(); }"
-                                >
-                                    {{ element.title || element.service_type || $t('requests.labels.request_number', { id: element.id }) }}
-                                </Link>
+                                <div class="min-w-0">
+                                    <Link
+                                        :href="route('request.show', element.id)"
+                                        class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-100"
+                                        @click="(event) => { if (!canOpenCard()) event.preventDefault(); }"
+                                    >
+                                        {{ element.title || element.service_type || $t('requests.labels.request_number', { id: element.id }) }}
+                                    </Link>
+                                    <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                                        <span
+                                            v-if="element.triage_queue"
+                                            class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                            :class="triageQueueClass(element.triage_queue)"
+                                            :data-testid="`request-board-queue-${element.id}`"
+                                        >
+                                            {{ triageQueueLabel(element.triage_queue) }}
+                                        </span>
+                                        <span
+                                            class="rounded-full border px-2 py-0.5 text-[11px] font-medium"
+                                            :class="triagePriorityClass(element.triage_priority)"
+                                        >
+                                            {{ $t('requests.triage.priority_short', { value: element.triage_priority || 0 }) }}
+                                        </span>
+                                    </div>
+                                </div>
                                 <span class="rounded-full px-2 py-0.5 text-[11px] font-medium" :class="statusPillClass(element.status)">
                                     {{ statusLabel(element.status) }}
                                 </span>
@@ -257,6 +376,24 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                                     :class="badgeClass(badge.tone)"
                                 >
                                     {{ badge.label }}
+                                </span>
+                            </div>
+
+                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                <span
+                                    v-if="element.risk_level"
+                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                    :class="triageRiskClass(element.risk_level)"
+                                >
+                                    {{ triageRiskLabel(element.risk_level) }}
+                                </span>
+                                <span
+                                    v-if="element.days_since_activity !== null
+                                        && element.days_since_activity !== undefined
+                                        && Number(element.days_since_activity) > 0"
+                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200"
+                                >
+                                    {{ $t('requests.triage.inactive_days', { count: element.days_since_activity }) }}
                                 </span>
                             </div>
 

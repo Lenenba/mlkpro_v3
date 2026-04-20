@@ -13,7 +13,8 @@ use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Request as LeadRequest;
 use App\Models\TeamMember;
-use App\Models\TrackingEvent;
+use App\Queries\Requests\BuildRequestAnalyticsData;
+use App\Queries\Requests\BuildRequestInboxIndexData;
 use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\UsageLimitService;
 use App\Support\BulkActions\BulkActionRegistry;
@@ -34,97 +35,10 @@ class RequestController extends Controller
             abort(403);
         }
 
-        $filters = $request->only([
-            'search',
-            'status',
-            'customer_id',
-            'view',
-        ]);
-        $filters['per_page'] = $this->resolveDataTablePerPage($request);
-
-        $allowedViews = ['table', 'board'];
-        $filters['view'] = in_array($filters['view'] ?? null, $allowedViews, true)
-            ? $filters['view']
-            : 'table';
-
-        $allowedStatuses = LeadRequest::STATUSES;
-        $baseQuery = LeadRequest::query()
-            ->where('user_id', $accountId)
-            ->when(
-                $filters['search'] ?? null,
-                function ($query, $search) {
-                    $query->where(function ($sub) use ($search) {
-                        $sub->where('title', 'like', '%'.$search.'%')
-                            ->orWhere('service_type', 'like', '%'.$search.'%')
-                            ->orWhere('description', 'like', '%'.$search.'%')
-                            ->orWhere('contact_name', 'like', '%'.$search.'%')
-                            ->orWhere('contact_email', 'like', '%'.$search.'%')
-                            ->orWhere('contact_phone', 'like', '%'.$search.'%')
-                            ->orWhere('external_customer_id', 'like', '%'.$search.'%');
-                    });
-                }
-            )
-            ->when(
-                $filters['status'] ?? null,
-                function ($query, $status) {
-                    $allowed = LeadRequest::STATUSES;
-                    if (! in_array($status, $allowed, true)) {
-                        return;
-                    }
-                    $query->where('status', $status);
-                }
-            )
-            ->when(
-                $filters['customer_id'] ?? null,
-                fn ($query, $customerId) => $query->where('customer_id', $customerId)
-            );
-
-        $requestsQuery = (clone $baseQuery)
-            ->with([
-                'customer:id,company_name,first_name,last_name,email,phone',
-                'quote:id,number,status,customer_id,request_id',
-                'assignee:id,user_id,account_id',
-                'assignee.user:id,name',
-            ])
-            ->orderByRaw('CASE WHEN next_follow_up_at IS NULL THEN 1 ELSE 0 END')
-            ->orderBy('next_follow_up_at')
-            ->latest();
-
-        if ($filters['view'] === 'board') {
-            $items = $requestsQuery->get();
-            $perPage = max($items->count(), 1);
-            $requests = new \Illuminate\Pagination\LengthAwarePaginator(
-                $items,
-                $items->count(),
-                $perPage,
-                1,
-                [
-                    'path' => $request->url(),
-                    'query' => $request->query(),
-                ]
-            );
-        } else {
-            $requests = $requestsQuery
-                ->paginate((int) $filters['per_page'])
-                ->withQueryString();
-        }
-
-        $openStatuses = [
-            LeadRequest::STATUS_NEW,
-            LeadRequest::STATUS_CALL_REQUESTED,
-            LeadRequest::STATUS_CONTACTED,
-            LeadRequest::STATUS_QUALIFIED,
-            LeadRequest::STATUS_QUOTE_SENT,
-        ];
-
-        $stats = [
-            'total' => (clone $baseQuery)->count(),
-            'new' => (clone $baseQuery)->where('status', LeadRequest::STATUS_NEW)->count(),
-            'in_progress' => (clone $baseQuery)->whereIn('status', $openStatuses)->count(),
-            'won' => (clone $baseQuery)->where('status', LeadRequest::STATUS_WON)->count(),
-            'lost' => (clone $baseQuery)->where('status', LeadRequest::STATUS_LOST)->count(),
-            'unassigned' => (clone $baseQuery)->whereNull('assigned_team_member_id')->count(),
-        ];
+        $indexData = app(BuildRequestInboxIndexData::class)->execute($accountId, $request);
+        $filters = $indexData['filters'];
+        $requests = $indexData['requests'];
+        $stats = $indexData['stats'];
 
         $customers = Customer::byUser($accountId)
             ->with(['properties' => function ($query) {
@@ -183,142 +97,6 @@ class RequestController extends Controller
             })
             ->values();
 
-        $windowDays = 30;
-        $windowStart = now()->subDays($windowDays);
-
-        $firstResponseSub = ActivityLog::query()
-            ->selectRaw('subject_id, MIN(created_at) as first_response_at')
-            ->where('subject_type', LeadRequest::class)
-            ->where('action', '!=', 'created')
-            ->groupBy('subject_id');
-
-        $kpiLeads = LeadRequest::query()
-            ->where('user_id', $accountId)
-            ->where('created_at', '>=', $windowStart)
-            ->leftJoinSub($firstResponseSub, 'first_responses', function ($join) {
-                $join->on('requests.id', '=', 'first_responses.subject_id');
-            })
-            ->get([
-                'requests.id',
-                'requests.status',
-                'requests.channel',
-                'requests.created_at',
-                'first_responses.first_response_at',
-            ]);
-
-        $firstResponseSeconds = $kpiLeads
-            ->filter(fn ($lead) => ! empty($lead->first_response_at))
-            ->map(function ($lead) {
-                $createdAt = Carbon::parse($lead->created_at);
-                $responseAt = Carbon::parse($lead->first_response_at);
-
-                return $responseAt->greaterThan($createdAt)
-                    ? $responseAt->diffInSeconds($createdAt)
-                    : 0;
-            });
-
-        $avgResponseSeconds = $firstResponseSeconds->count()
-            ? $firstResponseSeconds->avg()
-            : null;
-        $avgResponseHours = $avgResponseSeconds !== null
-            ? round($avgResponseSeconds / 3600, 1)
-            : null;
-
-        $kpiTotal = $kpiLeads->count();
-        $kpiWon = $kpiLeads->where('status', LeadRequest::STATUS_WON)->count();
-        $conversionRate = $kpiTotal > 0 ? round(($kpiWon / $kpiTotal) * 100, 1) : 0;
-
-        $conversionBySource = $kpiLeads
-            ->groupBy(function ($lead) {
-                return $this->normalizeChannel($lead->channel) ?: 'unknown';
-            })
-            ->map(function ($items, $channel) {
-                $total = $items->count();
-                $won = $items->where('status', LeadRequest::STATUS_WON)->count();
-
-                return [
-                    'source' => $channel,
-                    'total' => $total,
-                    'won' => $won,
-                    'rate' => $total > 0 ? round(($won / $total) * 100, 1) : 0,
-                ];
-            })
-            ->values()
-            ->sortByDesc('total')
-            ->values();
-
-        $formWindowDays = 30;
-        $formWindowStart = now()->subDays($formWindowDays)->startOfDay();
-        $viewsQuery = TrackingEvent::query()
-            ->where('event_type', 'lead_form_view')
-            ->where('user_id', $accountId);
-        $submitsQuery = TrackingEvent::query()
-            ->where('event_type', 'lead_form_submit')
-            ->where('user_id', $accountId);
-
-        $formViews = (clone $viewsQuery)
-            ->where('created_at', '>=', $formWindowStart)
-            ->count();
-        $formUniqueViews = (clone $viewsQuery)
-            ->where('created_at', '>=', $formWindowStart)
-            ->whereNotNull('visitor_hash')
-            ->distinct('visitor_hash')
-            ->count('visitor_hash');
-        $formSubmits = (clone $submitsQuery)
-            ->where('created_at', '>=', $formWindowStart)
-            ->count();
-        $formConversion = $formViews > 0 ? round(($formSubmits / $formViews) * 100, 1) : 0;
-        $lastFormView = (clone $viewsQuery)->latest('created_at')->first(['created_at']);
-        $lastFormSubmit = (clone $submitsQuery)->latest('created_at')->first(['created_at']);
-        $topReferrers = $this->topTrackingValues($accountId, 'lead_form_view', 'referrer_host', $formWindowStart);
-        $topUtmSources = $this->topTrackingValues($accountId, 'lead_form_view', 'utm_source', $formWindowStart);
-        $topUtmMediums = $this->topTrackingValues($accountId, 'lead_form_view', 'utm_medium', $formWindowStart);
-        $topUtmCampaigns = $this->topTrackingValues($accountId, 'lead_form_view', 'utm_campaign', $formWindowStart);
-
-        $lastActivitySub = ActivityLog::query()
-            ->selectRaw('subject_id, MAX(created_at) as last_activity_at')
-            ->where('subject_type', LeadRequest::class)
-            ->groupBy('subject_id');
-
-        $riskCandidates = LeadRequest::query()
-            ->where('user_id', $accountId)
-            ->whereIn('status', $openStatuses)
-            ->leftJoinSub($lastActivitySub, 'last_activity', function ($join) {
-                $join->on('requests.id', '=', 'last_activity.subject_id');
-            })
-            ->with(['assignee.user:id,name', 'customer:id,company_name,first_name,last_name'])
-            ->orderByRaw('COALESCE(last_activity.last_activity_at, requests.updated_at, requests.created_at) ASC')
-            ->limit(30)
-            ->get(['requests.*', 'last_activity.last_activity_at']);
-
-        $now = now();
-        $riskLeads = $riskCandidates
-            ->map(function ($lead) use ($now) {
-                $lastActivity = $lead->last_activity_at ?? $lead->updated_at ?? $lead->created_at;
-                $lastActivityAt = $lastActivity ? Carbon::parse($lastActivity) : null;
-                $days = $lastActivityAt ? $now->diffInDays($lastActivityAt) : 0;
-                $customerName = $lead->customer
-                    ? ($lead->customer->company_name
-                        ?: trim(($lead->customer->first_name ?? '').' '.($lead->customer->last_name ?? '')))
-                    : null;
-
-                return [
-                    'id' => $lead->id,
-                    'title' => $lead->title,
-                    'service_type' => $lead->service_type,
-                    'status' => $lead->status,
-                    'channel' => $lead->channel,
-                    'last_activity_at' => $lastActivityAt,
-                    'next_follow_up_at' => $lead->next_follow_up_at,
-                    'assignee_name' => $lead->assignee?->user?->name ?? $lead->assignee?->name,
-                    'customer_name' => $customerName,
-                    'days_since_activity' => $days,
-                ];
-            })
-            ->filter(fn ($lead) => $lead['days_since_activity'] >= 7)
-            ->values()
-            ->take(10);
-
         $leadIntake = [
             'public_form_url' => URL::signedRoute('public.requests.form', ['user' => $accountId]),
             'api_endpoint' => route('api.integrations.requests.store'),
@@ -336,50 +114,8 @@ class RequestController extends Controller
                 'assignees' => $assignees,
             ]),
             'lead_intake' => $leadIntake,
-            'analytics' => [
-                'window_days' => $windowDays,
-                'total' => $kpiTotal,
-                'won' => $kpiWon,
-                'avg_first_response_hours' => $avgResponseHours,
-                'conversion_rate' => $conversionRate,
-                'conversion_by_source' => $conversionBySource,
-                'lead_form' => [
-                    'window_days' => $formWindowDays,
-                    'views' => $formViews,
-                    'unique_views' => $formUniqueViews,
-                    'submits' => $formSubmits,
-                    'conversion_rate' => $formConversion,
-                    'last_view_at' => $lastFormView?->created_at?->toJSON(),
-                    'last_submit_at' => $lastFormSubmit?->created_at?->toJSON(),
-                    'top_referrers' => $topReferrers,
-                    'top_utm_sources' => $topUtmSources,
-                    'top_utm_mediums' => $topUtmMediums,
-                    'top_utm_campaigns' => $topUtmCampaigns,
-                ],
-                'risk_leads' => $riskLeads,
-            ],
+            'analytics' => app(BuildRequestAnalyticsData::class)->execute($accountId),
         ]);
-    }
-
-    private function topTrackingValues(int $accountId, string $eventType, string $key, Carbon $since, int $limit = 5): array
-    {
-        $path = sprintf('$.%s', $key);
-        $selector = "JSON_UNQUOTE(JSON_EXTRACT(meta, '{$path}'))";
-
-        return TrackingEvent::query()
-            ->selectRaw("{$selector} as value, COUNT(*) as count")
-            ->where('event_type', $eventType)
-            ->where('user_id', $accountId)
-            ->where('created_at', '>=', $since)
-            ->whereRaw("JSON_EXTRACT(meta, '{$path}') IS NOT NULL")
-            ->groupBy('value')
-            ->orderByDesc('count')
-            ->limit($limit)
-            ->get()
-            ->filter(fn ($row) => $row->value !== null && $row->value !== '')
-            ->map(fn ($row) => ['value' => $row->value, 'count' => (int) $row->count])
-            ->values()
-            ->all();
     }
 
     public function show(Request $request, LeadRequest $lead)

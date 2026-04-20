@@ -9,6 +9,7 @@ use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
 use App\Models\Sale;
+use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
@@ -26,7 +27,33 @@ class E2ESmokeSeeder extends Seeder
             'company_slug' => 'e2e-service-company',
             'company_type' => 'services',
             'company_sector' => 'construction',
+            'company_features' => [
+                'requests' => true,
+                'quotes' => true,
+                'team_members' => true,
+            ],
             'is_suspended' => false,
+        ]);
+
+        $serviceRepUser = User::factory()->create([
+            'name' => 'E2E Service Rep',
+            'email' => 'e2e.service.rep@example.test',
+            'company_name' => 'E2E Service Company',
+            'company_slug' => 'e2e-service-rep',
+            'company_type' => 'services',
+            'company_sector' => 'construction',
+            'is_suspended' => false,
+        ]);
+
+        $serviceRep = TeamMember::create([
+            'account_id' => $serviceOwner->id,
+            'user_id' => $serviceRepUser->id,
+            'role' => 'sales_manager',
+            'title' => 'Sales rep',
+            'phone' => '+15145550003',
+            'permissions' => ['requests.view', 'requests.edit', 'quotes.view', 'quotes.edit'],
+            'planning_rules' => null,
+            'is_active' => true,
         ]);
 
         $serviceCustomer = Customer::create([
@@ -56,6 +83,64 @@ class E2ESmokeSeeder extends Seeder
             'subtotal' => 1250,
             'total' => 1250,
             'initial_deposit' => 0,
+        ]);
+
+        $newLead = LeadRequest::create([
+            'user_id' => $serviceOwner->id,
+            'customer_id' => $serviceCustomer->id,
+            'status' => LeadRequest::STATUS_NEW,
+            'title' => 'E2E Fresh Lead',
+            'service_type' => 'Repair',
+            'contact_name' => 'Fresh Prospect',
+            'contact_email' => 'fresh.lead@example.test',
+        ]);
+
+        $dueSoonLead = LeadRequest::create([
+            'user_id' => $serviceOwner->id,
+            'customer_id' => $serviceCustomer->id,
+            'status' => LeadRequest::STATUS_CONTACTED,
+            'title' => 'E2E Due Soon Lead',
+            'service_type' => 'Inspection',
+            'contact_name' => 'Due Soon Prospect',
+            'contact_email' => 'due-soon.lead@example.test',
+            'first_response_at' => now()->subDay(),
+            'last_activity_at' => now()->subHours(12),
+            'next_follow_up_at' => now()->addHours(4),
+        ]);
+
+        $staleLead = LeadRequest::create([
+            'user_id' => $serviceOwner->id,
+            'customer_id' => $serviceCustomer->id,
+            'status' => LeadRequest::STATUS_QUALIFIED,
+            'title' => 'E2E Stale Lead',
+            'service_type' => 'Maintenance',
+            'contact_name' => 'Stale Prospect',
+            'contact_email' => 'stale.lead@example.test',
+            'first_response_at' => now()->subDays(10),
+            'last_activity_at' => now()->subDays(8),
+        ]);
+
+        $breachedLead = LeadRequest::create([
+            'user_id' => $serviceOwner->id,
+            'customer_id' => $serviceCustomer->id,
+            'status' => LeadRequest::STATUS_CONTACTED,
+            'title' => 'E2E Breached Lead',
+            'service_type' => 'Emergency',
+            'contact_name' => 'Breached Prospect',
+            'contact_email' => 'breached.lead@example.test',
+            'first_response_at' => now()->subDays(2),
+            'last_activity_at' => now()->subDay(),
+            'next_follow_up_at' => now()->subHours(2),
+        ]);
+
+        $convertibleLead = LeadRequest::create([
+            'user_id' => $serviceOwner->id,
+            'customer_id' => $serviceCustomer->id,
+            'status' => LeadRequest::STATUS_NEW,
+            'title' => 'E2E Convert Lead',
+            'service_type' => 'Upgrade',
+            'contact_name' => 'Convert Prospect',
+            'contact_email' => 'convert.lead@example.test',
         ]);
 
         $productOwner = User::factory()->create([
@@ -148,6 +233,21 @@ class E2ESmokeSeeder extends Seeder
                 'leadTitle' => $lead->title,
                 'quoteNumber' => $quote->number,
                 'path' => route('customer.show', $serviceCustomer, absolute: false),
+            ],
+            'requestInbox' => [
+                'path' => route('request.index', absolute: false),
+                'newLeadId' => $newLead->id,
+                'newLeadTitle' => $newLead->title,
+                'dueSoonLeadId' => $dueSoonLead->id,
+                'dueSoonLeadTitle' => $dueSoonLead->title,
+                'staleLeadId' => $staleLead->id,
+                'staleLeadTitle' => $staleLead->title,
+                'breachedLeadId' => $breachedLead->id,
+                'breachedLeadTitle' => $breachedLead->title,
+                'convertLeadId' => $convertibleLead->id,
+                'convertLeadTitle' => $convertibleLead->title,
+                'assigneeId' => $serviceRep->id,
+                'assigneeName' => $serviceRepUser->name,
             ],
             'productOwner' => [
                 'name' => $productOwner->name,

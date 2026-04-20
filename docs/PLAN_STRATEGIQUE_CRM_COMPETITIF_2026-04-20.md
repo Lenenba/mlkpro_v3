@@ -105,6 +105,20 @@ On ne lance pas en parallele:
 
 Il faut monter par couches.
 
+### 4.4 La stabilite de la base prime sur tout
+
+Regle non negociable:
+
+- aucune phase CRM ne doit fragiliser le coeur du produit
+- le flux `lead -> devis -> execution -> revenu` doit rester exploitable en permanence
+- toute nouveaute doit etre livree de facon additive, reversible, et testable
+
+En clair:
+
+- on ne casse pas la base pour accelerer une roadmap
+- on ne remplace pas brutalement les workflows existants
+- on ne deplace pas les equipes sur une nouvelle UX sans filet de securite
+
 ## 5. Vision cible en fin de trajectoire
 
 Si on execute bien, la version cible doit permettre:
@@ -150,6 +164,10 @@ Decision recommandee:
 
 - faible
 - 2 a 5 jours de cadrage reel
+
+### Document de reference
+
+- `docs/PHASE_0_CRM_REQUEST_FIRST_CADRAGE_2026-04-20.md`
 
 ### Condition de sortie
 
@@ -222,6 +240,10 @@ Ajouter ou stabiliser:
 
 - moyen
 - environ 2 a 4 semaines selon profondeur
+
+### Document de reference
+
+- `docs/PHASE_1_LEAD_SLA_INBOX_SMART_TRIAGE_2026-04-20.md`
 
 ## Phase 2 - Quote Recovery and Conversion Cockpit
 
@@ -518,17 +540,126 @@ Resultat attendu:
 - couche commerciale plus mature
 - positionnement plus credible contre certains CRM sales-first
 
-## 8. Ce qu'il faut faire tout de suite
+## 8. Cadre de stabilite et anti-regression
 
-Les 5 actions immediates recommandees sont:
+Ce plan ne vaut que si la base reste stable.
+
+La stabilite n'est pas une contrainte secondaire.
+
+Elle est une condition de livraison.
+
+### 8.1 Regle absolue
+
+Aucune phase ne sort si elle degrade un des points suivants:
+
+- creation et suivi des leads
+- transformation en devis
+- execution terrain / jobs / taches
+- facturation et suivi revenu
+- navigation quotidienne des equipes existantes
+
+### 8.2 Regles d'implementation obligatoires
+
+Chaque phase doit respecter ces regles:
+
+1. livrer derriere feature flag quand le risque est non trivial
+2. preferer des evolutions additives plutot qu'un remplacement brutal
+3. ne jamais coupler une innovation CRM a une refonte massive de modules coeur
+4. conserver un chemin utilisateur stable vers les actions critiques existantes
+5. limiter les migrations destructives a une phase ulterieure, apres periode de stabilisation
+6. prevoir un rollback simple: desactivation du flag, retour ancien read path, ou fallback UI
+
+### 8.3 Regles data et migrations
+
+Pour proteger la base:
+
+- ajouter d'abord les nouvelles colonnes ou tables sans casser les lectures existantes
+- backfiller avant de rendre les nouveaux champs obligatoires
+- utiliser dual write ou dual read temporaire si un objet ou une source change
+- ne supprimer un champ, une route, ou une branche de lecture qu'apres validation en production
+- documenter les impacts schema avant chaque release sensible
+
+### 8.4 Regles UX et workflow
+
+Pour proteger les usages quotidiens:
+
+- ne pas retirer un bouton critique sans alternative visible
+- ne pas deplacer plusieurs actions coeur dans la meme release
+- garder board, liste, details et actions rapides utilisables meme si la nouveaute est desactivee
+- introduire les nouvelles vues comme couche complementaire avant d'en faire la vue par defaut
+
+### 8.5 Regles de test minimales par phase
+
+Le repo a deja une bonne base de verification continue:
+
+- workflow `quality`
+- suites `phpunit`
+- smoke browser `Playwright`
+
+Avant chaque sortie de phase, il faut au minimum:
+
+1. garder `composer qa:test` au vert
+2. garder `php artisan test` au vert sur le run MySQL
+3. garder `npm run qa:build` au vert
+4. garder `npm run qa:e2e` ou au minimum le smoke browser critique au vert
+5. ajouter au moins un test de non-regression pour chaque comportement nouveau a risque
+6. ajouter ou etendre un smoke test sur le parcours utilisateur touche
+
+### 8.6 Gate de sortie commune a toutes les phases
+
+Une phase n'est pas consideree comme "terminee" si un des points suivants manque:
+
+1. tests applicatifs verts
+2. smoke browser vert sur les parcours touches
+3. migration reversible ou risque clairement borne
+4. feature flag ou strategie de retour arriere documentee
+5. old workflow encore fonctionnel
+6. monitoring post-release defini
+
+### 8.7 Monitoring post-release
+
+Chaque release CRM doit etre observee sur:
+
+- erreurs applicatives
+- jobs et queues en echec
+- temps de reponse des pages critiques
+- taux de conversion lead -> quote
+- taux quote -> accepted
+- volume d'elements stale ou sans action
+- signaux support ou tickets internes
+
+### 8.8 Strategie de rollout recommandee
+
+Le bon schema est:
+
+1. activer en interne
+2. activer sur un petit groupe ou une company pilote
+3. verifier logs, conversions, et feedback terrain
+4. elargir progressivement
+5. seulement ensuite rendre plus visible dans l'UX par defaut
+
+### 8.9 Application concrete a notre roadmap
+
+Pour ce plan, cela veut dire:
+
+- Phase 1 doit renforcer `Request`, pas le destabiliser
+- Phase 2 doit reutiliser les devis existants avant de creer des objets supplementaires
+- Phase 3 doit s'appuyer sur `BulkActionRegistry` et les campagnes plutot que multiplier les moteurs
+- Phase 4 doit etendre `ActivityLog` avant de creer une couche d'activite trop separee
+- Phases 5 et 6 ne doivent commencer que si les 4 premieres sont stables en usage reel
+
+## 9. Ce qu'il faut faire tout de suite
+
+Les 6 actions immediates recommandees sont:
 
 1. verrouiller le cadrage Phase 0
 2. choisir officiellement `Request-first` comme strategie de depart
 3. lancer `Lead SLA Inbox and Smart Triage`
 4. preparer en parallele le schema du `Quote Recovery Cockpit`
 5. definir les KPIs de reference avant implementation
+6. definir la checklist anti-regression obligatoire pour chaque release CRM
 
-## 9. KPIs a suivre des le debut
+## 10. KPIs a suivre des le debut
 
 ### Leads
 
@@ -555,9 +686,9 @@ Les 5 actions immediates recommandees sont:
 - lead aging
 - cash relance influence
 
-## 10. Risques principaux
+## 11. Risques principaux
 
-## 10.1 Risque de sur-ambition
+## 11.1 Risque de sur-ambition
 
 Vouloir lancer:
 
@@ -575,21 +706,38 @@ avant d'avoir solidifie:
 
 serait une erreur.
 
-## 10.2 Risque de mauvais positionnement
+## 11.2 Risque de mauvais positionnement
 
 Si on vend le produit comme "un HubSpot equivalent", on cree un ecart entre la promesse et la realite.
 
-## 10.3 Risque de fragmentation
+## 11.3 Risque de fragmentation
 
 Si on ajoute trop d'objets trop vite, on dilue la lisibilite du workflow.
 
-## 10.4 Risque de dette UX
+## 11.4 Risque de dette UX
 
 Le produit a deja beaucoup de modules.
 
 Chaque phase doit donc simplifier la lecture quotidienne, pas ajouter des ecrans pour ajouter des ecrans.
 
-## 11. Recommendation finale
+## 11.5 Risque de regression silencieuse
+
+Le risque le plus dangereux n'est pas seulement un bug visible.
+
+Le vrai danger est:
+
+- une baisse de conversion
+- une action critique devenue plus lente
+- un workflow metier devenu plus confus
+- un module stable fragilise par une couche CRM ajoutee trop vite
+
+C'est pour cela que:
+
+- chaque phase doit avoir un avant/apres mesure
+- chaque release doit avoir une capacite de rollback simple
+- aucun "gros merge CRM" ne doit partir sans garde-fous de validation
+
+## 12. Recommendation finale
 
 Oui, on peut y arriver.
 
@@ -610,7 +758,7 @@ Si on suit ce plan, Malikia Pro peut devenir:
 - plus credible commercialement en quelques mois
 - puis progressivement assez mature pour se rapprocher de certains usages HubSpot / Pipedrive
 
-## 12. Priorite recommandee
+## 13. Priorite recommandee
 
 Si on doit choisir un seul point de depart:
 
@@ -622,8 +770,12 @@ Pourquoi:
 - meilleure reutilisation du code existant
 - meilleure base pour tout le reste
 
-## 13. Documents lies
+## 14. Documents lies
 
 - `docs/CRM_ANALYSE_CONCURRENTIELLE_2026-04-20.md`
+- `docs/CRM_DEV_EXECUTION_PHASES_2026-04-20.md`
+- `docs/PHASE_0_CRM_REQUEST_FIRST_CADRAGE_2026-04-20.md`
+- `docs/PHASE_1_LEAD_SLA_INBOX_SMART_TRIAGE_2026-04-20.md`
+- `docs/PHASE_1_REQUEST_INBOX_DEV_BACKLOG_2026-04-20.md`
 - `docs/NEXT_HIGH_VALUE_MODULES_USER_STORY.md`
 - `docs/CAMPAIGNS_MODULE.md`
