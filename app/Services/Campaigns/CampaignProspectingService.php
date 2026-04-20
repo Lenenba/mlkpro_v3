@@ -1078,6 +1078,24 @@ class CampaignProspectingService
             $reasons[] = 'intent_signal';
         }
 
+        if ($this->containsSystemChangeSignal($text)) {
+            $fitScore += 12;
+            $intentScore += 20;
+            $reasons[] = 'system_change_signal';
+        }
+
+        if ($this->containsOperationalRoleSignal($text)) {
+            $fitScore += 8;
+            $intentScore += 6;
+            $reasons[] = 'operational_buyer_signal';
+        }
+
+        if ($this->suggestsLowSoftwareMaturity($normalized)) {
+            $fitScore += 6;
+            $intentScore += 6;
+            $reasons[] = 'low_software_maturity_signal';
+        }
+
         $fitScore = max(0, min(100, $fitScore));
         $intentScore = max(0, min(100, $intentScore));
         $priorityScore = (int) round(($fitScore * 0.65) + ($intentScore * 0.35));
@@ -1176,18 +1194,61 @@ class CampaignProspectingService
             $normalized['website_domain'] ?? null,
             is_array($normalized['tags'] ?? null) ? implode(' ', $normalized['tags']) : null,
             $normalized['owner_notes'] ?? null,
+            data_get($normalized, 'metadata.provider_query'),
+            data_get($normalized, 'metadata.provider_query_label'),
+            data_get($normalized, 'metadata.apollo_search_query'),
+            data_get($normalized, 'metadata.apollo_search_query_label'),
+            data_get($normalized, 'metadata.apollo_title'),
         ])));
     }
 
     private function containsIntentSignal(string $text): bool
     {
-        foreach (['quote', 'pricing', 'demo', 'book', 'call', 'urgent', 'buy', 'service'] as $needle) {
+        foreach (['quote', 'pricing', 'demo', 'book', 'call', 'urgent', 'buy', 'service', 'audit', 'review', 'replace', 'switch', 'migration'] as $needle) {
             if (str_contains($text, $needle)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function containsSystemChangeSignal(string $text): bool
+    {
+        foreach ([
+            'system', 'systeme', 'logiciel', 'software', 'crm', 'workflow', 'process',
+            'processus', 'manual', 'manuelle', 'excel', 'spreadsheet', 'legacy', 'obsolete',
+            'unstable', 'instable', 'chaos', 'migration', 'migrate', 'replace', 'replacement',
+            'switch', 'changer', 'change', 'modernize', 'moderniser',
+        ] as $needle) {
+            if (str_contains($text, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function containsOperationalRoleSignal(string $text): bool
+    {
+        foreach ([
+            'owner', 'founder', 'operations', 'office manager', 'general manager', 'dispatcher',
+            'scheduler', 'administrator', 'admin', 'coordinator', 'president',
+        ] as $needle) {
+            if (str_contains($text, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $normalized
+     */
+    private function suggestsLowSoftwareMaturity(array $normalized): bool
+    {
+        return in_array((string) ($normalized['company_size'] ?? ''), ['1-10', '11-50'], true);
     }
 
     private function normalizeEmail(?string $value): ?string

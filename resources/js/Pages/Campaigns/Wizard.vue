@@ -398,9 +398,11 @@ const availableProspectProviders = computed(() => (
     Array.isArray(props.availableProspectProviders) ? props.availableProspectProviders : []
 ));
 
+const providerAuthMethodLabel = (value) => String(value || '').toLowerCase() === 'oauth' ? 'OAuth' : 'API key';
+
 const prospectingProviderOptions = computed(() => availableProspectProviders.value.map((connection) => ({
     value: String(connection.id),
-    label: `${connection.provider_label} - ${connection.label}`,
+    label: `${connection.provider_label} (${providerAuthMethodLabel(connection.auth_method || connection.auth_strategy)}) - ${connection.label}`,
 })));
 
 const selectedProspectProvider = computed(() => {
@@ -414,7 +416,7 @@ const selectedProspectProvider = computed(() => {
 
 const prospectingProviderPlaceholder = computed(() => {
     const providerKey = String(selectedProspectProvider.value?.provider_key || '').toLowerCase();
-    if (providerKey === 'apollo') {
+    if (providerKey.startsWith('apollo')) {
         return 'VP operations, ecommerce, Toronto, 11-50 employees';
     }
     if (providerKey === 'lusha') {
