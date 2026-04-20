@@ -42,6 +42,19 @@
     "show": {
       "timeline": "Chronologie",
       "no_rating_yet": "Pas encore d'evaluation",
+      "summary": {
+        "title": "Resume recovery",
+        "status": "Statut",
+        "next_follow_up": "Prochaine relance",
+        "last_followed_up": "Derniere relance",
+        "follow_up_count": "Nombre de relances",
+        "none": "Aucune"
+      },
+      "activity": {
+        "title": "Activite recente",
+        "empty": "Aucune activite de recovery pour ce devis.",
+        "author_fallback": "Systeme"
+      },
       "table": {
         "product_services": "Produits/Services",
         "qty": "Qt.",
@@ -142,9 +155,47 @@
       "open": "Devis ouverts",
       "accepted": "Acceptes",
       "declined": "Refuses",
+      "never_followed": "Sans relance",
+      "due": "Relance due",
+      "viewed_not_accepted": "Vu, sans decision",
+      "high_value": "Forte valeur ouverte",
+      "sent_to_accepted_rate": "Envoye vers accepte",
+      "recovery_title": "Cockpit recovery",
+      "recovery_subtitle": "Pression de relance et signaux de conversion sur les devis filtres.",
       "top_by_value": "Top devis par valeur",
       "based_on_filters": "Selon les filtres actifs",
       "empty": "Aucune donnee de devis."
+    },
+    "recovery": {
+      "label": "Recovery",
+      "priority_short": "P{value}",
+      "next_follow_up": "Relance",
+      "last_viewed": "Vu",
+      "age_days_short": "Age {count}j",
+      "follow_up_tomorrow": "Demain",
+      "follow_up_three_days": "+3j",
+      "follow_up_seven_days": "+7j",
+      "mark_done": "Fait",
+      "create_task": "Tache",
+      "queues": {
+        "all": "Toutes",
+        "active": "Actifs",
+        "closed": "Clotures",
+        "due": "Relance due",
+        "expired": "Expires",
+        "high_value": "Forte valeur",
+        "never_followed": "Sans relance",
+        "viewed_not_accepted": "Vu sans decision",
+        "unknown": "A revoir"
+      },
+      "priority_labels": {
+        "urgent": "Urgent",
+        "high": "Eleve",
+        "medium": "Moyen",
+        "low": "Faible",
+        "closed": "Clos",
+        "unknown": "A evaluer"
+      }
     },
     "empty": {
       "quotes": "Aucun devis pour le moment."

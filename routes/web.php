@@ -392,6 +392,11 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/quote/{quote}/accept', [QuoteController::class, 'accept'])->name('quote.accept');
         Route::post('/quote/{quote}/send-email', QuoteEmaillingController::class)->name('quote.send.email');
         Route::post('/quote/{quote}/convert', [QuoteController::class, 'convertToWork'])->name('quote.convert');
+        Route::patch('/quote/{quote}/recovery', [QuoteController::class, 'updateRecovery'])->name('quote.recovery.update');
+
+        Route::middleware('company.feature:tasks')->group(function () {
+            Route::post('/quote/{quote}/recovery-task', [QuoteController::class, 'storeRecoveryTask'])->name('quote.recovery.task.store');
+        });
 
         Route::middleware('company.feature:plan_scans')->group(function () {
             Route::get('/plan-scans', [PlanScanController::class, 'index'])->name('plan-scans.index');

@@ -285,6 +285,11 @@ Route::name('api.')->group(function () {
                 Route::post('quote/{quote}/accept', [QuoteController::class, 'accept']);
                 Route::post('quote/{quote}/send-email', QuoteEmaillingController::class);
                 Route::post('quote/{quote}/convert', [QuoteController::class, 'convertToWork']);
+                Route::patch('quote/{quote}/recovery', [QuoteController::class, 'updateRecovery']);
+
+                Route::middleware('company.feature:tasks')->group(function () {
+                    Route::post('quote/{quote}/recovery-task', [QuoteController::class, 'storeRecoveryTask']);
+                });
 
                 Route::middleware('company.feature:plan_scans')->group(function () {
                     Route::get('plan-scans', [PlanScanController::class, 'index']);

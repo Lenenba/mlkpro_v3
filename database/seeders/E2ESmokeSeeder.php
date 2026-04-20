@@ -31,6 +31,7 @@ class E2ESmokeSeeder extends Seeder
                 'requests' => true,
                 'quotes' => true,
                 'team_members' => true,
+                'tasks' => true,
             ],
             'is_suspended' => false,
         ]);
@@ -66,23 +67,51 @@ class E2ESmokeSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        $lead = LeadRequest::create([
+        $acceptLead = LeadRequest::create([
             'user_id' => $serviceOwner->id,
             'customer_id' => $serviceCustomer->id,
             'status' => LeadRequest::STATUS_QUOTE_SENT,
-            'title' => 'E2E Renovation Lead',
+            'title' => 'E2E Accept Lead',
             'service_type' => 'Renovation',
         ]);
 
-        $quote = Quote::create([
+        $acceptQuote = Quote::create([
             'user_id' => $serviceOwner->id,
             'customer_id' => $serviceCustomer->id,
-            'request_id' => $lead->id,
-            'job_title' => 'E2E Renovation Quote',
+            'request_id' => $acceptLead->id,
+            'job_title' => 'E2E Accept Quote',
             'status' => 'sent',
             'subtotal' => 1250,
             'total' => 1250,
             'initial_deposit' => 0,
+            'last_sent_at' => now()->subDays(3),
+            'follow_up_count' => 1,
+        ]);
+
+        $dueQuote = Quote::create([
+            'user_id' => $serviceOwner->id,
+            'customer_id' => $serviceCustomer->id,
+            'job_title' => 'E2E Due Quote',
+            'status' => 'sent',
+            'subtotal' => 980,
+            'total' => 980,
+            'initial_deposit' => 0,
+            'last_sent_at' => now()->subDays(4),
+            'next_follow_up_at' => now()->addHours(6),
+            'follow_up_count' => 1,
+            'follow_up_state' => 'due',
+        ]);
+
+        $archiveQuote = Quote::create([
+            'user_id' => $serviceOwner->id,
+            'customer_id' => $serviceCustomer->id,
+            'job_title' => 'E2E Archive Quote',
+            'status' => 'sent',
+            'subtotal' => 740,
+            'total' => 740,
+            'initial_deposit' => 0,
+            'last_sent_at' => now()->subDays(2),
+            'follow_up_count' => 0,
         ]);
 
         $newLead = LeadRequest::create([
@@ -230,9 +259,23 @@ class E2ESmokeSeeder extends Seeder
             'serviceCustomer' => [
                 'companyName' => $serviceCustomer->company_name,
                 'email' => $serviceCustomer->email,
-                'leadTitle' => $lead->title,
-                'quoteNumber' => $quote->number,
+                'leadTitle' => $acceptLead->title,
+                'quoteNumber' => $acceptQuote->number,
                 'path' => route('customer.show', $serviceCustomer, absolute: false),
+            ],
+            'quoteRecovery' => [
+                'path' => route('quote.index', absolute: false),
+                'dueQuoteId' => $dueQuote->id,
+                'dueQuoteNumber' => $dueQuote->number,
+                'dueQuoteTitle' => $dueQuote->job_title,
+                'archiveQuoteId' => $archiveQuote->id,
+                'archiveQuoteNumber' => $archiveQuote->number,
+                'archiveQuoteTitle' => $archiveQuote->job_title,
+                'acceptQuoteId' => $acceptQuote->id,
+                'acceptQuoteNumber' => $acceptQuote->number,
+                'acceptQuoteTitle' => $acceptQuote->job_title,
+                'requestId' => $acceptLead->id,
+                'requestPath' => route('request.show', $acceptLead, absolute: false),
             ],
             'requestInbox' => [
                 'path' => route('request.index', absolute: false),

@@ -42,6 +42,19 @@
     "show": {
       "timeline": "Línea de tiempo",
       "no_rating_yet": "Aún no hay calificación",
+      "summary": {
+        "title": "Resumen recovery",
+        "status": "Estado",
+        "next_follow_up": "Proximo seguimiento",
+        "last_followed_up": "Ultimo seguimiento",
+        "follow_up_count": "Cantidad de seguimientos",
+        "none": "Ninguno"
+      },
+      "activity": {
+        "title": "Actividad reciente",
+        "empty": "Todavia no hay actividad de recovery para esta cotizacion.",
+        "author_fallback": "Sistema"
+      },
       "table": {
         "product_services": "Producto/Servicios",
         "qty": "Cant.",
@@ -142,9 +155,47 @@
       "open": "Cotizaciones abiertas",
       "accepted": "Aceptado",
       "declined": "Rechazado",
+      "never_followed": "Sin seguimiento",
+      "due": "Seguimiento pendiente",
+      "viewed_not_accepted": "Vista, sin decision",
+      "high_value": "Alto valor abierta",
+      "sent_to_accepted_rate": "Enviadas a aceptadas",
+      "recovery_title": "Panel de recuperacion",
+      "recovery_subtitle": "Presion de seguimiento y senales de conversion sobre las cotizaciones filtradas.",
       "top_by_value": "Cotizaciones principales por valor",
       "based_on_filters": "Basado en filtros actuales",
       "empty": "Aún no hay datos de cotización."
+    },
+    "recovery": {
+      "label": "Recovery",
+      "priority_short": "P{value}",
+      "next_follow_up": "Seguimiento",
+      "last_viewed": "Vista",
+      "age_days_short": "Edad {count}d",
+      "follow_up_tomorrow": "Manana",
+      "follow_up_three_days": "+3d",
+      "follow_up_seven_days": "+7d",
+      "mark_done": "Hecho",
+      "create_task": "Tarea",
+      "queues": {
+        "all": "Todas",
+        "active": "Activas",
+        "closed": "Cerradas",
+        "due": "Pendientes",
+        "expired": "Expiradas",
+        "high_value": "Alto valor",
+        "never_followed": "Sin seguimiento",
+        "viewed_not_accepted": "Vista sin decision",
+        "unknown": "Por revisar"
+      },
+      "priority_labels": {
+        "urgent": "Urgente",
+        "high": "Alta",
+        "medium": "Media",
+        "low": "Baja",
+        "closed": "Cerrada",
+        "unknown": "Sin clasificar"
+      }
     },
     "empty": {
       "quotes": "Aún no hay cotizaciones."

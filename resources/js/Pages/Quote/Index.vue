@@ -21,7 +21,7 @@ const props = defineProps({
         <QuoteStats :stats="stats" />
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5">
             <div class="col-span-1 lg:col-span-3">
-                <QuoteTable :quotes="quotes" :filters="filters" :count="count" :customers="customers" />
+                <QuoteTable :quotes="quotes" :filters="filters" :count="count" :stats="stats" :customers="customers" />
             </div>
             <QuoteValueStat :items="topQuotes" />
         </div>

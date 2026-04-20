@@ -29,9 +29,9 @@ Dernier bloc livre:
 
 Bloc actuellement en cours:
 
-- cloture phase 1
-- verification des gates de sortie sprint 2
-- preparation phase 2
+- phase 1 cloturee
+- phase 2 cadree
+- sprint 3 pret a demarrer
 
 ## 1. But du document
 

@@ -306,6 +306,11 @@ Ajouter des signaux comme:
 - moyen
 - 2 a 4 semaines
 
+### Document de reference
+
+- `docs/PHASE_2_QUOTE_RECOVERY_CONVERSION_COCKPIT_2026-04-20.md`
+- `docs/PHASE_2_QUOTE_RECOVERY_DEV_BACKLOG_2026-04-20.md`
+
 ## Phase 3 - Saved Segments and Scheduled Playbooks
 
 ### Objectif
@@ -777,5 +782,7 @@ Pourquoi:
 - `docs/PHASE_0_CRM_REQUEST_FIRST_CADRAGE_2026-04-20.md`
 - `docs/PHASE_1_LEAD_SLA_INBOX_SMART_TRIAGE_2026-04-20.md`
 - `docs/PHASE_1_REQUEST_INBOX_DEV_BACKLOG_2026-04-20.md`
+- `docs/PHASE_2_QUOTE_RECOVERY_CONVERSION_COCKPIT_2026-04-20.md`
+- `docs/PHASE_2_QUOTE_RECOVERY_DEV_BACKLOG_2026-04-20.md`
 - `docs/NEXT_HIGH_VALUE_MODULES_USER_STORY.md`
 - `docs/CAMPAIGNS_MODULE.md`

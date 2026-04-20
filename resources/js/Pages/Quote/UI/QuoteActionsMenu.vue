@@ -26,7 +26,10 @@ const { t } = useI18n();
 </script>
 
 <template>
-    <AdminDataTableActions :label="t('quotes.actions.view')">
+    <AdminDataTableActions
+        :label="t('quotes.actions.view')"
+        :trigger-test-id="`quote-actions-trigger-${quote.id}`"
+    >
         <Link
             :href="route('customer.quote.show', quote)"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
@@ -54,7 +57,7 @@ const { t } = useI18n();
         <button
             v-if="!archived && quote.status !== 'accepted' && quote.status !== 'declined'"
             type="button"
-            data-testid="demo-quote-accept"
+            :data-testid="`quote-accept-${quote.id}`"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback"
             @click="$emit('accept')"
         >
@@ -73,6 +76,7 @@ const { t } = useI18n();
         <button
             v-if="!archived"
             type="button"
+            :data-testid="`quote-archive-${quote.id}`"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback"
             data-tone="danger"
             @click="$emit('archive')"

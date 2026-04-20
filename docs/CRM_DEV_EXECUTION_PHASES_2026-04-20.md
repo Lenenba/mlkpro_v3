@@ -373,6 +373,11 @@ Faire de `Quote` une vraie file de suivi commercial et pas seulement une liste d
 - acceptation quote -> work intacte
 - tests quotes et workflow verts
 
+### Document de reference
+
+- `docs/PHASE_2_QUOTE_RECOVERY_CONVERSION_COCKPIT_2026-04-20.md`
+- `docs/PHASE_2_QUOTE_RECOVERY_DEV_BACKLOG_2026-04-20.md`
+
 ## 9. Phase 3 - Saved Segments and Scheduled Playbooks
 
 ### Objectif business

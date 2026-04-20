@@ -42,6 +42,19 @@
     "show": {
       "timeline": "Timeline",
       "no_rating_yet": "No rating yet",
+      "summary": {
+        "title": "Recovery summary",
+        "status": "Status",
+        "next_follow_up": "Next follow-up",
+        "last_followed_up": "Last follow-up",
+        "follow_up_count": "Follow-up count",
+        "none": "None"
+      },
+      "activity": {
+        "title": "Recent activity",
+        "empty": "No recovery activity for this quote yet.",
+        "author_fallback": "System"
+      },
       "table": {
         "product_services": "Product/Services",
         "qty": "Qty.",
@@ -142,9 +155,47 @@
       "open": "Open quotes",
       "accepted": "Accepted",
       "declined": "Declined",
+      "never_followed": "No follow-up yet",
+      "due": "Follow-up due",
+      "viewed_not_accepted": "Viewed, no decision",
+      "high_value": "High-value open",
+      "sent_to_accepted_rate": "Sent to accepted",
+      "recovery_title": "Recovery cockpit",
+      "recovery_subtitle": "Follow-up pressure and conversion signals on the current filtered quotes.",
       "top_by_value": "Top quotes by value",
       "based_on_filters": "Based on current filters",
       "empty": "No quote data yet."
+    },
+    "recovery": {
+      "label": "Recovery",
+      "priority_short": "P{value}",
+      "next_follow_up": "Follow-up",
+      "last_viewed": "Viewed",
+      "age_days_short": "Age {count}d",
+      "follow_up_tomorrow": "Tomorrow",
+      "follow_up_three_days": "+3d",
+      "follow_up_seven_days": "+7d",
+      "mark_done": "Done",
+      "create_task": "Task",
+      "queues": {
+        "all": "All",
+        "active": "Active",
+        "closed": "Closed",
+        "due": "Due",
+        "expired": "Expired",
+        "high_value": "High value",
+        "never_followed": "No follow-up",
+        "viewed_not_accepted": "Viewed, no decision",
+        "unknown": "Needs review"
+      },
+      "priority_labels": {
+        "urgent": "Urgent",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low",
+        "closed": "Closed",
+        "unknown": "Unknown"
+      }
     },
     "empty": {
       "quotes": "No quotes yet."
