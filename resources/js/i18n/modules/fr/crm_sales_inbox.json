@@ -1,0 +1,69 @@
+{
+    "crm_sales_inbox": {
+        "eyebrow": "Inbox commerciale",
+        "page_title": "Inbox commerciale",
+        "page_description": "Vue priorisee des opportunites ouvertes pour aider les responsables commerciaux a traiter les relances en retard, les dossiers sans prochaine action, les devis envoyes et les leads prets a etre chiffres.",
+        "reference_time": "Heure de reference",
+        "cards": {
+            "total": "Opportunites ouvertes",
+            "overdue": "En retard",
+            "no_next_action": "Sans prochaine action",
+            "quoted": "Devis envoyes",
+            "needs_quote": "A chiffrer",
+            "weighted_open_amount": "Montant ouvert pondere"
+        },
+        "filters": {
+            "search": "Recherche",
+            "search_placeholder": "Chercher client, titre, service ou devis",
+            "queue": "File",
+            "stage": "Etape",
+            "per_page": "Par page",
+            "clear": "Effacer les filtres",
+            "all_stages": "Toutes les etapes"
+        },
+        "queues": {
+            "all": "Toutes les files",
+            "overdue": "En retard",
+            "no_next_action": "Sans prochaine action",
+            "quoted": "Devis envoyes",
+            "needs_quote": "A chiffrer",
+            "active": "Actif"
+        },
+        "next_action_states": {
+            "overdue": "En retard",
+            "scheduled": "Planifiee",
+            "none": "Aucune prochaine action"
+        },
+        "labels": {
+            "customer": "Client",
+            "assignee": "Assigne",
+            "next_action": "Prochaine action",
+            "amount": "Montant",
+            "weighted_amount": "Pondere",
+            "opened": "Ouvert",
+            "days_old": "{count} jours d age",
+            "quote": "Devis {number}",
+            "quote_label": "Devis",
+            "service_label": "Service",
+            "no_customer": "Aucun client lie",
+            "unassigned": "Non assigne",
+            "no_next_action": "Aucune prochaine action planifiee"
+        },
+        "actions": {
+            "open_request": "Ouvrir la demande",
+            "open_quote": "Ouvrir le devis",
+            "open_customer": "Ouvrir le client",
+            "open_pipeline": "Ouvrir le pipeline"
+        },
+        "list": {
+            "title": "File de priorites commerciales",
+            "subtitle": "{count} opportunite visible | {count} opportunites visibles"
+        },
+        "pagination": {
+            "showing": "Affichage {from}-{to} sur {total}",
+            "page_of": "Page {page} sur {total}"
+        },
+        "empty_title": "Aucune opportunite ne correspond aux filtres",
+        "empty_body": "Essayez une autre file ou effacez les filtres pour recharger l inbox commerciale."
+    }
+}

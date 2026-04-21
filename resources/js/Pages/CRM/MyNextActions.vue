@@ -464,29 +464,9 @@ const latestActivityLabel = (item) => {
                             <span v-if="hasMultiplePages">{{ pageLabel }}</span>
                         </p>
                     </div>
-
-                    <div class="flex flex-wrap items-center gap-2">
-                        <div class="min-w-[8.5rem]">
-                            <FloatingSelect
-                                v-model="filterForm.per_page"
-                                :label="t('crm_next_actions.filters.per_page')"
-                                :options="perPageOptions"
-                                option-value="value"
-                                option-label="label"
-                                data-testid="my-next-actions-filter-per-page"
-                            />
-                        </div>
-                        <button
-                            type="button"
-                            :class="crmButtonClass('secondary', 'toolbar')"
-                            @click="clearFilters"
-                        >
-                            {{ t('crm_next_actions.filters.clear') }}
-                        </button>
-                    </div>
                 </div>
 
-                <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(9rem,0.6fr)_auto] xl:items-end">
                     <FloatingInput
                         v-model="filterForm.search"
                         :label="t('crm_next_actions.filters.search')"
@@ -518,6 +498,25 @@ const latestActivityLabel = (item) => {
                         option-label="label"
                         data-testid="my-next-actions-filter-due-state"
                     />
+                    <div class="xl:min-w-[9rem]">
+                        <FloatingSelect
+                            v-model="filterForm.per_page"
+                            :label="t('crm_next_actions.filters.per_page')"
+                            :options="perPageOptions"
+                            option-value="value"
+                            option-label="label"
+                            data-testid="my-next-actions-filter-per-page"
+                        />
+                    </div>
+                    <div class="flex items-center md:justify-start xl:justify-end">
+                        <button
+                            type="button"
+                            :class="`${crmButtonClass('secondary', 'toolbar')} w-full md:w-auto`"
+                            @click="clearFilters"
+                        >
+                            {{ t('crm_next_actions.filters.clear') }}
+                        </button>
+                    </div>
                 </div>
 
                 <div

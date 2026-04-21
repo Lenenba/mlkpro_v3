@@ -169,6 +169,37 @@ it('allows superadmins to update plan modules through api', function () {
     expect((bool) ($saved[$planKey]['reservations'] ?? true))->toBeFalse();
 });
 
+it('allows superadmins to update the sales module through api plan settings', function () {
+    $planKey = superAdminModuleFirstPlanKey();
+    $superadmin = superAdminModuleSuperadmin();
+
+    PlatformSetting::setValue('plan_modules', [
+        $planKey => ['sales' => true],
+    ]);
+
+    Sanctum::actingAs($superadmin);
+
+    $this->putJson('/api/v1/super-admin/settings', [
+        'maintenance' => [
+            'enabled' => false,
+            'message' => '',
+        ],
+        'templates' => [
+            'email_default' => '',
+            'quote_default' => '',
+            'invoice_default' => '',
+        ],
+        'plan_modules' => [
+            $planKey => [
+                'sales' => false,
+            ],
+        ],
+    ])->assertOk();
+
+    $saved = PlatformSetting::getValue('plan_modules', []);
+    expect((bool) ($saved[$planKey]['sales'] ?? true))->toBeFalse();
+});
+
 it('applies sector feature defaults for salon and non-salon businesses', function () {
     $planKey = superAdminModuleFirstPlanKey();
     PlatformSetting::setValue('plan_modules', [

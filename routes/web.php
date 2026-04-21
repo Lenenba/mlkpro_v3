@@ -68,12 +68,14 @@ use App\Http\Controllers\RequestMediaController;
 use App\Http\Controllers\RequestNoteController;
 use App\Http\Controllers\SavedSegmentController;
 use App\Http\Controllers\SalesActivityController;
+use App\Http\Controllers\SalesInboxController;
 use App\Http\Controllers\Reservation\ClientReservationController;
 use App\Http\Controllers\Reservation\PublicKioskReservationController;
 use App\Http\Controllers\Reservation\ReservationSettingsController;
 use App\Http\Controllers\Reservation\StaffReservationController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SalePaymentController;
+use App\Http\Controllers\SalesManagerDashboardController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\Settings\ApiTokenController;
 use App\Http\Controllers\Settings\BillingSettingsController;
@@ -343,8 +345,14 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('crm.playbooks.run');
     Route::get('/crm/playbook-runs', [PlaybookRunController::class, 'index'])
         ->name('crm.playbook-runs.index');
-    Route::get('/crm/next-actions', [MyNextActionsController::class, 'index'])
-        ->name('crm.next-actions.index');
+    Route::middleware('company.feature:sales')->group(function () {
+        Route::get('/crm/next-actions', [MyNextActionsController::class, 'index'])
+            ->name('crm.next-actions.index');
+        Route::get('/crm/sales-inbox', [SalesInboxController::class, 'index'])
+            ->name('crm.sales-inbox.index');
+        Route::get('/crm/manager-dashboard', [SalesManagerDashboardController::class, 'index'])
+            ->name('crm.manager-dashboard.index');
+    });
 
     // Lead Requests
     Route::middleware('company.feature:requests')->group(function () {

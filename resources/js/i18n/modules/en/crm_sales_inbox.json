@@ -1,0 +1,69 @@
+{
+    "crm_sales_inbox": {
+        "eyebrow": "Sales inbox",
+        "page_title": "Sales inbox",
+        "page_description": "A queue-first view of open opportunities so sales managers can triage overdue follow-ups, missing next actions, quoted deals, and quote-ready leads from one place.",
+        "reference_time": "Reference time",
+        "cards": {
+            "total": "Open opportunities",
+            "overdue": "Overdue",
+            "no_next_action": "No next action",
+            "quoted": "Quoted",
+            "needs_quote": "Needs quote",
+            "weighted_open_amount": "Weighted open amount"
+        },
+        "filters": {
+            "search": "Search",
+            "search_placeholder": "Search customer, title, service, or quote",
+            "queue": "Queue",
+            "stage": "Stage",
+            "per_page": "Per page",
+            "clear": "Clear filters",
+            "all_stages": "All stages"
+        },
+        "queues": {
+            "all": "All queues",
+            "overdue": "Overdue",
+            "no_next_action": "No next action",
+            "quoted": "Quoted",
+            "needs_quote": "Needs quote",
+            "active": "Active"
+        },
+        "next_action_states": {
+            "overdue": "Overdue",
+            "scheduled": "Scheduled",
+            "none": "No next action"
+        },
+        "labels": {
+            "customer": "Customer",
+            "assignee": "Assignee",
+            "next_action": "Next action",
+            "amount": "Amount",
+            "weighted_amount": "Weighted",
+            "opened": "Opened",
+            "days_old": "{count} days old",
+            "quote": "Quote {number}",
+            "quote_label": "Quote",
+            "service_label": "Service",
+            "no_customer": "No customer linked",
+            "unassigned": "Unassigned",
+            "no_next_action": "No next action scheduled"
+        },
+        "actions": {
+            "open_request": "Open request",
+            "open_quote": "Open quote",
+            "open_customer": "Open customer",
+            "open_pipeline": "Open pipeline"
+        },
+        "list": {
+            "title": "Sales priority queue",
+            "subtitle": "{count} visible opportunity | {count} visible opportunities"
+        },
+        "pagination": {
+            "showing": "Showing {from}-{to} of {total}",
+            "page_of": "Page {page} of {total}"
+        },
+        "empty_title": "No opportunities match the current filters",
+        "empty_body": "Try another queue or clear the filters to rebuild the sales inbox view."
+    }
+}

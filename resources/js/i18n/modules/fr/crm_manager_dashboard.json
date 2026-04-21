@@ -1,0 +1,94 @@
+{
+    "crm_manager_dashboard": {
+        "eyebrow": "Dashboard manager",
+        "page_title": "Dashboard manager commercial",
+        "page_description": "Une vue revenue operations pour les managers commerciaux avec pipeline pondere, aging par stage, relances en retard et quote pull-through depuis la projection opportunity phase 6.",
+        "reference_time": "Heure de reference",
+        "actions": {
+            "open_sales_inbox": "Ouvrir la sales inbox",
+            "open_next_actions": "Ouvrir les next actions",
+            "open_request": "Ouvrir la demande",
+            "open_quote": "Ouvrir le devis",
+            "open_customer": "Ouvrir le client"
+        },
+        "filters": {
+            "title": "Filtres manager",
+            "subtitle": "Creuser le dashboard par client ou recherche libre.",
+            "search": "Recherche",
+            "search_placeholder": "Chercher client, titre, service ou devis",
+            "customer": "Client",
+            "all_customers": "Tous les clients",
+            "clear": "Reinitialiser"
+        },
+        "summary": {
+            "weighted_open_amount": "Montant ouvert pondere",
+            "month_to_date_won_amount": "Won du mois",
+            "overdue_next_actions": "Next actions en retard",
+            "quote_pull_through": "Quote pull-through",
+            "open_count_detail": "{count} opportunite ouverte | {count} opportunites ouvertes",
+            "wins_detail": "{count} opportunite gagnee ce mois-ci | {count} opportunites gagnees ce mois-ci",
+            "overdue_detail": "{count} opportunite en retard | {count} opportunites en retard",
+            "quote_pull_through_detail": "{won} gagnees sur {total} opportunites avec devis"
+        },
+        "sections": {
+            "weighted_pipeline": "Pipeline pondere",
+            "weighted_pipeline_description": "Mix pipeline derive de la couche forecast sans table opportunity persistante.",
+            "next_actions": "Couverture des next actions",
+            "next_actions_description": "Sante des follow-ups ouverts a l heure de reference choisie.",
+            "wins": "Wins recentes",
+            "wins_description": "Momentum closed-won sur les fenetres manager en cours.",
+            "stage_aging": "Stage aging",
+            "stage_aging_description": "Age moyen et pression overdue sur les stages commerciaux ouverts.",
+            "queues": "Pression des queues",
+            "queues_description": "Backlog inbox-first groupe pour le triage manager et les relances rapides.",
+            "attention": "Items d attention",
+            "attention_description": "Opportunites ouvertes les plus prioritaires selon l ordre de la sales inbox."
+        },
+        "categories": {
+            "pipeline": "Pipeline",
+            "best_case": "Best case",
+            "closed_won": "Closed won",
+            "closed_lost": "Closed lost"
+        },
+        "next_action_buckets": {
+            "overdue": "En retard",
+            "scheduled": "Planifie",
+            "none": "Sans next action"
+        },
+        "wins_windows": {
+            "month_to_date": "Mois en cours",
+            "quarter_to_date": "Trimestre en cours",
+            "year_to_date": "Annee en cours"
+        },
+        "queues": {
+            "overdue": "En retard",
+            "no_next_action": "Sans next action",
+            "quoted": "Devis envoye",
+            "needs_quote": "Besoin de devis",
+            "active": "Active"
+        },
+        "labels": {
+            "count": "Volume",
+            "weighted": "Pondere",
+            "amount": "Montant",
+            "weighted_share": "Part ponderee",
+            "avg_age": "Age moyen",
+            "days": "{count} j",
+            "overdue": "En retard",
+            "opened": "Ouverte",
+            "next_action": "Next action",
+            "quote": "Devis {number}",
+            "quote_label": "Devis",
+            "service_label": "Service",
+            "no_customer": "Aucun client lie",
+            "no_next_action": "Aucune next action planifiee",
+            "open_amount": "Montant ouvert"
+        },
+        "attention": {
+            "open_sales_inbox": "Ouvrir la sales inbox",
+            "open_sales_inbox_queue": "Ouvrir la queue",
+            "empty_title": "Aucune opportunite ouverte ne correspond aux filtres",
+            "empty_body": "Reinitialisez les filtres ou ajustez la recherche pour reconstruire le dashboard manager."
+        }
+    }
+}

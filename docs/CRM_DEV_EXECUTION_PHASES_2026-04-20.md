@@ -643,6 +643,7 @@ Ajouter les abstractions avances seulement si les couches precedentes sont stabl
 - inbox commerciale simple
 - forecast simple
 - vues manager `stage aging / weighted pipeline / overdue next actions`
+- rattachement des vues `my next actions / sales inbox / manager dashboard` au module `sales` existant pour les forfaits et les overrides tenant
 
 ### Hors-scope
 
@@ -666,6 +667,7 @@ Ajouter les abstractions avances seulement si les couches precedentes sont stabl
 ### Data / migrations
 
 - aucun schema `Opportunity` tant que la preuve de besoin n'est pas validee
+- aucun nouveau `limit key` de forfait pour la phase 6: on reutilise les limites `requests / quotes / jobs / tasks` deja en place
 
 ### Tests
 
@@ -690,6 +692,10 @@ Ajouter les abstractions avances seulement si les couches precedentes sont stabl
 - inbox commerciale V1 presente
 - forecast simple exploitable
 - aucune degradation des workflows coeur
+
+### Document de reference
+
+- `docs/PHASE_6_OPPORTUNITY_LAYER_SALES_INBOX_FORECAST_DEV_BACKLOG_2026-04-21.md`
 
 ## 13. Decoupage sprint recommande
 

@@ -52,6 +52,19 @@ it('shows subscription promotion settings in the super admin settings form', fun
         );
 });
 
+it('shows the sales module in the super admin plan modules form payload', function () {
+    $user = makeSubscriptionPromotionSuperadmin();
+    $planKey = (string) (array_key_first(config('billing.plans', [])) ?? 'free');
+
+    $this->actingAs($user)
+        ->get(route('superadmin.settings.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('SuperAdmin/Settings/Edit')
+            ->where("plan_modules.$planKey.sales", (bool) config("billing.plans.$planKey.default_modules.sales", true))
+        );
+});
+
 it('persists subscription promotion changes from the super admin settings form', function () {
     config()->set('services.stripe.secret', null);
 

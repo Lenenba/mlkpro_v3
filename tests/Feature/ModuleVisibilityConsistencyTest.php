@@ -166,3 +166,27 @@ test('disabled module settings routes redirect gracefully instead of rendering r
         ->assertRedirect(url('/'))
         ->assertSessionHas('warning', 'Module indisponible pour votre plan.');
 });
+
+test('sales-disabled workspaces cannot open revenue crm routes from phases four to six', function () {
+    $owner = User::factory()->create([
+        'company_type' => 'services',
+        'company_features' => [
+            'sales' => false,
+        ],
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('crm.next-actions.index'))
+        ->assertRedirect(url('/'))
+        ->assertSessionHas('warning', 'Module indisponible pour votre plan.');
+
+    $this->actingAs($owner)
+        ->getJson(route('crm.sales-inbox.index'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'Module unavailable for your plan.');
+
+    $this->actingAs($owner)
+        ->getJson(route('crm.manager-dashboard.index'))
+        ->assertForbidden()
+        ->assertJsonPath('message', 'Module unavailable for your plan.');
+});

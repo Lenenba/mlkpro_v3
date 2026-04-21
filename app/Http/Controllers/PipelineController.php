@@ -7,6 +7,8 @@ use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\Task;
 use App\Models\Work;
+use App\Support\CRM\OpportunityNeedValidation;
+use App\Support\CRM\OpportunitySchema;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -111,6 +113,8 @@ class PipelineController extends Controller
                 'type' => $entityType,
                 'id' => $entityId,
             ],
+            'opportunity_validation' => OpportunityNeedValidation::present($request, $quote),
+            'opportunity' => OpportunitySchema::present($request, $quote, $work, $invoice),
             'request' => $request ? $this->formatRequest($request) : null,
             'quote' => $quote ? $this->formatQuote($quote) : null,
             'job' => $work ? $this->formatWork($work) : null,
@@ -177,9 +181,9 @@ class PipelineController extends Controller
     {
         return [
             'customer:id,company_name,first_name,last_name,email,phone',
-            'quote:id,number,status,request_id,customer_id,total,subtotal,created_at,accepted_at,work_id',
+            'quote:id,number,status,request_id,customer_id,total,subtotal,currency_code,created_at,accepted_at,next_follow_up_at,work_id',
             'quote.customer:id,company_name,first_name,last_name,email,phone',
-            'quote.request:id,customer_id,status,title,service_type,created_at,converted_at',
+            'quote.request:id,customer_id,status,title,service_type,created_at,converted_at,next_follow_up_at',
             'invoice:id,work_id,number,status,total,created_at',
             'tasks:id,work_id,title,status,due_date,completed_at,assigned_team_member_id,billable',
             'tasks.assignee.user:id,name',
@@ -196,6 +200,7 @@ class PipelineController extends Controller
             'status' => $request->status,
             'created_at' => optional($request->created_at)->toIso8601String(),
             'converted_at' => optional($request->converted_at)->toIso8601String(),
+            'next_follow_up_at' => optional($request->next_follow_up_at)->toIso8601String(),
             'customer' => $this->formatCustomer($request->customer),
         ];
     }
@@ -211,6 +216,7 @@ class PipelineController extends Controller
             'subtotal' => $quote->subtotal !== null ? (float) $quote->subtotal : null,
             'created_at' => optional($quote->created_at)->toIso8601String(),
             'accepted_at' => optional($quote->accepted_at)->toIso8601String(),
+            'next_follow_up_at' => optional($quote->next_follow_up_at)->toIso8601String(),
             'customer' => $this->formatCustomer($quote->customer),
         ];
     }
