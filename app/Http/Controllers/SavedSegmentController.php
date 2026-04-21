@@ -12,8 +12,7 @@ class SavedSegmentController extends Controller
 {
     public function __construct(
         private readonly CompanyFeatureService $companyFeatureService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request)
     {

@@ -5,8 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
-use App\Models\TeamMember;
-use App\Models\User;
 use App\Services\CRM\SalesActivityLogger;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request as HttpRequest;
