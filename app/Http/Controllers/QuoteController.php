@@ -433,7 +433,7 @@ class QuoteController extends Controller
         ]);
     }
 
-    public function destroy(Quote $quote)
+    public function destroy(Request $request, Quote $quote)
     {
         $this->authorize('destroy', $quote);
 
@@ -444,14 +444,14 @@ class QuoteController extends Controller
             'total' => $quote->total,
         ], 'Quote archived');
 
-        if ($this->shouldReturnJson()) {
+        if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Quote archived successfully!',
                 'quote' => $quote->fresh(),
             ]);
         }
 
-        return redirect()->route('customer.show', $quote->customer)->with('success', 'Quote archived successfully!');
+        return redirect()->back()->with('success', 'Quote archived successfully!');
     }
 
     public function restore(Quote $quote)

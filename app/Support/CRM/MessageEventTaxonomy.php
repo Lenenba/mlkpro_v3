@@ -9,6 +9,7 @@ final class MessageEventTaxonomy
     public const CHANNEL_EMAIL = 'email';
 
     public const DIRECTION_OUTBOUND = 'outbound';
+
     public const DIRECTION_INBOUND = 'inbound';
 
     /**

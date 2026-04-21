@@ -2,8 +2,8 @@
 
 namespace App\Services\Campaigns;
 
-use App\Services\Campaigns\Providers\ApolloProspectProviderAdapter;
 use App\Services\Campaigns\Providers\ApolloApiKeyProspectProviderAdapter;
+use App\Services\Campaigns\Providers\ApolloProspectProviderAdapter;
 use App\Services\Campaigns\Providers\Contracts\ProspectProviderAdapter;
 use App\Services\Campaigns\Providers\LushaProspectProviderAdapter;
 use App\Services\Campaigns\Providers\UpLeadProspectProviderAdapter;

@@ -26,6 +26,7 @@ test('service owner can run the quote recovery smoke flow', async ({ page }) => 
     await searchInput.fill(recovery.archiveQuoteNumber);
     const archiveRow = page.getByTestId(`quote-row-${recovery.archiveQuoteId}`);
     await expect(archiveRow).toBeVisible();
+    page.once('dialog', (dialog) => dialog.accept());
     await page.getByTestId(`quote-archive-inline-${recovery.archiveQuoteId}`).click();
     await expect(archiveRow).toHaveCount(0);
 

@@ -11,8 +11,7 @@ class QuoteSegmentResolver implements SegmentModuleResolver
 {
     public function __construct(
         private readonly BuildQuoteRecoveryIndexData $quoteRecoveryIndexData
-    ) {
-    }
+    ) {}
 
     public function key(): string
     {

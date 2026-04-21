@@ -5,10 +5,10 @@ use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\Task;
 use App\Models\User;
+use App\Queries\Quotes\BuildQuoteRecoveryIndexData;
 use App\Services\Quotes\QuoteRecoveryPriorityScorer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use App\Queries\Quotes\BuildQuoteRecoveryIndexData;
 use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);

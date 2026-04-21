@@ -11,8 +11,7 @@ class RequestSegmentResolver implements SegmentModuleResolver
 {
     public function __construct(
         private readonly BuildRequestInboxIndexData $requestInboxIndexData
-    ) {
-    }
+    ) {}
 
     public function key(): string
     {

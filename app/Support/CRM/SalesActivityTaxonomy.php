@@ -7,9 +7,13 @@ final class SalesActivityTaxonomy
     public const FAMILY = 'sales_activity';
 
     public const TYPE_NOTE = 'note';
+
     public const TYPE_CALL = 'call';
+
     public const TYPE_CALL_OUTCOME = 'call_outcome';
+
     public const TYPE_NEXT_ACTION = 'next_action';
+
     public const TYPE_MEETING = 'meeting';
 
     /**

@@ -9,14 +9,21 @@ use Illuminate\Support\Carbon;
 class LeadTriageClassifier
 {
     public const QUEUE_ACTIVE = 'active';
+
     public const QUEUE_BREACHED = 'breached';
+
     public const QUEUE_CLOSED = 'closed';
+
     public const QUEUE_DUE_SOON = 'due_soon';
+
     public const QUEUE_NEW = 'new';
+
     public const QUEUE_STALE = 'stale';
 
     private const DUE_SOON_HOURS = 24;
+
     private const INITIAL_RESPONSE_SLA_HOURS = 24;
+
     private const STALE_DAYS = 7;
 
     public function classify(LeadRequest $lead, ?Carbon $referenceTime = null): array

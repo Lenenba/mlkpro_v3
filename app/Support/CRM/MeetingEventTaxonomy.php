@@ -7,6 +7,7 @@ final class MeetingEventTaxonomy
     public const FAMILY = 'meeting_event';
 
     public const LIFECYCLE_SCHEDULED = 'scheduled';
+
     public const LIFECYCLE_COMPLETED = 'completed';
 
     /**

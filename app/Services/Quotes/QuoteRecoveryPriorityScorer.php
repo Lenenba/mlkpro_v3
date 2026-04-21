@@ -9,9 +9,13 @@ use Illuminate\Support\Carbon;
 class QuoteRecoveryPriorityScorer
 {
     public const LABEL_CLOSED = 'closed';
+
     public const LABEL_HIGH = 'high';
+
     public const LABEL_LOW = 'low';
+
     public const LABEL_MEDIUM = 'medium';
+
     public const LABEL_URGENT = 'urgent';
 
     public function score(

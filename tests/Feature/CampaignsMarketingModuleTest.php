@@ -219,8 +219,7 @@ function fakeApolloPreviewResponses(
     int $matchesStatus = 200,
     int $contactsStatus = 200,
     int $accountsStatus = 200,
-): void
-{
+): void {
     Http::fake([
         'https://api.apollo.io/api/v1/mixed_people/api_search' => Http::response([
             'people' => $people,
@@ -245,8 +244,7 @@ function fakeApolloApiKeyValidationResponse(
     array $contactsBody = ['contacts' => []],
     int $accountsStatus = 200,
     array $accountsBody = ['accounts' => []],
-): void
-{
+): void {
     Http::fake([
         'https://api.apollo.io/api/v1/mixed_people/api_search' => Http::response($peopleBody, $peopleStatus),
         'https://api.apollo.io/api/v1/contacts/search' => Http::response($contactsBody, $contactsStatus),

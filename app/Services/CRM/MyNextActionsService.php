@@ -301,13 +301,13 @@ class MyNextActionsService
      */
     private function buildSalesActivityItems(array $context, Carbon $referenceTime): Collection
     {
-        $activities = new EloquentCollection();
+        $activities = new EloquentCollection;
 
         if ($context['can_view_requests']) {
             $activities = $activities->merge(
                 ActivityLog::query()
                     ->salesActivity()
-                    ->where('subject_type', (new LeadRequest())->getMorphClass())
+                    ->where('subject_type', (new LeadRequest)->getMorphClass())
                     ->whereIn('subject_id', LeadRequest::query()
                         ->where('user_id', $context['account_id'])
                         ->select('id'))
@@ -320,7 +320,7 @@ class MyNextActionsService
             $activities = $activities->merge(
                 ActivityLog::query()
                     ->salesActivity()
-                    ->where('subject_type', (new Quote())->getMorphClass())
+                    ->where('subject_type', (new Quote)->getMorphClass())
                     ->whereIn('subject_id', Quote::query()
                         ->byUser($context['account_id'])
                         ->select('id'))
@@ -333,7 +333,7 @@ class MyNextActionsService
             $activities = $activities->merge(
                 ActivityLog::query()
                     ->salesActivity()
-                    ->where('subject_type', (new Customer())->getMorphClass())
+                    ->where('subject_type', (new Customer)->getMorphClass())
                     ->whereIn('subject_id', Customer::query()
                         ->where('user_id', $context['account_id'])
                         ->select('id'))
@@ -561,8 +561,8 @@ class MyNextActionsService
                 }
 
                 $morphClass = match ($subjectType) {
-                    'request' => (new LeadRequest())->getMorphClass(),
-                    'quote' => (new Quote())->getMorphClass(),
+                    'request' => (new LeadRequest)->getMorphClass(),
+                    'quote' => (new Quote)->getMorphClass(),
                     default => null,
                 };
 

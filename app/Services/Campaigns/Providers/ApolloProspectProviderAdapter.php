@@ -6,8 +6,8 @@ use App\Models\CampaignProspectProviderConnection;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ApolloProspectProviderAdapter extends AbstractOauthProspectProviderAdapter
