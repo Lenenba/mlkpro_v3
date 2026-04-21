@@ -14,22 +14,29 @@ use Illuminate\Support\Collection;
 class BuildQuoteRecoveryIndexData
 {
     public const QUEUE_ACTIVE = 'active';
+
     public const QUEUE_CLOSED = 'closed';
+
     public const QUEUE_DUE = 'due';
+
     public const QUEUE_EXPIRED = 'expired';
+
     public const QUEUE_HIGH_VALUE = 'high_value';
+
     public const QUEUE_NEVER_FOLLOWED = 'never_followed';
+
     public const QUEUE_VIEWED_NOT_ACCEPTED = 'viewed_not_accepted';
 
     private const DUE_WINDOW_HOURS = 48;
+
     private const EXPIRED_AFTER_DAYS = 14;
+
     private const HIGH_VALUE_THRESHOLD = 1000;
 
     public function __construct(
         private readonly QuoteRecoveryPriorityScorer $priorityScorer,
         private readonly BuildQuoteRecoveryAnalyticsData $analyticsData
-    ) {
-    }
+    ) {}
 
     public function execute(int $accountId, Request $request): array
     {

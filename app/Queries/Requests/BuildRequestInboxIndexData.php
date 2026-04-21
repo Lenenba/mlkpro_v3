@@ -15,8 +15,7 @@ class BuildRequestInboxIndexData
 {
     public function __construct(
         private readonly LeadTriageClassifier $classifier
-    ) {
-    }
+    ) {}
 
     public function execute(int $accountId, Request $request): array
     {

@@ -14,8 +14,7 @@ class BuildRequestAnalyticsData
 {
     public function __construct(
         private readonly LeadTriageClassifier $classifier
-    ) {
-    }
+    ) {}
 
     public function execute(int $accountId): array
     {
@@ -42,7 +41,7 @@ class BuildRequestAnalyticsData
 
     private function responseMetrics(int $accountId, Carbon $windowStart): array
     {
-        $subjectType = (new LeadRequest())->getMorphClass();
+        $subjectType = (new LeadRequest)->getMorphClass();
 
         $firstResponseSub = ActivityLog::query()
             ->selectRaw('subject_id, MIN(created_at) as first_response_at')

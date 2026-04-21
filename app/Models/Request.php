@@ -6,20 +6,27 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Request extends Model
 {
     use HasFactory;
 
     public const STATUS_NEW = 'REQ_NEW';
+
     public const STATUS_CALL_REQUESTED = 'REQ_CALL_REQUESTED';
+
     public const STATUS_CONTACTED = 'REQ_CONTACTED';
+
     public const STATUS_QUALIFIED = 'REQ_QUALIFIED';
+
     public const STATUS_QUOTE_SENT = 'REQ_QUOTE_SENT';
+
     public const STATUS_WON = 'REQ_WON';
+
     public const STATUS_LOST = 'REQ_LOST';
+
     public const STATUS_CONVERTED = 'REQ_CONVERTED';
 
     public const STATUSES = [

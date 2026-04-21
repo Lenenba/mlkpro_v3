@@ -7,11 +7,11 @@ use App\Support\CRM\MeetingEventTaxonomy;
 use App\Support\CRM\MessageEventTaxonomy;
 use App\Support\CRM\SalesActivityTaxonomy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model as EloquentModel;
 
 class ActivityLog extends Model
 {
