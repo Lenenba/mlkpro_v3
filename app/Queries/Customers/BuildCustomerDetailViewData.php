@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Models\VipTier;
 use App\Models\Work;
 use App\Services\CompanyFeatureService;
+use App\Support\CRM\SalesActivityTaxonomy;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -479,6 +480,7 @@ class BuildCustomerDetailViewData
             return ActivityLog::query()
                 ->where('subject_type', Customer::class)
                 ->where('subject_id', $customer->id)
+                ->with('user:id,name')
                 ->latest()
                 ->limit(12)
                 ->get(CustomerReadSelects::detailActivityColumns())
@@ -486,6 +488,16 @@ class BuildCustomerDetailViewData
                     'id' => $log->id,
                     'action' => $log->action,
                     'description' => $log->description,
+                    'properties' => (array) ($log->properties ?? []),
+                    'user' => $log->user ? [
+                        'id' => $log->user->id,
+                        'name' => $log->user->name,
+                    ] : null,
+                    'is_sales_activity' => SalesActivityTaxonomy::isSalesActivity($log->action),
+                    'sales_activity' => SalesActivityTaxonomy::present(
+                        $log->action,
+                        (array) ($log->properties ?? [])
+                    ),
                     'subject_type' => $log->subject_type,
                     'subject_id' => $log->subject_id,
                     'subject' => 'Customer',
@@ -495,6 +507,7 @@ class BuildCustomerDetailViewData
         }
 
         $subjectLabels = [
+            LeadRequest::class => 'Request',
             Quote::class => 'Quote',
             Work::class => 'Job',
             Invoice::class => 'Invoice',
@@ -502,6 +515,12 @@ class BuildCustomerDetailViewData
             Customer::class => 'Customer',
         ];
 
+        $requestIds = LeadRequest::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $accountId)
+            ->latest()
+            ->limit(250)
+            ->pluck('id');
         $quoteIds = Quote::query()
             ->where('customer_id', $customer->id)
             ->where('user_id', $accountId)
@@ -528,11 +547,18 @@ class BuildCustomerDetailViewData
             ->pluck('id');
 
         return ActivityLog::query()
-            ->where(function ($query) use ($customer, $quoteIds, $workIds, $invoiceIds, $paymentIds) {
+            ->where(function ($query) use ($customer, $requestIds, $quoteIds, $workIds, $invoiceIds, $paymentIds) {
                 $query->where(function ($sub) use ($customer) {
                     $sub->where('subject_type', Customer::class)
                         ->where('subject_id', $customer->id);
                 });
+
+                if ($requestIds->isNotEmpty()) {
+                    $query->orWhere(function ($sub) use ($requestIds) {
+                        $sub->where('subject_type', LeadRequest::class)
+                            ->whereIn('subject_id', $requestIds);
+                    });
+                }
 
                 if ($quoteIds->isNotEmpty()) {
                     $query->orWhere(function ($sub) use ($quoteIds) {
@@ -562,6 +588,7 @@ class BuildCustomerDetailViewData
                     });
                 }
             })
+            ->with('user:id,name')
             ->latest()
             ->limit(12)
             ->get(CustomerReadSelects::detailActivityColumns())
@@ -569,6 +596,16 @@ class BuildCustomerDetailViewData
                 'id' => $log->id,
                 'action' => $log->action,
                 'description' => $log->description,
+                'properties' => (array) ($log->properties ?? []),
+                'user' => $log->user ? [
+                    'id' => $log->user->id,
+                    'name' => $log->user->name,
+                ] : null,
+                'is_sales_activity' => SalesActivityTaxonomy::isSalesActivity($log->action),
+                'sales_activity' => SalesActivityTaxonomy::present(
+                    $log->action,
+                    (array) ($log->properties ?? [])
+                ),
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
                 'subject' => $subjectLabels[$log->subject_type] ?? 'Item',

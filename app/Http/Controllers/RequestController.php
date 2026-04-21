@@ -19,6 +19,7 @@ use App\Queries\Requests\BuildRequestInboxIndexData;
 use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\UsageLimitService;
 use App\Support\BulkActions\BulkActionRegistry;
+use App\Support\CRM\SalesActivityTaxonomy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -228,6 +229,9 @@ class RequestController extends Controller
             'assignees' => $assignees,
             'duplicates' => $duplicates,
             'campaignOrigin' => $campaignOrigin,
+            'canLogSalesActivity' => true,
+            'salesActivityQuickActions' => array_values(SalesActivityTaxonomy::quickActions()),
+            'salesActivityManualActions' => SalesActivityTaxonomy::manualActionDefinitions(),
         ]);
     }
 

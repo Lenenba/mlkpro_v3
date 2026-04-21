@@ -21,6 +21,7 @@ import { useDataTableSelection } from '@/Composables/useDataTableSelection';
 import Checkbox from '@/Components/Checkbox.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import { crmButtonClass, crmSegmentedControlButtonClass, crmSegmentedControlClass } from '@/utils/crmButtonStyles';
 import { useI18n } from 'vue-i18n';
 import {
     createBulkActionFailureResult,
@@ -550,14 +551,11 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                 </template>
 
                 <template #actions>
-                    <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                    <div :class="crmSegmentedControlClass()">
                         <button
                             type="button"
                             @click="setViewMode('table')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'table'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                            :class="crmSegmentedControlButtonClass(viewMode === 'table')"
                         >
                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -569,10 +567,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                         <button
                             type="button"
                             @click="setViewMode('cards')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'cards'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                            :class="crmSegmentedControlButtonClass(viewMode === 'cards')"
                         >
                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -585,7 +580,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                         </button>
                     </div>
                     <Link :href="route('customer.create')" data-testid="demo-add-customer"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
+                        :class="crmButtonClass('primary', 'toolbar')">
                         <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                             height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">

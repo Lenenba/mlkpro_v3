@@ -16,6 +16,7 @@ use App\Services\CompanyFeatureService;
 use App\Services\Customers\CustomerBulkAudienceBridgeService;
 use App\Services\Customers\CustomerBulkContactService;
 use App\Support\BulkActions\BulkActionRegistry;
+use App\Support\CRM\SalesActivityTaxonomy;
 use App\Support\Database\UserSelects;
 use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
@@ -267,6 +268,10 @@ class CustomerController extends Controller
             $canEdit,
             $filters
         );
+
+        $props['canLogSalesActivity'] = true;
+        $props['salesActivityQuickActions'] = array_values(SalesActivityTaxonomy::quickActions());
+        $props['salesActivityManualActions'] = SalesActivityTaxonomy::manualActionDefinitions();
 
         return $this->inertiaOrJson('Customer/Show', $props);
     }

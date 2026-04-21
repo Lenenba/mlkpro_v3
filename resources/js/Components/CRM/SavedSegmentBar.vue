@@ -5,6 +5,7 @@ import { Link } from '@inertiajs/vue3';
 import Modal from '@/Components/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import { crmButtonClass } from '@/utils/crmButtonStyles';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -352,7 +353,7 @@ const destroySelected = async () => {
             <div class="flex flex-wrap items-center gap-2 lg:justify-end">
                 <Link
                     v-if="historyHref"
-                    class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-white/90 px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-white dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                    :class="crmButtonClass('secondary', 'toolbar')"
                     :href="historyHref"
                     :data-testid="`saved-segment-history-${module}`"
                 >
@@ -364,7 +365,7 @@ const destroySelected = async () => {
                 <button
                     v-if="hasSegments"
                     type="button"
-                    class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-white px-3.5 py-2 text-xs font-semibold text-stone-700 transition hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                    :class="crmButtonClass('secondary', 'toolbar')"
                     :data-testid="`saved-segment-open-apply-${module}`"
                     @click="openApplyDialog"
                 >
@@ -376,7 +377,7 @@ const destroySelected = async () => {
                 <button
                     v-if="canManage"
                     type="button"
-                    class="inline-flex items-center gap-2 rounded-sm border border-transparent bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
+                    :class="crmButtonClass('primary', 'toolbar')"
                     :data-testid="`saved-segment-open-${module}`"
                     @click="openManageDialog"
                 >
@@ -477,7 +478,7 @@ const destroySelected = async () => {
                         <div class="mt-4 flex flex-wrap items-center gap-2">
                             <button
                                 type="button"
-                                class="inline-flex items-center gap-2 rounded-sm border border-transparent bg-stone-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-stone-800 disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
+                                :class="crmButtonClass('primary', 'dialog')"
                                 :disabled="isWorking || !selectedSegment"
                                 :data-testid="`saved-segment-apply-${module}`"
                                 @click="applySelected"
@@ -613,7 +614,7 @@ const destroySelected = async () => {
                             <div class="grid gap-2 sm:grid-cols-2">
                                 <button
                                     type="button"
-                                    class="inline-flex items-center justify-center gap-2 rounded-sm border border-transparent bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:pointer-events-none disabled:opacity-50"
+                                    :class="crmButtonClass('primary', 'dialog')"
                                     :disabled="isWorking || !snapshotReady"
                                     :data-testid="`saved-segment-save-${module}`"
                                     @click="saveCurrent"
@@ -622,7 +623,7 @@ const destroySelected = async () => {
                                 </button>
                                 <button
                                     type="button"
-                                    class="inline-flex items-center justify-center gap-2 rounded-sm border border-stone-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-stone-700 transition hover:bg-stone-50 disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    :class="crmButtonClass('secondary', 'dialog')"
                                     :disabled="isWorking || !selectedSegment || !snapshotReady"
                                     :data-testid="`saved-segment-update-${module}`"
                                     @click="updateSelected"
@@ -631,7 +632,7 @@ const destroySelected = async () => {
                                 </button>
                                 <button
                                     type="button"
-                                    class="inline-flex items-center justify-center gap-2 rounded-sm border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:pointer-events-none disabled:opacity-50 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20 sm:col-span-2"
+                                    :class="`${crmButtonClass('danger', 'dialog')} sm:col-span-2`"
                                     :disabled="isWorking || !selectedSegment"
                                     :data-testid="`saved-segment-delete-${module}`"
                                     @click="destroySelected"

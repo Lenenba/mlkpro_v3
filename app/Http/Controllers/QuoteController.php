@@ -21,6 +21,7 @@ use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Services\TemplateService;
 use App\Services\UsageLimitService;
+use App\Support\CRM\SalesActivityTaxonomy;
 use App\Support\SequentialNumber;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
@@ -426,6 +427,9 @@ class QuoteController extends Controller
             'activity' => $activity,
             'products' => Product::byUser($accountId)->where('item_type', $itemType)->get(),
             'taxes' => Tax::all(),
+            'canLogSalesActivity' => true,
+            'salesActivityQuickActions' => array_values(SalesActivityTaxonomy::quickActions()),
+            'salesActivityManualActions' => SalesActivityTaxonomy::manualActionDefinitions(),
         ]);
     }
 

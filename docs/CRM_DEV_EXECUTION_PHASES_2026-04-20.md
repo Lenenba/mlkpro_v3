@@ -538,6 +538,10 @@ Construire une couche d'activite commerciale structuree sur `ActivityLog`, visib
 - timeline lisible sur objets coeur
 - file des prochaines actions disponible
 
+### Document de reference
+
+- `docs/PHASE_4_SALES_ACTIVITY_LAYER_DEV_BACKLOG_2026-04-20.md`
+
 ## 11. Phase 5 - Email and Calendar Foundations
 
 ### Objectif business

@@ -12,6 +12,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
+import { crmButtonClass, crmSegmentedControlButtonClass, crmSegmentedControlClass } from '@/utils/crmButtonStyles';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
@@ -668,14 +669,11 @@ const quoteResultsLabel = computed(() => `${props.count} ${t('quotes.table.resul
 
             <template #actions>
                 <div class="flex flex-wrap items-center gap-2 justify-end">
-                    <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                    <div :class="crmSegmentedControlClass()">
                         <button
                             type="button"
                             @click="setViewMode('table')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'table'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                            :class="crmSegmentedControlButtonClass(viewMode === 'table')"
                         >
                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -687,10 +685,7 @@ const quoteResultsLabel = computed(() => `${props.count} ${t('quotes.table.resul
                         <button
                             type="button"
                             @click="setViewMode('cards')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'cards'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                            :class="crmSegmentedControlButtonClass(viewMode === 'cards')"
                         >
                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -728,7 +723,7 @@ const quoteResultsLabel = computed(() => `${props.count} ${t('quotes.table.resul
                             class="min-w-[190px]"
                         />
                         <button type="button" @click="startQuote" :disabled="!newQuoteCustomerId"
-                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
+                            :class="crmButtonClass('primary', 'toolbar')">
                             {{ $t('quotes.actions.new_quote') }}
                         </button>
                     </div>

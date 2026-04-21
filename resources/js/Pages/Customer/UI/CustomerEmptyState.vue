@@ -1,5 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
+import { crmButtonClass } from '@/utils/crmButtonStyles';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -16,7 +17,7 @@ const { t } = useI18n();
         <div class="flex justify-center pt-2">
             <Link
                 :href="route('customer.create')"
-                class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+                :class="crmButtonClass('primary', 'compact')"
             >
                 {{ t('customers.empty.action') }}
             </Link>

@@ -21,6 +21,7 @@ import { useI18n } from 'vue-i18n';
 import RequestBoard from '@/Pages/Request/UI/RequestBoard.vue';
 import RequestTableActionsMenu from '@/Pages/Request/UI/RequestTableActionsMenu.vue';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { crmButtonClass, crmSegmentedControlButtonClass, crmSegmentedControlClass } from '@/utils/crmButtonStyles';
 import {
     createBulkActionFailureResult,
     dispatchBulkActionToast,
@@ -1173,14 +1174,11 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                 </template>
 
                 <template #actions>
-                    <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                    <div :class="crmSegmentedControlClass()">
                         <button
                             type="button"
                             @click="setViewMode('table')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'table'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                            :class="crmSegmentedControlButtonClass(viewMode === 'table')"
                             data-testid="request-view-table"
                         >
                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -1194,10 +1192,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                         <button
                             type="button"
                             @click="setViewMode('board')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'board'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                            :class="crmSegmentedControlButtonClass(viewMode === 'board')"
                             data-testid="request-view-board"
                         >
                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -1214,21 +1209,21 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                     <template v-if="canUseRequests">
                         <button
                             type="button"
-                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            :class="crmButtonClass('secondary', 'toolbar')"
                             :data-hs-overlay="`#${intakeModalId}`"
                         >
                             {{ $t('requests.actions.intake') }}
                         </button>
                         <button
                             type="button"
-                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            :class="crmButtonClass('secondary', 'toolbar')"
                             :data-hs-overlay="`#${importModalId}`"
                         >
                             {{ $t('requests.actions.import_csv') }}
                         </button>
                         <button
                             type="button"
-                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700"
+                            :class="crmButtonClass('primary', 'toolbar')"
                             @click="openQuickCreate"
                         >
                             {{ $t('requests.actions.new_request') }}
