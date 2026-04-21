@@ -15,6 +15,8 @@ test('service owner can save a request segment, run a manual playbook, and audit
     await expect(page.getByTestId(`request-row-${inbox.dueSoonLeadId}`)).toBeVisible();
     await expect(page.getByTestId(`request-row-${inbox.breachedLeadId}`)).toHaveCount(0);
 
+    await page.getByTestId('saved-segment-open-request').click();
+    await expect(page.getByTestId('saved-segment-modal-request')).toBeVisible();
     await page.getByTestId('saved-segment-name-request').fill(segmentName);
     await page.getByTestId('saved-segment-save-request').click();
 
@@ -26,6 +28,9 @@ test('service owner can save a request segment, run a manual playbook, and audit
 
     const segment = segmentsPayload.body?.segments?.find((item) => item.name === segmentName);
     expect(segment).toBeTruthy();
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('saved-segment-modal-request')).toBeHidden();
 
     const createPlaybookPayload = await jsonRequest(page, 'POST', '/crm/playbooks', {
         saved_segment_id: segment.id,
