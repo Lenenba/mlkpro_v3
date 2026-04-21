@@ -16,6 +16,8 @@ class CampaignProspectProviderConnection extends Model
 
     public const PROVIDER_APOLLO = 'apollo';
 
+    public const PROVIDER_APOLLO_API = 'apollo_api';
+
     public const PROVIDER_LUSHA = 'lusha';
 
     public const PROVIDER_UPLEAD = 'uplead';
@@ -86,6 +88,7 @@ class CampaignProspectProviderConnection extends Model
     {
         return [
             self::PROVIDER_APOLLO,
+            self::PROVIDER_APOLLO_API,
             self::PROVIDER_LUSHA,
             self::PROVIDER_UPLEAD,
         ];

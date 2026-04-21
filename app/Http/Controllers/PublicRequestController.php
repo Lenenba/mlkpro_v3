@@ -16,6 +16,7 @@ use App\Notifications\LeadQuoteRequestReceivedNotification;
 use App\Notifications\SendQuoteNotification;
 use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\CompanyFeatureService;
+use App\Services\CRM\OutgoingEmailLogService;
 use App\Services\LeadServiceSuggestionService;
 use App\Services\TrackingService;
 use App\Services\UsageLimitService;
@@ -369,19 +370,25 @@ class PublicRequestController extends Controller
                 'source' => 'lead_form',
             ]);
 
+            $emailLogger = app(OutgoingEmailLogService::class);
             if ($quoteEmailQueued) {
-                ActivityLog::record(null, $quote, 'email_sent', [
+                $emailLogger->logSent(null, $quote, [
                     'email' => $customer->email,
                     'source' => 'lead_form',
+                    'notification' => SendQuoteNotification::class,
                 ], 'Quote email sent');
             } else {
-                ActivityLog::record(null, $quote, 'email_failed', [
+                $emailLogger->logFailed(null, $quote, [
                     'email' => $customer->email,
                     'source' => 'lead_form',
+                    'notification' => SendQuoteNotification::class,
                 ], 'Quote email failed');
-                ActivityLog::record(null, $lead, 'lead_email_failed', [
+                $emailLogger->logFailed(null, $lead, [
                     'quote_id' => $quote->id,
+                    'customer_id' => $quote->customer_id,
                     'email' => $customer->email,
+                    'source' => 'lead_form',
+                    'notification' => SendQuoteNotification::class,
                 ], 'Quote email failed');
                 $this->scheduleQuoteEmailRetry($quote, $lead, 1);
             }
@@ -397,16 +404,22 @@ class PublicRequestController extends Controller
             );
 
             if ($prospectSummaryEmailQueued) {
-                ActivityLog::record(null, $lead, 'email_sent', [
+                $emailLogger->logSent(null, $lead, [
                     'email' => $lead->contact_email,
                     'quote_id' => $quote->id,
+                    'customer_id' => $quote->customer_id,
+                    'source' => 'lead_form',
                     'event' => 'lead_quote_request_received',
+                    'notification' => LeadQuoteRequestReceivedNotification::class,
                 ], 'Lead quote request summary email sent');
             } else {
-                ActivityLog::record(null, $lead, 'lead_email_failed', [
+                $emailLogger->logFailed(null, $lead, [
                     'email' => $lead->contact_email,
                     'quote_id' => $quote->id,
+                    'customer_id' => $quote->customer_id,
+                    'source' => 'lead_form',
                     'event' => 'lead_quote_request_received',
+                    'notification' => LeadQuoteRequestReceivedNotification::class,
                 ], 'Lead quote request summary email failed');
             }
 
@@ -489,14 +502,18 @@ class PublicRequestController extends Controller
         );
 
         if ($prospectEmailQueued) {
-            ActivityLog::record(null, $lead, 'email_sent', [
+            app(OutgoingEmailLogService::class)->logSent(null, $lead, [
                 'email' => $lead->contact_email,
+                'source' => 'lead_form',
                 'event' => 'lead_call_requested',
+                'notification' => LeadCallRequestReceivedNotification::class,
             ], 'Lead call request email sent');
         } else {
-            ActivityLog::record(null, $lead, 'lead_email_failed', [
+            app(OutgoingEmailLogService::class)->logFailed(null, $lead, [
                 'email' => $lead->contact_email,
+                'source' => 'lead_form',
                 'event' => 'lead_call_requested',
+                'notification' => LeadCallRequestReceivedNotification::class,
             ], 'Lead call request email failed');
         }
 
@@ -820,10 +837,12 @@ class PublicRequestController extends Controller
         RetryLeadQuoteEmailJob::dispatch($quote->id, $lead->id, $attempt)
             ->delay(now()->addMinutes($delayMinutes));
 
-        ActivityLog::record(null, $lead, 'lead_email_retry_scheduled', [
+        app(OutgoingEmailLogService::class)->logRetryScheduled(null, $lead, [
             'quote_id' => $quote->id,
+            'customer_id' => $quote->customer_id,
             'attempt' => $attempt,
             'delay_minutes' => $delayMinutes,
+            'source' => 'lead_form_retry',
         ], 'Quote email retry scheduled');
     }
 

@@ -587,7 +587,7 @@ it('schedules quote email retry when initial quote email fails', function () {
     $this->assertDatabaseHas('activity_logs', [
         'subject_type' => $lead->getMorphClass(),
         'subject_id' => $lead->id,
-        'action' => 'lead_email_retry_scheduled',
+        'action' => 'message_email_retry_scheduled',
     ]);
 });
 

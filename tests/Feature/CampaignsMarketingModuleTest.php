@@ -23,6 +23,7 @@ use App\Models\ProductCategory;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
 use App\Models\Sale;
+use App\Models\SavedSegment;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\Campaigns\AudienceResolver;
@@ -39,6 +40,7 @@ use App\Services\Campaigns\TemplateSeederService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request as HttpClientRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -208,15 +210,46 @@ function fakeApolloOauthExchange(
     ]);
 }
 
-function fakeApolloPreviewResponses(array $people, array $matches): void
-{
+function fakeApolloPreviewResponses(
+    array $people,
+    array $matches,
+    array $contacts = [],
+    array $accounts = [],
+    int $peopleStatus = 200,
+    int $matchesStatus = 200,
+    int $contactsStatus = 200,
+    int $accountsStatus = 200,
+): void {
     Http::fake([
         'https://api.apollo.io/api/v1/mixed_people/api_search' => Http::response([
             'people' => $people,
-        ], 200),
+        ], $peopleStatus),
+        'https://api.apollo.io/api/v1/contacts/search' => Http::response([
+            'contacts' => $contacts,
+        ], $contactsStatus),
+        'https://api.apollo.io/api/v1/accounts/search' => Http::response([
+            'accounts' => $accounts,
+        ], $accountsStatus),
         'https://api.apollo.io/api/v1/people/bulk_match' => Http::response([
             'matches' => $matches,
-        ], 200),
+        ], $matchesStatus),
+        '*' => Http::response(['message' => 'Unexpected Apollo request'], 500),
+    ]);
+}
+
+function fakeApolloApiKeyValidationResponse(
+    int $peopleStatus = 200,
+    array $peopleBody = ['people' => []],
+    int $contactsStatus = 200,
+    array $contactsBody = ['contacts' => []],
+    int $accountsStatus = 200,
+    array $accountsBody = ['accounts' => []],
+): void {
+    Http::fake([
+        'https://api.apollo.io/api/v1/mixed_people/api_search' => Http::response($peopleBody, $peopleStatus),
+        'https://api.apollo.io/api/v1/contacts/search' => Http::response($contactsBody, $contactsStatus),
+        'https://api.apollo.io/api/v1/accounts/search' => Http::response($accountsBody, $accountsStatus),
+        'https://api.apollo.io/api/v1/people/bulk_match' => Http::response(['matches' => []], 403),
         '*' => Http::response(['message' => 'Unexpected Apollo request'], 500),
     ]);
 }
@@ -459,8 +492,117 @@ test('marketing meta exposes prospect provider definitions and connections', fun
 
     $providerKeys = collect($response->json('prospect_providers'))->pluck('key');
     expect($providerKeys)->toContain('apollo');
+    expect($providerKeys)->toContain('apollo_api');
     expect($providerKeys)->toContain('lusha');
     expect($providerKeys)->toContain('uplead');
+});
+
+test('marketing owner can connect apollo prospect provider with api key', function () {
+    $owner = marketingOwner();
+    fakeApolloApiKeyValidationResponse();
+
+    $connect = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.connect'), [
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO_API,
+        'label' => 'Apollo account',
+        'credentials' => [
+            'api_key' => 'apollo-master-key-12345',
+        ],
+    ]);
+
+    $connect->assertCreated()
+        ->assertJsonPath('flow', 'manual')
+        ->assertJsonPath('provider_connection.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO_API)
+        ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_CONNECTED)
+        ->assertJsonPath('provider_connection.is_active', true)
+        ->assertJsonPath('provider_connection.auth_method', CampaignProspectProviderConnection::AUTH_METHOD_API_KEY);
+
+    $connection = CampaignProspectProviderConnection::query()->findOrFail((int) $connect->json('provider_connection.id'));
+
+    expect($connection->credentials)->toBe(['api_key' => 'apollo-master-key-12345'])
+        ->and((string) $connection->getRawOriginal('credentials'))->not->toContain('apollo-master-key-12345');
+});
+
+test('marketing owner can connect apollo api key when contacts search is available but people search is not', function () {
+    $owner = marketingOwner();
+
+    fakeApolloApiKeyValidationResponse(
+        peopleStatus: 403,
+        peopleBody: ['message' => 'People API Search is not enabled for this key.'],
+        contactsStatus: 200,
+        contactsBody: [
+            'contacts' => [
+                [
+                    'id' => 'apollo-contact-1',
+                    'first_name' => 'Mia',
+                    'last_name' => 'Stone',
+                    'name' => 'Mia Stone',
+                    'email' => 'mia.stone@north-retail.example',
+                    'account' => [
+                        'id' => 'apollo-account-1',
+                        'name' => 'North Retail Group',
+                        'website_url' => 'https://north-retail.example',
+                    ],
+                ],
+            ],
+        ],
+    );
+
+    $connect = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.connect'), [
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO_API,
+        'label' => 'Apollo contacts fallback',
+        'credentials' => [
+            'api_key' => 'apollo-contacts-key-12345',
+        ],
+    ]);
+
+    $connect->assertCreated()
+        ->assertJsonPath('provider_connection.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO_API)
+        ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_CONNECTED)
+        ->assertJsonPath('provider_connection.is_active', true);
+
+    Http::assertSent(function (HttpClientRequest $request): bool {
+        $url = (string) $request->url();
+
+        if (! str_contains($url, '/api/v1/contacts/search')) {
+            return false;
+        }
+
+        $headers = $request->headers();
+
+        return ($headers['X-Api-Key'][0] ?? null) === 'apollo-contacts-key-12345'
+            && ! array_key_exists('Authorization', $headers);
+    });
+});
+
+test('refreshing apollo api key shows a combined access error when all search fallbacks are forbidden', function () {
+    $owner = marketingOwner();
+
+    fakeApolloApiKeyValidationResponse(
+        peopleStatus: 403,
+        peopleBody: ['message' => 'People API Search is not enabled for this key.'],
+        contactsStatus: 403,
+        contactsBody: ['message' => 'Contacts Search is not enabled for this key.'],
+        accountsStatus: 403,
+        accountsBody: ['message' => 'Accounts Search is not enabled for this key.'],
+    );
+
+    $connection = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO_API,
+        'label' => 'Apollo account',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_API_KEY,
+        'credentials' => ['api_key' => 'apollo-master-key-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now()->subMinute(),
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('marketing.prospect-providers.refresh', $connection));
+
+    $response->assertOk()
+        ->assertJsonPath('provider_connection.status', CampaignProspectProviderConnection::STATUS_ERROR)
+        ->assertJsonPath('provider_connection.is_active', false)
+        ->assertJsonPath('provider_connection.last_error', 'Apollo rejected this API key or the key does not have access to People Search, Contacts Search, or Accounts Search.');
 });
 
 test('marketing owner can connect lusha prospect provider with api key', function () {
@@ -627,8 +769,9 @@ test('campaign team member can view prospect provider workspace in read only mod
 
     CampaignProspectProviderConnection::query()->create([
         'user_id' => $owner->id,
-        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
-        'label' => 'Apollo workspace',
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO_API,
+        'label' => 'Apollo account',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_API_KEY,
         'credentials' => ['api_key' => 'apollo-secret-12345'],
         'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
         'is_active' => true,
@@ -640,14 +783,14 @@ test('campaign team member can view prospect provider workspace in read only mod
     $page->assertOk()
         ->assertJsonPath('access.can_view', true)
         ->assertJsonPath('access.can_manage_secrets', false)
-        ->assertJsonPath('provider_connections.0.label', 'Apollo workspace')
+        ->assertJsonPath('provider_connections.0.label', 'Apollo account')
         ->assertJsonPath('provider_summary.connected', 1);
 
     $index = $this->actingAs($member)->getJson(route('marketing.prospect-providers.index'));
 
     $index->assertOk()
         ->assertJsonPath('access.can_manage_secrets', false)
-        ->assertJsonPath('provider_connections.0.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO);
+        ->assertJsonPath('provider_connections.0.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO_API);
 });
 
 test('campaign team member cannot mutate prospect provider credentials', function () {
@@ -685,8 +828,9 @@ test('campaign index exposes prospect provider summary', function () {
 
     CampaignProspectProviderConnection::query()->create([
         'user_id' => $owner->id,
-        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO_API,
         'label' => 'Apollo connected',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_API_KEY,
         'credentials' => ['api_key' => 'apollo-secret-12345'],
         'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
         'is_active' => true,
@@ -715,8 +859,9 @@ test('campaign wizard exposes only connected prospect providers for audience sel
 
     CampaignProspectProviderConnection::query()->create([
         'user_id' => $owner->id,
-        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
-        'label' => 'Apollo ready',
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO_API,
+        'label' => 'Apollo account',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_API_KEY,
         'credentials' => ['api_key' => 'apollo-secret-12345'],
         'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
         'is_active' => true,
@@ -736,8 +881,51 @@ test('campaign wizard exposes only connected prospect providers for audience sel
 
     $response->assertOk()
         ->assertJsonCount(1, 'availableProspectProviders')
-        ->assertJsonPath('availableProspectProviders.0.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO)
-        ->assertJsonPath('availableProspectProviders.0.label', 'Apollo ready');
+        ->assertJsonPath('availableProspectProviders.0.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO_API)
+        ->assertJsonPath('availableProspectProviders.0.label', 'Apollo account');
+});
+
+test('campaign wizard exposes both Apollo auth modes when both connections are connected', function () {
+    $owner = marketingOwner();
+
+    CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
+        'label' => 'Apollo workspace',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_OAUTH,
+        'credentials' => [
+            'access_token' => 'apollo-access-token-1',
+            'refresh_token' => 'apollo-refresh-token-1',
+        ],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now()->subMinute(),
+        'last_validated_at' => now(),
+    ]);
+
+    CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO_API,
+        'label' => 'Apollo account',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_API_KEY,
+        'credentials' => ['api_key' => 'apollo-master-key-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now(),
+        'last_validated_at' => now(),
+    ]);
+
+    $response = $this->actingAs($owner)->getJson(route('campaigns.create'));
+
+    $response->assertOk()
+        ->assertJsonCount(2, 'availableProspectProviders');
+
+    $providers = collect($response->json('availableProspectProviders'));
+
+    expect($providers->pluck('provider_key')->all())->toContain(CampaignProspectProviderConnection::PROVIDER_APOLLO)
+        ->and($providers->pluck('provider_key')->all())->toContain(CampaignProspectProviderConnection::PROVIDER_APOLLO_API)
+        ->and($providers->firstWhere('provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO)['auth_method'] ?? null)->toBe(CampaignProspectProviderConnection::AUTH_METHOD_OAUTH)
+        ->and($providers->firstWhere('provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO_API)['auth_method'] ?? null)->toBe(CampaignProspectProviderConnection::AUTH_METHOD_API_KEY);
 });
 
 test('campaign update persists provider audience selection context', function () {
@@ -902,8 +1090,9 @@ test('campaign provider preview returns normalized rows without creating batches
 
     $provider = CampaignProspectProviderConnection::query()->create([
         'user_id' => $owner->id,
-        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO,
-        'label' => 'Apollo outbound',
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO_API,
+        'label' => 'Apollo account',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_API_KEY,
         'credentials' => ['api_key' => 'apollo-secret-12345'],
         'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
         'is_active' => true,
@@ -929,7 +1118,7 @@ test('campaign provider preview returns normalized rows without creating batches
         'campaign_id' => $campaign->id,
         'user_id' => $owner->id,
         'source_type' => CampaignProspect::SOURCE_CONNECTOR,
-        'source_reference' => 'Apollo outbound',
+        'source_reference' => 'Apollo account',
         'batch_number' => 1,
         'input_count' => 1,
         'accepted_count' => 1,
@@ -941,7 +1130,7 @@ test('campaign provider preview returns normalized rows without creating batches
         'campaign_prospect_batch_id' => $existingBatch->id,
         'user_id' => $owner->id,
         'source_type' => CampaignProspect::SOURCE_CONNECTOR,
-        'source_reference' => 'Apollo outbound',
+        'source_reference' => 'Apollo account',
         'external_ref' => 'apollo-person-2',
         'company_name' => 'Summit Supply',
         'contact_name' => 'Noah Grant',
@@ -961,14 +1150,14 @@ test('campaign provider preview returns normalized rows without creating batches
 
     $response->assertOk()
         ->assertJsonPath('provider_connection.id', $provider->id)
-        ->assertJsonPath('provider_connection.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO)
+        ->assertJsonPath('provider_connection.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO_API)
         ->assertJsonPath('preview.count', 2)
         ->assertJsonPath('preview.selected_count', 1)
         ->assertJsonPath('preview.fresh_count', 1)
         ->assertJsonPath('preview.already_imported_count', 1)
-        ->assertJsonPath('rows.0.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO)
+        ->assertJsonPath('rows.0.provider_key', CampaignProspectProviderConnection::PROVIDER_APOLLO_API)
         ->assertJsonPath('rows.0.source_type', CampaignProspect::SOURCE_CONNECTOR)
-        ->assertJsonPath('rows.0.source_reference', 'Apollo outbound')
+        ->assertJsonPath('rows.0.source_reference', 'Apollo account')
         ->assertJsonPath('rows.0.metadata.provider_preview', true)
         ->assertJsonPath('rows.0.metadata.apollo_person_id', 'apollo-person-1')
         ->assertJsonPath('rows.0.metadata.apollo_organization_id', 'apollo-org-1')
@@ -980,6 +1169,496 @@ test('campaign provider preview returns normalized rows without creating batches
     expect((string) data_get($response->json(), 'rows.0.preview_ref'))->not->toBe('')
         ->and(CampaignProspectBatch::query()->count())->toBe(1)
         ->and(ActivityLog::query()->where('action', 'campaign_provider_preview_generated')->count())->toBe(1);
+});
+
+test('campaign provider preview falls back to contacts search when people search is unavailable', function () {
+    $owner = marketingOwner();
+    fakeApolloPreviewResponses(
+        people: [],
+        matches: [],
+        contacts: [
+            [
+                'id' => 'apollo-contact-1',
+                'first_name' => 'Lea',
+                'last_name' => 'Martin',
+                'name' => 'Lea Martin',
+                'title' => 'Owner',
+                'email' => 'lea@clean-nord.example',
+                'phone_numbers' => [
+                    ['sanitized_number' => '+15145550123'],
+                ],
+                'linkedin_url' => 'https://linkedin.com/in/lea-martin',
+                'account' => [
+                    'id' => 'apollo-account-1',
+                    'name' => 'Clean Nord',
+                    'website_url' => 'https://clean-nord.example',
+                    'city' => 'Montreal',
+                    'state' => 'Quebec',
+                    'country' => 'Canada',
+                    'industry' => 'Cleaning Services',
+                    'estimated_num_employees' => 12,
+                ],
+            ],
+        ],
+        peopleStatus: 403,
+        contactsStatus: 200,
+        matchesStatus: 403,
+    );
+
+    $provider = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO_API,
+        'label' => 'Apollo contacts fallback',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_API_KEY,
+        'credentials' => ['api_key' => 'apollo-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Apollo contacts fallback preview',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
+        'provider_connection_id' => $provider->id,
+        'query_label' => 'Montreal cleaning',
+        'query' => 'Cleaning companies in Montreal',
+        'limit' => 1,
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('preview.count', 1)
+        ->assertJsonPath('rows.0.contact_name', 'Lea Martin')
+        ->assertJsonPath('rows.0.email', 'lea@clean-nord.example')
+        ->assertJsonPath('rows.0.phone', '+15145550123')
+        ->assertJsonPath('rows.0.metadata.apollo_contact_id', 'apollo-contact-1')
+        ->assertJsonPath('rows.0.metadata.apollo_search_source', 'contacts_search');
+
+    Http::assertSent(function (HttpClientRequest $request): bool {
+        $url = (string) $request->url();
+
+        if (! str_contains($url, '/api/v1/contacts/search')) {
+            return false;
+        }
+
+        $headers = $request->headers();
+
+        return ($headers['X-Api-Key'][0] ?? null) === 'apollo-secret-12345'
+            && ! array_key_exists('Authorization', $headers);
+    });
+});
+
+test('campaign provider preview derives broader workspace searches from an icp style apollo query', function () {
+    $owner = marketingOwner();
+
+    Http::fake([
+        'https://api.apollo.io/api/v1/mixed_people/api_search' => Http::response([
+            'message' => 'People API Search is not enabled for this key.',
+        ], 403),
+        'https://api.apollo.io/api/v1/accounts/search' => Http::response([
+            'accounts' => [],
+        ], 200),
+        'https://api.apollo.io/api/v1/contacts/search' => function (HttpClientRequest $request) {
+            $payload = $request->data();
+            $query = trim((string) ($payload['q_keywords'] ?? ''));
+
+            if ($query === 'Montreal owner') {
+                return Http::response([
+                    'contacts' => [
+                        [
+                            'id' => 'apollo-contact-derive-1',
+                            'first_name' => 'Faruk',
+                            'last_name' => 'Ahmed',
+                            'name' => 'Faruk Ahmed',
+                            'title' => 'Founder & Owner',
+                            'email' => 'faruk@restaurantgandhi.com',
+                            'city' => 'Montreal',
+                            'state' => 'Quebec',
+                            'country' => 'Canada',
+                            'account' => [
+                                'id' => 'apollo-account-derive-1',
+                                'name' => 'Restaurant Gandhi (Old Montreal)',
+                                'website_url' => 'https://restaurantgandhi.com',
+                                'city' => 'Montreal',
+                                'state' => 'Quebec',
+                                'country' => 'Canada',
+                                'industry' => 'Restaurants',
+                                'estimated_num_employees' => 10,
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response(['contacts' => []], 200);
+        },
+        'https://api.apollo.io/api/v1/people/bulk_match' => Http::response([
+            'matches' => [],
+        ], 403),
+        '*' => Http::response(['message' => 'Unexpected Apollo request'], 500),
+    ]);
+
+    $provider = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO_API,
+        'label' => 'Apollo ICP fallback',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_API_KEY,
+        'credentials' => ['api_key' => 'apollo-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Apollo derived ICP preview',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
+        'provider_connection_id' => $provider->id,
+        'query_label' => 'Montreal cleaning',
+        'query' => 'cleaning companies in Montreal',
+        'limit' => 3,
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('preview.count', 1)
+        ->assertJsonPath('rows.0.contact_name', 'Faruk Ahmed')
+        ->assertJsonPath('rows.0.company_name', 'Restaurant Gandhi (Old Montreal)')
+        ->assertJsonPath('rows.0.metadata.apollo_search_source', 'contacts_search');
+
+    Http::assertSent(function (HttpClientRequest $request): bool {
+        if (! str_contains((string) $request->url(), '/api/v1/contacts/search')) {
+            return false;
+        }
+
+        return trim((string) ($request->data()['q_keywords'] ?? '')) === 'Montreal owner';
+    });
+});
+
+test('campaign provider preview derives system change buyer queries for apollo', function () {
+    $owner = marketingOwner();
+
+    Http::fake([
+        'https://api.apollo.io/api/v1/mixed_people/api_search' => Http::response([
+            'message' => 'People API Search is not enabled for this key.',
+        ], 403),
+        'https://api.apollo.io/api/v1/accounts/search' => Http::response([
+            'accounts' => [],
+        ], 200),
+        'https://api.apollo.io/api/v1/contacts/search' => function (HttpClientRequest $request) {
+            $query = trim((string) ($request->data()['q_keywords'] ?? ''));
+
+            if ($query === 'Montreal operations manager') {
+                return Http::response([
+                    'contacts' => [
+                        [
+                            'id' => 'apollo-contact-sys-1',
+                            'first_name' => 'Nora',
+                            'last_name' => 'Blais',
+                            'name' => 'Nora Blais',
+                            'title' => 'Operations Manager',
+                            'email' => 'nora@example.com',
+                            'account' => [
+                                'id' => 'apollo-account-sys-1',
+                                'name' => 'Montreal Services Co',
+                                'website_url' => 'https://montreal-services.example',
+                                'city' => 'Montreal',
+                                'state' => 'Quebec',
+                                'country' => 'Canada',
+                                'industry' => 'Home Services',
+                                'estimated_num_employees' => 18,
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response(['contacts' => []], 200);
+        },
+        'https://api.apollo.io/api/v1/people/bulk_match' => Http::response([
+            'matches' => [],
+        ], 403),
+        '*' => Http::response(['message' => 'Unexpected Apollo request'], 500),
+    ]);
+
+    $provider = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO_API,
+        'label' => 'Apollo system-change fallback',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_API_KEY,
+        'credentials' => ['api_key' => 'apollo-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Apollo system change preview',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
+        'provider_connection_id' => $provider->id,
+        'query_label' => 'Systeme instable',
+        'query' => 'companies in Montreal that want to change system',
+        'limit' => 3,
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('preview.count', 1)
+        ->assertJsonPath('rows.0.contact_name', 'Nora Blais')
+        ->assertJsonPath('rows.0.metadata.apollo_title', 'Operations Manager');
+
+    Http::assertSent(function (HttpClientRequest $request): bool {
+        if (! str_contains((string) $request->url(), '/api/v1/contacts/search')) {
+            return false;
+        }
+
+        return trim((string) ($request->data()['q_keywords'] ?? '')) === 'Montreal operations manager';
+    });
+});
+
+test('campaign provider preview derives french system change buyer queries for apollo', function () {
+    $owner = marketingOwner();
+    $montreal = "Montr\u{00E9}al";
+
+    Http::fake([
+        'https://api.apollo.io/api/v1/mixed_people/api_search' => Http::response([
+            'message' => 'People API Search is not enabled for this key.',
+        ], 403),
+        'https://api.apollo.io/api/v1/accounts/search' => Http::response([
+            'accounts' => [],
+        ], 200),
+        'https://api.apollo.io/api/v1/contacts/search' => function (HttpClientRequest $request) use ($montreal) {
+            $query = trim((string) ($request->data()['q_keywords'] ?? ''));
+
+            if ($query === $montreal.' operations manager') {
+                return Http::response([
+                    'contacts' => [
+                        [
+                            'id' => 'apollo-contact-sys-fr-1',
+                            'first_name' => 'Nora',
+                            'last_name' => 'Blais',
+                            'name' => 'Nora Blais',
+                            'title' => 'Operations Manager',
+                            'email' => 'nora@example.com',
+                            'account' => [
+                                'id' => 'apollo-account-sys-fr-1',
+                                'name' => 'Montreal Services Co',
+                                'website_url' => 'https://montreal-services.example',
+                                'city' => $montreal,
+                                'state' => 'Quebec',
+                                'country' => 'Canada',
+                                'industry' => 'Home Services',
+                                'estimated_num_employees' => 18,
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response(['contacts' => []], 200);
+        },
+        'https://api.apollo.io/api/v1/people/bulk_match' => Http::response([
+            'matches' => [],
+        ], 403),
+        '*' => Http::response(['message' => 'Unexpected Apollo request'], 500),
+    ]);
+
+    $provider = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO_API,
+        'label' => 'Apollo system-change fallback FR',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_API_KEY,
+        'credentials' => ['api_key' => 'apollo-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Apollo system change preview FR',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
+        'provider_connection_id' => $provider->id,
+        'query_label' => 'Systeme instable FR',
+        'query' => 'entreprises a '.$montreal.' qui veulent changer de systeme',
+        'limit' => 3,
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('preview.count', 1)
+        ->assertJsonPath('rows.0.contact_name', 'Nora Blais')
+        ->assertJsonPath('rows.0.metadata.apollo_title', 'Operations Manager');
+
+    Http::assertSent(function (HttpClientRequest $request) use ($montreal): bool {
+        if (! str_contains((string) $request->url(), '/api/v1/contacts/search')) {
+            return false;
+        }
+
+        return trim((string) ($request->data()['q_keywords'] ?? '')) === $montreal.' operations manager';
+    });
+});
+
+test('campaign provider preview can recover contacts from account search fallback', function () {
+    $owner = marketingOwner();
+
+    Http::fake([
+        'https://api.apollo.io/api/v1/mixed_people/api_search' => Http::response([
+            'message' => 'People API Search is not enabled for this key.',
+        ], 403),
+        'https://api.apollo.io/api/v1/accounts/search' => function ($request) {
+            $payload = json_decode($request->body(), true) ?: [];
+            $query = trim((string) ($payload['q_organization_name'] ?? ''));
+
+            if ($query === 'Acme') {
+                return Http::response([
+                    'accounts' => [
+                        [
+                            'id' => 'apollo-account-77',
+                            'name' => 'Acme Cleaning',
+                            'website_url' => 'https://acme-cleaning.example',
+                            'city' => 'Toronto',
+                            'state' => 'Ontario',
+                            'country' => 'Canada',
+                            'industry' => 'Cleaning Services',
+                            'estimated_num_employees' => 24,
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response(['accounts' => []], 200);
+        },
+        'https://api.apollo.io/api/v1/contacts/search' => function ($request) {
+            $payload = json_decode($request->body(), true) ?: [];
+            $query = trim((string) ($payload['q_keywords'] ?? ''));
+
+            if ($query === 'Acme') {
+                return Http::response(['contacts' => []], 200);
+            }
+
+            if ($query === 'Acme Cleaning') {
+                return Http::response([
+                    'contacts' => [
+                        [
+                            'id' => 'apollo-contact-77',
+                            'first_name' => 'Ava',
+                            'last_name' => 'Carter',
+                            'name' => 'Ava Carter',
+                            'title' => 'Operations Director',
+                            'email' => 'ava@acme-cleaning.example',
+                            'phone_numbers' => [
+                                ['sanitized_number' => '+14165550177'],
+                            ],
+                            'linkedin_url' => 'https://linkedin.com/in/ava-carter',
+                            'account' => [
+                                'id' => 'apollo-account-77',
+                                'name' => 'Acme Cleaning',
+                                'website_url' => 'https://acme-cleaning.example',
+                                'city' => 'Toronto',
+                                'state' => 'Ontario',
+                                'country' => 'Canada',
+                                'industry' => 'Cleaning Services',
+                                'estimated_num_employees' => 24,
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response(['contacts' => []], 200);
+        },
+        'https://api.apollo.io/api/v1/people/bulk_match' => Http::response([
+            'matches' => [],
+        ], 403),
+        '*' => Http::response(['message' => 'Unexpected Apollo request'], 500),
+    ]);
+
+    $provider = CampaignProspectProviderConnection::query()->create([
+        'user_id' => $owner->id,
+        'provider_key' => CampaignProspectProviderConnection::PROVIDER_APOLLO_API,
+        'label' => 'Apollo account fallback',
+        'auth_method' => CampaignProspectProviderConnection::AUTH_METHOD_API_KEY,
+        'credentials' => ['api_key' => 'apollo-secret-12345'],
+        'status' => CampaignProspectProviderConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'last_validated_at' => now(),
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'Apollo account fallback preview',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'campaign_direction' => Campaign::DIRECTION_PROSPECTING_OUTBOUND,
+        'prospecting_enabled' => true,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+        'is_marketing' => true,
+    ]);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-provider-preview', $campaign), [
+        'provider_connection_id' => $provider->id,
+        'query_label' => 'Acme ICP',
+        'query' => 'Acme',
+        'limit' => 1,
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('preview.count', 1)
+        ->assertJsonPath('rows.0.contact_name', 'Ava Carter')
+        ->assertJsonPath('rows.0.company_name', 'Acme Cleaning')
+        ->assertJsonPath('rows.0.metadata.apollo_search_source', 'account_contacts_search')
+        ->assertJsonPath('rows.0.metadata.apollo_search_sources.0', 'account_contacts_search');
 });
 
 test('lusha provider preview sends a valid contact filter when searching by text', function () {
@@ -1684,6 +2363,60 @@ test('segment can be saved loaded and counted', function () {
             'blocked_by_reason',
         ],
     ]);
+});
+
+test('marketing segments remain isolated when crm saved segments exist for the same owner', function () {
+    $owner = marketingOwner();
+    $customer = marketingCustomer($owner);
+
+    SavedSegment::create([
+        'user_id' => $owner->id,
+        'module' => SavedSegment::MODULE_CUSTOMER,
+        'name' => 'VIP Segment',
+        'filters' => [
+            'status' => 'active',
+            'is_vip' => true,
+        ],
+    ]);
+
+    CustomerConsent::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'status' => CustomerConsent::STATUS_GRANTED,
+        'granted_at' => now(),
+    ]);
+
+    $create = $this->actingAs($owner)->postJson(route('marketing.segments.store'), [
+        'name' => 'VIP Segment',
+        'description' => 'Marketing segment kept separate from CRM segments',
+        'filters' => [
+            'operator' => 'AND',
+            'rules' => [],
+        ],
+        'exclusions' => [
+            'operator' => 'AND',
+            'rules' => [],
+        ],
+        'tags' => ['vip'],
+    ]);
+
+    $create->assertCreated()
+        ->assertJsonPath('segment.name', 'VIP Segment');
+
+    $segmentId = (int) $create->json('segment.id');
+
+    $this->actingAs($owner)
+        ->getJson(route('marketing.segments.show', $segmentId))
+        ->assertOk()
+        ->assertJsonPath('segment.id', $segmentId);
+
+    $this->actingAs($owner)
+        ->getJson(route('marketing.segments.count', $segmentId))
+        ->assertOk()
+        ->assertJsonPath('segment_id', $segmentId);
+
+    expect(SavedSegment::query()->where('user_id', $owner->id)->where('module', SavedSegment::MODULE_CUSTOMER)->count())->toBe(1);
 });
 
 test('template library resolves most specific default template', function () {

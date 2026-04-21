@@ -61,8 +61,11 @@ const statusClass = (status) => {
 
 const windowDays = computed(() => props.analytics?.window_days ?? 30);
 const avgFirstResponse = computed(() => props.analytics?.avg_first_response_hours ?? null);
+const avgTimeToIntake = computed(() => props.analytics?.avg_time_to_intake_hours ?? null);
 const conversionRate = computed(() => props.analytics?.conversion_rate ?? 0);
 const totalLeads = computed(() => props.analytics?.total ?? 0);
+const staleCount = computed(() => props.analytics?.stale_count ?? 0);
+const breachedCount = computed(() => props.analytics?.breached_count ?? 0);
 const riskLeads = computed(() => props.analytics?.risk_leads ?? []);
 const bySource = computed(() => props.analytics?.conversion_by_source ?? []);
 const leadForm = computed(() => props.analytics?.lead_form ?? {});
@@ -122,12 +125,19 @@ const riskClass = (days) => (days >= 14
             </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
             <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                 <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.first_response') }}</div>
                 <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatHours(avgFirstResponse) }}</div>
                 <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                     {{ $t('requests.analytics.first_response_note') }}
+                </div>
+            </div>
+            <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.time_to_intake') }}</div>
+                <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatHours(avgTimeToIntake) }}</div>
+                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                    {{ $t('requests.analytics.time_to_intake_note') }}
                 </div>
             </div>
             <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
@@ -142,6 +152,20 @@ const riskClass = (days) => (days >= 14
                 <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ totalLeads }}</div>
                 <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                     {{ $t('requests.analytics.total_note', { days: windowDays }) }}
+                </div>
+            </div>
+            <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.stale_count') }}</div>
+                <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ staleCount }}</div>
+                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                    {{ $t('requests.analytics.stale_note') }}
+                </div>
+            </div>
+            <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.breached_count') }}</div>
+                <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ breachedCount }}</div>
+                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                    {{ $t('requests.analytics.breached_note') }}
                 </div>
             </div>
         </div>

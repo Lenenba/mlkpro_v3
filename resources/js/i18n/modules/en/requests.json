@@ -5,6 +5,9 @@
       "total": "Total requests",
       "new": "New",
       "in_progress": "In progress",
+      "due_soon": "Due soon",
+      "stale": "Stale",
+      "breached": "Breached",
       "won": "Won",
       "lost": "Lost",
       "unassigned": "Unassigned"
@@ -13,6 +16,58 @@
       "search_placeholder": "Search requests...",
       "all_statuses": "All statuses",
       "all_customers": "All customers"
+    },
+    "saved_segments": {
+      "title": "Saved segments",
+      "manage": "Create / manage",
+      "summary_empty": "No segment selected",
+      "selected_label": "Active segment",
+      "snapshot_label": "Current snapshot",
+      "dialog_hint": "Apply an existing segment or save the current filter state.",
+      "selection_panel": "Apply a segment",
+      "management_panel": "Save current state",
+      "select_label": "Saved segment",
+      "select_placeholder": "Choose a segment",
+      "name_label": "Segment name",
+      "name_placeholder": "Ex. Montreal leads to handle",
+      "apply": "Apply",
+      "save_current": "Save filters",
+      "update_selected": "Update",
+      "delete_selected": "Delete",
+      "cached_count": "{count} cached",
+      "updated_at": "Updated {value}",
+      "current_snapshot_ready": "The current filter snapshot is ready to save.",
+      "empty_state": "No saved segments yet.",
+      "info_created": "Saved segment created.",
+      "info_updated": "Saved segment updated.",
+      "info_deleted": "Saved segment deleted.",
+      "error_load": "Unable to load saved segments.",
+      "error_save": "Unable to save this segment.",
+      "error_delete": "Unable to delete this segment.",
+      "confirm_delete": "Delete saved segment \"{name}\"?"
+    },
+    "triage": {
+      "label": "Triage",
+      "priority_short": "P{value}",
+      "inactive_days": "{count}d idle",
+      "queues": {
+        "all": "All",
+        "new": "New",
+        "due_soon": "Due soon",
+        "stale": "Stale",
+        "breached": "Breached",
+        "active": "Active",
+        "closed": "Closed",
+        "unknown": "Unknown"
+      },
+      "risk_levels": {
+        "critical": "Critical risk",
+        "high": "High risk",
+        "medium": "Medium risk",
+        "low": "Low risk",
+        "closed": "Closed",
+        "unknown": "Unknown risk"
+      }
     },
     "actions": {
       "clear": "Clear",
@@ -251,10 +306,16 @@
       "subtitle": "Rolling insights to track lead performance.",
       "first_response": "Avg first response",
       "first_response_note": "Based on first action after lead creation.",
+      "time_to_intake": "Avg time to intake",
+      "time_to_intake_note": "Measures how long a lead stays untouched before real handling starts.",
       "conversion_rate": "Conversion rate",
       "conversion_note": "Won leads vs total created.",
       "total_leads": "New leads",
       "total_note": "Created in the last {days} days.",
+      "stale_count": "Stale leads",
+      "stale_note": "Open leads with no activity for at least 7 days.",
+      "breached_count": "Breached leads",
+      "breached_note": "Open leads with an overdue follow-up or missed SLA.",
       "form": {
         "title": "Lead form performance",
         "window": "Last {days} days",
@@ -397,6 +458,83 @@
       "empty": "No activity yet.",
       "author_fallback": "System"
     },
+    "sales_activity": {
+      "title": "CRM timeline",
+      "subtitle": "Track calls, notes, emails, next actions, and meetings from this request.",
+      "quick_actions_title": "Quick actions",
+      "quick_actions_hint": "Log the most common touchpoints without leaving the request.",
+      "open_dialog": "Log activity",
+      "current_next_action": "Active next action",
+      "due_prefix": "Due",
+      "empty": "No CRM activity yet.",
+      "dialog_title": "Log a sales activity",
+      "dialog_hint": "Add a note, call outcome, next action, or meeting from the request timeline.",
+      "actor_fallback": "System",
+      "cancel": "Cancel",
+      "save": "Save activity",
+      "messages": {
+        "logged": "Sales activity logged.",
+        "error": "Unable to log this sales activity."
+      },
+      "fields": {
+        "action": "Activity",
+        "action_placeholder": "Choose an activity",
+        "occurred_at": "Activity date",
+        "due_at": "Due at",
+        "description": "Short summary",
+        "note": "Note"
+      },
+      "types": {
+        "note": "Note",
+        "call": "Call",
+        "call_outcome": "Call outcome",
+        "next_action": "Next action",
+        "meeting": "Meeting",
+        "system": "System"
+      },
+      "labels": {
+        "sales_note_added": "Sales note",
+        "sales_call_logged": "Call logged",
+        "sales_call_no_answer": "No answer",
+        "sales_call_quote_discussed": "Quote discussed",
+        "sales_call_to_recontact": "To recontact",
+        "sales_next_action_scheduled": "Next action scheduled",
+        "sales_next_action_completed": "Next action completed",
+        "sales_next_action_cleared": "Next action cleared",
+        "sales_meeting_scheduled": "Meeting scheduled",
+        "sales_meeting_completed": "Meeting completed",
+        "message_email_sent": "Email sent",
+        "message_email_received": "Email received",
+        "message_email_failed": "Email failed",
+        "message_email_retry_scheduled": "Email retry scheduled",
+        "meeting_scheduled": "Meeting scheduled",
+        "meeting_completed": "Meeting completed"
+      },
+      "quick_actions": {
+        "call_logged": "Call logged",
+        "no_answer": "No answer",
+        "callback_tomorrow": "Call back tomorrow",
+        "quote_discussed": "Quote discussed",
+        "recontact": "To recontact"
+      },
+      "message_directions": {
+        "outbound": "Outbound",
+        "inbound": "Inbound"
+      },
+      "meeting_states": {
+        "scheduled": "Scheduled",
+        "completed": "Completed"
+      },
+      "meta": {
+        "to_prefix": "To",
+        "from_prefix": "From",
+        "start_prefix": "Starts",
+        "completed_prefix": "Completed",
+        "scheduled_for_prefix": "Scheduled",
+        "retry_attempt_prefix": "Retry",
+        "assistant_label": "Assistant"
+      }
+    },
     "status": {
       "new": "New",
       "call_requested": "Call requested",
@@ -435,6 +573,11 @@
       "assignee": "Assignee",
       "follow_up": "Next follow-up",
       "lost_reason": "Lost reason"
+    },
+    "quick_actions": {
+      "follow_up_tomorrow": "Tomorrow",
+      "follow_up_three_days": "+3d",
+      "follow_up_seven_days": "+7d"
     },
     "quick_form": {
       "new_customer": "New customer",

@@ -5,6 +5,7 @@ import { Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import SavedSegmentBar from '@/Components/CRM/SavedSegmentBar.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
@@ -20,6 +21,7 @@ import { useI18n } from 'vue-i18n';
 import RequestBoard from '@/Pages/Request/UI/RequestBoard.vue';
 import RequestTableActionsMenu from '@/Pages/Request/UI/RequestTableActionsMenu.vue';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { crmButtonClass, crmSegmentedControlButtonClass, crmSegmentedControlClass } from '@/utils/crmButtonStyles';
 import {
     createBulkActionFailureResult,
     dispatchBulkActionToast,
@@ -32,6 +34,10 @@ const props = defineProps({
     requests: {
         type: Object,
         required: true,
+    },
+    stats: {
+        type: Object,
+        default: () => ({}),
     },
     filters: {
         type: Object,
@@ -56,6 +62,14 @@ const props = defineProps({
     leadIntake: {
         type: Object,
         default: () => ({}),
+    },
+    savedSegments: {
+        type: Array,
+        default: () => [],
+    },
+    canManageSavedSegments: {
+        type: Boolean,
+        default: false,
     },
 });
 
@@ -128,10 +142,110 @@ const statusClass = (status) => {
     }
 };
 
+const triageQueueLabel = (queue) => {
+    switch (queue) {
+        case 'new':
+            return t('requests.triage.queues.new');
+        case 'due_soon':
+            return t('requests.triage.queues.due_soon');
+        case 'stale':
+            return t('requests.triage.queues.stale');
+        case 'breached':
+            return t('requests.triage.queues.breached');
+        case 'active':
+            return t('requests.triage.queues.active');
+        case 'closed':
+            return t('requests.triage.queues.closed');
+        default:
+            return queue || t('requests.triage.queues.unknown');
+    }
+};
+
+const triageQueueClass = (queue) => {
+    switch (queue) {
+        case 'new':
+            return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300';
+        case 'due_soon':
+            return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-500/10 dark:text-cyan-300';
+        case 'stale':
+            return 'bg-orange-100 text-orange-800 dark:bg-orange-500/10 dark:text-orange-300';
+        case 'breached':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
+        case 'active':
+            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300';
+        default:
+            return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
+    }
+};
+
+const triageRiskLabel = (riskLevel) => {
+    switch (riskLevel) {
+        case 'critical':
+            return t('requests.triage.risk_levels.critical');
+        case 'high':
+            return t('requests.triage.risk_levels.high');
+        case 'medium':
+            return t('requests.triage.risk_levels.medium');
+        case 'low':
+            return t('requests.triage.risk_levels.low');
+        case 'closed':
+            return t('requests.triage.risk_levels.closed');
+        default:
+            return riskLevel || t('requests.triage.risk_levels.unknown');
+    }
+};
+
+const triageRiskClass = (riskLevel) => {
+    switch (riskLevel) {
+        case 'critical':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
+        case 'high':
+            return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300';
+        case 'medium':
+            return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-300';
+        case 'low':
+            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300';
+        default:
+            return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
+    }
+};
+
+const triagePriorityClass = (priority) => {
+    const value = Number(priority || 0);
+
+    if (value >= 90) {
+        return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300';
+    }
+
+    if (value >= 70) {
+        return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300';
+    }
+
+    if (value > 0) {
+        return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300';
+    }
+
+    return 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300';
+};
+
+const triageRowClass = (lead) => {
+    switch (lead?.triage_queue) {
+        case 'breached':
+            return 'bg-rose-50/50 dark:bg-rose-500/5';
+        case 'due_soon':
+            return 'bg-cyan-50/50 dark:bg-cyan-500/5';
+        case 'stale':
+            return 'bg-amber-50/40 dark:bg-amber-500/5';
+        default:
+            return '';
+    }
+};
+
 const filterForm = useForm({
     search: props.filters?.search ?? '',
     status: props.filters?.status ?? '',
     customer_id: props.filters?.customer_id ?? '',
+    queue: props.filters?.queue ?? '',
 });
 const isLoading = ref(false);
 const statusSelectOptions = computed(() => {
@@ -167,6 +281,11 @@ const assigneeSelectOptions = computed(() => [
         name: assignee.name || t('requests.labels.unassigned'),
     })),
 ]);
+const quickFollowUpOptions = computed(() => ([
+    { id: 'tomorrow', label: t('requests.quick_actions.follow_up_tomorrow'), days: 1 },
+    { id: 'three_days', label: t('requests.quick_actions.follow_up_three_days'), days: 3 },
+    { id: 'seven_days', label: t('requests.quick_actions.follow_up_seven_days'), days: 7 },
+]));
 
 const bulkAssigneeOptions = computed(() =>
     (Array.isArray(props.bulkActions?.controls?.assign?.options) && props.bulkActions.controls.assign.options.length
@@ -191,12 +310,52 @@ const bulkLostReasonTriggerValue = computed(() => props.bulkActions?.controls?.s
 const bulkAssignLabelKey = computed(() => props.bulkActions?.controls?.assign?.label_key || 'requests.bulk.assign_label');
 const bulkAssignPlaceholderKey = computed(() => props.bulkActions?.controls?.assign?.placeholder_key || 'requests.bulk.assign_placeholder');
 const bulkAssignSubmitLabelKey = computed(() => props.bulkActions?.controls?.assign?.submit_label_key || 'requests.bulk.apply_assign');
+const queueFilterOptions = computed(() => ([
+    {
+        id: '',
+        name: t('requests.triage.queues.all'),
+        count: Number(props.stats?.total || 0),
+    },
+    {
+        id: 'new',
+        name: triageQueueLabel('new'),
+        count: Number(props.stats?.new_queue || 0),
+    },
+    {
+        id: 'due_soon',
+        name: triageQueueLabel('due_soon'),
+        count: Number(props.stats?.due_soon || 0),
+    },
+    {
+        id: 'stale',
+        name: triageQueueLabel('stale'),
+        count: Number(props.stats?.stale || 0),
+    },
+    {
+        id: 'breached',
+        name: triageQueueLabel('breached'),
+        count: Number(props.stats?.breached || 0),
+    },
+]));
+const compactObject = (payload) => Object.fromEntries(
+    Object.entries(payload || {}).filter(([, value]) => value !== '' && value !== null && value !== undefined)
+);
+const shouldShowSavedSegments = computed(() =>
+    Boolean(props.canManageSavedSegments) || (Array.isArray(props.savedSegments) && props.savedSegments.length > 0)
+);
+const savedSegmentFilters = computed(() => compactObject({
+    status: filterForm.status,
+    customer_id: filterForm.customer_id,
+    queue: filterForm.queue,
+}));
+const savedSegmentSearchTerm = computed(() => String(filterForm.search || '').trim());
 
 const filterPayload = () => {
     const payload = {
         search: filterForm.search,
         status: filterForm.status,
         customer_id: filterForm.customer_id,
+        queue: filterForm.queue,
         view: viewMode.value,
         per_page: currentPerPage.value,
     };
@@ -234,7 +393,7 @@ watch(() => filterForm.search, () => {
     autoFilter();
 });
 
-watch(() => [filterForm.status, filterForm.customer_id], () => {
+watch(() => [filterForm.status, filterForm.customer_id, filterForm.queue], () => {
     autoFilter();
 });
 
@@ -242,6 +401,21 @@ const clearFilters = () => {
     filterForm.search = '';
     filterForm.status = '';
     filterForm.customer_id = '';
+    filterForm.queue = '';
+    autoFilter();
+};
+
+const setQueueFilter = (queue) => {
+    filterForm.queue = filterForm.queue === queue ? '' : queue;
+};
+
+const applySavedSegment = (segment) => {
+    const filters = segment?.filters && typeof segment.filters === 'object' ? segment.filters : {};
+
+    filterForm.search = String(segment?.search_term || '');
+    filterForm.status = String(filters.status || '');
+    filterForm.customer_id = String(filters.customer_id || '');
+    filterForm.queue = String(filters.queue || '');
     autoFilter();
 };
 
@@ -593,6 +767,24 @@ const submitUpdate = () => {
     });
 };
 
+const runQuickLeadUpdate = (lead, payload, options = {}) => {
+    if (!lead?.id || processingId.value) {
+        return;
+    }
+
+    processingId.value = lead.id;
+
+    router.put(route('request.update', lead.id), payload, {
+        preserveScroll: true,
+        only: ['requests', 'stats', 'flash'],
+        ...options,
+        onFinish: (...args) => {
+            processingId.value = null;
+            options.onFinish?.(...args);
+        },
+    });
+};
+
 const deleteLead = (lead) => {
     if (!lead?.id) {
         return;
@@ -650,9 +842,55 @@ const setLeadStatus = (lead, status) => {
         }
         payload = { status, lost_reason: reason };
     }
-    router.put(route('request.update', lead.id), payload, {
-        preserveScroll: true,
-        only: ['requests', 'stats', 'flash'],
+    runQuickLeadUpdate(lead, payload);
+};
+
+const setLeadAssignee = (lead, assigneeId) => {
+    if (!lead) {
+        return;
+    }
+
+    const normalizedAssigneeId = assigneeId === '' ? null : Number(assigneeId);
+    const currentAssigneeId = lead.assigned_team_member_id ?? null;
+
+    if (currentAssigneeId === normalizedAssigneeId) {
+        return;
+    }
+
+    runQuickLeadUpdate(lead, {
+        assigned_team_member_id: normalizedAssigneeId,
+    });
+};
+
+const buildQuickFollowUpAt = (days) => {
+    const date = new Date();
+    date.setHours(9, 0, 0, 0);
+    date.setDate(date.getDate() + days);
+
+    if (date.getTime() <= Date.now()) {
+        date.setDate(date.getDate() + 1);
+    }
+
+    return date.toISOString();
+};
+
+const setLeadFollowUp = (lead, days) => {
+    if (!lead || isClosedStatus(lead.status)) {
+        return;
+    }
+
+    runQuickLeadUpdate(lead, {
+        next_follow_up_at: buildQuickFollowUpAt(days),
+    });
+};
+
+const clearLeadFollowUp = (lead) => {
+    if (!lead?.next_follow_up_at || isClosedStatus(lead.status)) {
+        return;
+    }
+
+    runQuickLeadUpdate(lead, {
+        next_follow_up_at: null,
     });
 };
 
@@ -894,6 +1132,18 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
         class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700"
     >
         <div class="space-y-3">
+            <SavedSegmentBar
+                v-if="shouldShowSavedSegments"
+                module="request"
+                :segments="savedSegments"
+                :can-manage="canManageSavedSegments"
+                :current-filters="savedSegmentFilters"
+                :current-search-term="savedSegmentSearchTerm"
+                :history-href="route('crm.playbook-runs.index', { module: 'request' })"
+                :history-label="t('marketing.playbook_runs.actions.open_history')"
+                i18n-prefix="requests"
+                @apply="applySavedSegment"
+            />
             <AdminDataTableToolbar
                 :show-clear="false"
                 :show-apply="false"
@@ -928,14 +1178,12 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                 </template>
 
                 <template #actions>
-                    <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                    <div :class="crmSegmentedControlClass()">
                         <button
                             type="button"
                             @click="setViewMode('table')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'table'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                            :class="crmSegmentedControlButtonClass(viewMode === 'table')"
+                            data-testid="request-view-table"
                         >
                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -948,10 +1196,8 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                         <button
                             type="button"
                             @click="setViewMode('board')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'board'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                            :class="crmSegmentedControlButtonClass(viewMode === 'board')"
+                            data-testid="request-view-board"
                         >
                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -967,21 +1213,21 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                     <template v-if="canUseRequests">
                         <button
                             type="button"
-                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            :class="crmButtonClass('secondary', 'toolbar')"
                             :data-hs-overlay="`#${intakeModalId}`"
                         >
                             {{ $t('requests.actions.intake') }}
                         </button>
                         <button
                             type="button"
-                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            :class="crmButtonClass('secondary', 'toolbar')"
                             :data-hs-overlay="`#${importModalId}`"
                         >
                             {{ $t('requests.actions.import_csv') }}
                         </button>
                         <button
                             type="button"
-                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700"
+                            :class="crmButtonClass('primary', 'toolbar')"
                             @click="openQuickCreate"
                         >
                             {{ $t('requests.actions.new_request') }}
@@ -1017,6 +1263,28 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                     {{ $t('requests.actions.clear') }}
                 </button>
             </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                    {{ $t('requests.triage.label') }}
+                </span>
+                <button
+                    v-for="queue in queueFilterOptions"
+                    :key="queue.id || 'all'"
+                    type="button"
+                    class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition"
+                    :class="filterForm.queue === queue.id
+                        ? `${triageQueueClass(queue.id || 'active')} border-transparent`
+                        : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:text-stone-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                    :data-testid="`request-queue-filter-${queue.id || 'all'}`"
+                    @click="setQueueFilter(queue.id)"
+                >
+                    <span>{{ queue.name }}</span>
+                    <span class="rounded-full bg-white/70 px-1.5 py-0.5 text-[11px] font-semibold text-current dark:bg-neutral-950/30">
+                        {{ queue.count }}
+                    </span>
+                </button>
+            </div>
         </div>
 
         <AdminDataTableBulkBar
@@ -1024,6 +1292,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
             :count="selectedCount"
             :label="$t(bulkSelectionLabelKey, { count: selectedCount })"
             :result="bulkResult"
+            data-testid="request-bulk-bar"
         >
             <div class="flex flex-wrap items-end gap-2">
                 <FloatingSelect
@@ -1033,6 +1302,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                     :placeholder="$t(bulkStatusPlaceholderKey)"
                     dense
                     class="min-w-[170px]"
+                    data-testid="request-bulk-status"
                 />
                 <input
                     v-if="bulkStatus === bulkLostReasonTriggerValue"
@@ -1045,6 +1315,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                     type="button"
                     class="py-2 px-3 rounded-sm border border-transparent bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
                     :disabled="bulkProcessing || !bulkStatus"
+                    data-testid="request-bulk-status-submit"
                     @click="submitBulkStatus"
                 >
                     {{ $t(bulkStatusSubmitLabelKey) }}
@@ -1058,11 +1329,13 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                     :placeholder="$t(bulkAssignPlaceholderKey)"
                     dense
                     class="min-w-[180px]"
+                    data-testid="request-bulk-assignee"
                 />
                 <button
                     type="button"
                     class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
                     :disabled="bulkProcessing || !bulkAssignee"
+                    data-testid="request-bulk-assign-submit"
                     @click="submitBulkAssign"
                 >
                     {{ $t(bulkAssignSubmitLabelKey) }}
@@ -1098,6 +1371,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                                 type="checkbox"
                                 :checked="allSelected"
                                 class="rounded-sm border-stone-200 text-green-600 shadow-sm focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-emerald-400 dark:focus:ring-emerald-400"
+                                data-testid="request-select-all"
                                 @change="toggleAll"
                             />
                         </th>
@@ -1140,9 +1414,13 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                         </div>
                     </td>
                 </tr>
-                <tr v-else>
+                <tr v-else :class="triageRowClass(lead)" :data-testid="`request-row-${lead.id}`">
                         <td class="px-5 py-3">
-                            <Checkbox v-model:checked="selected" :value="lead.id" />
+                            <Checkbox
+                                v-model:checked="selected"
+                                :value="lead.id"
+                                :data-testid="`request-select-${lead.id}`"
+                            />
                         </td>
                         <td class="px-5 py-3">
                             <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">
@@ -1169,6 +1447,30 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                                     {{ badge.label }}
                                 </span>
                             </div>
+                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                <span
+                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                    :class="['border', triagePriorityClass(lead.triage_priority)]"
+                                    :data-testid="`request-priority-${lead.id}`"
+                                >
+                                    {{ $t('requests.triage.priority_short', { value: lead.triage_priority || 0 }) }}
+                                </span>
+                                <span
+                                    v-if="lead.risk_level"
+                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                    :class="triageRiskClass(lead.risk_level)"
+                                >
+                                    {{ triageRiskLabel(lead.risk_level) }}
+                                </span>
+                                <span
+                                    v-if="lead.days_since_activity !== null
+                                        && lead.days_since_activity !== undefined
+                                        && Number(lead.days_since_activity) > 0"
+                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200"
+                                >
+                                    {{ $t('requests.triage.inactive_days', { count: lead.days_since_activity }) }}
+                                </span>
+                            </div>
                         </td>
                         <td class="px-5 py-3 text-sm text-stone-700 dark:text-neutral-300">
                             <div v-if="lead.customer">
@@ -1179,60 +1481,124 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                             </div>
                         </td>
                         <td class="px-5 py-3">
-                            <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-left] relative inline-flex">
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-medium"
-                                    :class="statusClass(lead.status)"
-                                >
-                                    {{ statusLabel(lead.status) }}
-                                    <svg class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round">
-                                        <path d="m6 9 6 6 6-6" />
-                                    </svg>
-                                </button>
-                                <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                    role="menu" aria-orientation="vertical">
-                                    <div class="p-1">
-                                        <button
-                                            v-for="option in statusActionOptions"
-                                            :key="option.id"
-                                            type="button"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                            :class="option.id === lead.status ? 'text-emerald-600 dark:text-emerald-400' : ''"
-                                            @click="setLeadStatus(lead, option.id)"
-                                        >
-                                            {{ option.name }}
-                                        </button>
+                            <div class="flex flex-col items-start gap-1.5">
+                                <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-left] relative inline-flex">
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-medium"
+                                        :class="statusClass(lead.status)"
+                                        :data-testid="`request-status-trigger-${lead.id}`"
+                                    >
+                                        {{ statusLabel(lead.status) }}
+                                        <svg class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="m6 9 6 6 6-6" />
+                                        </svg>
+                                    </button>
+                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                        role="menu" aria-orientation="vertical">
+                                        <div class="p-1">
+                                            <button
+                                                v-for="option in statusActionOptions"
+                                                :key="option.id"
+                                                type="button"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                                :class="option.id === lead.status ? 'text-emerald-600 dark:text-emerald-400' : ''"
+                                                :data-testid="`request-status-option-${lead.id}-${option.id}`"
+                                                @click="setLeadStatus(lead, option.id)"
+                                            >
+                                                {{ option.name }}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
+                                <span
+                                    v-if="lead.triage_queue"
+                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                    :class="triageQueueClass(lead.triage_queue)"
+                                    :data-testid="`request-triage-queue-${lead.id}`"
+                                >
+                                    {{ triageQueueLabel(lead.triage_queue) }}
+                                </span>
                             </div>
                         </td>
                         <td class="px-5 py-3 text-sm text-stone-700 dark:text-neutral-300">
-                            <span v-if="lead.assignee?.user?.name || lead.assignee?.name">
-                                {{ lead.assignee?.user?.name || lead.assignee?.name }}
-                            </span>
-                            <span v-else class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('requests.labels.unassigned') }}
-                            </span>
+                            <div class="flex min-w-[11rem] flex-col items-start gap-2">
+                                <span v-if="lead.assignee?.user?.name || lead.assignee?.name">
+                                    {{ lead.assignee?.user?.name || lead.assignee?.name }}
+                                </span>
+                                <span v-else class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('requests.labels.unassigned') }}
+                                </span>
+                                <select
+                                    class="w-full rounded-sm border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-700 focus:border-emerald-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                    :value="lead.assigned_team_member_id ? String(lead.assigned_team_member_id) : ''"
+                                    :disabled="processingId === lead.id"
+                                    :data-testid="`request-assignee-select-${lead.id}`"
+                                    @change="setLeadAssignee(lead, $event.target.value)"
+                                >
+                                    <option
+                                        v-for="option in assigneeSelectOptions"
+                                        :key="`assignee-${lead.id}-${option.id}`"
+                                        :value="option.id"
+                                    >
+                                        {{ option.name }}
+                                    </option>
+                                </select>
+                            </div>
                         </td>
                         <td class="px-5 py-3 text-sm text-stone-700 dark:text-neutral-300">
-                            <span v-if="lead.next_follow_up_at"
-                                class="inline-flex items-center gap-2"
-                                :class="isOverdue(lead) ? 'text-rose-600 dark:text-rose-400' : 'text-stone-700 dark:text-neutral-200'"
-                                :title="formatAbsoluteDate(lead.next_follow_up_at)">
-                                {{ formatDate(lead.next_follow_up_at) }}
-                            </span>
-                            <span v-else class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('requests.labels.no_follow_up') }}
-                            </span>
+                            <div class="flex min-w-[12rem] flex-col items-start gap-2">
+                                <span v-if="lead.next_follow_up_at"
+                                    class="inline-flex items-center gap-2"
+                                    :class="isOverdue(lead) ? 'text-rose-600 dark:text-rose-400' : 'text-stone-700 dark:text-neutral-200'"
+                                    :title="formatAbsoluteDate(lead.next_follow_up_at)">
+                                    {{ formatDate(lead.next_follow_up_at) }}
+                                </span>
+                                <span v-else class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('requests.labels.no_follow_up') }}
+                                </span>
+                                <div v-if="!isClosedStatus(lead.status)" class="flex flex-wrap items-center gap-1">
+                                    <button
+                                        v-for="preset in quickFollowUpOptions"
+                                        :key="`${lead.id}-${preset.id}`"
+                                        type="button"
+                                        class="rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:border-emerald-200 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:border-emerald-500/40 dark:hover:text-emerald-300"
+                                        :disabled="processingId === lead.id"
+                                        :data-testid="`request-follow-up-${preset.id}-${lead.id}`"
+                                        @click="setLeadFollowUp(lead, preset.days)"
+                                    >
+                                        {{ preset.label }}
+                                    </button>
+                                    <button
+                                        v-if="lead.next_follow_up_at"
+                                        type="button"
+                                        class="rounded-full border border-transparent px-2 py-0.5 text-[11px] font-medium text-stone-500 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-400 dark:hover:text-rose-300"
+                                        :disabled="processingId === lead.id"
+                                        :data-testid="`request-follow-up-clear-${lead.id}`"
+                                        @click="clearLeadFollowUp(lead)"
+                                    >
+                                        {{ $t('requests.actions.clear') }}
+                                    </button>
+                                </div>
+                            </div>
                         </td>
                         <td class="px-5 py-3 text-sm text-stone-700 dark:text-neutral-300">
                             {{ formatDate(lead.created_at) }}
                         </td>
                         <td class="px-5 py-3">
-                            <div class="flex items-center justify-end">
+                            <div class="flex items-center justify-end gap-2">
+                                <button
+                                    v-if="canUseQuotes && canConvertLead(lead)"
+                                    type="button"
+                                    class="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20"
+                                    :disabled="processingId === lead.id"
+                                    :data-testid="`request-convert-${lead.id}`"
+                                    @click="openConvert(lead)"
+                                >
+                                    {{ $t('requests.actions.convert') }}
+                                </button>
                                 <RequestTableActionsMenu
                                     :lead="lead"
                                     :can-use-quotes="canUseQuotes"
@@ -1452,6 +1818,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                     type="button"
                     :disabled="!canSubmitConvert"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                    data-testid="request-convert-submit"
                     @click="submitConvert"
                 >
                     {{ $t('requests.actions.convert') }}

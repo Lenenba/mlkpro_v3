@@ -254,6 +254,51 @@ test('prospect import analyzes duplicates blocked contacts and scoring', functio
         ->and($rejected?->status)->toBe(CampaignProspect::STATUS_DISQUALIFIED);
 });
 
+test('prospect import boosts system change and operational buyer signals from provider metadata', function () {
+    $owner = batchOwner();
+    $product = batchProduct($owner);
+    $campaign = prospectingCampaign($owner, $product);
+
+    $response = $this->actingAs($owner)->postJson(route('campaigns.prospect-batches.import', $campaign), [
+        'source_type' => CampaignProspect::SOURCE_CONNECTOR,
+        'source_reference' => 'Apollo system-change search',
+        'prospects' => [
+            [
+                'company_name' => 'Workflow Rescue',
+                'contact_name' => 'Nora Blais',
+                'email' => 'nora@workflow-rescue.example',
+                'website' => 'workflow-rescue.example',
+                'industry' => 'Home services',
+                'company_size' => '11-50',
+                'tags' => ['Operations Manager', 'Apollo'],
+                'metadata' => [
+                    'provider_key' => 'apollo_api',
+                    'provider_query' => 'companies in Montreal that want to change system',
+                    'provider_query_label' => 'Systeme instable',
+                    'apollo_title' => 'Operations Manager',
+                ],
+            ],
+        ],
+    ]);
+
+    $batchId = (int) $response->json('batches.0.id');
+
+    $response->assertCreated()
+        ->assertJsonPath('batches.0.accepted_count', 1)
+        ->assertJsonPath('batches.0.scored_count', 1);
+
+    $prospect = CampaignProspect::query()
+        ->where('campaign_prospect_batch_id', $batchId)
+        ->firstOrFail();
+
+    expect($prospect->status)->toBe(CampaignProspect::STATUS_SCORED)
+        ->and($prospect->fit_score)->toBeGreaterThanOrEqual(70)
+        ->and($prospect->intent_score)->toBeGreaterThanOrEqual(70)
+        ->and(data_get($prospect->metadata, 'score_reasons'))->toContain('system_change_signal')
+        ->and(data_get($prospect->metadata, 'score_reasons'))->toContain('operational_buyer_signal')
+        ->and(data_get($prospect->metadata, 'score_reasons'))->toContain('low_software_maturity_signal');
+});
+
 test('analyzed batch can be listed and approved for outreach', function () {
     $owner = batchOwner();
     $product = batchProduct($owner);

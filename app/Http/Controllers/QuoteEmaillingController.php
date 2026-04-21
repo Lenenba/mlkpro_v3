@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Quote;
 use App\Models\TeamMember;
-use App\Models\ActivityLog;
 use App\Notifications\SendQuoteNotification;
+use App\Services\CRM\OutgoingEmailLogService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,7 +15,7 @@ class QuoteEmaillingController extends Controller
     public function __invoke(Quote $quote)
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
@@ -27,7 +28,7 @@ class QuoteEmaillingController extends Controller
             $membership = $user->relationLoaded('teamMembership')
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
-            if (!$membership || !$this->canSendQuote($membership)) {
+            if (! $membership || ! $this->canSendQuote($membership)) {
                 abort(403);
             }
         }
@@ -49,7 +50,7 @@ class QuoteEmaillingController extends Controller
 
         $quote->load(['customer.user', 'property', 'products', 'taxes.tax']);
 
-        if (!$quote->customer || !$quote->customer->email) {
+        if (! $quote->customer || ! $quote->customer->email) {
             if ($this->shouldReturnJson()) {
                 return response()->json([
                     'message' => 'Customer email address is not available.',
@@ -65,13 +66,18 @@ class QuoteEmaillingController extends Controller
             'email' => $quote->customer->email,
         ]);
 
+        $emailLogger = app(OutgoingEmailLogService::class);
         if ($emailQueued) {
-            ActivityLog::record(Auth::user(), $quote, 'email_sent', [
+            $emailLogger->logSent($user, $quote, [
                 'email' => $quote->customer->email,
+                'source' => 'quote_manual_send',
+                'notification' => SendQuoteNotification::class,
             ], 'Quote email sent');
         } else {
-            ActivityLog::record(Auth::user(), $quote, 'email_failed', [
+            $emailLogger->logFailed($user, $quote, [
                 'email' => $quote->customer->email,
+                'source' => 'quote_manual_send',
+                'notification' => SendQuoteNotification::class,
             ], 'Quote email failed');
         }
 
@@ -87,7 +93,7 @@ class QuoteEmaillingController extends Controller
         $quote->syncRequestStatusFromQuote();
 
         if ($this->shouldReturnJson()) {
-            if (!$emailQueued) {
+            if (! $emailQueued) {
                 return response()->json([
                     'message' => 'Quote email could not be sent right now.',
                     'warning' => true,
@@ -96,21 +102,21 @@ class QuoteEmaillingController extends Controller
             }
 
             return response()->json([
-                'message' => 'Quote sent successfully to ' . $quote->customer->email,
+                'message' => 'Quote sent successfully to '.$quote->customer->email,
                 'quote' => $quote->fresh(),
             ]);
         }
 
-        if (!$emailQueued) {
+        if (! $emailQueued) {
             return redirect()->back()->with('warning', 'Quote email could not be sent right now.');
         }
 
-        return redirect()->back()->with('success', 'Quote sent successfully to ' . $quote->customer->email);
+        return redirect()->back()->with('success', 'Quote sent successfully to '.$quote->customer->email);
     }
 
     private function canSendQuote(?TeamMember $membership): bool
     {
-        if (!$membership) {
+        if (! $membership) {
             return false;
         }
 

@@ -35,6 +35,35 @@
       "with_jobs": "Avec chantiers",
       "no_jobs": "Sans chantiers"
     },
+    "saved_segments": {
+      "title": "Segments sauvegardes",
+      "manage": "Creer / gerer",
+      "summary_empty": "Aucun segment selectionne",
+      "selected_label": "Segment actif",
+      "snapshot_label": "Snapshot courant",
+      "dialog_hint": "Appliquez un segment existant ou sauvegardez l'etat actuel des filtres.",
+      "selection_panel": "Appliquer un segment",
+      "management_panel": "Sauvegarder l'etat courant",
+      "select_label": "Segment sauvegarde",
+      "select_placeholder": "Choisir un segment",
+      "name_label": "Nom du segment",
+      "name_placeholder": "Ex. Clients actifs Montreal",
+      "apply": "Appliquer",
+      "save_current": "Sauver filtres",
+      "update_selected": "Mettre a jour",
+      "delete_selected": "Supprimer",
+      "cached_count": "{count} en cache",
+      "updated_at": "Mis a jour {value}",
+      "current_snapshot_ready": "Le filtre actuel est pret a etre sauvegarde.",
+      "empty_state": "Aucun segment sauvegarde pour l'instant.",
+      "info_created": "Segment sauvegarde cree.",
+      "info_updated": "Segment sauvegarde mis a jour.",
+      "info_deleted": "Segment sauvegarde supprime.",
+      "error_load": "Impossible de charger les segments sauvegardes.",
+      "error_save": "Impossible d'enregistrer ce segment sauvegarde.",
+      "error_delete": "Impossible de supprimer ce segment sauvegarde.",
+      "confirm_delete": "Supprimer le segment sauvegarde \"{name}\" ?"
+    },
     "actions": {
       "filters": "Filtres",
       "clear": "Effacer",
@@ -286,6 +315,83 @@
       "activity": {
         "title": "Activite recente pour ce client",
         "empty": "Aucune activite recente."
+      },
+      "sales_activity": {
+        "title": "Timeline CRM",
+        "subtitle": "Regroupez ici appels, notes, emails, prochaines actions et rendez-vous lies au client.",
+        "quick_actions_title": "Actions rapides",
+        "quick_actions_hint": "Journalisez les actions commerciales utiles sans quitter la fiche client.",
+        "open_dialog": "Journaliser",
+        "current_next_action": "Prochaine action active",
+        "due_prefix": "Echeance",
+        "empty": "Aucune activite CRM pour ce client.",
+        "dialog_title": "Journaliser une activite commerciale",
+        "dialog_hint": "Ajoutez une note, un resultat d'appel, une prochaine action ou un rendez-vous sur ce client.",
+        "actor_fallback": "Systeme",
+        "cancel": "Annuler",
+        "save": "Enregistrer l'activite",
+        "messages": {
+          "logged": "Activite commerciale enregistree.",
+          "error": "Impossible d'enregistrer cette activite commerciale."
+        },
+        "fields": {
+          "action": "Activite",
+          "action_placeholder": "Choisir une activite",
+          "occurred_at": "Date de l'activite",
+          "due_at": "Echeance",
+          "description": "Resume court",
+          "note": "Note"
+        },
+        "types": {
+          "note": "Note",
+          "call": "Appel",
+          "call_outcome": "Resultat d'appel",
+          "next_action": "Prochaine action",
+          "meeting": "Rendez-vous",
+          "system": "Systeme"
+        },
+        "labels": {
+          "sales_note_added": "Note commerciale",
+          "sales_call_logged": "Appel effectue",
+          "sales_call_no_answer": "Pas de reponse",
+          "sales_call_quote_discussed": "Devis discute",
+          "sales_call_to_recontact": "A recontacter",
+          "sales_next_action_scheduled": "Prochaine action planifiee",
+          "sales_next_action_completed": "Prochaine action terminee",
+          "sales_next_action_cleared": "Prochaine action annulee",
+          "sales_meeting_scheduled": "Rendez-vous planifie",
+          "sales_meeting_completed": "Rendez-vous termine",
+          "message_email_sent": "Email envoye",
+          "message_email_received": "Email recu",
+          "message_email_failed": "Echec email",
+          "message_email_retry_scheduled": "Nouvel essai email planifie",
+          "meeting_scheduled": "Rendez-vous planifie",
+          "meeting_completed": "Rendez-vous termine"
+        },
+        "quick_actions": {
+          "call_logged": "Appel effectue",
+          "no_answer": "Pas de reponse",
+          "callback_tomorrow": "Rappel demain",
+          "quote_discussed": "Devis discute",
+          "recontact": "A recontacter"
+        },
+        "message_directions": {
+          "outbound": "Sortant",
+          "inbound": "Entrant"
+        },
+        "meeting_states": {
+          "scheduled": "Planifie",
+          "completed": "Termine"
+        },
+        "meta": {
+          "to_prefix": "Vers",
+          "from_prefix": "Depuis",
+          "start_prefix": "Debut",
+          "completed_prefix": "Termine",
+          "scheduled_for_prefix": "Programme",
+          "retry_attempt_prefix": "Relance",
+          "assistant_label": "Assistant"
+        }
       },
       "preview": {
         "title": "Apercu client",

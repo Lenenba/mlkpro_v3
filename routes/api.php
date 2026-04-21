@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\AiImageController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\Integration\CrmConnectorEventController as IntegrationCrmConnectorEventController;
 use App\Http\Controllers\Api\Integration\InventoryController as IntegrationInventoryController;
 use App\Http\Controllers\Api\Integration\RequestController as IntegrationRequestController;
 use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
@@ -285,6 +286,11 @@ Route::name('api.')->group(function () {
                 Route::post('quote/{quote}/accept', [QuoteController::class, 'accept']);
                 Route::post('quote/{quote}/send-email', QuoteEmaillingController::class);
                 Route::post('quote/{quote}/convert', [QuoteController::class, 'convertToWork']);
+                Route::patch('quote/{quote}/recovery', [QuoteController::class, 'updateRecovery']);
+
+                Route::middleware('company.feature:tasks')->group(function () {
+                    Route::post('quote/{quote}/recovery-task', [QuoteController::class, 'storeRecoveryTask']);
+                });
 
                 Route::middleware('company.feature:plan_scans')->group(function () {
                     Route::get('plan-scans', [PlanScanController::class, 'index']);
@@ -324,6 +330,8 @@ Route::name('api.')->group(function () {
                 Route::post('products/{product}/adjust', [IntegrationInventoryController::class, 'adjust']);
                 Route::post('requests', [IntegrationRequestController::class, 'store'])
                     ->name('integrations.requests.store');
+                Route::post('crm/connector-events', [IntegrationCrmConnectorEventController::class, 'store'])
+                    ->name('integrations.crm.connector_events.store');
             });
 
             Route::middleware('company.feature:services')->group(function () {

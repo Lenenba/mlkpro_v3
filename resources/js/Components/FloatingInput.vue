@@ -1,5 +1,7 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, useAttrs } from 'vue';
+
+defineOptions({ inheritAttrs: false });
 
 const props = defineProps({
     modelValue: {
@@ -44,6 +46,7 @@ const emit = defineEmits(['update:modelValue']);
 
 const input = ref(null);
 const generatedId = `floating-input-${Math.random().toString(36).slice(2, 10)}`;
+const attrs = useAttrs();
 
 const value = computed({
     get: () => props.modelValue,
@@ -81,6 +84,7 @@ defineExpose({ focus: () => input.value?.focus() });
             :id="inputId"
             v-model="value"
             ref="input"
+            v-bind="attrs"
             :type="type"
             :disabled="disabled"
             :readonly="readonly"

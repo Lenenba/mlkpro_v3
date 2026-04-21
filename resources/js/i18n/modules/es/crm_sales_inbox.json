@@ -1,0 +1,69 @@
+{
+    "crm_sales_inbox": {
+        "eyebrow": "Inbox comercial",
+        "page_title": "Inbox comercial",
+        "page_description": "Vista priorizada de oportunidades abiertas para que los responsables comerciales traten seguimientos vencidos, negocios sin proxima accion, cotizaciones enviadas y leads listos para cotizar.",
+        "reference_time": "Hora de referencia",
+        "cards": {
+            "total": "Oportunidades abiertas",
+            "overdue": "Vencidas",
+            "no_next_action": "Sin proxima accion",
+            "quoted": "Cotizadas",
+            "needs_quote": "Necesita cotizacion",
+            "weighted_open_amount": "Monto abierto ponderado"
+        },
+        "filters": {
+            "search": "Buscar",
+            "search_placeholder": "Buscar cliente, titulo, servicio o cotizacion",
+            "queue": "Cola",
+            "stage": "Etapa",
+            "per_page": "Por pagina",
+            "clear": "Limpiar filtros",
+            "all_stages": "Todas las etapas"
+        },
+        "queues": {
+            "all": "Todas las colas",
+            "overdue": "Vencidas",
+            "no_next_action": "Sin proxima accion",
+            "quoted": "Cotizadas",
+            "needs_quote": "Necesita cotizacion",
+            "active": "Activas"
+        },
+        "next_action_states": {
+            "overdue": "Vencida",
+            "scheduled": "Programada",
+            "none": "Sin proxima accion"
+        },
+        "labels": {
+            "customer": "Cliente",
+            "assignee": "Responsable",
+            "next_action": "Proxima accion",
+            "amount": "Importe",
+            "weighted_amount": "Ponderado",
+            "opened": "Abierta",
+            "days_old": "{count} dias de antiguedad",
+            "quote": "Cotizacion {number}",
+            "quote_label": "Cotizacion",
+            "service_label": "Servicio",
+            "no_customer": "Sin cliente vinculado",
+            "unassigned": "Sin asignar",
+            "no_next_action": "No hay proxima accion programada"
+        },
+        "actions": {
+            "open_request": "Abrir solicitud",
+            "open_quote": "Abrir cotizacion",
+            "open_customer": "Abrir cliente",
+            "open_pipeline": "Abrir pipeline"
+        },
+        "list": {
+            "title": "Cola de prioridad comercial",
+            "subtitle": "{count} oportunidad visible | {count} oportunidades visibles"
+        },
+        "pagination": {
+            "showing": "Mostrando {from}-{to} de {total}",
+            "page_of": "Pagina {page} de {total}"
+        },
+        "empty_title": "Ninguna oportunidad coincide con los filtros actuales",
+        "empty_body": "Prueba otra cola o limpia los filtros para reconstruir la vista del inbox comercial."
+    }
+}

@@ -11,6 +11,7 @@ import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vu
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableBulkActionMenu from '@/Components/DataTable/AdminDataTableBulkActionMenu.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import SavedSegmentBar from '@/Components/CRM/SavedSegmentBar.vue';
 import CustomerActionsMenu from '@/Pages/Customer/UI/CustomerActionsMenu.vue';
 import CustomerBulkContactModal from '@/Pages/Customer/UI/CustomerBulkContactModal.vue';
 import CustomerEmptyState from '@/Pages/Customer/UI/CustomerEmptyState.vue';
@@ -20,6 +21,7 @@ import { useDataTableSelection } from '@/Composables/useDataTableSelection';
 import Checkbox from '@/Components/Checkbox.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import { crmButtonClass, crmSegmentedControlButtonClass, crmSegmentedControlClass } from '@/utils/crmButtonStyles';
 import { useI18n } from 'vue-i18n';
 import {
     createBulkActionFailureResult,
@@ -45,6 +47,14 @@ const props = defineProps({
         default: () => ({}),
     },
     canEdit: {
+        type: Boolean,
+        default: false,
+    },
+    savedSegments: {
+        type: Array,
+        default: () => [],
+    },
+    canManageSavedSegments: {
         type: Boolean,
         default: false,
     },
@@ -79,6 +89,9 @@ const filterForm = useForm({
 
 const showAdvanced = ref(false);
 const isLoading = ref(false);
+const compactObject = (payload) => Object.fromEntries(
+    Object.entries(payload || {}).filter(([, value]) => value !== '' && value !== null && value !== undefined)
+);
 const quoteFilterOptions = computed(() => ([
     { value: '', label: t('customers.filters.quotes') },
     { value: '1', label: t('customers.filters.with_quotes') },
@@ -98,6 +111,23 @@ const isViewSwitching = ref(false);
 const allowedViews = ['table', 'cards'];
 const viewMode = ref('table');
 const isBusy = computed(() => isLoading.value || isViewSwitching.value);
+const shouldShowSavedSegments = computed(() =>
+    Boolean(props.canManageSavedSegments) || (Array.isArray(props.savedSegments) && props.savedSegments.length > 0)
+);
+const savedSegmentFilters = computed(() => compactObject({
+    city: filterForm.city,
+    country: filterForm.country,
+    has_quotes: filterForm.has_quotes,
+    has_works: filterForm.has_works,
+    status: filterForm.status,
+    created_from: filterForm.created_from,
+    created_to: filterForm.created_to,
+}));
+const savedSegmentSort = computed(() => compactObject({
+    sort: filterForm.sort,
+    direction: filterForm.direction,
+}));
+const savedSegmentSearchTerm = computed(() => String(filterForm.name || '').trim());
 let viewSwitchTimeout;
 
 if (typeof window !== 'undefined') {
@@ -197,6 +227,23 @@ const clearFilters = () => {
     filterForm.created_to = '';
     filterForm.sort = 'created_at';
     filterForm.direction = 'desc';
+    autoFilter();
+};
+
+const applySavedSegment = (segment) => {
+    const filters = segment?.filters && typeof segment.filters === 'object' ? segment.filters : {};
+    const sort = segment?.sort && typeof segment.sort === 'object' ? segment.sort : {};
+
+    filterForm.name = String(segment?.search_term || '');
+    filterForm.city = String(filters.city || '');
+    filterForm.country = String(filters.country || '');
+    filterForm.has_quotes = String(filters.has_quotes || '');
+    filterForm.has_works = String(filters.has_works || '');
+    filterForm.status = String(filters.status || '');
+    filterForm.created_from = String(filters.created_from || '');
+    filterForm.created_to = String(filters.created_to || '');
+    filterForm.sort = String(sort.sort || 'created_at');
+    filterForm.direction = String(sort.direction || 'desc');
     autoFilter();
 };
 
@@ -435,6 +482,19 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
     <div
         class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
         <div class="space-y-3">
+            <SavedSegmentBar
+                v-if="shouldShowSavedSegments"
+                module="customer"
+                :segments="savedSegments"
+                :can-manage="canManageSavedSegments"
+                :current-filters="savedSegmentFilters"
+                :current-sort="savedSegmentSort"
+                :current-search-term="savedSegmentSearchTerm"
+                :history-href="route('crm.playbook-runs.index', { module: 'customer' })"
+                :history-label="t('marketing.playbook_runs.actions.open_history')"
+                i18n-prefix="customers"
+                @apply="applySavedSegment"
+            />
             <AdminDataTableToolbar
                 :show-filters="showAdvanced"
                 :show-apply="false"
@@ -491,14 +551,11 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                 </template>
 
                 <template #actions>
-                    <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                    <div :class="crmSegmentedControlClass()">
                         <button
                             type="button"
                             @click="setViewMode('table')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'table'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                            :class="crmSegmentedControlButtonClass(viewMode === 'table')"
                         >
                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -510,10 +567,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                         <button
                             type="button"
                             @click="setViewMode('cards')"
-                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
-                            :class="viewMode === 'cards'
-                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
-                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                            :class="crmSegmentedControlButtonClass(viewMode === 'cards')"
                         >
                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -526,7 +580,7 @@ const customerResultsLabel = computed(() => `${props.count} ${t('customers.pagin
                         </button>
                     </div>
                     <Link :href="route('customer.create')" data-testid="demo-add-customer"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
+                        :class="crmButtonClass('primary', 'toolbar')">
                         <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                             height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">

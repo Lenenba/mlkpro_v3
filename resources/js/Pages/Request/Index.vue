@@ -18,6 +18,14 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    savedSegments: {
+        type: Array,
+        default: () => [],
+    },
+    canManageSavedSegments: {
+        type: Boolean,
+        default: false,
+    },
 });
 </script>
 
@@ -32,11 +40,14 @@ const props = defineProps({
             <RequestTable
                 :requests="requests"
                 :filters="filters"
+                :stats="stats"
                 :lead-intake="lead_intake"
                 :customers="customers"
                 :statuses="statuses"
                 :assignees="assignees"
                 :bulk-actions="bulkActions"
+                :saved-segments="savedSegments"
+                :can-manage-saved-segments="canManageSavedSegments"
             />
         </div>
     </AuthenticatedLayout>

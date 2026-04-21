@@ -61,6 +61,7 @@ use App\Services\InventoryService;
 use App\Services\TipAllocationService;
 use App\Services\WorkBillingService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -287,6 +288,7 @@ class LaunchSeeder extends Seeder
         if (! array_key_exists('campaigns', $serviceOwnerFeatures)) {
             $serviceOwnerFeatures['campaigns'] = true;
         }
+        $serviceOwnerFeatures['sales'] = true;
         $serviceOwner->update([
             'company_features' => $serviceOwnerFeatures,
         ]);
@@ -747,6 +749,34 @@ class LaunchSeeder extends Seeder
                     'tasks.edit',
                     'reservations.view',
                     'reservations.queue',
+                    'campaigns.view',
+                ],
+                'is_active' => true,
+            ]
+        );
+
+        $serviceSalesManagerUser = User::updateOrCreate(
+            ['email' => 'sales.manager.services@example.com'],
+            [
+                'name' => 'Service Sales Manager',
+                'password' => Hash::make('password'),
+                'role_id' => $employeeRoleId,
+                'email_verified_at' => $now,
+            ]
+        );
+
+        $serviceSalesManagerMember = TeamMember::updateOrCreate(
+            [
+                'account_id' => $serviceOwner->id,
+                'user_id' => $serviceSalesManagerUser->id,
+            ],
+            [
+                'role' => 'sales_manager',
+                'permissions' => [
+                    'sales.manage',
+                    'quotes.view',
+                    'tasks.view',
+                    'tasks.edit',
                     'campaigns.view',
                 ],
                 'is_active' => true,
@@ -2824,6 +2854,15 @@ class LaunchSeeder extends Seeder
                 'updated_at' => $timestamp,
             ])->saveQuietly();
         };
+
+        $this->seedCrmPhaseSixLaunchData(
+            $serviceOwner,
+            $serviceSalesManagerUser,
+            $serviceSalesManagerMember,
+            $adminMember,
+            $memberMember,
+            $setTimestamps
+        );
 
         $productCustomerRetail = Customer::updateOrCreate(
             [
@@ -7345,5 +7384,333 @@ class LaunchSeeder extends Seeder
         );
         $syncTipAllocations($reversedPayment);
         $reversedInvoice->refreshPaymentStatus();
+    }
+
+    private function seedCrmPhaseSixLaunchData(
+        User $owner,
+        User $activityUser,
+        TeamMember $salesManagerMember,
+        TeamMember $adminMember,
+        TeamMember $memberMember,
+        callable $setTimestamps
+    ): void {
+        $referenceTime = Carbon::parse('2026-04-25 09:00:00', 'America/Toronto');
+        $searchPrefix = 'CRM Phase 6';
+
+        $makeCustomer = function (string $key, string $companyName, string $street) use ($owner, $setTimestamps, $referenceTime): array {
+            $email = 'crm-phase6-'.$key.'@example.com';
+
+            $customer = Customer::updateOrCreate(
+                ['email' => $email],
+                [
+                    'user_id' => $owner->id,
+                    'first_name' => 'CRM',
+                    'last_name' => 'Phase Six',
+                    'company_name' => $companyName,
+                    'phone' => '+15145550999',
+                    'description' => 'Seeded CRM phase 6 launch scenario.',
+                    'billing_same_as_physical' => true,
+                ]
+            );
+            $setTimestamps($customer, $referenceTime->copy()->subDays(45));
+
+            $property = Property::updateOrCreate(
+                [
+                    'customer_id' => $customer->id,
+                    'type' => 'physical',
+                    'street1' => $street,
+                ],
+                [
+                    'is_default' => true,
+                    'city' => 'Montreal',
+                    'state' => 'QC',
+                    'zip' => 'H2X1Y4',
+                    'country' => 'Canada',
+                ]
+            );
+            $setTimestamps($property, $referenceTime->copy()->subDays(45));
+
+            return [$customer, $property];
+        };
+
+        [$overdueCustomer, $overdueProperty] = $makeCustomer('overdue', $searchPrefix.' - Overdue Quote Co', '610 Revenue Ave');
+        [$noActionCustomer] = $makeCustomer('no-action', $searchPrefix.' - No Next Action Co', '620 Pipeline St');
+        [$quotedCustomer, $quotedProperty] = $makeCustomer('quoted', $searchPrefix.' - Quoted Queue Co', '630 Forecast Blvd');
+        [$qualifiedCustomer] = $makeCustomer('qualified', $searchPrefix.' - Needs Quote Co', '640 Forecast Blvd');
+        [$activeCustomer] = $makeCustomer('active', $searchPrefix.' - Active Follow-up Co', '650 Follow Up Rd');
+        [$quoteOnlyCustomer, $quoteOnlyProperty] = $makeCustomer('quote-only', $searchPrefix.' - Quote Only Co', '660 Standalone Way');
+        [$wonCustomer, $wonProperty] = $makeCustomer('won', $searchPrefix.' - Closed Won Co', '670 Delivery Ave');
+        [$lostCustomer, $lostProperty] = $makeCustomer('lost', $searchPrefix.' - Closed Lost Co', '680 Recovery Ave');
+        [$activityCustomer] = $makeCustomer('activity', $searchPrefix.' - Activity Co', '690 Action Lane');
+
+        $overdueLead = LeadRequest::updateOrCreate(
+            ['user_id' => $owner->id, 'title' => $searchPrefix.' - Overdue quoted opportunity'],
+            [
+                'customer_id' => $overdueCustomer->id,
+                'assigned_team_member_id' => $salesManagerMember->id,
+                'status' => LeadRequest::STATUS_QUOTE_SENT,
+                'service_type' => 'Maintenance',
+                'contact_name' => 'CRM Phase Six',
+                'contact_email' => 'crm-phase6-overdue@example.com',
+                'contact_phone' => '+15145550990',
+                'next_follow_up_at' => null,
+            ]
+        );
+        $setTimestamps($overdueLead, Carbon::parse('2026-04-06 09:00:00', 'America/Toronto'));
+
+        $overdueQuote = Quote::updateOrCreate(
+            ['user_id' => $owner->id, 'customer_id' => $overdueCustomer->id, 'job_title' => $searchPrefix.' - Overdue maintenance quote'],
+            [
+                'property_id' => $overdueProperty->id,
+                'request_id' => $overdueLead->id,
+                'status' => 'sent',
+                'subtotal' => 1800,
+                'total' => 1800,
+                'currency_code' => 'CAD',
+                'initial_deposit' => 0,
+                'is_fixed' => false,
+                'notes' => 'Seeded overdue quoted opportunity for sales inbox.',
+                'next_follow_up_at' => $referenceTime->copy()->subDay(),
+                'last_followed_up_at' => $referenceTime->copy()->subDays(3),
+            ]
+        );
+        $setTimestamps($overdueQuote, Carbon::parse('2026-04-08 10:00:00', 'America/Toronto'));
+
+        $noActionLead = LeadRequest::updateOrCreate(
+            ['user_id' => $owner->id, 'title' => $searchPrefix.' - Contacted opportunity without next action'],
+            [
+                'customer_id' => $noActionCustomer->id,
+                'assigned_team_member_id' => $memberMember->id,
+                'status' => LeadRequest::STATUS_CONTACTED,
+                'service_type' => 'Inspection',
+                'contact_name' => 'CRM Phase Six',
+                'contact_email' => 'crm-phase6-no-action@example.com',
+                'contact_phone' => '+15145550991',
+                'next_follow_up_at' => null,
+            ]
+        );
+        $setTimestamps($noActionLead, Carbon::parse('2026-04-12 11:00:00', 'America/Toronto'));
+
+        $quotedLead = LeadRequest::updateOrCreate(
+            ['user_id' => $owner->id, 'title' => $searchPrefix.' - Quoted opportunity with next action'],
+            [
+                'customer_id' => $quotedCustomer->id,
+                'assigned_team_member_id' => $adminMember->id,
+                'status' => LeadRequest::STATUS_QUOTE_SENT,
+                'service_type' => 'Installation',
+                'contact_name' => 'CRM Phase Six',
+                'contact_email' => 'crm-phase6-quoted@example.com',
+                'contact_phone' => '+15145550992',
+                'next_follow_up_at' => null,
+            ]
+        );
+        $setTimestamps($quotedLead, Carbon::parse('2026-04-16 09:30:00', 'America/Toronto'));
+
+        $quotedQuote = Quote::updateOrCreate(
+            ['user_id' => $owner->id, 'customer_id' => $quotedCustomer->id, 'job_title' => $searchPrefix.' - Scheduled quote proposal'],
+            [
+                'property_id' => $quotedProperty->id,
+                'request_id' => $quotedLead->id,
+                'status' => 'sent',
+                'subtotal' => 2400,
+                'total' => 2400,
+                'currency_code' => 'CAD',
+                'initial_deposit' => 0,
+                'is_fixed' => false,
+                'notes' => 'Seeded quoted opportunity with a scheduled next action.',
+                'next_follow_up_at' => $referenceTime->copy()->addDay(),
+                'last_followed_up_at' => $referenceTime->copy()->subDay(),
+            ]
+        );
+        $setTimestamps($quotedQuote, Carbon::parse('2026-04-17 14:00:00', 'America/Toronto'));
+
+        $qualifiedLead = LeadRequest::updateOrCreate(
+            ['user_id' => $owner->id, 'title' => $searchPrefix.' - Qualified opportunity awaiting quote'],
+            [
+                'customer_id' => $qualifiedCustomer->id,
+                'assigned_team_member_id' => $salesManagerMember->id,
+                'status' => LeadRequest::STATUS_QUALIFIED,
+                'service_type' => 'Consulting',
+                'contact_name' => 'CRM Phase Six',
+                'contact_email' => 'crm-phase6-qualified@example.com',
+                'contact_phone' => '+15145550993',
+                'next_follow_up_at' => $referenceTime->copy()->addDays(2),
+            ]
+        );
+        $setTimestamps($qualifiedLead, Carbon::parse('2026-04-15 10:00:00', 'America/Toronto'));
+
+        $activeLead = LeadRequest::updateOrCreate(
+            ['user_id' => $owner->id, 'title' => $searchPrefix.' - Active contacted opportunity'],
+            [
+                'customer_id' => $activeCustomer->id,
+                'assigned_team_member_id' => $salesManagerMember->id,
+                'status' => LeadRequest::STATUS_CONTACTED,
+                'service_type' => 'Repairs',
+                'contact_name' => 'CRM Phase Six',
+                'contact_email' => 'crm-phase6-active@example.com',
+                'contact_phone' => '+15145550994',
+                'next_follow_up_at' => $referenceTime->copy()->addDays(3),
+            ]
+        );
+        $setTimestamps($activeLead, Carbon::parse('2026-04-23 08:30:00', 'America/Toronto'));
+
+        $quoteOnlyQuote = Quote::updateOrCreate(
+            ['user_id' => $owner->id, 'customer_id' => $quoteOnlyCustomer->id, 'job_title' => $searchPrefix.' - Standalone upsell quote'],
+            [
+                'property_id' => $quoteOnlyProperty->id,
+                'request_id' => null,
+                'status' => 'sent',
+                'subtotal' => 950,
+                'total' => 950,
+                'currency_code' => 'CAD',
+                'initial_deposit' => 0,
+                'is_fixed' => false,
+                'notes' => 'Seeded quote-only opportunity for phase 6.',
+                'next_follow_up_at' => $referenceTime->copy()->addHours(2),
+                'last_followed_up_at' => $referenceTime->copy()->subHours(8),
+            ]
+        );
+        $setTimestamps($quoteOnlyQuote, Carbon::parse('2026-03-20 09:00:00', 'America/Toronto'));
+
+        $wonLead = LeadRequest::updateOrCreate(
+            ['user_id' => $owner->id, 'title' => $searchPrefix.' - Closed won downstream opportunity'],
+            [
+                'customer_id' => $wonCustomer->id,
+                'assigned_team_member_id' => $adminMember->id,
+                'status' => LeadRequest::STATUS_WON,
+                'service_type' => 'Upgrade',
+                'contact_name' => 'CRM Phase Six',
+                'contact_email' => 'crm-phase6-won@example.com',
+                'contact_phone' => '+15145550995',
+                'next_follow_up_at' => null,
+            ]
+        );
+        $setTimestamps($wonLead, Carbon::parse('2026-04-02 09:00:00', 'America/Toronto'));
+
+        $wonQuote = Quote::updateOrCreate(
+            ['user_id' => $owner->id, 'customer_id' => $wonCustomer->id, 'job_title' => $searchPrefix.' - Closed won proposal'],
+            [
+                'property_id' => $wonProperty->id,
+                'request_id' => $wonLead->id,
+                'status' => 'accepted',
+                'subtotal' => 3200,
+                'total' => 3200,
+                'currency_code' => 'CAD',
+                'initial_deposit' => 0,
+                'is_fixed' => false,
+                'notes' => 'Seeded closed-won opportunity with downstream work and invoice.',
+                'accepted_at' => Carbon::parse('2026-04-14 10:00:00', 'America/Toronto'),
+                'signed_at' => Carbon::parse('2026-04-14 10:00:00', 'America/Toronto'),
+                'next_follow_up_at' => null,
+            ]
+        );
+        $setTimestamps($wonQuote, Carbon::parse('2026-04-04 10:00:00', 'America/Toronto'));
+
+        $wonWork = Work::updateOrCreate(
+            ['user_id' => $owner->id, 'customer_id' => $wonCustomer->id, 'job_title' => $searchPrefix.' - Closed won work'],
+            [
+                'quote_id' => $wonQuote->id,
+                'instructions' => 'Seeded downstream work for CRM phase 6.',
+                'start_date' => Carbon::parse('2026-04-17 08:00:00', 'America/Toronto')->toDateString(),
+                'status' => Work::STATUS_IN_PROGRESS,
+                'subtotal' => 3200,
+                'total' => 3200,
+            ]
+        );
+        $setTimestamps($wonWork, Carbon::parse('2026-04-15 08:00:00', 'America/Toronto'));
+
+        if ((int) $wonQuote->work_id !== (int) $wonWork->id) {
+            $wonQuote->update(['work_id' => $wonWork->id]);
+        }
+
+        $wonInvoice = Invoice::updateOrCreate(
+            ['work_id' => $wonWork->id],
+            [
+                'user_id' => $owner->id,
+                'customer_id' => $wonCustomer->id,
+                'status' => 'partial',
+                'total' => 3200,
+            ]
+        );
+        $setTimestamps($wonInvoice, Carbon::parse('2026-04-18 09:00:00', 'America/Toronto'));
+
+        $lostLead = LeadRequest::updateOrCreate(
+            ['user_id' => $owner->id, 'title' => $searchPrefix.' - Closed lost opportunity'],
+            [
+                'customer_id' => $lostCustomer->id,
+                'assigned_team_member_id' => $memberMember->id,
+                'status' => LeadRequest::STATUS_LOST,
+                'service_type' => 'Audit',
+                'contact_name' => 'CRM Phase Six',
+                'contact_email' => 'crm-phase6-lost@example.com',
+                'contact_phone' => '+15145550996',
+                'lost_reason' => 'budget',
+                'next_follow_up_at' => null,
+            ]
+        );
+        $setTimestamps($lostLead, Carbon::parse('2026-04-05 13:00:00', 'America/Toronto'));
+
+        $lostQuote = Quote::updateOrCreate(
+            ['user_id' => $owner->id, 'customer_id' => $lostCustomer->id, 'job_title' => $searchPrefix.' - Closed lost quote'],
+            [
+                'property_id' => $lostProperty->id,
+                'request_id' => $lostLead->id,
+                'status' => 'declined',
+                'subtotal' => 1400,
+                'total' => 1400,
+                'currency_code' => 'CAD',
+                'initial_deposit' => 0,
+                'is_fixed' => false,
+                'notes' => 'Seeded closed-lost opportunity for phase 6.',
+                'next_follow_up_at' => null,
+            ]
+        );
+        $setTimestamps($lostQuote, Carbon::parse('2026-04-07 09:30:00', 'America/Toronto'));
+
+        $phaseSixTaskToday = Task::updateOrCreate(
+            ['account_id' => $owner->id, 'title' => $searchPrefix.' - Prepare revised scope'],
+            [
+                'created_by_user_id' => $owner->id,
+                'assigned_team_member_id' => $salesManagerMember->id,
+                'customer_id' => $quotedCustomer->id,
+                'request_id' => $quotedLead->id,
+                'description' => 'Task seeded for the phase 6 daily action view.',
+                'status' => 'todo',
+                'due_date' => $referenceTime->toDateString(),
+            ]
+        );
+        $setTimestamps($phaseSixTaskToday, $referenceTime->copy()->subDay()->setTime(16, 0));
+
+        $phaseSixTaskOverdue = Task::updateOrCreate(
+            ['account_id' => $owner->id, 'title' => $searchPrefix.' - Escalate overdue quote'],
+            [
+                'created_by_user_id' => $owner->id,
+                'assigned_team_member_id' => $memberMember->id,
+                'customer_id' => $overdueCustomer->id,
+                'request_id' => $overdueLead->id,
+                'description' => 'Overdue recovery task seeded for phase 6.',
+                'status' => 'todo',
+                'due_date' => $referenceTime->copy()->subDay()->toDateString(),
+            ]
+        );
+        $setTimestamps($phaseSixTaskOverdue, $referenceTime->copy()->subDays(2)->setTime(15, 30));
+
+        $meetingActivity = ActivityLog::updateOrCreate(
+            [
+                'subject_type' => $activityCustomer->getMorphClass(),
+                'subject_id' => $activityCustomer->id,
+                'action' => 'sales_meeting_scheduled',
+                'description' => $searchPrefix.' - On-site estimate booked',
+            ],
+            [
+                'user_id' => $activityUser->id,
+                'properties' => [
+                    'meeting_at' => $referenceTime->copy()->addHours(5)->toIso8601String(),
+                    'sales_activity_action' => 'sales_meeting_scheduled',
+                    'seed' => 'launch_phase_6',
+                ],
+            ]
+        );
+        $setTimestamps($meetingActivity, $referenceTime->copy()->subDay()->setTime(14, 0));
     }
 }

@@ -41,7 +41,7 @@ final class CustomerReadSelects
 
     public static function detailActivityColumns(): array
     {
-        return ['id', 'action', 'description', 'subject_type', 'subject_id', 'created_at'];
+        return ['id', 'user_id', 'action', 'description', 'properties', 'subject_type', 'subject_id', 'created_at'];
     }
 
     public static function detailLoyaltyLedgerColumns(): array

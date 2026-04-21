@@ -55,6 +55,7 @@ const moduleIconToneClass = {
     customers: 'text-violet-600 dark:text-violet-200',
     requests: 'text-cyan-600 dark:text-cyan-200',
     quotes: 'text-amber-600 dark:text-amber-200',
+    next_actions: 'text-emerald-600 dark:text-emerald-200',
     orders: 'text-fuchsia-600 dark:text-fuchsia-200',
     sales: 'text-orange-600 dark:text-orange-200',
     campaigns: 'text-fuchsia-600 dark:text-fuchsia-200',

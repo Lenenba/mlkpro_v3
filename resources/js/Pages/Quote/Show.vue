@@ -3,13 +3,42 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import StarRating from '@/Components/UI/StarRating.vue';
+import SalesActivityPanel from '@/Components/CRM/SalesActivityPanel.vue';
+import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 const props = defineProps({
     quote: Object,
+    activity: {
+        type: Array,
+        default: () => [],
+    },
+    canLogSalesActivity: {
+        type: Boolean,
+        default: false,
+    },
+    salesActivityQuickActions: {
+        type: Array,
+        default: () => [],
+    },
+    salesActivityManualActions: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const page = usePage();
 const { t } = useI18n();
+const formatDate = (value) => humanizeDate(value);
+const formatAbsoluteDate = (value) => {
+    if (!value) {
+        return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+    return date.toLocaleString();
+};
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('quotes.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const customerLabel = computed(() => {
@@ -26,6 +55,17 @@ const fallbackProperty = computed(() => {
 
 const property = computed(() => props.quote.property || fallbackProperty.value);
 const taxTotal = computed(() => (props.quote.taxes || []).reduce((sum, tax) => sum + Number(tax.amount || 0), 0));
+const quoteStatusLabel = computed(() => {
+    const status = props.quote?.status;
+    if (!status) {
+        return t('quotes.show.summary.none');
+    }
+
+    const key = `quotes.status.${status}`;
+    const translated = t(key);
+
+    return translated === key ? status : translated;
+});
 
 const ratingValue = computed(() => {
     const average = props.quote?.ratings_avg_rating;
@@ -183,6 +223,63 @@ const sourceLines = computed(() => {
                             </div>
                         </div>
                     </div>
+                </div>
+                <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr),320px]">
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('quotes.show.summary.title') }}
+                        </h2>
+                        <div class="mt-3 grid grid-cols-1 gap-3 text-sm text-stone-600 dark:text-neutral-300 sm:grid-cols-2">
+                            <div>
+                                <div class="text-xs uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                                    {{ $t('quotes.show.summary.status') }}
+                                </div>
+                                <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                    {{ quoteStatusLabel }}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-xs uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                                    {{ $t('quotes.show.summary.next_follow_up') }}
+                                </div>
+                                <div
+                                    class="mt-1 text-stone-800 dark:text-neutral-200"
+                                    :title="formatAbsoluteDate(quote.next_follow_up_at)"
+                                >
+                                    {{ quote.next_follow_up_at ? formatDate(quote.next_follow_up_at) : $t('quotes.show.summary.none') }}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-xs uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                                    {{ $t('quotes.show.summary.last_followed_up') }}
+                                </div>
+                                <div
+                                    class="mt-1 text-stone-800 dark:text-neutral-200"
+                                    :title="formatAbsoluteDate(quote.last_followed_up_at)"
+                                >
+                                    {{ quote.last_followed_up_at ? formatDate(quote.last_followed_up_at) : $t('quotes.show.summary.none') }}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-xs uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                                    {{ $t('quotes.show.summary.follow_up_count') }}
+                                </div>
+                                <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                    {{ quote.follow_up_count ?? 0 }}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <SalesActivityPanel
+                        :items="activity"
+                        :can-log="canLogSalesActivity"
+                        :quick-actions="salesActivityQuickActions"
+                        :manual-actions="salesActivityManualActions"
+                        :store-route="route('crm.sales-activities.quotes.store', quote.id)"
+                        i18n-prefix="quotes.show.sales_activity"
+                        dialog-id="quote-sales-activity-modal"
+                    />
                 </div>
                 <div
                     class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">

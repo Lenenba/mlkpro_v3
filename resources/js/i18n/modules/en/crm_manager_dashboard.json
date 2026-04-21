@@ -1,0 +1,94 @@
+{
+    "crm_manager_dashboard": {
+        "eyebrow": "Manager dashboard",
+        "page_title": "Sales manager dashboard",
+        "page_description": "A revenue operations view for sales managers covering weighted pipeline, stage aging, overdue follow-ups, and quote pull-through from the phase 6 opportunity projection.",
+        "reference_time": "Reference time",
+        "actions": {
+            "open_sales_inbox": "Open sales inbox",
+            "open_next_actions": "Open next actions",
+            "open_request": "Open request",
+            "open_quote": "Open quote",
+            "open_customer": "Open customer"
+        },
+        "filters": {
+            "title": "Manager filters",
+            "subtitle": "Drill down the dashboard by customer or free-text search.",
+            "search": "Search",
+            "search_placeholder": "Search customer, title, service, or quote",
+            "customer": "Customer",
+            "all_customers": "All customers",
+            "clear": "Clear filters"
+        },
+        "summary": {
+            "weighted_open_amount": "Weighted open amount",
+            "month_to_date_won_amount": "Month-to-date won",
+            "overdue_next_actions": "Overdue next actions",
+            "quote_pull_through": "Quote pull-through",
+            "open_count_detail": "{count} open opportunity | {count} open opportunities",
+            "wins_detail": "{count} won opportunity this month | {count} won opportunities this month",
+            "overdue_detail": "{count} overdue opportunity | {count} overdue opportunities",
+            "quote_pull_through_detail": "{won} won of {total} quoted opportunities"
+        },
+        "sections": {
+            "weighted_pipeline": "Weighted pipeline",
+            "weighted_pipeline_description": "Pipeline mix derived from the forecast layer without introducing a persistent opportunity table.",
+            "next_actions": "Next action coverage",
+            "next_actions_description": "Open opportunity follow-up health at the selected reference time.",
+            "wins": "Recent wins",
+            "wins_description": "Closed-won momentum across the current manager windows.",
+            "stage_aging": "Stage aging",
+            "stage_aging_description": "Average age and overdue pressure across open commercial stages.",
+            "queues": "Queue pressure",
+            "queues_description": "Inbox-first backlog grouped for manager triage and fast follow-up.",
+            "attention": "Attention items",
+            "attention_description": "Highest-priority open opportunities from the sales inbox ordering."
+        },
+        "categories": {
+            "pipeline": "Pipeline",
+            "best_case": "Best case",
+            "closed_won": "Closed won",
+            "closed_lost": "Closed lost"
+        },
+        "next_action_buckets": {
+            "overdue": "Overdue",
+            "scheduled": "Scheduled",
+            "none": "No next action"
+        },
+        "wins_windows": {
+            "month_to_date": "Month to date",
+            "quarter_to_date": "Quarter to date",
+            "year_to_date": "Year to date"
+        },
+        "queues": {
+            "overdue": "Overdue",
+            "no_next_action": "No next action",
+            "quoted": "Quoted",
+            "needs_quote": "Needs quote",
+            "active": "Active"
+        },
+        "labels": {
+            "count": "Count",
+            "weighted": "Weighted",
+            "amount": "Amount",
+            "weighted_share": "Weighted share",
+            "avg_age": "Avg age",
+            "days": "{count} d",
+            "overdue": "Overdue",
+            "opened": "Opened",
+            "next_action": "Next action",
+            "quote": "Quote {number}",
+            "quote_label": "Quote",
+            "service_label": "Service",
+            "no_customer": "No customer linked",
+            "no_next_action": "No next action scheduled",
+            "open_amount": "Open amount"
+        },
+        "attention": {
+            "open_sales_inbox": "Open sales inbox",
+            "open_sales_inbox_queue": "Open queue",
+            "empty_title": "No open opportunities match the current filters",
+            "empty_body": "Clear the filters or adjust the search to rebuild the manager dashboard."
+        }
+    }
+}

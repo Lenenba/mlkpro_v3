@@ -6,20 +6,27 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Request extends Model
 {
     use HasFactory;
 
     public const STATUS_NEW = 'REQ_NEW';
+
     public const STATUS_CALL_REQUESTED = 'REQ_CALL_REQUESTED';
+
     public const STATUS_CONTACTED = 'REQ_CONTACTED';
+
     public const STATUS_QUALIFIED = 'REQ_QUALIFIED';
+
     public const STATUS_QUOTE_SENT = 'REQ_QUOTE_SENT';
+
     public const STATUS_WON = 'REQ_WON';
+
     public const STATUS_LOST = 'REQ_LOST';
+
     public const STATUS_CONVERTED = 'REQ_CONVERTED';
 
     public const STATUSES = [
@@ -56,6 +63,12 @@ class Request extends Model
         'lng',
         'is_serviceable',
         'converted_at',
+        'first_response_at',
+        'last_activity_at',
+        'sla_due_at',
+        'triage_priority',
+        'risk_level',
+        'stale_since_at',
         'status_updated_at',
         'next_follow_up_at',
         'lost_reason',
@@ -67,6 +80,11 @@ class Request extends Model
         'lng' => 'decimal:7',
         'is_serviceable' => 'boolean',
         'converted_at' => 'datetime',
+        'first_response_at' => 'datetime',
+        'last_activity_at' => 'datetime',
+        'sla_due_at' => 'datetime',
+        'triage_priority' => 'integer',
+        'stale_since_at' => 'datetime',
         'status_updated_at' => 'datetime',
         'next_follow_up_at' => 'datetime',
         'meta' => 'array',

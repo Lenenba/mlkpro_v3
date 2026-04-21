@@ -42,6 +42,96 @@
     "show": {
       "timeline": "Timeline",
       "no_rating_yet": "No rating yet",
+      "summary": {
+        "title": "Recovery summary",
+        "status": "Status",
+        "next_follow_up": "Next follow-up",
+        "last_followed_up": "Last follow-up",
+        "follow_up_count": "Follow-up count",
+        "none": "None"
+      },
+      "activity": {
+        "title": "Recent activity",
+        "empty": "No recovery activity for this quote yet.",
+        "author_fallback": "System"
+      },
+      "sales_activity": {
+        "title": "CRM timeline",
+        "subtitle": "Track calls, notes, emails, next actions, and meetings around this quote.",
+        "quick_actions_title": "Quick actions",
+        "quick_actions_hint": "Log the most useful sales touchpoints without leaving the quote.",
+        "open_dialog": "Log activity",
+        "current_next_action": "Active next action",
+        "due_prefix": "Due",
+        "empty": "No CRM activity for this quote yet.",
+        "dialog_title": "Log a sales activity",
+        "dialog_hint": "Add a note, call outcome, next action, or meeting for this quote.",
+        "actor_fallback": "System",
+        "cancel": "Cancel",
+        "save": "Save activity",
+        "messages": {
+          "logged": "Sales activity logged.",
+          "error": "Unable to log this sales activity."
+        },
+        "fields": {
+          "action": "Activity",
+          "action_placeholder": "Choose an activity",
+          "occurred_at": "Activity date",
+          "due_at": "Due at",
+          "description": "Short summary",
+          "note": "Note"
+        },
+        "types": {
+          "note": "Note",
+          "call": "Call",
+          "call_outcome": "Call outcome",
+          "next_action": "Next action",
+          "meeting": "Meeting",
+          "system": "System"
+        },
+        "labels": {
+          "sales_note_added": "Sales note",
+          "sales_call_logged": "Call logged",
+          "sales_call_no_answer": "No answer",
+          "sales_call_quote_discussed": "Quote discussed",
+          "sales_call_to_recontact": "To recontact",
+          "sales_next_action_scheduled": "Next action scheduled",
+          "sales_next_action_completed": "Next action completed",
+          "sales_next_action_cleared": "Next action cleared",
+          "sales_meeting_scheduled": "Meeting scheduled",
+          "sales_meeting_completed": "Meeting completed",
+          "message_email_sent": "Email sent",
+          "message_email_received": "Email received",
+          "message_email_failed": "Email failed",
+          "message_email_retry_scheduled": "Email retry scheduled",
+          "meeting_scheduled": "Meeting scheduled",
+          "meeting_completed": "Meeting completed"
+        },
+        "quick_actions": {
+          "call_logged": "Call logged",
+          "no_answer": "No answer",
+          "callback_tomorrow": "Call back tomorrow",
+          "quote_discussed": "Quote discussed",
+          "recontact": "To recontact"
+        },
+        "message_directions": {
+          "outbound": "Outbound",
+          "inbound": "Inbound"
+        },
+        "meeting_states": {
+          "scheduled": "Scheduled",
+          "completed": "Completed"
+        },
+        "meta": {
+          "to_prefix": "To",
+          "from_prefix": "From",
+          "start_prefix": "Starts",
+          "completed_prefix": "Completed",
+          "scheduled_for_prefix": "Scheduled",
+          "retry_attempt_prefix": "Retry",
+          "assistant_label": "Assistant"
+        }
+      },
       "table": {
         "product_services": "Product/Services",
         "qty": "Qty.",
@@ -97,6 +187,35 @@
         "none": "No tax"
       }
     },
+    "saved_segments": {
+      "title": "Saved segments",
+      "manage": "Create / manage",
+      "summary_empty": "No segment selected",
+      "selected_label": "Active segment",
+      "snapshot_label": "Current snapshot",
+      "dialog_hint": "Apply an existing segment or save the current filter state.",
+      "selection_panel": "Apply a segment",
+      "management_panel": "Save current state",
+      "select_label": "Saved segment",
+      "select_placeholder": "Choose a segment",
+      "name_label": "Segment name",
+      "name_placeholder": "Ex. Priority recovery quotes",
+      "apply": "Apply",
+      "save_current": "Save filters",
+      "update_selected": "Update",
+      "delete_selected": "Delete",
+      "cached_count": "{count} cached",
+      "updated_at": "Updated {value}",
+      "current_snapshot_ready": "The current filter snapshot is ready to save.",
+      "empty_state": "No saved segments yet.",
+      "info_created": "Saved segment created.",
+      "info_updated": "Saved segment updated.",
+      "info_deleted": "Saved segment deleted.",
+      "error_load": "Unable to load saved segments.",
+      "error_save": "Unable to save this segment.",
+      "error_delete": "Unable to delete this segment.",
+      "confirm_delete": "Delete saved segment \"{name}\"?"
+    },
     "status": {
       "draft": "Draft",
       "sent": "Sent",
@@ -142,9 +261,47 @@
       "open": "Open quotes",
       "accepted": "Accepted",
       "declined": "Declined",
+      "never_followed": "No follow-up yet",
+      "due": "Follow-up due",
+      "viewed_not_accepted": "Viewed, no decision",
+      "high_value": "High-value open",
+      "sent_to_accepted_rate": "Sent to accepted",
+      "recovery_title": "Recovery cockpit",
+      "recovery_subtitle": "Follow-up pressure and conversion signals on the current filtered quotes.",
       "top_by_value": "Top quotes by value",
       "based_on_filters": "Based on current filters",
       "empty": "No quote data yet."
+    },
+    "recovery": {
+      "label": "Recovery",
+      "priority_short": "P{value}",
+      "next_follow_up": "Follow-up",
+      "last_viewed": "Viewed",
+      "age_days_short": "Age {count}d",
+      "follow_up_tomorrow": "Tomorrow",
+      "follow_up_three_days": "+3d",
+      "follow_up_seven_days": "+7d",
+      "mark_done": "Done",
+      "create_task": "Task",
+      "queues": {
+        "all": "All",
+        "active": "Active",
+        "closed": "Closed",
+        "due": "Due",
+        "expired": "Expired",
+        "high_value": "High value",
+        "never_followed": "No follow-up",
+        "viewed_not_accepted": "Viewed, no decision",
+        "unknown": "Needs review"
+      },
+      "priority_labels": {
+        "urgent": "Urgent",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low",
+        "closed": "Closed",
+        "unknown": "Unknown"
+      }
     },
     "empty": {
       "quotes": "No quotes yet."

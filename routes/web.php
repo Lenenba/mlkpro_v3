@@ -27,6 +27,7 @@ use App\Http\Controllers\MarketingProspectProviderConnectionController;
 use App\Http\Controllers\MarketingSegmentController;
 use App\Http\Controllers\MarketingTemplateController;
 use App\Http\Controllers\MarketingVipController;
+use App\Http\Controllers\MyNextActionsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfferSearchController;
 use App\Http\Controllers\OnboardingController;
@@ -35,6 +36,8 @@ use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\PipelineController;
 use App\Http\Controllers\PlanningController;
 use App\Http\Controllers\PlanScanController;
+use App\Http\Controllers\PlaybookController;
+use App\Http\Controllers\PlaybookRunController;
 use App\Http\Controllers\Portal\PortalInvoiceController;
 use App\Http\Controllers\Portal\PortalLoyaltyController;
 use App\Http\Controllers\Portal\PortalProductOrderController;
@@ -69,6 +72,10 @@ use App\Http\Controllers\Reservation\ReservationSettingsController;
 use App\Http\Controllers\Reservation\StaffReservationController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SalePaymentController;
+use App\Http\Controllers\SalesActivityController;
+use App\Http\Controllers\SalesInboxController;
+use App\Http\Controllers\SalesManagerDashboardController;
+use App\Http\Controllers\SavedSegmentController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\Settings\ApiTokenController;
 use App\Http\Controllers\Settings\BillingSettingsController;
@@ -222,10 +229,18 @@ Route::middleware(['auth', 'demo.safe'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/notifications', [NotificationController::class, 'index'])
+        ->name('notifications.index');
+    Route::get('/notifications/{notification}/open', [NotificationController::class, 'open'])
+        ->name('notifications.open');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])
         ->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])
         ->name('notifications.read');
+    Route::post('/notifications/{notification}/archive', [NotificationController::class, 'archive'])
+        ->name('notifications.archive');
+    Route::post('/notifications/{notification}/restore', [NotificationController::class, 'restore'])
+        ->name('notifications.restore');
 });
 
 // Internal User Routes
@@ -324,6 +339,29 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('settings.billing.payment-method');
     });
 
+    Route::get('/crm/saved-segments', [SavedSegmentController::class, 'index'])
+        ->name('crm.saved-segments.index');
+    Route::post('/crm/saved-segments', [SavedSegmentController::class, 'store'])
+        ->name('crm.saved-segments.store');
+    Route::put('/crm/saved-segments/{savedSegment}', [SavedSegmentController::class, 'update'])
+        ->name('crm.saved-segments.update');
+    Route::delete('/crm/saved-segments/{savedSegment}', [SavedSegmentController::class, 'destroy'])
+        ->name('crm.saved-segments.destroy');
+    Route::post('/crm/playbooks', [PlaybookController::class, 'store'])
+        ->name('crm.playbooks.store');
+    Route::post('/crm/playbooks/{playbook}/run', [PlaybookController::class, 'run'])
+        ->name('crm.playbooks.run');
+    Route::get('/crm/playbook-runs', [PlaybookRunController::class, 'index'])
+        ->name('crm.playbook-runs.index');
+    Route::middleware('company.feature:sales')->group(function () {
+        Route::get('/crm/next-actions', [MyNextActionsController::class, 'index'])
+            ->name('crm.next-actions.index');
+        Route::get('/crm/sales-inbox', [SalesInboxController::class, 'index'])
+            ->name('crm.sales-inbox.index');
+        Route::get('/crm/manager-dashboard', [SalesManagerDashboardController::class, 'index'])
+            ->name('crm.manager-dashboard.index');
+    });
+
     // Lead Requests
     Route::middleware('company.feature:requests')->group(function () {
         Route::get('/requests', [RequestController::class, 'index'])->name('request.index');
@@ -331,6 +369,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/requests', [RequestController::class, 'store'])->name('request.store');
         Route::post('/requests/import', [RequestController::class, 'import'])->name('request.import');
         Route::get('/requests/{lead}', [RequestController::class, 'show'])->name('request.show');
+        Route::post('/requests/{lead}/sales-activities', [SalesActivityController::class, 'storeForRequest'])
+            ->name('crm.sales-activities.requests.store');
         Route::put('/requests/{lead}', [RequestController::class, 'update'])->name('request.update');
         Route::post('/requests/{lead}/merge', [RequestController::class, 'merge'])->name('request.merge');
         Route::post('/requests/{lead}/convert', [RequestController::class, 'convert'])
@@ -386,12 +426,19 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/customer/quote/store', [QuoteController::class, 'store'])->name('customer.quote.store');
         Route::get('/customer/quote/{quote}/edit', [QuoteController::class, 'edit'])->name('customer.quote.edit');
         Route::get('/customer/quote/{quote}/show', [QuoteController::class, 'show'])->name('customer.quote.show');
+        Route::post('/quote/{quote}/sales-activities', [SalesActivityController::class, 'storeForQuote'])
+            ->name('crm.sales-activities.quotes.store');
         Route::put('/customer/quote/{quote}/update', [QuoteController::class, 'update'])->name('customer.quote.update');
         Route::delete('/customer/quote/{quote}/destroy', [QuoteController::class, 'destroy'])->name('customer.quote.destroy');
         Route::post('/customer/quote/{quote}/restore', [QuoteController::class, 'restore'])->name('customer.quote.restore');
         Route::post('/quote/{quote}/accept', [QuoteController::class, 'accept'])->name('quote.accept');
         Route::post('/quote/{quote}/send-email', QuoteEmaillingController::class)->name('quote.send.email');
         Route::post('/quote/{quote}/convert', [QuoteController::class, 'convertToWork'])->name('quote.convert');
+        Route::patch('/quote/{quote}/recovery', [QuoteController::class, 'updateRecovery'])->name('quote.recovery.update');
+
+        Route::middleware('company.feature:tasks')->group(function () {
+            Route::post('/quote/{quote}/recovery-task', [QuoteController::class, 'storeRecoveryTask'])->name('quote.recovery.task.store');
+        });
 
         Route::middleware('company.feature:plan_scans')->group(function () {
             Route::get('/plan-scans', [PlanScanController::class, 'index'])->name('plan-scans.index');
@@ -676,6 +723,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
     Route::patch('/customer/{customer}/notes', [CustomerController::class, 'updateNotes'])
         ->name('customer.notes.update');
+    Route::post('/customer/{customer}/sales-activities', [SalesActivityController::class, 'storeForCustomer'])
+        ->name('crm.sales-activities.customers.store');
     Route::patch('/customer/{customer}/tags', [CustomerController::class, 'updateTags'])
         ->name('customer.tags.update');
     Route::patch('/customer/{customer}/auto-validation', [CustomerController::class, 'updateAutoValidation'])

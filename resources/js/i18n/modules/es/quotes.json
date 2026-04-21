@@ -42,6 +42,96 @@
     "show": {
       "timeline": "Línea de tiempo",
       "no_rating_yet": "Aún no hay calificación",
+      "summary": {
+        "title": "Resumen recovery",
+        "status": "Estado",
+        "next_follow_up": "Proximo seguimiento",
+        "last_followed_up": "Ultimo seguimiento",
+        "follow_up_count": "Cantidad de seguimientos",
+        "none": "Ninguno"
+      },
+      "activity": {
+        "title": "Actividad reciente",
+        "empty": "Todavia no hay actividad de recovery para esta cotizacion.",
+        "author_fallback": "Sistema"
+      },
+      "sales_activity": {
+        "title": "Timeline CRM",
+        "subtitle": "Siga llamadas, notas, correos, proximas acciones y reuniones alrededor de esta cotizacion.",
+        "quick_actions_title": "Acciones rapidas",
+        "quick_actions_hint": "Registre los touchpoints comerciales mas utiles sin salir de la cotizacion.",
+        "open_dialog": "Registrar actividad",
+        "current_next_action": "Proxima accion activa",
+        "due_prefix": "Vence",
+        "empty": "Aun no hay actividad CRM para esta cotizacion.",
+        "dialog_title": "Registrar una actividad comercial",
+        "dialog_hint": "Agregue una nota, un resultado de llamada, una proxima accion o una reunion para esta cotizacion.",
+        "actor_fallback": "Sistema",
+        "cancel": "Cancelar",
+        "save": "Guardar actividad",
+        "messages": {
+          "logged": "Actividad comercial registrada.",
+          "error": "No se pudo registrar esta actividad comercial."
+        },
+        "fields": {
+          "action": "Actividad",
+          "action_placeholder": "Elegir una actividad",
+          "occurred_at": "Fecha de la actividad",
+          "due_at": "Vence el",
+          "description": "Resumen corto",
+          "note": "Nota"
+        },
+        "types": {
+          "note": "Nota",
+          "call": "Llamada",
+          "call_outcome": "Resultado de llamada",
+          "next_action": "Proxima accion",
+          "meeting": "Reunion",
+          "system": "Sistema"
+        },
+        "labels": {
+          "sales_note_added": "Nota comercial",
+          "sales_call_logged": "Llamada registrada",
+          "sales_call_no_answer": "Sin respuesta",
+          "sales_call_quote_discussed": "Cotizacion discutida",
+          "sales_call_to_recontact": "Volver a contactar",
+          "sales_next_action_scheduled": "Proxima accion programada",
+          "sales_next_action_completed": "Proxima accion completada",
+          "sales_next_action_cleared": "Proxima accion cancelada",
+          "sales_meeting_scheduled": "Reunion programada",
+          "sales_meeting_completed": "Reunion completada",
+          "message_email_sent": "Correo enviado",
+          "message_email_received": "Correo recibido",
+          "message_email_failed": "Correo fallido",
+          "message_email_retry_scheduled": "Reintento de correo programado",
+          "meeting_scheduled": "Reunion programada",
+          "meeting_completed": "Reunion completada"
+        },
+        "quick_actions": {
+          "call_logged": "Llamada registrada",
+          "no_answer": "Sin respuesta",
+          "callback_tomorrow": "Llamar manana",
+          "quote_discussed": "Cotizacion discutida",
+          "recontact": "Volver a contactar"
+        },
+        "message_directions": {
+          "outbound": "Saliente",
+          "inbound": "Entrante"
+        },
+        "meeting_states": {
+          "scheduled": "Programada",
+          "completed": "Completada"
+        },
+        "meta": {
+          "to_prefix": "Para",
+          "from_prefix": "De",
+          "start_prefix": "Inicio",
+          "completed_prefix": "Completada",
+          "scheduled_for_prefix": "Programada",
+          "retry_attempt_prefix": "Reintento",
+          "assistant_label": "Asistente"
+        }
+      },
       "table": {
         "product_services": "Producto/Servicios",
         "qty": "Cant.",
@@ -97,6 +187,35 @@
         "none": "Sin impuestos"
       }
     },
+    "saved_segments": {
+      "title": "Segmentos guardados",
+      "manage": "Crear / gestionar",
+      "summary_empty": "Ningun segmento seleccionado",
+      "selected_label": "Segmento activo",
+      "snapshot_label": "Estado actual",
+      "dialog_hint": "Aplique un segmento existente o guarde el estado actual de los filtros.",
+      "selection_panel": "Aplicar un segmento",
+      "management_panel": "Guardar el estado actual",
+      "select_label": "Segmento guardado",
+      "select_placeholder": "Elegir un segmento",
+      "name_label": "Nombre del segmento",
+      "name_placeholder": "Ej. Cotizaciones recovery prioritarias",
+      "apply": "Aplicar",
+      "save_current": "Guardar filtros",
+      "update_selected": "Actualizar",
+      "delete_selected": "Eliminar",
+      "cached_count": "{count} en cache",
+      "updated_at": "Actualizado {value}",
+      "current_snapshot_ready": "El filtro actual esta listo para guardarse.",
+      "empty_state": "Todavia no hay segmentos guardados.",
+      "info_created": "Segmento guardado creado.",
+      "info_updated": "Segmento guardado actualizado.",
+      "info_deleted": "Segmento guardado eliminado.",
+      "error_load": "No se pudieron cargar los segmentos guardados.",
+      "error_save": "No se pudo guardar este segmento.",
+      "error_delete": "No se pudo eliminar este segmento.",
+      "confirm_delete": "Eliminar el segmento guardado \"{name}\"?"
+    },
     "status": {
       "draft": "Borrador",
       "sent": "Enviado",
@@ -142,9 +261,47 @@
       "open": "Cotizaciones abiertas",
       "accepted": "Aceptado",
       "declined": "Rechazado",
+      "never_followed": "Sin seguimiento",
+      "due": "Seguimiento pendiente",
+      "viewed_not_accepted": "Vista, sin decision",
+      "high_value": "Alto valor abierta",
+      "sent_to_accepted_rate": "Enviadas a aceptadas",
+      "recovery_title": "Panel de recuperacion",
+      "recovery_subtitle": "Presion de seguimiento y senales de conversion sobre las cotizaciones filtradas.",
       "top_by_value": "Cotizaciones principales por valor",
       "based_on_filters": "Basado en filtros actuales",
       "empty": "Aún no hay datos de cotización."
+    },
+    "recovery": {
+      "label": "Recovery",
+      "priority_short": "P{value}",
+      "next_follow_up": "Seguimiento",
+      "last_viewed": "Vista",
+      "age_days_short": "Edad {count}d",
+      "follow_up_tomorrow": "Manana",
+      "follow_up_three_days": "+3d",
+      "follow_up_seven_days": "+7d",
+      "mark_done": "Hecho",
+      "create_task": "Tarea",
+      "queues": {
+        "all": "Todas",
+        "active": "Activas",
+        "closed": "Cerradas",
+        "due": "Pendientes",
+        "expired": "Expiradas",
+        "high_value": "Alto valor",
+        "never_followed": "Sin seguimiento",
+        "viewed_not_accepted": "Vista sin decision",
+        "unknown": "Por revisar"
+      },
+      "priority_labels": {
+        "urgent": "Urgente",
+        "high": "Alta",
+        "medium": "Media",
+        "low": "Baja",
+        "closed": "Cerrada",
+        "unknown": "Sin clasificar"
+      }
     },
     "empty": {
       "quotes": "Aún no hay cotizaciones."

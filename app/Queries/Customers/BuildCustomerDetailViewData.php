@@ -17,6 +17,10 @@ use App\Models\User;
 use App\Models\VipTier;
 use App\Models\Work;
 use App\Services\CompanyFeatureService;
+use App\Support\CRM\CrmActivityLinking;
+use App\Support\CRM\MeetingEventTaxonomy;
+use App\Support\CRM\MessageEventTaxonomy;
+use App\Support\CRM\SalesActivityTaxonomy;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -442,7 +446,7 @@ class BuildCustomerDetailViewData
                 'active_works' => Work::query()
                     ->where('customer_id', $customer->id)
                     ->where('user_id', $accountId)
-                    ->whereDate('end_date', '>=', now()->toDateString())
+                    ->whereIn('status', $this->activeWorkStatuses())
                     ->count(),
                 'requests' => LeadRequest::query()
                     ->where('customer_id', $customer->id)
@@ -473,28 +477,33 @@ class BuildCustomerDetailViewData
         ];
     }
 
+    /**
+     * @return array<int, string>
+     */
+    private function activeWorkStatuses(): array
+    {
+        return array_values(array_diff(
+            Work::STATUSES,
+            array_merge(Work::COMPLETED_STATUSES, [Work::STATUS_CANCELLED])
+        ));
+    }
+
     private function buildActivity(Customer $customer, int $accountId, bool $isProductAccount): Collection
     {
         if ($isProductAccount) {
             return ActivityLog::query()
                 ->where('subject_type', Customer::class)
                 ->where('subject_id', $customer->id)
+                ->with('user:id,name')
                 ->latest()
                 ->limit(12)
                 ->get(CustomerReadSelects::detailActivityColumns())
-                ->map(fn ($log) => [
-                    'id' => $log->id,
-                    'action' => $log->action,
-                    'description' => $log->description,
-                    'subject_type' => $log->subject_type,
-                    'subject_id' => $log->subject_id,
-                    'subject' => 'Customer',
-                    'created_at' => $log->created_at,
-                ])
+                ->map(fn ($log) => $this->serializeActivityLog($log, 'Customer'))
                 ->values();
         }
 
         $subjectLabels = [
+            LeadRequest::class => 'Request',
             Quote::class => 'Quote',
             Work::class => 'Job',
             Invoice::class => 'Invoice',
@@ -502,6 +511,12 @@ class BuildCustomerDetailViewData
             Customer::class => 'Customer',
         ];
 
+        $requestIds = LeadRequest::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $accountId)
+            ->latest()
+            ->limit(250)
+            ->pluck('id');
         $quoteIds = Quote::query()
             ->where('customer_id', $customer->id)
             ->where('user_id', $accountId)
@@ -528,11 +543,18 @@ class BuildCustomerDetailViewData
             ->pluck('id');
 
         return ActivityLog::query()
-            ->where(function ($query) use ($customer, $quoteIds, $workIds, $invoiceIds, $paymentIds) {
+            ->where(function ($query) use ($customer, $requestIds, $quoteIds, $workIds, $invoiceIds, $paymentIds) {
                 $query->where(function ($sub) use ($customer) {
                     $sub->where('subject_type', Customer::class)
                         ->where('subject_id', $customer->id);
                 });
+
+                if ($requestIds->isNotEmpty()) {
+                    $query->orWhere(function ($sub) use ($requestIds) {
+                        $sub->where('subject_type', LeadRequest::class)
+                            ->whereIn('subject_id', $requestIds);
+                    });
+                }
 
                 if ($quoteIds->isNotEmpty()) {
                     $query->orWhere(function ($sub) use ($quoteIds) {
@@ -562,18 +584,57 @@ class BuildCustomerDetailViewData
                     });
                 }
             })
+            ->with('user:id,name')
             ->latest()
             ->limit(12)
             ->get(CustomerReadSelects::detailActivityColumns())
-            ->map(fn ($log) => [
-                'id' => $log->id,
-                'action' => $log->action,
-                'description' => $log->description,
-                'subject_type' => $log->subject_type,
-                'subject_id' => $log->subject_id,
-                'subject' => $subjectLabels[$log->subject_type] ?? 'Item',
-                'created_at' => $log->created_at,
-            ])
+            ->map(fn ($log) => $this->serializeActivityLog(
+                $log,
+                $subjectLabels[$log->subject_type] ?? 'Item'
+            ))
             ->values();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeActivityLog(ActivityLog $log, string $subjectLabel): array
+    {
+        $properties = (array) ($log->properties ?? []);
+
+        return [
+            'id' => $log->id,
+            'action' => $log->action,
+            'description' => $log->description,
+            'properties' => $properties,
+            'user' => $log->user ? [
+                'id' => $log->user->id,
+                'name' => $log->user->name,
+            ] : null,
+            'is_sales_activity' => SalesActivityTaxonomy::isSalesActivity($log->action),
+            'sales_activity' => SalesActivityTaxonomy::present(
+                $log->action,
+                $properties
+            ),
+            'crm_links' => CrmActivityLinking::present(
+                $log->subject_type,
+                $log->subject_id,
+                $properties
+            ),
+            'is_meeting_event' => MeetingEventTaxonomy::isMeetingEvent($log->action),
+            'meeting_event' => MeetingEventTaxonomy::present(
+                $log->action,
+                $properties
+            ),
+            'is_message_event' => MessageEventTaxonomy::isMessageEvent($log->action),
+            'message_event' => MessageEventTaxonomy::present(
+                $log->action,
+                $properties
+            ),
+            'subject_type' => $log->subject_type,
+            'subject_id' => $log->subject_id,
+            'subject' => $subjectLabel,
+            'created_at' => $log->created_at,
+        ];
     }
 }

@@ -1,0 +1,77 @@
+{
+    "crm_next_actions": {
+        "eyebrow": "Sales queue",
+        "page_title": "My next actions",
+        "page_description": "Review overdue follow-ups, today s priorities, and open commercial next steps without hopping across multiple records.",
+        "reference_time": "Reference",
+        "cards": {
+            "total": "Open actions",
+            "overdue": "Overdue",
+            "due_today": "Due today",
+            "active_sources": "Active sources"
+        },
+        "filters": {
+            "search": "Search",
+            "search_placeholder": "Customer, subject, activity, or assignee",
+            "source": "Source",
+            "subject_type": "Type",
+            "due_state": "Due state",
+            "per_page": "Cards / page",
+            "clear": "Clear",
+            "all_sources": "All sources",
+            "all_subject_types": "All types"
+        },
+        "due_states": {
+            "all": "All",
+            "overdue": "Overdue",
+            "today": "Today",
+            "upcoming": "Upcoming"
+        },
+        "sources": {
+            "sales_activity": "Sales activity",
+            "task": "Task",
+            "request_follow_up": "Request follow-up",
+            "quote_follow_up": "Quote follow-up"
+        },
+        "subject_types": {
+            "request": "Request",
+            "quote": "Quote",
+            "task": "Task",
+            "customer": "Customer"
+        },
+        "labels": {
+            "due": "Due",
+            "customer": "Customer",
+            "assignee": "Assignee",
+            "status": "Status",
+            "latest_activity": "Latest activity",
+            "overdue": "Overdue",
+            "due_today": "Today",
+            "upcoming": "Upcoming",
+            "all_day": "All day",
+            "no_customer": "No linked customer",
+            "no_assignee": "Unassigned",
+            "no_activity": "None",
+            "no_status": "No status",
+            "system_actor": "System",
+            "refreshing": "Refreshing"
+        },
+        "actions": {
+            "open_subject": "Open record",
+            "open_request": "Open request",
+            "open_quote": "Open quote",
+            "open_task": "Open task",
+            "open_customer": "View customer"
+        },
+        "list": {
+            "title": "Priority view",
+            "subtitle": "{count} action | {count} actions"
+        },
+        "pagination": {
+            "showing": "{from}-{to} of {total}",
+            "page_of": "Page {page} / {total}"
+        },
+        "empty_title": "No next actions right now",
+        "empty_body": "As soon as a follow-up, task, or sales activity carries an open due date, it will appear here."
+    }
+}

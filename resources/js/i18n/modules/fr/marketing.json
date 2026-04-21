@@ -507,6 +507,67 @@
         "attention": "{count} a verifier"
       }
     },
+    "playbook_runs": {
+      "head_title": "Historique des runs playbook",
+      "page_title": "Historique des runs playbook",
+      "page_description": "Auditez les dernieres executions CRM, leurs compteurs et les principales erreurs ou skips.",
+      "module_all": "Tous modules",
+      "status_all": "Tous statuts",
+      "origin_all": "Toutes origines",
+      "filters": {
+        "module": "Module",
+        "status": "Statut",
+        "origin": "Origine"
+      },
+      "cards": {
+        "total": "Runs",
+        "active": "Actifs",
+        "completed": "Termines",
+        "failed": "En erreur",
+        "processed": "Elements traites",
+        "skipped": "Elements skips"
+      },
+      "table": {
+        "run": "Run",
+        "playbook": "Playbook",
+        "status": "Statut",
+        "counters": "Compteurs",
+        "timing": "Timing",
+        "summary": "Resume"
+      },
+      "labels": {
+        "manual": "Manuel",
+        "scheduled": "Planifie",
+        "request": "Demandes",
+        "customer": "Clients",
+        "quote": "Devis",
+        "pending": "En attente",
+        "running": "En cours",
+        "completed": "Termine",
+        "failed": "En erreur",
+        "canceled": "Annule",
+        "selected": "Selectionnes",
+        "processed": "Traites",
+        "success": "Succes",
+        "failed_count": "Erreurs",
+        "skipped": "Skips",
+        "requested_by": "Demande par",
+        "scheduled_for": "Planifie pour",
+        "started_at": "Demarre",
+        "finished_at": "Termine",
+        "segment": "Segment",
+        "action": "Action",
+        "playbook_deleted": "Playbook supprime",
+        "none": "Aucun"
+      },
+      "actions": {
+        "open_history": "Historique des runs"
+      },
+      "empty": {
+        "title": "Aucun run playbook trouve.",
+        "description": "Essayez un autre filtre ou lancez un playbook pour commencer l'historique."
+      }
+    },
     "campaign_show": {
       "head_title": "Campagne #{id}",
       "labels": {

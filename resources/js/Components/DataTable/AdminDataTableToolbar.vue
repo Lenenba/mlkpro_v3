@@ -1,5 +1,6 @@
 <script setup>
 import { useSlots } from 'vue';
+import { crmButtonClass } from '@/utils/crmButtonStyles';
 
 defineEmits(['toggle-filters', 'apply', 'clear']);
 
@@ -52,7 +53,7 @@ const slots = useSlots();
                 <button
                     v-if="slots.filters"
                     type="button"
-                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                    :class="crmButtonClass('secondary', 'toolbar')"
                     :disabled="busy"
                     @click="$emit('toggle-filters')"
                 >
@@ -62,7 +63,7 @@ const slots = useSlots();
                 <button
                     v-if="showClear"
                     type="button"
-                    class="inline-flex items-center gap-x-1.5 rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                    :class="crmButtonClass('secondary', 'toolbar')"
                     :disabled="busy"
                     @click="$emit('clear')"
                 >
@@ -72,7 +73,7 @@ const slots = useSlots();
                 <button
                     v-if="showApply"
                     type="submit"
-                    class="inline-flex items-center gap-x-2 rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:pointer-events-none disabled:opacity-50"
+                    :class="crmButtonClass('primary', 'toolbar')"
                     :disabled="busy"
                 >
                     {{ applyLabel }}

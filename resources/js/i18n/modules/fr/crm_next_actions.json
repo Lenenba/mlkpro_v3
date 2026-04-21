@@ -1,0 +1,77 @@
+{
+    "crm_next_actions": {
+        "eyebrow": "File commerciale",
+        "page_title": "Mes prochaines actions",
+        "page_description": "Retrouve les suivis a faire maintenant, les actions en retard, et les relances a ouvrir sans naviguer entre plusieurs fiches.",
+        "reference_time": "Reference",
+        "cards": {
+            "total": "Actions ouvertes",
+            "overdue": "En retard",
+            "due_today": "A traiter aujourd hui",
+            "active_sources": "Sources actives"
+        },
+        "filters": {
+            "search": "Recherche",
+            "search_placeholder": "Client, sujet, activite ou assignee",
+            "source": "Source",
+            "subject_type": "Type",
+            "due_state": "Echeance",
+            "per_page": "Cartes / page",
+            "clear": "Effacer",
+            "all_sources": "Toutes les sources",
+            "all_subject_types": "Tous les types"
+        },
+        "due_states": {
+            "all": "Toutes",
+            "overdue": "En retard",
+            "today": "Aujourd hui",
+            "upcoming": "A venir"
+        },
+        "sources": {
+            "sales_activity": "Activite commerciale",
+            "task": "Tache",
+            "request_follow_up": "Suivi demande",
+            "quote_follow_up": "Suivi devis"
+        },
+        "subject_types": {
+            "request": "Demande",
+            "quote": "Devis",
+            "task": "Tache",
+            "customer": "Client"
+        },
+        "labels": {
+            "due": "Echeance",
+            "customer": "Client",
+            "assignee": "Assignee",
+            "status": "Statut",
+            "latest_activity": "Derniere activite",
+            "overdue": "En retard",
+            "due_today": "Aujourd hui",
+            "upcoming": "A venir",
+            "all_day": "Toute la journee",
+            "no_customer": "Aucun client lie",
+            "no_assignee": "Aucune attribution",
+            "no_activity": "Aucune",
+            "no_status": "Sans statut",
+            "system_actor": "Systeme",
+            "refreshing": "Actualisation"
+        },
+        "actions": {
+            "open_subject": "Ouvrir la fiche",
+            "open_request": "Ouvrir la demande",
+            "open_quote": "Ouvrir le devis",
+            "open_task": "Ouvrir la tache",
+            "open_customer": "Voir le client"
+        },
+        "list": {
+            "title": "Vue priorisee",
+            "subtitle": "{count} action | {count} actions"
+        },
+        "pagination": {
+            "showing": "{from}-{to} sur {total}",
+            "page_of": "Page {page} / {total}"
+        },
+        "empty_title": "Aucune prochaine action pour le moment",
+        "empty_body": "Quand une relance, une tache ou une activite commerciale aura une echeance ouverte, elle apparaitra ici."
+    }
+}

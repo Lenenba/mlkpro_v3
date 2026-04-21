@@ -2101,6 +2101,28 @@ Artisan::command('expenses:generate-recurring {--account= : Optional account own
     return 0;
 })->purpose('Generate due expenses from recurring expense templates');
 
+Artisan::command('playbooks:run-scheduled {--account_id= : Optional account owner id scope}', function (\App\Services\Playbooks\PlaybookSchedulerService $schedulerService): int {
+    $accountOption = $this->option('account_id');
+    $accountId = null;
+
+    if (is_numeric($accountOption)) {
+        $accountId = (int) $accountOption;
+    }
+
+    $summary = $schedulerService->runDue($accountId);
+
+    $this->info(sprintf(
+        'Checked %d playbook(s); reserved %d; executed %d; failed %d; overlap skips %d.',
+        (int) ($summary['checked_count'] ?? 0),
+        (int) ($summary['reserved_count'] ?? 0),
+        (int) ($summary['executed_count'] ?? 0),
+        (int) ($summary['failed_count'] ?? 0),
+        (int) ($summary['skipped_overlap_count'] ?? 0),
+    ));
+
+    return 0;
+})->purpose('Run due scheduled playbooks');
+
 Schedule::command('platform:notifications-digest --frequency=daily')->dailyAt('08:00');
 Schedule::command('platform:notifications-digest --frequency=weekly')->weeklyOn(1, '08:00');
 Schedule::command('platform:notifications-scan')->dailyAt('07:30');
@@ -2117,6 +2139,7 @@ Schedule::command('campaigns:automations')->everyFiveMinutes()->withoutOverlappi
 Schedule::command('campaigns:vip-auto-sync')->dailyAt('02:35')->withoutOverlapping();
 Schedule::command('campaigns:interest-scores')->dailyAt('02:15');
 Schedule::command('campaigns:reconcile-delivery')->everyTenMinutes()->withoutOverlapping();
+Schedule::command('playbooks:run-scheduled')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('expenses:generate-recurring')->dailyAt('05:15')->withoutOverlapping();
 Schedule::command('demo:purge-expired')->dailyAt('03:10')->withoutOverlapping();
 Schedule::command('observability:report --notify')->everyTenMinutes()->withoutOverlapping();

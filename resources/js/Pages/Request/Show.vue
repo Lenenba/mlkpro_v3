@@ -8,6 +8,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/UI/Modal.vue';
+import SalesActivityPanel from '@/Components/CRM/SalesActivityPanel.vue';
 import { humanizeDate } from '@/utils/date';
 import { formatBytes } from '@/utils/media';
 import { buildLeadScore, badgeClass } from '@/utils/leadScore';
@@ -37,6 +38,18 @@ const props = defineProps({
     campaignOrigin: {
         type: Object,
         default: null,
+    },
+    canLogSalesActivity: {
+        type: Boolean,
+        default: false,
+    },
+    salesActivityQuickActions: {
+        type: Array,
+        default: () => [],
+    },
+    salesActivityManualActions: {
+        type: Array,
+        default: () => [],
     },
 });
 
@@ -836,31 +849,15 @@ const mergeDuplicate = (duplicate) => {
                         </form>
                     </section>
 
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('requests.activity.title') }}
-                            </h2>
-                        </div>
-                        <div v-if="activity?.length" class="mt-3 space-y-3">
-                            <div
-                                v-for="item in activity"
-                                :key="item.id"
-                                class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
-                            >
-                                <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
-                                    <span>{{ item.user?.name || $t('requests.activity.author_fallback') }}</span>
-                                    <span :title="formatAbsoluteDate(item.created_at)">{{ formatDate(item.created_at) }}</span>
-                                </div>
-                                <div class="mt-2 font-medium text-stone-800 dark:text-neutral-200">
-                                    {{ item.description || item.action }}
-                                </div>
-                            </div>
-                        </div>
-                        <p v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
-                            {{ $t('requests.activity.empty') }}
-                        </p>
-                    </section>
+                    <SalesActivityPanel
+                        :items="activity"
+                        :can-log="canLogSalesActivity"
+                        :quick-actions="salesActivityQuickActions"
+                        :manual-actions="salesActivityManualActions"
+                        :store-route="route('crm.sales-activities.requests.store', lead.id)"
+                        i18n-prefix="requests.sales_activity"
+                        dialog-id="request-sales-activity-modal"
+                    />
                 </div>
 
                 <div class="space-y-4">

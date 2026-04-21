@@ -108,6 +108,67 @@
         "attention": "{count} necesitan atencion"
       }
     },
+    "playbook_runs": {
+      "head_title": "Historial de ejecuciones de playbooks",
+      "page_title": "Historial de ejecuciones de playbooks",
+      "page_description": "Audita las ejecuciones CRM recientes, sus contadores y los principales errores u omisiones.",
+      "module_all": "Todos los modulos",
+      "status_all": "Todos los estados",
+      "origin_all": "Todos los origenes",
+      "filters": {
+        "module": "Modulo",
+        "status": "Estado",
+        "origin": "Origen"
+      },
+      "cards": {
+        "total": "Ejecuciones",
+        "active": "Activas",
+        "completed": "Completadas",
+        "failed": "Fallidas",
+        "processed": "Elementos procesados",
+        "skipped": "Elementos omitidos"
+      },
+      "table": {
+        "run": "Ejecucion",
+        "playbook": "Playbook",
+        "status": "Estado",
+        "counters": "Contadores",
+        "timing": "Tiempos",
+        "summary": "Resumen"
+      },
+      "labels": {
+        "manual": "Manual",
+        "scheduled": "Programada",
+        "request": "Solicitudes",
+        "customer": "Clientes",
+        "quote": "Cotizaciones",
+        "pending": "Pendiente",
+        "running": "En curso",
+        "completed": "Completada",
+        "failed": "Fallida",
+        "canceled": "Cancelada",
+        "selected": "Seleccionados",
+        "processed": "Procesados",
+        "success": "Exitos",
+        "failed_count": "Fallidos",
+        "skipped": "Omitidos",
+        "requested_by": "Solicitado por",
+        "scheduled_for": "Programado para",
+        "started_at": "Iniciado",
+        "finished_at": "Finalizado",
+        "segment": "Segmento",
+        "action": "Accion",
+        "playbook_deleted": "Playbook eliminado",
+        "none": "Ninguno"
+      },
+      "actions": {
+        "open_history": "Historial de ejecuciones"
+      },
+      "empty": {
+        "title": "No se encontro ninguna ejecucion de playbook.",
+        "description": "Prueba otro filtro o ejecuta un playbook para empezar a crear historial."
+      }
+    },
     "template_manager": {
       "title": "Plantillas",
       "template_name": "Nombre de la plantilla",

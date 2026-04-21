@@ -37,6 +37,13 @@ class Quote extends Model
         'signed_at',
         'accepted_at',
         'archived_at',
+        'last_sent_at',
+        'last_viewed_at',
+        'last_followed_up_at',
+        'next_follow_up_at',
+        'follow_up_state',
+        'follow_up_count',
+        'recovery_priority',
     ];
 
     protected $casts = [
@@ -48,6 +55,13 @@ class Quote extends Model
         'signed_at' => 'datetime',
         'accepted_at' => 'datetime',
         'archived_at' => 'datetime',
+        'last_sent_at' => 'datetime',
+        'last_viewed_at' => 'datetime',
+        'last_followed_up_at' => 'datetime',
+        'next_follow_up_at' => 'datetime',
+        'follow_up_state' => 'string',
+        'follow_up_count' => 'integer',
+        'recovery_priority' => 'integer',
     ];
 
     protected static function boot()

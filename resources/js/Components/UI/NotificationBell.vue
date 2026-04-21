@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted } from 'vue';
-import { router, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import { useFloatingMenu } from '@/Composables/useFloatingMenu';
 
@@ -89,48 +89,13 @@ const markAllRead = () => {
     });
 };
 
-const markNotificationRead = (notificationId) => {
-    if (!notificationId) {
-        return Promise.resolve();
-    }
-    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-    if (!token) {
-        return Promise.resolve();
-    }
-    return fetch(route('notifications.read', notificationId), {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': token,
-            'X-Requested-With': 'XMLHttpRequest',
-            Accept: 'application/json',
-        },
-        credentials: 'same-origin',
-        keepalive: true,
-    }).catch(() => {});
-};
-
 const openNotification = (notification, event) => {
     if (!notification) {
         event?.preventDefault?.();
         return;
     }
 
-    const url = notification.action_url;
-    const shouldMarkRead = !notification.read_at;
-    const markPromise = shouldMarkRead ? markNotificationRead(notification.id) : Promise.resolve();
-
-    if (!url) {
-        event?.preventDefault?.();
-        markPromise.finally(() => {
-            router.reload({ only: ['notifications'] });
-            closeMenu();
-        });
-        return;
-    }
-
     closeMenu();
-    // Fire-and-forget to avoid blocking navigation.
-    void markPromise;
 };
 
 onBeforeUnmount(() => {
@@ -188,7 +153,7 @@ onMounted(() => {
                     <a
                         v-for="notification in notifications"
                         :key="notification.id"
-                        :href="notification.action_url || '#'"
+                        :href="route('notifications.open', { notification: notification.id, source: 'header' })"
                         class="block w-full px-4 py-3 text-left transition hover:bg-stone-50 dark:hover:bg-neutral-800"
                         @click="openNotification(notification, $event)"
                     >
@@ -210,6 +175,15 @@ onMounted(() => {
                             </div>
                         </div>
                     </a>
+                </div>
+                <div class="border-t border-stone-200 px-4 py-3 dark:border-neutral-700">
+                    <Link
+                        :href="route('notifications.index')"
+                        class="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 transition hover:text-amber-800 hover:underline dark:text-amber-400 dark:hover:text-amber-300"
+                        @click="closeMenu"
+                    >
+                        {{ t('notifications_panel.view_all') }}
+                    </Link>
                 </div>
             </div>
         </Teleport>

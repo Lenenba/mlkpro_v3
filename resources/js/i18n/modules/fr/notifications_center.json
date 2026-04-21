@@ -1,0 +1,47 @@
+{
+  "notifications_center": {
+    "page_title": "Notifications",
+    "title": "Notifications",
+    "subtitle": "Historique complet des alertes, messages et evenements systeme, trie du plus recent au plus ancien.",
+    "stats": {
+      "all": "Toutes",
+      "unread": "Non lues",
+      "read": "Lues",
+      "archived": "Archivees"
+    },
+    "filters": {
+      "type_label": "Type",
+      "type_all": "Tous les types",
+      "per_page_label": "Elements / page",
+      "clear": "Effacer"
+    },
+    "actions": {
+      "open": "Ouvrir",
+      "mark_read": "Marquer comme lue",
+      "archive": "Archiver",
+      "restore": "Restaurer"
+    },
+    "meta": {
+      "received": "Recue",
+      "read": "Lue",
+      "archived": "Archivee",
+      "never": "Jamais",
+      "no_destination": "Aucune page cible pour cette notification."
+    },
+    "empty_title": "Aucune notification pour ce filtre",
+    "empty_body": "Essayez un autre filtre ou reinitialisez la vue pour recharger l'historique.",
+    "types": {
+      "all": "Tous",
+      "system": "Systeme",
+      "message": "Message",
+      "orders": "Commande",
+      "sales": "Vente",
+      "stock": "Stock",
+      "planning": "Planning",
+      "billing": "Facturation",
+      "crm": "CRM",
+      "support": "Support",
+      "security": "Securite"
+    }
+  }
+}

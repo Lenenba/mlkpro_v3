@@ -1,0 +1,47 @@
+{
+  "notifications_center": {
+    "page_title": "Notifications",
+    "title": "Notifications",
+    "subtitle": "Complete alert, message, and system event history, sorted newest first.",
+    "stats": {
+      "all": "All",
+      "unread": "Unread",
+      "read": "Read",
+      "archived": "Archived"
+    },
+    "filters": {
+      "type_label": "Type",
+      "type_all": "All types",
+      "per_page_label": "Items / page",
+      "clear": "Clear"
+    },
+    "actions": {
+      "open": "Open",
+      "mark_read": "Mark read",
+      "archive": "Archive",
+      "restore": "Restore"
+    },
+    "meta": {
+      "received": "Received",
+      "read": "Read",
+      "archived": "Archived",
+      "never": "Never",
+      "no_destination": "No destination page for this notification."
+    },
+    "empty_title": "No notifications match the current filters",
+    "empty_body": "Try another filter or clear the current selection to rebuild the history.",
+    "types": {
+      "all": "All",
+      "system": "System",
+      "message": "Message",
+      "orders": "Order",
+      "sales": "Sale",
+      "stock": "Stock",
+      "planning": "Planning",
+      "billing": "Billing",
+      "crm": "CRM",
+      "support": "Support",
+      "security": "Security"
+    }
+  }
+}

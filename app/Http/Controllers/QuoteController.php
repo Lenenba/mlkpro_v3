@@ -11,16 +11,21 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
+use App\Models\SavedSegment;
+use App\Models\Task;
 use App\Models\Tax;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
+use App\Queries\Quotes\BuildQuoteRecoveryIndexData;
 use App\Services\TemplateService;
 use App\Services\UsageLimitService;
+use App\Support\CRM\SalesActivityTaxonomy;
 use App\Support\SequentialNumber;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -28,89 +33,50 @@ class QuoteController extends Controller
 {
     use AuthorizesRequests;
 
-    public function index(Request $request)
+    public function index(Request $request, BuildQuoteRecoveryIndexData $quoteRecoveryIndexData)
     {
-        $filters = $request->only([
-            'search',
-            'status',
-            'customer_id',
-            'total_min',
-            'total_max',
-            'created_from',
-            'created_to',
-            'has_deposit',
-            'has_tax',
-            'sort',
-            'direction',
-        ]);
-        $filters['per_page'] = $this->resolveDataTablePerPage($request);
-
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
         $this->authorize('viewAny', Quote::class);
 
-        $statusFilter = $filters['status'] ?? null;
-        $showArchived = $statusFilter === 'archived';
-        $filtersForQuery = $filters;
-        if ($showArchived) {
-            $filtersForQuery['status'] = null;
-        }
-
-        $baseQuery = Quote::query()
-            ->filter($filtersForQuery)
-            ->when(
-                $showArchived,
-                fn ($query) => $query->byUserWithArchived($accountId)->archived(),
-                fn ($query) => $query->byUser($accountId)
-            );
-
-        $sort = in_array($filters['sort'] ?? null, ['created_at', 'total', 'status', 'number', 'job_title'], true)
-            ? $filters['sort']
-            : 'created_at';
-        $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
-
-        $quotes = (clone $baseQuery)
-            ->with(['customer', 'property'])
-            ->withAvg('ratings', 'rating')
-            ->withCount('ratings')
-            ->orderBy($sort, $direction)
-            ->paginate((int) $filters['per_page'])
-            ->withQueryString();
-
-        $totalCount = (clone $baseQuery)->count();
-        $totalValue = (clone $baseQuery)->sum('total');
-        $averageValue = $totalCount > 0 ? round($totalValue / $totalCount, 2) : 0;
-        $openCount = (clone $baseQuery)->whereIn('status', ['draft', 'sent'])->count();
-        $acceptedCount = (clone $baseQuery)->where('status', 'accepted')->count();
-        $declinedCount = (clone $baseQuery)->where('status', 'declined')->count();
-
-        $stats = [
-            'total' => $totalCount,
-            'total_value' => $totalValue,
-            'average_value' => $averageValue,
-            'open' => $openCount,
-            'accepted' => $acceptedCount,
-            'declined' => $declinedCount,
-        ];
-
-        $topQuotes = (clone $baseQuery)
-            ->with('customer')
-            ->orderByDesc('total')
-            ->limit(5)
-            ->get(['id', 'number', 'customer_id', 'status', 'total', 'created_at']);
+        $indexData = $quoteRecoveryIndexData->execute($accountId, $request);
 
         $customers = Customer::byUser($accountId)
             ->orderBy('company_name')
             ->get(['id', 'company_name', 'first_name', 'last_name']);
 
+        $canManageSavedSegments = (int) ($user?->id ?? 0) === (int) $accountId;
+        $savedSegments = $canManageSavedSegments
+            ? SavedSegment::query()
+                ->byUser($accountId)
+                ->where('module', SavedSegment::MODULE_QUOTE)
+                ->orderByDesc('updated_at')
+                ->orderBy('name')
+                ->get([
+                    'id',
+                    'module',
+                    'name',
+                    'description',
+                    'filters',
+                    'sort',
+                    'search_term',
+                    'is_shared',
+                    'cached_count',
+                    'last_resolved_at',
+                    'updated_at',
+                ])
+            : collect();
+
         return $this->inertiaOrJson('Quote/Index', [
-            'quotes' => $quotes,
-            'filters' => $filters,
-            'count' => $totalCount,
-            'stats' => $stats,
-            'topQuotes' => $topQuotes,
+            'quotes' => $indexData['quotes'],
+            'filters' => $indexData['filters'],
+            'count' => $indexData['count'],
+            'stats' => $indexData['stats'],
+            'topQuotes' => $indexData['topQuotes'],
             'customers' => $customers,
+            'savedSegments' => $savedSegments,
+            'canManageSavedSegments' => $canManageSavedSegments,
         ]);
     }
 
@@ -448,14 +414,26 @@ class QuoteController extends Controller
             }
         }
 
+        $activity = ActivityLog::query()
+            ->where('subject_type', $quote->getMorphClass())
+            ->where('subject_id', $quote->id)
+            ->with('user:id,name')
+            ->latest()
+            ->take(50)
+            ->get();
+
         return $this->inertiaOrJson('Quote/Show', [
             'quote' => $quote,
+            'activity' => $activity,
             'products' => Product::byUser($accountId)->where('item_type', $itemType)->get(),
             'taxes' => Tax::all(),
+            'canLogSalesActivity' => true,
+            'salesActivityQuickActions' => array_values(SalesActivityTaxonomy::quickActions()),
+            'salesActivityManualActions' => SalesActivityTaxonomy::manualActionDefinitions(),
         ]);
     }
 
-    public function destroy(Quote $quote)
+    public function destroy(Request $request, Quote $quote)
     {
         $this->authorize('destroy', $quote);
 
@@ -466,14 +444,14 @@ class QuoteController extends Controller
             'total' => $quote->total,
         ], 'Quote archived');
 
-        if ($this->shouldReturnJson()) {
+        if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Quote archived successfully!',
                 'quote' => $quote->fresh(),
             ]);
         }
 
-        return redirect()->route('customer.show', $quote->customer)->with('success', 'Quote archived successfully!');
+        return redirect()->back()->with('success', 'Quote archived successfully!');
     }
 
     public function restore(Quote $quote)
@@ -604,6 +582,145 @@ class QuoteController extends Controller
         return redirect()->route('work.edit', $work)->with('success', 'Job created from quote.');
     }
 
+    public function updateRecovery(Request $request, Quote $quote)
+    {
+        $this->authorize('edit', $quote);
+
+        if (! $this->canManageRecovery($quote)) {
+            return $this->recoveryUnavailableResponse($request);
+        }
+
+        $validated = $request->validate([
+            'next_follow_up_at' => ['nullable', 'date'],
+            'mark_followed_up' => ['nullable', 'boolean'],
+        ]);
+
+        $markFollowedUp = (bool) ($validated['mark_followed_up'] ?? false);
+        $hasFollowUpField = array_key_exists('next_follow_up_at', $validated);
+
+        if (! $markFollowedUp && ! $hasFollowUpField) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'No recovery change provided.',
+                    'errors' => [
+                        'recovery' => ['No recovery change provided.'],
+                    ],
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors([
+                'recovery' => 'No recovery change provided.',
+            ]);
+        }
+
+        $nextFollowUpAt = $hasFollowUpField && $validated['next_follow_up_at']
+            ? Carbon::parse((string) $validated['next_follow_up_at'])
+            : null;
+        $previousNextFollowUpAt = $quote->next_follow_up_at?->copy();
+        $previousFollowUpState = $quote->follow_up_state;
+        $previousFollowUpCount = (int) ($quote->follow_up_count ?? 0);
+
+        $updates = [];
+        if ($hasFollowUpField) {
+            $updates['next_follow_up_at'] = $nextFollowUpAt;
+        }
+
+        if ($markFollowedUp) {
+            $updates['last_followed_up_at'] = now();
+            $updates['follow_up_count'] = (int) ($quote->follow_up_count ?? 0) + 1;
+            $updates['next_follow_up_at'] = $nextFollowUpAt;
+        }
+
+        $effectiveNextFollowUpAt = array_key_exists('next_follow_up_at', $updates)
+            ? $updates['next_follow_up_at']
+            : $quote->next_follow_up_at;
+
+        $updates['follow_up_state'] = $effectiveNextFollowUpAt
+            ? ($effectiveNextFollowUpAt->lte(now()) ? 'due' : 'scheduled')
+            : ($markFollowedUp ? 'completed' : null);
+
+        $quote->update($updates);
+        $this->recordQuoteRecoveryActivity(
+            $request->user(),
+            $quote,
+            $previousNextFollowUpAt,
+            $previousFollowUpState,
+            $previousFollowUpCount,
+            $markFollowedUp,
+            $hasFollowUpField,
+        );
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => $markFollowedUp
+                    ? 'Quote follow-up completed.'
+                    : 'Quote follow-up updated.',
+                'quote' => $quote->fresh(['customer']),
+            ]);
+        }
+
+        return redirect()->back()->with('success', $markFollowedUp
+            ? 'Quote follow-up completed.'
+            : 'Quote follow-up updated.');
+    }
+
+    public function storeRecoveryTask(Request $request, Quote $quote)
+    {
+        $this->authorize('edit', $quote);
+
+        if (! $this->canManageRecovery($quote)) {
+            return $this->recoveryUnavailableResponse($request);
+        }
+
+        $validated = $request->validate([
+            'due_date' => ['nullable', 'date'],
+        ]);
+
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        app(UsageLimitService::class)->enforceLimit($user, 'tasks');
+
+        $accountId = (int) ($user->accountOwnerId() ?? $user->id);
+        $dueDate = isset($validated['due_date']) && $validated['due_date']
+            ? Carbon::parse((string) $validated['due_date'])->toDateString()
+            : ($quote->next_follow_up_at?->toDateString() ?? now()->addDay()->toDateString());
+        $quoteNumber = $quote->number ?: 'Quote';
+
+        $task = Task::create([
+            'account_id' => $accountId,
+            'created_by_user_id' => (int) $user->id,
+            'customer_id' => $quote->customer_id,
+            'work_id' => $quote->work_id,
+            'request_id' => $quote->request_id,
+            'title' => "Follow up {$quoteNumber}",
+            'description' => $quote->job_title
+                ? "Recovery follow-up for {$quoteNumber}: {$quote->job_title}"
+                : "Recovery follow-up for {$quoteNumber}",
+            'status' => 'todo',
+            'due_date' => $dueDate,
+        ]);
+
+        ActivityLog::record($user, $quote, 'quote_follow_up_task_created', [
+            'task_id' => $task->id,
+            'task_title' => $task->title,
+            'task_due_date' => $task->due_date?->toDateString(),
+            'follow_up_state' => $quote->follow_up_state,
+            'follow_up_count' => (int) ($quote->follow_up_count ?? 0),
+        ], 'Recovery task created from quote');
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Recovery task created.',
+                'task' => $task->fresh(),
+            ], 201);
+        }
+
+        return redirect()->back()->with('success', 'Recovery task created.');
+    }
+
     private function syncWorkProductsFromQuote(Quote $quote, Work $work): void
     {
         $quote->loadMissing('products');
@@ -706,5 +823,102 @@ class QuoteController extends Controller
         $quote->syncRequestStatusFromQuote();
 
         return $work;
+    }
+
+    private function recordQuoteRecoveryActivity(
+        ?User $user,
+        Quote $quote,
+        ?Carbon $previousNextFollowUpAt,
+        ?string $previousFollowUpState,
+        int $previousFollowUpCount,
+        bool $markFollowedUp,
+        bool $hasFollowUpField,
+    ): void {
+        $currentNextFollowUpAt = $quote->next_follow_up_at;
+        $nextFollowUpChanged = ! $this->sameCarbonMoment($previousNextFollowUpAt, $currentNextFollowUpAt);
+        $properties = [
+            'previous_next_follow_up_at' => $previousNextFollowUpAt?->toIso8601String(),
+            'next_follow_up_at' => $currentNextFollowUpAt?->toIso8601String(),
+            'previous_follow_up_state' => $previousFollowUpState,
+            'follow_up_state' => $quote->follow_up_state,
+            'previous_follow_up_count' => $previousFollowUpCount,
+            'follow_up_count' => (int) ($quote->follow_up_count ?? 0),
+            'last_followed_up_at' => $quote->last_followed_up_at?->toIso8601String(),
+        ];
+
+        if ($markFollowedUp) {
+            ActivityLog::record(
+                $user,
+                $quote,
+                $currentNextFollowUpAt ? 'quote_follow_up_completed_and_rescheduled' : 'quote_follow_up_completed',
+                $properties,
+                $currentNextFollowUpAt
+                    ? 'Quote follow-up completed and rescheduled'
+                    : 'Quote follow-up completed',
+            );
+
+            return;
+        }
+
+        if (! $hasFollowUpField || ! $nextFollowUpChanged) {
+            return;
+        }
+
+        if ($currentNextFollowUpAt) {
+            ActivityLog::record(
+                $user,
+                $quote,
+                'quote_follow_up_scheduled',
+                $properties,
+                'Quote follow-up scheduled',
+            );
+
+            return;
+        }
+
+        if ($previousNextFollowUpAt) {
+            ActivityLog::record(
+                $user,
+                $quote,
+                'quote_follow_up_cleared',
+                $properties,
+                'Quote follow-up cleared',
+            );
+        }
+    }
+
+    private function sameCarbonMoment(?Carbon $first, ?Carbon $second): bool
+    {
+        if ($first === null && $second === null) {
+            return true;
+        }
+
+        if ($first === null || $second === null) {
+            return false;
+        }
+
+        return $first->equalTo($second);
+    }
+
+    private function canManageRecovery(Quote $quote): bool
+    {
+        return ! $quote->isArchived()
+            && in_array((string) $quote->status, ['draft', 'sent'], true);
+    }
+
+    private function recoveryUnavailableResponse(Request $request)
+    {
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Recovery actions are only available on open quotes.',
+                'errors' => [
+                    'quote' => ['Recovery actions are only available on open quotes.'],
+                ],
+            ], 422);
+        }
+
+        return redirect()->back()->withErrors([
+            'quote' => 'Recovery actions are only available on open quotes.',
+        ]);
     }
 }

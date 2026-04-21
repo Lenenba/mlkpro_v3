@@ -10,6 +10,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
+import { crmButtonClass } from '@/utils/crmButtonStyles';
 import Modal from '@/Components/UI/Modal.vue';
 import InputError from '@/Components/InputError.vue';
 
@@ -279,7 +280,7 @@ const workResultsLabel = computed(() => `${props.works?.total ?? props.works?.da
                     v-if="isOwner"
                     type="button"
                     @click="openCreateModal"
-                    class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-emerald-600 text-white hover:bg-emerald-700"
+                    :class="crmButtonClass('primary', 'toolbar')"
                 >
                     {{ $t('jobs.actions.create') }}
                 </button>

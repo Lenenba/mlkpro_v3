@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Campaigns\ProspectProviderConnectionService;
 use App\Services\Campaigns\ProspectProviderRegistry;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class MarketingProspectProviderConnectionController extends Controller
@@ -64,7 +65,7 @@ class MarketingProspectProviderConnectionController extends Controller
         }
 
         $validated = $request->validate([
-            'provider_key' => ['required', 'string', 'max:40', 'in:apollo,lusha,uplead'],
+            'provider_key' => ['required', 'string', 'max:40', Rule::in(CampaignProspectProviderConnection::allowedProviders())],
             'label' => ['nullable', 'string', 'max:120', 'min:1'],
             'credentials' => ['nullable', 'array'],
             'connection_id' => ['nullable', 'integer'],
@@ -88,7 +89,7 @@ class MarketingProspectProviderConnectionController extends Controller
         }
 
         $validated = $request->validate([
-            'provider_key' => ['nullable', 'string', 'max:40', 'in:apollo,lusha,uplead'],
+            'provider_key' => ['nullable', 'string', 'max:40', Rule::in(CampaignProspectProviderConnection::allowedProviders())],
             'label' => ['nullable', 'string', 'max:120', 'min:1'],
             'credentials' => ['nullable', 'array'],
         ]);

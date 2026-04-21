@@ -1,0 +1,77 @@
+{
+    "crm_next_actions": {
+        "eyebrow": "Cola comercial",
+        "page_title": "Mis proximas acciones",
+        "page_description": "Revisa seguimientos vencidos, prioridades de hoy y proximos pasos comerciales sin saltar entre varias fichas.",
+        "reference_time": "Referencia",
+        "cards": {
+            "total": "Acciones abiertas",
+            "overdue": "Vencidas",
+            "due_today": "Para hoy",
+            "active_sources": "Fuentes activas"
+        },
+        "filters": {
+            "search": "Buscar",
+            "search_placeholder": "Cliente, asunto, actividad o responsable",
+            "source": "Fuente",
+            "subject_type": "Tipo",
+            "due_state": "Vencimiento",
+            "per_page": "Tarjetas / pagina",
+            "clear": "Limpiar",
+            "all_sources": "Todas las fuentes",
+            "all_subject_types": "Todos los tipos"
+        },
+        "due_states": {
+            "all": "Todas",
+            "overdue": "Vencidas",
+            "today": "Hoy",
+            "upcoming": "Proximas"
+        },
+        "sources": {
+            "sales_activity": "Actividad comercial",
+            "task": "Tarea",
+            "request_follow_up": "Seguimiento de solicitud",
+            "quote_follow_up": "Seguimiento de cotizacion"
+        },
+        "subject_types": {
+            "request": "Solicitud",
+            "quote": "Cotizacion",
+            "task": "Tarea",
+            "customer": "Cliente"
+        },
+        "labels": {
+            "due": "Vencimiento",
+            "customer": "Cliente",
+            "assignee": "Responsable",
+            "status": "Estado",
+            "latest_activity": "Ultima actividad",
+            "overdue": "Vencida",
+            "due_today": "Hoy",
+            "upcoming": "Proxima",
+            "all_day": "Todo el dia",
+            "no_customer": "Sin cliente vinculado",
+            "no_assignee": "Sin asignacion",
+            "no_activity": "Ninguna",
+            "no_status": "Sin estado",
+            "system_actor": "Sistema",
+            "refreshing": "Actualizando"
+        },
+        "actions": {
+            "open_subject": "Abrir ficha",
+            "open_request": "Abrir solicitud",
+            "open_quote": "Abrir presupuesto",
+            "open_task": "Abrir tarea",
+            "open_customer": "Ver cliente"
+        },
+        "list": {
+            "title": "Vista priorizada",
+            "subtitle": "{count} accion | {count} acciones"
+        },
+        "pagination": {
+            "showing": "{from}-{to} de {total}",
+            "page_of": "Pagina {page} / {total}"
+        },
+        "empty_title": "Todavia no hay proximas acciones",
+        "empty_body": "En cuanto un seguimiento, una tarea o una actividad comercial tenga una fecha abierta, aparecera aqui."
+    }
+}

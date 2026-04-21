@@ -1,7 +1,5 @@
 <script setup>
 import CardNavLink from './CardNavLink.vue';
-import dayjs from 'dayjs';
-import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import QuoteList from './QuoteList.vue';
 import WorkList from './WorkList.vue';
 import TabEmptyState from './TabEmptyState.vue';
@@ -12,8 +10,6 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
-
-dayjs.extend(isSameOrAfter);
 
 const props = defineProps({
     customer: Object,
@@ -53,8 +49,10 @@ const tabOrder = computed(() => {
 const isDefault = (key) => tabOrder.value[0] === key;
 const hasTabs = computed(() => tabOrder.value.length > 0);
 
+const activeWorkStatuses = ['to_schedule', 'scheduled', 'en_route', 'in_progress', 'dispute'];
+
 const findActiveWorks = (works) => {
-    return works.filter((work) => dayjs(work.end_date).isSameOrAfter(new Date(), "day"));
+    return works.filter((work) => activeWorkStatuses.includes(work?.status || ''));
 };
 
 const activeWorks = computed(() => findActiveWorks(props.customer?.works || []));
@@ -74,14 +72,7 @@ const filterOptions = computed(() => ({
         { value: 'scheduled', label: t('jobs.status.scheduled') },
         { value: 'en_route', label: t('jobs.status.en_route') },
         { value: 'in_progress', label: t('jobs.status.in_progress') },
-        { value: 'tech_complete', label: t('jobs.status.tech_complete') },
-        { value: 'pending_review', label: t('jobs.status.pending_review') },
-        { value: 'validated', label: t('jobs.status.validated') },
-        { value: 'auto_validated', label: t('jobs.status.auto_validated') },
         { value: 'dispute', label: t('jobs.status.dispute') },
-        { value: 'closed', label: t('jobs.status.closed') },
-        { value: 'cancelled', label: t('jobs.status.cancelled') },
-        { value: 'completed', label: t('jobs.status.completed') },
     ],
     requests: [
         { value: 'all', label: t('customers.tabs.filters.all') },

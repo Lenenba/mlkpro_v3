@@ -13,6 +13,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
+import SalesActivityPanel from '@/Components/CRM/SalesActivityPanel.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import CustomerPreviewCard from './UI/CustomerPreviewCard.vue';
@@ -84,6 +85,18 @@ const props = defineProps({
     canManageMailingLists: {
         type: Boolean,
         default: false,
+    },
+    canLogSalesActivity: {
+        type: Boolean,
+        default: false,
+    },
+    salesActivityQuickActions: {
+        type: Array,
+        default: () => [],
+    },
+    salesActivityManualActions: {
+        type: Array,
+        default: () => [],
     },
 });
 
@@ -402,6 +415,10 @@ const activityHref = (log) => {
 
     if (!id) {
         return null;
+    }
+
+    if (type.endsWith('Request')) {
+        return route('request.show', id);
     }
 
     if (type.endsWith('Quote')) {
@@ -970,30 +987,19 @@ const deleteProperty = (property) => {
                     </div>
                 </Card>
 
-                <Card class="mt-5">
-                    <template #title>{{ $t('customers.details.activity.title') }}</template>
-
-                    <div class="space-y-3 text-sm">
-                        <div
-                            v-for="log in activity"
-                            :key="log.id"
-                            class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700"
-                        >
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
-                                {{ log.subject }} • {{ formatDate(log.created_at) }}
-                            </div>
-                            <div class="mt-1 text-sm text-stone-800 dark:text-neutral-200">
-                                <Link v-if="activityHref(log)" :href="activityHref(log)" class="hover:underline">
-                                    {{ log.description || log.action }}
-                                </Link>
-                                <span v-else>{{ log.description || log.action }}</span>
-                            </div>
-                        </div>
-                        <div v-if="!activity.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                            {{ $t('customers.details.activity.empty') }}
-                        </div>
-                    </div>
-                </Card>
+                <div class="mt-5">
+                    <SalesActivityPanel
+                        :items="activity"
+                        :can-log="canLogSalesActivity"
+                        :quick-actions="salesActivityQuickActions"
+                        :manual-actions="salesActivityManualActions"
+                        :store-route="route('crm.sales-activities.customers.store', customer.id)"
+                        :resolve-href="activityHref"
+                        :show-subject="true"
+                        i18n-prefix="customers.details.sales_activity"
+                        dialog-id="customer-sales-activity-modal"
+                    />
+                </div>
             </div>
             <div class="rise-stagger">
                 <CustomerPreviewCard

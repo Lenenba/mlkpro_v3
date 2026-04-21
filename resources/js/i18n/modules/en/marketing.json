@@ -507,6 +507,67 @@
         "attention": "{count} need attention"
       }
     },
+    "playbook_runs": {
+      "head_title": "Playbook run history",
+      "page_title": "Playbook run history",
+      "page_description": "Audit recent CRM playbook executions, their counters, and the main errors or skips.",
+      "module_all": "All modules",
+      "status_all": "All statuses",
+      "origin_all": "All origins",
+      "filters": {
+        "module": "Module",
+        "status": "Status",
+        "origin": "Origin"
+      },
+      "cards": {
+        "total": "Runs",
+        "active": "Active",
+        "completed": "Completed",
+        "failed": "Failed",
+        "processed": "Processed items",
+        "skipped": "Skipped items"
+      },
+      "table": {
+        "run": "Run",
+        "playbook": "Playbook",
+        "status": "Status",
+        "counters": "Counters",
+        "timing": "Timing",
+        "summary": "Summary"
+      },
+      "labels": {
+        "manual": "Manual",
+        "scheduled": "Scheduled",
+        "request": "Requests",
+        "customer": "Customers",
+        "quote": "Quotes",
+        "pending": "Pending",
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed",
+        "canceled": "Canceled",
+        "selected": "Selected",
+        "processed": "Processed",
+        "success": "Success",
+        "failed_count": "Failed",
+        "skipped": "Skipped",
+        "requested_by": "Requested by",
+        "scheduled_for": "Scheduled for",
+        "started_at": "Started",
+        "finished_at": "Finished",
+        "segment": "Segment",
+        "action": "Action",
+        "playbook_deleted": "Deleted playbook",
+        "none": "None"
+      },
+      "actions": {
+        "open_history": "Run history"
+      },
+      "empty": {
+        "title": "No playbook runs found.",
+        "description": "Try another filter or run a playbook to start building history."
+      }
+    },
     "campaign_show": {
       "head_title": "Campaign #{id}",
       "labels": {

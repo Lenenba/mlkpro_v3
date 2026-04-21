@@ -2,6 +2,7 @@
 
 namespace App\Services\Campaigns;
 
+use App\Services\Campaigns\Providers\ApolloApiKeyProspectProviderAdapter;
 use App\Services\Campaigns\Providers\ApolloProspectProviderAdapter;
 use App\Services\Campaigns\Providers\Contracts\ProspectProviderAdapter;
 use App\Services\Campaigns\Providers\LushaProspectProviderAdapter;
@@ -17,11 +18,13 @@ class ProspectProviderRegistry
 
     public function __construct(
         ApolloProspectProviderAdapter $apollo,
+        ApolloApiKeyProspectProviderAdapter $apolloApiKey,
         LushaProspectProviderAdapter $lusha,
         UpLeadProspectProviderAdapter $upLead,
     ) {
         $this->adapters = [
             $apollo->key() => $apollo,
+            $apolloApiKey->key() => $apolloApiKey,
             $lusha->key() => $lusha,
             $upLead->key() => $upLead,
         ];
