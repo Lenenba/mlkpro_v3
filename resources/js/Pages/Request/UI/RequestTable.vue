@@ -35,6 +35,10 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    stats: {
+        type: Object,
+        default: () => ({}),
+    },
     filters: {
         type: Object,
         default: () => ({}),

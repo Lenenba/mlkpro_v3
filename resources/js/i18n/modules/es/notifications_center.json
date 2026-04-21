@@ -1,0 +1,47 @@
+{
+  "notifications_center": {
+    "page_title": "Notificaciones",
+    "title": "Notificaciones",
+    "subtitle": "Historial completo de alertas, mensajes y eventos del sistema, ordenado de lo mas reciente a lo mas antiguo.",
+    "stats": {
+      "all": "Todas",
+      "unread": "No leidas",
+      "read": "Leidas",
+      "archived": "Archivadas"
+    },
+    "filters": {
+      "type_label": "Tipo",
+      "type_all": "Todos los tipos",
+      "per_page_label": "Elementos / pagina",
+      "clear": "Limpiar"
+    },
+    "actions": {
+      "open": "Abrir",
+      "mark_read": "Marcar como leida",
+      "archive": "Archivar",
+      "restore": "Restaurar"
+    },
+    "meta": {
+      "received": "Recibida",
+      "read": "Leida",
+      "archived": "Archivada",
+      "never": "Nunca",
+      "no_destination": "No hay una pagina destino para esta notificacion."
+    },
+    "empty_title": "Ninguna notificacion coincide con los filtros",
+    "empty_body": "Prueba otro filtro o limpia la vista actual para reconstruir el historial.",
+    "types": {
+      "all": "Todos",
+      "system": "Sistema",
+      "message": "Mensaje",
+      "orders": "Pedido",
+      "sales": "Venta",
+      "stock": "Stock",
+      "planning": "Planificacion",
+      "billing": "Facturacion",
+      "crm": "CRM",
+      "support": "Soporte",
+      "security": "Seguridad"
+    }
+  }
+}

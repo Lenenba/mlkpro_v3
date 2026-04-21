@@ -2,6 +2,7 @@
   "notifications_panel": {
     "title": "Notifications",
     "mark_all": "Mark all",
-    "empty": "No notifications."
+    "empty": "No unread notifications.",
+    "view_all": "View full history"
   }
 }

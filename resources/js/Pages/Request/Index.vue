@@ -40,6 +40,7 @@ const props = defineProps({
             <RequestTable
                 :requests="requests"
                 :filters="filters"
+                :stats="stats"
                 :lead-intake="lead_intake"
                 :customers="customers"
                 :statuses="statuses"

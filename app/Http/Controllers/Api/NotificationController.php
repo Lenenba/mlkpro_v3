@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\Notifications\UserNotificationCenter;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
 
@@ -15,26 +16,12 @@ class NotificationController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 401);
         }
 
-        $perPage = (int) $request->query('per_page', 20);
-        $perPage = max(5, min(50, $perPage));
-
-        $notifications = $user->notifications()
-            ->latest()
-            ->paginate($perPage);
-
-        return response()->json([
-            'unread_count' => $user->unreadNotifications()->count(),
-            'notifications' => $notifications->through(fn(DatabaseNotification $notification) => [
-                'id' => $notification->id,
-                'title' => $notification->data['title'] ?? 'Notification',
-                'message' => $notification->data['message'] ?? '',
-                'action_url' => $notification->data['action_url'] ?? null,
-                'category' => $notification->data['category'] ?? null,
-                'data' => $notification->data ?? [],
-                'created_at' => $notification->created_at?->toIso8601String(),
-                'read_at' => $notification->read_at?->toIso8601String(),
-            ]),
-        ]);
+        return response()->json(
+            app(UserNotificationCenter::class)->pagePayload(
+                $user,
+                $request->only(['status', 'type', 'per_page'])
+            )
+        );
     }
 
     public function markAllRead(Request $request)
@@ -44,7 +31,7 @@ class NotificationController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 401);
         }
 
-        $user->unreadNotifications()->update(['read_at' => now()]);
+        app(UserNotificationCenter::class)->markAllHeaderReadAndArchive($user);
 
         return response()->json(['message' => 'Notifications marquees comme lues.']);
     }
@@ -56,13 +43,11 @@ class NotificationController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 401);
         }
 
-        if ($notification->notifiable_id !== $user->id) {
+        if (! app(UserNotificationCenter::class)->belongsTo($user, $notification)) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        if (!$notification->read_at) {
-            $notification->markAsRead();
-        }
+        app(UserNotificationCenter::class)->markRead($notification);
 
         return response()->json(['message' => 'Notification marquee comme lue.']);
     }

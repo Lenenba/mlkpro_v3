@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Support\Notifications\UserNotificationCenter;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
 
@@ -15,26 +16,16 @@ class PortalNotificationController extends Controller
             abort(401);
         }
 
-        $limit = (int) $request->input('limit', 30);
-        $limit = max(5, min(100, $limit));
-
-        $notifications = $user->notifications()
-            ->latest()
-            ->limit($limit)
-            ->get();
-
-        $unreadCount = $user->unreadNotifications()->count();
-
-        return response()->json([
-            'notifications' => $notifications->map(fn(DatabaseNotification $notification) => [
-                'id' => $notification->id,
-                'type' => $notification->type,
-                'data' => $notification->data,
-                'read_at' => $notification->read_at?->toIso8601String(),
-                'created_at' => $notification->created_at?->toIso8601String(),
-            ])->values(),
-            'unread_count' => $unreadCount,
-        ]);
+        return response()->json(
+            app(UserNotificationCenter::class)->pagePayload(
+                $user,
+                [
+                    'status' => $request->input('status'),
+                    'type' => $request->input('type'),
+                    'per_page' => $request->input('per_page', $request->input('limit', 30)),
+                ]
+            )
+        );
     }
 
     public function markAllRead(Request $request)
@@ -44,7 +35,7 @@ class PortalNotificationController extends Controller
             abort(401);
         }
 
-        $user->unreadNotifications()->update(['read_at' => now()]);
+        app(UserNotificationCenter::class)->markAllHeaderReadAndArchive($user);
 
         return response()->json([
             'message' => 'Notifications marquees comme lues.',
@@ -58,13 +49,11 @@ class PortalNotificationController extends Controller
             abort(401);
         }
 
-        if ($notification->notifiable_id !== $user->id) {
+        if (! app(UserNotificationCenter::class)->belongsTo($user, $notification)) {
             abort(404);
         }
 
-        if (!$notification->read_at) {
-            $notification->forceFill(['read_at' => now()])->save();
-        }
+        app(UserNotificationCenter::class)->markRead($notification);
 
         return response()->json([
             'message' => 'Notification marquee comme lue.',

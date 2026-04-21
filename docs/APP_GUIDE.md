@@ -285,7 +285,13 @@ Ce seeder cree:
 
 Pour provisionner une entreprise de demo:
 - utiliser `Super Admin > Demo Workspaces`
-- ne plus utiliser `LaunchSeeder`
+- ne plus utiliser `LaunchSeeder` comme workflow principal de provisioning
+
+Exception locale:
+- `LaunchSeeder` reste utile pour rejouer un dataset complet de regression locale
+- il couvre maintenant la couche CRM phase 6 `my next actions / sales inbox / manager dashboard`
+- date de reference recommandee: `2026-04-25T09:00:00-04:00`
+- guide dedie: `docs/CRM_PHASE_6_OPPORTUNITY_LAYER_GUIDE_2026-04-21.md`
 
 ## 15. Commandes utiles (dev)
 ```

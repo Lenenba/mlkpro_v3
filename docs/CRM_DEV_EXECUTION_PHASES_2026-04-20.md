@@ -18,6 +18,19 @@ Le but est que l'equipe puisse avancer avec une logique simple:
 4. verifier ses garde-fous
 5. passer a la phase suivante
 
+## 1.1 Document complementaire
+
+Pour une lecture transversale de tout ce qui a ete livre sur les phases 0 a 6, avec:
+
+- le pourquoi
+- les avantages
+- les bonnes pratiques d'usage
+- la meilleure facon de tirer de la valeur du CRM
+
+voir:
+
+- `docs/CRM_PHASES_0_TO_6_GUIDE_2026-04-21.md`
+
 ## 2. Regle de fonctionnement
 
 Chaque phase doit etre traitee comme une mini-release autonome.

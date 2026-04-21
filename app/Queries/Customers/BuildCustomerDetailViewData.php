@@ -446,7 +446,7 @@ class BuildCustomerDetailViewData
                 'active_works' => Work::query()
                     ->where('customer_id', $customer->id)
                     ->where('user_id', $accountId)
-                    ->whereDate('end_date', '>=', now()->toDateString())
+                    ->whereIn('status', $this->activeWorkStatuses())
                     ->count(),
                 'requests' => LeadRequest::query()
                     ->where('customer_id', $customer->id)
@@ -475,6 +475,17 @@ class BuildCustomerDetailViewData
                 'balance_due' => max(0, round($totalInvoiced - $totalPaid, 2)),
             ],
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function activeWorkStatuses(): array
+    {
+        return array_values(array_diff(
+            Work::STATUSES,
+            array_merge(Work::COMPLETED_STATUSES, [Work::STATUS_CANCELLED])
+        ));
     }
 
     private function buildActivity(Customer $customer, int $accountId, bool $isProductAccount): Collection

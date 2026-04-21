@@ -2,6 +2,7 @@
   "notifications_panel": {
     "title": "Notifications",
     "mark_all": "Tout marquer",
-    "empty": "Aucune notification."
+    "empty": "Aucune notification non lue.",
+    "view_all": "Voir tout l'historique"
   }
 }

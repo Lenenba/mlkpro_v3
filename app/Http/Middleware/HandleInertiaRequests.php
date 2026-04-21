@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\CompanyFeatureService;
 use App\Support\Database\UserSelects;
 use App\Support\LocalePreference;
+use App\Support\Notifications\UserNotificationCenter;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -90,22 +91,7 @@ class HandleInertiaRequests extends Middleware
         ]);
         $notifications = null;
         if ($user) {
-            $notifications = [
-                'unread_count' => $user->unreadNotifications()->count(),
-                'items' => $user->notifications()
-                    ->latest()
-                    ->limit(6)
-                    ->get()
-                    ->map(fn ($notification) => [
-                        'id' => $notification->id,
-                        'title' => $notification->data['title'] ?? 'Notification',
-                        'message' => $notification->data['message'] ?? '',
-                        'action_url' => $notification->data['action_url'] ?? null,
-                        'created_at' => $notification->created_at?->toIso8601String(),
-                        'read_at' => $notification->read_at?->toIso8601String(),
-                    ])
-                    ->values(),
-            ];
+            $notifications = app(UserNotificationCenter::class)->headerPayload($user);
         }
 
         $planning = null;
