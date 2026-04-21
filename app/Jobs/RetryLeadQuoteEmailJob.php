@@ -2,11 +2,11 @@
 
 namespace App\Jobs;
 
-use App\Models\ActivityLog;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Notifications\LeadFormOwnerNotification;
 use App\Notifications\SendQuoteNotification;
+use App\Services\CRM\OutgoingEmailLogService;
 use App\Support\NotificationDispatcher;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
@@ -55,27 +55,33 @@ class RetryLeadQuoteEmailJob implements ShouldQueue
             'retry_attempt' => $this->attempt,
         ]);
 
+        $emailLogger = app(OutgoingEmailLogService::class);
         if ($emailQueued) {
-            ActivityLog::record(null, $quote, 'email_sent', [
+            $emailLogger->logSent(null, $quote, [
                 'email' => $quote->customer->email,
                 'source' => 'lead_form_retry',
                 'retry_attempt' => $this->attempt,
+                'notification' => SendQuoteNotification::class,
             ], 'Quote email retry sent');
 
             return;
         }
 
-        ActivityLog::record(null, $quote, 'email_failed', [
+        $emailLogger->logFailed(null, $quote, [
             'email' => $quote->customer->email,
             'source' => 'lead_form_retry',
             'retry_attempt' => $this->attempt,
+            'notification' => SendQuoteNotification::class,
         ], 'Quote email retry failed');
 
         if ($lead) {
-            ActivityLog::record(null, $lead, 'lead_email_failed', [
+            $emailLogger->logFailed(null, $lead, [
                 'quote_id' => $quote->id,
+                'customer_id' => $quote->customer_id,
                 'email' => $quote->customer->email,
+                'source' => 'lead_form_retry',
                 'retry_attempt' => $this->attempt,
+                'notification' => SendQuoteNotification::class,
             ], 'Quote email retry failed');
         }
 
@@ -87,10 +93,12 @@ class RetryLeadQuoteEmailJob implements ShouldQueue
                 ->delay(now()->addMinutes($delayMinutes));
 
             if ($lead) {
-                ActivityLog::record(null, $lead, 'lead_email_retry_scheduled', [
+                $emailLogger->logRetryScheduled(null, $lead, [
                     'quote_id' => $quote->id,
+                    'customer_id' => $quote->customer_id,
                     'attempt' => $nextAttempt,
                     'delay_minutes' => $delayMinutes,
+                    'source' => 'lead_form_retry',
                 ], 'Quote email retry scheduled');
             }
 

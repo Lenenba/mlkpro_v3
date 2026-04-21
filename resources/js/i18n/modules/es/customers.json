@@ -317,14 +317,14 @@
         "empty": "Aún no hay actividad reciente."
       },
       "sales_activity": {
-        "title": "Timeline comercial",
-        "subtitle": "Reúna aquí llamadas, notas, proximas acciones y reuniones vinculadas a este cliente.",
+        "title": "Timeline CRM",
+        "subtitle": "Reúna aquí llamadas, notas, correos, proximas acciones y reuniones vinculadas a este cliente.",
         "quick_actions_title": "Acciones rapidas",
         "quick_actions_hint": "Registre acciones comerciales utiles sin salir de la ficha del cliente.",
         "open_dialog": "Registrar actividad",
         "current_next_action": "Proxima accion activa",
         "due_prefix": "Vence",
-        "empty": "Aun no hay actividad comercial para este cliente.",
+        "empty": "Aun no hay actividad CRM para este cliente.",
         "dialog_title": "Registrar una actividad comercial",
         "dialog_hint": "Agregue una nota, un resultado de llamada, una proxima accion o una reunion para este cliente.",
         "actor_fallback": "Sistema",
@@ -360,7 +360,13 @@
           "sales_next_action_completed": "Proxima accion completada",
           "sales_next_action_cleared": "Proxima accion cancelada",
           "sales_meeting_scheduled": "Reunion programada",
-          "sales_meeting_completed": "Reunion completada"
+          "sales_meeting_completed": "Reunion completada",
+          "message_email_sent": "Correo enviado",
+          "message_email_received": "Correo recibido",
+          "message_email_failed": "Correo fallido",
+          "message_email_retry_scheduled": "Reintento de correo programado",
+          "meeting_scheduled": "Reunion programada",
+          "meeting_completed": "Reunion completada"
         },
         "quick_actions": {
           "call_logged": "Llamada registrada",
@@ -368,6 +374,23 @@
           "callback_tomorrow": "Llamar manana",
           "quote_discussed": "Cotizacion discutida",
           "recontact": "Volver a contactar"
+        },
+        "message_directions": {
+          "outbound": "Saliente",
+          "inbound": "Entrante"
+        },
+        "meeting_states": {
+          "scheduled": "Programada",
+          "completed": "Completada"
+        },
+        "meta": {
+          "to_prefix": "Para",
+          "from_prefix": "De",
+          "start_prefix": "Inicio",
+          "completed_prefix": "Completada",
+          "scheduled_for_prefix": "Programada",
+          "retry_attempt_prefix": "Reintento",
+          "assistant_label": "Asistente"
         }
       },
       "preview": {

@@ -317,14 +317,14 @@
         "empty": "Aucune activite recente."
       },
       "sales_activity": {
-        "title": "Timeline commerciale",
-        "subtitle": "Regroupez ici appels, notes, prochaines actions et rendez-vous lies au client.",
+        "title": "Timeline CRM",
+        "subtitle": "Regroupez ici appels, notes, emails, prochaines actions et rendez-vous lies au client.",
         "quick_actions_title": "Actions rapides",
         "quick_actions_hint": "Journalisez les actions commerciales utiles sans quitter la fiche client.",
         "open_dialog": "Journaliser",
         "current_next_action": "Prochaine action active",
         "due_prefix": "Echeance",
-        "empty": "Aucune activite commerciale pour ce client.",
+        "empty": "Aucune activite CRM pour ce client.",
         "dialog_title": "Journaliser une activite commerciale",
         "dialog_hint": "Ajoutez une note, un resultat d'appel, une prochaine action ou un rendez-vous sur ce client.",
         "actor_fallback": "Systeme",
@@ -360,7 +360,13 @@
           "sales_next_action_completed": "Prochaine action terminee",
           "sales_next_action_cleared": "Prochaine action annulee",
           "sales_meeting_scheduled": "Rendez-vous planifie",
-          "sales_meeting_completed": "Rendez-vous termine"
+          "sales_meeting_completed": "Rendez-vous termine",
+          "message_email_sent": "Email envoye",
+          "message_email_received": "Email recu",
+          "message_email_failed": "Echec email",
+          "message_email_retry_scheduled": "Nouvel essai email planifie",
+          "meeting_scheduled": "Rendez-vous planifie",
+          "meeting_completed": "Rendez-vous termine"
         },
         "quick_actions": {
           "call_logged": "Appel effectue",
@@ -368,6 +374,23 @@
           "callback_tomorrow": "Rappel demain",
           "quote_discussed": "Devis discute",
           "recontact": "A recontacter"
+        },
+        "message_directions": {
+          "outbound": "Sortant",
+          "inbound": "Entrant"
+        },
+        "meeting_states": {
+          "scheduled": "Planifie",
+          "completed": "Termine"
+        },
+        "meta": {
+          "to_prefix": "Vers",
+          "from_prefix": "Depuis",
+          "start_prefix": "Debut",
+          "completed_prefix": "Termine",
+          "scheduled_for_prefix": "Programme",
+          "retry_attempt_prefix": "Relance",
+          "assistant_label": "Assistant"
         }
       },
       "preview": {

@@ -3,11 +3,11 @@ import axios from 'axios';
 import { computed, ref, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import Modal from '@/Components/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
-import Modal from '@/Components/UI/Modal.vue';
 import { humanizeDate } from '@/utils/date';
 import { crmButtonClass } from '@/utils/crmButtonStyles';
 
@@ -82,6 +82,7 @@ const activityItems = ref(Array.isArray(props.items) ? [...props.items] : []);
 const quickActionSubmitting = ref('');
 const manualSubmitting = ref(false);
 const manualErrors = ref({});
+const dialogOpen = ref(false);
 const feedback = ref({
     tone: null,
     message: '',
@@ -114,12 +115,12 @@ watch(
     { immediate: true }
 );
 
-const closeOverlay = () => {
-    if (typeof window === 'undefined' || !window.HSOverlay) {
-        return;
-    }
+const openDialog = () => {
+    dialogOpen.value = true;
+};
 
-    window.HSOverlay.close(`#${props.dialogId}`);
+const closeOverlay = () => {
+    dialogOpen.value = false;
 };
 
 const resetManualForm = () => {
@@ -133,7 +134,7 @@ const resetManualForm = () => {
     manualErrors.value = {};
 };
 
-const actionKey = (action) => action?.activity_key || action?.action || '';
+const actionKey = (action) => action?.activity_key || action?.event_key || action?.action || '';
 const localizeActionLabel = (action, fallback = '') => {
     const key = actionKey(action);
 
@@ -303,31 +304,93 @@ const submitManualAction = async () => {
     manualSubmitting.value = false;
 };
 
-const activityBadgeClass = (item) => {
-    const type = item?.sales_activity?.type || null;
+const neutralPillClass = 'border border-stone-200 bg-white text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300';
 
-    switch (type) {
-        case 'next_action':
-            return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
-        case 'meeting':
-            return 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300';
-        case 'call':
-            return 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300';
-        case 'call_outcome':
-            return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300';
-        case 'note':
-            return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
-        default:
-            return 'bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300';
+const humanizeToken = (value) => {
+    const normalized = String(value || '').replace(/_/g, ' ').trim();
+
+    if (!normalized) {
+        return '';
     }
+
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 };
 
-const activityTypeClass = (item) => {
-    if (!item?.sales_activity?.type) {
-        return 'bg-white text-stone-600 dark:bg-neutral-900 dark:text-neutral-300';
+const primaryActivityPayload = (item) =>
+    item?.sales_activity
+    || item?.message_event
+    || item?.meeting_event
+    || null;
+
+const messageDirectionLabel = (direction) => {
+    if (!direction) {
+        return null;
     }
 
-    return 'bg-white text-stone-600 dark:bg-neutral-900 dark:text-neutral-300';
+    const translated = translate(`message_directions.${direction}`, '');
+
+    return translated && translated !== `message_directions.${direction}`
+        ? translated
+        : humanizeToken(direction);
+};
+
+const meetingStateLabel = (state) => {
+    if (!state) {
+        return null;
+    }
+
+    const translated = translate(`meeting_states.${state}`, '');
+
+    return translated && translated !== `meeting_states.${state}`
+        ? translated
+        : humanizeToken(state);
+};
+
+const activityBadgeClass = (item) => {
+    if (item?.sales_activity) {
+        switch (item.sales_activity.type) {
+            case 'next_action':
+                return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
+            case 'meeting':
+                return 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300';
+            case 'call':
+                return 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300';
+            case 'call_outcome':
+                return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300';
+            case 'note':
+                return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
+            default:
+                return 'bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300';
+        }
+    }
+
+    if (item?.message_event) {
+        switch (item.message_event.delivery_state) {
+            case 'sent':
+                return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
+            case 'received':
+                return 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300';
+            case 'failed':
+                return 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300';
+            case 'retry_scheduled':
+                return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300';
+            default:
+                return 'bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300';
+        }
+    }
+
+    if (item?.meeting_event) {
+        switch (item.meeting_event.lifecycle_state) {
+            case 'completed':
+                return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
+            case 'scheduled':
+                return 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300';
+            default:
+                return 'bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300';
+        }
+    }
+
+    return 'bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300';
 };
 
 const dueBadgeClass = (item) => {
@@ -342,6 +405,19 @@ const dueBadgeClass = (item) => {
         : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
 };
 
+const eventTimeBadgeClass = (tone = 'default') => {
+    switch (tone) {
+        case 'meeting':
+            return 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300';
+        case 'completed':
+            return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
+        case 'warning':
+            return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300';
+        default:
+            return 'bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300';
+    }
+};
+
 const activityTypeLabel = (type) => {
     if (!type) {
         return translate('types.system', 'System');
@@ -351,9 +427,95 @@ const activityTypeLabel = (type) => {
     return translated && translated !== `types.${type}` ? translated : type;
 };
 
-const activityLabel = (item) => {
+const activitySecondaryChips = (item) => {
     if (item?.sales_activity) {
-        return localizeActionLabel(item.sales_activity, item.sales_activity.label);
+        const chips = [];
+
+        if (item.sales_activity.type) {
+            chips.push({
+                key: 'sales-type',
+                label: activityTypeLabel(item.sales_activity.type),
+                className: neutralPillClass,
+                title: '',
+            });
+        }
+
+        if (item.sales_activity.due_at) {
+            chips.push({
+                key: 'sales-due',
+                label: `${translate('due_prefix', 'Due')} ${formatDate(item.sales_activity.due_at)}`,
+                className: dueBadgeClass(item),
+                title: formatAbsoluteDate(item.sales_activity.due_at),
+            });
+        }
+
+        return chips;
+    }
+
+    if (item?.message_event) {
+        const chips = [];
+        const directionLabel = messageDirectionLabel(item.message_event.direction);
+
+        if (directionLabel) {
+            chips.push({
+                key: 'message-direction',
+                label: directionLabel,
+                className: neutralPillClass,
+                title: '',
+            });
+        }
+
+        if (item.message_event.delivery_state === 'retry_scheduled' && item.message_event.scheduled_for) {
+            chips.push({
+                key: 'message-scheduled-for',
+                label: `${translate('meta.scheduled_for_prefix', 'Scheduled')} ${formatDate(item.message_event.scheduled_for)}`,
+                className: eventTimeBadgeClass('warning'),
+                title: formatAbsoluteDate(item.message_event.scheduled_for),
+            });
+        }
+
+        return chips;
+    }
+
+    if (item?.meeting_event) {
+        const chips = [];
+
+        if (item.meeting_event.provider) {
+            chips.push({
+                key: 'meeting-provider',
+                label: humanizeToken(item.meeting_event.provider),
+                className: neutralPillClass,
+                title: '',
+            });
+        }
+
+        if (item.meeting_event.completed_at) {
+            chips.push({
+                key: 'meeting-completed-at',
+                label: `${translate('meta.completed_prefix', 'Completed')} ${formatDate(item.meeting_event.completed_at)}`,
+                className: eventTimeBadgeClass('completed'),
+                title: formatAbsoluteDate(item.meeting_event.completed_at),
+            });
+        } else if (item.meeting_event.start_at) {
+            chips.push({
+                key: 'meeting-start-at',
+                label: `${translate('meta.start_prefix', 'Starts')} ${formatDate(item.meeting_event.start_at)}`,
+                className: eventTimeBadgeClass('meeting'),
+                title: formatAbsoluteDate(item.meeting_event.start_at),
+            });
+        }
+
+        return chips;
+    }
+
+    return [];
+};
+
+const activityLabel = (item) => {
+    const payload = primaryActivityPayload(item);
+
+    if (payload) {
+        return localizeActionLabel(payload, payload.label);
     }
 
     return translate('types.system', 'System');
@@ -362,12 +524,13 @@ const activityLabel = (item) => {
 const activityHeadline = (item) => {
     const fallbackLabel = activityLabel(item);
     const description = String(item?.description || '').trim();
+    const payloadLabel = String(primaryActivityPayload(item)?.label || '').trim();
 
     if (!description) {
         return fallbackLabel || item?.action || translate('messages.logged', 'Sales activity logged.');
     }
 
-    if (item?.sales_activity && description === item?.sales_activity?.label) {
+    if (payloadLabel && description === payloadLabel) {
         return fallbackLabel;
     }
 
@@ -377,6 +540,46 @@ const activityHeadline = (item) => {
 const activityBody = (item) => {
     const note = String(item?.properties?.note || '').trim();
     return note || null;
+};
+
+const activityMeta = (item) => {
+    if (item?.message_event) {
+        const parts = [];
+        const prefix = item.message_event.direction === 'inbound'
+            ? translate('meta.from_prefix', 'From')
+            : translate('meta.to_prefix', 'To');
+
+        if (item.message_event.email) {
+            parts.push(`${prefix} ${item.message_event.email}`);
+        }
+
+        if (item.message_event.retry_attempt) {
+            parts.push(`${translate('meta.retry_attempt_prefix', 'Retry')} #${item.message_event.retry_attempt}`);
+        }
+
+        if (item.message_event.assistant) {
+            parts.push(translate('meta.assistant_label', 'Assistant'));
+        }
+
+        return parts.join(' • ') || null;
+    }
+
+    if (item?.meeting_event) {
+        const parts = [];
+        const stateLabel = meetingStateLabel(item.meeting_event.lifecycle_state);
+
+        if (stateLabel) {
+            parts.push(stateLabel);
+        }
+
+        if (item.meeting_event.location) {
+            parts.push(item.meeting_event.location);
+        }
+
+        return parts.join(' • ') || null;
+    }
+
+    return null;
 };
 
 const actorLabel = (item) => item?.user?.name || translate('actor_fallback', 'System');
@@ -415,8 +618,8 @@ const itemHref = (item) => (typeof props.resolveHref === 'function' ? props.reso
                 </div>
                 <button
                     type="button"
-                    :data-hs-overlay="`#${dialogId}`"
                     :class="crmButtonClass('secondary', 'compact')"
+                    @click="openDialog"
                 >
                     {{ translate('open_dialog', 'Log manually') }}
                 </button>
@@ -467,19 +670,13 @@ const itemHref = (item) => (typeof props.resolveHref === 'function' ? props.reso
                                 {{ activityLabel(item) }}
                             </span>
                             <span
-                                v-if="item.sales_activity?.type"
-                                class="inline-flex items-center rounded-full border border-stone-200 px-2 py-0.5 text-[11px] font-medium"
-                                :class="activityTypeClass(item)"
-                            >
-                                {{ activityTypeLabel(item.sales_activity.type) }}
-                            </span>
-                            <span
-                                v-if="item.sales_activity?.due_at"
+                                v-for="chip in activitySecondaryChips(item)"
+                                :key="`${item.id}-${chip.key}`"
                                 class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-                                :class="dueBadgeClass(item)"
-                                :title="formatAbsoluteDate(item.sales_activity.due_at)"
+                                :class="chip.className"
+                                :title="chip.title"
                             >
-                                {{ translate('due_prefix', 'Due') }} {{ formatDate(item.sales_activity.due_at) }}
+                                {{ chip.label }}
                             </span>
                         </div>
                         <div
@@ -498,6 +695,9 @@ const itemHref = (item) => (typeof props.resolveHref === 'function' ? props.reso
                         <div class="mt-2 font-medium text-stone-800 dark:text-neutral-100">
                             {{ activityHeadline(item) }}
                         </div>
+                        <p v-if="activityMeta(item)" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                            {{ activityMeta(item) }}
+                        </p>
                         <p v-if="activityBody(item)" class="mt-1 whitespace-pre-line text-sm text-stone-600 dark:text-neutral-300">
                             {{ activityBody(item) }}
                         </p>
@@ -517,65 +717,108 @@ const itemHref = (item) => (typeof props.resolveHref === 'function' ? props.reso
             {{ translate('empty', 'No sales activity yet.') }}
         </p>
 
-        <Modal :id="dialogId" :title="translate('dialog_title', 'Log a sales activity')">
-            <form class="space-y-3" @submit.prevent="submitManualAction">
-                <p class="text-sm text-stone-500 dark:text-neutral-400">
-                    {{ translate('dialog_hint', 'Capture notes, outcomes, next actions, and meetings from the request timeline.') }}
-                </p>
+        <Modal :show="dialogOpen" max-width="3xl" @close="closeOverlay">
+            <div class="relative" :data-testid="dialogId">
+                <div class="border-b border-stone-200 bg-white px-5 py-5 dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex items-start gap-3">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4.5 w-4.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8M8 14h5M6.75 4.75h10.5A1.75 1.75 0 0 1 19 6.5v11a1.75 1.75 0 0 1-1.75 1.75H6.75A1.75 1.75 0 0 1 5 17.5v-11a1.75 1.75 0 0 1 1.75-1.75Z" />
+                                </svg>
+                            </div>
+                            <div class="space-y-2">
+                                <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-300">
+                                    {{ translate('title', 'Sales activity') }}
+                                </p>
+                                <h3 class="text-lg font-semibold text-stone-900 dark:text-white">
+                                    {{ translate('dialog_title', 'Log a sales activity') }}
+                                </h3>
+                                <p class="max-w-2xl text-sm leading-6 text-stone-600 dark:text-neutral-300">
+                                    {{ translate('dialog_hint', 'Capture notes, outcomes, next actions, and meetings from the request timeline.') }}
+                                </p>
+                            </div>
+                        </div>
 
-                <FloatingSelect
-                    v-model="manualForm.action"
-                    :label="translate('fields.action', 'Activity')"
-                    :options="manualActionOptions"
-                    :placeholder="translate('fields.action_placeholder', 'Choose an activity')"
-                />
-                <InputError :message="manualErrors.action?.[0]" />
-
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <FloatingInput
-                        v-model="manualForm.occurred_at"
-                        type="datetime-local"
-                        :label="translate('fields.occurred_at', 'Logged at')"
-                    />
-                    <FloatingInput
-                        v-if="needsDueAt"
-                        v-model="manualForm.due_at"
-                        type="datetime-local"
-                        :label="translate('fields.due_at', 'Due at')"
-                    />
+                        <button
+                            type="button"
+                            class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-500 transition hover:bg-stone-50 hover:text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+                            @click="closeOverlay"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
-                <InputError :message="manualErrors.occurred_at?.[0]" />
-                <InputError v-if="needsDueAt" :message="manualErrors.due_at?.[0]" />
 
-                <FloatingInput
-                    v-model="manualForm.description"
-                    :label="translate('fields.description', 'Short summary')"
-                />
-                <InputError :message="manualErrors.description?.[0]" />
+                <form class="space-y-4 bg-stone-50 p-5 dark:bg-neutral-950" @submit.prevent="submitManualAction">
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                        <div class="space-y-4">
+                            <FloatingSelect
+                                v-model="manualForm.action"
+                                :label="translate('fields.action', 'Activity')"
+                                :options="manualActionOptions"
+                                :placeholder="translate('fields.action_placeholder', 'Choose an activity')"
+                            />
+                            <InputError :message="manualErrors.action?.[0]" />
 
-                <FloatingTextarea
-                    v-model="manualForm.note"
-                    :label="translate('fields.note', 'Note')"
-                />
-                <InputError :message="manualErrors.note?.[0]" />
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <FloatingInput
+                                    v-model="manualForm.occurred_at"
+                                    type="datetime-local"
+                                    :label="translate('fields.occurred_at', 'Logged at')"
+                                />
+                                <FloatingInput
+                                    v-if="needsDueAt"
+                                    v-model="manualForm.due_at"
+                                    type="datetime-local"
+                                    :label="translate('fields.due_at', 'Due at')"
+                                />
+                            </div>
+                            <InputError :message="manualErrors.occurred_at?.[0]" />
+                            <InputError v-if="needsDueAt" :message="manualErrors.due_at?.[0]" />
 
-                <div class="flex justify-end gap-2">
-                    <button
-                        type="button"
-                        :data-hs-overlay="`#${dialogId}`"
-                        :class="crmButtonClass('secondary', 'dialog')"
+                            <FloatingInput
+                                v-model="manualForm.description"
+                                :label="translate('fields.description', 'Short summary')"
+                            />
+                            <InputError :message="manualErrors.description?.[0]" />
+
+                            <FloatingTextarea
+                                v-model="manualForm.note"
+                                :label="translate('fields.note', 'Note')"
+                            />
+                            <InputError :message="manualErrors.note?.[0]" />
+                        </div>
+                    </section>
+
+                    <div
+                        v-if="feedback.message && feedback.tone === 'error'"
+                        class="rounded-sm border px-3 py-2 text-sm"
+                        :class="feedbackClass"
                     >
-                        {{ translate('cancel', 'Cancel') }}
-                    </button>
-                    <button
-                        type="submit"
-                        :class="crmButtonClass('primary', 'dialog')"
-                        :disabled="manualSubmitting"
-                    >
-                        {{ translate('save', 'Save activity') }}
-                    </button>
-                </div>
-            </form>
+                        {{ feedback.message }}
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            :class="crmButtonClass('secondary', 'dialog')"
+                            @click="closeOverlay"
+                        >
+                            {{ translate('cancel', 'Cancel') }}
+                        </button>
+                        <button
+                            type="submit"
+                            :class="crmButtonClass('primary', 'dialog')"
+                            :disabled="manualSubmitting"
+                        >
+                            {{ translate('save', 'Save activity') }}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </Modal>
     </section>
 </template>

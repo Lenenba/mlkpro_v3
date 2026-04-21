@@ -23,6 +23,7 @@ use App\Notifications\ActionEmailNotification;
 use App\Notifications\InviteUserNotification;
 use App\Notifications\SendQuoteNotification;
 use App\Services\CompanyFeatureService;
+use App\Services\CRM\OutgoingEmailLogService;
 use App\Services\InventoryService;
 use App\Services\TaskBillingService;
 use App\Services\TaskStatusHistoryService;
@@ -1691,15 +1692,32 @@ class AssistantWorkflowService
         }
 
         $quote->loadMissing(['customer.user', 'property', 'products', 'taxes.tax']);
-        NotificationDispatcher::send($quote->customer, new SendQuoteNotification($quote), [
+        $emailQueued = NotificationDispatcher::send($quote->customer, new SendQuoteNotification($quote), [
             'quote_id' => $quote->id,
             'customer_id' => $quote->customer->id,
         ]);
 
-        ActivityLog::record($user, $quote, 'email_sent', [
-            'email' => $quote->customer->email,
-            'assistant' => true,
-        ], 'Quote email sent by assistant');
+        $emailLogger = app(OutgoingEmailLogService::class);
+        if ($emailQueued) {
+            $emailLogger->logSent($user, $quote, [
+                'email' => $quote->customer->email,
+                'assistant' => true,
+                'source' => 'assistant_quote_send',
+                'notification' => SendQuoteNotification::class,
+            ], 'Quote email sent by assistant');
+        } else {
+            $emailLogger->logFailed($user, $quote, [
+                'email' => $quote->customer->email,
+                'assistant' => true,
+                'source' => 'assistant_quote_send',
+                'notification' => SendQuoteNotification::class,
+            ], 'Quote email failed by assistant');
+
+            return [
+                'status' => 'error',
+                'message' => 'L envoi du devis a echoue pour '.$quote->customer->email.'.',
+            ];
+        }
 
         if ($quote->status === 'draft') {
             $previousStatus = $quote->status;

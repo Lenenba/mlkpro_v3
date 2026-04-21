@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\AiImageController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\Integration\CrmConnectorEventController as IntegrationCrmConnectorEventController;
 use App\Http\Controllers\Api\Integration\InventoryController as IntegrationInventoryController;
 use App\Http\Controllers\Api\Integration\RequestController as IntegrationRequestController;
 use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
@@ -329,6 +330,8 @@ Route::name('api.')->group(function () {
                 Route::post('products/{product}/adjust', [IntegrationInventoryController::class, 'adjust']);
                 Route::post('requests', [IntegrationRequestController::class, 'store'])
                     ->name('integrations.requests.store');
+                Route::post('crm/connector-events', [IntegrationCrmConnectorEventController::class, 'store'])
+                    ->name('integrations.crm.connector_events.store');
             });
 
             Route::middleware('company.feature:services')->group(function () {

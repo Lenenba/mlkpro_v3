@@ -42,7 +42,7 @@ test('owners can send an invoice email from the invoices module and drafts becom
         ->assertSessionHas('success');
 
     expect($invoice->fresh()->status)->toBe('sent')
-        ->and(ActivityLog::query()->where('subject_id', $invoice->id)->where('action', 'email_sent')->exists())->toBeTrue()
+        ->and(ActivityLog::query()->where('subject_id', $invoice->id)->where('action', 'message_email_sent')->exists())->toBeTrue()
         ->and(ActivityLog::query()->where('subject_id', $invoice->id)->where('action', 'status_changed')->exists())->toBeTrue();
 
     Notification::assertSentTo($customer, InvoiceAvailableNotification::class, function (InvoiceAvailableNotification $notification) use ($customer, $invoice) {

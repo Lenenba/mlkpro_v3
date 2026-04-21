@@ -6,6 +6,7 @@ use App\Models\Quote;
 use App\Models\TeamMember;
 use App\Models\ActivityLog;
 use App\Notifications\SendQuoteNotification;
+use App\Services\CRM\OutgoingEmailLogService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Support\Facades\Auth;
 
@@ -65,13 +66,18 @@ class QuoteEmaillingController extends Controller
             'email' => $quote->customer->email,
         ]);
 
+        $emailLogger = app(OutgoingEmailLogService::class);
         if ($emailQueued) {
-            ActivityLog::record(Auth::user(), $quote, 'email_sent', [
+            $emailLogger->logSent($user, $quote, [
                 'email' => $quote->customer->email,
+                'source' => 'quote_manual_send',
+                'notification' => SendQuoteNotification::class,
             ], 'Quote email sent');
         } else {
-            ActivityLog::record(Auth::user(), $quote, 'email_failed', [
+            $emailLogger->logFailed($user, $quote, [
                 'email' => $quote->customer->email,
+                'source' => 'quote_manual_send',
+                'notification' => SendQuoteNotification::class,
             ], 'Quote email failed');
         }
 

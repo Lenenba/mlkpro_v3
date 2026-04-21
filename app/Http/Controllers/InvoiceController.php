@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Work;
+use App\Services\CRM\OutgoingEmailLogService;
 use App\Services\FinanceApprovalService;
 use App\Services\InvoiceDocumentService;
 use App\Services\UsageLimitService;
@@ -231,13 +232,18 @@ class InvoiceController extends Controller
             'source' => 'invoice_manual_send',
         ]);
 
+        $emailLogger = app(OutgoingEmailLogService::class);
         if ($emailQueued) {
-            ActivityLog::record($request->user(), $invoice, 'email_sent', [
+            $emailLogger->logSent($request->user(), $invoice, [
                 'email' => $invoice->customer->email,
+                'source' => 'invoice_manual_send',
+                'notification' => \App\Notifications\InvoiceAvailableNotification::class,
             ], 'Invoice email sent');
         } else {
-            ActivityLog::record($request->user(), $invoice, 'email_failed', [
+            $emailLogger->logFailed($request->user(), $invoice, [
                 'email' => $invoice->customer->email,
+                'source' => 'invoice_manual_send',
+                'notification' => \App\Notifications\InvoiceAvailableNotification::class,
             ], 'Invoice email failed');
         }
 

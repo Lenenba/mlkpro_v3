@@ -614,6 +614,10 @@ Creer les primitives de messages et de rendez-vous qui serviront plus tard a une
 - pas d'inbox complete
 - base prete pour integrations futures
 
+### Document de reference
+
+- `docs/PHASE_5_EMAIL_CALENDAR_FOUNDATIONS_DEV_BACKLOG_2026-04-21.md`
+
 ## 12. Phase 6 - Opportunity Layer, Sales Inbox, Forecast
 
 ### Objectif business

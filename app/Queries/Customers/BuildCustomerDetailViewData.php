@@ -17,6 +17,9 @@ use App\Models\User;
 use App\Models\VipTier;
 use App\Models\Work;
 use App\Services\CompanyFeatureService;
+use App\Support\CRM\CrmActivityLinking;
+use App\Support\CRM\MeetingEventTaxonomy;
+use App\Support\CRM\MessageEventTaxonomy;
 use App\Support\CRM\SalesActivityTaxonomy;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -484,25 +487,7 @@ class BuildCustomerDetailViewData
                 ->latest()
                 ->limit(12)
                 ->get(CustomerReadSelects::detailActivityColumns())
-                ->map(fn ($log) => [
-                    'id' => $log->id,
-                    'action' => $log->action,
-                    'description' => $log->description,
-                    'properties' => (array) ($log->properties ?? []),
-                    'user' => $log->user ? [
-                        'id' => $log->user->id,
-                        'name' => $log->user->name,
-                    ] : null,
-                    'is_sales_activity' => SalesActivityTaxonomy::isSalesActivity($log->action),
-                    'sales_activity' => SalesActivityTaxonomy::present(
-                        $log->action,
-                        (array) ($log->properties ?? [])
-                    ),
-                    'subject_type' => $log->subject_type,
-                    'subject_id' => $log->subject_id,
-                    'subject' => 'Customer',
-                    'created_at' => $log->created_at,
-                ])
+                ->map(fn ($log) => $this->serializeActivityLog($log, 'Customer'))
                 ->values();
         }
 
@@ -592,25 +577,53 @@ class BuildCustomerDetailViewData
             ->latest()
             ->limit(12)
             ->get(CustomerReadSelects::detailActivityColumns())
-            ->map(fn ($log) => [
-                'id' => $log->id,
-                'action' => $log->action,
-                'description' => $log->description,
-                'properties' => (array) ($log->properties ?? []),
-                'user' => $log->user ? [
-                    'id' => $log->user->id,
-                    'name' => $log->user->name,
-                ] : null,
-                'is_sales_activity' => SalesActivityTaxonomy::isSalesActivity($log->action),
-                'sales_activity' => SalesActivityTaxonomy::present(
-                    $log->action,
-                    (array) ($log->properties ?? [])
-                ),
-                'subject_type' => $log->subject_type,
-                'subject_id' => $log->subject_id,
-                'subject' => $subjectLabels[$log->subject_type] ?? 'Item',
-                'created_at' => $log->created_at,
-            ])
+            ->map(fn ($log) => $this->serializeActivityLog(
+                $log,
+                $subjectLabels[$log->subject_type] ?? 'Item'
+            ))
             ->values();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeActivityLog(ActivityLog $log, string $subjectLabel): array
+    {
+        $properties = (array) ($log->properties ?? []);
+
+        return [
+            'id' => $log->id,
+            'action' => $log->action,
+            'description' => $log->description,
+            'properties' => $properties,
+            'user' => $log->user ? [
+                'id' => $log->user->id,
+                'name' => $log->user->name,
+            ] : null,
+            'is_sales_activity' => SalesActivityTaxonomy::isSalesActivity($log->action),
+            'sales_activity' => SalesActivityTaxonomy::present(
+                $log->action,
+                $properties
+            ),
+            'crm_links' => CrmActivityLinking::present(
+                $log->subject_type,
+                $log->subject_id,
+                $properties
+            ),
+            'is_meeting_event' => MeetingEventTaxonomy::isMeetingEvent($log->action),
+            'meeting_event' => MeetingEventTaxonomy::present(
+                $log->action,
+                $properties
+            ),
+            'is_message_event' => MessageEventTaxonomy::isMessageEvent($log->action),
+            'message_event' => MessageEventTaxonomy::present(
+                $log->action,
+                $properties
+            ),
+            'subject_type' => $log->subject_type,
+            'subject_id' => $log->subject_id,
+            'subject' => $subjectLabel,
+            'created_at' => $log->created_at,
+        ];
     }
 }

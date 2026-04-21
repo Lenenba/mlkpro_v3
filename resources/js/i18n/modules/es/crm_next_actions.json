@@ -16,6 +16,7 @@
             "source": "Fuente",
             "subject_type": "Tipo",
             "due_state": "Vencimiento",
+            "per_page": "Tarjetas / pagina",
             "clear": "Limpiar",
             "all_sources": "Todas las fuentes",
             "all_subject_types": "Todos los tipos"
@@ -50,17 +51,25 @@
             "all_day": "Todo el dia",
             "no_customer": "Sin cliente vinculado",
             "no_assignee": "Sin asignacion",
+            "no_activity": "Ninguna",
             "no_status": "Sin estado",
             "system_actor": "Sistema",
             "refreshing": "Actualizando"
         },
         "actions": {
             "open_subject": "Abrir ficha",
+            "open_request": "Abrir solicitud",
+            "open_quote": "Abrir presupuesto",
+            "open_task": "Abrir tarea",
             "open_customer": "Ver cliente"
         },
         "list": {
             "title": "Vista priorizada",
             "subtitle": "{count} accion | {count} acciones"
+        },
+        "pagination": {
+            "showing": "{from}-{to} de {total}",
+            "page_of": "Pagina {page} / {total}"
         },
         "empty_title": "Todavia no hay proximas acciones",
         "empty_body": "En cuanto un seguimiento, una tarea o una actividad comercial tenga una fecha abierta, aparecera aqui."

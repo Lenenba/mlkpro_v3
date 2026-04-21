@@ -412,3 +412,51 @@ test('my next actions workspace respects team member task scope', function () {
             ->where('items.0.assignee.id', $member->id)
         );
 });
+
+test('my next actions workspace paginates the card feed', function () {
+    $owner = User::factory()->create([
+        'company_type' => 'services',
+    ]);
+
+    $customer = Customer::create([
+        'user_id' => $owner->id,
+        'first_name' => 'Paged',
+        'last_name' => 'Customer',
+        'company_name' => 'Paged Customer Inc.',
+        'email' => 'paged-customer@example.com',
+    ]);
+
+    $referenceTime = Carbon::parse('2026-04-21 10:00:00');
+
+    foreach (range(1, 7) as $index) {
+        Task::create([
+            'account_id' => $owner->id,
+            'created_by_user_id' => $owner->id,
+            'customer_id' => $customer->id,
+            'title' => 'Paged workspace task '.$index,
+            'status' => 'todo',
+            'due_date' => $referenceTime->copy()->addDays($index)->toDateString(),
+        ]);
+    }
+
+    $this->actingAs($owner)
+        ->get(route('crm.next-actions.index', [
+            'reference_time' => $referenceTime->toIso8601String(),
+            'per_page' => 6,
+            'page' => 2,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('CRM/MyNextActions')
+            ->where('filters.per_page', 6)
+            ->where('count', 7)
+            ->where('pagination.current_page', 2)
+            ->where('pagination.last_page', 2)
+            ->where('pagination.per_page', 6)
+            ->where('pagination.total', 7)
+            ->where('pagination.from', 7)
+            ->where('pagination.to', 7)
+            ->has('items', 1)
+            ->where('items.0.source', 'task')
+        );
+});

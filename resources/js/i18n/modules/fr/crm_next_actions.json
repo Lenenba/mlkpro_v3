@@ -16,6 +16,7 @@
             "source": "Source",
             "subject_type": "Type",
             "due_state": "Echeance",
+            "per_page": "Cartes / page",
             "clear": "Effacer",
             "all_sources": "Toutes les sources",
             "all_subject_types": "Tous les types"
@@ -50,17 +51,25 @@
             "all_day": "Toute la journee",
             "no_customer": "Aucun client lie",
             "no_assignee": "Aucune attribution",
+            "no_activity": "Aucune",
             "no_status": "Sans statut",
             "system_actor": "Systeme",
             "refreshing": "Actualisation"
         },
         "actions": {
             "open_subject": "Ouvrir la fiche",
+            "open_request": "Ouvrir la demande",
+            "open_quote": "Ouvrir le devis",
+            "open_task": "Ouvrir la tache",
             "open_customer": "Voir le client"
         },
         "list": {
             "title": "Vue priorisee",
             "subtitle": "{count} action | {count} actions"
+        },
+        "pagination": {
+            "showing": "{from}-{to} sur {total}",
+            "page_of": "Page {page} / {total}"
         },
         "empty_title": "Aucune prochaine action pour le moment",
         "empty_body": "Quand une relance, une tache ou une activite commerciale aura une echeance ouverte, elle apparaitra ici."

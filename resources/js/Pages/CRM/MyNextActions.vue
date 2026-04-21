@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
@@ -34,15 +35,21 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    pagination: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t, te } = useI18n();
+const defaultPerPage = Number(props.options?.per_page_options?.[1] || props.options?.per_page_options?.[0] || 9);
 
 const filterForm = reactive({
     search: props.filters?.search || '',
     source: props.filters?.source || '',
     subject_type: props.filters?.subject_type || '',
     due_state: props.filters?.due_state || 'all',
+    per_page: Number(props.filters?.per_page || defaultPerPage),
 });
 
 const isFiltering = ref(false);
@@ -92,6 +99,26 @@ const dueStateOptions = computed(() => (
 
 const activeSourceCount = computed(() => Object.keys(props.stats?.by_source || {}).length);
 const displayedItems = computed(() => (Array.isArray(props.items) ? props.items : []));
+const paginationLinks = computed(() => (Array.isArray(props.pagination?.links) ? props.pagination.links : []));
+const currentPage = computed(() => Number(props.pagination?.current_page || 1));
+const lastPage = computed(() => Number(props.pagination?.last_page || 1));
+const hasMultiplePages = computed(() => lastPage.value > 1);
+const currentPerPage = computed(() => Number(filterForm.per_page || defaultPerPage));
+const perPageOptions = computed(() => (
+    (props.options?.per_page_options || [6, 9, 12, 18]).map((value) => ({
+        value: Number(value),
+        label: String(value),
+    }))
+));
+const paginationSummary = computed(() => t('crm_next_actions.pagination.showing', {
+    from: Number(props.pagination?.from || 0),
+    to: Number(props.pagination?.to || 0),
+    total: Number(props.pagination?.total || props.count || 0),
+}));
+const pageLabel = computed(() => t('crm_next_actions.pagination.page_of', {
+    page: currentPage.value,
+    total: lastPage.value,
+}));
 const referenceTimeLabel = computed(() => {
     if (!props.reference_time) {
         return '-';
@@ -102,13 +129,15 @@ const referenceTimeLabel = computed(() => {
     return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
 });
 
-const applyFilters = () => {
+const applyFilters = (overrides = {}) => {
     const payload = {
         search: filterForm.search,
         source: filterForm.source,
         subject_type: filterForm.subject_type,
         due_state: filterForm.due_state,
+        per_page: currentPerPage.value,
         reference_time: props.filters?.reference_time || '',
+        ...overrides,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -116,6 +145,10 @@ const applyFilters = () => {
             delete payload[key];
         }
     });
+
+    if (Number(payload.page || 1) <= 1) {
+        delete payload.page;
+    }
 
     isFiltering.value = true;
     router.get(route('crm.next-actions.index'), payload, {
@@ -140,7 +173,7 @@ const clearFilters = () => {
         clearTimeout(filterTimeout);
     }
 
-    applyFilters();
+    applyFilters({ page: 1 });
 
     queueMicrotask(() => {
         suppressFilterWatch.value = false;
@@ -158,7 +191,18 @@ watch(
             clearTimeout(filterTimeout);
         }
 
-        filterTimeout = setTimeout(() => applyFilters(), 250);
+        filterTimeout = setTimeout(() => applyFilters({ page: 1 }), 250);
+    },
+);
+
+watch(
+    () => filterForm.per_page,
+    (value, previousValue) => {
+        if (suppressFilterWatch.value || value === previousValue) {
+            return;
+        }
+
+        applyFilters({ page: 1 });
     },
 );
 
@@ -205,6 +249,14 @@ const sourceLabel = (item) => {
         : (item?.source_label || key);
 };
 
+const normalizeComparableLabel = (value) => String(value || '')
+    .trim()
+    .toLowerCase();
+
+const shouldShowSubjectBadge = (item) => (
+    normalizeComparableLabel(subjectLabel(item?.subject_type)) !== normalizeComparableLabel(sourceLabel(item))
+);
+
 const humanizeValue = (value) => String(value || '')
     .replaceAll('_', ' ')
     .trim()
@@ -247,6 +299,21 @@ const customerRoute = (item) => {
     const customerId = item?.customer?.id;
 
     return customerId ? route('customer.show', customerId) : null;
+};
+
+const subjectActionLabel = (item) => {
+    switch (String(item?.subject_type || '')) {
+        case 'request':
+            return t('crm_next_actions.actions.open_request');
+        case 'quote':
+            return t('crm_next_actions.actions.open_quote');
+        case 'task':
+            return t('crm_next_actions.actions.open_task');
+        case 'customer':
+            return t('crm_next_actions.actions.open_customer');
+        default:
+            return t('crm_next_actions.actions.open_subject');
+    }
 };
 
 const dueBadgeClass = (item) => {
@@ -383,23 +450,40 @@ const latestActivityLabel = (item) => {
             </section>
 
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div>
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="space-y-1">
                         <h2 class="text-sm font-semibold text-stone-900 dark:text-white">
                             {{ t('crm_next_actions.list.title') }}
                         </h2>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             {{ t('crm_next_actions.list.subtitle', { count }) }}
                         </p>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ paginationSummary }}
+                            <span v-if="hasMultiplePages" class="mx-1 text-stone-300 dark:text-neutral-600">|</span>
+                            <span v-if="hasMultiplePages">{{ pageLabel }}</span>
+                        </p>
                     </div>
 
-                    <button
-                        type="button"
-                        :class="crmButtonClass('secondary', 'toolbar')"
-                        @click="clearFilters"
-                    >
-                        {{ t('crm_next_actions.filters.clear') }}
-                    </button>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="min-w-[8.5rem]">
+                            <FloatingSelect
+                                v-model="filterForm.per_page"
+                                :label="t('crm_next_actions.filters.per_page')"
+                                :options="perPageOptions"
+                                option-value="value"
+                                option-label="label"
+                                data-testid="my-next-actions-filter-per-page"
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            :class="crmButtonClass('secondary', 'toolbar')"
+                            @click="clearFilters"
+                        >
+                            {{ t('crm_next_actions.filters.clear') }}
+                        </button>
+                    </div>
                 </div>
 
                 <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -435,18 +519,28 @@ const latestActivityLabel = (item) => {
                         data-testid="my-next-actions-filter-due-state"
                     />
                 </div>
+
+                <div
+                    v-if="hasMultiplePages"
+                    class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900"
+                >
+                    <div class="text-xs font-medium text-stone-600 dark:text-neutral-300">
+                        {{ paginationSummary }}
+                    </div>
+                    <AdminPaginationLinks :links="paginationLinks" />
+                </div>
             </section>
 
-            <section v-if="displayedItems.length" class="space-y-3">
+            <section v-if="displayedItems.length" class="grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
                 <article
                     v-for="item in displayedItems"
                     :key="item.id"
-                    class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm transition dark:border-neutral-800 dark:bg-neutral-950"
+                    class="flex h-full flex-col rounded-sm border border-stone-200 bg-white p-4 shadow-sm transition dark:border-neutral-800 dark:bg-neutral-950"
                     :class="isFiltering ? 'opacity-70' : ''"
                     :data-testid="`my-next-actions-item-${item.id}`"
                 >
                     <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div class="space-y-3">
+                        <div class="min-w-0 space-y-3">
                             <div class="flex flex-wrap items-center gap-2">
                                 <span
                                     class="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]"
@@ -460,13 +554,16 @@ const latestActivityLabel = (item) => {
                                 >
                                     {{ dueStateLabel(item) }}
                                 </span>
-                                <span class="inline-flex items-center rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                <span
+                                    v-if="shouldShowSubjectBadge(item)"
+                                    class="inline-flex items-center rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+                                >
                                     {{ subjectLabel(item.subject_type) }}
                                 </span>
                             </div>
 
-                            <div>
-                                <div class="text-lg font-semibold text-stone-900 dark:text-white">
+                            <div class="min-w-0">
+                                <div class="truncate text-lg font-semibold text-stone-900 dark:text-white" :title="item.subject_title">
                                     {{ item.subject_title }}
                                 </div>
                                 <div class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
@@ -477,26 +574,9 @@ const latestActivityLabel = (item) => {
                                 </div>
                             </div>
                         </div>
-
-                        <div class="flex flex-wrap items-center gap-2">
-                            <Link
-                                v-if="routeForItem(item)"
-                                :href="routeForItem(item)"
-                                :class="crmButtonClass('primary', 'toolbar')"
-                            >
-                                {{ t('crm_next_actions.actions.open_subject') }}
-                            </Link>
-                            <Link
-                                v-if="customerRoute(item) && customerRoute(item) !== routeForItem(item)"
-                                :href="customerRoute(item)"
-                                :class="crmButtonClass('secondary', 'toolbar')"
-                            >
-                                {{ t('crm_next_actions.actions.open_customer') }}
-                            </Link>
-                        </div>
                     </div>
 
-                    <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div class="mt-4 grid gap-2 sm:grid-cols-2">
                         <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900">
                             <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-500">
                                 {{ t('crm_next_actions.labels.customer') }}
@@ -529,7 +609,7 @@ const latestActivityLabel = (item) => {
                                 {{ t('crm_next_actions.labels.latest_activity') }}
                             </div>
                             <div class="mt-1 text-sm text-stone-800 dark:text-neutral-100">
-                                {{ latestActivityLabel(item) || sourceLabel(item) }}
+                                {{ latestActivityLabel(item) || t('crm_next_actions.labels.no_activity') }}
                             </div>
                             <div
                                 v-if="item.activity?.actor || item.activity?.logged_at"
@@ -542,7 +622,41 @@ const latestActivityLabel = (item) => {
                             </div>
                         </div>
                     </div>
+
+                    <div class="mt-auto flex flex-wrap items-center justify-end gap-2 pt-4">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <Link
+                                v-if="customerRoute(item) && customerRoute(item) !== routeForItem(item)"
+                                :href="customerRoute(item)"
+                                :class="crmButtonClass('secondary', 'compact')"
+                            >
+                                {{ t('crm_next_actions.actions.open_customer') }}
+                            </Link>
+                            <Link
+                                v-if="routeForItem(item)"
+                                :href="routeForItem(item)"
+                                :class="crmButtonClass('primary', 'compact')"
+                            >
+                                {{ subjectActionLabel(item) }}
+                            </Link>
+                        </div>
+                    </div>
                 </article>
+            </section>
+
+            <section
+                v-if="displayedItems.length && hasMultiplePages"
+                class="rounded-sm border border-stone-200 bg-white px-4 py-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-950"
+            >
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="text-sm text-stone-600 dark:text-neutral-300">
+                        {{ paginationSummary }}
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="text-xs text-stone-500 dark:text-neutral-400">{{ pageLabel }}</span>
+                        <AdminPaginationLinks :links="paginationLinks" />
+                    </div>
+                </div>
             </section>
 
             <section
