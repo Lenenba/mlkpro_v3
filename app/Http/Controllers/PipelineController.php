@@ -33,7 +33,7 @@ class PipelineController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
@@ -82,9 +82,9 @@ class PipelineController extends Controller
                 break;
         }
 
-        if ($quote && !$work) {
+        if ($quote && ! $work) {
             $work = $quote->work_id ? $this->workQuery($accountId)->find($quote->work_id) : null;
-            if (!$work) {
+            if (! $work) {
                 $work = $this->workQuery($accountId)
                     ->where('quote_id', $quote->id)
                     ->latest('created_at')
@@ -93,7 +93,7 @@ class PipelineController extends Controller
         }
 
         if ($work) {
-            if (!$invoice) {
+            if (! $invoice) {
                 $invoice = $work->invoice;
             }
             if ($tasks->isEmpty()) {
@@ -274,11 +274,11 @@ class PipelineController extends Controller
 
     private function formatCustomer($customer): ?array
     {
-        if (!$customer) {
+        if (! $customer) {
             return null;
         }
 
-        $name = $customer->company_name ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+        $name = $customer->company_name ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
 
         return [
             'id' => $customer->id,
@@ -315,7 +315,7 @@ class PipelineController extends Controller
 
         if ($request) {
             $present++;
-            if (!$quote) {
+            if (! $quote) {
                 $alerts[] = 'Quote not created yet.';
             }
         }
@@ -324,7 +324,7 @@ class PipelineController extends Controller
             if ($quote->status === 'declined') {
                 $alerts[] = 'Quote declined.';
             }
-            if (!$work) {
+            if (! $work) {
                 $alerts[] = 'Job not created yet.';
             }
         }
@@ -333,7 +333,7 @@ class PipelineController extends Controller
             if (in_array($work->status, ['dispute', 'cancelled'], true)) {
                 $alerts[] = $work->status === 'cancelled' ? 'Job cancelled.' : 'Job in dispute.';
             }
-            if (!$invoice) {
+            if (! $invoice) {
                 $alerts[] = 'Invoice not created yet.';
             }
         }

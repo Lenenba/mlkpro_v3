@@ -12,7 +12,7 @@ class NotificationController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthorized.'], 401);
         }
 
@@ -27,7 +27,7 @@ class NotificationController extends Controller
     public function markAllRead(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthorized.'], 401);
         }
 
@@ -39,7 +39,7 @@ class NotificationController extends Controller
     public function markRead(Request $request, DatabaseNotification $notification)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthorized.'], 401);
         }
 
