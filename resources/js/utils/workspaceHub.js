@@ -141,6 +141,14 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             tone: 'quotes',
             visible: showServices && hasFeature('quotes') && canQuotes && !isSeller,
         },
+        next_actions: {
+            key: 'next_actions',
+            labelKey: 'workspace_hub.modules.next_actions_label',
+            descriptionKey: 'workspace_hub.modules.next_actions',
+            routeName: 'crm.next-actions.index',
+            tone: 'next_actions',
+            visible: showServices && !isClient && !isSeller,
+        },
         orders: {
             key: 'orders',
             labelKey: 'nav.orders',
@@ -350,8 +358,8 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             titleKey: 'workspace_hub.categories.revenue.title',
             icon: 'revenue',
             tone: 'revenue',
-            match: ['customer.*', 'request.*', 'quote.*', 'orders.*', 'sales.*'],
-            moduleKeys: ['customers', 'requests', 'quotes', 'orders', 'sales'],
+            match: ['customer.*', 'request.*', 'quote.*', 'crm.next-actions.*', 'orders.*', 'sales.*'],
+            moduleKeys: ['customers', 'requests', 'quotes', 'next_actions', 'orders', 'sales'],
         },
         {
             key: 'growth',

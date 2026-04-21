@@ -3,11 +3,24 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import StarRating from '@/Components/UI/StarRating.vue';
+import SalesActivityPanel from '@/Components/CRM/SalesActivityPanel.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 const props = defineProps({
     quote: Object,
     activity: {
+        type: Array,
+        default: () => [],
+    },
+    canLogSalesActivity: {
+        type: Boolean,
+        default: false,
+    },
+    salesActivityQuickActions: {
+        type: Array,
+        default: () => [],
+    },
+    salesActivityManualActions: {
         type: Array,
         default: () => [],
     },
@@ -258,34 +271,15 @@ const sourceLines = computed(() => {
                         </div>
                     </section>
 
-                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ $t('quotes.show.activity.title') }}
-                            </h2>
-                            <span class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ activity.length }}
-                            </span>
-                        </div>
-                        <div v-if="activity?.length" class="mt-3 space-y-3">
-                            <div
-                                v-for="item in activity"
-                                :key="item.id"
-                                class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
-                            >
-                                <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
-                                    <span>{{ item.user?.name || $t('quotes.show.activity.author_fallback') }}</span>
-                                    <span :title="formatAbsoluteDate(item.created_at)">{{ formatDate(item.created_at) }}</span>
-                                </div>
-                                <div class="mt-2 font-medium text-stone-800 dark:text-neutral-200">
-                                    {{ item.description || item.action }}
-                                </div>
-                            </div>
-                        </div>
-                        <p v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
-                            {{ $t('quotes.show.activity.empty') }}
-                        </p>
-                    </section>
+                    <SalesActivityPanel
+                        :items="activity"
+                        :can-log="canLogSalesActivity"
+                        :quick-actions="salesActivityQuickActions"
+                        :manual-actions="salesActivityManualActions"
+                        :store-route="route('crm.sales-activities.quotes.store', quote.id)"
+                        i18n-prefix="quotes.show.sales_activity"
+                        dialog-id="quote-sales-activity-modal"
+                    />
                 </div>
                 <div
                     class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">

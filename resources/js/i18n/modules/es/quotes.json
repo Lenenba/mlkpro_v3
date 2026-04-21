@@ -55,6 +55,60 @@
         "empty": "Todavia no hay actividad de recovery para esta cotizacion.",
         "author_fallback": "Sistema"
       },
+      "sales_activity": {
+        "title": "Actividad comercial",
+        "subtitle": "Siga llamadas, notas, proximas acciones y reuniones alrededor de esta cotizacion.",
+        "quick_actions_title": "Acciones rapidas",
+        "quick_actions_hint": "Registre los touchpoints comerciales mas utiles sin salir de la cotizacion.",
+        "open_dialog": "Registrar actividad",
+        "current_next_action": "Proxima accion activa",
+        "due_prefix": "Vence",
+        "empty": "Aun no hay actividad comercial para esta cotizacion.",
+        "dialog_title": "Registrar una actividad comercial",
+        "dialog_hint": "Agregue una nota, un resultado de llamada, una proxima accion o una reunion para esta cotizacion.",
+        "actor_fallback": "Sistema",
+        "cancel": "Cancelar",
+        "save": "Guardar actividad",
+        "messages": {
+          "logged": "Actividad comercial registrada.",
+          "error": "No se pudo registrar esta actividad comercial."
+        },
+        "fields": {
+          "action": "Actividad",
+          "action_placeholder": "Elegir una actividad",
+          "occurred_at": "Fecha de la actividad",
+          "due_at": "Vence el",
+          "description": "Resumen corto",
+          "note": "Nota"
+        },
+        "types": {
+          "note": "Nota",
+          "call": "Llamada",
+          "call_outcome": "Resultado de llamada",
+          "next_action": "Proxima accion",
+          "meeting": "Reunion",
+          "system": "Sistema"
+        },
+        "labels": {
+          "sales_note_added": "Nota comercial",
+          "sales_call_logged": "Llamada registrada",
+          "sales_call_no_answer": "Sin respuesta",
+          "sales_call_quote_discussed": "Cotizacion discutida",
+          "sales_call_to_recontact": "Volver a contactar",
+          "sales_next_action_scheduled": "Proxima accion programada",
+          "sales_next_action_completed": "Proxima accion completada",
+          "sales_next_action_cleared": "Proxima accion cancelada",
+          "sales_meeting_scheduled": "Reunion programada",
+          "sales_meeting_completed": "Reunion completada"
+        },
+        "quick_actions": {
+          "call_logged": "Llamada registrada",
+          "no_answer": "Sin respuesta",
+          "callback_tomorrow": "Llamar manana",
+          "quote_discussed": "Cotizacion discutida",
+          "recontact": "Volver a contactar"
+        }
+      },
       "table": {
         "product_services": "Producto/Servicios",
         "qty": "Cant.",

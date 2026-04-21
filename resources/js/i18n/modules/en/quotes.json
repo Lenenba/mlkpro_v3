@@ -55,6 +55,60 @@
         "empty": "No recovery activity for this quote yet.",
         "author_fallback": "System"
       },
+      "sales_activity": {
+        "title": "Sales activity",
+        "subtitle": "Track calls, notes, next actions, and meetings around this quote.",
+        "quick_actions_title": "Quick actions",
+        "quick_actions_hint": "Log the most useful sales touchpoints without leaving the quote.",
+        "open_dialog": "Log activity",
+        "current_next_action": "Active next action",
+        "due_prefix": "Due",
+        "empty": "No sales activity for this quote yet.",
+        "dialog_title": "Log a sales activity",
+        "dialog_hint": "Add a note, call outcome, next action, or meeting for this quote.",
+        "actor_fallback": "System",
+        "cancel": "Cancel",
+        "save": "Save activity",
+        "messages": {
+          "logged": "Sales activity logged.",
+          "error": "Unable to log this sales activity."
+        },
+        "fields": {
+          "action": "Activity",
+          "action_placeholder": "Choose an activity",
+          "occurred_at": "Activity date",
+          "due_at": "Due at",
+          "description": "Short summary",
+          "note": "Note"
+        },
+        "types": {
+          "note": "Note",
+          "call": "Call",
+          "call_outcome": "Call outcome",
+          "next_action": "Next action",
+          "meeting": "Meeting",
+          "system": "System"
+        },
+        "labels": {
+          "sales_note_added": "Sales note",
+          "sales_call_logged": "Call logged",
+          "sales_call_no_answer": "No answer",
+          "sales_call_quote_discussed": "Quote discussed",
+          "sales_call_to_recontact": "To recontact",
+          "sales_next_action_scheduled": "Next action scheduled",
+          "sales_next_action_completed": "Next action completed",
+          "sales_next_action_cleared": "Next action cleared",
+          "sales_meeting_scheduled": "Meeting scheduled",
+          "sales_meeting_completed": "Meeting completed"
+        },
+        "quick_actions": {
+          "call_logged": "Call logged",
+          "no_answer": "No answer",
+          "callback_tomorrow": "Call back tomorrow",
+          "quote_discussed": "Quote discussed",
+          "recontact": "To recontact"
+        }
+      },
       "table": {
         "product_services": "Product/Services",
         "qty": "Qty.",

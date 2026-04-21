@@ -50,6 +50,8 @@
             "customers": "Fiches clients, notes, tags et historique de relation.",
             "requests": "Intake lead, qualification et suivi de conversion.",
             "quotes": "Propositions commerciales et suivi des devis.",
+            "next_actions_label": "Mes prochaines actions",
+            "next_actions": "Vue priorisee des relances, activites commerciales et actions a traiter.",
             "orders": "Prise de commandes produits et suivi de fulfillment.",
             "sales": "Encaissement et historique des ventes finalisees.",
             "campaigns": "Listes d audience, campagnes, automations et runs.",

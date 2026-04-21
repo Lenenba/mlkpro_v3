@@ -55,6 +55,60 @@
         "empty": "Aucune activite de recovery pour ce devis.",
         "author_fallback": "Systeme"
       },
+      "sales_activity": {
+        "title": "Activite commerciale",
+        "subtitle": "Suivez appels, notes, prochaines actions et rendez-vous autour de ce devis.",
+        "quick_actions_title": "Actions rapides",
+        "quick_actions_hint": "Journalisez les touchpoints commerciaux les plus utiles sans quitter le devis.",
+        "open_dialog": "Journaliser",
+        "current_next_action": "Prochaine action active",
+        "due_prefix": "Echeance",
+        "empty": "Aucune activite commerciale pour ce devis.",
+        "dialog_title": "Journaliser une activite commerciale",
+        "dialog_hint": "Ajoutez une note, un resultat d'appel, une prochaine action ou un rendez-vous sur ce devis.",
+        "actor_fallback": "Systeme",
+        "cancel": "Annuler",
+        "save": "Enregistrer l'activite",
+        "messages": {
+          "logged": "Activite commerciale enregistree.",
+          "error": "Impossible d'enregistrer cette activite commerciale."
+        },
+        "fields": {
+          "action": "Activite",
+          "action_placeholder": "Choisir une activite",
+          "occurred_at": "Date de l'activite",
+          "due_at": "Echeance",
+          "description": "Resume court",
+          "note": "Note"
+        },
+        "types": {
+          "note": "Note",
+          "call": "Appel",
+          "call_outcome": "Resultat d'appel",
+          "next_action": "Prochaine action",
+          "meeting": "Rendez-vous",
+          "system": "Systeme"
+        },
+        "labels": {
+          "sales_note_added": "Note commerciale",
+          "sales_call_logged": "Appel effectue",
+          "sales_call_no_answer": "Pas de reponse",
+          "sales_call_quote_discussed": "Devis discute",
+          "sales_call_to_recontact": "A recontacter",
+          "sales_next_action_scheduled": "Prochaine action planifiee",
+          "sales_next_action_completed": "Prochaine action terminee",
+          "sales_next_action_cleared": "Prochaine action annulee",
+          "sales_meeting_scheduled": "Rendez-vous planifie",
+          "sales_meeting_completed": "Rendez-vous termine"
+        },
+        "quick_actions": {
+          "call_logged": "Appel effectue",
+          "no_answer": "Pas de reponse",
+          "callback_tomorrow": "Rappel demain",
+          "quote_discussed": "Devis discute",
+          "recontact": "A recontacter"
+        }
+      },
       "table": {
         "product_services": "Produits/Services",
         "qty": "Qt.",

@@ -50,6 +50,8 @@
             "customers": "Customer records, notes, tags, and relationship history.",
             "requests": "Lead intake, qualification, and conversion follow-up.",
             "quotes": "Commercial proposals and quote follow-up.",
+            "next_actions_label": "My next actions",
+            "next_actions": "Priority view for follow-ups, sales activities, and actions that need attention.",
             "orders": "Product order intake and fulfillment tracking.",
             "sales": "Checkout and completed sale history.",
             "campaigns": "Audience lists, campaigns, automations, and runs.",

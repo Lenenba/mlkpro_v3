@@ -50,6 +50,8 @@
             "customers": "Fichas de clientes, notas, etiquetas e historial de relacion.",
             "requests": "Entrada de leads, calificacion y seguimiento de conversion.",
             "quotes": "Propuestas comerciales y seguimiento de cotizaciones.",
+            "next_actions_label": "Mis proximas acciones",
+            "next_actions": "Vista priorizada para seguimientos, actividades comerciales y acciones por tratar.",
             "orders": "Entrada de pedidos de productos y seguimiento del fulfillment.",
             "sales": "Cobro e historial de ventas terminadas.",
             "campaigns": "Listas de audiencia, campanas, automatizaciones y ejecuciones.",
