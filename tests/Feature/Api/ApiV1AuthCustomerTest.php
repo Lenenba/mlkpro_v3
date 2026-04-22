@@ -16,7 +16,7 @@ test('api v1 login and customer notes update', function () {
     $token = $loginResponse->json('token');
     expect($token)->not->toBeEmpty();
 
-    $customerResponse = $this->withHeader('Authorization', 'Bearer ' . $token)
+    $customerResponse = $this->withHeader('Authorization', 'Bearer '.$token)
         ->postJson('/api/v1/customer', [
             'portal_access' => false,
             'first_name' => 'Api',
@@ -30,7 +30,7 @@ test('api v1 login and customer notes update', function () {
     expect($customerId)->not->toBeNull();
     expect($customerResponse->json('customer.client_type'))->toBe('individual');
 
-    $this->withHeader('Authorization', 'Bearer ' . $token)
+    $this->withHeader('Authorization', 'Bearer '.$token)
         ->patchJson("/api/v1/customer/{$customerId}/notes", [
             'description' => 'RN note',
         ])

@@ -1,7 +1,7 @@
 <?php
 
-use App\Services\TaskTimingService;
 use App\Models\Task;
+use App\Services\TaskTimingService;
 use Carbon\Carbon as BaseCarbon;
 use Illuminate\Support\Carbon as IlluminateCarbon;
 

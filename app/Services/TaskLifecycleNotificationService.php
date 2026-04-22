@@ -33,7 +33,9 @@ class TaskLifecycleNotificationService
         $task->loadMissing([
             'account:id,name,email,phone_number,locale,company_name,company_notification_settings',
             'assignee.user:id,name,locale',
-            'customer:id,user_id,company_name,first_name,last_name,email,phone,locale',
+            'customer:id,user_id,portal_user_id,company_name,first_name,last_name,email,phone',
+            'customer.user:id,locale',
+            'customer.portalUser:id,locale',
             'work:id,job_title,number',
         ]);
 
