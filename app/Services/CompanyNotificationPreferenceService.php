@@ -7,6 +7,7 @@ use App\Models\User;
 class CompanyNotificationPreferenceService
 {
     public const CATEGORY_TASK_DAY = 'task_day';
+    public const CATEGORY_TASK_UPDATES = 'task_updates';
     public const CATEGORY_SECURITY = 'security';
 
     public const CHANNEL_EMAIL = 'email';
@@ -41,6 +42,17 @@ class CompanyNotificationPreferenceService
         ];
     }
 
+    public function taskUpdateChannels(User $user): array
+    {
+        $settings = $this->resolveFor($user);
+        $channels = $settings[self::CATEGORY_TASK_UPDATES] ?? [];
+
+        return [
+            self::CHANNEL_EMAIL => (bool) ($channels[self::CHANNEL_EMAIL] ?? true),
+            self::CHANNEL_SMS => (bool) ($channels[self::CHANNEL_SMS] ?? false),
+        ];
+    }
+
     public function twoFactorSmsEnabled(User $user): bool
     {
         $settings = $this->resolveFor($user);
@@ -56,6 +68,10 @@ class CompanyNotificationPreferenceService
                 self::CHANNEL_EMAIL => true,
                 self::CHANNEL_SMS => false,
                 self::CHANNEL_WHATSAPP => false,
+            ],
+            self::CATEGORY_TASK_UPDATES => [
+                self::CHANNEL_EMAIL => true,
+                self::CHANNEL_SMS => false,
             ],
             self::CATEGORY_SECURITY => [
                 self::CHANNEL_TWO_FACTOR_SMS => false,

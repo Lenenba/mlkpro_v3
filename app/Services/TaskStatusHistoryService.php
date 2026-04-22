@@ -10,6 +10,11 @@ class TaskStatusHistoryService
 {
     public function record(Task $task, ?User $actor, array $context = []): TaskStatusHistory
     {
+        $reasonCode = $context['reason_code'] ?? null;
+        if ($reasonCode === null && TaskTimingService::isValidCompletionReason($task->completion_reason)) {
+            $reasonCode = $task->completion_reason;
+        }
+
         $payload = [
             'task_id' => $task->id,
             'user_id' => $actor?->id,
@@ -18,7 +23,7 @@ class TaskStatusHistoryService
             'timing_status' => $context['timing_status'] ?? TaskTimingService::resolveTimingStatus($task),
             'due_date' => $task->due_date,
             'completed_at' => $task->completed_at,
-            'reason_code' => $context['reason_code'] ?? $task->completion_reason,
+            'reason_code' => $reasonCode,
             'note' => $context['note'] ?? null,
             'action' => $context['action'] ?? 'manual',
             'metadata' => $context['metadata'] ?? null,

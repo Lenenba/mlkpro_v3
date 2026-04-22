@@ -74,7 +74,7 @@ class TaskBillingService
     public function billIfWorkComplete(Work $work, array $settings, ?User $actor = null): void
     {
         $remaining = $work->tasks()
-            ->where('status', '!=', 'done')
+            ->whereIn('status', Task::OPEN_STATUSES)
             ->count();
 
         if ($remaining > 0) {
@@ -337,7 +337,7 @@ class TaskBillingService
         }
 
         $remaining = $work->tasks()
-            ->where('status', '!=', 'done')
+            ->whereIn('status', Task::OPEN_STATUSES)
             ->count();
 
         if ($remaining > 0) {

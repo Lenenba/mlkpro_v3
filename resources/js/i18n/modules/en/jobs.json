@@ -2,6 +2,7 @@
   "jobs": {
     "title": "Jobs",
     "create_title": "Create job",
+    "edit_title": "Edit job",
     "show_title": "View job",
     "proofs_title": "Job proofs",
     "company_fallback": "Company",

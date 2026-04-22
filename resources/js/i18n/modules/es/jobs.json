@@ -2,6 +2,7 @@
   "jobs": {
     "title": "Trabajos",
     "create_title": "crear trabajo",
+    "edit_title": "Editar trabajo",
     "show_title": "Ver trabajo",
     "proofs_title": "Pruebas de trabajo",
     "company_fallback": "Empresa",

@@ -69,6 +69,7 @@
       "tax_rate": "Tasa impositiva (%)",
       "price": "Precio",
       "description": "Descripción",
+      "image": "Imagen (opcional)",
       "errors": {
         "category_name_required": "Introduzca un nombre de categoría.",
         "category_create_failed": "No se puede crear la categoría.",

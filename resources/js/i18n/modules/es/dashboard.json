@@ -44,7 +44,8 @@
       "jobs": "trabajos",
       "auto_started": "{count} iniciado automáticamente",
       "auto_completed": "{count} completado automáticamente",
-      "auto_completed_at": "{count} completado automáticamente a las {time}"
+      "auto_completed_at": "{count} completado automáticamente a las {time}",
+      "overdue_at": "{count} marcado como atrasado a las {time}"
     },
     "labels": {
       "unknown_customer": "Cliente desconocido",
@@ -242,7 +243,8 @@
       "task": {
         "todo": "Por hacer",
         "in_progress": "En progreso",
-        "done": "Hecho"
+        "done": "Hecho",
+        "cancelled": "Cancelada"
       },
       "invoice": {
         "draft": "Borrador",

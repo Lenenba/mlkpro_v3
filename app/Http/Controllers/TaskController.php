@@ -15,6 +15,7 @@ use App\Models\Work;
 use App\Queries\Tasks\BuildTaskIndexData;
 use App\Services\CompanyFeatureService;
 use App\Services\InventoryService;
+use App\Services\TaskLifecycleNotificationService;
 use App\Services\TaskStatusHistoryService;
 use App\Services\TaskTimingService;
 use App\Services\UsageLimitService;
@@ -205,7 +206,9 @@ class TaskController extends Controller
                 ->find($requestId);
         }
 
-        $status = $validated['status'] ?? 'todo';
+        $status = $validated['status'] ?? Task::STATUS_TODO;
+        $isDone = $status === Task::STATUS_DONE;
+        $isCancelled = $status === Task::STATUS_CANCELLED;
         $timezone = TaskTimingService::resolveTimezoneForAccountId($accountId);
         $dueDateValue = $validated['due_date'] ?? null;
         $dueDate = $dueDateValue ? Carbon::parse($dueDateValue, $timezone)->startOfDay() : null;
@@ -216,43 +219,48 @@ class TaskController extends Controller
             $endTime = $this->normalizeTime($validated['end_time'] ?? null);
         }
 
-        if ($status === 'in_progress' && $dueDate && TaskTimingService::isDueDateInFuture($dueDate, Carbon::now($timezone))) {
-            $message = 'This task cannot be marked in progress before its scheduled date.';
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => $message,
-                    'errors' => [
-                        'status' => [$message],
-                    ],
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors([
-                'status' => $message,
-            ]);
+        if ($status === Task::STATUS_IN_PROGRESS && $dueDate && TaskTimingService::isDueDateInFuture($dueDate, Carbon::now($timezone))) {
+            return $this->validationErrorResponse(
+                $request,
+                'status',
+                'This task cannot be marked in progress before its scheduled date.'
+            );
         }
 
         $completedAt = TaskTimingService::normalizeCompletedAt($validated['completed_at'] ?? null, $timezone);
-        if ($status === 'done' && ! $completedAt) {
+        if ($isDone && ! $completedAt) {
             $completedAt = now();
         }
 
-        if ($status === 'done' && TaskTimingService::shouldRequireCompletionReason($dueDate, $completedAt)
+        if ($isDone && TaskTimingService::shouldRequireCompletionReason($dueDate, $completedAt)
             && empty($validated['completion_reason'])) {
-            $message = 'A completion reason is required when the actual date differs from the planned date.';
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => $message,
-                    'errors' => [
-                        'completion_reason' => [$message],
-                    ],
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors([
-                'completion_reason' => $message,
-            ]);
+            return $this->validationErrorResponse(
+                $request,
+                'completion_reason',
+                'A completion reason is required when the actual date differs from the planned date.'
+            );
         }
+
+        $cancellationReason = $this->normalizeOptionalText($validated['cancellation_reason'] ?? null);
+        $cancelledAt = TaskTimingService::normalizeCompletedAt($validated['cancelled_at'] ?? null, $timezone);
+        if ($isCancelled && ! $cancelledAt) {
+            $cancelledAt = now();
+        }
+
+        if ($isCancelled && ! $cancellationReason) {
+            return $this->validationErrorResponse(
+                $request,
+                'cancellation_reason',
+                'A cancellation reason is required when a task is cancelled.'
+            );
+        }
+
+        $isLateOpenTask = in_array($status, Task::OPEN_STATUSES, true)
+            && $dueDate
+            && $dueDate->lt(Carbon::now($timezone)->startOfDay());
+        $delayReason = $isLateOpenTask
+            ? $this->normalizeOptionalText($validated['delay_reason'] ?? null)
+            : null;
 
         $conflictTask = $this->findScheduleConflict(
             $accountId,
@@ -279,12 +287,12 @@ class TaskController extends Controller
             'due_date' => $validated['due_date'] ?? null,
             'start_time' => $startTime,
             'end_time' => $endTime,
-            'completed_at' => $status === 'done' ? $completedAt : null,
-            'completion_reason' => $status === 'done' ? ($validated['completion_reason'] ?? null) : null,
-            'delay_started_at' => $status !== 'done' && $dueDate
-                && $dueDate->lt(Carbon::now($timezone)->startOfDay())
-                ? now()
-                : null,
+            'completed_at' => $isDone ? $completedAt : null,
+            'cancelled_at' => $isCancelled ? $cancelledAt : null,
+            'completion_reason' => $isDone ? ($validated['completion_reason'] ?? null) : null,
+            'cancellation_reason' => $isCancelled ? $cancellationReason : null,
+            'delay_reason' => $delayReason,
+            'delay_started_at' => $isLateOpenTask ? now() : null,
         ]);
 
         if ($request->has('materials')) {
@@ -298,8 +306,18 @@ class TaskController extends Controller
         app(TaskStatusHistoryService::class)->record($task, $user, [
             'from_status' => null,
             'to_status' => $task->status,
-            'action' => 'created',
+            'action' => $task->isCancelled() ? 'cancelled' : 'created',
+            'reason_code' => $task->completion_reason,
+            'note' => $task->cancellation_reason ?: $task->delay_reason,
+            'metadata' => [
+                'delay_reason' => $task->delay_reason,
+                'cancellation_reason' => $task->cancellation_reason,
+            ],
         ]);
+
+        if ($task->isCancelled()) {
+            app(TaskLifecycleNotificationService::class)->sendCancelled($task, $user);
+        }
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -321,19 +339,8 @@ class TaskController extends Controller
             ? app(CompanyFeatureService::class)->hasFeature($user, 'team_members')
             : false;
 
-        if ($task->status === 'done') {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'This task is locked after completion.',
-                    'errors' => [
-                        'task' => ['This task is locked after completion.'],
-                    ],
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors([
-                'task' => 'This task is locked after completion.',
-            ]);
+        if ($task->isClosed()) {
+            return $this->lockedTaskResponse($request, $task);
         }
 
         $isManager = $request->isManager();
@@ -399,9 +406,11 @@ class TaskController extends Controller
             }
         }
 
-        $wasInProgress = $task->status === 'in_progress';
-        $wasDone = $task->status === 'done';
-        $isDone = $updates['status'] === 'done';
+        $wasInProgress = $task->status === Task::STATUS_IN_PROGRESS;
+        $wasDone = $task->status === Task::STATUS_DONE;
+        $previousDelayStartedAt = $task->delay_started_at?->toDateTimeString();
+        $isDone = $updates['status'] === Task::STATUS_DONE;
+        $isCancelled = $updates['status'] === Task::STATUS_CANCELLED;
 
         $timezone = TaskTimingService::resolveTimezoneForAccountId($accountId);
         $dueDateValue = array_key_exists('due_date', $updates)
@@ -409,20 +418,12 @@ class TaskController extends Controller
             : ($task->due_date ? $task->due_date->toDateString() : null);
         $dueDate = $dueDateValue ? Carbon::parse($dueDateValue, $timezone)->startOfDay() : null;
 
-        if ($updates['status'] === 'in_progress' && $dueDate && TaskTimingService::isDueDateInFuture($dueDate, Carbon::now($timezone))) {
-            $message = 'This task cannot be marked in progress before its scheduled date.';
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => $message,
-                    'errors' => [
-                        'status' => [$message],
-                    ],
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors([
-                'status' => $message,
-            ]);
+        if ($updates['status'] === Task::STATUS_IN_PROGRESS && $dueDate && TaskTimingService::isDueDateInFuture($dueDate, Carbon::now($timezone))) {
+            return $this->validationErrorResponse(
+                $request,
+                'status',
+                'This task cannot be marked in progress before its scheduled date.'
+            );
         }
 
         $completionReason = $validated['completion_reason'] ?? null;
@@ -433,32 +434,57 @@ class TaskController extends Controller
 
         if ($isDone && TaskTimingService::shouldRequireCompletionReason($dueDate, $completedAt)
             && empty($completionReason)) {
-            $message = 'A completion reason is required when the actual date differs from the planned date.';
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => $message,
-                    'errors' => [
-                        'completion_reason' => [$message],
-                    ],
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors([
-                'completion_reason' => $message,
-            ]);
+            return $this->validationErrorResponse(
+                $request,
+                'completion_reason',
+                'A completion reason is required when the actual date differs from the planned date.'
+            );
         }
+
+        $cancellationReason = $this->normalizeOptionalText($validated['cancellation_reason'] ?? null);
+        $cancelledAt = TaskTimingService::normalizeCompletedAt($validated['cancelled_at'] ?? null, $timezone);
+        if ($isCancelled && ! $cancelledAt) {
+            $cancelledAt = now();
+        }
+
+        if ($isCancelled && ! $cancellationReason) {
+            return $this->validationErrorResponse(
+                $request,
+                'cancellation_reason',
+                'A cancellation reason is required when a task is cancelled.'
+            );
+        }
+
+        $delayReasonProvided = array_key_exists('delay_reason', $validated);
+        $delayReason = $delayReasonProvided
+            ? $this->normalizeOptionalText($validated['delay_reason'] ?? null)
+            : $task->delay_reason;
 
         if ($isDone) {
             $updates['completed_at'] = $completedAt;
             $updates['completion_reason'] = $completionReason;
+            $updates['cancelled_at'] = null;
+            $updates['cancellation_reason'] = null;
             $updates['delay_started_at'] = null;
+            $updates['delay_reason'] = $delayReason;
+        } elseif ($isCancelled) {
+            $updates['completed_at'] = null;
+            $updates['completion_reason'] = null;
+            $updates['cancelled_at'] = $cancelledAt;
+            $updates['cancellation_reason'] = $cancellationReason;
+            $updates['delay_started_at'] = null;
+            $updates['delay_reason'] = $delayReason;
         } else {
             $updates['completed_at'] = null;
             $updates['completion_reason'] = null;
+            $updates['cancelled_at'] = null;
+            $updates['cancellation_reason'] = null;
             if ($dueDate && $dueDate->lt(Carbon::now($timezone)->startOfDay())) {
                 $updates['delay_started_at'] = $task->delay_started_at ?? now();
+                $updates['delay_reason'] = $delayReason;
             } else {
                 $updates['delay_started_at'] = null;
+                $updates['delay_reason'] = null;
             }
         }
 
@@ -466,6 +492,10 @@ class TaskController extends Controller
         $statusChanged = $previousStatus !== $updates['status'];
         $completedAtChanged = ($task->completed_at?->toDateTimeString() ?? null) !== ($updates['completed_at']?->toDateTimeString() ?? null);
         $completionReasonChanged = ($task->completion_reason ?? null) !== ($updates['completion_reason'] ?? null);
+        $cancelledAtChanged = ($task->cancelled_at?->toDateTimeString() ?? null) !== ($updates['cancelled_at']?->toDateTimeString() ?? null);
+        $cancellationReasonChanged = ($task->cancellation_reason ?? null) !== ($updates['cancellation_reason'] ?? null);
+        $delayReasonChanged = ($task->delay_reason ?? null) !== ($updates['delay_reason'] ?? null);
+        $delayStartedAtChanged = $previousDelayStartedAt !== ($updates['delay_started_at']?->toDateTimeString() ?? null);
 
         $task->update($updates);
 
@@ -473,7 +503,7 @@ class TaskController extends Controller
             $this->syncTaskMaterials($task, $validated['materials'] ?? [], $accountId, $wasInProgress, $user);
         }
 
-        if (! $wasInProgress && $updates['status'] === 'in_progress') {
+        if (! $wasInProgress && $updates['status'] === Task::STATUS_IN_PROGRESS) {
             $this->applyMaterialStock($task, $user);
         }
 
@@ -482,12 +512,31 @@ class TaskController extends Controller
                 ->handleTaskCompleted($task, $user);
         }
 
-        if ($statusChanged || $completedAtChanged || $completionReasonChanged) {
+        if ($statusChanged || $completedAtChanged || $completionReasonChanged || $cancelledAtChanged || $cancellationReasonChanged || $delayReasonChanged || $delayStartedAtChanged) {
+            $historyAction = 'manual';
+            if ($task->isCancelled() && $previousStatus !== Task::STATUS_CANCELLED) {
+                $historyAction = 'cancelled';
+            } elseif ($delayReasonChanged && ! $statusChanged && $task->isOpen()) {
+                $historyAction = 'delay_reason_updated';
+            }
+
             app(TaskStatusHistoryService::class)->record($task, $user, [
                 'from_status' => $previousStatus,
                 'to_status' => $task->status,
-                'action' => 'manual',
+                'action' => $historyAction,
+                'reason_code' => $task->completion_reason,
+                'note' => $task->cancellation_reason ?: ($delayReasonChanged ? $task->delay_reason : null),
+                'metadata' => [
+                    'delay_reason' => $task->delay_reason,
+                    'cancellation_reason' => $task->cancellation_reason,
+                ],
             ]);
+        }
+
+        if ($task->isCancelled() && $previousStatus !== Task::STATUS_CANCELLED) {
+            app(TaskLifecycleNotificationService::class)->sendCancelled($task, $user);
+        } elseif (! $previousDelayStartedAt && $task->delay_started_at) {
+            app(TaskLifecycleNotificationService::class)->sendOverdue($task, $user);
         }
 
         if ($this->shouldReturnJson($request)) {
@@ -535,6 +584,14 @@ class TaskController extends Controller
     public function destroy(Task $task)
     {
         $this->authorize('delete', $task);
+
+        if ($task->isCancelled()) {
+            return $this->validationErrorResponse(
+                request(),
+                'task',
+                'Cancelled tasks are kept for history and cannot be deleted.'
+            );
+        }
 
         $task->delete();
 
@@ -792,6 +849,7 @@ class TaskController extends Controller
             ->where('assigned_team_member_id', $assignedTeamMemberId)
             ->whereDate('due_date', $date)
             ->whereNotNull('start_time')
+            ->whereNotIn('status', Task::CLOSED_STATUSES)
             ->when($ignoreTaskId, fn ($query) => $query->where('id', '!=', $ignoreTaskId))
             ->get(['id', 'title', 'start_time', 'end_time']);
 
@@ -879,5 +937,41 @@ class TaskController extends Controller
     {
         $task->setAttribute('assigned_team_member_id', null);
         $task->setRelation('assignee', null);
+    }
+
+    private function normalizeOptionalText($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $normalized = trim((string) $value);
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function validationErrorResponse(Request $request, string $field, string $message)
+    {
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => $message,
+                'errors' => [
+                    $field => [$message],
+                ],
+            ], 422);
+        }
+
+        return redirect()->back()->withErrors([
+            $field => $message,
+        ]);
+    }
+
+    private function lockedTaskResponse(Request $request, Task $task)
+    {
+        $message = $task->isCancelled()
+            ? 'This task is locked after cancellation.'
+            : 'This task is locked after completion.';
+
+        return $this->validationErrorResponse($request, 'task', $message);
     }
 }

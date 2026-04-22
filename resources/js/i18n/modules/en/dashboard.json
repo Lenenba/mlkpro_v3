@@ -44,7 +44,8 @@
       "jobs": "jobs",
       "auto_started": "{count} auto started",
       "auto_completed": "{count} auto completed",
-      "auto_completed_at": "{count} auto completed at {time}"
+      "auto_completed_at": "{count} auto completed at {time}",
+      "overdue_at": "{count} marked overdue at {time}"
     },
     "labels": {
       "unknown_customer": "Unknown customer",
@@ -242,7 +243,8 @@
       "task": {
         "todo": "To do",
         "in_progress": "In progress",
-        "done": "Done"
+        "done": "Done",
+        "cancelled": "Cancelled"
       },
       "invoice": {
         "draft": "Draft",

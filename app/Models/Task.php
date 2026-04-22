@@ -16,10 +16,29 @@ class Task extends Model
     /** @use HasFactory<\Database\Factories\TaskFactory> */
     use HasFactory;
 
+    public const STATUS_TODO = 'todo';
+
+    public const STATUS_IN_PROGRESS = 'in_progress';
+
+    public const STATUS_DONE = 'done';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUSES = [
-        'todo',
-        'in_progress',
-        'done',
+        self::STATUS_TODO,
+        self::STATUS_IN_PROGRESS,
+        self::STATUS_DONE,
+        self::STATUS_CANCELLED,
+    ];
+
+    public const OPEN_STATUSES = [
+        self::STATUS_TODO,
+        self::STATUS_IN_PROGRESS,
+    ];
+
+    public const CLOSED_STATUSES = [
+        self::STATUS_DONE,
+        self::STATUS_CANCELLED,
     ];
 
     protected $fillable = [
@@ -38,7 +57,9 @@ class Task extends Model
         'start_time',
         'end_time',
         'completed_at',
+        'cancelled_at',
         'completion_reason',
+        'cancellation_reason',
         'delay_reason',
         'delay_started_at',
         'client_notified_at',
@@ -55,6 +76,7 @@ class Task extends Model
     protected $casts = [
         'due_date' => 'date',
         'completed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
         'delay_started_at' => 'datetime',
         'client_notified_at' => 'datetime',
         'auto_started_at' => 'datetime',
@@ -122,6 +144,36 @@ class Task extends Model
     public function scopeForAccount(Builder $query, int $accountId): Builder
     {
         return $query->where('account_id', $accountId);
+    }
+
+    public function scopeOpen(Builder $query): Builder
+    {
+        return $query->whereIn('status', self::OPEN_STATUSES);
+    }
+
+    public function scopeClosed(Builder $query): Builder
+    {
+        return $query->whereIn('status', self::CLOSED_STATUSES);
+    }
+
+    public function isDone(): bool
+    {
+        return $this->status === self::STATUS_DONE;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === self::STATUS_CANCELLED;
+    }
+
+    public function isClosed(): bool
+    {
+        return in_array($this->status, self::CLOSED_STATUSES, true);
+    }
+
+    public function isOpen(): bool
+    {
+        return in_array($this->status, self::OPEN_STATUSES, true);
     }
 
     public function getTimingStatusAttribute(): ?string

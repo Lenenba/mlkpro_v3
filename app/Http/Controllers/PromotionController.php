@@ -170,7 +170,6 @@ class PromotionController extends Controller
 
         if (
             ! $owner
-            || $owner->company_type !== 'products'
             || ! app(CompanyFeatureService::class)->hasFeature($owner, 'promotions')
         ) {
             abort(403);
@@ -181,7 +180,13 @@ class PromotionController extends Controller
             $membership = $user->relationLoaded('teamMembership')
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
-            $canManage = $membership?->hasPermission('sales.manage') ?? false;
+            $canManage = (bool) (
+                $membership?->hasPermission('sales.manage')
+                || $membership?->hasPermission('quotes.edit')
+                || $membership?->hasPermission('jobs.edit')
+                || $membership?->hasPermission('tasks.edit')
+                || $membership?->hasPermission('campaigns.manage')
+            );
         }
 
         return [$owner, $canManage];

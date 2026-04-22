@@ -2,6 +2,7 @@
   "jobs": {
     "title": "Chantiers",
     "create_title": "Creer chantier",
+    "edit_title": "Modifier chantier",
     "show_title": "Voir le chantier",
     "proofs_title": "Preuves du chantier",
     "company_fallback": "Entreprise",

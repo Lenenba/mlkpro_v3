@@ -656,16 +656,17 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::delete('/campaign-automations/{rule}', [CampaignAutomationController::class, 'destroy'])->name('campaign-automations.destroy');
     });
 
-    // Sales Management (products)
-    Route::middleware('company.feature:sales')->group(function () {
-        Route::get('/orders', [SaleController::class, 'ordersIndex'])->name('orders.index');
-        Route::middleware('company.feature:promotions')->group(function () {
+    Route::middleware('company.feature:promotions')->group(function () {
         Route::get('/promotions', [PromotionController::class, 'index'])->name('promotions.index');
         Route::post('/promotions', [PromotionController::class, 'store'])->name('promotions.store');
         Route::put('/promotions/{promotion}', [PromotionController::class, 'update'])->name('promotions.update');
         Route::patch('/promotions/{promotion}/status', [PromotionController::class, 'updateStatus'])->name('promotions.status.update');
         Route::delete('/promotions/{promotion}', [PromotionController::class, 'destroy'])->name('promotions.destroy');
-        });
+    });
+
+    // Sales Management (products)
+    Route::middleware('company.feature:sales')->group(function () {
+        Route::get('/orders', [SaleController::class, 'ordersIndex'])->name('orders.index');
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
         Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
         Route::get('/sales/{sale}/edit', [SaleController::class, 'edit'])->name('sales.edit');

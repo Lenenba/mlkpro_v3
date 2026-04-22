@@ -19,6 +19,10 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    deleteDisabled: {
+        type: Boolean,
+        default: false,
+    },
     locked: {
         type: Boolean,
         default: false,
@@ -61,6 +65,14 @@ const { t } = useI18n();
             >
                 {{ $t('tasks.status.done') }}
             </button>
+            <button
+                type="button"
+                :disabled="!canChangeStatus || task.status === 'cancelled' || locked"
+                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback"
+                @click="$emit('set-status', 'cancelled')"
+            >
+                {{ $t('tasks.status.cancelled') }}
+            </button>
 
             <template v-if="canManage || canDelete">
                 <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
@@ -86,8 +98,9 @@ const { t } = useI18n();
             <button
                 v-if="canDelete"
                 type="button"
+                :disabled="deleteDisabled"
                 data-tone="danger"
-                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback"
+                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:pointer-events-none dark:text-red-400 dark:hover:bg-neutral-800 action-feedback"
                 @click="$emit('delete')"
             >
                 {{ $t('tasks.actions.delete') }}

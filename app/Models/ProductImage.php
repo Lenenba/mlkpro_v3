@@ -36,6 +36,14 @@ class ProductImage extends Model
             return $path;
         }
 
+        if ($path === Product::LEGACY_DEFAULT_IMAGE_PATH) {
+            return Product::defaultImageUrlFor(Product::ITEM_TYPE_PRODUCT);
+        }
+
+        if (Product::isPublicAssetPath($path)) {
+            return asset(ltrim($path, '/'));
+        }
+
         return Storage::url($path);
     }
 }

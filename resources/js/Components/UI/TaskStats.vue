@@ -15,7 +15,7 @@ const formatNumber = (value) =>
 </script>
 
 <template>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 lg:gap-5">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3 lg:gap-5">
         <div
             class="p-4 sm:p-5 bg-white border border-t-4 border-t-indigo-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
             <div class="sm:flex sm:gap-x-3">
@@ -67,6 +67,20 @@ const formatNumber = (value) =>
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.done) }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div
+            class="p-4 sm:p-5 bg-white border border-t-4 border-t-rose-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+            <div class="sm:flex sm:gap-x-3">
+                <div class="sm:order-1 grow space-y-1">
+                    <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
+                        {{ t('tasks.stats.cancelled') }}
+                    </h2>
+                    <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
+                        {{ formatNumber(stats.cancelled) }}
                     </p>
                 </div>
             </div>

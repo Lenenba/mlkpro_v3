@@ -30,6 +30,7 @@ function promotionOwner(array $overrides = []): User
         'company_features' => [
             'sales' => true,
             'products' => true,
+            'promotions' => true,
         ],
         'onboarding_completed_at' => now(),
     ], $overrides));
@@ -236,4 +237,100 @@ test('promotion usage limits prevent reusing the same promo code and service tar
     expect($servicePromotion)->not->toBeNull()
         ->and($servicePromotion->code)->toBe('SVC15')
         ->and($limitedPromotion->fresh()->usages()->count())->toBe(1);
+});
+
+test('disabled promotions module blocks the admin screen and bypasses promotion pricing in sales', function () {
+    $owner = promotionOwner([
+        'company_features' => [
+            'sales' => true,
+            'products' => true,
+            'promotions' => false,
+        ],
+    ]);
+    $customer = promotionCustomer($owner);
+    $product = promotionCatalogItem($owner, Product::ITEM_TYPE_PRODUCT, [
+        'price' => 100,
+        'tax_rate' => 10,
+    ]);
+
+    Promotion::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'name' => 'Hidden promo',
+        'target_type' => PromotionTargetType::GLOBAL->value,
+        'discount_type' => PromotionDiscountType::PERCENTAGE->value,
+        'discount_value' => 15,
+        'start_date' => now()->subDay()->toDateString(),
+        'end_date' => now()->addDay()->toDateString(),
+        'status' => PromotionStatus::ACTIVE->value,
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('promotions.index'))
+        ->assertRedirect(url('/'))
+        ->assertSessionHas('warning', 'Module indisponible pour votre plan.');
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->post(route('sales.store'), promotionPayload($product, $customer))
+        ->assertRedirect(route('sales.create'));
+
+    $sale = Sale::query()->latest()->firstOrFail();
+
+    expect($sale->promotion_id)->toBeNull()
+        ->and($sale->discount_source)->toBeNull()
+        ->and((float) $sale->pricing_discount_total)->toBe(0.0)
+        ->and((float) $sale->tax_total)->toBe(10.0)
+        ->and((float) $sale->total)->toBe(110.0);
+});
+
+test('service companies can access the promotions module without the sales module', function () {
+    $roleId = (int) Role::query()->firstOrCreate(
+        ['name' => 'owner'],
+        ['description' => 'Owner role']
+    )->id;
+
+    $owner = User::query()->create([
+        'name' => 'Service Promotions Owner',
+        'email' => 'service-promotions-owner@example.com',
+        'password' => 'password',
+        'role_id' => $roleId,
+        'company_type' => 'services',
+        'company_features' => [
+            'services' => true,
+            'sales' => false,
+            'promotions' => true,
+        ],
+        'onboarding_completed_at' => now(),
+    ]);
+
+    $service = promotionCatalogItem($owner, Product::ITEM_TYPE_SERVICE, [
+        'name' => 'Spring Window Cleaning',
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('promotions.index'))
+        ->assertOk();
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->post(route('promotions.store'), [
+            'name' => 'Spring service promo',
+            'code' => 'SPRING15',
+            'target_type' => PromotionTargetType::SERVICE->value,
+            'target_id' => $service->id,
+            'discount_type' => PromotionDiscountType::PERCENTAGE->value,
+            'discount_value' => 15,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => now()->addWeek()->toDateString(),
+            'status' => PromotionStatus::ACTIVE->value,
+        ])
+        ->assertRedirect(route('promotions.index'));
+
+    expect(Promotion::query()
+        ->where('user_id', $owner->id)
+        ->where('target_type', PromotionTargetType::SERVICE->value)
+        ->exists())->toBeTrue();
 });

@@ -343,9 +343,20 @@ const destroyService = (service) => {
                         </template>
                         <template v-else>
                             <td class="size-px whitespace-nowrap px-5 py-2">
-                                <div class="flex flex-col">
-                                    <span class="text-sm text-stone-700 dark:text-neutral-200">{{ service.name }}</span>
-                                    <span v-if="service.unit" class="text-xs text-stone-500 dark:text-neutral-500">{{ service.unit }}</span>
+                                <div class="flex items-center gap-3">
+                                    <div class="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-stone-200 bg-stone-100 text-sm font-semibold text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                        <img
+                                            v-if="service.image_url"
+                                            :src="service.image_url"
+                                            :alt="service.name"
+                                            class="h-full w-full object-cover"
+                                        >
+                                        <span v-else>{{ service.name?.charAt(0) || '?' }}</span>
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="text-sm text-stone-700 dark:text-neutral-200">{{ service.name }}</span>
+                                        <span v-if="service.unit" class="text-xs text-stone-500 dark:text-neutral-500">{{ service.unit }}</span>
+                                    </div>
                                 </div>
                             </td>
                             <td class="size-px whitespace-nowrap px-5 py-2">

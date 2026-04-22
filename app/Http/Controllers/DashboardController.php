@@ -1931,9 +1931,9 @@ class DashboardController extends Controller
             ->whereNotNull('auto_started_at')
             ->whereDate('auto_started_at', $today)
             ->count();
-        $tasksCompleted = (clone $tasksQuery)
-            ->whereNotNull('auto_completed_at')
-            ->whereDate('auto_completed_at', $today)
+        $tasksOverdue = (clone $tasksQuery)
+            ->whereNotNull('end_alerted_at')
+            ->whereDate('end_alerted_at', $today)
             ->count();
         $worksStarted = (clone $worksQuery)
             ->whereNotNull('auto_started_at')
@@ -1946,7 +1946,7 @@ class DashboardController extends Controller
 
         return [
             'tasks_started' => $tasksStarted,
-            'tasks_completed' => $tasksCompleted,
+            'tasks_overdue' => $tasksOverdue,
             'works_started' => $worksStarted,
             'works_completed' => $worksCompleted,
         ];

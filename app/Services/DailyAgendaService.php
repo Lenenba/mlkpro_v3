@@ -26,7 +26,7 @@ class DailyAgendaService
         return [
             'tasks_started' => $this->handleTaskStarts($now),
             'works_started' => $this->handleWorkStarts($now),
-            'tasks_completed' => $this->handleTaskEndOfDay($now),
+            'tasks_late_today' => $this->handleTaskEndOfDay($now),
             'tasks_overdue' => $this->handleTaskOverdue($now),
             'clients_notified' => $this->handleClientNotifications($now),
             'shift_reminders' => $this->handleShiftReminders($now),
@@ -171,7 +171,7 @@ class DailyAgendaService
         $endOfDay = config('agenda.end_of_day', '18:00:00');
         $accountIds = Task::query()
             ->whereNotNull('due_date')
-            ->where('status', '!=', 'done')
+            ->open()
             ->whereNull('end_alerted_at')
             ->distinct()
             ->pluck('account_id')
@@ -189,9 +189,8 @@ class DailyAgendaService
             $tasks = Task::query()
                 ->forAccount($accountId)
                 ->whereDate('due_date', $today)
-                ->where('status', '!=', 'done')
+                ->open()
                 ->whereNull('end_alerted_at')
-                ->with(['assignee.user:id,name,locale', 'account:id,name,locale'])
                 ->get([
                     'id',
                     'title',
@@ -199,28 +198,29 @@ class DailyAgendaService
                     'due_date',
                     'assigned_team_member_id',
                     'account_id',
-                    'auto_completed_at',
+                    'customer_id',
+                    'work_id',
+                    'delay_reason',
+                    'delay_started_at',
                 ]);
 
             foreach ($tasks as $task) {
-                $previousStatus = $task->status;
-                $task->status = 'done';
-                $task->completed_at = $now;
-                $task->completion_reason = null;
-                $task->delay_started_at = null;
-                $task->auto_completed_at = $task->auto_completed_at ?? $now;
+                $task->delay_started_at = $task->delay_started_at ?? $now;
                 $task->end_alerted_at = $now;
                 $task->save();
 
                 app(TaskStatusHistoryService::class)->record($task, null, [
-                    'from_status' => $previousStatus,
+                    'from_status' => $task->status,
                     'to_status' => $task->status,
-                    'action' => 'auto_completed',
+                    'action' => 'overdue',
+                    'note' => $task->delay_reason,
+                    'metadata' => [
+                        'delay_reason' => $task->delay_reason,
+                        'source' => 'end_of_day',
+                    ],
                 ]);
 
-                app(TaskBillingService::class)->handleTaskCompleted($task, null);
-
-                $this->notifyTaskEndOfDay($task);
+                app(TaskLifecycleNotificationService::class)->sendOverdue($task);
                 $count += 1;
             }
         }
@@ -232,7 +232,7 @@ class DailyAgendaService
     {
         $accountIds = Task::query()
             ->whereNotNull('due_date')
-            ->where('status', '!=', 'done')
+            ->open()
             ->whereNull('delay_started_at')
             ->distinct()
             ->pluck('account_id')
@@ -246,9 +246,9 @@ class DailyAgendaService
                 ->forAccount($accountId)
                 ->whereNotNull('due_date')
                 ->whereDate('due_date', '<', $today)
-                ->where('status', '!=', 'done')
+                ->open()
                 ->whereNull('delay_started_at')
-                ->get(['id', 'status', 'due_date', 'completed_at', 'account_id']);
+                ->get(['id', 'status', 'title', 'due_date', 'completed_at', 'account_id', 'customer_id', 'work_id', 'delay_reason', 'delay_started_at']);
 
             foreach ($tasks as $task) {
                 $task->delay_started_at = $now;
@@ -258,8 +258,14 @@ class DailyAgendaService
                     'from_status' => $task->status,
                     'to_status' => $task->status,
                     'action' => 'overdue',
+                    'note' => $task->delay_reason,
+                    'metadata' => [
+                        'delay_reason' => $task->delay_reason,
+                        'source' => 'rollover',
+                    ],
                 ]);
 
+                app(TaskLifecycleNotificationService::class)->sendOverdue($task);
                 $count += 1;
             }
         }
@@ -272,7 +278,7 @@ class DailyAgendaService
         $accountIds = Task::query()
             ->whereNotNull('due_date')
             ->whereNull('client_notified_at')
-            ->where('status', '!=', 'done')
+            ->open()
             ->distinct()
             ->pluck('account_id')
             ->filter();
@@ -298,7 +304,7 @@ class DailyAgendaService
             $tasks = Task::query()
                 ->forAccount($accountId)
                 ->whereDate('due_date', $today)
-                ->where('status', '!=', 'done')
+                ->open()
                 ->whereNull('client_notified_at')
                 ->with([
                     'assignee.user:id,name',

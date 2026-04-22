@@ -40,7 +40,7 @@ const form = useForm({
     fulfillment_status: props.sale.fulfillment_status || null,
     scheduled_for: '',
     notes: props.sale.notes || '',
-    promotion_code: props.sale.discount_code || '',
+    promotion_code: hasFeature('promotions') ? (props.sale.discount_code || '') : '',
     items: (props.sale.items || []).map((item) => ({
         product_id: item.product_id,
         quantity: item.quantity,

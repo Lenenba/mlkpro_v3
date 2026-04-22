@@ -5,7 +5,8 @@
       "total": "Total taches",
       "todo": "A faire",
       "in_progress": "En cours",
-      "done": "Terminee"
+      "done": "Terminee",
+      "cancelled": "Annulee"
     },
     "view": {
       "board": "Tableau",
@@ -40,7 +41,8 @@
     "status": {
       "todo": "A faire",
       "in_progress": "En cours",
-      "done": "Terminee"
+      "done": "Terminee",
+      "cancelled": "Annulee"
     },
     "timing": {
       "early": "Terminee en avance",
@@ -124,7 +126,11 @@
       "execution": "Execution",
       "completed_at": "Date reelle",
       "completion_reason": "Raison de completion",
+      "cancelled_at": "Date d annulation",
+      "cancellation_reason": "Motif d annulation",
+      "delay_reason": "Motif du retard",
       "not_completed": "Pas encore terminee",
+      "not_cancelled": "Pas annulee",
       "no_reason": "Aucune raison indiquee"
     },
     "history": {
@@ -138,6 +144,8 @@
         "auto_started": "Demarree automatiquement",
         "auto_completed": "Terminee automatiquement",
         "overdue": "Marquee en retard",
+        "cancelled": "Annulee",
+        "delay_reason_updated": "Motif du retard mis a jour",
         "client_notified": "Client notifie"
       }
     },
@@ -153,6 +161,7 @@
       "one_off_task": "Tache ponctuelle",
       "status": "Statut",
       "due_date": "Date d'echeance",
+      "delay_reason": "Motif du retard",
       "assignee": "Assigne",
       "unassigned": "Non assigne",
       "solo_hint": "Cet espace solo n assigne pas les taches a des membres d equipe.",
@@ -168,6 +177,12 @@
       "reason": "Raison de completion",
       "confirm": "Confirmer la completion",
       "reason_required": "La raison est requise si la date differe."
+    },
+    "cancellation": {
+      "title": "Annuler la tache",
+      "reason": "Motif d annulation",
+      "confirm": "Confirmer l annulation",
+      "reason_required": "Le motif d annulation est requis."
     },
     "reasons": {
       "client_available": "Client disponible",

@@ -39,6 +39,10 @@ class TaskTimingService
 
     public static function resolveTimingStatus(Task $task, ?CarbonInterface $now = null): ?string
     {
+        if ($task->isCancelled()) {
+            return null;
+        }
+
         $timezone = self::resolveTimezoneForTask($task);
         $now = $now ? $now->copy()->setTimezone($timezone) : Carbon::now($timezone);
 
@@ -49,7 +53,7 @@ class TaskTimingService
 
         $completedAt = self::resolveCompletedAt($task, $timezone);
 
-        if ($task->status === 'done' || $completedAt) {
+        if ($task->isDone() || $completedAt) {
             if (! $completedAt) {
                 return self::STATUS_ON_TIME;
             }

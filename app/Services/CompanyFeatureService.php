@@ -33,7 +33,6 @@ class CompanyFeatureService
 
     private const MODULE_DEPENDENCIES = [
         'accounting' => ['expenses'],
-        'promotions' => ['sales'],
     ];
 
     private const SALON_ONLY_DISABLED_MODULES = [

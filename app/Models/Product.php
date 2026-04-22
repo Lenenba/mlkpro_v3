@@ -18,6 +18,12 @@ class Product extends Model
     /** @use HasFactory<\Database\Factories\ProductFactory> */
     use GeneratesSequentialNumber, HasFactory;
 
+    public const LEGACY_DEFAULT_IMAGE_PATH = 'products/product.jpg';
+
+    public const DEFAULT_PRODUCT_IMAGE_PATH = 'images/placeholders/product-default.jpg';
+
+    public const DEFAULT_SERVICE_IMAGE_PATH = 'images/placeholders/service-default.jpg';
+
     public const ITEM_TYPE_PRODUCT = 'product';
 
     public const ITEM_TYPE_SERVICE = 'service';
@@ -211,15 +217,42 @@ class Product extends Model
     {
         $path = $this->image;
 
-        if (! $path) {
-            $path = 'products/product.jpg';
-        }
-
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+        if (str_starts_with((string) $path, 'http://') || str_starts_with((string) $path, 'https://')) {
             return $path;
         }
 
+        if (! $path || $path === self::LEGACY_DEFAULT_IMAGE_PATH) {
+            return self::defaultImageUrlFor($this->item_type);
+        }
+
+        if (self::isPublicAssetPath($path)) {
+            return asset(ltrim($path, '/'));
+        }
+
         return Storage::url($path);
+    }
+
+    public static function defaultImagePathFor(?string $itemType): string
+    {
+        return $itemType === self::ITEM_TYPE_SERVICE
+            ? self::DEFAULT_SERVICE_IMAGE_PATH
+            : self::DEFAULT_PRODUCT_IMAGE_PATH;
+    }
+
+    public static function defaultImageUrlFor(?string $itemType): string
+    {
+        return asset(self::defaultImagePathFor($itemType));
+    }
+
+    public static function isPublicAssetPath(?string $path): bool
+    {
+        if (! is_string($path) || trim($path) === '') {
+            return false;
+        }
+
+        $normalized = ltrim($path, '/');
+
+        return str_starts_with($normalized, 'images/');
     }
 
     /**

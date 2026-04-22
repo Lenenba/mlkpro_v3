@@ -79,6 +79,14 @@ const hasServiceOps = computed(() =>
 const canQuotes = computed(() =>
     isOwner.value || teamPermissions.value.includes('quotes.view') || teamPermissions.value.includes('quotes.edit')
 );
+const canPromotionsManage = computed(() =>
+    isOwner.value
+    || teamPermissions.value.includes('sales.manage')
+    || teamPermissions.value.includes('quotes.edit')
+    || teamPermissions.value.includes('jobs.edit')
+    || teamPermissions.value.includes('tasks.edit')
+    || teamPermissions.value.includes('campaigns.manage')
+);
 const canExpensesNav = computed(() =>
     isOwner.value
     || teamPermissions.value.includes('expenses.view')
@@ -559,7 +567,7 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
                                 <!-- Item -->
                                 <LinkAncor
-                                    v-if="companyType === 'products' && hasFeature('promotions') && canSalesManage && !isSeller"
+                                    v-if="hasFeature('promotions') && canPromotionsManage && !isClient && !isSeller"
                                     :label="$t('nav.promotions')"
                                     :href="'promotions.index'"
                                     tone="sales"

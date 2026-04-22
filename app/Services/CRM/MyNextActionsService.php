@@ -246,7 +246,7 @@ class MyNextActionsService
 
         $query = Task::query()
             ->forAccount($context['account_id'])
-            ->where('status', '!=', 'done')
+            ->whereIn('status', Task::OPEN_STATUSES)
             ->whereNotNull('due_date')
             ->with([
                 'customer:id,company_name,first_name,last_name,email,phone',

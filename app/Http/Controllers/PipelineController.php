@@ -339,7 +339,7 @@ class PipelineController extends Controller
         }
         if ($tasks && count($tasks)) {
             $present++;
-            $pending = collect($tasks)->where('status', '!=', 'done')->count();
+            $pending = collect($tasks)->whereNotIn('status', \App\Models\Task::CLOSED_STATUSES)->count();
             if ($pending > 0) {
                 $alerts[] = 'Tasks pending.';
             }

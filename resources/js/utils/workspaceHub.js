@@ -28,6 +28,13 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
     const canReservations = isOwner || hasAnyPermission(teamPermissions, ['reservations.view', 'reservations.queue', 'reservations.manage']);
     const hasServiceOps = showServices && (hasFeature('jobs') || hasFeature('tasks'));
     const canQuotes = isOwner || hasAnyPermission(teamPermissions, ['quotes.view', 'quotes.edit']);
+    const canPromotionsManage = isOwner || hasAnyPermission(teamPermissions, [
+        'sales.manage',
+        'quotes.edit',
+        'jobs.edit',
+        'tasks.edit',
+        'campaigns.manage',
+    ]);
     const canExpensesNav = isOwner || hasAnyPermission(teamPermissions, [
         'expenses.view',
         'expenses.create',
@@ -186,8 +193,8 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             labelKey: 'nav.promotions',
             descriptionKey: 'workspace_hub.modules.promotions',
             routeName: 'promotions.index',
-            tone: 'sales',
-            visible: companyType === 'products' && hasFeature('promotions') && canSalesManage && !isSeller,
+            tone: 'promotions',
+            visible: hasFeature('promotions') && canPromotionsManage && !isClient && !isSeller,
         },
         campaigns: {
             key: 'campaigns',
@@ -235,7 +242,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             labelKey: 'nav.reservations',
             descriptionKey: 'workspace_hub.modules.reservations',
             routeName: 'reservation.index',
-            tone: 'planning',
+            tone: 'reservations',
             visible: showServices && hasFeature('reservations') && canReservations && !isClient && !isSeller,
         },
         planning: {
@@ -382,8 +389,8 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             titleKey: 'workspace_hub.categories.revenue.title',
             icon: 'revenue',
             tone: 'revenue',
-            match: ['customer.*', 'request.*', 'quote.*', 'crm.next-actions.*', 'crm.sales-inbox.*', 'crm.manager-dashboard.*', 'orders.*', 'sales.*', 'promotions.*'],
-            moduleKeys: ['customers', 'requests', 'quotes', 'manager_dashboard', 'sales_inbox', 'next_actions', 'orders', 'sales', 'promotions'],
+            match: ['customer.*', 'request.*', 'quote.*', 'crm.next-actions.*', 'crm.sales-inbox.*', 'crm.manager-dashboard.*', 'orders.*', 'sales.*'],
+            moduleKeys: ['customers', 'requests', 'quotes', 'manager_dashboard', 'sales_inbox', 'next_actions', 'orders', 'sales'],
         },
         {
             key: 'growth',
@@ -392,8 +399,8 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             titleKey: 'workspace_hub.categories.growth.title',
             icon: 'growth',
             tone: 'growth',
-            match: ['campaigns.*', 'campaign-automations.*', 'campaign-runs.*', 'loyalty.*', 'settings.loyalty.*', 'performance.*'],
-            moduleKeys: ['campaigns', 'loyalty', 'performance'],
+            match: ['promotions.*', 'campaigns.*', 'campaign-automations.*', 'campaign-runs.*', 'loyalty.*', 'settings.loyalty.*', 'performance.*'],
+            moduleKeys: ['promotions', 'campaigns', 'loyalty', 'performance'],
         },
         {
             key: 'operations',

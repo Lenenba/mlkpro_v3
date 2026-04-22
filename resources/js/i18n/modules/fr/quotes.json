@@ -2,6 +2,7 @@
   "quotes": {
     "title": "Devis",
     "create_title": "Creer devis",
+    "edit_title": "Modifier devis",
     "show_title": "Voir le devis",
     "company_fallback": "Entreprise",
     "form": {
