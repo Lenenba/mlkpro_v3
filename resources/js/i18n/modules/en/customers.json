@@ -423,6 +423,18 @@
           "email": "Email"
         }
       },
+      "workspace": {
+        "title": "Customer activity"
+      },
+      "sidebar": {
+        "title": "Customer panel",
+        "tabs": {
+          "profile": "Profile",
+          "marketing": "Marketing",
+          "automation": "Automation",
+          "finance": "Finance"
+        }
+      },
       "mailing_lists": {
         "title": "Mailing lists",
         "description": "Add this customer to a marketing mailing list in one click.",

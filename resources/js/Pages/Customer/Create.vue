@@ -12,6 +12,7 @@ import {
     CUSTOMER_CLIENT_TYPE_INDIVIDUAL,
     resolveCustomerClientType,
 } from '@/utils/customerClientTypes';
+import { assignGeoapifyAddress, useGeoapifyAddressAutocomplete } from '@/Composables/useGeoapifyAddressAutocomplete';
 import { useForm, Head, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -212,70 +213,19 @@ onMounted(() => {
     }
 });
 
-const query = ref('');
-const suggestions = ref([]);
-const isSearching = ref(false);
-const geoapifyKey = import.meta.env.VITE_GEOAPIFY_KEY;
-
-const searchAddress = async () => {
-    if (query.value.length < 2) {
-        suggestions.value = [];
-        return;
-    }
-
-    if (!geoapifyKey) {
-        suggestions.value = [];
-        return;
-    }
-
-    isSearching.value = true;
-    try {
-        const url = new URL('https://api.geoapify.com/v1/geocode/autocomplete');
-        url.search = new URLSearchParams({
-            text: query.value,
-            apiKey: geoapifyKey,
-            limit: '5',
-            filter: 'countrycode:ca,us',
-        }).toString();
-
-        const response = await fetch(url.toString());
-        if (!response.ok) {
-            throw new Error(`Geoapify request failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-        suggestions.value = (data.features || []).map((feature) => ({
-            id: feature.properties?.place_id || feature.properties?.formatted || feature.properties?.name,
-            label: feature.properties?.formatted || feature.properties?.name || '',
-            details: feature.properties || {},
-        }));
-    } catch (error) {
+const {
+    query,
+    suggestions,
+    searchAddress,
+    selectAddress,
+} = useGeoapifyAddressAutocomplete({
+    onSelect: (details) => {
+        assignGeoapifyAddress(form.properties, details);
+    },
+    onError: (error) => {
         console.error('Erreur lors de la recherche d\'adresse :', error);
-    } finally {
-        isSearching.value = false;
-    }
-};
-
-const selectAddress = (details) => {
-    const address = details || {};
-    const streetParts = [];
-    if (address.house_number) {
-        streetParts.push(address.house_number);
-    }
-    if (address.street) {
-        streetParts.push(address.street);
-    }
-    const city = address.city || address.town || address.village || address.hamlet || address.suburb;
-
-    form.properties.street1 = streetParts.join(' ').trim();
-    form.properties.street2 = '';
-    form.properties.city = city || '';
-    form.properties.state = address.state || address.county || address.region || '';
-    form.properties.zip = address.postcode || '';
-    form.properties.country = address.country || '';
-    suggestions.value = [];
-    query.value = details.formatted || details.name || query.value;
-};
+    },
+});
 </script>
 <template>
 

@@ -423,6 +423,18 @@
           "email": "Correo electrónico"
         }
       },
+      "workspace": {
+        "title": "Actividad del cliente"
+      },
+      "sidebar": {
+        "title": "Panel del cliente",
+        "tabs": {
+          "profile": "Perfil",
+          "marketing": "Marketing",
+          "automation": "Automatización",
+          "finance": "Finanzas"
+        }
+      },
       "mailing_lists": {
         "title": "Listas de correo",
         "description": "Añade este cliente a una lista de correo de marketing con un clic.",

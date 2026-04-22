@@ -672,6 +672,7 @@ const quoteResultsLabel = computed(() => `${props.count} ${t('quotes.table.resul
                     <div :class="crmSegmentedControlClass()">
                         <button
                             type="button"
+                            data-testid="quote-view-table"
                             @click="setViewMode('table')"
                             :class="crmSegmentedControlButtonClass(viewMode === 'table')"
                         >
@@ -684,6 +685,7 @@ const quoteResultsLabel = computed(() => `${props.count} ${t('quotes.table.resul
                         </button>
                         <button
                             type="button"
+                            data-testid="quote-view-cards"
                             @click="setViewMode('cards')"
                             :class="crmSegmentedControlButtonClass(viewMode === 'cards')"
                         >

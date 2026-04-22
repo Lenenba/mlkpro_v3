@@ -9,6 +9,7 @@ import {
     CUSTOMER_CLIENT_TYPE_COMPANY,
     CUSTOMER_CLIENT_TYPE_INDIVIDUAL,
 } from '@/utils/customerClientTypes';
+import { assignGeoapifyAddress, useGeoapifyAddressAutocomplete } from '@/Composables/useGeoapifyAddressAutocomplete';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -63,9 +64,16 @@ const form = reactive({
 const errors = ref({});
 const formError = ref('');
 const isSubmitting = ref(false);
-const addressQuery = ref('');
-const addressSuggestions = ref([]);
-const geoapifyKey = import.meta.env.VITE_GEOAPIFY_KEY;
+const {
+    query: addressQuery,
+    suggestions: addressSuggestions,
+    searchAddress,
+    selectAddress,
+} = useGeoapifyAddressAutocomplete({
+    onSelect: (details) => {
+        assignGeoapifyAddress(form.properties, details);
+    },
+});
 
 const clientTypeOptions = computed(() => buildCustomerClientTypeOptions(t));
 const isCompanyClient = computed(() => form.client_type === CUSTOMER_CLIENT_TYPE_COMPANY);
@@ -222,62 +230,6 @@ const submit = async () => {
     }
 };
 
-const searchAddress = async () => {
-    if (addressQuery.value.length < 2) {
-        addressSuggestions.value = [];
-        return;
-    }
-
-    if (!geoapifyKey) {
-        addressSuggestions.value = [];
-        return;
-    }
-
-    try {
-        const url = new URL('https://api.geoapify.com/v1/geocode/autocomplete');
-        url.search = new URLSearchParams({
-            text: addressQuery.value,
-            apiKey: geoapifyKey,
-            limit: '5',
-            filter: 'countrycode:ca,us',
-        }).toString();
-
-        const response = await fetch(url.toString());
-        if (!response.ok) {
-            throw new Error(`Geoapify request failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-        addressSuggestions.value = (data.features || []).map((feature) => ({
-            id: feature.properties?.place_id || feature.properties?.formatted || feature.properties?.name,
-            label: feature.properties?.formatted || feature.properties?.name || '',
-            details: feature.properties || {},
-        }));
-    } catch (error) {
-        addressSuggestions.value = [];
-    }
-};
-
-const selectAddress = (details) => {
-    const address = details || {};
-    const streetParts = [];
-    if (address.house_number) {
-        streetParts.push(address.house_number);
-    }
-    if (address.street) {
-        streetParts.push(address.street);
-    }
-    const city = address.city || address.town || address.village || address.hamlet || address.suburb;
-
-    form.properties.street1 = streetParts.join(' ').trim();
-    form.properties.street2 = '';
-    form.properties.city = city || '';
-    form.properties.state = address.state || address.county || address.region || '';
-    form.properties.zip = address.postcode || '';
-    form.properties.country = address.country || '';
-    addressQuery.value = details.formatted || details.name || addressQuery.value;
-    addressSuggestions.value = [];
-};
 </script>
 
 <template>

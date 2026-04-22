@@ -1,12 +1,31 @@
 import { expect, test } from '@playwright/test';
 import { loadFixtures, loginAs } from './helpers/app.mjs';
 
+const buildQuoteSearchPath = (basePath, quoteNumber) => {
+    const url = new URL(basePath, 'http://127.0.0.1');
+
+    url.searchParams.set('direction', 'desc');
+    url.searchParams.set('per_page', '10');
+    url.searchParams.set('sort', 'recovery_priority');
+    url.searchParams.set('search', quoteNumber);
+
+    return `${url.pathname}${url.search}`;
+};
+
+const openQuoteTable = async (page, path) => {
+    await page.goto(path);
+    await page.getByTestId('quote-view-table').click();
+};
+
 test('service owner can run the quote recovery smoke flow', async ({ page }) => {
     const fixtures = loadFixtures();
     const recovery = fixtures.quoteRecovery;
 
     await loginAs(page, fixtures.serviceOwner);
-    await page.goto(recovery.path);
+    const resetResponse = await page.goto('/_e2e/reset/quote-recovery');
+    expect(resetResponse?.ok()).toBe(true);
+
+    await openQuoteTable(page, recovery.path);
 
     const dueRow = page.getByTestId(`quote-row-${recovery.dueQuoteId}`);
     await expect(dueRow).toBeVisible();
@@ -21,16 +40,14 @@ test('service owner can run the quote recovery smoke flow', async ({ page }) => 
     await page.getByTestId('quote-queue-filter-due').click();
     await expect(page).not.toHaveURL(/(?:\?|&)queue=due\b/);
 
-    const searchInput = page.getByTestId('demo-quote-search');
-
-    await searchInput.fill(recovery.archiveQuoteNumber);
+    await openQuoteTable(page, buildQuoteSearchPath(recovery.path, recovery.archiveQuoteNumber));
     const archiveRow = page.getByTestId(`quote-row-${recovery.archiveQuoteId}`);
     await expect(archiveRow).toBeVisible();
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByTestId(`quote-archive-inline-${recovery.archiveQuoteId}`).click();
     await expect(archiveRow).toHaveCount(0);
 
-    await searchInput.fill(recovery.acceptQuoteNumber);
+    await openQuoteTable(page, buildQuoteSearchPath(recovery.path, recovery.acceptQuoteNumber));
     const acceptRow = page.getByTestId(`quote-row-${recovery.acceptQuoteId}`);
     await expect(acceptRow).toBeVisible();
 

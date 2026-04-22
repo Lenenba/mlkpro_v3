@@ -1,11 +1,10 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import axios from 'axios';
 import Header from './UI/Header.vue';
 import Card from '@/Components/UI/Card.vue';
-import CardNoHeader from '@/Components/UI/CardNoHeader.vue';
 import DescriptionList from '@/Components/UI/DescriptionList.vue';
 import CardNav from '@/Components/UI/CardNav.vue';
 import Modal from '@/Components/Modal.vue';
@@ -19,6 +18,11 @@ import { useI18n } from 'vue-i18n';
 import CustomerPreviewCard from './UI/CustomerPreviewCard.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import {
+    assignGeoapifyAddress,
+    buildAddressSearchLabel,
+    useGeoapifyAddressAutocomplete,
+} from '@/Composables/useGeoapifyAddressAutocomplete';
 
 const props = defineProps({
     customer: Object,
@@ -103,12 +107,18 @@ const props = defineProps({
 const { t } = useI18n();
 
 const page = usePage();
-const { visibleFeaturePayload } = useAccountFeatures();
+const { visibleFeaturePayload, hasFeature } = useAccountFeatures();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showSales = computed(() => companyType.value === 'products');
 const showServiceOps = computed(() => companyType.value !== 'products');
 const loyalty = computed(() => visibleFeaturePayload('loyalty', props.loyalty));
-const loyaltyFeatureEnabled = computed(() => Boolean(loyalty.value));
+const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
+const requestsFeatureEnabled = computed(() => hasFeature('requests'));
+const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
+const tasksFeatureEnabled = computed(() => hasFeature('tasks'));
+const invoicesFeatureEnabled = computed(() => hasFeature('invoices'));
+const campaignsFeatureEnabled = computed(() => Boolean(props.campaignsFeatureEnabled) && hasFeature('campaigns'));
+const loyaltyFeatureEnabled = computed(() => hasFeature('loyalty') && Boolean(loyalty.value));
 
 const properties = computed(() => props.customer?.properties || []);
 const tags = computed(() => props.customer?.tags || []);
@@ -116,6 +126,7 @@ const vipTiers = computed(() => props.vipTiers || []);
 const latestQuote = computed(() => (props.customer?.quotes || [])[0] || null);
 const latestWork = computed(() => (props.customer?.works || [])[0] || null);
 const latestInvoice = computed(() => (props.customer?.invoices || [])[0] || null);
+const showBillingHistory = computed(() => showServiceOps.value && invoicesFeatureEnabled.value);
 
 const formatDate = (value) => humanizeDate(value);
 const { formatCurrency } = useCurrencyFormatter();
@@ -286,6 +297,45 @@ const autoValidationForm = useForm({
     auto_validate_invoices: props.customer?.auto_validate_invoices ?? false,
 });
 
+const autoValidationOptions = computed(() => {
+    const options = [];
+
+    if (quotesFeatureEnabled.value) {
+        options.push({
+            id: 'customer-auto-accept-quotes',
+            field: 'auto_accept_quotes',
+            label: t('customers.details.auto_validation.quotes'),
+        });
+    }
+
+    if (jobsFeatureEnabled.value) {
+        options.push({
+            id: 'customer-auto-validate-jobs',
+            field: 'auto_validate_jobs',
+            label: t('customers.details.auto_validation.jobs'),
+        });
+    }
+
+    if (tasksFeatureEnabled.value) {
+        options.push({
+            id: 'customer-auto-validate-tasks',
+            field: 'auto_validate_tasks',
+            label: t('customers.details.auto_validation.tasks'),
+        });
+    }
+
+    if (invoicesFeatureEnabled.value) {
+        options.push({
+            id: 'customer-auto-validate-invoices',
+            field: 'auto_validate_invoices',
+            label: t('customers.details.auto_validation.invoices'),
+        });
+    }
+
+    return options;
+});
+const showAutomationRail = computed(() => showServiceOps.value && autoValidationOptions.value.length > 0);
+
 const submitAutoValidation = () => {
     if (autoValidationForm.processing) {
         return;
@@ -336,7 +386,8 @@ const mailingListError = ref('');
 const mailingListInfo = ref('');
 const selectedMailingListId = ref('');
 
-const canManageMailingLists = computed(() => Boolean(props.canManageMailingLists) && Boolean(props.campaignsFeatureEnabled));
+const canManageMailingLists = computed(() => Boolean(props.canManageMailingLists) && campaignsFeatureEnabled.value);
+const showMarketingRail = computed(() => campaignsFeatureEnabled.value || canManageMailingLists.value);
 const selectedMailingListLabel = computed(() => {
     const id = Number(selectedMailingListId.value || 0);
     const list = mailingListRows.value.find((row) => Number(row?.id || 0) === id);
@@ -409,6 +460,82 @@ const addCustomerToMailingList = async () => {
     }
 };
 
+const rightRailTabs = computed(() => {
+    const tabs = [
+        { id: 'profile', label: t('customers.details.sidebar.tabs.profile') },
+    ];
+
+    if (showMarketingRail.value) {
+        tabs.push({ id: 'marketing', label: t('customers.details.sidebar.tabs.marketing') });
+    }
+
+    if (showAutomationRail.value) {
+        tabs.push({ id: 'automation', label: t('customers.details.sidebar.tabs.automation') });
+    }
+
+    if (showBillingHistory.value || loyaltyFeatureEnabled.value) {
+        tabs.push({ id: 'finance', label: t('customers.details.sidebar.tabs.finance') });
+    }
+
+    return tabs;
+});
+const activeRightRailTab = ref('profile');
+
+watch(rightRailTabs, (tabs) => {
+    if (!tabs.some((tab) => tab.id === activeRightRailTab.value)) {
+        activeRightRailTab.value = tabs[0]?.id || 'profile';
+    }
+}, { immediate: true });
+
+const showPlanningWorkspace = computed(() => showServiceOps.value && (jobsFeatureEnabled.value || tasksFeatureEnabled.value));
+const activityWorkspaceTabs = computed(() => {
+    const tabs = [];
+
+    if (showPlanningWorkspace.value) {
+        tabs.push({ id: 'planning', label: t('customers.details.schedule.title') });
+    }
+
+    tabs.push({ id: 'crm', label: t('customers.details.sales_activity.title') });
+
+    return tabs;
+});
+const activeActivityWorkspaceTab = ref('planning');
+
+watch(activityWorkspaceTabs, (tabs) => {
+    if (!tabs.some((tab) => tab.id === activeActivityWorkspaceTab.value)) {
+        activeActivityWorkspaceTab.value = tabs[0]?.id || 'crm';
+    }
+}, { immediate: true });
+
+const planningTabs = computed(() => {
+    const tabs = [];
+
+    if (jobsFeatureEnabled.value) {
+        tabs.push({
+            id: 'upcoming_jobs',
+            label: t('customers.details.schedule.upcoming_jobs'),
+            count: (props.schedule?.upcomingJobs || []).length,
+        });
+    }
+
+    if (tasksFeatureEnabled.value) {
+        tabs.push({
+            id: 'tasks',
+            label: t('customers.details.schedule.tasks'),
+            count: (props.schedule?.tasks || []).length,
+        });
+    }
+
+    return tabs;
+});
+const activePlanningTab = ref('upcoming_jobs');
+
+watch(planningTabs, (tabs) => {
+    if (!tabs.some((tab) => tab.id === activePlanningTab.value)) {
+        activePlanningTab.value = tabs[0]?.id || 'upcoming_jobs';
+    }
+}, { immediate: true });
+
 const activityHref = (log) => {
     const type = log?.subject_type || '';
     const id = log?.subject_id;
@@ -464,21 +591,48 @@ const editPropertyForm = useForm({
     country: '',
 });
 
+const {
+    query: newPropertyAddressQuery,
+    suggestions: newPropertyAddressSuggestions,
+    searchAddress: searchNewPropertyAddress,
+    selectAddress: selectNewPropertyAddress,
+    resetSearch: resetNewPropertyAddressSearch,
+} = useGeoapifyAddressAutocomplete({
+    onSelect: (details) => {
+        assignGeoapifyAddress(newPropertyForm, details);
+    },
+});
+
+const {
+    query: editPropertyAddressQuery,
+    suggestions: editPropertyAddressSuggestions,
+    searchAddress: searchEditPropertyAddress,
+    selectAddress: selectEditPropertyAddress,
+    resetSearch: resetEditPropertyAddressSearch,
+} = useGeoapifyAddressAutocomplete({
+    onSelect: (details) => {
+        assignGeoapifyAddress(editPropertyForm, details);
+    },
+});
+
 const resetNewPropertyForm = () => {
     newPropertyForm.reset();
     newPropertyForm.type = 'physical';
     newPropertyForm.is_default = false;
     newPropertyForm.clearErrors();
+    resetNewPropertyAddressSearch();
 };
 
 const cancelEditProperty = () => {
     editingPropertyId.value = null;
     editPropertyForm.reset();
     editPropertyForm.clearErrors();
+    resetEditPropertyAddressSearch();
 };
 
 const startAddProperty = () => {
     cancelEditProperty();
+    resetNewPropertyForm();
     showAddProperty.value = true;
 };
 
@@ -511,6 +665,7 @@ const startEditProperty = (property) => {
     editPropertyForm.state = property.state || '';
     editPropertyForm.zip = property.zip || '';
     editPropertyForm.country = property.country || '';
+    resetEditPropertyAddressSearch(buildAddressSearchLabel(property));
 };
 
 const submitEditProperty = () => {
@@ -719,6 +874,58 @@ const deleteProperty = (property) => {
                                     />
                                     {{ $t('customers.properties.set_default') }}
                                 </label>
+                                <div class="md:col-span-2">
+                                    <div class="relative">
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 start-0 z-20 flex items-center pointer-events-none ps-3.5">
+                                                <svg
+                                                    class="size-4 shrink-0 text-stone-400 dark:text-white/60"
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width="24"
+                                                    height="24"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    stroke-width="2"
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                >
+                                                    <circle cx="11" cy="11" r="8"></circle>
+                                                    <path d="m21 21-4.3-4.3"></path>
+                                                </svg>
+                                            </div>
+                                            <input
+                                                v-model="newPropertyAddressQuery"
+                                                @input="searchNewPropertyAddress"
+                                                class="block w-full rounded-sm border-stone-200 py-3 pe-4 ps-10 text-sm focus:border-green-600 focus:ring-green-600"
+                                                type="text"
+                                                role="combobox"
+                                                aria-expanded="false"
+                                                :placeholder="$t('customers.form.fields.search_address')"
+                                            />
+                                        </div>
+
+                                        <div
+                                            v-if="newPropertyAddressSuggestions.length"
+                                            class="absolute z-50 w-full rounded-sm bg-white shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:bg-neutral-800"
+                                        >
+                                            <div
+                                                class="max-h-[300px] overflow-hidden overflow-y-auto p-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar]:w-2 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 dark:[&::-webkit-scrollbar-track]:bg-neutral-700"
+                                            >
+                                                <div
+                                                    v-for="suggestion in newPropertyAddressSuggestions"
+                                                    :key="suggestion.id"
+                                                    class="flex cursor-pointer items-center gap-x-3 rounded-sm px-3 py-2 hover:bg-stone-100 dark:hover:bg-neutral-700"
+                                                    @click="selectNewPropertyAddress(suggestion.details)"
+                                                >
+                                                    <span class="text-sm text-stone-800 dark:text-neutral-200">
+                                                        {{ suggestion.label }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div>
                                         <FloatingInput v-model="newPropertyForm.street1" :label="$t('customers.properties.fields.street1')" />
@@ -853,6 +1060,58 @@ const deleteProperty = (property) => {
                                             <InputError class="mt-1" :message="editPropertyForm.errors.type" />
                                         </div>
                                         <div></div>
+                                        <div class="md:col-span-2">
+                                            <div class="relative">
+                                                <div class="relative">
+                                                    <div class="absolute inset-y-0 start-0 z-20 flex items-center pointer-events-none ps-3.5">
+                                                        <svg
+                                                            class="size-4 shrink-0 text-stone-400 dark:text-white/60"
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            width="24"
+                                                            height="24"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            stroke-width="2"
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                        >
+                                                            <circle cx="11" cy="11" r="8"></circle>
+                                                            <path d="m21 21-4.3-4.3"></path>
+                                                        </svg>
+                                                    </div>
+                                                    <input
+                                                        v-model="editPropertyAddressQuery"
+                                                        @input="searchEditPropertyAddress"
+                                                        class="block w-full rounded-sm border-stone-200 py-3 pe-4 ps-10 text-sm focus:border-green-600 focus:ring-green-600"
+                                                        type="text"
+                                                        role="combobox"
+                                                        aria-expanded="false"
+                                                        :placeholder="$t('customers.form.fields.search_address')"
+                                                    />
+                                                </div>
+
+                                                <div
+                                                    v-if="editPropertyAddressSuggestions.length"
+                                                    class="absolute z-50 w-full rounded-sm bg-white shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:bg-neutral-800"
+                                                >
+                                                    <div
+                                                        class="max-h-[300px] overflow-hidden overflow-y-auto p-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-stone-300 [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar]:w-2 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 dark:[&::-webkit-scrollbar-track]:bg-neutral-700"
+                                                    >
+                                                        <div
+                                                            v-for="suggestion in editPropertyAddressSuggestions"
+                                                            :key="suggestion.id"
+                                                            class="flex cursor-pointer items-center gap-x-3 rounded-sm px-3 py-2 hover:bg-stone-100 dark:hover:bg-neutral-700"
+                                                            @click="selectEditPropertyAddress(suggestion.details)"
+                                                        >
+                                                            <span class="text-sm text-stone-800 dark:text-neutral-200">
+                                                                {{ suggestion.label }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                         <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                                             <div>
                                                 <FloatingInput v-model="editPropertyForm.street1" :label="$t('customers.properties.fields.street1')" />
@@ -903,13 +1162,54 @@ const deleteProperty = (property) => {
                     </ul>
                 </Card>
 
-                <CardNav v-if="showServiceOps" class="mt-5" :customer="customer" :stats="stats" />
+                <CardNav v-if="showServiceOps" class="mt-5" :customer="customer" />
 
-                <Card v-if="showServiceOps" class="mt-5">
-                    <template #title>{{ $t('customers.details.schedule.title') }}</template>
+                <Card class="mt-5">
+                    <template #title>{{ $t('customers.details.workspace.title') }}</template>
 
-                    <div class="space-y-5">
-                        <div>
+                    <div v-if="activityWorkspaceTabs.length > 1" class="mb-4 flex gap-2 overflow-x-auto pb-1">
+                        <button
+                            v-for="tab in activityWorkspaceTabs"
+                            :key="tab.id"
+                            type="button"
+                            @click="activeActivityWorkspaceTab = tab.id"
+                            class="inline-flex whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-green-500"
+                            :class="activeActivityWorkspaceTab === tab.id
+                                ? 'border-green-600 bg-green-600 text-white shadow-sm'
+                                : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'"
+                        >
+                            {{ tab.label }}
+                        </button>
+                    </div>
+
+                    <template v-if="activeActivityWorkspaceTab === 'planning'">
+                        <div v-if="planningTabs.length > 1" class="mb-4 flex gap-2 overflow-x-auto pb-1">
+                            <button
+                                v-for="tab in planningTabs"
+                                :key="tab.id"
+                                type="button"
+                                @click="activePlanningTab = tab.id"
+                                class="inline-flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-green-500"
+                                :class="activePlanningTab === tab.id
+                                    ? 'border-stone-900 bg-stone-900 text-white shadow-sm dark:border-white dark:bg-white dark:text-stone-900'
+                                    : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'"
+                            >
+                                <span>{{ tab.label }}</span>
+                                <span
+                                    class="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px]"
+                                    :class="activePlanningTab === tab.id
+                                        ? 'bg-white/20 text-white dark:bg-stone-900/10 dark:text-stone-900'
+                                        : 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300'"
+                                >
+                                    {{ tab.count }}
+                                </span>
+                            </button>
+                        </div>
+
+                        <div
+                            v-if="activePlanningTab === 'upcoming_jobs'"
+                            class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60"
+                        >
                             <div class="flex items-center justify-between gap-3">
                                 <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.schedule.upcoming_jobs') }}</h3>
                                 <Link
@@ -923,7 +1223,7 @@ const deleteProperty = (property) => {
                                 <div
                                     v-for="work in schedule?.upcomingJobs || []"
                                     :key="work.id"
-                                    class="flex items-center justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700"
+                                    class="flex items-center justify-between gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
                                 >
                                     <div>
                                         <Link
@@ -949,7 +1249,10 @@ const deleteProperty = (property) => {
                             </div>
                         </div>
 
-                        <div>
+                        <div
+                            v-else-if="activePlanningTab === 'tasks'"
+                            class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60"
+                        >
                             <div class="flex items-center justify-between gap-3">
                                 <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.schedule.tasks') }}</h3>
                                 <Link
@@ -963,7 +1266,7 @@ const deleteProperty = (property) => {
                                 <div
                                     v-for="task in schedule?.tasks || []"
                                     :key="task.id"
-                                    class="flex items-start justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700"
+                                    class="flex items-start justify-between gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
                                 >
                                     <div>
                                         <div class="font-medium text-stone-800 dark:text-neutral-200">
@@ -984,22 +1287,23 @@ const deleteProperty = (property) => {
                                 </div>
                             </div>
                         </div>
+                    </template>
+
+                    <div v-else-if="activeActivityWorkspaceTab === 'crm'">
+                        <SalesActivityPanel
+                            :items="activity"
+                            :can-log="canLogSalesActivity"
+                            :quick-actions="salesActivityQuickActions"
+                            :manual-actions="salesActivityManualActions"
+                            :store-route="route('crm.sales-activities.customers.store', customer.id)"
+                            :resolve-href="activityHref"
+                            :show-subject="true"
+                            i18n-prefix="customers.details.sales_activity"
+                            dialog-id="customer-sales-activity-modal"
+                            :embedded="true"
+                        />
                     </div>
                 </Card>
-
-                <div class="mt-5">
-                    <SalesActivityPanel
-                        :items="activity"
-                        :can-log="canLogSalesActivity"
-                        :quick-actions="salesActivityQuickActions"
-                        :manual-actions="salesActivityManualActions"
-                        :store-route="route('crm.sales-activities.customers.store', customer.id)"
-                        :resolve-href="activityHref"
-                        :show-subject="true"
-                        i18n-prefix="customers.details.sales_activity"
-                        dialog-id="customer-sales-activity-modal"
-                    />
-                </div>
             </div>
             <div class="rise-stagger">
                 <CustomerPreviewCard
@@ -1010,403 +1314,434 @@ const deleteProperty = (property) => {
                     :latest-work="latestWork"
                     :latest-invoice="latestInvoice"
                 />
-                <CardNoHeader>
-                    <template #title>{{ $t('customers.details.contact.title') }}</template>
-                    <DescriptionList :item="customer" />
-                </CardNoHeader>
-                <CardNoHeader v-if="campaignsFeatureEnabled" class="mt-5">
-                    <template #title>VIP</template>
+                <Card :class="showServiceOps ? 'mt-5' : ''">
+                    <template #title>{{ $t('customers.details.sidebar.title') }}</template>
 
-                    <div v-if="!editingVip" class="space-y-3">
-                        <div class="flex items-center gap-2 text-sm">
-                            <span
-                                class="rounded-full px-2 py-0.5 text-xs font-semibold"
-                                :class="customer?.is_vip ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200' : 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200'"
-                            >
-                                {{ customer?.is_vip ? 'VIP' : 'Standard' }}
-                            </span>
-                            <span v-if="customer?.is_vip" class="text-stone-600 dark:text-neutral-300">
-                                {{ customer?.vip_tier?.name || customer?.vip_tier_code || '-' }}
-                            </span>
-                        </div>
-
-                        <div class="flex justify-end">
-                            <button
-                                type="button"
-                                @click="startEditVip"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                            >
-                                {{ $t('customers.actions.edit') }}
-                            </button>
-                        </div>
-                    </div>
-
-                    <form v-else class="space-y-3" @submit.prevent="submitVip">
-                        <label class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200">
-                            <span>VIP customer</span>
-                            <input
-                                type="checkbox"
-                                v-model="vipForm.is_vip"
-                                class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
-
-                                before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
-                            />
-                        </label>
-
-                        <div v-if="vipForm.is_vip">
-                            <FloatingSelect
-                                v-model="vipForm.vip_tier_id"
-                                :label="'VIP tier'"
-                                :options="vipTiers.map((tier) => ({ id: tier.id, name: `${tier.name} (${tier.code})` }))"
-                            />
-                            <InputError class="mt-1" :message="vipForm.errors.vip_tier_id" />
-                        </div>
-
-                        <div class="flex items-center justify-end gap-2">
-                            <button
-                                type="button"
-                                @click="cancelEditVip"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                            >
-                                {{ $t('customers.actions.cancel') }}
-                            </button>
-                            <button
-                                type="submit"
-                                :disabled="vipForm.processing"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
-                            >
-                                {{ $t('customers.actions.save') }}
-                            </button>
-                        </div>
-                    </form>
-                </CardNoHeader>
-                <CardNoHeader v-if="canManageMailingLists" class="mt-5">
-                    <template #title>{{ $t('customers.details.mailing_lists.title') }}</template>
-
-                    <p class="text-sm text-stone-600 dark:text-neutral-300">
-                        {{ $t('customers.details.mailing_lists.description') }}
-                    </p>
-
-                    <div class="mt-3 flex justify-end">
+                    <div v-if="rightRailTabs.length > 1" class="mb-4 flex gap-2 overflow-x-auto pb-1">
                         <button
+                            v-for="tab in rightRailTabs"
+                            :key="tab.id"
                             type="button"
-                            @click="openMailingListDialog"
-                            class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            @click="activeRightRailTab = tab.id"
+                            class="inline-flex whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-green-500"
+                            :class="activeRightRailTab === tab.id
+                                ? 'border-green-600 bg-green-600 text-white shadow-sm'
+                                : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'"
                         >
-                            {{ $t('customers.details.mailing_lists.add_action') }}
+                            {{ tab.label }}
                         </button>
                     </div>
 
-                    <p v-if="mailingListInfo" class="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
-                        {{ mailingListInfo }}
-                    </p>
-                    <p v-if="mailingListError" class="mt-2 text-xs text-rose-600">
-                        {{ mailingListError }}
-                    </p>
-                </CardNoHeader>
-                <CardNoHeader class="mt-5">
-                    <template #title>{{ $t('customers.details.tags.title') }}</template>
-
-                    <div v-if="!editingTags" class="space-y-3">
-                        <div v-if="tags.length" class="flex flex-wrap gap-2">
-                            <span
-                                v-for="tag in tags"
-                                :key="tag"
-                                class="inline-flex items-center rounded-sm bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-800 dark:bg-neutral-700 dark:text-neutral-200"
-                            >
-                                {{ tag }}
-                            </span>
-                        </div>
-                        <div v-else class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('customers.details.tags.empty') }}</div>
-
-                        <div class="flex justify-end">
-                            <button
-                                type="button"
-                                @click="startEditTags"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                            >
-                                {{ $t('customers.actions.edit') }}
-                            </button>
-                        </div>
-                    </div>
-
-                    <form v-else class="space-y-3" @submit.prevent="submitTags">
-                        <div>
-                            <FloatingInput v-model="tagsForm.tags" :label="$t('customers.details.tags.field')" />
-                            <InputError class="mt-1" :message="tagsForm.errors.tags" />
-                        </div>
-                        <div class="flex items-center justify-end gap-2">
-                            <button
-                                type="button"
-                                @click="cancelEditTags"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                            >
-                                {{ $t('customers.actions.cancel') }}
-                            </button>
-                            <button
-                                type="submit"
-                                :disabled="tagsForm.processing"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
-                            >
-                                {{ $t('customers.actions.save') }}
-                            </button>
-                        </div>
-                    </form>
-                </CardNoHeader>
-                <CardNoHeader v-if="showServiceOps" class="mt-5">
-                    <template #title>{{ $t('customers.details.auto_validation.title') }}</template>
-
-                    <form class="space-y-3" @submit.prevent="submitAutoValidation">
-                        <div class="space-y-2">
-                            <label
-                                for="customer-auto-accept-quotes"
-                                class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
-                            >
-                                <span>{{ $t('customers.details.auto_validation.quotes') }}</span>
-                                <input
-                                    id="customer-auto-accept-quotes"
-                                    type="checkbox"
-                                    v-model="autoValidationForm.auto_accept_quotes"
-                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
-
-                                    before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
-                                />
-                            </label>
-                            <label
-                                for="customer-auto-validate-jobs"
-                                class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
-                            >
-                                <span>{{ $t('customers.details.auto_validation.jobs') }}</span>
-                                <input
-                                    id="customer-auto-validate-jobs"
-                                    type="checkbox"
-                                    v-model="autoValidationForm.auto_validate_jobs"
-                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
-
-                                    before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
-                                />
-                            </label>
-                            <label
-                                for="customer-auto-validate-tasks"
-                                class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
-                            >
-                                <span>{{ $t('customers.details.auto_validation.tasks') }}</span>
-                                <input
-                                    id="customer-auto-validate-tasks"
-                                    type="checkbox"
-                                    v-model="autoValidationForm.auto_validate_tasks"
-                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
-
-                                    before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
-                                />
-                            </label>
-                            <label
-                                for="customer-auto-validate-invoices"
-                                class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
-                            >
-                                <span>{{ $t('customers.details.auto_validation.invoices') }}</span>
-                                <input
-                                    id="customer-auto-validate-invoices"
-                                    type="checkbox"
-                                    v-model="autoValidationForm.auto_validate_invoices"
-                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
-
-                                    before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
-                                />
-                            </label>
-                        </div>
-
-                        <div class="flex justify-end">
-                            <button
-                                type="submit"
-                                :disabled="autoValidationForm.processing"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
-                            >
-                                {{ $t('customers.actions.save') }}
-                            </button>
-                        </div>
-                    </form>
-                </CardNoHeader>
-                <CardNoHeader class="mt-5">
-                    <template #title>{{ $t('customers.details.last_interaction.title') }}</template>
-
-                    <div v-if="lastInteraction" class="space-y-1 text-sm">
-                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
-                            {{ lastInteraction.subject }} • {{ formatDate(lastInteraction.created_at) }}
-                        </div>
-                        <div class="text-sm text-stone-800 dark:text-neutral-200">
-                            {{ lastInteraction.description || lastInteraction.action }}
-                        </div>
-                    </div>
-                    <div v-else class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('customers.details.last_interaction.empty') }}</div>
-                </CardNoHeader>
-                <Card v-if="showServiceOps" class="mt-5">
-                    <template #title>{{ $t('customers.details.billing_history.title') }}</template>
-
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.invoiced') }}</div>
-                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ formatCurrency(billing?.summary?.total_invoiced) }}
+                    <div class="space-y-4">
+                        <template v-if="activeRightRailTab === 'profile'">
+                            <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60">
+                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('customers.details.contact.title') }}
+                                </div>
+                                <div class="mt-3">
+                                    <DescriptionList :item="customer" />
+                                </div>
                             </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.paid') }}</div>
-                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ formatCurrency(billing?.summary?.total_paid) }}
-                            </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.balance_due') }}</div>
-                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ formatCurrency(billing?.summary?.balance_due) }}
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="mt-5">
-                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.billing_history.recent_payments') }}</h3>
-                        <div class="mt-3 space-y-2 text-sm">
+                            <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60">
+                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('customers.details.tags.title') }}
+                                </div>
+
+                                <div v-if="!editingTags" class="mt-3 space-y-3">
+                                    <div v-if="tags.length" class="flex flex-wrap gap-2">
+                                        <span
+                                            v-for="tag in tags"
+                                            :key="tag"
+                                            class="inline-flex items-center rounded-sm bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-800 dark:bg-neutral-700 dark:text-neutral-200"
+                                        >
+                                            {{ tag }}
+                                        </span>
+                                    </div>
+                                    <div v-else class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('customers.details.tags.empty') }}</div>
+
+                                    <div class="flex justify-end">
+                                        <button
+                                            type="button"
+                                            @click="startEditTags"
+                                            class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                        >
+                                            {{ $t('customers.actions.edit') }}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <form v-else class="mt-3 space-y-3" @submit.prevent="submitTags">
+                                    <div>
+                                        <FloatingInput v-model="tagsForm.tags" :label="$t('customers.details.tags.field')" />
+                                        <InputError class="mt-1" :message="tagsForm.errors.tags" />
+                                    </div>
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            @click="cancelEditTags"
+                                            class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                        >
+                                            {{ $t('customers.actions.cancel') }}
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            :disabled="tagsForm.processing"
+                                            class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        >
+                                            {{ $t('customers.actions.save') }}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60">
+                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('customers.details.notes.title') }}
+                                </div>
+
+                                <div v-if="!editingNotes" class="mt-3 space-y-3">
+                                    <p class="text-sm whitespace-pre-wrap text-stone-700 dark:text-neutral-200">
+                                        {{ customer.description || $t('customers.details.notes.empty') }}
+                                    </p>
+                                    <div class="flex justify-end">
+                                        <button
+                                            type="button"
+                                            @click="startEditNotes"
+                                            class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                        >
+                                            {{ $t('customers.actions.edit') }}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <form v-else class="mt-3 space-y-3" @submit.prevent="submitNotes">
+                                    <div>
+                                        <FloatingTextarea v-model="notesForm.description" :label="$t('customers.details.notes.field')" />
+                                        <InputError class="mt-1" :message="notesForm.errors.description" />
+                                    </div>
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            @click="cancelEditNotes"
+                                            class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                        >
+                                            {{ $t('customers.actions.cancel') }}
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            :disabled="notesForm.processing"
+                                            class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        >
+                                            {{ $t('customers.actions.save') }}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60">
+                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('customers.details.last_interaction.title') }}
+                                </div>
+
+                                <div v-if="lastInteraction" class="mt-3 space-y-1 text-sm">
+                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
+                                        {{ lastInteraction.subject }} • {{ formatDate(lastInteraction.created_at) }}
+                                    </div>
+                                    <div class="text-sm text-stone-800 dark:text-neutral-200">
+                                        {{ lastInteraction.description || lastInteraction.action }}
+                                    </div>
+                                </div>
+                                <div v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
+                                    {{ $t('customers.details.last_interaction.empty') }}
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-else-if="activeRightRailTab === 'marketing'">
                             <div
-                                v-for="payment in billing?.recentPayments || []"
-                                :key="payment.id"
-                                class="flex items-start justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700"
+                                v-if="campaignsFeatureEnabled"
+                                class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60"
                             >
-                                <div>
-                                    <Link
-                                        v-if="payment.invoice"
-                                        :href="route('invoice.show', payment.invoice.id)"
-                                        class="font-medium text-stone-800 hover:underline dark:text-neutral-200"
+                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    VIP
+                                </div>
+
+                                <div v-if="!editingVip" class="mt-3 space-y-3">
+                                    <div class="flex items-center gap-2 text-sm">
+                                        <span
+                                            class="rounded-full px-2 py-0.5 text-xs font-semibold"
+                                            :class="customer?.is_vip ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200' : 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200'"
+                                        >
+                                            {{ customer?.is_vip ? 'VIP' : 'Standard' }}
+                                        </span>
+                                        <span v-if="customer?.is_vip" class="text-stone-600 dark:text-neutral-300">
+                                            {{ customer?.vip_tier?.name || customer?.vip_tier_code || '-' }}
+                                        </span>
+                                    </div>
+
+                                    <div class="flex justify-end">
+                                        <button
+                                            type="button"
+                                            @click="startEditVip"
+                                            class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                        >
+                                            {{ $t('customers.actions.edit') }}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <form v-else class="mt-3 space-y-3" @submit.prevent="submitVip">
+                                    <label class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200">
+                                        <span>VIP customer</span>
+                                        <input
+                                            type="checkbox"
+                                            v-model="vipForm.is_vip"
+                                            class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                            before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
+                                        />
+                                    </label>
+
+                                    <div v-if="vipForm.is_vip">
+                                        <FloatingSelect
+                                            v-model="vipForm.vip_tier_id"
+                                            :label="'VIP tier'"
+                                            :options="vipTiers.map((tier) => ({ id: tier.id, name: `${tier.name} (${tier.code})` }))"
+                                        />
+                                        <InputError class="mt-1" :message="vipForm.errors.vip_tier_id" />
+                                    </div>
+
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            @click="cancelEditVip"
+                                            class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                        >
+                                            {{ $t('customers.actions.cancel') }}
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            :disabled="vipForm.processing"
+                                            class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        >
+                                            {{ $t('customers.actions.save') }}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div
+                                v-if="canManageMailingLists"
+                                class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60"
+                            >
+                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('customers.details.mailing_lists.title') }}
+                                </div>
+
+                                <p class="mt-3 text-sm text-stone-600 dark:text-neutral-300">
+                                    {{ $t('customers.details.mailing_lists.description') }}
+                                </p>
+
+                                <div class="mt-3 flex justify-end">
+                                    <button
+                                        type="button"
+                                        @click="openMailingListDialog"
+                                        class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
                                     >
-                                        {{ payment.invoice.number || $t('customers.details.billing_history.invoice_fallback') }}
-                                    </Link>
-                                    <div v-else class="font-medium text-stone-800 dark:text-neutral-200">{{ $t('customers.details.billing_history.payment_fallback') }}</div>
-                                    <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ $t('customers.details.billing_history.paid_on') }} {{ formatDate(payment.paid_at || payment.created_at) }}
-                                    </div>
+                                        {{ $t('customers.details.mailing_lists.add_action') }}
+                                    </button>
                                 </div>
-                                <div class="text-right">
-                                    <div class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                        {{ formatCurrency(payment.amount) }}
-                                    </div>
-                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ payment.method || payment.status || '' }}
-                                    </div>
-                                </div>
+
+                                <p v-if="mailingListInfo" class="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+                                    {{ mailingListInfo }}
+                                </p>
+                                <p v-if="mailingListError" class="mt-2 text-xs text-rose-600">
+                                    {{ mailingListError }}
+                                </p>
                             </div>
+                        </template>
+
+                        <template v-else-if="activeRightRailTab === 'automation'">
+                            <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60">
+                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('customers.details.auto_validation.title') }}
+                                </div>
+
+                                <form class="mt-3 space-y-3" @submit.prevent="submitAutoValidation">
+                                    <div class="space-y-2">
+                                        <label
+                                            v-for="option in autoValidationOptions"
+                                            :key="option.id"
+                                            :for="option.id"
+                                            class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
+                                        >
+                                            <span>{{ option.label }}</span>
+                                            <input
+                                                :id="option.id"
+                                                type="checkbox"
+                                                v-model="autoValidationForm[option.field]"
+                                                class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                                before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
+                                            />
+                                        </label>
+                                    </div>
+
+                                    <div class="flex justify-end">
+                                        <button
+                                            type="submit"
+                                            :disabled="autoValidationForm.processing"
+                                            class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        >
+                                            {{ $t('customers.actions.save') }}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </template>
+
+                        <template v-else-if="activeRightRailTab === 'finance'">
                             <div
-                                v-if="!(billing?.recentPayments || []).length"
-                                class="text-sm text-stone-500 dark:text-neutral-400"
+                                v-if="showBillingHistory"
+                                class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60"
                             >
-                                {{ $t('customers.details.billing_history.empty') }}
-                            </div>
-                        </div>
-                    </div>
-                </Card>
-                <Card v-if="loyaltyFeatureEnabled" class="mt-5">
-                    <template #title>{{ $t('customers.details.loyalty.title') }}</template>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('customers.details.billing_history.title') }}
+                                </div>
 
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.balance') }}</div>
-                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ formatNumber(loyalty?.balance || 0) }} {{ loyaltyPointLabel }}
-                            </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.earn_rate') }}</div>
-                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ $t('customers.details.loyalty.rate_value', { rate: formatNumber(loyalty?.rate || 0, 2) }) }}
-                            </div>
-                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('customers.details.loyalty.rounding', { mode: loyaltyRoundingLabel }) }}
-                            </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.minimum_spend') }}</div>
-                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ formatCurrency(loyalty?.minimum_spend || 0) }}
-                            </div>
-                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                {{ loyalty?.enabled ? $t('customers.details.loyalty.enabled') : $t('customers.details.loyalty.disabled') }}
-                            </div>
-                        </div>
-                    </div>
+                                <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.invoiced') }}</div>
+                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                            {{ formatCurrency(billing?.summary?.total_invoiced) }}
+                                        </div>
+                                    </div>
+                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.paid') }}</div>
+                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                            {{ formatCurrency(billing?.summary?.total_paid) }}
+                                        </div>
+                                    </div>
+                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.balance_due') }}</div>
+                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                            {{ formatCurrency(billing?.summary?.balance_due) }}
+                                        </div>
+                                    </div>
+                                </div>
 
-                    <div class="mt-5">
-                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.loyalty.recent_activity') }}</h3>
+                                <div class="mt-5">
+                                    <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.billing_history.recent_payments') }}</h3>
+                                    <div class="mt-3 space-y-2 text-sm">
+                                        <div
+                                            v-for="payment in billing?.recentPayments || []"
+                                            :key="payment.id"
+                                            class="flex items-start justify-between gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                        >
+                                            <div>
+                                                <Link
+                                                    v-if="payment.invoice"
+                                                    :href="route('invoice.show', payment.invoice.id)"
+                                                    class="font-medium text-stone-800 hover:underline dark:text-neutral-200"
+                                                >
+                                                    {{ payment.invoice.number || $t('customers.details.billing_history.invoice_fallback') }}
+                                                </Link>
+                                                <div v-else class="font-medium text-stone-800 dark:text-neutral-200">{{ $t('customers.details.billing_history.payment_fallback') }}</div>
+                                                <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
+                                                    {{ $t('customers.details.billing_history.paid_on') }} {{ formatDate(payment.paid_at || payment.created_at) }}
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                                    {{ formatCurrency(payment.amount) }}
+                                                </div>
+                                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                                    {{ payment.method || payment.status || '' }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            v-if="!(billing?.recentPayments || []).length"
+                                            class="text-sm text-stone-500 dark:text-neutral-400"
+                                        >
+                                            {{ $t('customers.details.billing_history.empty') }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-                        <div v-if="loyaltyRecent.length" class="mt-3 space-y-2 text-sm">
                             <div
-                                v-for="entry in loyaltyRecent"
-                                :key="entry.id"
-                                class="flex items-start justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700"
+                                v-if="loyaltyFeatureEnabled"
+                                class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60"
                             >
-                                <div>
-                                    <div class="font-medium text-stone-800 dark:text-neutral-200">
-                                        {{ loyaltyEventLabel(entry.event) }}
+                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('customers.details.loyalty.title') }}
+                                </div>
+
+                                <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.balance') }}</div>
+                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                            {{ formatNumber(loyalty?.balance || 0) }} {{ loyaltyPointLabel }}
+                                        </div>
                                     </div>
-                                    <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ $t('customers.details.loyalty.payment_amount', { amount: formatCurrency(entry.amount) }) }} -
-                                        {{ formatDate(entry.processed_at) }}
+                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.earn_rate') }}</div>
+                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                            {{ $t('customers.details.loyalty.rate_value', { rate: formatNumber(loyalty?.rate || 0, 2) }) }}
+                                        </div>
+                                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ $t('customers.details.loyalty.rounding', { mode: loyaltyRoundingLabel }) }}
+                                        </div>
+                                    </div>
+                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.minimum_spend') }}</div>
+                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                            {{ formatCurrency(loyalty?.minimum_spend || 0) }}
+                                        </div>
+                                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ loyalty?.enabled ? $t('customers.details.loyalty.enabled') : $t('customers.details.loyalty.disabled') }}
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="text-right">
-                                    <div
-                                        class="text-sm font-semibold"
-                                        :class="entry.points >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'"
-                                    >
-                                        {{ formatSignedPoints(entry.points) }}
+
+                                <div class="mt-5">
+                                    <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.loyalty.recent_activity') }}</h3>
+
+                                    <div v-if="loyaltyRecent.length" class="mt-3 space-y-2 text-sm">
+                                        <div
+                                            v-for="entry in loyaltyRecent"
+                                            :key="entry.id"
+                                            class="flex items-start justify-between gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                        >
+                                            <div>
+                                                <div class="font-medium text-stone-800 dark:text-neutral-200">
+                                                    {{ loyaltyEventLabel(entry.event) }}
+                                                </div>
+                                                <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
+                                                    {{ $t('customers.details.loyalty.payment_amount', { amount: formatCurrency(entry.amount) }) }} -
+                                                    {{ formatDate(entry.processed_at) }}
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div
+                                                    class="text-sm font-semibold"
+                                                    :class="entry.points >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'"
+                                                >
+                                                    {{ formatSignedPoints(entry.points) }}
+                                                </div>
+                                                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ loyaltyPointLabel }}</div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ loyaltyPointLabel }}</div>
+                                    <div v-else class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
+                                        {{ $t('customers.details.loyalty.empty') }}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div v-else class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
-                            {{ $t('customers.details.loyalty.empty') }}
-                        </div>
+                        </template>
                     </div>
-                </Card>
-                <Card class="mt-5">
-                    <template #title>{{ $t('customers.details.notes.title') }}</template>
-
-                    <div v-if="!editingNotes" class="space-y-3">
-                        <p class="text-sm text-stone-700 whitespace-pre-wrap dark:text-neutral-200">
-                            {{ customer.description || $t('customers.details.notes.empty') }}
-                        </p>
-                        <div class="flex justify-end">
-                            <button
-                                type="button"
-                                @click="startEditNotes"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                            >
-                                {{ $t('customers.actions.edit') }}
-                            </button>
-                        </div>
-                    </div>
-
-                    <form v-else class="space-y-3" @submit.prevent="submitNotes">
-                        <div>
-                            <FloatingTextarea v-model="notesForm.description" :label="$t('customers.details.notes.field')" />
-                            <InputError class="mt-1" :message="notesForm.errors.description" />
-                        </div>
-                        <div class="flex items-center justify-end gap-2">
-                            <button
-                                type="button"
-                                @click="cancelEditNotes"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                            >
-                                {{ $t('customers.actions.cancel') }}
-                            </button>
-                            <button
-                                type="submit"
-                                :disabled="notesForm.processing"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
-                            >
-                                {{ $t('customers.actions.save') }}
-                            </button>
-                        </div>
-                    </form>
                 </Card>
             </div>
         </div>

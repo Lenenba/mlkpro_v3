@@ -13,6 +13,7 @@ use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DemoController;
 use App\Http\Controllers\DemoTourController;
+use App\Http\Controllers\E2E\FixtureResetController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinanceApprovalInboxController;
 use App\Http\Controllers\GlobalSearchController;
@@ -362,6 +363,11 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/crm/manager-dashboard', [SalesManagerDashboardController::class, 'index'])
             ->name('crm.manager-dashboard.index');
     });
+
+    if (app()->environment('e2e')) {
+        Route::get('/_e2e/reset/quote-recovery', [FixtureResetController::class, 'quoteRecovery'])
+            ->name('e2e.reset.quote-recovery');
+    }
 
     // Lead Requests
     Route::middleware('company.feature:requests')->group(function () {

@@ -13,10 +13,6 @@ import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     customer: Object,
-    stats: {
-        type: Object,
-        default: () => ({}),
-    },
 });
 
 const { hasFeature } = useAccountFeatures();
@@ -133,6 +129,13 @@ const filteredRequests = computed(() => filterList(safeArray(props.customer?.req
 const filteredQuotes = computed(() => filterList(safeArray(props.customer?.quotes), 'quotes'));
 const filteredJobs = computed(() => filterList(safeArray(props.customer?.works), 'jobs'));
 const filteredInvoices = computed(() => filterList(safeArray(props.customer?.invoices), 'invoices'));
+const tabCounts = computed(() => ({
+    active_works: filteredActiveWorks.value.length,
+    requests: filteredRequests.value.length,
+    quotes: filteredQuotes.value.length,
+    jobs: filteredJobs.value.length,
+    invoices: filteredInvoices.value.length,
+}));
 
 const isFiltered = (key) => filters[key] !== 'all';
 
@@ -172,7 +175,7 @@ const defaultPropertyId = computed(() => {
         <!-- Audience -->
         <div class="flex flex-col bg-white rounded-sm overflow-hidden dark:bg-neutral-900 dark:border-neutral-700">
             <!-- Tab Nav -->
-            <CardNavLink v-if="hasTabs" :customer="customer" :activeWorks="activeWorks" :stats="stats" />
+            <CardNavLink v-if="hasTabs" :counts="tabCounts" />
             <!-- End Tab Nav -->
 
             <!-- Tab Content -->

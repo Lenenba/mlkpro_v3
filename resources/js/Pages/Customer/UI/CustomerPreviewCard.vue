@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import CardNoHeader from '@/Components/UI/CardNoHeader.vue';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     stats: {
@@ -30,6 +31,11 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const { hasFeature } = useAccountFeatures();
+const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
+const requestsFeatureEnabled = computed(() => hasFeature('requests'));
+const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
+const invoicesFeatureEnabled = computed(() => hasFeature('invoices'));
 
 const formatDate = (value) => humanizeDate(value);
 const { formatCurrency } = useCurrencyFormatter();
@@ -55,13 +61,21 @@ const formatStatus = (status, keyPrefix = '') => {
 const hasValue = (value) => value !== null && value !== undefined;
 
 const kpiMax = computed(() => {
-    const values = [
-        Number(props.stats?.quotes || 0),
-        Number(props.stats?.active_works || 0),
-        Number(props.stats?.jobs || 0),
-        Number(props.stats?.invoices || 0),
-        Number(props.stats?.requests || 0),
-    ];
+    const values = [];
+
+    if (quotesFeatureEnabled.value) {
+        values.push(Number(props.stats?.quotes || 0));
+    }
+    if (jobsFeatureEnabled.value) {
+        values.push(Number(props.stats?.active_works || 0));
+        values.push(Number(props.stats?.jobs || 0));
+    }
+    if (invoicesFeatureEnabled.value) {
+        values.push(Number(props.stats?.invoices || 0));
+    }
+    if (requestsFeatureEnabled.value) {
+        values.push(Number(props.stats?.requests || 0));
+    }
 
     return Math.max(1, ...values);
 });
@@ -92,14 +106,20 @@ const balanceBarWidth = computed(() => {
 
     return `${Math.min(100, Math.max(12, percent))}%`;
 });
+const hasPreviewContent = computed(() => (
+    quotesFeatureEnabled.value
+    || requestsFeatureEnabled.value
+    || jobsFeatureEnabled.value
+    || invoicesFeatureEnabled.value
+));
 </script>
 
 <template>
-    <CardNoHeader>
+    <CardNoHeader v-if="hasPreviewContent">
         <template #title>{{ $t('customers.details.preview.title') }}</template>
 
         <div class="grid grid-cols-2 gap-3 rise-stagger">
-            <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+            <div v-if="quotesFeatureEnabled" class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.quotes') }}</div>
@@ -121,7 +141,7 @@ const balanceBarWidth = computed(() => {
                 </div>
             </div>
 
-            <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+            <div v-if="jobsFeatureEnabled" class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.active_jobs') }}</div>
@@ -151,7 +171,7 @@ const balanceBarWidth = computed(() => {
                 </div>
             </div>
 
-            <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+            <div v-if="jobsFeatureEnabled" class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.jobs') }}</div>
@@ -171,7 +191,7 @@ const balanceBarWidth = computed(() => {
                 </div>
             </div>
 
-            <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+            <div v-if="invoicesFeatureEnabled" class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.invoices') }}</div>
@@ -194,7 +214,7 @@ const balanceBarWidth = computed(() => {
                 </div>
             </div>
 
-            <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+            <div v-if="requestsFeatureEnabled" class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.requests') }}</div>
@@ -216,7 +236,7 @@ const balanceBarWidth = computed(() => {
                 </div>
             </div>
 
-            <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+            <div v-if="invoicesFeatureEnabled" class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.balance_due') }}</div>
@@ -240,7 +260,7 @@ const balanceBarWidth = computed(() => {
         </div>
 
         <div class="mt-4 space-y-3 text-sm">
-            <div class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
+            <div v-if="quotesFeatureEnabled" class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
                 <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.latest_quote') }}</div>
                 <div v-if="latestQuote">
                     <Link :href="route('customer.quote.show', latestQuote.id)" class="font-medium text-stone-800 hover:underline dark:text-neutral-200">
@@ -256,7 +276,7 @@ const balanceBarWidth = computed(() => {
                 <div v-else class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.no_quotes') }}</div>
             </div>
 
-            <div class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
+            <div v-if="jobsFeatureEnabled" class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
                 <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.latest_job') }}</div>
                 <div v-if="latestWork">
                     <Link :href="route('work.show', latestWork.id)" class="font-medium text-stone-800 hover:underline dark:text-neutral-200">
@@ -269,7 +289,7 @@ const balanceBarWidth = computed(() => {
                 <div v-else class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.no_jobs') }}</div>
             </div>
 
-            <div class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
+            <div v-if="invoicesFeatureEnabled" class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
                 <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.latest_invoice') }}</div>
                 <div v-if="latestInvoice">
                     <Link :href="route('invoice.show', latestInvoice.id)" class="font-medium text-stone-800 hover:underline dark:text-neutral-200">

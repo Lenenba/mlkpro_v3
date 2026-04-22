@@ -423,6 +423,18 @@
           "email": "Email"
         }
       },
+      "workspace": {
+        "title": "Activite client"
+      },
+      "sidebar": {
+        "title": "Panneau client",
+        "tabs": {
+          "profile": "Profil",
+          "marketing": "Marketing",
+          "automation": "Automatisation",
+          "finance": "Finance"
+        }
+      },
       "mailing_lists": {
         "title": "Mailing lists",
         "description": "Ajoutez ce client a une mailing list marketing en un clic.",
