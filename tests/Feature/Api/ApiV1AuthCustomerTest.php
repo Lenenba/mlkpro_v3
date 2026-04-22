@@ -28,6 +28,7 @@ test('api v1 login and customer notes update', function () {
 
     $customerId = $customerResponse->json('customer.id');
     expect($customerId)->not->toBeNull();
+    expect($customerResponse->json('customer.client_type'))->toBe('individual');
 
     $this->withHeader('Authorization', 'Bearer ' . $token)
         ->patchJson("/api/v1/customer/{$customerId}/notes", [

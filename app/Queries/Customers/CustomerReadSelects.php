@@ -57,9 +57,9 @@ final class CustomerReadSelects
     public static function optionCustomerColumns(string $scope): array
     {
         return match ($scope) {
-            'audience' => ['id', 'company_name', 'first_name', 'last_name', 'email', 'phone'],
-            'request', 'quote' => ['id', 'company_name', 'first_name', 'last_name', 'email', 'phone', 'logo', 'number'],
-            default => ['id', 'company_name', 'first_name', 'last_name', 'email', 'phone', 'logo', 'number'],
+            'audience' => ['id', 'client_type', 'company_name', 'registration_number', 'industry', 'first_name', 'last_name', 'email', 'phone'],
+            'request', 'quote' => ['id', 'client_type', 'company_name', 'registration_number', 'industry', 'first_name', 'last_name', 'email', 'phone', 'logo', 'number'],
+            default => ['id', 'client_type', 'company_name', 'registration_number', 'industry', 'first_name', 'last_name', 'email', 'phone', 'logo', 'number'],
         };
     }
 

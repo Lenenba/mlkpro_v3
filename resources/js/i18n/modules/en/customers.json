@@ -501,17 +501,26 @@
       },
       "sections": {
         "client_details": "Client details",
+        "company_details": "Company details",
+        "main_contact": "Main contact",
         "contact_details": "Contact details",
         "auto_validation": "Client auto validation",
         "additional_details": "Additional client detail",
         "billing_preferences": "Billing preferences",
         "location": "Location"
       },
+      "client_types": {
+        "company": "Company",
+        "individual": "Individual"
+      },
       "fields": {
+        "client_type": "Client type",
         "title": "Title",
         "first_name": "First name",
         "last_name": "Last name",
         "company_name": "Company name",
+        "registration_number": "Registration number",
+        "industry": "Industry",
         "company_logo": "Company logo",
         "upload_company_logo": "Upload company logo",
         "choose_company_icon": "Or choose a company icon",

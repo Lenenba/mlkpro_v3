@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\CustomerClientType;
 use App\Models\User;
 use App\Models\Customer;
 use Illuminate\Support\Facades\Log;
@@ -25,6 +26,15 @@ class CustomerFactory extends Factory
             'first_name' => $this->faker->firstName(),
             'last_name' => $this->faker->lastName(),
             'company_name' => $this->faker->company(),
+            'client_type' => CustomerClientType::COMPANY->value,
+            'registration_number' => strtoupper($this->faker->bothify('REG-#####')),
+            'industry' => $this->faker->randomElement([
+                'Construction',
+                'Professional services',
+                'Retail',
+                'Hospitality',
+                'Healthcare',
+            ]),
             'email' => $this->faker->unique()->safeEmail(),
             'phone' => $this->faker->phoneNumber(),
             'description' => $this->faker->sentence(),

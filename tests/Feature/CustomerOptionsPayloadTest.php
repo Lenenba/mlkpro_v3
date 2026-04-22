@@ -15,9 +15,12 @@ test('customer options audience scope returns a lean audience payload', function
 
     Customer::query()->create([
         'user_id' => $owner->id,
+        'client_type' => 'company',
         'first_name' => 'Alice',
         'last_name' => 'Audience',
         'company_name' => 'Audience Co',
+        'registration_number' => 'REG-10001',
+        'industry' => 'Professional services',
         'email' => 'alice.audience@example.com',
         'phone' => '+15145550101',
         'logo' => '/logos/audience.png',
@@ -31,7 +34,10 @@ test('customer options audience scope returns a lean audience payload', function
     $customer = $response->json('customers.0');
 
     expect($customer)->toMatchArray([
+        'client_type' => 'company',
         'company_name' => 'Audience Co',
+        'registration_number' => 'REG-10001',
+        'industry' => 'Professional services',
         'first_name' => 'Alice',
         'last_name' => 'Audience',
         'email' => 'alice.audience@example.com',
@@ -50,9 +56,12 @@ test('customer options quote scope returns compact property payloads', function 
 
     $customer = Customer::query()->create([
         'user_id' => $owner->id,
+        'client_type' => 'company',
         'first_name' => 'Quentin',
         'last_name' => 'Quote',
         'company_name' => 'Quote Co',
+        'registration_number' => 'REG-20002',
+        'industry' => 'Retail',
         'email' => 'quentin.quote@example.com',
         'phone' => '+15145550102',
         'logo' => '/logos/quote.png',
@@ -78,7 +87,10 @@ test('customer options quote scope returns compact property payloads', function 
     $property = $response->json('customers.0.properties.0');
 
     expect($payload)->toMatchArray([
+        'client_type' => 'company',
         'company_name' => 'Quote Co',
+        'registration_number' => 'REG-20002',
+        'industry' => 'Retail',
         'email' => 'quentin.quote@example.com',
     ])
         ->and($property)->toMatchArray([
