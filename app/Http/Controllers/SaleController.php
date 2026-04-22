@@ -10,12 +10,14 @@ use App\Models\LoyaltyProgram;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductLot;
+use App\Models\PromotionUsage;
 use App\Models\Sale;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\CompanyFeatureService;
 use App\Services\InventoryService;
 use App\Services\LoyaltyPointService;
+use App\Services\Promotions\PromotionPricingService;
 use App\Services\SaleNotificationService;
 use App\Services\SaleTimelineService;
 use App\Services\StripeSaleService;
@@ -284,6 +286,7 @@ class SaleController extends Controller
         $accountId = $accountOwner->id;
         $featureService = app(CompanyFeatureService::class);
         $loyaltyFeatureEnabled = $featureService->hasFeature($accountOwner, 'loyalty');
+        $promotionsFeatureEnabled = $featureService->hasFeature($accountOwner, 'promotions');
         $customerColumns = ['id', 'first_name', 'last_name', 'company_name', 'email', 'phone', 'discount_rate'];
         if ($loyaltyFeatureEnabled) {
             $customerColumns[] = 'loyalty_points_balance';
@@ -311,6 +314,7 @@ class SaleController extends Controller
                 'minimum_stock',
                 'tax_rate',
                 'unit',
+                'item_type',
                 'tracking_type',
             ]);
         $this->hydrateSellableStock($products);
@@ -353,6 +357,9 @@ class SaleController extends Controller
         return $this->inertiaOrJson('Sales/Create', [
             'customers' => $customers,
             'products' => $products,
+            'promotions' => $promotionsFeatureEnabled
+                ? $this->promotionCatalogForSales((int) $accountId)
+                : [],
             'prefillItems' => $prefillItems,
             'prefillContext' => $prefillContext,
             'stripe' => [
@@ -386,6 +393,7 @@ class SaleController extends Controller
         [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
         $canAccessAll = $canManage || $canPos;
+        $promotionsFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($accountOwner, 'promotions');
 
         if ($sale->user_id !== $accountId) {
             abort(404);
@@ -416,6 +424,7 @@ class SaleController extends Controller
                 'minimum_stock',
                 'tax_rate',
                 'unit',
+                'item_type',
                 'tracking_type',
             ]);
         $this->hydrateSellableStock($products);
@@ -428,6 +437,9 @@ class SaleController extends Controller
             'sale' => $sale,
             'customers' => $customers,
             'products' => $products,
+            'promotions' => $promotionsFeatureEnabled
+                ? $this->promotionCatalogForSales((int) $accountId, (int) $sale->id)
+                : [],
         ]);
     }
 
@@ -439,7 +451,9 @@ class SaleController extends Controller
         }
         [$accountOwner] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
-        $loyaltyFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($accountOwner, 'loyalty');
+        $featureService = app(CompanyFeatureService::class);
+        $loyaltyFeatureEnabled = $featureService->hasFeature($accountOwner, 'loyalty');
+        $promotionsFeatureEnabled = $featureService->hasFeature($accountOwner, 'promotions');
 
         $validated = $request->validated();
 
@@ -571,12 +585,25 @@ class SaleController extends Controller
             ];
         }
 
-        $discountRate = $customerRecord ? (float) ($customerRecord->discount_rate ?? 0) : 0;
-        $discountRate = min(100, max(0, $discountRate));
-        $discountTotal = round($subtotal * ($discountRate / 100), 2);
-        $discountedSubtotal = max(0, $subtotal - $discountTotal);
-        $discountedTaxTotal = round($taxTotal * (1 - ($discountRate / 100)), 2);
-        $totalBeforeLoyalty = round($discountedSubtotal + $discountedTaxTotal, 2);
+        $pricing = $this->resolveSalePricing(
+            (int) $accountId,
+            $validated['items'],
+            $products,
+            $customerRecord,
+            $validated['promotion_code'] ?? null,
+            null,
+            $promotionsFeatureEnabled
+        );
+        if ($pricing['error_message'] ?? null) {
+            throw ValidationException::withMessages([
+                'promotion_code' => $pricing['error_message'],
+            ]);
+        }
+
+        $discountRate = round((float) ($pricing['discount_rate'] ?? 0), 2);
+        $pricingDiscountTotal = round((float) ($pricing['pricing_discount_total'] ?? 0), 2);
+        $discountedTaxTotal = round((float) ($pricing['tax_total'] ?? $taxTotal), 2);
+        $totalBeforeLoyalty = round((float) ($pricing['total_before_loyalty'] ?? ($subtotal + $discountedTaxTotal)), 2);
         $requestedLoyaltyPoints = max(0, (int) ($validated['loyalty_points_redeem'] ?? 0));
         if (! $loyaltyFeatureEnabled && $requestedLoyaltyPoints > 0) {
             throw ValidationException::withMessages([
@@ -647,8 +674,8 @@ class SaleController extends Controller
             $paymentProvider,
             $subtotal,
             $discountedTaxTotal,
-            $discountRate,
-            $discountTotal,
+            $pricing,
+            $pricingDiscountTotal,
             $total,
             $fulfillmentStatus,
             $validated,
@@ -666,8 +693,8 @@ class SaleController extends Controller
                 'payment_provider' => $paymentProvider,
                 'subtotal' => $subtotal,
                 'tax_total' => $discountedTaxTotal,
-                'discount_rate' => $discountRate,
-                'discount_total' => round($discountTotal, 2),
+                ...$this->salePricingAttributes($pricing),
+                'discount_total' => $pricingDiscountTotal,
                 'loyalty_points_redeemed' => 0,
                 'loyalty_discount_total' => 0,
                 'total' => $total,
@@ -692,7 +719,7 @@ class SaleController extends Controller
                 $loyaltyPointsRedeemed = (int) ($redemption['points'] ?? 0);
                 $loyaltyDiscountTotal = round(max(0, (float) ($redemption['amount'] ?? 0)), 2);
                 $finalTotal = round(max(0, $totalBeforeLoyalty - $loyaltyDiscountTotal), 2);
-                $combinedDiscountTotal = round($discountTotal + $loyaltyDiscountTotal, 2);
+                $combinedDiscountTotal = round($pricingDiscountTotal + $loyaltyDiscountTotal, 2);
 
                 $sale->forceFill([
                     'loyalty_points_redeemed' => $loyaltyPointsRedeemed,
@@ -701,6 +728,8 @@ class SaleController extends Controller
                     'total' => $finalTotal,
                 ])->save();
             }
+
+            $this->syncPromotionUsage($sale, $pricing);
 
             if ($payWithStripe && (float) $sale->total <= 0) {
                 throw ValidationException::withMessages([
@@ -809,6 +838,7 @@ class SaleController extends Controller
         [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
         $canAccessAll = $canManage || $canPos;
+        $promotionsFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($accountOwner, 'promotions');
 
         if ($sale->user_id !== $accountId) {
             abort(404);
@@ -937,18 +967,32 @@ class SaleController extends Controller
             ];
         }
 
-        $discountRate = 0;
-        if ($customerId) {
-            $discountRate = (float) Customer::query()
+        $customerRecord = $customerId
+            ? Customer::query()
                 ->where('user_id', $accountId)
                 ->whereKey($customerId)
-                ->value('discount_rate');
+                ->first(['id', 'discount_rate'])
+            : null;
+
+        $pricing = $this->resolveSalePricing(
+            (int) $accountId,
+            $validated['items'],
+            $products,
+            $customerRecord,
+            $validated['promotion_code'] ?? null,
+            (int) $sale->id,
+            $promotionsFeatureEnabled
+        );
+        if ($pricing['error_message'] ?? null) {
+            throw ValidationException::withMessages([
+                'promotion_code' => $pricing['error_message'],
+            ]);
         }
-        $discountRate = min(100, max(0, $discountRate));
-        $discountTotal = round($subtotal * ($discountRate / 100), 2);
-        $discountedSubtotal = max(0, $subtotal - $discountTotal);
-        $discountedTaxTotal = round($taxTotal * (1 - ($discountRate / 100)), 2);
-        $totalBeforeLoyalty = round($discountedSubtotal + $discountedTaxTotal, 2);
+
+        $discountRate = round((float) ($pricing['discount_rate'] ?? 0), 2);
+        $pricingDiscountTotal = round((float) ($pricing['pricing_discount_total'] ?? 0), 2);
+        $discountedTaxTotal = round((float) ($pricing['tax_total'] ?? $taxTotal), 2);
+        $totalBeforeLoyalty = round((float) ($pricing['total_before_loyalty'] ?? ($subtotal + $discountedTaxTotal)), 2);
         $existingLoyaltyDiscount = round(max(0, (float) ($sale->loyalty_discount_total ?? 0)), 2);
         if ($existingLoyaltyDiscount > 0 && $existingLoyaltyDiscount > $totalBeforeLoyalty) {
             throw ValidationException::withMessages([
@@ -956,7 +1000,7 @@ class SaleController extends Controller
             ]);
         }
 
-        $combinedDiscountTotal = round($discountTotal + $existingLoyaltyDiscount, 2);
+        $combinedDiscountTotal = round($pricingDiscountTotal + $existingLoyaltyDiscount, 2);
         $total = round(max(0, $totalBeforeLoyalty - $existingLoyaltyDiscount), 2);
 
         $updateData = [
@@ -964,7 +1008,7 @@ class SaleController extends Controller
             'status' => $validated['status'],
             'subtotal' => $subtotal,
             'tax_total' => $discountedTaxTotal,
-            'discount_rate' => $discountRate,
+            ...$this->salePricingAttributes($pricing),
             'discount_total' => $combinedDiscountTotal,
             'loyalty_points_redeemed' => (int) ($sale->loyalty_points_redeemed ?? 0),
             'loyalty_discount_total' => $existingLoyaltyDiscount,
@@ -1009,6 +1053,8 @@ class SaleController extends Controller
         foreach ($itemsPayload as $payload) {
             $sale->items()->create($payload);
         }
+
+        $this->syncPromotionUsage($sale, $pricing);
 
         $wasPending = $previousStatus === Sale::STATUS_PENDING;
         $isPending = $sale->status === Sale::STATUS_PENDING
@@ -1686,6 +1732,7 @@ class SaleController extends Controller
     private function loadSaleForResponse(Sale $sale): Sale
     {
         $sale->loadMissing([
+            'promotion:id,name,code',
             'customer:id,first_name,last_name,company_name,email,phone',
             'items.product:id,name,sku,unit,image',
             'createdBy:id,name,email,phone_number',
@@ -1700,6 +1747,76 @@ class SaleController extends Controller
     private function isFulfillmentComplete(?string $status): bool
     {
         return in_array($status, [Sale::FULFILLMENT_COMPLETED, Sale::FULFILLMENT_CONFIRMED], true);
+    }
+
+    private function resolveSalePricing(
+        int $accountId,
+        array $items,
+        \Illuminate\Support\Collection $products,
+        ?Customer $customerRecord,
+        ?string $promotionCode = null,
+        ?int $ignoreSaleId = null,
+        bool $promotionsFeatureEnabled = true,
+    ): array {
+        $pricingService = app(PromotionPricingService::class);
+
+        if (! $promotionsFeatureEnabled) {
+            return $pricingService->resolveWithoutPromotions($items, $products, $customerRecord);
+        }
+
+        return $pricingService->resolve(
+            $accountId,
+            $items,
+            $products,
+            $customerRecord,
+            $promotionCode,
+            $ignoreSaleId
+        );
+    }
+
+    private function promotionCatalogForSales(int $accountId, ?int $ignoreSaleId = null): array
+    {
+        return app(PromotionPricingService::class)
+            ->frontendCatalogForAccount($accountId, $ignoreSaleId)
+            ->values()
+            ->all();
+    }
+
+    private function salePricingAttributes(array $pricing): array
+    {
+        return [
+            'promotion_id' => data_get($pricing, 'promotion.id'),
+            'discount_rate' => round((float) ($pricing['discount_rate'] ?? 0), 2),
+            'discount_source' => $pricing['discount_source'] ?? null,
+            'discount_label' => $pricing['discount_label'] ?? null,
+            'discount_code' => $pricing['discount_code'] ?? null,
+            'discount_type' => $pricing['discount_type'] ?? null,
+            'discount_value' => $pricing['discount_value'] ?? null,
+            'discount_target_type' => $pricing['discount_target_type'] ?? null,
+            'discount_target_id' => $pricing['discount_target_id'] ?? null,
+            'pricing_discount_total' => round((float) ($pricing['pricing_discount_total'] ?? 0), 2),
+            'discount_snapshot' => $pricing['discount_snapshot'] ?? null,
+        ];
+    }
+
+    private function syncPromotionUsage(Sale $sale, array $pricing): void
+    {
+        PromotionUsage::query()->where('sale_id', $sale->id)->delete();
+
+        if (($pricing['discount_source'] ?? null) !== 'promotion' || ! data_get($pricing, 'promotion.id')) {
+            return;
+        }
+
+        PromotionUsage::query()->create([
+            'promotion_id' => (int) data_get($pricing, 'promotion.id'),
+            'sale_id' => (int) $sale->id,
+            'user_id' => (int) $sale->user_id,
+            'customer_id' => $sale->customer_id ? (int) $sale->customer_id : null,
+            'code' => $pricing['discount_code'] ?? null,
+            'discount_total' => round((float) ($pricing['pricing_discount_total'] ?? 0), 2),
+            'snapshot' => app(PromotionPricingService::class)->usageSnapshot($pricing),
+            'used_at' => now(),
+        ]);
     }
 
     private function applyReservations(Sale $sale, array $itemsPayload, int $accountId, $currentItems = null): void

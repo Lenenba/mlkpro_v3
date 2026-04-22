@@ -50,6 +50,7 @@ use App\Http\Controllers\Portal\PortalWorkProofController;
 use App\Http\Controllers\PresenceController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductPriceLookupController;
+use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\ProductsSearchController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicInvoiceController;
@@ -658,6 +659,13 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     // Sales Management (products)
     Route::middleware('company.feature:sales')->group(function () {
         Route::get('/orders', [SaleController::class, 'ordersIndex'])->name('orders.index');
+        Route::middleware('company.feature:promotions')->group(function () {
+        Route::get('/promotions', [PromotionController::class, 'index'])->name('promotions.index');
+        Route::post('/promotions', [PromotionController::class, 'store'])->name('promotions.store');
+        Route::put('/promotions/{promotion}', [PromotionController::class, 'update'])->name('promotions.update');
+        Route::patch('/promotions/{promotion}/status', [PromotionController::class, 'updateStatus'])->name('promotions.status.update');
+        Route::delete('/promotions/{promotion}', [PromotionController::class, 'destroy'])->name('promotions.destroy');
+        });
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
         Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
         Route::get('/sales/{sale}/edit', [SaleController::class, 'edit'])->name('sales.edit');

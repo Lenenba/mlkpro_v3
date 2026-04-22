@@ -1,0 +1,72 @@
+{
+  "promotions": {
+    "title": "Promociones",
+    "subtitle": "Crea campanas estacionales, codigos por cliente y descuentos para productos o servicios desde un solo lugar.",
+    "stats": {
+      "total": "Promociones",
+      "active": "Activas",
+      "valid_now": "Validas ahora",
+      "codes": "Con codigos"
+    },
+    "targets": {
+      "global": "Todos los clientes",
+      "client": "Cliente especifico",
+      "product": "Producto especifico",
+      "service": "Servicio especifico"
+    },
+    "discount_types": {
+      "percentage": "Porcentaje",
+      "fixed": "Monto fijo"
+    },
+    "statuses": {
+      "active": "Activa",
+      "inactive": "Inactiva"
+    },
+    "actions": {
+      "new": "Nueva promocion",
+      "edit": "Editar",
+      "activate": "Activar",
+      "deactivate": "Desactivar",
+      "delete": "Eliminar",
+      "cancel": "Cancelar",
+      "save": "Guardar promocion",
+      "save_changes": "Guardar cambios",
+      "delete_confirm": "Eliminar la promocion \"{name}\"?"
+    },
+    "list": {
+      "title": "Biblioteca de promociones",
+      "empty": "Todavia no hay promociones."
+    },
+    "table": {
+      "name": "Promocion",
+      "target": "Objetivo",
+      "discount": "Descuento",
+      "window": "Fechas",
+      "usage": "Uso",
+      "status": "Estado",
+      "actions": "Acciones",
+      "no_code": "Sin codigo",
+      "minimum_order": "Pedido minimo: {amount}",
+      "unlimited": "Ilimitado",
+      "valid_now": "Valida ahora"
+    },
+    "modal": {
+      "create_title": "Crear promocion",
+      "edit_title": "Editar promocion",
+      "subtitle": "Separa objetivo, descuento, periodo y limites para mantener reglas limpias y extensibles."
+    },
+    "form": {
+      "name": "Nombre",
+      "code": "Codigo promocional (opcional)",
+      "target_type": "Tipo de objetivo",
+      "target": "Objetivo",
+      "discount_type": "Tipo de descuento",
+      "discount_value": "Valor del descuento",
+      "start_date": "Fecha de inicio",
+      "end_date": "Fecha de fin",
+      "status": "Estado",
+      "usage_limit": "Limite de uso (opcional)",
+      "minimum_order_amount": "Monto minimo del pedido (opcional)"
+    }
+  }
+}

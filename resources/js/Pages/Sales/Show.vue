@@ -79,6 +79,27 @@ const lineCount = computed(() => props.sale?.items?.length ?? 0);
 const totalQty = computed(() =>
     (props.sale?.items ?? []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
 );
+const pricingDiscountTotal = computed(() => {
+    const explicit = Number(props.sale?.pricing_discount_total || 0);
+    if (explicit > 0) {
+        return explicit;
+    }
+
+    const combined = Number(props.sale?.discount_total || 0);
+    const loyalty = Number(props.sale?.loyalty_discount_total || 0);
+    return Math.max(0, combined - loyalty);
+});
+const pricingDiscountLabel = computed(() => {
+    if (props.sale?.discount_source === 'promotion' && props.sale?.discount_label) {
+        return t('sales.summary.discount_named', { label: props.sale.discount_label });
+    }
+
+    if (props.sale?.discount_source === 'customer' && pricingDiscountTotal.value > 0) {
+        return t('sales.summary.customer_discount', { rate: props.sale?.discount_rate || 0 });
+    }
+
+    return t('sales.summary.discount_rate', { rate: props.sale?.discount_rate || 0 });
+});
 
 const productImage = (item) => item?.product?.image_url || item?.product?.image || null;
 const productFallback = (item) => {
@@ -627,9 +648,13 @@ const markCashPaymentAsPaid = (paymentId) => {
                                 <span>{{ $t('sales.summary.taxes') }}</span>
                                 <span class="font-medium">{{ formatCurrency(sale.tax_total) }}</span>
                             </div>
-                            <div v-if="Number(sale.discount_total || 0) > 0" class="flex items-center justify-between text-emerald-700">
-                                <span>{{ $t('sales.summary.discount_rate', { rate: sale.discount_rate || 0 }) }}</span>
-                                <span class="font-medium">- {{ formatCurrency(sale.discount_total) }}</span>
+                            <div v-if="pricingDiscountTotal > 0" class="flex items-center justify-between text-emerald-700">
+                                <span>{{ pricingDiscountLabel }}</span>
+                                <span class="font-medium">- {{ formatCurrency(pricingDiscountTotal) }}</span>
+                            </div>
+                            <div v-if="Number(sale.loyalty_discount_total || 0) > 0" class="flex items-center justify-between text-emerald-700">
+                                <span>{{ $t('sales.summary.loyalty_redeem', { points: sale.loyalty_points_redeemed || 0, label: 'points' }) }}</span>
+                                <span class="font-medium">- {{ formatCurrency(sale.loyalty_discount_total) }}</span>
                             </div>
                             <div v-if="Number(sale.delivery_fee || 0) > 0" class="flex items-center justify-between">
                                 <span>{{ $t('sales.summary.delivery') }}</span>

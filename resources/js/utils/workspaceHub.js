@@ -181,6 +181,14 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             tone: 'sales',
             visible: companyType === 'products' && hasFeature('sales') && canSales,
         },
+        promotions: {
+            key: 'promotions',
+            labelKey: 'nav.promotions',
+            descriptionKey: 'workspace_hub.modules.promotions',
+            routeName: 'promotions.index',
+            tone: 'sales',
+            visible: companyType === 'products' && hasFeature('promotions') && canSalesManage && !isSeller,
+        },
         campaigns: {
             key: 'campaigns',
             labelKey: 'nav.campaigns',
@@ -374,8 +382,8 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             titleKey: 'workspace_hub.categories.revenue.title',
             icon: 'revenue',
             tone: 'revenue',
-            match: ['customer.*', 'request.*', 'quote.*', 'crm.next-actions.*', 'crm.sales-inbox.*', 'crm.manager-dashboard.*', 'orders.*', 'sales.*'],
-            moduleKeys: ['customers', 'requests', 'quotes', 'manager_dashboard', 'sales_inbox', 'next_actions', 'orders', 'sales'],
+            match: ['customer.*', 'request.*', 'quote.*', 'crm.next-actions.*', 'crm.sales-inbox.*', 'crm.manager-dashboard.*', 'orders.*', 'sales.*', 'promotions.*'],
+            moduleKeys: ['customers', 'requests', 'quotes', 'manager_dashboard', 'sales_inbox', 'next_actions', 'orders', 'sales', 'promotions'],
         },
         {
             key: 'growth',

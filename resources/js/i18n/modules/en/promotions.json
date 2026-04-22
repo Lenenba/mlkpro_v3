@@ -1,0 +1,72 @@
+{
+  "promotions": {
+    "title": "Promotions",
+    "subtitle": "Create seasonal campaigns, client-specific codes, and product or service discounts from one place.",
+    "stats": {
+      "total": "Total promotions",
+      "active": "Active",
+      "valid_now": "Valid now",
+      "codes": "With codes"
+    },
+    "targets": {
+      "global": "All clients",
+      "client": "Specific client",
+      "product": "Specific product",
+      "service": "Specific service"
+    },
+    "discount_types": {
+      "percentage": "Percentage",
+      "fixed": "Fixed amount"
+    },
+    "statuses": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "actions": {
+      "new": "New promotion",
+      "edit": "Edit",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "save": "Save promotion",
+      "save_changes": "Save changes",
+      "delete_confirm": "Delete promotion \"{name}\"?"
+    },
+    "list": {
+      "title": "Promotion library",
+      "empty": "No promotions yet. Create your first one to start running campaigns."
+    },
+    "table": {
+      "name": "Promotion",
+      "target": "Target",
+      "discount": "Discount",
+      "window": "Valid dates",
+      "usage": "Usage",
+      "status": "Status",
+      "actions": "Actions",
+      "no_code": "No code",
+      "minimum_order": "Minimum order: {amount}",
+      "unlimited": "Unlimited",
+      "valid_now": "Valid now"
+    },
+    "modal": {
+      "create_title": "Create promotion",
+      "edit_title": "Edit promotion",
+      "subtitle": "Promotions stay flexible by separating target, discount, timing, and usage rules."
+    },
+    "form": {
+      "name": "Name",
+      "code": "Promo code (optional)",
+      "target_type": "Target type",
+      "target": "Target",
+      "discount_type": "Discount type",
+      "discount_value": "Discount value",
+      "start_date": "Start date",
+      "end_date": "End date",
+      "status": "Status",
+      "usage_limit": "Usage limit (optional)",
+      "minimum_order_amount": "Minimum order amount (optional)"
+    }
+  }
+}
