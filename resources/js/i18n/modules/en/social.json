@@ -1,0 +1,217 @@
+{
+  "social": {
+    "workspace": {
+      "eyebrow": "Malikia Pulse",
+      "actions": {
+        "back_to_growth": "Back to growth hub"
+      },
+      "tabs": {
+        "overview": "Overview",
+        "accounts": "Accounts",
+        "composer": "Composer"
+      },
+      "stats": {
+        "connected_accounts": "Connected accounts",
+        "draft_posts": "Draft posts",
+        "scheduled_posts": "Scheduled posts"
+      }
+    },
+    "index_page": {
+      "head_title": "Malikia Pulse workspace",
+      "page_title": "Malikia Pulse workspace",
+      "page_description": "Move from connected accounts to the first publish-ready drafts without leaving the module.",
+      "read_only_title": "Read-only Pulse access",
+      "read_only_description": "You can review accounts and existing drafts, but only authorized users can change content right now.",
+      "cards": {
+        "accounts_title": "Connected account control",
+        "accounts_description": "Check which pages and profiles are truly available before using them in a draft.",
+        "configured_accounts": "Configured accounts",
+        "connected_accounts": "Live connections",
+        "accounts_action_manage": "Manage accounts",
+        "accounts_action_view": "View accounts",
+        "composer_title": "Draft composer",
+        "composer_description": "Prepare text, image, link, scheduling, and target selection from one clean Pulse screen.",
+        "composer_action_manage": "Open composer",
+        "composer_action_view": "View composer"
+      },
+      "recent_drafts_title": "Recent drafts",
+      "recent_drafts_description": "Pick up the last Pulse drafts without rebuilding the target selection from zero.",
+      "open_composer": "Open composer",
+      "empty_recent_drafts": "No Pulse draft has been saved yet.",
+      "untitled_draft": "Untitled Pulse draft",
+      "draft_targets": "{count} target | {count} targets",
+      "empty_value": "Not available"
+    },
+    "accounts_page": {
+      "head_title": "Malikia Pulse accounts",
+      "page_title": "Malikia Pulse accounts",
+      "page_description": "Prepare, connect, and monitor the social accounts that Malikia Pulse will use for multi-network publishing.",
+      "actions": {
+        "back_to_growth": "Back to growth hub"
+      }
+    },
+    "composer_page": {
+      "head_title": "Malikia Pulse composer",
+      "page_title": "Malikia Pulse composer",
+      "page_description": "Create, publish, or schedule a simple Pulse post with text, image, link, schedule, and target account selection."
+    },
+    "composer_manager": {
+      "title": "Draft composer",
+      "description": "Save a clean Pulse draft, then publish it now or schedule it across the connected accounts you selected.",
+      "read_only_title": "Read-only composer",
+      "read_only_description": "You can review targets and drafts, but you need `social.manage` or `social.publish` to save changes.",
+      "targets_title": "Connected targets",
+      "targets_description": "Choose one or more active social accounts for this draft.",
+      "drafts_title": "Draft library",
+      "drafts_description": "Recent Pulse drafts stay scoped to the tenant and keep their target selection.",
+      "draft_targets": "{count} target | {count} targets",
+      "last_updated": "Last updated",
+      "empty_drafts": "No Pulse draft has been saved yet.",
+      "empty_connected_title": "No connected target yet",
+      "empty_connected_description": "Connect at least one active social account in Accounts before saving a draft.",
+      "preview_title": "Live preview",
+      "preview_description": "Quickly review the message, image, link, schedule, and selected accounts before saving.",
+      "preview_targets": "Selected targets",
+      "preview_no_targets": "No account selected yet.",
+      "preview_empty_text": "Your Pulse text preview will appear here.",
+      "preview_image_alt": "Pulse draft preview image",
+      "preview_schedule": "Schedule",
+      "preview_now": "Save as draft",
+      "preview": {
+        "status_draft": "Draft",
+        "status_scheduled": "Scheduled"
+      },
+      "fields": {
+        "text": "Post text",
+        "image_url": "Image URL",
+        "link_url": "Destination link",
+        "scheduled_for": "Schedule for"
+      },
+      "actions": {
+        "reload": "Reload",
+        "new_draft": "New draft",
+        "save_draft": "Save draft",
+        "update_draft": "Save changes",
+        "publish_now": "Publish now",
+        "schedule_post": "Schedule post",
+        "clear_form": "Clear form"
+      },
+      "statuses": {
+        "draft": "Draft",
+        "scheduled": "Scheduled",
+        "publishing": "Publishing",
+        "published": "Published",
+        "partial_failed": "Partial failure",
+        "failed": "Failed"
+      },
+      "messages": {
+        "load_error": "The Pulse composer could not be refreshed.",
+        "save_error": "The Pulse draft could not be saved.",
+        "save_success": "The Pulse draft was saved.",
+        "publish_error": "The Pulse post could not be queued for publishing.",
+        "publish_success": "The Pulse post has been queued for publishing.",
+        "schedule_error": "The Pulse post could not be scheduled.",
+        "schedule_success": "The Pulse post has been scheduled."
+      },
+      "untitled_draft": "Untitled Pulse draft",
+      "empty_value": "Not available"
+    },
+    "accounts_manager": {
+      "title": "Connected accounts",
+      "description": "Create an account draft, complete the real OAuth authorization, and keep labels and target details clean for multi-network publishing.",
+      "reload": "Reload",
+      "summary": {
+        "configured": "Configured",
+        "connected": "Connected",
+        "attention": "Needs attention",
+        "inactive": "Inactive"
+      },
+      "read_only_title": "Read-only access",
+      "read_only_description": "You can review connected accounts and statuses, but only the owner can change Pulse account settings right now.",
+      "provider_directory_title": "Platforms ready for Pulse",
+      "provider_directory_description": "Each platform already exposes the scopes, target type, and OAuth contract used by live Pulse connections.",
+      "provider_accounts_count": "{count} account | {count} accounts",
+      "provider_connected_count": "{count} connected | {count} connected",
+      "provider_target_type": "Target type",
+      "provider_scopes": "Requested scopes",
+      "provider_supports": "Supports",
+      "provider_prepare": "Prepare account",
+      "provider_view": "View details",
+      "connection_library_title": "Account library",
+      "connection_library_description": "Every draft or live connection stays scoped to the tenant and ready for future posting targets.",
+      "empty_title": "No Pulse account yet",
+      "empty_description": "Pick a platform card to prepare the first social account for this workspace.",
+      "view_details": "View details",
+      "edit_details": "Edit account",
+      "oauth_scaffold_badge": "Authorization required",
+      "oauth_scaffold_description": "This draft already stores the label, target metadata, and requested scopes. Launch OAuth to truly activate this account.",
+      "modal": {
+        "create_title": "Prepare Pulse account",
+        "edit_title": "Update Pulse account",
+        "details_title": "Connection details",
+        "manage_title": "Account settings",
+        "status": "Status",
+        "connected_at": "Connected at",
+        "last_synced_at": "Last synced",
+        "token_expires_at": "Token expires",
+        "platform_capabilities": "Publishing capabilities",
+        "requested_scopes": "Requested scopes",
+        "provider_target": "Provider target",
+        "permissions": "Granted permissions",
+        "last_error": "Last error",
+        "no_permissions": "No provider permissions have been saved yet.",
+        "draft_notice": "The account is still in draft mode. Launch OAuth to finish the provider authorization.",
+        "read_only_notice": "This view is read-only for your role.",
+        "connected_toggle_label": "Available for publishing",
+        "connected_toggle_hint": "Turn this off to keep the account saved without using it for future targets."
+      },
+      "fields": {
+        "label": "Internal label",
+        "display_name": "Display name",
+        "account_handle": "Account handle",
+        "external_account_id": "External account ID"
+      },
+      "field_hints": {
+        "label": "Use a clear name that helps the team recognize the target account quickly.",
+        "display_name": "Optional public-facing business or page name.",
+        "account_handle": "Optional handle such as @brandname.",
+        "external_account_id": "Optional provider account ID. It must stay unique per tenant and platform."
+      },
+      "actions": {
+        "save_draft": "Save draft",
+        "update_account": "Save changes",
+        "connect_oauth": "Start OAuth",
+        "reconnect_oauth": "Reconnect OAuth",
+        "refresh_tokens": "Refresh token",
+        "disconnect": "Disconnect",
+        "delete": "Delete",
+        "close": "Close"
+      },
+      "statuses": {
+        "draft": "Draft",
+        "pending": "Pending",
+        "connected": "Connected",
+        "error": "Error",
+        "reconnect_required": "Reconnect required",
+        "expired": "Expired",
+        "disconnected": "Disconnected"
+      },
+      "messages": {
+        "load_error": "The Pulse accounts workspace could not be refreshed.",
+        "save_error": "The Pulse account could not be saved.",
+        "save_success": "The Pulse account was saved.",
+        "authorize_error": "The Pulse OAuth flow could not be started.",
+        "authorize_redirect": "Redirecting to the OAuth provider.",
+        "refresh_error": "The Pulse token could not be refreshed.",
+        "refresh_success": "The Pulse token was refreshed.",
+        "disconnect_error": "The Pulse account could not be disconnected.",
+        "disconnect_success": "The Pulse account was disconnected.",
+        "delete_error": "The Pulse account could not be deleted.",
+        "delete_success": "The Pulse account was deleted.",
+        "confirm_disconnect": "Disconnect {name}?",
+        "confirm_delete": "Delete {name}?"
+      },
+      "empty_value": "Not available"
+    }
+  }
+}

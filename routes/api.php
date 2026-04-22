@@ -75,6 +75,8 @@ use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SubscriptionController;
+use App\Http\Controllers\SocialAccountConnectionController;
+use App\Http\Controllers\SocialPostController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\SupportTicketMessageController;
 use App\Http\Controllers\TaskController;
@@ -464,6 +466,22 @@ Route::name('api.')->group(function () {
                 Route::post('campaign-automations', [CampaignAutomationController::class, 'store']);
                 Route::put('campaign-automations/{rule}', [CampaignAutomationController::class, 'update']);
                 Route::delete('campaign-automations/{rule}', [CampaignAutomationController::class, 'destroy']);
+            });
+
+            Route::middleware('company.feature:social')->group(function () {
+                Route::get('social', [SocialPostController::class, 'index']);
+                Route::get('social/composer', [SocialPostController::class, 'composer']);
+                Route::post('social/posts', [SocialPostController::class, 'store']);
+                Route::put('social/posts/{post}', [SocialPostController::class, 'update']);
+                Route::post('social/posts/{post}/publish', [SocialPostController::class, 'publish']);
+                Route::post('social/posts/{post}/schedule', [SocialPostController::class, 'schedule']);
+                Route::get('social/accounts', [SocialAccountConnectionController::class, 'index']);
+                Route::post('social/accounts', [SocialAccountConnectionController::class, 'store']);
+                Route::put('social/accounts/{connection}', [SocialAccountConnectionController::class, 'update']);
+                Route::post('social/accounts/{connection}/authorize', [SocialAccountConnectionController::class, 'beginAuthorization']);
+                Route::post('social/accounts/{connection}/refresh', [SocialAccountConnectionController::class, 'refresh']);
+                Route::post('social/accounts/{connection}/disconnect', [SocialAccountConnectionController::class, 'disconnect']);
+                Route::delete('social/accounts/{connection}', [SocialAccountConnectionController::class, 'destroy']);
             });
 
             Route::get('customers/options', [CustomerController::class, 'options']);

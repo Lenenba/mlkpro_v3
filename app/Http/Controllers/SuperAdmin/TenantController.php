@@ -683,6 +683,7 @@ class TenantController extends BaseSuperAdminController
             'assistant' => 'AI assistant',
             'loyalty' => 'Loyalty',
             'campaigns' => 'Campaigns',
+            'social' => 'Malikia Pulse',
         ];
 
         $current = is_array($tenant->company_features) ? $tenant->company_features : [];

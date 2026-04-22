@@ -89,6 +89,8 @@ use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SubscriptionController;
+use App\Http\Controllers\SocialAccountConnectionController;
+use App\Http\Controllers\SocialPostController;
 use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController;
 use App\Http\Controllers\SuperAdmin\AiImageController as SuperAdminAiImageController;
 use App\Http\Controllers\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
@@ -128,6 +130,9 @@ Route::get('/favicon.ico', function () {
 Route::get('/integrations/prospect-providers/{provider}/callback', [MarketingProspectProviderConnectionController::class, 'oauthCallback'])
     ->whereIn('provider', ['apollo'])
     ->name('marketing.prospect-providers.oauth.callback');
+Route::get('/integrations/social/{platform}/callback', [SocialAccountConnectionController::class, 'oauthCallback'])
+    ->whereIn('platform', ['facebook', 'instagram', 'linkedin', 'x'])
+    ->name('social.accounts.oauth.callback');
 
 // Paddle webhook is registered by Cashier Paddle at `/{CASHIER_PATH}/webhook`.
 
@@ -528,6 +533,35 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
     Route::middleware('company.feature:loyalty')->group(function () {
         Route::get('/loyalty', [LoyaltyController::class, 'index'])->name('loyalty.index');
+    });
+
+    Route::middleware('company.feature:social')->group(function () {
+        Route::get('/social', [SocialPostController::class, 'index'])
+            ->name('social.index');
+        Route::get('/social/composer', [SocialPostController::class, 'composer'])
+            ->name('social.composer');
+        Route::post('/social/posts', [SocialPostController::class, 'store'])
+            ->name('social.posts.store');
+        Route::put('/social/posts/{post}', [SocialPostController::class, 'update'])
+            ->name('social.posts.update');
+        Route::post('/social/posts/{post}/publish', [SocialPostController::class, 'publish'])
+            ->name('social.posts.publish');
+        Route::post('/social/posts/{post}/schedule', [SocialPostController::class, 'schedule'])
+            ->name('social.posts.schedule');
+        Route::get('/social/accounts', [SocialAccountConnectionController::class, 'index'])
+            ->name('social.accounts.index');
+        Route::post('/social/accounts', [SocialAccountConnectionController::class, 'store'])
+            ->name('social.accounts.store');
+        Route::put('/social/accounts/{connection}', [SocialAccountConnectionController::class, 'update'])
+            ->name('social.accounts.update');
+        Route::post('/social/accounts/{connection}/authorize', [SocialAccountConnectionController::class, 'beginAuthorization'])
+            ->name('social.accounts.authorize');
+        Route::post('/social/accounts/{connection}/refresh', [SocialAccountConnectionController::class, 'refresh'])
+            ->name('social.accounts.refresh');
+        Route::post('/social/accounts/{connection}/disconnect', [SocialAccountConnectionController::class, 'disconnect'])
+            ->name('social.accounts.disconnect');
+        Route::delete('/social/accounts/{connection}', [SocialAccountConnectionController::class, 'destroy'])
+            ->name('social.accounts.destroy');
     });
 
     Route::middleware('company.feature:campaigns')->group(function () {

@@ -28,6 +28,7 @@ class CompanyFeatureService
         'team_members',
         'assistant',
         'campaigns',
+        'social',
         'loyalty',
     ];
 

@@ -60,6 +60,7 @@ const moduleIconToneClass = {
     sales: 'text-orange-600 dark:text-orange-200',
     promotions: 'text-rose-600 dark:text-rose-200',
     campaigns: 'text-fuchsia-600 dark:text-fuchsia-200',
+    social: 'text-sky-600 dark:text-sky-200',
     loyalty: 'text-amber-600 dark:text-amber-200',
     performance: 'text-teal-600 dark:text-teal-200',
     jobs: 'text-indigo-600 dark:text-indigo-200',

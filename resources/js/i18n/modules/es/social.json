@@ -1,0 +1,217 @@
+{
+  "social": {
+    "workspace": {
+      "eyebrow": "Malikia Pulse",
+      "actions": {
+        "back_to_growth": "Volver al hub de crecimiento"
+      },
+      "tabs": {
+        "overview": "Resumen",
+        "accounts": "Cuentas",
+        "composer": "Composer"
+      },
+      "stats": {
+        "connected_accounts": "Cuentas conectadas",
+        "draft_posts": "Borradores",
+        "scheduled_posts": "Programadas"
+      }
+    },
+    "index_page": {
+      "head_title": "Espacio Malikia Pulse",
+      "page_title": "Espacio Malikia Pulse",
+      "page_description": "Pasa de las cuentas conectadas a los primeros borradores listos para publicar sin salir del modulo.",
+      "read_only_title": "Acceso Pulse de solo lectura",
+      "read_only_description": "Puedes revisar las cuentas y los borradores existentes, pero solo los usuarios autorizados pueden cambiar el contenido por ahora.",
+      "cards": {
+        "accounts_title": "Control de cuentas conectadas",
+        "accounts_description": "Verifica que paginas y perfiles estan realmente disponibles antes de usarlos en un borrador.",
+        "configured_accounts": "Cuentas configuradas",
+        "connected_accounts": "Conexiones activas",
+        "accounts_action_manage": "Gestionar cuentas",
+        "accounts_action_view": "Ver cuentas",
+        "composer_title": "Composer de borradores",
+        "composer_description": "Prepara texto, imagen, enlace, programacion y seleccion de cuentas objetivo desde una sola pantalla Pulse.",
+        "composer_action_manage": "Abrir composer",
+        "composer_action_view": "Ver composer"
+      },
+      "recent_drafts_title": "Borradores recientes",
+      "recent_drafts_description": "Retoma los ultimos borradores Pulse sin reconstruir la seleccion de objetivos.",
+      "open_composer": "Abrir composer",
+      "empty_recent_drafts": "Todavia no se ha guardado ningun borrador Pulse.",
+      "untitled_draft": "Borrador Pulse sin titulo",
+      "draft_targets": "{count} destino | {count} destinos",
+      "empty_value": "No disponible"
+    },
+    "accounts_page": {
+      "head_title": "Cuentas de Malikia Pulse",
+      "page_title": "Cuentas de Malikia Pulse",
+      "page_description": "Prepara, conecta y sigue las cuentas sociales que Malikia Pulse usara para la publicacion multi-red.",
+      "actions": {
+        "back_to_growth": "Volver al hub de crecimiento"
+      }
+    },
+    "composer_page": {
+      "head_title": "Composer de Malikia Pulse",
+      "page_title": "Composer de Malikia Pulse",
+      "page_description": "Crea, publica o programa un post Pulse simple con texto, imagen, enlace, programacion y seleccion de varias cuentas."
+    },
+    "composer_manager": {
+      "title": "Composer de borradores",
+      "description": "Guarda un borrador Pulse limpio y luego publicalo ahora o programalo en las cuentas conectadas seleccionadas.",
+      "read_only_title": "Composer de solo lectura",
+      "read_only_description": "Puedes revisar objetivos y borradores, pero necesitas `social.manage` o `social.publish` para guardar cambios.",
+      "targets_title": "Destinos conectados",
+      "targets_description": "Elige una o varias cuentas sociales activas para este borrador.",
+      "drafts_title": "Biblioteca de borradores",
+      "drafts_description": "Los ultimos borradores Pulse permanecen aislados por tenant y conservan su seleccion de objetivos.",
+      "draft_targets": "{count} destino | {count} destinos",
+      "last_updated": "Ultima actualizacion",
+      "empty_drafts": "Todavia no se ha guardado ningun borrador Pulse.",
+      "empty_connected_title": "Todavia no hay destinos conectados",
+      "empty_connected_description": "Conecta al menos una cuenta social activa en Cuentas antes de guardar un borrador.",
+      "preview_title": "Preview inmediata",
+      "preview_description": "Revisa rapidamente el mensaje, la imagen, el enlace, la programacion y las cuentas seleccionadas antes de guardar.",
+      "preview_targets": "Destinos seleccionados",
+      "preview_no_targets": "Todavia no hay ninguna cuenta seleccionada.",
+      "preview_empty_text": "La preview de texto de Pulse aparecera aqui.",
+      "preview_image_alt": "Imagen de preview del borrador Pulse",
+      "preview_schedule": "Programacion",
+      "preview_now": "Guardar como borrador",
+      "preview": {
+        "status_draft": "Borrador",
+        "status_scheduled": "Programado"
+      },
+      "fields": {
+        "text": "Texto del post",
+        "image_url": "URL de la imagen",
+        "link_url": "Enlace de destino",
+        "scheduled_for": "Programar para"
+      },
+      "actions": {
+        "reload": "Recargar",
+        "new_draft": "Nuevo borrador",
+        "save_draft": "Guardar borrador",
+        "update_draft": "Guardar cambios",
+        "publish_now": "Publicar ahora",
+        "schedule_post": "Programar post",
+        "clear_form": "Limpiar formulario"
+      },
+      "statuses": {
+        "draft": "Borrador",
+        "scheduled": "Programado",
+        "publishing": "Publicando",
+        "published": "Publicado",
+        "partial_failed": "Fallo parcial",
+        "failed": "Fallo"
+      },
+      "messages": {
+        "load_error": "No se pudo recargar el composer de Pulse.",
+        "save_error": "No se pudo guardar el borrador Pulse.",
+        "save_success": "El borrador Pulse se guardo correctamente.",
+        "publish_error": "No se pudo poner en cola el post Pulse para publicarlo.",
+        "publish_success": "El post Pulse se puso en cola para publicarlo.",
+        "schedule_error": "No se pudo programar el post Pulse.",
+        "schedule_success": "El post Pulse se programo."
+      },
+      "untitled_draft": "Borrador Pulse sin titulo",
+      "empty_value": "No disponible"
+    },
+    "accounts_manager": {
+      "title": "Cuentas conectadas",
+      "description": "Crea un borrador de cuenta, completa la autorizacion OAuth real y manten limpios los labels y metadatos para la publicacion multi-red.",
+      "reload": "Recargar",
+      "summary": {
+        "configured": "Configuradas",
+        "connected": "Conectadas",
+        "attention": "Con atencion",
+        "inactive": "Inactivas"
+      },
+      "read_only_title": "Acceso de solo lectura",
+      "read_only_description": "Puedes revisar las cuentas y sus estados, pero solo el propietario puede cambiar los ajustes de Pulse por ahora.",
+      "provider_directory_title": "Plataformas listas para Pulse",
+      "provider_directory_description": "Cada plataforma ya expone los scopes, el tipo de destino y el contrato OAuth usados por las conexiones activas de Pulse.",
+      "provider_accounts_count": "{count} cuenta | {count} cuentas",
+      "provider_connected_count": "{count} conectada | {count} conectadas",
+      "provider_target_type": "Tipo de destino",
+      "provider_scopes": "Scopes solicitados",
+      "provider_supports": "Soporta",
+      "provider_prepare": "Preparar cuenta",
+      "provider_view": "Ver detalles",
+      "connection_library_title": "Biblioteca de cuentas",
+      "connection_library_description": "Cada borrador o conexion activa queda aislado por tenant y listo para futuras publicaciones.",
+      "empty_title": "Todavia no hay cuentas Pulse",
+      "empty_description": "Elige una plataforma para preparar la primera cuenta social de este espacio.",
+      "view_details": "Ver detalles",
+      "edit_details": "Editar cuenta",
+      "oauth_scaffold_badge": "Autorizacion requerida",
+      "oauth_scaffold_description": "Este borrador ya guarda el label, los metadatos de la cuenta destino y los scopes solicitados. Lanza OAuth para activar de verdad esta cuenta.",
+      "modal": {
+        "create_title": "Preparar cuenta Pulse",
+        "edit_title": "Actualizar cuenta Pulse",
+        "details_title": "Detalles de la conexion",
+        "manage_title": "Ajustes de la cuenta",
+        "status": "Estado",
+        "connected_at": "Conectada el",
+        "last_synced_at": "Ultima sincronizacion",
+        "token_expires_at": "Expiracion del token",
+        "platform_capabilities": "Capacidades de publicacion",
+        "requested_scopes": "Scopes solicitados",
+        "provider_target": "Destino del proveedor",
+        "permissions": "Permisos otorgados",
+        "last_error": "Ultimo error",
+        "no_permissions": "Todavia no se han guardado permisos del proveedor.",
+        "draft_notice": "La cuenta sigue en modo borrador. Lanza OAuth para terminar la autorizacion del proveedor.",
+        "read_only_notice": "Esta vista es de solo lectura para tu rol.",
+        "connected_toggle_label": "Disponible para publicar",
+        "connected_toggle_hint": "Desactiva esto para conservar la cuenta sin usarla en los futuros destinos."
+      },
+      "fields": {
+        "label": "Label interno",
+        "display_name": "Nombre visible",
+        "account_handle": "Handle de la cuenta",
+        "external_account_id": "ID externo de la cuenta"
+      },
+      "field_hints": {
+        "label": "Usa un nombre claro que ayude al equipo a reconocer rapido la cuenta objetivo.",
+        "display_name": "Nombre publico opcional de la marca, pagina u organizacion.",
+        "account_handle": "Handle opcional como @brandname.",
+        "external_account_id": "ID opcional del proveedor. Debe ser unico por tenant y plataforma."
+      },
+      "actions": {
+        "save_draft": "Guardar borrador",
+        "update_account": "Guardar cambios",
+        "connect_oauth": "Lanzar OAuth",
+        "reconnect_oauth": "Relanzar OAuth",
+        "refresh_tokens": "Refrescar token",
+        "disconnect": "Desconectar",
+        "delete": "Eliminar",
+        "close": "Cerrar"
+      },
+      "statuses": {
+        "draft": "Borrador",
+        "pending": "Pendiente",
+        "connected": "Conectada",
+        "error": "Error",
+        "reconnect_required": "Reconectar",
+        "expired": "Expirada",
+        "disconnected": "Desconectada"
+      },
+      "messages": {
+        "load_error": "No se pudo recargar el espacio de cuentas Pulse.",
+        "save_error": "No se pudo guardar la cuenta Pulse.",
+        "save_success": "La cuenta Pulse se guardo correctamente.",
+        "authorize_error": "No se pudo iniciar el flujo OAuth de Pulse.",
+        "authorize_redirect": "Redirigiendo al proveedor OAuth.",
+        "refresh_error": "No se pudo refrescar el token de Pulse.",
+        "refresh_success": "El token de Pulse se refresco correctamente.",
+        "disconnect_error": "No se pudo desconectar la cuenta Pulse.",
+        "disconnect_success": "La cuenta Pulse se desconecto correctamente.",
+        "delete_error": "No se pudo eliminar la cuenta Pulse.",
+        "delete_success": "La cuenta Pulse se elimino correctamente.",
+        "confirm_disconnect": "Desconectar {name}?",
+        "confirm_delete": "Eliminar {name}?"
+      },
+      "empty_value": "No disponible"
+    }
+  }
+}

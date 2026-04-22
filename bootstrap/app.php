@@ -43,7 +43,14 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->reportable(function (\Throwable $exception): void {
-            app(ErrorMetricsService::class)->record($exception, request());
+            try {
+                app(ErrorMetricsService::class)->record(
+                    $exception,
+                    app()->bound('request') ? request() : null
+                );
+            } catch (\Throwable) {
+                // Keep console/bootstrap exceptions reportable even before facades are fully ready.
+            }
         });
 
         $redirectForbidden = function (Request $request, ?string $message = null) {

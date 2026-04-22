@@ -105,7 +105,11 @@
         "sales_pos": "POS access only",
         "campaigns_view": "View campaigns",
         "campaigns_manage": "Create and edit campaigns",
-        "campaigns_send": "Send campaigns"
+        "campaigns_send": "Send campaigns",
+        "social_view": "View Malikia Pulse",
+        "social_manage": "Create and edit social posts",
+        "social_publish": "Publish and schedule social posts",
+        "social_approve": "Approve social posts"
       }
     }
   }

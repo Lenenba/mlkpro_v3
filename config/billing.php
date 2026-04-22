@@ -254,6 +254,7 @@ return [
             'legacy_only' => true,
             'default_modules' => [
                 'accounting' => false,
+                'social' => false,
             ],
             'default_limits' => [
                 'quotes' => null,
@@ -313,6 +314,7 @@ return [
                 'team_members' => false,
                 'assistant' => false,
                 'campaigns' => false,
+                'social' => false,
                 'loyalty' => false,
             ],
             'features' => [
@@ -361,6 +363,7 @@ return [
                 'team_members' => false,
                 'assistant' => false,
                 'campaigns' => false,
+                'social' => false,
                 'loyalty' => false,
             ],
             'features' => [
@@ -409,6 +412,7 @@ return [
                 'team_members' => false,
                 'assistant' => true,
                 'campaigns' => true,
+                'social' => true,
                 'loyalty' => true,
             ],
             'features' => [
@@ -458,6 +462,7 @@ return [
                 'team_members' => true,
                 'assistant' => true,
                 'campaigns' => false,
+                'social' => false,
                 'loyalty' => false,
             ],
             'features' => [
@@ -506,6 +511,7 @@ return [
                 'team_members' => true,
                 'assistant' => true,
                 'campaigns' => true,
+                'social' => true,
                 'loyalty' => true,
             ],
             'features' => [
@@ -554,6 +560,7 @@ return [
                 'team_members' => true,
                 'assistant' => true,
                 'campaigns' => true,
+                'social' => true,
                 'loyalty' => true,
             ],
             'features' => [
@@ -592,6 +599,7 @@ return [
                 'team_members' => true,
                 'assistant' => true,
                 'campaigns' => true,
+                'social' => true,
                 'loyalty' => true,
             ],
             'features' => [

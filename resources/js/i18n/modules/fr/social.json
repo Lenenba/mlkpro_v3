@@ -1,0 +1,217 @@
+{
+  "social": {
+    "workspace": {
+      "eyebrow": "Malikia Pulse",
+      "actions": {
+        "back_to_growth": "Retour au hub croissance"
+      },
+      "tabs": {
+        "overview": "Vue d ensemble",
+        "accounts": "Comptes",
+        "composer": "Composer"
+      },
+      "stats": {
+        "connected_accounts": "Comptes connectes",
+        "draft_posts": "Brouillons",
+        "scheduled_posts": "Programmations"
+      }
+    },
+    "index_page": {
+      "head_title": "Espace Malikia Pulse",
+      "page_title": "Espace Malikia Pulse",
+      "page_description": "Passez des comptes connectes aux premiers brouillons prets a publier sans quitter le module.",
+      "read_only_title": "Acces Pulse en lecture seule",
+      "read_only_description": "Vous pouvez consulter les comptes et les brouillons existants, mais seuls les utilisateurs autorises peuvent modifier le contenu pour le moment.",
+      "cards": {
+        "accounts_title": "Pilotage des comptes connectes",
+        "accounts_description": "Verifiez quelles pages et quels profils sont vraiment disponibles avant de les utiliser dans un brouillon.",
+        "configured_accounts": "Comptes configures",
+        "connected_accounts": "Connexions actives",
+        "accounts_action_manage": "Gerer les comptes",
+        "accounts_action_view": "Voir les comptes",
+        "composer_title": "Composeur de brouillons",
+        "composer_description": "Preparez texte, image, lien, planification et selection des comptes cibles dans un seul ecran Pulse.",
+        "composer_action_manage": "Ouvrir le composeur",
+        "composer_action_view": "Voir le composeur"
+      },
+      "recent_drafts_title": "Derniers brouillons",
+      "recent_drafts_description": "Reprenez les derniers brouillons Pulse sans reconstruire la selection des cibles.",
+      "open_composer": "Ouvrir le composeur",
+      "empty_recent_drafts": "Aucun brouillon Pulse n a encore ete enregistre.",
+      "untitled_draft": "Brouillon Pulse sans titre",
+      "draft_targets": "{count} cible | {count} cibles",
+      "empty_value": "Non disponible"
+    },
+    "accounts_page": {
+      "head_title": "Comptes Malikia Pulse",
+      "page_title": "Comptes Malikia Pulse",
+      "page_description": "Preparez, connectez et suivez les comptes sociaux que Malikia Pulse utilisera pour la publication multi-reseaux.",
+      "actions": {
+        "back_to_growth": "Retour au hub croissance"
+      }
+    },
+    "composer_page": {
+      "head_title": "Composeur Malikia Pulse",
+      "page_title": "Composeur Malikia Pulse",
+      "page_description": "Creez, publiez ou planifiez un post Pulse simple avec texte, image, lien, planification et selection multi-comptes."
+    },
+    "composer_manager": {
+      "title": "Composeur de brouillons",
+      "description": "Enregistrez un brouillon Pulse propre, puis publiez-le maintenant ou planifiez-le sur les comptes connectes selectionnes.",
+      "read_only_title": "Composeur en lecture seule",
+      "read_only_description": "Vous pouvez consulter les cibles et les brouillons, mais il faut `social.manage` ou `social.publish` pour enregistrer des changements.",
+      "targets_title": "Cibles connectees",
+      "targets_description": "Choisissez un ou plusieurs comptes sociaux actifs pour ce brouillon.",
+      "drafts_title": "Bibliotheque des brouillons",
+      "drafts_description": "Les derniers brouillons Pulse restent rattaches au tenant et conservent leur selection de cibles.",
+      "draft_targets": "{count} cible | {count} cibles",
+      "last_updated": "Derniere mise a jour",
+      "empty_drafts": "Aucun brouillon Pulse n a encore ete enregistre.",
+      "empty_connected_title": "Aucune cible connectee",
+      "empty_connected_description": "Connectez au moins un compte social actif dans Comptes avant d enregistrer un brouillon.",
+      "preview_title": "Preview immediate",
+      "preview_description": "Revoyez rapidement le message, l image, le lien, la planification et les comptes selectionnes avant l enregistrement.",
+      "preview_targets": "Cibles selectionnees",
+      "preview_no_targets": "Aucun compte n est encore selectionne.",
+      "preview_empty_text": "La preview texte Pulse s affichera ici.",
+      "preview_image_alt": "Image de preview du brouillon Pulse",
+      "preview_schedule": "Planification",
+      "preview_now": "Enregistrer comme brouillon",
+      "preview": {
+        "status_draft": "Brouillon",
+        "status_scheduled": "Programme"
+      },
+      "fields": {
+        "text": "Texte du post",
+        "image_url": "URL image",
+        "link_url": "Lien de destination",
+        "scheduled_for": "Programmer pour"
+      },
+      "actions": {
+        "reload": "Recharger",
+        "new_draft": "Nouveau brouillon",
+        "save_draft": "Enregistrer le brouillon",
+        "update_draft": "Enregistrer les changements",
+        "publish_now": "Publier maintenant",
+        "schedule_post": "Programmer le post",
+        "clear_form": "Vider le formulaire"
+      },
+      "statuses": {
+        "draft": "Brouillon",
+        "scheduled": "Programme",
+        "publishing": "Publication",
+        "published": "Publie",
+        "partial_failed": "Echec partiel",
+        "failed": "Echec"
+      },
+      "messages": {
+        "load_error": "Le composeur Pulse n a pas pu etre recharge.",
+        "save_error": "Le brouillon Pulse n a pas pu etre enregistre.",
+        "save_success": "Le brouillon Pulse a ete enregistre.",
+        "publish_error": "Le post Pulse n a pas pu etre mis en file pour la publication.",
+        "publish_success": "Le post Pulse a ete mis en file pour la publication.",
+        "schedule_error": "Le post Pulse n a pas pu etre programme.",
+        "schedule_success": "Le post Pulse a ete programme."
+      },
+      "untitled_draft": "Brouillon Pulse sans titre",
+      "empty_value": "Non disponible"
+    },
+    "accounts_manager": {
+      "title": "Comptes connectes",
+      "description": "Creez un brouillon de compte, completez l autorisation OAuth reelle, puis gardez des labels et metadonnees propres pour la publication multi-reseaux.",
+      "reload": "Recharger",
+      "summary": {
+        "configured": "Configures",
+        "connected": "Connectes",
+        "attention": "A surveiller",
+        "inactive": "Inactifs"
+      },
+      "read_only_title": "Acces lecture seule",
+      "read_only_description": "Vous pouvez consulter les comptes et leurs statuts, mais seul le proprietaire peut modifier les reglages Pulse pour le moment.",
+      "provider_directory_title": "Plateformes pretes pour Pulse",
+      "provider_directory_description": "Chaque plateforme expose deja les scopes, le type de cible et le contrat OAuth utilises par les connexions Pulse actives.",
+      "provider_accounts_count": "{count} compte | {count} comptes",
+      "provider_connected_count": "{count} connecte | {count} connectes",
+      "provider_target_type": "Type de cible",
+      "provider_scopes": "Scopes demandes",
+      "provider_supports": "Prend en charge",
+      "provider_prepare": "Preparer un compte",
+      "provider_view": "Voir les details",
+      "connection_library_title": "Bibliotheque des comptes",
+      "connection_library_description": "Chaque brouillon ou connexion active reste strictement rattache au tenant et pret pour les futures cibles de publication.",
+      "empty_title": "Aucun compte Pulse pour le moment",
+      "empty_description": "Choisissez une plateforme pour preparer le premier compte social de cet espace.",
+      "view_details": "Voir les details",
+      "edit_details": "Modifier le compte",
+      "oauth_scaffold_badge": "Autorisation requise",
+      "oauth_scaffold_description": "Ce brouillon stocke deja le label, les metadonnees du compte cible et les scopes demandes. Lancez OAuth pour activer vraiment ce compte.",
+      "modal": {
+        "create_title": "Preparer un compte Pulse",
+        "edit_title": "Mettre a jour le compte Pulse",
+        "details_title": "Details de connexion",
+        "manage_title": "Reglages du compte",
+        "status": "Statut",
+        "connected_at": "Connecte le",
+        "last_synced_at": "Derniere synchro",
+        "token_expires_at": "Expiration du token",
+        "platform_capabilities": "Capacites de publication",
+        "requested_scopes": "Scopes demandes",
+        "provider_target": "Cible provider",
+        "permissions": "Permissions accordees",
+        "last_error": "Derniere erreur",
+        "no_permissions": "Aucune permission provider n a encore ete enregistree.",
+        "draft_notice": "Le compte est encore en mode brouillon. Lancez OAuth pour terminer l autorisation provider.",
+        "read_only_notice": "Cette vue est en lecture seule pour votre role.",
+        "connected_toggle_label": "Disponible pour la publication",
+        "connected_toggle_hint": "Desactivez ceci pour garder le compte enregistre sans l utiliser dans les futures cibles."
+      },
+      "fields": {
+        "label": "Label interne",
+        "display_name": "Nom affiche",
+        "account_handle": "Handle du compte",
+        "external_account_id": "ID externe du compte"
+      },
+      "field_hints": {
+        "label": "Utilisez un nom clair qui aide l equipe a reconnaitre rapidement le compte cible.",
+        "display_name": "Nom public optionnel de la marque, page ou organisation.",
+        "account_handle": "Handle optionnel comme @brandname.",
+        "external_account_id": "ID provider optionnel. Il doit rester unique par tenant et par plateforme."
+      },
+      "actions": {
+        "save_draft": "Enregistrer le brouillon",
+        "update_account": "Enregistrer les changements",
+        "connect_oauth": "Lancer OAuth",
+        "reconnect_oauth": "Relancer OAuth",
+        "refresh_tokens": "Rafraichir le token",
+        "disconnect": "Deconnecter",
+        "delete": "Supprimer",
+        "close": "Fermer"
+      },
+      "statuses": {
+        "draft": "Brouillon",
+        "pending": "En attente",
+        "connected": "Connecte",
+        "error": "Erreur",
+        "reconnect_required": "Reconnexion requise",
+        "expired": "Expire",
+        "disconnected": "Deconnecte"
+      },
+      "messages": {
+        "load_error": "L espace comptes Pulse n a pas pu etre recharge.",
+        "save_error": "Le compte Pulse n a pas pu etre enregistre.",
+        "save_success": "Le compte Pulse a ete enregistre.",
+        "authorize_error": "Le flux OAuth Pulse n a pas pu etre lance.",
+        "authorize_redirect": "Redirection vers le provider OAuth.",
+        "refresh_error": "Le token Pulse n a pas pu etre rafraichi.",
+        "refresh_success": "Le token Pulse a ete rafraichi.",
+        "disconnect_error": "Le compte Pulse n a pas pu etre deconnecte.",
+        "disconnect_success": "Le compte Pulse a ete deconnecte.",
+        "delete_error": "Le compte Pulse n a pas pu etre supprime.",
+        "delete_success": "Le compte Pulse a ete supprime.",
+        "confirm_disconnect": "Deconnecter {name} ?",
+        "confirm_delete": "Supprimer {name} ?"
+      },
+      "empty_value": "Non disponible"
+    }
+  }
+}
