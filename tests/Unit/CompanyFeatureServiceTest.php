@@ -101,6 +101,31 @@ it('disables accounting automatically when expenses are not enabled', function (
         ->and($resolved['accounting'] ?? null)->toBeFalse();
 });
 
+it('keeps promotions independent from sales when explicitly enabled', function () {
+    $ownerRoleId = \App\Models\Role::query()->firstOrCreate(
+        ['name' => 'owner'],
+        ['description' => 'Account owner role']
+    )->id;
+
+    $owner = \App\Models\User::query()->create([
+        'name' => 'Promotions Dependency Owner',
+        'email' => 'promotions-dependency-owner@example.com',
+        'password' => 'password',
+        'role_id' => $ownerRoleId,
+        'company_type' => 'products',
+        'onboarding_completed_at' => now(),
+        'company_features' => [
+            'sales' => false,
+            'promotions' => true,
+        ],
+    ]);
+
+    $resolved = app(CompanyFeatureService::class)->resolveEffectiveFeatures($owner);
+
+    expect($resolved['sales'] ?? null)->toBeFalse()
+        ->and($resolved['promotions'] ?? null)->toBeTrue();
+});
+
 it('does not infer loyalty availability from stored loyalty data when the feature is disabled', function () {
     $ownerRoleId = \App\Models\Role::query()->firstOrCreate(
         ['name' => 'owner'],

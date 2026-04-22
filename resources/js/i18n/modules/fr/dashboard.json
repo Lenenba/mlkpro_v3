@@ -44,7 +44,8 @@
       "jobs": "chantiers",
       "auto_started": "{count} démarré auto",
       "auto_completed": "{count} terminé auto",
-      "auto_completed_at": "{count} terminé auto à {time}"
+      "auto_completed_at": "{count} terminé auto à {time}",
+      "overdue_at": "{count} passé en retard à {time}"
     },
     "labels": {
       "unknown_customer": "Client inconnu",
@@ -242,7 +243,8 @@
       "task": {
         "todo": "A faire",
         "in_progress": "En cours",
-        "done": "Termine"
+        "done": "Termine",
+        "cancelled": "Annule"
       },
       "invoice": {
         "draft": "Brouillon",

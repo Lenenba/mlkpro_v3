@@ -320,7 +320,7 @@ const agendaAlertItems = computed(() => {
     const alerts = agendaAlerts.value || {};
     const tasksStarted = Number(alerts.tasks_started || 0);
     const worksStarted = Number(alerts.works_started || 0);
-    const tasksCompleted = Number(alerts.tasks_completed || 0);
+    const tasksOverdue = Number(alerts.tasks_overdue || 0);
     const worksCompleted = Number(alerts.works_completed || 0);
     const items = [];
 
@@ -342,11 +342,11 @@ const agendaAlertItems = computed(() => {
             class: autoBadgeConfig.value.started.class,
         });
     }
-    if (tasksCompleted > 0) {
+    if (tasksOverdue > 0) {
         items.push({
-            key: 'tasks-completed',
-            label: t('dashboard.agenda.auto_completed_at', {
-                count: formatAgendaCount(tasksCompleted, 'dashboard.agenda.task', 'dashboard.agenda.tasks'),
+            key: 'tasks-overdue',
+            label: t('dashboard.agenda.overdue_at', {
+                count: formatAgendaCount(tasksOverdue, 'dashboard.agenda.task', 'dashboard.agenda.tasks'),
                 time: '18:00',
             }),
             class: autoBadgeConfig.value.completed.class,

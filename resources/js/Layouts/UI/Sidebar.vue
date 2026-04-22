@@ -79,6 +79,14 @@ const hasServiceOps = computed(() =>
 const canQuotes = computed(() =>
     isOwner.value || teamPermissions.value.includes('quotes.view') || teamPermissions.value.includes('quotes.edit')
 );
+const canPromotionsManage = computed(() =>
+    isOwner.value
+    || teamPermissions.value.includes('sales.manage')
+    || teamPermissions.value.includes('quotes.edit')
+    || teamPermissions.value.includes('jobs.edit')
+    || teamPermissions.value.includes('tasks.edit')
+    || teamPermissions.value.includes('campaigns.manage')
+);
 const canExpensesNav = computed(() =>
     isOwner.value
     || teamPermissions.value.includes('expenses.view')
@@ -553,6 +561,27 @@ const isCustomerActive = computed(() => {
                                             <circle cx="8" cy="21" r="1" />
                                             <circle cx="19" cy="21" r="1" />
                                             <path d="M2.05 2.05h2l2.6 12.4a2 2 0 0 0 2 1.6h9.6a2 2 0 0 0 2-1.6l1.2-6.4H6.2" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+                                <!-- Item -->
+                                <LinkAncor
+                                    v-if="hasFeature('promotions') && canPromotionsManage && !isClient && !isSeller"
+                                    :label="$t('nav.promotions')"
+                                    :href="'promotions.index'"
+                                    tone="sales"
+                                    :active="route().current('promotions.*')"
+                                >
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-badge-percent">
+                                            <path d="M16 16 8 8" />
+                                            <path d="M7 16h.01" />
+                                            <path d="M17 8h.01" />
+                                            <path d="M21 12c0 1.6-1.4 2.7-2 4-.7 1.4-.4 3.4-1.7 4.3-1.3.9-3.2.2-4.8.7-1.5.5-2.7 2-4.4 1.6-1.6-.3-2.4-2.2-3.6-3.2-1.2-1-3.3-1.3-3.9-2.8-.6-1.5.6-3.2.7-4.8.1-1.6-.8-3.6 0-5.1.8-1.4 2.9-1.8 4.1-2.8C7.6 2.9 8.4.8 10 0c1.5-.8 3.1.3 4.7.6 1.6.3 3.8-.3 5 .8 1.2 1 1 3.1 1.5 4.6.5 1.5 1.8 2.7 1.8 4.1Z" />
                                         </svg>
                                     </template>
                                 </LinkAncor>

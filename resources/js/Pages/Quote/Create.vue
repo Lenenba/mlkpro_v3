@@ -31,6 +31,7 @@ const { t } = useI18n();
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('quotes.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const isEditing = computed(() => Boolean(props.quote?.id));
+const pageTitle = computed(() => t(isEditing.value ? 'quotes.edit_title' : 'quotes.create_title'));
 const templateDefaults = computed(() => props.templateDefaults || {});
 const templateExamples = computed(() => props.templateExamples || []);
 const defaultMessages = computed(() => templateDefaults.value?.messages || '');
@@ -229,15 +230,15 @@ const submit = () => {
 
 <template>
 
-    <Head :title="$t('quotes.create_title')" />
+    <Head :title="pageTitle" />
 
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl">
             <form class="space-y-5" @submit.prevent="submit">
                     <div
-                        class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
+                        class="flex flex-col space-y-5 rounded-sm border border-stone-200 bg-white p-6 shadow-sm xl:shadow-none dark:border-neutral-700 dark:bg-neutral-900">
                         <!-- Header -->
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                        <div class="flex flex-col gap-3 border-b border-stone-200 pb-4 sm:flex-row sm:items-start sm:justify-between dark:border-neutral-700">
                             <div class="flex items-center gap-3">
                                 <img v-if="companyLogo"
                                     :src="companyLogo"
@@ -258,89 +259,79 @@ const submit = () => {
                         <div v-if="isLocked" class="text-xs text-amber-600">
                             {{ $t('quotes.form.quote_locked') }}
                         </div>
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div class="col-span-2 space-x-2">
-                                <FloatingInput v-model="form.job_title" :label="$t('quotes.form.job_title')" class="mb-2" :disabled="isLocked" />
-                                <div class="mb-3">
-                                    <FloatingSelect
-                                        v-model="form.property_id"
-                                        :label="$t('quotes.form.property')"
-                                        :options="propertyOptions"
-                                        :placeholder="$t('quotes.form.no_property')"
-                                        :disabled="isLocked"
-                                    />
-                                </div>
-                                <div class="flex flex-row space-x-6">
-                                    <div class="lg:col-span-3">
-                                        <p>
+                        <div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(18rem,0.95fr)]">
+                            <div class="space-y-4">
+                                <FloatingInput v-model="form.job_title" :label="$t('quotes.form.job_title')" :disabled="isLocked" />
+                                <FloatingSelect
+                                    v-model="form.property_id"
+                                    :label="$t('quotes.form.property')"
+                                    :options="propertyOptions"
+                                    :placeholder="$t('quotes.form.no_property')"
+                                    :disabled="isLocked"
+                                />
+                                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50">
+                                        <p class="text-sm font-medium text-stone-700 dark:text-neutral-200">
                                             {{ $t('quotes.form.property_address') }}
                                         </p>
-                                        <div v-if="selectedProperty" class="space-y-1">
-                                            <div class="text-xs text-stone-600 dark:text-neutral-400">
-                                                {{ selectedProperty.country }}
-                                            </div>
-                                            <div class="text-xs text-stone-600 dark:text-neutral-400">
-                                                {{ selectedProperty.street1 }}
-                                            </div>
-                                            <div class="text-xs text-stone-600 dark:text-neutral-400">
-                                                {{ selectedProperty.state }} - {{ selectedProperty.zip }}
-                                            </div>
+                                        <div v-if="selectedProperty" class="mt-3 space-y-1.5 text-sm text-stone-600 dark:text-neutral-400">
+                                            <div>{{ selectedProperty.country }}</div>
+                                            <div>{{ selectedProperty.street1 }}</div>
+                                            <div>{{ selectedProperty.state }} - {{ selectedProperty.zip }}</div>
                                         </div>
-                                        <div v-else class="text-xs text-stone-600 dark:text-neutral-400">
+                                        <div v-else class="mt-3 text-sm text-stone-600 dark:text-neutral-400">
                                             {{ $t('quotes.form.no_property_selected') }}
                                         </div>
                                     </div>
-                                    <div class="lg:col-span-3">
-                                        <p>
+                                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50">
+                                        <p class="text-sm font-medium text-stone-700 dark:text-neutral-200">
                                             {{ $t('quotes.form.contact_details') }}
                                         </p>
-                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
-                                            {{ customer.first_name }} {{ customer.last_name }}
-                                        </div>
-                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
-                                            {{ customer.email }}
-                                        </div>
-                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
-                                            {{ customer.phone }}
+                                        <div class="mt-3 space-y-1.5 text-sm text-stone-600 dark:text-neutral-400">
+                                            <div>{{ customer.first_name }} {{ customer.last_name }}</div>
+                                            <div>{{ customer.email }}</div>
+                                            <div>{{ customer.phone }}</div>
                                         </div>
                                     </div>
                                 </div>
-
                             </div>
-                            <div class="bg-white p-4 rounded-sm border border-stone-200 dark:bg-neutral-900 dark:border-neutral-700">
-                                <div class="lg:col-span-3">
-                                    <p>
+                            <div class="flex h-full flex-col rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                                <div class="flex items-start justify-between gap-3">
+                                    <p class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                         {{ $t('quotes.form.quote_details') }}
                                     </p>
-                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
+                                    <div class="flex items-center gap-2 text-xs text-stone-500 dark:text-neutral-400">
                                         <span>{{ $t('quotes.form.quote_label') }}:</span>
-                                        <span>{{ lastQuotesNumber|| quote?.number }} </span>
-                                    </div>
-                                    <div class="mt-2">
-                                        <FloatingSelect
-                                            v-model="form.status"
-                                            :label="$t('quotes.form.status')"
-                                            :options="statusOptions"
-                                            :disabled="isLocked"
-                                            dense
-                                        />
-                                    </div>
-                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
-                                        <span>{{ $t('quotes.form.rate_opportunity') }}:</span>
-                                        <span class="flex flex-row space-x-1">
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                stroke-linejoin="round" class="lucide lucide-star h-4 w-4">
-                                                <path
-                                                    d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
-                                            </svg>
+                                        <span class="font-semibold text-stone-700 dark:text-neutral-200">
+                                            {{ lastQuotesNumber || quote?.number }}
                                         </span>
                                     </div>
-                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between mt-5">
-                                        <button type="button" disabled
-                                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
-                                            {{ $t('quotes.form.add_custom_fields') }}</button>
-                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <FloatingSelect
+                                        v-model="form.status"
+                                        :label="$t('quotes.form.status')"
+                                        :options="statusOptions"
+                                        :disabled="isLocked"
+                                        dense
+                                    />
+                                </div>
+                                <div class="mt-4 flex items-center justify-between gap-3 rounded-sm border border-dashed border-stone-200 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:text-neutral-400">
+                                    <span>{{ $t('quotes.form.rate_opportunity') }}:</span>
+                                    <span class="flex flex-row space-x-1 text-amber-500 dark:text-amber-300">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" class="lucide lucide-star h-4 w-4">
+                                            <path
+                                                d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
+                                        </svg>
+                                    </span>
+                                </div>
+                                <div class="mt-auto pt-4">
+                                    <button type="button" disabled
+                                        class="inline-flex items-center gap-x-2 rounded-sm border border-green-200 bg-white px-3 py-2 text-sm font-medium text-green-800 shadow-sm hover:bg-green-50 focus:bg-green-50 focus:outline-none disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
+                                        {{ $t('quotes.form.add_custom_fields') }}
+                                    </button>
                                 </div>
                             </div>
                         </div>

@@ -122,7 +122,10 @@ const customerSubtitle = (customer) => {
 
 const searchHaystack = (customer) =>
     [
+        customer.client_type,
         customer.company_name,
+        customer.registration_number,
+        customer.industry,
         customer.first_name,
         customer.last_name,
         customer.email,

@@ -1,0 +1,72 @@
+{
+  "promotions": {
+    "title": "Promotions",
+    "subtitle": "Creez des campagnes saisonnieres, des codes clients et des remises produits ou services depuis un seul espace.",
+    "stats": {
+      "total": "Promotions",
+      "active": "Actives",
+      "valid_now": "Valides maintenant",
+      "codes": "Avec codes"
+    },
+    "targets": {
+      "global": "Tous les clients",
+      "client": "Client specifique",
+      "product": "Produit specifique",
+      "service": "Service specifique"
+    },
+    "discount_types": {
+      "percentage": "Pourcentage",
+      "fixed": "Montant fixe"
+    },
+    "statuses": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "actions": {
+      "new": "Nouvelle promotion",
+      "edit": "Modifier",
+      "activate": "Activer",
+      "deactivate": "Desactiver",
+      "delete": "Supprimer",
+      "cancel": "Annuler",
+      "save": "Enregistrer la promotion",
+      "save_changes": "Enregistrer",
+      "delete_confirm": "Supprimer la promotion \"{name}\" ?"
+    },
+    "list": {
+      "title": "Bibliotheque des promotions",
+      "empty": "Aucune promotion pour le moment."
+    },
+    "table": {
+      "name": "Promotion",
+      "target": "Cible",
+      "discount": "Remise",
+      "window": "Dates",
+      "usage": "Utilisation",
+      "status": "Statut",
+      "actions": "Actions",
+      "no_code": "Sans code",
+      "minimum_order": "Commande minimale : {amount}",
+      "unlimited": "Illimitee",
+      "valid_now": "Valide maintenant"
+    },
+    "modal": {
+      "create_title": "Creer une promotion",
+      "edit_title": "Modifier la promotion",
+      "subtitle": "Separez la cible, la remise, la periode et les limites pour garder le systeme evolutif."
+    },
+    "form": {
+      "name": "Nom",
+      "code": "Code promo (optionnel)",
+      "target_type": "Type de cible",
+      "target": "Cible",
+      "discount_type": "Type de remise",
+      "discount_value": "Valeur de la remise",
+      "start_date": "Date de debut",
+      "end_date": "Date de fin",
+      "status": "Statut",
+      "usage_limit": "Limite d'utilisation (optionnel)",
+      "minimum_order_amount": "Montant minimum (optionnel)"
+    }
+  }
+}

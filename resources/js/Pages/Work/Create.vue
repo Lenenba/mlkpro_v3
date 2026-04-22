@@ -42,6 +42,8 @@ const { t } = useI18n();
 const { hasFeature } = useAccountFeatures();
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('jobs.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
+const isEditing = computed(() => Boolean(props.work?.id));
+const pageTitle = computed(() => t(isEditing.value ? 'jobs.edit_title' : 'jobs.create_title'));
 const hasTeamMembersFeature = computed(() => hasFeature('team_members'));
 const teamPanelTitle = computed(() => (
     hasTeamMembersFeature.value ? t('jobs.form.team.title') : t('jobs.form.team.solo_panel_title')
@@ -791,14 +793,14 @@ onBeforeUnmount(() => {
 
 <template>
 
-    <Head :title="$t('jobs.create_title')" />
+    <Head :title="pageTitle" />
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl">
-            <form @submit.prevent="submit">
+            <form class="space-y-5" @submit.prevent="submit">
                     <div
-                        class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
+                        class="flex flex-col space-y-5 rounded-sm border border-stone-200 bg-white p-6 shadow-sm xl:shadow-none dark:border-neutral-700 dark:bg-neutral-900">
                         <!-- Header -->
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                        <div class="flex flex-col gap-3 border-b border-stone-200 pb-4 sm:flex-row sm:items-start sm:justify-between dark:border-neutral-700">
                             <div class="flex items-center gap-3">
                                 <img v-if="companyLogo"
                                     :src="companyLogo"
@@ -816,82 +818,76 @@ onBeforeUnmount(() => {
                                 </div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div class="col-span-2 space-x-2">
-                                <div class="mb-4" x-data="{ open: false }">
+                        <div v-if="isLockedFromQuote" class="text-xs text-amber-600">
+                            {{ $t('jobs.form.locked_notice') }}
+                        </div>
+                        <div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(18rem,0.95fr)]">
+                            <div class="space-y-4">
+                                <div>
                                     <FloatingInput v-model="form.job_title" :label="$t('jobs.form.job_title')" :required="true" :disabled="isLockedFromQuote" />
                                     <InputError class="mt-1" :message="form.errors.job_title" />
-                                    <FloatingTextarea v-model="form.instructions" :label="$t('jobs.form.instructions')" :disabled="isLockedFromQuote" />
                                 </div>
-                                <div v-if="isLockedFromQuote" class="mb-2 text-xs text-amber-600">
-                                    {{ $t('jobs.form.locked_notice') }}
-                                </div>
-                                <div class="flex flex-row space-x-6">
-                                    <div class="lg:col-span-3">
-                                        <p>
+                                <FloatingTextarea v-model="form.instructions" :label="$t('jobs.form.instructions')" :disabled="isLockedFromQuote" />
+                                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50">
+                                        <p class="text-sm font-medium text-stone-700 dark:text-neutral-200">
                                             {{ $t('jobs.form.property_address') }}
                                         </p>
-                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
-                                            {{ primaryProperty?.country ?? '-' }}
-                                        </div>
-                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
-                                            {{ primaryProperty?.street1 ?? '-' }}
-                                        </div>
-                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
-                                            {{ primaryProperty?.state ?? '-' }} - {{ primaryProperty?.zip ?? '-' }}
+                                        <div class="mt-3 space-y-1.5 text-sm text-stone-600 dark:text-neutral-400">
+                                            <div>{{ primaryProperty?.country ?? '-' }}</div>
+                                            <div>{{ primaryProperty?.street1 ?? '-' }}</div>
+                                            <div>{{ primaryProperty?.state ?? '-' }} - {{ primaryProperty?.zip ?? '-' }}</div>
                                         </div>
                                     </div>
-                                    <div class="lg:col-span-3">
-                                        <p>
+                                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50">
+                                        <p class="text-sm font-medium text-stone-700 dark:text-neutral-200">
                                             {{ $t('jobs.form.contact_details') }}
                                         </p>
-                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
-                                            {{ customer.first_name }} {{ customer.last_name }}
-                                        </div>
-                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
-                                            {{ customer.email }}
-                                        </div>
-                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
-                                            {{ customer.phone }}
+                                        <div class="mt-3 space-y-1.5 text-sm text-stone-600 dark:text-neutral-400">
+                                            <div>{{ customer.first_name }} {{ customer.last_name }}</div>
+                                            <div>{{ customer.email }}</div>
+                                            <div>{{ customer.phone }}</div>
                                         </div>
                                     </div>
                                 </div>
-
                             </div>
-                            <div class="bg-white p-4 rounded-sm border border-stone-100 dark:bg-neutral-900 dark:border-neutral-700">
-                                <div class="lg:col-span-3">
-                                    <p>
+                            <div class="flex h-full flex-col rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                                <div class="flex items-start justify-between gap-3">
+                                    <p class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                         {{ $t('jobs.form.job_details') }}
                                     </p>
-                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
+                                    <div class="flex items-center gap-2 text-xs text-stone-500 dark:text-neutral-400">
                                         <span>{{ $t('jobs.form.job_label') }}:</span>
-                                        <span>{{ lastWorkNumber }} </span>
-                                    </div>
-                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
-                                        <span>{{ $t('jobs.form.rating_label') }}:</span>
-                                        <span class="flex flex-row space-x-1">
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                stroke-linejoin="round" class="lucide lucide-star h-4 w-4">
-                                                <path
-                                                    d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
-                                            </svg>
+                                        <span class="font-semibold text-stone-700 dark:text-neutral-200">
+                                            {{ lastWorkNumber }}
                                         </span>
                                     </div>
-                                    <div class="mt-4">
-                                        <FloatingSelect v-model="form.status" :label="$t('jobs.form.status_label')" :options="statusOptions" />
-                                    </div>
-                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between mt-5">
-                                        <button type="button" disabled
-                                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
-                                            {{ $t('jobs.form.add_custom_fields') }}</button>
-                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <FloatingSelect v-model="form.status" :label="$t('jobs.form.status_label')" :options="statusOptions" />
+                                </div>
+                                <div class="mt-4 flex items-center justify-between gap-3 rounded-sm border border-dashed border-stone-200 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:text-neutral-400">
+                                    <span>{{ $t('jobs.form.rating_label') }}:</span>
+                                    <span class="flex flex-row space-x-1 text-amber-500 dark:text-amber-300">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" class="lucide lucide-star h-4 w-4">
+                                            <path
+                                                d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
+                                        </svg>
+                                    </span>
+                                </div>
+                                <div class="mt-auto pt-4">
+                                    <button type="button" disabled
+                                        class="inline-flex items-center gap-x-2 rounded-sm border border-green-200 bg-white px-3 py-2 text-sm font-medium text-green-800 shadow-sm hover:bg-green-50 focus:bg-green-50 focus:outline-none disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
+                                        {{ $t('jobs.form.add_custom_fields') }}
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div
-                        class="mt-4 p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700"
+                        class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700"
                         data-testid="demo-work-line-items"
                     >
                         <ProductTableList
@@ -903,7 +899,7 @@ onBeforeUnmount(() => {
                         />
                         <InputError class="mt-2" :message="lineItemsError" />
                     </div>
-                    <div class="mt-4">
+                    <div>
 
                         <!-- Audience -->
                         <div

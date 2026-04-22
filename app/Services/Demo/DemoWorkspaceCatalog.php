@@ -195,6 +195,13 @@ class DemoWorkspaceCatalog
                 'category' => 'Revenue',
                 'company_types' => ['services', 'products'],
             ],
+            'promotions' => [
+                'key' => 'promotions',
+                'label' => 'Promotions',
+                'description' => 'Promo codes, seasonal discounts, and targeted commercial offers.',
+                'category' => 'Revenue',
+                'company_types' => ['services', 'products'],
+            ],
             'expenses' => [
                 'key' => 'expenses',
                 'label' => 'Expenses',
@@ -297,7 +304,7 @@ class DemoWorkspaceCatalog
     public function defaultModules(string $companyType, ?string $sector = null): array
     {
         $base = $companyType === 'products'
-            ? ['products', 'sales', 'invoices', 'expenses', 'campaigns', 'loyalty', 'performance']
+            ? ['products', 'sales', 'promotions', 'invoices', 'expenses', 'campaigns', 'loyalty', 'performance']
             : ['requests', 'quotes', 'services', 'jobs', 'tasks', 'invoices', 'expenses', 'team_members', 'performance'];
 
         if ($companyType === 'services' && in_array($sector, ['salon', 'wellness', 'restaurant'], true)) {

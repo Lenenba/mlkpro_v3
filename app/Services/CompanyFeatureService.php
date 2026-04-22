@@ -20,6 +20,7 @@ class CompanyFeatureService
         'presence',
         'planning',
         'sales',
+        'promotions',
         'expenses',
         'accounting',
         'services',
@@ -52,6 +53,7 @@ class CompanyFeatureService
     private const OWNER_ONLY_ALLOWED_OVERRIDE_MODULES = [
         'assistant',
         'sales',
+        'promotions',
     ];
 
     private array $featureCache = [];

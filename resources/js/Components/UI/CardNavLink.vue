@@ -4,12 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
-    customer: Object,
-    activeWorks: {
-        type: Array,
-        default: () => [],
-    },
-    stats: {
+    counts: {
         type: Object,
         default: () => ({}),
     },
@@ -44,7 +39,7 @@ const tabOrder = computed(() => {
 
 const isDefault = (key) => tabOrder.value[0] === key;
 
-const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
+const count = (key) => props.counts?.[key] ?? 0;
 </script>
 
 <template>
@@ -71,7 +66,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
                     {{ t('customers.tabs.active_works') }}
                 </span>
                 <span class="truncate text-xs text-stone-500 dark:text-neutral-400">
-                    {{ t('customers.tabs.items', { count: stat('active_works', activeWorks.length) }) }}
+                    {{ t('customers.tabs.items', { count: count('active_works') }) }}
                 </span>
             </span>
         </button>
@@ -93,7 +88,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
                     {{ t('customers.tabs.requests.label') }}
                 </span>
                 <span class="truncate text-xs text-stone-500 dark:text-neutral-400">
-                    {{ t('customers.tabs.items', { count: stat('requests', customer?.requests?.length ?? 0) }) }}
+                    {{ t('customers.tabs.items', { count: count('requests') }) }}
                 </span>
             </span>
         </button>
@@ -115,7 +110,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
                     {{ t('customers.tabs.quotes') }}
                 </span>
                 <span class="truncate text-xs text-stone-500 dark:text-neutral-400">
-                    {{ t('customers.tabs.items', { count: stat('quotes', customer?.quotes?.length ?? 0) }) }}
+                    {{ t('customers.tabs.items', { count: count('quotes') }) }}
                 </span>
             </span>
         </button>
@@ -137,7 +132,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
                     {{ t('customers.tabs.jobs') }}
                 </span>
                 <span class="truncate text-xs text-stone-500 dark:text-neutral-400">
-                    {{ t('customers.tabs.items', { count: stat('jobs', customer?.works?.length ?? 0) }) }}
+                    {{ t('customers.tabs.items', { count: count('jobs') }) }}
                 </span>
             </span>
         </button>
@@ -159,7 +154,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
                     {{ t('customers.tabs.invoices') }}
                 </span>
                 <span class="truncate text-xs text-stone-500 dark:text-neutral-400">
-                    {{ t('customers.tabs.items', { count: stat('invoices', customer?.invoices?.length ?? 0) }) }}
+                    {{ t('customers.tabs.items', { count: count('invoices') }) }}
                 </span>
             </span>
         </button>

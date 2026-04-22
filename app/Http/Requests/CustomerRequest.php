@@ -2,8 +2,9 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Validation\Rule;
+use App\Enums\CustomerClientType;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CustomerRequest extends FormRequest
 {
@@ -26,6 +27,10 @@ class CustomerRequest extends FormRequest
         $portalAccess = $this->has('portal_access')
             ? filter_var($this->input('portal_access'), FILTER_VALIDATE_BOOLEAN)
             : (bool) ($customer?->portal_access ?? true);
+        $clientType = CustomerClientType::infer(
+            $this->input('client_type'),
+            (string) ($this->input('company_name') ?? $customer?->company_name ?? '')
+        );
         $emailRules = [
             'required',
             'string',
@@ -36,13 +41,22 @@ class CustomerRequest extends FormRequest
         if ($portalAccess) {
             $emailRules[] = Rule::unique('users', 'email')->ignore($portalUserId);
         }
+
         return [
+            'client_type' => ['nullable', 'string', Rule::in(CustomerClientType::values())],
             'portal_access' => 'nullable|boolean',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => $emailRules,
             'phone' => 'nullable|string|max:25',
-            'company_name' => 'nullable|string|max:255',
+            'company_name' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::requiredIf(fn (): bool => $clientType === CustomerClientType::COMPANY),
+            ],
+            'registration_number' => 'nullable|string|max:255',
+            'industry' => 'nullable|string|max:255',
             'description' => 'nullable|string|min:5|max:255',
             'logo' => 'nullable|image|mimes:jpg,jpeg,png,svg|max:2048',
             'logo_icon' => [
@@ -77,7 +91,7 @@ class CustomerRequest extends FormRequest
             'auto_validate_invoices' => 'nullable|boolean',
             'refer_by' => 'nullable|string|max:255',
             'salutation' => [
-                'required',
+                'nullable',
                 Rule::in(['Mr', 'Mrs', 'Miss']),
             ],
             'properties' => 'nullable|array',
@@ -96,8 +110,22 @@ class CustomerRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        $customer = $this->route('customer');
+        $email = $this->input('email');
+        $companyName = trim((string) ($this->input('company_name') ?? ''));
+        $salutation = trim((string) ($this->input('salutation') ?? ''))
+            ?: (string) ($customer?->salutation ?? 'Mr');
+
         $this->merge([
-            'email' => strtolower($this->email),
+            'client_type' => CustomerClientType::infer(
+                $this->input('client_type'),
+                $companyName !== '' ? $companyName : ($customer?->company_name ?? null)
+            )->value,
+            'company_name' => $companyName !== '' ? $companyName : null,
+            'registration_number' => trim((string) ($this->input('registration_number') ?? '')) ?: null,
+            'industry' => trim((string) ($this->input('industry') ?? '')) ?: null,
+            'salutation' => $salutation,
+            'email' => is_string($email) ? strtolower($email) : $email,
         ]);
     }
 }

@@ -150,7 +150,10 @@ const buildRequestCustomer = (payload) => {
 
     return {
         id: customer.id,
+        client_type: customer.client_type,
         company_name: customer.company_name,
+        registration_number: customer.registration_number,
+        industry: customer.industry,
         first_name: customer.first_name,
         last_name: customer.last_name,
         email: customer.email,

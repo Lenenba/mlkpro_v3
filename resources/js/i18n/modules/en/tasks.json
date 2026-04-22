@@ -5,7 +5,8 @@
       "total": "Total tasks",
       "todo": "To do",
       "in_progress": "In progress",
-      "done": "Done"
+      "done": "Done",
+      "cancelled": "Cancelled"
     },
     "view": {
       "board": "Board",
@@ -40,7 +41,8 @@
     "status": {
       "todo": "To do",
       "in_progress": "In progress",
-      "done": "Done"
+      "done": "Done",
+      "cancelled": "Cancelled"
     },
     "timing": {
       "early": "Completed early",
@@ -124,7 +126,11 @@
       "execution": "Execution",
       "completed_at": "Completed on",
       "completion_reason": "Completion reason",
+      "cancelled_at": "Cancelled on",
+      "cancellation_reason": "Cancellation reason",
+      "delay_reason": "Delay reason",
       "not_completed": "Not completed",
+      "not_cancelled": "Not cancelled",
       "no_reason": "No reason provided"
     },
     "history": {
@@ -138,6 +144,8 @@
         "auto_started": "Auto started",
         "auto_completed": "Auto completed",
         "overdue": "Marked overdue",
+        "cancelled": "Cancelled",
+        "delay_reason_updated": "Delay reason updated",
         "client_notified": "Client notified"
       }
     },
@@ -153,6 +161,7 @@
       "one_off_task": "One-off task",
       "status": "Status",
       "due_date": "Due date",
+      "delay_reason": "Delay reason",
       "assignee": "Assignee",
       "unassigned": "Unassigned",
       "solo_hint": "This solo workspace does not assign tasks to team members.",
@@ -168,6 +177,12 @@
       "reason": "Completion reason",
       "confirm": "Confirm completion",
       "reason_required": "A completion reason is required when the date differs."
+    },
+    "cancellation": {
+      "title": "Cancel task",
+      "reason": "Cancellation reason",
+      "confirm": "Confirm cancellation",
+      "reason_required": "A cancellation reason is required."
     },
     "reasons": {
       "client_available": "Client available",

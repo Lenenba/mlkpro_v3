@@ -28,6 +28,13 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
     const canReservations = isOwner || hasAnyPermission(teamPermissions, ['reservations.view', 'reservations.queue', 'reservations.manage']);
     const hasServiceOps = showServices && (hasFeature('jobs') || hasFeature('tasks'));
     const canQuotes = isOwner || hasAnyPermission(teamPermissions, ['quotes.view', 'quotes.edit']);
+    const canPromotionsManage = isOwner || hasAnyPermission(teamPermissions, [
+        'sales.manage',
+        'quotes.edit',
+        'jobs.edit',
+        'tasks.edit',
+        'campaigns.manage',
+    ]);
     const canExpensesNav = isOwner || hasAnyPermission(teamPermissions, [
         'expenses.view',
         'expenses.create',
@@ -181,6 +188,14 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             tone: 'sales',
             visible: companyType === 'products' && hasFeature('sales') && canSales,
         },
+        promotions: {
+            key: 'promotions',
+            labelKey: 'nav.promotions',
+            descriptionKey: 'workspace_hub.modules.promotions',
+            routeName: 'promotions.index',
+            tone: 'promotions',
+            visible: hasFeature('promotions') && canPromotionsManage && !isClient && !isSeller,
+        },
         campaigns: {
             key: 'campaigns',
             labelKey: 'nav.campaigns',
@@ -227,7 +242,7 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             labelKey: 'nav.reservations',
             descriptionKey: 'workspace_hub.modules.reservations',
             routeName: 'reservation.index',
-            tone: 'planning',
+            tone: 'reservations',
             visible: showServices && hasFeature('reservations') && canReservations && !isClient && !isSeller,
         },
         planning: {
@@ -384,8 +399,8 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             titleKey: 'workspace_hub.categories.growth.title',
             icon: 'growth',
             tone: 'growth',
-            match: ['campaigns.*', 'campaign-automations.*', 'campaign-runs.*', 'loyalty.*', 'settings.loyalty.*', 'performance.*'],
-            moduleKeys: ['campaigns', 'loyalty', 'performance'],
+            match: ['promotions.*', 'campaigns.*', 'campaign-automations.*', 'campaign-runs.*', 'loyalty.*', 'settings.loyalty.*', 'performance.*'],
+            moduleKeys: ['promotions', 'campaigns', 'loyalty', 'performance'],
         },
         {
             key: 'operations',

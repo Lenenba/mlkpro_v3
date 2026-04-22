@@ -423,6 +423,18 @@
           "email": "Correo electrónico"
         }
       },
+      "workspace": {
+        "title": "Actividad del cliente"
+      },
+      "sidebar": {
+        "title": "Panel del cliente",
+        "tabs": {
+          "profile": "Perfil",
+          "marketing": "Marketing",
+          "automation": "Automatización",
+          "finance": "Finanzas"
+        }
+      },
       "mailing_lists": {
         "title": "Listas de correo",
         "description": "Añade este cliente a una lista de correo de marketing con un clic.",
@@ -501,17 +513,26 @@
       },
       "sections": {
         "client_details": "Detalles del cliente",
+        "company_details": "Datos de la empresa",
+        "main_contact": "Contacto principal",
         "contact_details": "Detalles de contacto",
         "auto_validation": "Validación automática del cliente",
         "additional_details": "Detalle adicional del cliente",
         "billing_preferences": "Preferencias de facturación",
         "location": "Ubicación"
       },
+      "client_types": {
+        "company": "Empresa",
+        "individual": "Particular"
+      },
       "fields": {
+        "client_type": "Tipo de cliente",
         "title": "Título",
         "first_name": "Nombre",
         "last_name": "Apellido",
         "company_name": "Nombre de la empresa",
+        "registration_number": "Numero de registro",
+        "industry": "Industria",
         "company_logo": "Logotipo de la empresa",
         "upload_company_logo": "Subir logotipo de la empresa",
         "choose_company_icon": "O elija un icono de empresa",

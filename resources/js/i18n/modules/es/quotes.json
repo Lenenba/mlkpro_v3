@@ -2,6 +2,7 @@
   "quotes": {
     "title": "Cotizaciones",
     "create_title": "Crear cotización",
+    "edit_title": "Editar cotización",
     "show_title": "Ver cotización",
     "company_fallback": "Empresa",
     "form": {

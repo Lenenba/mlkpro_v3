@@ -63,6 +63,7 @@ class BuildTaskIndexData
             'todo' => (clone $query)->where('status', 'todo')->count(),
             'in_progress' => (clone $query)->where('status', 'in_progress')->count(),
             'done' => (clone $query)->where('status', 'done')->count(),
+            'cancelled' => (clone $query)->where('status', Task::STATUS_CANCELLED)->count(),
         ];
 
         $tasksQuery = $query

@@ -127,6 +127,25 @@ const props = defineProps({
     </svg>
 
     <svg
+        v-else-if="name === 'promotions'"
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        :class="props.iconClass"
+    >
+        <path d="M20.59 13.41 11 3.83a2 2 0 0 0-1.41-.58H4a2 2 0 0 0-2 2v5.59c0 .53.21 1.04.59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l5.59-5.59a2 2 0 0 0 0-2.83Z" />
+        <path d="m9 15 6-6" />
+        <circle cx="8.5" cy="8.5" r=".5" />
+        <circle cx="15.5" cy="15.5" r=".5" />
+    </svg>
+
+    <svg
         v-else-if="name === 'campaigns'"
         xmlns="http://www.w3.org/2000/svg"
         width="24"
@@ -215,7 +234,27 @@ const props = defineProps({
     </svg>
 
     <svg
-        v-else-if="name === 'reservations' || name === 'planning'"
+        v-else-if="name === 'reservations'"
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        :class="props.iconClass"
+    >
+        <path d="M16 2v4" />
+        <path d="M8 2v4" />
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <path d="M3 10h18" />
+        <path d="m9 16 2 2 4-4" />
+    </svg>
+
+    <svg
+        v-else-if="name === 'planning'"
         xmlns="http://www.w3.org/2000/svg"
         width="24"
         height="24"

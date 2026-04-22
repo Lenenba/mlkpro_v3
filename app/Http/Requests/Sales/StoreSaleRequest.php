@@ -20,6 +20,7 @@ class StoreSaleRequest extends SaleWriteRequest
             'pay_with_stripe' => ['nullable', 'boolean'],
             'fulfillment_status' => ['nullable', Rule::in($this->fulfillmentStatuses())],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'promotion_code' => ['nullable', 'string', 'max:50'],
             'scheduled_for' => ['nullable', 'date'],
             'loyalty_points_redeem' => ['nullable', 'integer', 'min:0'],
         ], $this->itemRules());

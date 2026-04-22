@@ -102,6 +102,9 @@ const scheduleRangeSelectOptions = computed(() =>
 );
 const allowedScheduleRanges = computed(() => scheduleRangeOptions.value.map((option) => option.id));
 const scheduleRange = ref('week');
+const fallbackStatuses = ['todo', 'in_progress', 'done', 'cancelled'];
+const openTaskStatuses = ['todo', 'in_progress'];
+const closedTaskStatuses = ['done', 'cancelled'];
 
 if (typeof window !== 'undefined') {
     const storedView = window.localStorage.getItem('task_view_mode');
@@ -140,7 +143,7 @@ const setScheduleRange = (range) => {
 };
 
 const boardStatuses = computed(() =>
-    props.statuses?.length ? props.statuses : ['todo', 'in_progress', 'done']
+    props.statuses?.length ? props.statuses : fallbackStatuses
 );
 
 const boardTasks = ref({});
@@ -420,7 +423,7 @@ const teamMembersList = computed(() =>
     Array.isArray(props.teamMembers) ? props.teamMembers : []
 );
 const statusKeys = computed(() =>
-    props.statuses?.length ? props.statuses : ['todo', 'in_progress', 'done']
+    props.statuses?.length ? props.statuses : fallbackStatuses
 );
 const buildStatusCounts = (tasks) => {
     const counts = {};
@@ -814,8 +817,25 @@ const completionReasonLabel = (reason) => {
     return label === key ? String(reason).replace('_', ' ') : label;
 };
 
+const normalizeTextValue = (value) => {
+    const normalized = String(value ?? '').trim();
+    return normalized || null;
+};
+
+const isPastDueDate = (value) => {
+    const dueKey = normalizeDateKey(value);
+    if (!dueKey) {
+        return false;
+    }
+
+    return dueKey < toDateKey(new Date());
+};
+
+const isDelayReasonFieldVisible = (status, dueDate) =>
+    openTaskStatuses.includes(status) && isPastDueDate(dueDate);
+
 const statusFilterOptions = computed(() =>
-    (props.statuses?.length ? props.statuses : ['todo', 'in_progress', 'done'])
+    (props.statuses?.length ? props.statuses : fallbackStatuses)
         .map((status) => ({
             value: status,
             label: statusLabel(status),
@@ -844,6 +864,8 @@ const statusClasses = (status) => {
             return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-400';
         case 'done':
             return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
+        case 'cancelled':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
         default:
             return 'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300';
     }
@@ -891,6 +913,14 @@ const statusTone = (status) => {
                 text: 'text-emerald-700 dark:text-emerald-200',
                 badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
                 card: 'border-l-emerald-400',
+            };
+        case 'cancelled':
+            return {
+                bar: 'border-t-rose-400',
+                dot: 'bg-rose-500',
+                text: 'text-rose-700 dark:text-rose-200',
+                badge: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200',
+                card: 'border-l-rose-400',
             };
         default:
             return {
@@ -1006,7 +1036,7 @@ const normalizeMaterials = (materials) =>
         }))
         .filter((material) => material.label || material.product_id);
 
-const isTaskLocked = (task) => task?.status === 'done';
+const isTaskLocked = (task) => closedTaskStatuses.includes(task?.status);
 
 const createForm = useForm({
     work_id: '',
@@ -1017,6 +1047,8 @@ const createForm = useForm({
     due_date: '',
     completed_at: '',
     completion_reason: '',
+    cancellation_reason: '',
+    delay_reason: '',
     assigned_team_member_id: '',
     materials: [],
 });
@@ -1052,6 +1084,9 @@ const resolveAssigneeAvailability = ({
 
     const hasConflict = taskList.value.some((task) => {
         if (!task) {
+            return false;
+        }
+        if (closedTaskStatuses.includes(task.status)) {
             return false;
         }
         if (ignoreTaskId && Number(task.id) === Number(ignoreTaskId)) {
@@ -1136,7 +1171,7 @@ const submitCreate = () => {
         return;
     }
 
-    createForm.clearErrors('completed_at', 'completion_reason');
+    createForm.clearErrors('completed_at', 'completion_reason', 'cancellation_reason', 'delay_reason');
     if (createForm.status === 'done') {
         if (!createForm.completed_at) {
             createForm.completed_at = normalizeDateKey(new Date());
@@ -1148,6 +1183,21 @@ const submitCreate = () => {
     } else {
         createForm.completed_at = null;
         createForm.completion_reason = null;
+    }
+
+    createForm.cancellation_reason = normalizeTextValue(createForm.cancellation_reason);
+    if (createForm.status === 'cancelled' && !createForm.cancellation_reason) {
+        createForm.setError('cancellation_reason', t('tasks.cancellation.reason_required'));
+        return;
+    }
+    if (createForm.status !== 'cancelled') {
+        createForm.cancellation_reason = null;
+    }
+
+    if (isDelayReasonFieldVisible(createForm.status, createForm.due_date) || closedTaskStatuses.includes(createForm.status)) {
+        createForm.delay_reason = normalizeTextValue(createForm.delay_reason);
+    } else {
+        createForm.delay_reason = null;
     }
 
     createForm.materials = normalizeMaterials(createForm.materials);
@@ -1168,6 +1218,8 @@ const submitCreate = () => {
                 'due_date',
                 'completed_at',
                 'completion_reason',
+                'cancellation_reason',
+                'delay_reason',
                 'assigned_team_member_id'
             );
             createForm.status = 'todo';
@@ -1191,6 +1243,8 @@ const editForm = useForm({
     due_date: '',
     completed_at: '',
     completion_reason: '',
+    cancellation_reason: '',
+    delay_reason: '',
     assigned_team_member_id: '',
     customer_id: null,
     product_id: null,
@@ -1261,6 +1315,8 @@ const openEditTask = (task) => {
     editForm.due_date = task.due_date || '';
     editForm.completed_at = task.completed_at ? normalizeDateKey(task.completed_at) : '';
     editForm.completion_reason = task.completion_reason || '';
+    editForm.cancellation_reason = task.cancellation_reason || '';
+    editForm.delay_reason = task.delay_reason || '';
     editForm.assigned_team_member_id = hasTeamMembersFeature.value ? (task.assigned_team_member_id || '') : '';
     editForm.work_id = task.work_id ?? '';
     editForm.standalone = !task.work_id;
@@ -1278,7 +1334,7 @@ const submitEdit = () => {
         return;
     }
 
-    editForm.clearErrors('completed_at', 'completion_reason');
+    editForm.clearErrors('completed_at', 'completion_reason', 'cancellation_reason', 'delay_reason');
     if (editForm.status === 'done') {
         if (!editForm.completed_at) {
             editForm.completed_at = normalizeDateKey(new Date());
@@ -1290,6 +1346,21 @@ const submitEdit = () => {
     } else {
         editForm.completed_at = null;
         editForm.completion_reason = null;
+    }
+
+    editForm.cancellation_reason = normalizeTextValue(editForm.cancellation_reason);
+    if (editForm.status === 'cancelled' && !editForm.cancellation_reason) {
+        editForm.setError('cancellation_reason', t('tasks.cancellation.reason_required'));
+        return;
+    }
+    if (editForm.status !== 'cancelled') {
+        editForm.cancellation_reason = null;
+    }
+
+    if (isDelayReasonFieldVisible(editForm.status, editForm.due_date) || closedTaskStatuses.includes(editForm.status)) {
+        editForm.delay_reason = normalizeTextValue(editForm.delay_reason);
+    } else {
+        editForm.delay_reason = null;
     }
 
     editForm.materials = normalizeMaterials(editForm.materials);
@@ -1312,6 +1383,10 @@ const completionTask = ref(null);
 const completionForm = useForm({
     completed_at: '',
     completion_reason: '',
+});
+const cancellationTask = ref(null);
+const cancellationForm = useForm({
+    cancellation_reason: '',
 });
 
 const completionReasonRequired = computed(() => {
@@ -1341,6 +1416,7 @@ const buildStatusPayload = (task, status, extra = {}) => {
         standalone: !task.work_id,
         customer_id: task.customer_id ?? null,
         product_id: task.product_id ?? null,
+        delay_reason: task.delay_reason ?? null,
     };
 };
 
@@ -1361,6 +1437,46 @@ const closeCompletionModal = () => {
     if (window.HSOverlay) {
         window.HSOverlay.close('#hs-task-completion');
     }
+};
+
+const openCancellationModal = (task) => {
+    cancellationTask.value = task;
+    cancellationForm.clearErrors();
+    cancellationForm.cancellation_reason = task.cancellation_reason || '';
+
+    if (window.HSOverlay) {
+        window.HSOverlay.open('#hs-task-cancellation');
+    }
+};
+
+const closeCancellationModal = () => {
+    cancellationTask.value = null;
+    cancellationForm.reset();
+    if (window.HSOverlay) {
+        window.HSOverlay.close('#hs-task-cancellation');
+    }
+};
+
+const submitCancellation = () => {
+    if (!cancellationTask.value || cancellationForm.processing) {
+        return;
+    }
+
+    cancellationForm.clearErrors('cancellation_reason');
+    cancellationForm.cancellation_reason = normalizeTextValue(cancellationForm.cancellation_reason);
+    if (!cancellationForm.cancellation_reason) {
+        cancellationForm.setError('cancellation_reason', t('tasks.cancellation.reason_required'));
+        return;
+    }
+
+    const task = cancellationTask.value;
+    cancellationForm
+        .transform((data) => buildStatusPayload(task, 'cancelled', data))
+        .put(route('task.update', task.id), {
+            preserveScroll: true,
+            only: ['tasks', 'flash'],
+            onSuccess: closeCancellationModal,
+        });
 };
 
 const submitCompletion = () => {
@@ -1401,6 +1517,10 @@ const setTaskStatus = (task, status) => {
         openCompletionModal(task);
         return;
     }
+    if (status === 'cancelled') {
+        openCancellationModal(task);
+        return;
+    }
 
     const onSuccess = () => {};
     const payload = buildStatusPayload(task, status);
@@ -1414,6 +1534,9 @@ const setTaskStatus = (task, status) => {
 
 const deleteTask = (task) => {
     if (!props.canDelete) {
+        return;
+    }
+    if (task?.status === 'cancelled') {
         return;
     }
     if (!confirm(t('tasks.actions.delete_confirm', { title: task.title }))) {
@@ -1459,6 +1582,11 @@ const handleBoardChange = (status, event) => {
     }
     if (status === 'done') {
         openCompletionModal(task);
+        syncBoardTasks();
+        return;
+    }
+    if (status === 'cancelled') {
+        openCancellationModal(task);
         syncBoardTasks();
         return;
     }
@@ -1763,6 +1891,7 @@ const submitProof = () => {
                                     :can-change-status="canChangeStatus"
                                     :can-manage="canManage"
                                     :can-delete="canDelete"
+                                    :delete-disabled="task.status === 'cancelled'"
                                     :locked="isTaskLocked(task)"
                                     @set-status="setTaskStatus(task, $event)"
                                     @edit="openEditTask(task)"
@@ -1998,6 +2127,7 @@ const submitProof = () => {
                                         :can-change-status="canChangeStatus"
                                         :can-manage="canManage"
                                         :can-delete="canDelete"
+                                        :delete-disabled="task.status === 'cancelled'"
                                         :locked="isTaskLocked(task)"
                                         @set-status="setTaskStatus(task, $event)"
                                         @edit="openEditTask(task)"
@@ -2087,6 +2217,7 @@ const submitProof = () => {
                                         :can-change-status="canChangeStatus"
                                         :can-manage="canManage"
                                         :can-delete="canDelete"
+                                        :delete-disabled="task.status === 'cancelled'"
                                         :locked="isTaskLocked(task)"
                                         @set-status="setTaskStatus(task, $event)"
                                         @edit="openEditTask(task)"
@@ -2345,7 +2476,10 @@ const submitProof = () => {
                 </span>
             </div>
 
-            <div v-if="detailsTask.completed_at || detailsTask.completion_reason" class="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div
+                v-if="detailsTask.completed_at || detailsTask.completion_reason || detailsTask.cancelled_at || detailsTask.cancellation_reason || detailsTask.delay_reason"
+                class="grid grid-cols-1 md:grid-cols-2 gap-2"
+            >
                 <div v-if="detailsTask.completed_at">
                     <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
                         {{ $t('tasks.details.completed_at') }}
@@ -2360,6 +2494,30 @@ const submitProof = () => {
                     </div>
                     <div class="mt-1 text-sm text-stone-700 dark:text-neutral-200">
                         {{ completionReasonLabel(detailsTask.completion_reason) || detailsTask.completion_reason }}
+                    </div>
+                </div>
+                <div v-if="detailsTask.cancelled_at">
+                    <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                        {{ $t('tasks.details.cancelled_at') }}
+                    </div>
+                    <div class="mt-1 text-sm text-stone-700 dark:text-neutral-200">
+                        {{ formatDate(detailsTask.cancelled_at) }}
+                    </div>
+                </div>
+                <div v-if="detailsTask.cancellation_reason">
+                    <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                        {{ $t('tasks.details.cancellation_reason') }}
+                    </div>
+                    <div class="mt-1 text-sm text-stone-700 dark:text-neutral-200">
+                        {{ detailsTask.cancellation_reason }}
+                    </div>
+                </div>
+                <div v-if="detailsTask.delay_reason">
+                    <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                        {{ $t('tasks.details.delay_reason') }}
+                    </div>
+                    <div class="mt-1 text-sm text-stone-700 dark:text-neutral-200">
+                        {{ detailsTask.delay_reason }}
                     </div>
                 </div>
             </div>
@@ -2511,6 +2669,22 @@ const submitProof = () => {
                 </div>
             </div>
 
+            <div v-if="createForm.status === 'cancelled'">
+                <FloatingTextarea
+                    v-model="createForm.cancellation_reason"
+                    :label="$t('tasks.cancellation.reason')"
+                />
+                <InputError class="mt-1" :message="createForm.errors.cancellation_reason" />
+            </div>
+
+            <div v-if="isDelayReasonFieldVisible(createForm.status, createForm.due_date)">
+                <FloatingTextarea
+                    v-model="createForm.delay_reason"
+                    :label="$t('tasks.form.delay_reason')"
+                />
+                <InputError class="mt-1" :message="createForm.errors.delay_reason" />
+            </div>
+
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
                     <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-500">{{ $t('tasks.materials.title') }}</p>
@@ -2644,6 +2818,22 @@ const submitProof = () => {
                 </div>
             </div>
 
+            <div v-if="editForm.status === 'cancelled'">
+                <FloatingTextarea
+                    v-model="editForm.cancellation_reason"
+                    :label="$t('tasks.cancellation.reason')"
+                />
+                <InputError class="mt-1" :message="editForm.errors.cancellation_reason" />
+            </div>
+
+            <div v-if="isDelayReasonFieldVisible(editForm.status, editForm.due_date)">
+                <FloatingTextarea
+                    v-model="editForm.delay_reason"
+                    :label="$t('tasks.form.delay_reason')"
+                />
+                <InputError class="mt-1" :message="editForm.errors.delay_reason" />
+            </div>
+
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
                     <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-500">{{ $t('tasks.materials.title') }}</p>
@@ -2723,6 +2913,29 @@ const submitProof = () => {
                 <button type="submit" :disabled="completionForm.processing"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 action-feedback">
                     {{ $t('tasks.completion.confirm') }}
+                </button>
+            </div>
+        </form>
+    </Modal>
+
+    <Modal v-if="canChangeStatus" :title="$t('tasks.cancellation.title')" :id="'hs-task-cancellation'">
+        <form class="space-y-4" @submit.prevent="submitCancellation">
+            <div>
+                <FloatingTextarea
+                    v-model="cancellationForm.cancellation_reason"
+                    :label="$t('tasks.cancellation.reason')"
+                />
+                <InputError class="mt-1" :message="cancellationForm.errors.cancellation_reason" />
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button type="button" @click="closeCancellationModal"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
+                    {{ $t('tasks.actions.cancel') }}
+                </button>
+                <button type="submit" :disabled="cancellationForm.processing"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 action-feedback">
+                    {{ $t('tasks.cancellation.confirm') }}
                 </button>
             </div>
         </form>

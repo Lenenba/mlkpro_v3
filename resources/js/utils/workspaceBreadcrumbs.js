@@ -6,6 +6,7 @@ const moduleRoutePatterns = {
     quotes: ['quote.index', 'customer.quote.*'],
     orders: ['orders.*'],
     sales: ['sales.*'],
+    promotions: ['promotions.*'],
     campaigns: ['campaigns.*', 'campaign-automations.*', 'campaign-runs.*'],
     loyalty: ['loyalty.*', 'settings.loyalty.*'],
     performance: ['performance.*'],
@@ -303,6 +304,16 @@ const buildCampaignsModuleTail = (pageProps, t) => {
     return [];
 };
 
+const buildPromotionsModuleTail = (t) => {
+    if (!route().current('promotions.*')) {
+        return [];
+    }
+
+    return [
+        makeItem('promotions', t('nav.promotions')),
+    ].filter(Boolean);
+};
+
 const buildPerformanceModuleTail = (pageProps) => {
     if (!route().current('performance.employee.show')) {
         return [];
@@ -451,6 +462,8 @@ const resolveModuleTail = ({ moduleKey, pageProps, t }) => {
             return buildQuotesModuleTail(pageProps, t);
         case 'sales':
             return buildSalesModuleTail(pageProps, t);
+        case 'promotions':
+            return buildPromotionsModuleTail(t);
         case 'campaigns':
             return buildCampaignsModuleTail(pageProps, t);
         case 'performance':

@@ -13,6 +13,7 @@ use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DemoController;
 use App\Http\Controllers\DemoTourController;
+use App\Http\Controllers\E2E\FixtureResetController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinanceApprovalInboxController;
 use App\Http\Controllers\GlobalSearchController;
@@ -52,6 +53,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductPriceLookupController;
 use App\Http\Controllers\ProductsSearchController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\PublicQuoteController;
@@ -362,6 +364,11 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('crm.manager-dashboard.index');
     });
 
+    if (app()->environment('e2e')) {
+        Route::get('/_e2e/reset/quote-recovery', [FixtureResetController::class, 'quoteRecovery'])
+            ->name('e2e.reset.quote-recovery');
+    }
+
     // Lead Requests
     Route::middleware('company.feature:requests')->group(function () {
         Route::get('/requests', [RequestController::class, 'index'])->name('request.index');
@@ -653,6 +660,14 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/campaign-automations', [CampaignAutomationController::class, 'store'])->name('campaign-automations.store');
         Route::put('/campaign-automations/{rule}', [CampaignAutomationController::class, 'update'])->name('campaign-automations.update');
         Route::delete('/campaign-automations/{rule}', [CampaignAutomationController::class, 'destroy'])->name('campaign-automations.destroy');
+    });
+
+    Route::middleware('company.feature:promotions')->group(function () {
+        Route::get('/promotions', [PromotionController::class, 'index'])->name('promotions.index');
+        Route::post('/promotions', [PromotionController::class, 'store'])->name('promotions.store');
+        Route::put('/promotions/{promotion}', [PromotionController::class, 'update'])->name('promotions.update');
+        Route::patch('/promotions/{promotion}/status', [PromotionController::class, 'updateStatus'])->name('promotions.status.update');
+        Route::delete('/promotions/{promotion}', [PromotionController::class, 'destroy'])->name('promotions.destroy');
     });
 
     // Sales Management (products)

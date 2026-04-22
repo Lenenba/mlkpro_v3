@@ -4,6 +4,12 @@ import axios from 'axios';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import {
+    buildCustomerClientTypeOptions,
+    CUSTOMER_CLIENT_TYPE_COMPANY,
+    CUSTOMER_CLIENT_TYPE_INDIVIDUAL,
+} from '@/utils/customerClientTypes';
+import { assignGeoapifyAddress, useGeoapifyAddressAutocomplete } from '@/Composables/useGeoapifyAddressAutocomplete';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -26,12 +32,15 @@ const emit = defineEmits(['created']);
 const { t } = useI18n();
 
 const form = reactive({
+    client_type: CUSTOMER_CLIENT_TYPE_INDIVIDUAL,
     salutation: 'Mr',
     first_name: '',
     last_name: '',
     email: '',
     phone: '',
     company_name: '',
+    registration_number: '',
+    industry: '',
     discount_rate: '',
     portal_access: true,
     description: '',
@@ -55,15 +64,24 @@ const form = reactive({
 const errors = ref({});
 const formError = ref('');
 const isSubmitting = ref(false);
-const addressQuery = ref('');
-const addressSuggestions = ref([]);
-const geoapifyKey = import.meta.env.VITE_GEOAPIFY_KEY;
+const {
+    query: addressQuery,
+    suggestions: addressSuggestions,
+    searchAddress,
+    selectAddress,
+} = useGeoapifyAddressAutocomplete({
+    onSelect: (details) => {
+        assignGeoapifyAddress(form.properties, details);
+    },
+});
 
-const salutations = computed(() => ([
-    { id: 'Mr', name: t('customers.form.salutations.mr') },
-    { id: 'Mrs', name: t('customers.form.salutations.mrs') },
-    { id: 'Miss', name: t('customers.form.salutations.miss') },
-]));
+const clientTypeOptions = computed(() => buildCustomerClientTypeOptions(t));
+const isCompanyClient = computed(() => form.client_type === CUSTOMER_CLIENT_TYPE_COMPANY);
+const contactSectionTitle = computed(() => (
+    isCompanyClient.value
+        ? t('customers.form.sections.main_contact')
+        : t('customers.form.sections.contact_details')
+));
 
 const resolvedSubmitLabel = computed(() =>
     props.submitLabel || t('customers.form.actions.save_client')
@@ -84,10 +102,11 @@ const propertyValid = computed(() => {
 
 const isValid = computed(() => {
     return (
-        form.salutation &&
+        form.client_type &&
         form.first_name.trim() &&
         form.last_name.trim() &&
         form.email.trim() &&
+        (!isCompanyClient.value || form.company_name.trim()) &&
         propertyValid.value
     );
 });
@@ -109,12 +128,15 @@ const errorMessages = computed(() => {
 });
 
 const resetForm = () => {
+    form.client_type = CUSTOMER_CLIENT_TYPE_INDIVIDUAL;
     form.salutation = 'Mr';
     form.first_name = '';
     form.last_name = '';
     form.email = '';
     form.phone = '';
     form.company_name = '';
+    form.registration_number = '';
+    form.industry = '';
     form.discount_rate = '';
     form.description = '';
     form.refer_by = '';
@@ -158,12 +180,15 @@ const submit = async () => {
     isSubmitting.value = true;
 
     const payload = {
+        client_type: form.client_type,
         salutation: form.salutation,
         first_name: form.first_name,
         last_name: form.last_name,
         email: form.email,
         phone: form.phone,
         company_name: form.company_name,
+        registration_number: form.registration_number,
+        industry: form.industry,
         discount_rate: form.discount_rate ? Number(form.discount_rate) : 0,
         portal_access: form.portal_access,
         description: form.description,
@@ -205,74 +230,46 @@ const submit = async () => {
     }
 };
 
-const searchAddress = async () => {
-    if (addressQuery.value.length < 2) {
-        addressSuggestions.value = [];
-        return;
-    }
-
-    if (!geoapifyKey) {
-        addressSuggestions.value = [];
-        return;
-    }
-
-    try {
-        const url = new URL('https://api.geoapify.com/v1/geocode/autocomplete');
-        url.search = new URLSearchParams({
-            text: addressQuery.value,
-            apiKey: geoapifyKey,
-            limit: '5',
-            filter: 'countrycode:ca,us',
-        }).toString();
-
-        const response = await fetch(url.toString());
-        if (!response.ok) {
-            throw new Error(`Geoapify request failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-        addressSuggestions.value = (data.features || []).map((feature) => ({
-            id: feature.properties?.place_id || feature.properties?.formatted || feature.properties?.name,
-            label: feature.properties?.formatted || feature.properties?.name || '',
-            details: feature.properties || {},
-        }));
-    } catch (error) {
-        addressSuggestions.value = [];
-    }
-};
-
-const selectAddress = (details) => {
-    const address = details || {};
-    const streetParts = [];
-    if (address.house_number) {
-        streetParts.push(address.house_number);
-    }
-    if (address.street) {
-        streetParts.push(address.street);
-    }
-    const city = address.city || address.town || address.village || address.hamlet || address.suburb;
-
-    form.properties.street1 = streetParts.join(' ').trim();
-    form.properties.street2 = '';
-    form.properties.city = city || '';
-    form.properties.state = address.state || address.county || address.region || '';
-    form.properties.zip = address.postcode || '';
-    form.properties.country = address.country || '';
-    addressQuery.value = details.formatted || details.name || addressQuery.value;
-    addressSuggestions.value = [];
-};
 </script>
 
 <template>
     <form @submit.prevent="submit" class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FloatingSelect v-model="form.salutation" :label="$t('customers.form.fields.title')" :options="salutations" :required="true" />
-            <FloatingInput v-model="form.first_name" :label="$t('customers.form.fields.first_name')" :required="true" />
-            <FloatingInput v-model="form.last_name" :label="$t('customers.form.fields.last_name')" :required="true" />
-            <FloatingInput v-model="form.company_name" :label="$t('customers.form.fields.company_name')" />
-            <FloatingInput v-model="form.email" :label="$t('customers.form.fields.email')" :required="true" />
-            <FloatingInput v-model="form.phone" :label="$t('customers.form.fields.phone')" />
-            <FloatingInput v-model="form.discount_rate" type="number" :label="$t('customers.form.fields.discount_rate')" />
+        <FloatingSelect
+            v-model="form.client_type"
+            :label="$t('customers.form.fields.client_type')"
+            :options="clientTypeOptions"
+            :required="true"
+        />
+
+        <div v-if="isCompanyClient">
+            <div class="mb-2 text-sm font-medium text-stone-700 dark:text-neutral-200">
+                {{ $t('customers.form.sections.company_details') }}
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <FloatingInput
+                v-model="form.company_name"
+                :label="$t('customers.form.fields.company_name')"
+                :required="true"
+            />
+            <FloatingInput
+                v-model="form.registration_number"
+                :label="$t('customers.form.fields.registration_number')"
+            />
+            <div class="md:col-span-2">
+                <FloatingInput v-model="form.industry" :label="$t('customers.form.fields.industry')" />
+            </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="mb-2 text-sm font-medium text-stone-700 dark:text-neutral-200">{{ contactSectionTitle }}</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <FloatingInput v-model="form.first_name" :label="$t('customers.form.fields.first_name')" :required="true" />
+                <FloatingInput v-model="form.last_name" :label="$t('customers.form.fields.last_name')" :required="true" />
+                <FloatingInput v-model="form.email" :label="$t('customers.form.fields.email')" :required="true" />
+                <FloatingInput v-model="form.phone" :label="$t('customers.form.fields.phone')" />
+                <FloatingInput v-model="form.discount_rate" type="number" :label="$t('customers.form.fields.discount_rate')" />
+            </div>
         </div>
         <div class="flex items-start gap-2">
             <input id="quick-customer-portal-access" type="checkbox" v-model="form.portal_access"

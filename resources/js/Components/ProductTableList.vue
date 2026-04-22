@@ -371,36 +371,43 @@ const handleItemTypeChange = (index) => {
 </script>
 
 <template>
-  <div class="space-y-3 flex flex-col bg-white  rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
+  <div class="flex flex-col space-y-4 rounded-sm bg-white shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
     <!-- Table Section -->
     <div class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-      <div class="min-w-full inline-block align-middle min-h-[300px]">
+      <div class="inline-block min-h-[300px] min-w-[920px] w-full align-middle lg:min-w-full">
         <!-- Table -->
-        <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
+        <table class="min-w-full table-fixed divide-y divide-stone-200 dark:divide-neutral-700">
+          <colgroup>
+            <col class="w-[52%]" />
+            <col class="w-[112px]" />
+            <col class="w-[132px]" />
+            <col class="w-[132px]" />
+            <col class="w-[148px]" />
+          </colgroup>
           <thead>
             <tr>
-              <th scope="col" class="min-w-[450px]">
-                <div class="pe-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
+              <th scope="col">
+                <div class="px-4 py-3.5 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
                   {{ lineItemLabel }}
                 </div>
               </th>
               <th scope="col">
-                <div class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
+                <div class="px-4 py-3.5 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
                   Qte
                 </div>
               </th>
               <th scope="col">
-                <div class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
+                <div class="px-4 py-3.5 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
                   Prix unitaire
                 </div>
               </th>
               <th scope="col">
-                <div class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
+                <div class="px-4 py-3.5 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
                   Total
                 </div>
               </th>
-              <th scope="col" class="size-px">
-                <div class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
+              <th scope="col">
+                <div class="px-4 py-3.5 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
                   Actions
                 </div>
               </th>
@@ -408,10 +415,10 @@ const handleItemTypeChange = (index) => {
           </thead>
           <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
             <template v-for="(product, index) in products" :key="index">
-            <tr>
-              <td class="size-px whitespace-nowrap px-4 py-3">
-                <div class="relative">
-                  <div v-if="allowMixed" class="mb-2">
+            <tr class="align-top">
+              <td class="min-w-[320px] px-4 py-4 align-top">
+                <div class="relative space-y-2">
+                  <div v-if="allowMixed">
                     <FloatingSelect
                       v-model="products[index].item_type"
                       :label="itemTypeLabel"
@@ -422,12 +429,10 @@ const handleItemTypeChange = (index) => {
                       @change="handleItemTypeChange(index)"
                     />
                   </div>
-                  <FloatingInput autofocus v-model="products[index].name" label="Nom" :disabled="readOnly"
+                  <FloatingInput autofocus v-model="products[index].name" label="Nom" class="w-full" :disabled="readOnly"
                     @input="searchProducts(products[index].name, index)" />
-                </div>
-                <div class="relative w-full">
                   <ul v-if="searchResults[index]?.length"
-                      class="absolute left-0 top-full z-50 w-full max-h-60 overflow-y-auto bg-white border border-stone-200 rounded-sm shadow-lg dark:bg-neutral-800 dark:border-neutral-700">
+                      class="absolute left-0 top-full z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-sm border border-stone-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
                     <li v-for="result in searchResults[index]" :key="result.id"
                         @click="selectProduct(result, index)"
                         class="px-3 py-2 cursor-pointer hover:bg-stone-100 dark:hover:bg-neutral-700 text-stone-800 dark:text-neutral-200">
@@ -441,30 +446,36 @@ const handleItemTypeChange = (index) => {
                   </ul>
                 </div>
               </td>
-              <td class="size-px whitespace-nowrap px-4 py-3">
-                <FloatingNumberMiniInput v-model="products[index].quantity" label="Quantite" :disabled="readOnly" />
+              <td class="px-4 py-4 align-top">
+                <div class="w-full min-w-[92px]">
+                  <FloatingNumberMiniInput v-model="products[index].quantity" label="Quantite" class="w-full" :disabled="readOnly" />
+                </div>
               </td>
-              <td class="size-px whitespace-nowrap px-4 py-3">
-                <FloatingNumberMiniInput v-model="products[index].price" aria-disabled="true" label="Prix unitaire" :step="0.01" :disabled="readOnly" />
+              <td class="px-4 py-4 align-top">
+                <div class="w-full min-w-[108px]">
+                  <FloatingNumberMiniInput v-model="products[index].price" aria-disabled="true" label="Prix unitaire" class="w-full" :step="0.01" :disabled="readOnly" />
+                </div>
               </td>
-              <td class="size-px whitespace-nowrap px-4 py-3">
-                <FloatingNumberMiniInput v-model="products[index].total" label="Total" :step="0.01" :disabled="readOnly" />
+              <td class="px-4 py-4 align-top">
+                <div class="w-full min-w-[108px]">
+                  <FloatingNumberMiniInput v-model="products[index].total" label="Total" class="w-full" :step="0.01" :disabled="readOnly" />
+                </div>
               </td>
-              <td>
-                <div class="flex items-center gap-2">
+              <td class="px-4 py-4 align-top">
+                <div class="flex min-h-[52px] items-start gap-2">
                   <button
-                    v-if="enablePriceLookup && !readOnly && !products[index].id && !searchResults[index]?.length"
-                    type="button"
-                    class="inline-flex items-center rounded-sm border border-stone-200 px-2 py-1 text-xs font-medium text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                    @click="searchPrices(index, false)"
-                  >
-                    Find prices
-                  </button>
-                  <button type="button" v-if="!readOnly && products.length > 1" @click="removeLine(index)"
-                      class="px-4 py-4 inline-flex items-center gap-x-2 text-sm font-medium text-red-800 hover:text-red-600 disabled:opacity-50 disabled:pointer-events-none focus:outline-none dark:text-red-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" class="lucide lucide-trash-2">
+                     v-if="enablePriceLookup && !readOnly && !products[index].id && !searchResults[index]?.length"
+                     type="button"
+                     class="inline-flex min-h-[38px] items-center rounded-sm border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                     @click="searchPrices(index, false)"
+                   >
+                     Find prices
+                   </button>
+                   <button type="button" v-if="!readOnly && products.length > 1" @click="removeLine(index)"
+                       class="inline-flex min-h-[38px] items-center gap-x-2 px-2.5 py-1.5 text-sm font-medium text-red-800 hover:text-red-600 disabled:pointer-events-none disabled:opacity-50 focus:outline-none dark:text-red-300">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" class="lucide lucide-trash-2">
                       <path d="M3 6h18" />
                       <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
                       <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -557,10 +568,10 @@ const handleItemTypeChange = (index) => {
       </div>
     </div>
     <!-- End Table Section -->
-    <div class="text-xs text-stone-600 flex justify-between mt-5">
-      <div class="flex items-center gap-2">
+    <div class="px-4 pt-2 text-xs text-stone-600">
+      <div class="flex flex-wrap items-center gap-2">
         <button v-if="!readOnly" type="button" @click="addNewLine"
-            class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
+            class="hs-tooltip-toggle inline-flex items-center gap-x-1.5 rounded-sm border border-transparent bg-green-600 px-2.5 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:pointer-events-none disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500">
             Ajouter une ligne de {{ lineItemLabel.toLowerCase() }}
         </button>
         <button

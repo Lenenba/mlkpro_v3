@@ -2,6 +2,7 @@
   "quotes": {
     "title": "Quotes",
     "create_title": "Create quote",
+    "edit_title": "Edit quote",
     "show_title": "View quote",
     "company_fallback": "Company",
     "form": {

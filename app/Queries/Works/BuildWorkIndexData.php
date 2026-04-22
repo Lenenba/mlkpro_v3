@@ -50,7 +50,7 @@ class BuildWorkIndexData
             ->withCount([
                 'tasks as overdue_tasks_count' => function ($query) use ($today) {
                     $query->whereNotNull('due_date')
-                        ->where('status', '!=', 'done')
+                        ->whereIn('status', \App\Models\Task::OPEN_STATUSES)
                         ->whereDate('due_date', '<', $today);
                 },
             ])

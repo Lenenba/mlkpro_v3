@@ -7,6 +7,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import Checkbox from '@/Components/Checkbox.vue';
+import DropzoneInput from '@/Components/DropzoneInput.vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -58,6 +59,8 @@ const form = useForm({
     tax_rate: props.service?.tax_rate || 0,
     is_active: props.service?.is_active ?? true,
     description: props.service?.description || '',
+    image: props.service?.image_url || null,
+    remove_image: false,
     materials: (props.service?.service_materials || []).map((material, index) =>
         buildMaterial(material, index)
     ),
@@ -175,6 +178,28 @@ watch(categoryName, (value) => {
     }
 });
 
+watch(
+    () => form.image,
+    (value) => {
+        if (!props.service) {
+            form.remove_image = false;
+            return;
+        }
+
+        if (value instanceof File) {
+            form.remove_image = false;
+            return;
+        }
+
+        if (typeof value === 'string' && value.trim() !== '') {
+            form.remove_image = false;
+            return;
+        }
+
+        form.remove_image = Boolean(props.service?.image_url);
+    }
+);
+
 const normalizeMaterials = () => {
     form.materials = form.materials
         .map((material, index) => ({
@@ -208,13 +233,19 @@ const submit = () => {
     const routeName = props.service?.id ? 'service.update' : 'service.store';
     const routeParams = props.service?.id ? props.service.id : undefined;
 
-    form[props.service?.id ? 'put' : 'post'](route(routeName, routeParams), {
-        preserveScroll: true,
-        onSuccess: () => {
-            emit('submitted');
-            closeOverlay();
-        },
-    });
+    form
+        .transform((data) => ({
+            ...data,
+            image: data.image instanceof File ? data.image : null,
+            remove_image: Boolean(data.remove_image),
+        }))
+        [props.service?.id ? 'put' : 'post'](route(routeName, routeParams), {
+            preserveScroll: true,
+            onSuccess: () => {
+                emit('submitted');
+                closeOverlay();
+            },
+        });
 };
 </script>
 
@@ -268,6 +299,7 @@ const submit = () => {
         </div>
 
         <FloatingTextarea v-model="form.description" :label="$t('services.form.description')" />
+        <DropzoneInput v-model="form.image" :label="$t('services.form.image')" />
 
         <div class="space-y-3">
             <div class="flex items-center justify-between">

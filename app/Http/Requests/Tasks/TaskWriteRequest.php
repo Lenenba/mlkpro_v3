@@ -22,7 +22,10 @@ abstract class TaskWriteRequest extends FormRequest
         return [
             'status' => [$statusRule, 'string', Rule::in(Task::STATUSES)],
             'completed_at' => ['nullable', 'date', 'before_or_equal:now'],
+            'cancelled_at' => ['nullable', 'date', 'before_or_equal:now'],
             'completion_reason' => ['nullable', 'string', Rule::in(\App\Services\TaskTimingService::completionReasons())],
+            'cancellation_reason' => ['nullable', 'string', 'max:255'],
+            'delay_reason' => ['nullable', 'string', 'max:255'],
         ];
     }
 

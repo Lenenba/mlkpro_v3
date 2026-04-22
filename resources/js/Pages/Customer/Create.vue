@@ -6,7 +6,14 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import InputError from '@/Components/InputError.vue';
 import { companyIconPresets, defaultCompanyIcon } from '@/utils/iconPresets';
-import { Link, useForm, Head, usePage } from '@inertiajs/vue3';
+import {
+    buildCustomerClientTypeOptions,
+    CUSTOMER_CLIENT_TYPE_COMPANY,
+    CUSTOMER_CLIENT_TYPE_INDIVIDUAL,
+    resolveCustomerClientType,
+} from '@/utils/customerClientTypes';
+import { assignGeoapifyAddress, useGeoapifyAddressAutocomplete } from '@/Composables/useGeoapifyAddressAutocomplete';
+import { useForm, Head, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -21,12 +28,7 @@ const isCreating = !props.customer?.id;
 const page = usePage();
 const isGuidedDemo = computed(() => Boolean(page.props.demo?.is_guided));
 const demoPrefilled = ref(false);
-
-const salutations = computed(() => ([
-    { id: 'Mr', name: t('customers.form.salutations.mr') },
-    { id: 'Mrs', name: t('customers.form.salutations.mrs') },
-    { id: 'Miss', name: t('customers.form.salutations.miss') },
-]));
+const clientTypeOptions = computed(() => buildCustomerClientTypeOptions(t));
 
 const billingModes = computed(() => ([
     { id: 'per_task', name: t('customers.form.billing_modes.per_task') },
@@ -70,19 +72,28 @@ const resolvePrimaryProperty = () => {
         country: primary?.country || '',
     };
 };
+
+const initialClientType = resolveCustomerClientType(
+    props.customer,
+    props.customer?.id ? resolveCustomerClientType(props.customer) : CUSTOMER_CLIENT_TYPE_INDIVIDUAL
+);
+
 // Initialize the form
 const form = useForm({
+    client_type: initialClientType,
     first_name: props.customer?.first_name || '',
     last_name: props.customer?.last_name || '',
     email: props.customer?.email || '',
     portal_access: props.customer?.portal_access ?? true,
     company_name: props.customer?.company_name || '',
+    registration_number: props.customer?.registration_number || '',
+    industry: props.customer?.industry || '',
     billing_same_as_physical: props.customer?.billing_same_as_physical || false,
     logo: initialLogoPreview,
     logo_icon: defaultLogoIcon,
     description: props.customer?.description || '',
     refer_by: props.customer?.refer_by || '',
-    salutation: props.customer?.salutation || '',
+    salutation: props.customer?.salutation || 'Mr',
     phone: props.customer?.phone || '',
     properties: resolvePrimaryProperty(),
     billing_mode: props.customer?.billing_mode || 'end_of_job',
@@ -96,6 +107,13 @@ const form = useForm({
     auto_validate_tasks: props.customer?.auto_validate_tasks ?? false,
     auto_validate_invoices: props.customer?.auto_validate_invoices ?? false,
 });
+
+const isCompanyClient = computed(() => form.client_type === CUSTOMER_CLIENT_TYPE_COMPANY);
+const contactSectionTitle = computed(() => (
+    isCompanyClient.value
+        ? t('customers.form.sections.main_contact')
+        : t('customers.form.sections.contact_details')
+));
 
 const selectCompanyIcon = (icon) => {
     form.logo_icon = icon;
@@ -153,15 +171,12 @@ const shouldPrefillGuided = () => {
     }
     return isEmpty(form.first_name)
         && isEmpty(form.last_name)
-        && isEmpty(form.email)
-        && isEmpty(form.salutation);
+        && isEmpty(form.email);
 };
 
 const prefillGuidedCustomer = () => {
     demoPrefilled.value = true;
-    if (isEmpty(form.salutation)) {
-        form.salutation = 'Mr';
-    }
+    form.client_type = CUSTOMER_CLIENT_TYPE_COMPANY;
     if (isEmpty(form.first_name)) {
         form.first_name = 'Guided';
     }
@@ -173,6 +188,12 @@ const prefillGuidedCustomer = () => {
     }
     if (isEmpty(form.company_name)) {
         form.company_name = 'Guided Demo Client';
+    }
+    if (isEmpty(form.registration_number)) {
+        form.registration_number = 'GUIDED-DEMO';
+    }
+    if (isEmpty(form.industry)) {
+        form.industry = 'Professional services';
     }
     if (isEmpty(form.phone)) {
         form.phone = '555-0102';
@@ -192,70 +213,19 @@ onMounted(() => {
     }
 });
 
-const query = ref('');
-const suggestions = ref([]);
-const isSearching = ref(false);
-const geoapifyKey = import.meta.env.VITE_GEOAPIFY_KEY;
-
-const searchAddress = async () => {
-    if (query.value.length < 2) {
-        suggestions.value = [];
-        return;
-    }
-
-    if (!geoapifyKey) {
-        suggestions.value = [];
-        return;
-    }
-
-    isSearching.value = true;
-    try {
-        const url = new URL('https://api.geoapify.com/v1/geocode/autocomplete');
-        url.search = new URLSearchParams({
-            text: query.value,
-            apiKey: geoapifyKey,
-            limit: '5',
-            filter: 'countrycode:ca,us',
-        }).toString();
-
-        const response = await fetch(url.toString());
-        if (!response.ok) {
-            throw new Error(`Geoapify request failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-        suggestions.value = (data.features || []).map((feature) => ({
-            id: feature.properties?.place_id || feature.properties?.formatted || feature.properties?.name,
-            label: feature.properties?.formatted || feature.properties?.name || '',
-            details: feature.properties || {},
-        }));
-    } catch (error) {
+const {
+    query,
+    suggestions,
+    searchAddress,
+    selectAddress,
+} = useGeoapifyAddressAutocomplete({
+    onSelect: (details) => {
+        assignGeoapifyAddress(form.properties, details);
+    },
+    onError: (error) => {
         console.error('Erreur lors de la recherche d\'adresse :', error);
-    } finally {
-        isSearching.value = false;
-    }
-};
-
-const selectAddress = (details) => {
-    const address = details || {};
-    const streetParts = [];
-    if (address.house_number) {
-        streetParts.push(address.house_number);
-    }
-    if (address.street) {
-        streetParts.push(address.street);
-    }
-    const city = address.city || address.town || address.village || address.hamlet || address.suburb;
-
-    form.properties.street1 = streetParts.join(' ').trim();
-    form.properties.street2 = '';
-    form.properties.city = city || '';
-    form.properties.state = address.state || address.county || address.region || '';
-    form.properties.zip = address.postcode || '';
-    form.properties.country = address.country || '';
-    suggestions.value = [];
-    query.value = details.formatted || details.name || query.value;
-};
+    },
+});
 </script>
 <template>
 
@@ -289,14 +259,43 @@ const selectAddress = (details) => {
                         </h3>
                     </div>
                     <div class="p-4 md:p-5">
-                        <div class="flex flex-row">
-                            <FloatingSelect v-model="form.salutation" class="w-1/5" :required="true"
-                                :label="$t('customers.form.fields.title')" :options="salutations" />
-                            <FloatingInput v-model="form.first_name" :label="$t('customers.form.fields.first_name')" class="w-2/5" :required="true" />
-                            <FloatingInput v-model="form.last_name" :label="$t('customers.form.fields.last_name')" class="w-2/5" :required="true" />
+                        <FloatingSelect
+                            v-model="form.client_type"
+                            :label="$t('customers.form.fields.client_type')"
+                            :options="clientTypeOptions"
+                            :required="true"
+                        />
+                        <InputError class="mt-1" :message="form.errors.client_type" />
+
+                        <h2 v-if="isCompanyClient" class="pt-4 text-sm my-2 font-bold text-stone-800 dark:text-white">
+                            {{ $t('customers.form.sections.company_details') }}
+                        </h2>
+                        <div v-if="isCompanyClient" class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <FloatingInput
+                                    v-model="form.company_name"
+                                    :label="$t('customers.form.fields.company_name')"
+                                    :required="true"
+                                />
+                                <InputError class="mt-1" :message="form.errors.company_name" />
+                            </div>
+                            <div>
+                                <FloatingInput
+                                    v-model="form.registration_number"
+                                    :label="$t('customers.form.fields.registration_number')"
+                                />
+                                <InputError class="mt-1" :message="form.errors.registration_number" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <FloatingInput
+                                    v-model="form.industry"
+                                    :label="$t('customers.form.fields.industry')"
+                                />
+                                <InputError class="mt-1" :message="form.errors.industry" />
+                            </div>
                         </div>
-                        <FloatingInput v-model="form.company_name" :label="$t('customers.form.fields.company_name')" />
-                        <div class="mt-4 space-y-2">
+
+                        <div v-if="isCompanyClient" class="mt-4 space-y-2">
                             <label class="text-sm font-semibold text-stone-800 dark:text-white">{{ $t('customers.form.fields.company_logo') }}</label>
                             <DropzoneInput v-model="form.logo" :label="$t('customers.form.fields.upload_company_logo')" />
                             <InputError class="mt-1" :message="form.errors.logo" />
@@ -331,9 +330,37 @@ const selectAddress = (details) => {
                                 <InputError class="mt-1" :message="form.errors.logo_icon" />
                             </div>
                         </div>
-                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white">{{ $t('customers.form.sections.contact_details') }}</h2>
-                        <FloatingInput v-model="form.phone" :label="$t('customers.form.fields.phone')" />
-                        <FloatingInput v-model="form.email" :label="$t('customers.form.fields.email')" :required="true" />
+                        <h2 class="pt-4 text-sm my-2 font-bold text-stone-800 dark:text-white">{{ contactSectionTitle }}</h2>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <FloatingInput
+                                    v-model="form.first_name"
+                                    :label="$t('customers.form.fields.first_name')"
+                                    :required="true"
+                                />
+                                <InputError class="mt-1" :message="form.errors.first_name" />
+                            </div>
+                            <div>
+                                <FloatingInput
+                                    v-model="form.last_name"
+                                    :label="$t('customers.form.fields.last_name')"
+                                    :required="true"
+                                />
+                                <InputError class="mt-1" :message="form.errors.last_name" />
+                            </div>
+                            <div>
+                                <FloatingInput v-model="form.phone" :label="$t('customers.form.fields.phone')" />
+                                <InputError class="mt-1" :message="form.errors.phone" />
+                            </div>
+                            <div>
+                                <FloatingInput
+                                    v-model="form.email"
+                                    :label="$t('customers.form.fields.email')"
+                                    :required="true"
+                                />
+                                <InputError class="mt-1" :message="form.errors.email" />
+                            </div>
+                        </div>
                         <div class="mt-3 flex items-start gap-2">
                             <input id="customer-portal-access" type="checkbox" v-model="form.portal_access"
                                 class="mt-1 size-4 rounded border-stone-300 text-green-600 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500" />

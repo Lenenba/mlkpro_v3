@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CustomerClientType;
 use App\Http\Requests\CustomerRequest;
 use App\Models\ActivityLog;
 use App\Models\Customer;
@@ -213,7 +214,9 @@ class CustomerController extends Controller
         }
 
         return $this->inertiaOrJson('Customer/Create', [
-            'customer' => new Customer,
+            'customer' => new Customer([
+                'client_type' => CustomerClientType::default()->value,
+            ]),
         ]);
     }
 
@@ -564,7 +567,10 @@ class CustomerController extends Controller
         return response()->json([
             'customer' => [
                 'id' => $customer->id,
+                'client_type' => $customer->client_type,
                 'company_name' => $customer->company_name,
+                'registration_number' => $customer->registration_number,
+                'industry' => $customer->industry,
                 'first_name' => $customer->first_name,
                 'last_name' => $customer->last_name,
                 'email' => $customer->email,
@@ -1100,6 +1106,30 @@ class CustomerController extends Controller
 
     private function normalizeCustomerPayload(array $validated, ?Customer $customer = null): array
     {
+        $companyName = array_key_exists('company_name', $validated)
+            ? trim((string) ($validated['company_name'] ?? ''))
+            : trim((string) ($customer?->company_name ?? ''));
+        $registrationNumber = array_key_exists('registration_number', $validated)
+            ? trim((string) ($validated['registration_number'] ?? ''))
+            : trim((string) ($customer?->registration_number ?? ''));
+        $industry = array_key_exists('industry', $validated)
+            ? trim((string) ($validated['industry'] ?? ''))
+            : trim((string) ($customer?->industry ?? ''));
+
+        $validated['client_type'] = CustomerClientType::infer(
+            $validated['client_type'] ?? $customer?->client_type,
+            $companyName
+        )->value;
+        $validated['company_name'] = $companyName !== '' ? $companyName : null;
+        $validated['registration_number'] = $registrationNumber !== '' ? $registrationNumber : null;
+        $validated['industry'] = $industry !== '' ? $industry : null;
+
+        if ($validated['client_type'] !== CustomerClientType::COMPANY->value) {
+            $validated['company_name'] = null;
+            $validated['registration_number'] = null;
+            $validated['industry'] = null;
+        }
+
         $validated['billing_same_as_physical'] = array_key_exists('billing_same_as_physical', $validated)
             ? (bool) $validated['billing_same_as_physical']
             : false;
@@ -1153,7 +1183,10 @@ class CustomerController extends Controller
     {
         $payload = [
             'id' => $customer->id,
+            'client_type' => $customer->client_type,
             'company_name' => $customer->company_name,
+            'registration_number' => $customer->registration_number,
+            'industry' => $customer->industry,
             'first_name' => $customer->first_name,
             'last_name' => $customer->last_name,
             'email' => $customer->email,
@@ -1212,7 +1245,9 @@ class CustomerController extends Controller
             'password' => Hash::make(Str::random(32)),
             'role_id' => $roleId,
             'phone_number' => $validated['phone'] ?? null,
-            'company_name' => $validated['company_name'] ?? null,
+            'company_name' => ($validated['client_type'] ?? null) === CustomerClientType::COMPANY->value
+                ? ($validated['company_name'] ?? null)
+                : null,
             'must_change_password' => true,
         ]);
     }

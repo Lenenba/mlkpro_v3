@@ -224,10 +224,11 @@ class ServiceController extends Controller
         app(UsageLimitService::class)->enforceLimit($request->user(), 'services');
 
         $validated = $request->validated();
+        unset($validated['remove_image']);
         $validated['item_type'] = Product::ITEM_TYPE_SERVICE;
         $validated['stock'] = 0;
         $validated['minimum_stock'] = 0;
-        $validated['image'] = FileHandler::handleImageUpload('services', $request, 'image', 'products/product.jpg');
+        $validated['image'] = FileHandler::handleImageUpload('services', $request, 'image');
 
         $service = $request->user()->products()->create($validated);
 
@@ -285,6 +286,7 @@ class ServiceController extends Controller
         $this->ensureServiceItem($service);
 
         $validated = $request->validated();
+        unset($validated['remove_image']);
         $previousPrice = (float) $service->price;
         $previousName = (string) $service->name;
         $previousDescription = $service->description;
@@ -292,7 +294,16 @@ class ServiceController extends Controller
         $validated['item_type'] = Product::ITEM_TYPE_SERVICE;
         $validated['stock'] = 0;
         $validated['minimum_stock'] = 0;
-        $validated['image'] = FileHandler::handleImageUpload('services', $request, 'image', 'products/product.jpg', $service->image);
+        $removeImage = $request->boolean('remove_image');
+
+        if ($request->hasFile('image')) {
+            $validated['image'] = FileHandler::handleImageUpload('services', $request, 'image', null, $service->image);
+        } elseif ($removeImage) {
+            FileHandler::deleteFile($service->image, 'products/product.jpg');
+            $validated['image'] = null;
+        } else {
+            $validated['image'] = $service->image;
+        }
 
         $service->update($validated);
 

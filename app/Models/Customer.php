@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CustomerClientType;
 use App\Support\LocalePreference;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Contracts\Translation\HasLocalePreference as HasLocalePreferenceContract;
@@ -34,6 +35,9 @@ class Customer extends Model implements HasLocalePreferenceContract
         'first_name',
         'last_name',
         'company_name',
+        'client_type',
+        'registration_number',
+        'industry',
         'email',
         'phone',
         'description',
@@ -72,6 +76,7 @@ class Customer extends Model implements HasLocalePreferenceContract
 
     protected $casts = [
         'billing_same_as_physical' => 'boolean',
+        'client_type' => 'string',
         'portal_access' => 'boolean',
         'is_active' => 'boolean',
         'is_vip' => 'boolean',
@@ -98,6 +103,10 @@ class Customer extends Model implements HasLocalePreferenceContract
         // Auto-generate the customer number before creating
         static::creating(function ($customer) {
             $customer->number = self::generateNumber($customer->user_id, 'C');
+            $customer->client_type = CustomerClientType::infer(
+                $customer->client_type,
+                $customer->company_name
+            )->value;
         });
     }
 
@@ -309,6 +318,8 @@ class Customer extends Model implements HasLocalePreferenceContract
                 function (Builder $query, $name) {
                     $query->where(function (Builder $query) use ($name) {
                         $query->where('company_name', 'like', '%'.$name.'%')
+                            ->orWhere('registration_number', 'like', '%'.$name.'%')
+                            ->orWhere('industry', 'like', '%'.$name.'%')
                             ->orWhere('first_name', 'like', '%'.$name.'%')
                             ->orWhere('last_name', 'like', '%'.$name.'%')
                             ->orWhere('email', 'like', '%'.$name.'%')

@@ -5,7 +5,8 @@
       "total": "Tareas totales",
       "todo": "hacer",
       "in_progress": "En progreso",
-      "done": "Hecho"
+      "done": "Hecho",
+      "cancelled": "Cancelada"
     },
     "view": {
       "board": "tablero",
@@ -40,7 +41,8 @@
     "status": {
       "todo": "hacer",
       "in_progress": "En progreso",
-      "done": "Hecho"
+      "done": "Hecho",
+      "cancelled": "Cancelada"
     },
     "timing": {
       "early": "Completado temprano",
@@ -124,7 +126,11 @@
       "execution": "Ejecución",
       "completed_at": "Completado el",
       "completion_reason": "Motivo de finalización",
+      "cancelled_at": "Cancelada el",
+      "cancellation_reason": "Motivo de cancelación",
+      "delay_reason": "Motivo del retraso",
       "not_completed": "No completado",
+      "not_cancelled": "No cancelada",
       "no_reason": "No se proporcionó ninguna razón"
     },
     "history": {
@@ -138,6 +144,8 @@
         "auto_started": "iniciado automáticamente",
         "auto_completed": "Auto completado",
         "overdue": "Marcado vencido",
+        "cancelled": "Cancelada",
+        "delay_reason_updated": "Motivo del retraso actualizado",
         "client_notified": "Cliente notificado"
       }
     },
@@ -153,6 +161,7 @@
       "one_off_task": "tarea única",
       "status": "Estado",
       "due_date": "fecha de vencimiento",
+      "delay_reason": "Motivo del retraso",
       "assignee": "Cesionario",
       "unassigned": "No asignado",
       "solo_hint": "Este espacio de trabajo individual no asigna tareas a los miembros del equipo.",
@@ -168,6 +177,12 @@
       "reason": "Motivo de finalización",
       "confirm": "Confirmar finalización",
       "reason_required": "Se requiere un motivo de finalización cuando la fecha difiere."
+    },
+    "cancellation": {
+      "title": "Cancelar tarea",
+      "reason": "Motivo de cancelación",
+      "confirm": "Confirmar cancelación",
+      "reason_required": "Se requiere un motivo de cancelación."
     },
     "reasons": {
       "client_available": "Cliente disponible",

@@ -674,6 +674,7 @@ class TenantController extends BaseSuperAdminController
             'presence' => 'Presence',
             'planning' => 'Planning',
             'sales' => 'Sales',
+            'promotions' => 'Promotions',
             'expenses' => 'Expenses',
             'accounting' => 'Accounting',
             'services' => 'Services',

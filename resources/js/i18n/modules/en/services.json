@@ -69,6 +69,7 @@
       "tax_rate": "Tax rate (%)",
       "price": "Price",
       "description": "Description",
+      "image": "Image (optional)",
       "errors": {
         "category_name_required": "Enter a category name.",
         "category_create_failed": "Unable to create category.",

@@ -6,7 +6,10 @@ import { useI18n } from 'vue-i18n';
 import InputError from '@/Components/InputError.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import FloatingInput from '@/Components/FloatingInput.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { resolveSalePromotionPreview } from '@/utils/salesPromotionResolver';
 
 const props = defineProps({
     sale: {
@@ -21,9 +24,15 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    promotions: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const { t } = useI18n();
+const { hasFeature } = useAccountFeatures();
+const promotionsFeatureEnabled = computed(() => hasFeature('promotions'));
 
 const form = useForm({
     customer_id: props.sale.customer_id || '',
@@ -31,6 +40,7 @@ const form = useForm({
     fulfillment_status: props.sale.fulfillment_status || null,
     scheduled_for: '',
     notes: props.sale.notes || '',
+    promotion_code: hasFeature('promotions') ? (props.sale.discount_code || '') : '',
     items: (props.sale.items || []).map((item) => ({
         product_id: item.product_id,
         quantity: item.quantity,
@@ -240,17 +250,29 @@ const taxTotal = computed(() =>
     }, 0)
 );
 
-const discountRate = computed(() => {
-    if (selectedCustomer.value?.discount_rate !== undefined && selectedCustomer.value?.discount_rate !== null) {
-        return Number(selectedCustomer.value.discount_rate || 0);
+const promotionPreview = computed(() => resolveSalePromotionPreview({
+    items: form.items,
+    promotions: props.promotions,
+    customerId: form.customer_id,
+    customerDiscountRate: selectedCustomer.value?.discount_rate ?? props.sale.discount_rate ?? 0,
+    productMap: productMap.value,
+    promotionCode: form.promotion_code,
+}));
+const discountRate = computed(() => Number(promotionPreview.value?.discount_rate || 0));
+const discountTotal = computed(() => Number(promotionPreview.value?.pricing_discount_total || 0));
+const discountedTaxTotal = computed(() => Number(promotionPreview.value?.tax_total || taxTotal.value));
+const discountSummaryLabel = computed(() => {
+    if (promotionPreview.value?.source === 'promotion' && promotionPreview.value?.discount_label) {
+        return t('sales.summary.discount_named', { label: promotionPreview.value.discount_label });
     }
-    return Number(props.sale.discount_rate || 0);
+
+    if (promotionPreview.value?.source === 'customer' && discountRate.value > 0) {
+        return t('sales.summary.customer_discount', { rate: discountRate.value });
+    }
+
+    return t('sales.summary.discount_rate', { rate: discountRate.value });
 });
-const discountTotal = computed(() => subtotal.value * (discountRate.value / 100));
-const discountedTaxTotal = computed(() => taxTotal.value * (1 - discountRate.value / 100));
-const total = computed(() =>
-    Math.max(0, subtotal.value - discountTotal.value) + discountedTaxTotal.value
-);
+const total = computed(() => Number(promotionPreview.value?.total_before_loyalty || 0));
 
 const { formatCurrency } = useCurrencyFormatter();
 
@@ -396,7 +418,13 @@ const submit = () => {
                                             {{ selectedCustomer.company_name || `${selectedCustomer.first_name || ''} ${selectedCustomer.last_name || ''}`.trim() || selectedCustomer.email }}
                                         </span>
                                         <span
-                                            v-if="discountRate > 0"
+                                            v-if="promotionPreview.source === 'promotion' && promotionPreview.discount_label"
+                                            class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200"
+                                        >
+                                            {{ $t('sales.form.promotion_badge', { label: promotionPreview.discount_label }) }}
+                                        </span>
+                                        <span
+                                            v-else-if="promotionPreview.source === 'customer' && discountRate > 0"
                                             class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200"
                                         >
                                             {{ $t('sales.form.discount_badge', { rate: discountRate }) }}
@@ -407,6 +435,28 @@ const submit = () => {
                                         <span v-if="selectedCustomer.phone">{{ selectedCustomer.phone }}</span>
                                     </div>
                                 </div>
+                            </div>
+                            <div v-if="promotionsFeatureEnabled">
+                                <FloatingInput
+                                    v-model="form.promotion_code"
+                                    :label="$t('sales.form.promotion_code_label')"
+                                />
+                                <p class="mt-1 text-[11px] text-stone-500 dark:text-neutral-400">
+                                    {{ $t('sales.form.promotion_code_hint') }}
+                                </p>
+                                <p
+                                    v-if="promotionPreview.source === 'promotion' && promotionPreview.discount_label"
+                                    class="mt-2 text-[11px] text-emerald-600 dark:text-emerald-300"
+                                >
+                                    {{ $t('sales.form.promotion_applied', { label: promotionPreview.discount_label }) }}
+                                </p>
+                                <p
+                                    v-else-if="form.promotion_code && promotionPreview.error"
+                                    class="mt-2 text-[11px] text-amber-600 dark:text-amber-300"
+                                >
+                                    {{ $t('sales.form.promotion_code_invalid') }}
+                                </p>
+                                <InputError class="mt-1" :message="form.errors.promotion_code" />
                             </div>
                             <div>
                                 <FloatingSelect
@@ -528,8 +578,8 @@ const submit = () => {
                                 <span>{{ $t('sales.summary.taxes') }}</span>
                                 <span class="font-medium">{{ formatCurrency(discountedTaxTotal) }}</span>
                             </div>
-                            <div v-if="discountRate > 0" class="flex items-center justify-between text-emerald-700">
-                                <span>{{ $t('sales.summary.discount_rate', { rate: discountRate }) }}</span>
+                            <div v-if="discountTotal > 0" class="flex items-center justify-between text-emerald-700">
+                                <span>{{ discountSummaryLabel }}</span>
                                 <span class="font-medium">- {{ formatCurrency(discountTotal) }}</span>
                             </div>
                             <div class="flex items-center justify-between border-t border-stone-200 pt-2 dark:border-neutral-700">

@@ -75,6 +75,8 @@ const presetLabel = computed(() => t(`settings.reservations.presets.${props.sett
 const kioskPublicUrl = computed(() => props.kiosk?.public_url || null);
 
 const waitingStatuses = ['checked_in', 'pre_called', 'called', 'skipped', 'not_arrived'];
+const openChairStates = ['available', 'available_ready', 'check_in_needed'];
+const occupiedChairStates = ['called', 'in_service'];
 const queueItems = computed(() => (Array.isArray(queueData.value?.items) ? queueData.value.items : []));
 const waitingRows = computed(() => (Array.isArray(queueData.value?.waiting) ? queueData.value.waiting : []));
 const statusBadgeClass = (status) => reservationStatusBadgeClass(status);
@@ -231,6 +233,30 @@ const progressPercent = (item) => {
     return Math.max(0, Math.min(100, Math.round((elapsedMinutes / duration) * 100)));
 };
 
+const estimatedRemainingMinutes = (item) => {
+    if (!item) {
+        return 0;
+    }
+
+    const duration = Math.max(0, Number(item.estimated_duration_minutes || 0));
+    if (duration <= 0) {
+        return 0;
+    }
+
+    if (String(item.status || '') !== 'in_service') {
+        return Math.round(duration);
+    }
+
+    const anchor = item.started_at || item.called_at || item.checked_in_at;
+    if (!anchor) {
+        return Math.round(duration);
+    }
+
+    const elapsedMinutes = Math.max(0, nowTick.value.diff(dayjs(anchor), 'minute', true));
+
+    return Math.max(0, Math.round(duration - elapsedMinutes));
+};
+
 const deriveChairsFromItems = () => {
     const members = Array.isArray(props.teamMembers) ? props.teamMembers : [];
     if (!members.length) {
@@ -348,17 +374,21 @@ watch(
 
 const summary = computed(() => {
     const activeSeats = chairs.value.length;
-    const occupied = chairs.value.filter((chair) => ['called', 'in_service'].includes(String(chair.state || ''))).length;
+    const occupiedChairs = chairs.value.filter((chair) => occupiedChairStates.includes(String(chair.state || '')));
+    const occupied = occupiedChairs.length;
     const ready = chairs.value.filter((chair) => !chair.current && chair.next).length;
+    const openSeats = chairs.value.filter((chair) => openChairStates.includes(String(chair.state || ''))).length;
 
-    const waitingEtas = queueItems.value
-        .filter((item) => waitingStatuses.includes(String(item.status || '')))
-        .map((item) => Number(item.eta_minutes))
-        .filter((value) => Number.isFinite(value) && value >= 0);
+    let avgWait = 0;
+    if (openSeats === 0 && occupiedChairs.length > 0) {
+        const remainingDurations = occupiedChairs
+            .map((chair) => estimatedRemainingMinutes(chair.current))
+            .filter((value) => Number.isFinite(value) && value > 0);
 
-    const avgWait = waitingEtas.length
-        ? Math.round(waitingEtas.reduce((carry, value) => carry + value, 0) / waitingEtas.length)
-        : 0;
+        avgWait = remainingDurations.length
+            ? Math.round(remainingDurations.reduce((carry, value) => carry + value, 0) / remainingDurations.length)
+            : 0;
+    }
 
     const nextBooking = queueItems.value
         .filter((item) => String(item.origin || '') === 'booking' && waitingStatuses.includes(String(item.status || '')))

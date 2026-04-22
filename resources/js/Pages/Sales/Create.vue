@@ -14,8 +14,10 @@ import Modal from '@/Components/UI/Modal.vue';
 import AppModal from '@/Components/Modal.vue';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import FloatingInput from '@/Components/FloatingInput.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { resolveSalePromotionPreview } from '@/utils/salesPromotionResolver';
 
 const props = defineProps({
     customers: {
@@ -23,6 +25,10 @@ const props = defineProps({
         default: () => [],
     },
     products: {
+        type: Array,
+        default: () => [],
+    },
+    promotions: {
         type: Array,
         default: () => [],
     },
@@ -67,6 +73,7 @@ const form = useForm({
     items: normalizedPrefillItems,
     payment_method: '',
     pay_with_stripe: false,
+    promotion_code: '',
     loyalty_points_redeem: 0,
 });
 
@@ -75,6 +82,7 @@ const { hasFeature, visibleFeaturePayload } = useAccountFeatures();
 const lastSaleId = computed(() => page.props.flash?.last_sale_id || null);
 const loyaltyProgram = computed(() => visibleFeaturePayload('loyalty', props.loyaltyProgram, {}));
 const loyaltyFeatureEnabled = computed(() => hasFeature('loyalty'));
+const promotionsFeatureEnabled = computed(() => hasFeature('promotions'));
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
 const {
     allowedPaymentMethods,
@@ -318,12 +326,29 @@ const taxTotal = computed(() =>
     }, 0)
 );
 
-const discountRate = computed(() => Number(selectedCustomer.value?.discount_rate || 0));
-const discountTotal = computed(() => subtotal.value * (discountRate.value / 100));
-const discountedTaxTotal = computed(() => taxTotal.value * (1 - discountRate.value / 100));
-const totalBeforeLoyalty = computed(() =>
-    Math.max(0, subtotal.value - discountTotal.value) + discountedTaxTotal.value
-);
+const promotionPreview = computed(() => resolveSalePromotionPreview({
+    items: form.items,
+    promotions: props.promotions,
+    customerId: form.customer_id,
+    customerDiscountRate: selectedCustomer.value?.discount_rate || 0,
+    productMap: productMap.value,
+    promotionCode: form.promotion_code,
+}));
+const discountRate = computed(() => Number(promotionPreview.value?.discount_rate || 0));
+const discountTotal = computed(() => Number(promotionPreview.value?.pricing_discount_total || 0));
+const discountedTaxTotal = computed(() => Number(promotionPreview.value?.tax_total || taxTotal.value));
+const totalBeforeLoyalty = computed(() => Number(promotionPreview.value?.total_before_loyalty || 0));
+const discountSummaryLabel = computed(() => {
+    if (promotionPreview.value?.source === 'promotion' && promotionPreview.value?.discount_label) {
+        return t('sales.summary.discount_named', { label: promotionPreview.value.discount_label });
+    }
+
+    if (promotionPreview.value?.source === 'customer' && discountRate.value > 0) {
+        return t('sales.summary.customer_discount', { rate: discountRate.value });
+    }
+
+    return t('sales.summary.discount_rate', { rate: discountRate.value });
+});
 const loyaltyEnabled = computed(() =>
     loyaltyFeatureEnabled.value && Boolean(loyaltyProgram.value?.is_enabled)
 );
@@ -377,6 +402,7 @@ const handleCustomerCreated = (payload) => {
 const resetForm = () => {
     form.reset();
     form.payment_method = selectablePaymentMethods.value[0]?.value || defaultPaymentMethod.value;
+    form.promotion_code = '';
     form.clearErrors();
     searchQuery.value = '';
     scanQuery.value = '';
@@ -442,6 +468,7 @@ const submit = () => {
             items: form.items,
             payment_method: form.payment_method,
             pay_with_stripe: true,
+            promotion_code: form.promotion_code,
             loyalty_points_redeem: loyaltyPointsRedeem.value,
         };
 
@@ -631,7 +658,13 @@ const submit = () => {
                                             {{ selectedCustomer.company_name || `${selectedCustomer.first_name || ''} ${selectedCustomer.last_name || ''}`.trim() || selectedCustomer.email }}
                                         </span>
                                         <span
-                                            v-if="discountRate > 0"
+                                            v-if="promotionPreview.source === 'promotion' && promotionPreview.discount_label"
+                                            class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200"
+                                        >
+                                            {{ $t('sales.form.promotion_badge', { label: promotionPreview.discount_label }) }}
+                                        </span>
+                                        <span
+                                            v-else-if="promotionPreview.source === 'customer' && discountRate > 0"
                                             class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200"
                                         >
                                             {{ $t('sales.form.discount_badge', { rate: discountRate }) }}
@@ -648,6 +681,28 @@ const submit = () => {
                                         {{ $t('sales.form.loyalty.balance', { points: Number(customerLoyaltyBalance || 0).toLocaleString(), label: loyaltyLabel }) }}
                                     </div>
                                 </div>
+                            </div>
+                            <div v-if="promotionsFeatureEnabled">
+                                <FloatingInput
+                                    v-model="form.promotion_code"
+                                    :label="$t('sales.form.promotion_code_label')"
+                                />
+                                <p class="mt-1 text-[11px] text-stone-500 dark:text-neutral-400">
+                                    {{ $t('sales.form.promotion_code_hint') }}
+                                </p>
+                                <p
+                                    v-if="promotionPreview.source === 'promotion' && promotionPreview.discount_label"
+                                    class="mt-2 text-[11px] text-emerald-600 dark:text-emerald-300"
+                                >
+                                    {{ $t('sales.form.promotion_applied', { label: promotionPreview.discount_label }) }}
+                                </p>
+                                <p
+                                    v-else-if="form.promotion_code && promotionPreview.error"
+                                    class="mt-2 text-[11px] text-amber-600 dark:text-amber-300"
+                                >
+                                    {{ $t('sales.form.promotion_code_invalid') }}
+                                </p>
+                                <InputError class="mt-1" :message="form.errors.promotion_code" />
                             </div>
                             <div>
                                 <label class="text-xs text-stone-500 dark:text-neutral-400">
@@ -875,8 +930,8 @@ const submit = () => {
                                 <span>{{ $t('sales.summary.taxes') }}</span>
                                 <span class="font-medium">{{ formatCurrency(discountedTaxTotal) }}</span>
                             </div>
-                            <div v-if="discountRate > 0" class="flex items-center justify-between text-emerald-700">
-                                <span>{{ $t('sales.summary.discount_rate', { rate: discountRate }) }}</span>
+                            <div v-if="discountTotal > 0" class="flex items-center justify-between text-emerald-700">
+                                <span>{{ discountSummaryLabel }}</span>
                                 <span class="font-medium">- {{ formatCurrency(discountTotal) }}</span>
                             </div>
                             <div v-if="loyaltyPointsRedeem > 0" class="flex items-center justify-between text-emerald-700">

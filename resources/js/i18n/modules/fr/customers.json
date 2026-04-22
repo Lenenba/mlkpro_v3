@@ -423,6 +423,18 @@
           "email": "Email"
         }
       },
+      "workspace": {
+        "title": "Activite client"
+      },
+      "sidebar": {
+        "title": "Panneau client",
+        "tabs": {
+          "profile": "Profil",
+          "marketing": "Marketing",
+          "automation": "Automatisation",
+          "finance": "Finance"
+        }
+      },
       "mailing_lists": {
         "title": "Mailing lists",
         "description": "Ajoutez ce client a une mailing list marketing en un clic.",
@@ -501,17 +513,26 @@
       },
       "sections": {
         "client_details": "Details client",
+        "company_details": "Details de l'entreprise",
+        "main_contact": "Contact principal",
         "contact_details": "Coordonnees",
         "auto_validation": "Validation auto client",
         "additional_details": "Details client additionnels",
         "billing_preferences": "Preferences de facturation",
         "location": "Localisation"
       },
+      "client_types": {
+        "company": "Entreprise",
+        "individual": "Particulier"
+      },
       "fields": {
+        "client_type": "Type de client",
         "title": "Titre",
         "first_name": "Prenom",
         "last_name": "Nom",
         "company_name": "Entreprise",
+        "registration_number": "Numero d'immatriculation",
+        "industry": "Secteur",
         "company_logo": "Logo entreprise",
         "upload_company_logo": "Televerser logo entreprise",
         "choose_company_icon": "Ou choisir une icone",

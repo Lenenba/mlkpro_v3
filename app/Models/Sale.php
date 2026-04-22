@@ -38,6 +38,7 @@ class Sale extends Model
         'user_id',
         'created_by_user_id',
         'customer_id',
+        'promotion_id',
         'status',
         'payment_provider',
         'number',
@@ -46,6 +47,15 @@ class Sale extends Model
         'currency_code',
         'discount_rate',
         'discount_total',
+        'discount_source',
+        'discount_label',
+        'discount_code',
+        'discount_type',
+        'discount_value',
+        'discount_target_type',
+        'discount_target_id',
+        'pricing_discount_total',
+        'discount_snapshot',
         'loyalty_points_redeemed',
         'loyalty_discount_total',
         'total',
@@ -77,8 +87,13 @@ class Sale extends Model
         'subtotal' => 'decimal:2',
         'tax_total' => 'decimal:2',
         'currency_code' => 'string',
+        'promotion_id' => 'integer',
         'discount_rate' => 'decimal:2',
         'discount_total' => 'decimal:2',
+        'discount_value' => 'decimal:2',
+        'discount_target_id' => 'integer',
+        'pricing_discount_total' => 'decimal:2',
+        'discount_snapshot' => 'array',
         'loyalty_points_redeemed' => 'integer',
         'loyalty_discount_total' => 'decimal:2',
         'total' => 'decimal:2',
@@ -139,6 +154,11 @@ class Sale extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    public function promotion(): BelongsTo
+    {
+        return $this->belongsTo(Promotion::class);
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
@@ -157,6 +177,11 @@ class Sale extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function promotionUsages(): HasMany
+    {
+        return $this->hasMany(PromotionUsage::class);
     }
 
     public function getDeliveryProofUrlAttribute(): ?string

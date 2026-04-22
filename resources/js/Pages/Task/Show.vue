@@ -29,6 +29,8 @@ const statusClass = (status) => {
             return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400';
         case 'done':
             return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
+        case 'cancelled':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
         default:
             return 'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300';
     }
@@ -81,6 +83,7 @@ const completionReasonLabel = (reason) => {
 };
 const timingStatus = computed(() => props.task?.timing_status);
 const completedLabel = computed(() => humanizeDate(props.task?.completed_at));
+const cancelledLabel = computed(() => humanizeDate(props.task?.cancelled_at));
 const histories = computed(() => (Array.isArray(props.task?.status_histories) ? props.task.status_histories : []));
 const historyActionLabel = (action) => {
     if (!action) {
@@ -93,6 +96,14 @@ const historyActionLabel = (action) => {
 const historyActorLabel = (entry) => {
     const name = entry?.user?.name;
     return name ? t('tasks.history.by', { name }) : t('tasks.history.system');
+};
+const historyReasonLabel = (reason) => {
+    if (!reason) {
+        return '';
+    }
+    const key = `tasks.reasons.${reason}`;
+    const label = t(key);
+    return label === key ? reason : label;
 };
 
 const location = computed(() => props.task?.location || null);
@@ -237,6 +248,30 @@ const mapLink = computed(() =>
                             {{ completionReasonLabel(task.completion_reason) || $t('tasks.details.no_reason') }}
                         </div>
                     </div>
+                    <div>
+                        <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                            {{ $t('tasks.details.cancelled_at') }}
+                        </div>
+                        <div class="mt-1 text-stone-700 dark:text-neutral-200">
+                            {{ cancelledLabel || $t('tasks.details.not_cancelled') }}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                            {{ $t('tasks.details.cancellation_reason') }}
+                        </div>
+                        <div class="mt-1 text-stone-700 dark:text-neutral-200">
+                            {{ task.cancellation_reason || $t('tasks.details.no_reason') }}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                            {{ $t('tasks.details.delay_reason') }}
+                        </div>
+                        <div class="mt-1 text-stone-700 dark:text-neutral-200">
+                            {{ task.delay_reason || $t('tasks.details.no_reason') }}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -285,7 +320,7 @@ const mapLink = computed(() =>
                                 {{ timingStatusLabel(entry.timing_status) }}
                             </span>
                             <span v-if="entry.reason_code" class="rounded-full px-2 py-0.5 font-semibold bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
-                                {{ completionReasonLabel(entry.reason_code) || entry.reason_code }}
+                                {{ historyReasonLabel(entry.reason_code) }}
                             </span>
                         </div>
                         <p v-if="entry.note" class="mt-2 text-xs text-stone-600 dark:text-neutral-300">

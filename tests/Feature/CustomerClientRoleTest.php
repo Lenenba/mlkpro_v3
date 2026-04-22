@@ -27,11 +27,14 @@ class CustomerClientRoleTest extends TestCase
         Role::where('name', 'client')->delete();
 
         $payload = [
+            'client_type' => 'company',
             'salutation' => 'Mr',
             'first_name' => 'Nellie',
             'last_name' => 'Kedagni',
             'email' => 'client-role-test@example.com',
             'company_name' => 'Kedagni Inc',
+            'registration_number' => 'REG-42424',
+            'industry' => 'Construction',
             'phone' => '+15145551234',
             'portal_access' => true,
         ];
@@ -41,7 +44,12 @@ class CustomerClientRoleTest extends TestCase
 
         $response->assertStatus(201);
         $this->assertDatabaseHas('roles', ['name' => 'client']);
-        $this->assertDatabaseHas('customers', ['email' => 'client-role-test@example.com']);
+        $this->assertDatabaseHas('customers', [
+            'email' => 'client-role-test@example.com',
+            'client_type' => 'company',
+            'registration_number' => 'REG-42424',
+            'industry' => 'Construction',
+        ]);
         $this->assertDatabaseHas('users', ['email' => 'client-role-test@example.com']);
     }
 
@@ -57,6 +65,7 @@ class CustomerClientRoleTest extends TestCase
         $owner = User::factory()->withRole($ownerRole->id)->create();
 
         $payload = [
+            'client_type' => 'company',
             'salutation' => 'Mr',
             'first_name' => 'Billing',
             'last_name' => 'Defaults',
@@ -114,6 +123,7 @@ class CustomerClientRoleTest extends TestCase
         ]);
 
         $payload = [
+            'client_type' => 'company',
             'salutation' => $customer->salutation,
             'first_name' => $customer->first_name,
             'last_name' => $customer->last_name,
@@ -146,5 +156,46 @@ class CustomerClientRoleTest extends TestCase
         $this->assertFalse($customer->auto_validate_jobs);
         $this->assertFalse($customer->auto_validate_tasks);
         $this->assertFalse($customer->auto_validate_invoices);
+    }
+
+    public function test_customer_update_clears_company_specific_fields_when_switching_to_individual()
+    {
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+
+        $ownerRole = Role::firstOrCreate(
+            ['name' => 'owner'],
+            ['description' => 'Account owner access']
+        );
+
+        $owner = User::factory()->withRole($ownerRole->id)->create();
+        $customer = Customer::factory()->create([
+            'user_id' => $owner->id,
+            'client_type' => 'company',
+            'company_name' => 'Switchable Inc',
+            'registration_number' => 'REG-99881',
+            'industry' => 'Retail',
+        ]);
+
+        $payload = [
+            'client_type' => 'individual',
+            'first_name' => 'Ari',
+            'last_name' => 'Individual',
+            'email' => $customer->email,
+            'phone' => $customer->phone,
+            'portal_access' => false,
+            'billing_mode' => 'end_of_job',
+            'billing_grouping' => 'single',
+        ];
+
+        $this->actingAs($owner)
+            ->put(route('customer.update', $customer), $payload)
+            ->assertRedirect(route('customer.index'));
+
+        $customer->refresh();
+
+        $this->assertSame('individual', $customer->client_type);
+        $this->assertNull($customer->company_name);
+        $this->assertNull($customer->registration_number);
+        $this->assertNull($customer->industry);
     }
 }
