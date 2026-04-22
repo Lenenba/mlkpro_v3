@@ -25,7 +25,7 @@ class ServiceRequest extends FormRequest
             'category_id' => [
                 'required',
                 Rule::exists('product_categories', 'id')->where(function ($query) use ($accountId) {
-                    if (!$accountId) {
+                    if (! $accountId) {
                         return;
                     }
 

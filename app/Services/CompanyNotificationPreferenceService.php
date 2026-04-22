@@ -7,12 +7,17 @@ use App\Models\User;
 class CompanyNotificationPreferenceService
 {
     public const CATEGORY_TASK_DAY = 'task_day';
+
     public const CATEGORY_TASK_UPDATES = 'task_updates';
+
     public const CATEGORY_SECURITY = 'security';
 
     public const CHANNEL_EMAIL = 'email';
+
     public const CHANNEL_SMS = 'sms';
+
     public const CHANNEL_WHATSAPP = 'whatsapp';
+
     public const CHANNEL_TWO_FACTOR_SMS = 'two_factor_sms';
 
     public function resolveFor(User $user): array

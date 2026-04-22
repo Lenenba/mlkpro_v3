@@ -3,8 +3,8 @@
 namespace App\Http\Requests;
 
 use App\Enums\CustomerClientType;
-use Illuminate\Validation\Rule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CustomerRequest extends FormRequest
 {
@@ -41,6 +41,7 @@ class CustomerRequest extends FormRequest
         if ($portalAccess) {
             $emailRules[] = Rule::unique('users', 'email')->ignore($portalUserId);
         }
+
         return [
             'client_type' => ['nullable', 'string', Rule::in(CustomerClientType::values())],
             'portal_access' => 'nullable|boolean',

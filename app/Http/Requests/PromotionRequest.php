@@ -6,7 +6,6 @@ use App\Enums\PromotionDiscountType;
 use App\Enums\PromotionStatus;
 use App\Enums\PromotionTargetType;
 use App\Models\Product;
-use App\Models\Promotion;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 

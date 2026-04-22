@@ -317,7 +317,7 @@ class Customer extends Model implements HasLocalePreferenceContract
                 $filters['name'] ?? null,
                 function (Builder $query, $name) {
                     $query->where(function (Builder $query) use ($name) {
-                    $query->where('company_name', 'like', '%'.$name.'%')
+                        $query->where('company_name', 'like', '%'.$name.'%')
                             ->orWhere('registration_number', 'like', '%'.$name.'%')
                             ->orWhere('industry', 'like', '%'.$name.'%')
                             ->orWhere('first_name', 'like', '%'.$name.'%')
