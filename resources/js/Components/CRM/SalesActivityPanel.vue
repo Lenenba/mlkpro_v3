@@ -48,6 +48,10 @@ const props = defineProps({
         type: Function,
         default: null,
     },
+    embedded: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits(['logged']);
@@ -205,6 +209,11 @@ const feedbackClass = computed(() => {
 
     return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300';
 });
+const panelClass = computed(() => (
+    props.embedded
+        ? ''
+        : 'rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900'
+));
 
 const requestMessage = (error) =>
     error?.response?.data?.message
@@ -587,7 +596,7 @@ const itemHref = (item) => (typeof props.resolveHref === 'function' ? props.reso
 </script>
 
 <template>
-    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+    <section :class="panelClass">
         <div class="flex items-center justify-between gap-3">
             <div>
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
