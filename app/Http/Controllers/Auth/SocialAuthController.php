@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Enums\BillingPeriod;
 use App\Http\Controllers\Controller;
+use App\Services\Auth\FacebookSocialAuthService;
 use App\Services\Auth\GoogleSocialAuthService;
 use App\Services\Auth\MicrosoftSocialAuthService;
 use App\Services\Auth\SocialAuthAccountService;
@@ -240,6 +241,7 @@ class SocialAuthController extends Controller
     private function authorizationUrlForProvider(array $provider, string $state): string
     {
         return match ($provider['key'] ?? null) {
+            'facebook' => app(FacebookSocialAuthService::class)->authorizationUrl($provider, $state),
             'google' => app(GoogleSocialAuthService::class)->authorizationUrl($provider, $state),
             'microsoft' => app(MicrosoftSocialAuthService::class)->authorizationUrl($provider, $state),
             default => throw ValidationException::withMessages([
@@ -256,6 +258,7 @@ class SocialAuthController extends Controller
     private function authenticateWithProvider(Request $request, array $provider, array $pending): array
     {
         return match ($provider['key'] ?? null) {
+            'facebook' => app(FacebookSocialAuthService::class)->authenticate($request, $provider, $pending),
             'google' => app(GoogleSocialAuthService::class)->authenticate($request, $provider, $pending),
             'microsoft' => app(MicrosoftSocialAuthService::class)->authenticate($request, $provider, $pending),
             default => throw ValidationException::withMessages([

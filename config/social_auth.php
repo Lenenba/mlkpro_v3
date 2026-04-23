@@ -85,7 +85,7 @@ return [
             'icon' => 'facebook',
             'driver' => 'oauth2',
             'enabled' => $socialAuthBool('SOCIAL_AUTH_FACEBOOK_ENABLED', false),
-            'implemented' => false,
+            'implemented' => true,
             'contexts' => [
                 'login' => true,
                 'register' => true,

@@ -723,16 +723,7 @@ const closeTerms = () => {
                         </div>
 
                         <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                {{ $t('onboarding.account.social_title') }}
-                            </p>
-                            <p class="mt-2 text-sm text-stone-600 dark:text-neutral-300">
-                                {{ $t('onboarding.account.social_subtitle') }}
-                            </p>
-
-                            <div class="mt-4">
-                                <SocialAuthButtons source="onboarding" :query="onboardingAuthQuery" />
-                            </div>
+                            <SocialAuthButtons source="onboarding" :query="onboardingAuthQuery" />
                         </div>
 
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
