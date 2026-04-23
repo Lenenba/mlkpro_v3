@@ -15,6 +15,7 @@ class SocialPostService
     public function __construct(
         private readonly SocialAccountConnectionService $connectionService,
         private readonly SocialPrefillService $prefillService,
+        private readonly SocialMediaAssetService $mediaAssetService,
     ) {}
 
     /**
@@ -229,15 +230,13 @@ class SocialPostService
         ]);
 
         $text = trim((string) data_get($post->content_payload, 'text', ''));
-        $image = collect((array) ($post->media_payload ?? []))
-            ->first(fn (array $item): bool => trim((string) ($item['url'] ?? '')) !== '');
         $approvalRequest = $post->latestApprovalRequest;
 
         return [
             'id' => $post->id,
             'status' => (string) $post->status,
             'text' => $text !== '' ? $text : null,
-            'image_url' => trim((string) ($image['url'] ?? '')) ?: null,
+            'image_url' => $this->mediaAssetService->imageUrl((array) ($post->media_payload ?? [])),
             'link_url' => $post->link_url,
             'source_type' => $post->source_type,
             'source_id' => $post->source_id,
@@ -430,14 +429,14 @@ class SocialPostService
     private function postAttributes(User $owner, User $actor, array $payload, Collection $targetConnections): array
     {
         $text = $this->nullableString($payload, 'text');
-        $imageUrl = $this->nullableString($payload, 'image_url');
+        $mediaPayload = $this->mediaAssetService->imageMediaPayload($payload);
         $linkUrl = $this->nullableString($payload, 'link_url');
         $scheduledFor = $this->nullableDateTime($payload, 'scheduled_for');
         $source = $this->prefillService->validateSourceReference($owner, $payload);
 
-        if ($text === null && $imageUrl === null && $linkUrl === null) {
+        if ($text === null && $mediaPayload === null && $linkUrl === null) {
             throw ValidationException::withMessages([
-                'text' => 'Add some text, an image link, or a destination link before saving this Pulse draft.',
+                'text' => 'Add some text, an image, or a destination link before saving this Pulse draft.',
             ]);
         }
 
@@ -452,12 +451,7 @@ class SocialPostService
             'content_payload' => array_filter([
                 'text' => $text,
             ], fn ($value) => $value !== null),
-            'media_payload' => $imageUrl !== null
-                ? [[
-                    'type' => 'image',
-                    'url' => $imageUrl,
-                ]]
-                : null,
+            'media_payload' => $mediaPayload,
             'link_url' => $linkUrl,
             'status' => $status,
             'scheduled_for' => $scheduledFor,
@@ -469,7 +463,7 @@ class SocialPostService
                 'draft_saved_from' => $source['source_type'] !== null
                     ? 'social_prefill_'.$source['source_type']
                     : 'social_composer',
-                'has_image' => $imageUrl !== null,
+                'has_image' => $mediaPayload !== null,
                 'has_link' => $linkUrl !== null,
                 'source' => $source['source_type'] !== null
                     ? [

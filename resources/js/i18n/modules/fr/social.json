@@ -109,6 +109,7 @@
       },
       "fields": {
         "text": "Texte du post",
+        "image_file": "Image depuis votre ordinateur",
         "image_url": "URL image",
         "link_url": "Lien de destination",
         "scheduled_for": "Programmer pour",
@@ -215,6 +216,7 @@
       "fields": {
         "name": "Nom du template",
         "text": "Texte du post",
+        "image_file": "Image depuis votre ordinateur",
         "image_url": "URL image",
         "link_url": "Lien de destination"
       },
@@ -320,12 +322,36 @@
       "provider_target_type": "Type de cible",
       "provider_scopes": "Scopes demandes",
       "provider_supports": "Formats pris en charge",
+      "card": {
+        "no_account": "Aucun compte connecte"
+      },
+      "visual": {
+        "title": "Parcours de connexion",
+        "flow": {
+          "oauth": "OAuth",
+          "test": "Test",
+          "publish": "Publication"
+        },
+        "steps": {
+          "auth": {
+            "title": "Connecter le reseau",
+            "description": "Choisissez la plateforme et autorisez l acces depuis le compte social."
+          },
+          "test": {
+            "title": "Verifier la connexion",
+            "description": "Lancez un test simple pour confirmer que le token et les droits sont valides."
+          },
+          "publish": {
+            "title": "Publier sereinement",
+            "description": "Une fois valide, le compte reste pret a etre cible dans le composeur Pulse."
+          }
+        }
+      },
       "modal": {
-        "subtitle": "Connectez un compte, puis utilisez le test de connexion pour valider que tout est bien pret.",
         "accounts_title": "Comptes",
         "accounts_empty_title": "Aucun compte sur cette plateforme",
         "accounts_empty_description": "Lancez la connexion pour ajouter un premier compte.",
-        "selected_connection": "Compte selectionne",
+        "account_fallback_name": "Compte {number}",
         "quick_status": "Etat actuel",
         "connected_at": "Connecte le",
         "last_test": "Dernier test",
@@ -341,7 +367,6 @@
       },
       "fields": {
         "label": "Label interne",
-        "display_name": "Nom affiche",
         "account_handle": "Handle du compte",
         "external_account_id": "ID externe du compte"
       },

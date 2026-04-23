@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
+import DropzoneInput from '@/Components/DropzoneInput.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -57,6 +58,7 @@ const busy = ref(false);
 const isLoading = ref(false);
 const error = ref('');
 const info = ref('');
+const imageFile = ref(null);
 const form = ref({
     name: '',
     text: '',
@@ -70,6 +72,27 @@ const sortedTemplates = computed(() => [...templates.value].sort(sortByUpdatedAt
 const activeTemplate = computed(() => (
     sortedTemplates.value.find((template) => Number(template.id) === Number(activeTemplateId.value)) || null
 ));
+const imageInputModel = computed({
+    get: () => imageFile.value || String(form.value.image_url || '').trim() || null,
+    set: (value) => {
+        if (value instanceof File) {
+            imageFile.value = value;
+            form.value.image_url = '';
+
+            return;
+        }
+
+        if (typeof value === 'string' && value.trim() !== '') {
+            imageFile.value = null;
+            form.value.image_url = value.trim();
+
+            return;
+        }
+
+        imageFile.value = null;
+        form.value.image_url = '';
+    },
+});
 
 const templateLabel = (template) => {
     const name = String(template?.name || '').trim();
@@ -115,6 +138,7 @@ const availableTargetConnectionIds = (targetIds) => {
 };
 
 const syncFormFromTemplate = (template) => {
+    imageFile.value = null;
     form.value = {
         name: String(template?.name || ''),
         text: String(template?.text || ''),
@@ -126,6 +150,7 @@ const syncFormFromTemplate = (template) => {
 
 const resetForm = () => {
     activeTemplateId.value = null;
+    imageFile.value = null;
     form.value = {
         name: '',
         text: '',
@@ -179,6 +204,15 @@ watch(() => props.selectedTemplateId, (value) => {
     activeTemplateId.value = value;
 }, { immediate: true });
 
+watch(() => form.value.image_url, (value, previous) => {
+    const next = String(value || '').trim();
+    const prev = String(previous || '').trim();
+
+    if (next !== '' && next !== prev && imageFile.value instanceof File) {
+        imageFile.value = null;
+    }
+});
+
 watch([sortedTemplates, activeTemplateId], () => {
     if (activeTemplate.value) {
         syncFormFromTemplate(activeTemplate.value);
@@ -231,6 +265,61 @@ const openTemplate = (template) => {
     info.value = '';
 };
 
+const appendFormDataValue = (formData, key, value) => {
+    if (Array.isArray(value)) {
+        value.forEach((item) => {
+            formData.append(`${key}[]`, String(item));
+        });
+
+        return;
+    }
+
+    if (value instanceof File) {
+        formData.append(key, value);
+
+        return;
+    }
+
+    formData.append(key, value ?? '');
+};
+
+const usesFormData = (payload) => payload instanceof FormData;
+
+const putWithPayload = (url, payload) => {
+    if (usesFormData(payload)) {
+        payload.append('_method', 'PUT');
+
+        return axios.post(url, payload);
+    }
+
+    return axios.put(url, payload);
+};
+
+const templatePayload = () => {
+    const payload = {
+        name: String(form.value.name || '').trim(),
+        text: String(form.value.text || '').trim(),
+        image_url: String(form.value.image_url || '').trim(),
+        link_url: String(form.value.link_url || '').trim(),
+        target_connection_ids: availableTargetConnectionIds(form.value.target_connection_ids),
+    };
+
+    if (!(imageFile.value instanceof File)) {
+        return payload;
+    }
+
+    const formData = new FormData();
+
+    appendFormDataValue(formData, 'name', payload.name);
+    appendFormDataValue(formData, 'text', payload.text);
+    appendFormDataValue(formData, 'image_url', payload.image_url);
+    appendFormDataValue(formData, 'image_file', imageFile.value);
+    appendFormDataValue(formData, 'link_url', payload.link_url);
+    appendFormDataValue(formData, 'target_connection_ids', payload.target_connection_ids);
+
+    return formData;
+};
+
 const saveTemplate = async () => {
     if (!canManage.value) {
         return;
@@ -240,17 +329,11 @@ const saveTemplate = async () => {
     error.value = '';
     info.value = '';
 
-    const payload = {
-        name: String(form.value.name || '').trim(),
-        text: String(form.value.text || '').trim(),
-        image_url: String(form.value.image_url || '').trim(),
-        link_url: String(form.value.link_url || '').trim(),
-        target_connection_ids: availableTargetConnectionIds(form.value.target_connection_ids),
-    };
+    const payload = templatePayload();
 
     try {
         const response = activeTemplateId.value
-            ? await axios.put(route('social.templates.update', activeTemplateId.value), payload)
+            ? await putWithPayload(route('social.templates.update', activeTemplateId.value), payload)
             : await axios.post(route('social.templates.store'), payload);
 
         refreshFromPayload(response.data);
@@ -365,6 +448,11 @@ const useTemplateInComposer = (template) => {
                             v-model="form.text"
                             :label="t('social.template_manager.fields.text')"
                             :disabled="!canManage || busy"
+                        />
+
+                        <DropzoneInput
+                            v-model="imageInputModel"
+                            :label="t('social.template_manager.fields.image_file')"
                         />
 
                         <FloatingInput

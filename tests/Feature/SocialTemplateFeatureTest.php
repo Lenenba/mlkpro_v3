@@ -8,7 +8,9 @@ use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -241,6 +243,65 @@ it('accepts pulse templates without remembered targets and keeps them reusable i
             ->where('selected_template_id', $templateId)
             ->has('templates', 1)
         );
+});
+
+it('lets owners upload local images for pulse templates', function () {
+    Storage::fake('public');
+
+    $owner = pulseTemplateOwner();
+
+    $connection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_INSTAGRAM,
+        'label' => 'Main IG',
+        'external_account_id' => 'ig-upload-001',
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now(),
+        'metadata' => [
+            'provider_label' => 'Instagram',
+        ],
+    ]);
+
+    $create = $this->actingAs($owner)
+        ->post(route('social.templates.store'), [
+            'name' => 'Uploaded template',
+            'text' => 'Template with uploaded image',
+            'image_file' => UploadedFile::fake()->image('template-upload.png', 1200, 800),
+            'target_connection_ids' => [$connection->id],
+        ]);
+
+    $create->assertCreated()
+        ->assertJsonPath('template.name', 'Uploaded template')
+        ->assertJsonPath('template.selected_accounts_count', 1);
+
+    $templateId = (int) $create->json('template.id');
+    $template = SocialPostTemplate::query()->findOrFail($templateId);
+    $storedPath = data_get($template->media_payload, '0.path');
+
+    expect($storedPath)->toBeString()->not->toBe('');
+    Storage::disk('public')->assertExists($storedPath);
+    $create->assertJsonPath('template.image_url', Storage::disk('public')->url($storedPath));
+
+    $update = $this->actingAs($owner)
+        ->post(route('social.templates.update', $templateId), [
+            '_method' => 'PUT',
+            'name' => 'Uploaded template v2',
+            'text' => 'Template with updated uploaded image',
+            'image_file' => UploadedFile::fake()->image('template-upload-v2.png', 1024, 1024),
+            'target_connection_ids' => [$connection->id],
+        ]);
+
+    $update->assertOk()
+        ->assertJsonPath('template.name', 'Uploaded template v2')
+        ->assertJsonPath('template.text', 'Template with updated uploaded image');
+
+    $updatedTemplate = SocialPostTemplate::query()->findOrFail($templateId);
+    $updatedPath = data_get($updatedTemplate->media_payload, '0.path');
+
+    expect($updatedPath)->toBeString()->not->toBe('');
+    Storage::disk('public')->assertExists($updatedPath);
+    $update->assertJsonPath('template.image_url', Storage::disk('public')->url($updatedPath));
 });
 
 it('blocks pulse template routes when the social module is unavailable', function () {

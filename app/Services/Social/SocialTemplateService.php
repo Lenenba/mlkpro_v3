@@ -10,6 +10,10 @@ use Illuminate\Validation\ValidationException;
 
 class SocialTemplateService
 {
+    public function __construct(
+        private readonly SocialMediaAssetService $mediaAssetService,
+    ) {}
+
     /**
      * @return Collection<int, SocialPostTemplate>
      */
@@ -73,9 +77,6 @@ class SocialTemplateService
     public function payload(SocialPostTemplate $template): array
     {
         $text = trim((string) data_get($template->content_payload, 'text', ''));
-        $image = collect((array) ($template->media_payload ?? []))
-            ->first(fn (array $item): bool => trim((string) ($item['url'] ?? '')) !== '');
-
         $selectedTargetIds = collect((array) data_get($template->metadata, 'selected_target_connection_ids', []))
             ->map(fn ($id) => (int) $id)
             ->filter(fn (int $id): bool => $id > 0)
@@ -101,7 +102,7 @@ class SocialTemplateService
             'id' => $template->id,
             'name' => $template->name,
             'text' => $text !== '' ? $text : null,
-            'image_url' => trim((string) ($image['url'] ?? '')) ?: null,
+            'image_url' => $this->mediaAssetService->imageUrl((array) ($template->media_payload ?? [])),
             'link_url' => $template->link_url,
             'selected_target_connection_ids' => $selectedTargetIds,
             'selected_accounts_count' => count($selectedTargetIds),
@@ -127,7 +128,7 @@ class SocialTemplateService
     {
         $name = $this->nullableString($payload, 'name');
         $text = $this->nullableString($payload, 'text');
-        $imageUrl = $this->nullableString($payload, 'image_url');
+        $mediaPayload = $this->mediaAssetService->imageMediaPayload($payload);
         $linkUrl = $this->nullableString($payload, 'link_url');
         $targetConnections = $this->resolveTargetConnections($owner, (array) ($payload['target_connection_ids'] ?? []));
 
@@ -137,9 +138,9 @@ class SocialTemplateService
             ]);
         }
 
-        if ($text === null && $imageUrl === null && $linkUrl === null) {
+        if ($text === null && $mediaPayload === null && $linkUrl === null) {
             throw ValidationException::withMessages([
-                'text' => 'Add some text, an image link, or a destination link before saving this Pulse template.',
+                'text' => 'Add some text, an image, or a destination link before saving this Pulse template.',
             ]);
         }
 
@@ -151,12 +152,7 @@ class SocialTemplateService
             'content_payload' => array_filter([
                 'text' => $text,
             ], fn ($value) => $value !== null),
-            'media_payload' => $imageUrl !== null
-                ? [[
-                    'type' => 'image',
-                    'url' => $imageUrl,
-                ]]
-                : null,
+            'media_payload' => $mediaPayload,
             'link_url' => $linkUrl,
             'metadata' => [
                 'selected_target_count' => $targetConnections->count(),
@@ -178,7 +174,7 @@ class SocialTemplateService
                     })
                     ->values()
                     ->all(),
-                'has_image' => $imageUrl !== null,
+                'has_image' => $mediaPayload !== null,
                 'has_link' => $linkUrl !== null,
                 'template_saved_from' => 'social_composer',
             ],

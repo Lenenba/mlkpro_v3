@@ -8,6 +8,8 @@ use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -172,6 +174,60 @@ it('lets owners create and update pulse drafts with multi-account selection and 
         ->and($draft->scheduled_for)->not->toBeNull()
         ->and($draft->targets)->toHaveCount(1)
         ->and((int) $draft->targets->first()->social_account_connection_id)->toBe((int) $linkedin->id);
+});
+
+it('lets owners upload local images for pulse drafts', function () {
+    Storage::fake('public');
+
+    $owner = pulseComposerOwner();
+
+    $facebook = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        'label' => 'North page',
+        'external_account_id' => 'fb-upload-001',
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now(),
+    ]);
+
+    $create = $this->actingAs($owner)
+        ->post(route('social.posts.store'), [
+            'text' => 'Local image draft',
+            'image_file' => UploadedFile::fake()->image('pulse-local.png', 1200, 800),
+            'target_connection_ids' => [$facebook->id],
+        ]);
+
+    $create->assertCreated()
+        ->assertJsonPath('draft.status', SocialPost::STATUS_DRAFT)
+        ->assertJsonPath('draft.selected_accounts_count', 1);
+
+    $draftId = (int) $create->json('draft.id');
+    $draft = SocialPost::query()->findOrFail($draftId);
+    $storedPath = data_get($draft->media_payload, '0.path');
+
+    expect($storedPath)->toBeString()->not->toBe('');
+    Storage::disk('public')->assertExists($storedPath);
+    $create->assertJsonPath('draft.image_url', Storage::disk('public')->url($storedPath));
+
+    $update = $this->actingAs($owner)
+        ->post(route('social.posts.update', $draftId), [
+            '_method' => 'PUT',
+            'text' => 'Updated local image draft',
+            'image_file' => UploadedFile::fake()->image('pulse-local-updated.png', 1280, 720),
+            'target_connection_ids' => [$facebook->id],
+        ]);
+
+    $update->assertOk()
+        ->assertJsonPath('draft.status', SocialPost::STATUS_DRAFT)
+        ->assertJsonPath('draft.text', 'Updated local image draft');
+
+    $updatedDraft = SocialPost::query()->findOrFail($draftId);
+    $updatedPath = data_get($updatedDraft->media_payload, '0.path');
+
+    expect($updatedPath)->toBeString()->not->toBe('');
+    Storage::disk('public')->assertExists($updatedPath);
+    $update->assertJsonPath('draft.image_url', Storage::disk('public')->url($updatedPath));
 });
 
 it('lets team members with social publish manage pulse drafts while social view stays read only', function () {

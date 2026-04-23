@@ -1,12 +1,13 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
+import { ChevronRight } from 'lucide-vue-next';
 import { usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
-import FloatingInput from '@/Components/FloatingInput.vue';
 import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import SocialPlatformLogo from '@/Pages/Social/Components/SocialPlatformLogo.vue';
 
 const props = defineProps({
     initialDefinitions: {
@@ -40,24 +41,20 @@ const normalizeAccess = (payload) => ({
 
 const brandMap = {
     facebook: {
-        mark: 'f',
-        surface: 'bg-gradient-to-br from-[#1877F2] via-[#1B74E4] to-[#0A58CA]',
-        ring: 'ring-[#1877F2]/20',
+        iconBox: 'border-sky-100 bg-sky-50 dark:border-sky-500/20 dark:bg-sky-500/10',
+        badge: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300',
     },
     instagram: {
-        mark: 'ig',
-        surface: 'bg-gradient-to-br from-[#F58529] via-[#DD2A7B] to-[#8134AF]',
-        ring: 'ring-[#DD2A7B]/20',
+        iconBox: 'border-rose-100 bg-rose-50 dark:border-rose-500/20 dark:bg-rose-500/10',
+        badge: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300',
     },
     linkedin: {
-        mark: 'in',
-        surface: 'bg-gradient-to-br from-[#0A66C2] via-[#0A66C2] to-[#004182]',
-        ring: 'ring-[#0A66C2]/20',
+        iconBox: 'border-blue-100 bg-blue-50 dark:border-blue-500/20 dark:bg-blue-500/10',
+        badge: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300',
     },
     x: {
-        mark: 'X',
-        surface: 'bg-gradient-to-br from-[#111827] via-[#1F2937] to-[#374151]',
-        ring: 'ring-[#111827]/20',
+        iconBox: 'border-stone-200 bg-stone-100 dark:border-neutral-700 dark:bg-neutral-800',
+        badge: 'border-stone-200 bg-stone-100 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200',
     },
 };
 
@@ -72,10 +69,6 @@ const info = ref('');
 const openPlatformKey = ref(null);
 const selectedConnectionId = ref(null);
 const form = ref({
-    label: '',
-    display_name: '',
-    account_handle: '',
-    external_account_id: '',
     is_active: false,
 });
 
@@ -117,9 +110,8 @@ const providerCards = computed(() => definitions.value.map((definition) => {
     return {
         ...definition,
         brand: brandMap[definition.key] || {
-            mark: String(definition.label || '?').slice(0, 1).toUpperCase(),
-            surface: 'bg-gradient-to-br from-stone-700 to-stone-900',
-            ring: 'ring-stone-300/30',
+            iconBox: 'border-stone-200 bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800',
+            badge: 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200',
         },
         connections: platformConnections,
         primary_connection: primaryConnection,
@@ -141,37 +133,14 @@ const selectedConnection = computed(() => (
     || null
 ));
 
-const summaryChips = computed(() => ([
-    {
-        key: 'platforms',
-        value: definitions.value.length,
-    },
-    {
-        key: 'connected',
-        value: Number(summary.value?.connected || 0),
-    },
-    {
-        key: 'attention',
-        value: Number(summary.value?.attention || 0),
-    },
-]));
-
 const syncFormFromConnection = (connection) => {
     form.value = {
-        label: String(connection?.label || ''),
-        display_name: String(connection?.display_name || ''),
-        account_handle: String(connection?.account_handle || ''),
-        external_account_id: String(connection?.external_account_id || ''),
         is_active: Boolean(connection?.is_active),
     };
 };
 
 const clearForm = () => {
     form.value = {
-        label: '',
-        display_name: '',
-        account_handle: '',
-        external_account_id: '',
         is_active: false,
     };
 };
@@ -304,7 +273,7 @@ const providerSummaryLine = (definition) => {
     return t('social.accounts_manager.provider_ready');
 };
 
-const connectionHeadline = (connection) => {
+const connectionDisplayName = (connection) => {
     const displayName = String(connection?.display_name || '').trim();
     if (displayName !== '') {
         return displayName;
@@ -315,12 +284,11 @@ const connectionHeadline = (connection) => {
         return handle;
     }
 
-    const externalId = String(connection?.external_account_id || '').trim();
-    if (externalId !== '') {
-        return externalId;
-    }
+    const index = platformConnections.value.findIndex((item) => Number(item.id) === Number(connection?.id));
 
-    return t('social.accounts_manager.empty_value');
+    return index >= 0
+        ? t('social.accounts_manager.modal.account_fallback_name', { number: index + 1 })
+        : t('social.accounts_manager.empty_value');
 };
 
 const load = async () => {
@@ -451,10 +419,6 @@ const saveConnection = async () => {
     info.value = '';
 
     const payload = {
-        label: String(form.value.label || '').trim(),
-        display_name: String(form.value.display_name || '').trim(),
-        account_handle: String(form.value.account_handle || '').trim(),
-        external_account_id: String(form.value.external_account_id || '').trim(),
         is_active: Boolean(form.value.is_active),
     };
 
@@ -551,45 +515,15 @@ const deleteConnection = async (connection) => {
 
 <template>
     <div class="space-y-6">
-        <section class="overflow-hidden rounded-[32px] border border-stone-200 bg-gradient-to-br from-white via-stone-50 to-sky-50 p-6 shadow-sm dark:border-neutral-700 dark:from-neutral-900 dark:via-neutral-900 dark:to-neutral-800">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="max-w-3xl">
-                    <div class="text-xs font-semibold uppercase tracking-[0.24em] text-stone-400 dark:text-neutral-500">
-                        {{ t('social.accounts_manager.hero_eyebrow') }}
-                    </div>
-                    <h3 class="mt-3 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                        {{ t('social.accounts_manager.title') }}
-                    </h3>
-                    <p class="mt-2 text-sm leading-6 text-stone-600 dark:text-neutral-300">
-                        {{ t('social.accounts_manager.description') }}
-                    </p>
-                    <p class="mt-3 text-sm font-medium text-stone-500 dark:text-neutral-400">
-                        {{ t('social.accounts_manager.directory_hint') }}
-                    </p>
-                </div>
-
-                <SecondaryButton :disabled="busy || isLoading" @click="load">
-                    {{ t('social.accounts_manager.reload') }}
-                </SecondaryButton>
-            </div>
-
-            <div class="mt-5 flex flex-wrap gap-3">
-                <div
-                    v-for="chip in summaryChips"
-                    :key="`social-account-summary-${chip.key}`"
-                    class="rounded-full border border-white/70 bg-white/90 px-4 py-2 text-sm text-stone-700 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/80 dark:text-neutral-200"
-                >
-                    <span class="font-semibold">{{ chip.value }}</span>
-                    <span class="ml-2 text-stone-500 dark:text-neutral-400">
-                        {{ t(`social.accounts_manager.summary.${chip.key}`) }}
-                    </span>
-                </div>
-            </div>
-        </section>
+        <div class="flex justify-end">
+            <SecondaryButton :disabled="busy || isLoading" @click="load">
+                {{ t('social.accounts_manager.reload') }}
+            </SecondaryButton>
+        </div>
 
         <div
             v-if="!access.can_manage_accounts"
-            class="rounded-3xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300"
+            class="rounded-sm border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300"
         >
             <div class="font-semibold">{{ t('social.accounts_manager.read_only_title') }}</div>
             <div class="mt-1">{{ t('social.accounts_manager.read_only_description') }}</div>
@@ -597,14 +531,14 @@ const deleteConnection = async (connection) => {
 
         <div
             v-if="error"
-            class="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300"
+            class="rounded-sm border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300"
         >
             {{ error }}
         </div>
 
         <div
             v-if="info"
-            class="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300"
+            class="rounded-sm border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300"
         >
             {{ info }}
         </div>
@@ -614,20 +548,19 @@ const deleteConnection = async (connection) => {
                 v-for="definition in providerCards"
                 :key="definition.key"
                 type="button"
-                class="group rounded-[30px] border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-900"
-                :class="definition.brand.ring"
+                class="group rounded-sm border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:border-stone-300 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-neutral-500"
                 :disabled="busy || isLoading"
                 @click="handleProviderCard(definition)"
             >
                 <div class="flex items-start justify-between gap-3">
                     <div
-                        class="flex h-14 w-14 items-center justify-center rounded-2xl text-lg font-semibold uppercase tracking-[0.18em] text-white shadow-sm"
-                        :class="definition.brand.surface"
+                        class="flex h-14 w-14 items-center justify-center rounded-sm border shadow-sm"
+                        :class="definition.brand.iconBox"
                     >
-                        {{ definition.brand.mark }}
+                        <SocialPlatformLogo :platform="definition.key" class="size-7" />
                     </div>
 
-                    <span class="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                    <span class="rounded-sm border px-3 py-1 text-xs font-medium" :class="definition.brand.badge">
                         {{ definition.connected_count }}/{{ definition.connection_count }}
                     </span>
                 </div>
@@ -641,55 +574,64 @@ const deleteConnection = async (connection) => {
                     </p>
                 </div>
 
-                <div class="mt-4 flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                        {{ providerSummaryLine(definition) }}
-                    </span>
+                <div class="mt-5 rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/70">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-11 w-11 items-center justify-center rounded-sm border border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
+                            <SocialPlatformLogo :platform="definition.key" class="size-5" />
+                        </div>
 
+                        <div class="min-w-0">
+                            <div class="truncate text-sm font-semibold text-stone-900 dark:text-neutral-100">
+                                {{ definition.primary_connection?.label || t('social.accounts_manager.card.no_account') }}
+                            </div>
+                            <div class="mt-1 truncate text-xs text-stone-500 dark:text-neutral-400">
+                                {{ providerSummaryLine(definition) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex flex-wrap items-center gap-2">
                     <span
                         v-if="definition.needs_attention_count > 0"
-                        class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+                        class="inline-flex items-center rounded-sm border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
                     >
                         {{ t('social.accounts_manager.provider_attention_count', { count: definition.needs_attention_count }) }}
                     </span>
 
                     <span
                         v-if="definition.setup_required"
-                        class="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                        class="inline-flex items-center rounded-sm border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
                     >
                         {{ t('social.accounts_manager.provider_setup_required') }}
                     </span>
                 </div>
 
-                <div class="mt-6">
-                    <span class="inline-flex items-center rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-800 transition group-hover:border-stone-900 group-hover:text-stone-900 dark:border-neutral-600 dark:text-neutral-200 dark:group-hover:border-neutral-300 dark:group-hover:text-white">
-                        {{ providerPrimaryActionLabel(definition) }}
-                    </span>
+                <div class="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-stone-700 transition group-hover:text-stone-900 dark:text-neutral-200 dark:group-hover:text-white">
+                    <span>{{ providerPrimaryActionLabel(definition) }}</span>
+                    <ChevronRight class="size-4" />
                 </div>
             </button>
         </section>
 
-        <Modal :show="modalOpen" max-width="5xl" @close="closeModal">
-            <div v-if="activeProviderCard" class="space-y-6 p-6 sm:p-8">
+        <Modal :show="modalOpen" max-width="4xl" position="center" @close="closeModal">
+            <div v-if="activeProviderCard" class="space-y-5 p-5 sm:p-6">
                 <div class="flex flex-wrap items-start justify-between gap-4">
-                    <div class="flex items-start gap-4">
+                    <div class="flex items-start gap-3">
                         <div
-                            class="flex h-16 w-16 items-center justify-center rounded-3xl text-xl font-semibold uppercase tracking-[0.18em] text-white shadow-sm"
-                            :class="activeProviderCard.brand.surface"
+                            class="flex h-14 w-14 items-center justify-center rounded-sm border shadow-sm"
+                            :class="activeProviderCard.brand.iconBox"
                         >
-                            {{ activeProviderCard.brand.mark }}
+                            <SocialPlatformLogo :platform="activeProviderCard.key" class="size-7" />
                         </div>
 
                         <div>
                             <div class="text-xs font-semibold uppercase tracking-[0.24em] text-stone-400 dark:text-neutral-500">
                                 {{ t('social.accounts_manager.hero_eyebrow') }}
                             </div>
-                            <h4 class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
+                            <h4 class="mt-1.5 text-xl font-semibold text-stone-900 dark:text-neutral-100">
                                 {{ activeProviderCard.label }}
                             </h4>
-                            <p class="mt-2 max-w-2xl text-sm leading-6 text-stone-600 dark:text-neutral-300">
-                                {{ t('social.accounts_manager.modal.subtitle') }}
-                            </p>
                         </div>
                     </div>
 
@@ -709,17 +651,15 @@ const deleteConnection = async (connection) => {
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-                    <section class="rounded-[28px] border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-800/60">
-                        <div class="flex items-center justify-between gap-3">
-                            <div>
-                                <h5 class="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
-                                    {{ t('social.accounts_manager.modal.accounts_title') }}
-                                </h5>
-                                <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
-                                    {{ providerSummaryLine(activeProviderCard) }}
-                                </p>
-                            </div>
+                <div class="grid grid-cols-1 gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
+                    <section class="rounded-sm border border-stone-200 bg-stone-50/80 p-4 dark:border-neutral-700 dark:bg-neutral-800/60">
+                        <div>
+                            <h5 class="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
+                                {{ t('social.accounts_manager.modal.accounts_title') }}
+                            </h5>
+                            <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
+                                {{ providerSummaryLine(activeProviderCard) }}
+                            </p>
                         </div>
 
                         <div v-if="platformConnections.length" class="mt-4 space-y-3">
@@ -727,23 +667,20 @@ const deleteConnection = async (connection) => {
                                 v-for="connection in platformConnections"
                                 :key="connection.id"
                                 type="button"
-                                class="w-full rounded-3xl border px-4 py-4 text-left transition"
+                                class="w-full rounded-sm border px-4 py-4 text-left transition"
                                 :class="Number(connection.id) === Number(selectedConnectionId)
-                                    ? 'border-stone-900 bg-white shadow-sm dark:border-white dark:bg-neutral-900'
+                                    ? 'border-sky-200 bg-white shadow-sm dark:border-sky-500/30 dark:bg-neutral-900'
                                     : 'border-stone-200 bg-white/80 hover:border-stone-300 dark:border-neutral-700 dark:bg-neutral-900/70 dark:hover:border-neutral-500'"
                                 @click="selectedConnectionId = connection.id"
                             >
                                 <div class="flex items-start justify-between gap-3">
-                                    <div class="min-w-0">
+                                    <div class="min-w-0 flex-1">
                                         <div class="truncate text-sm font-semibold text-stone-900 dark:text-neutral-100">
-                                            {{ connection.label || activeProviderCard.label }}
-                                        </div>
-                                        <div class="mt-1 truncate text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ connectionHeadline(connection) }}
+                                            {{ connectionDisplayName(connection) }}
                                         </div>
                                     </div>
 
-                                    <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold" :class="statusClass(connection.status)">
+                                    <span class="inline-flex items-center rounded-sm border px-2.5 py-1 text-[11px] font-semibold" :class="statusClass(connection.status)">
                                         {{ statusLabel(connection.status) }}
                                     </span>
                                 </div>
@@ -752,7 +689,7 @@ const deleteConnection = async (connection) => {
 
                         <div
                             v-else
-                            class="mt-4 rounded-3xl border border-dashed border-stone-300 bg-white px-4 py-5 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-900/70 dark:text-neutral-400"
+                            class="mt-4 rounded-sm border border-dashed border-stone-300 bg-white px-4 py-5 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-900/70 dark:text-neutral-400"
                         >
                             <div class="font-semibold text-stone-900 dark:text-neutral-100">
                                 {{ t('social.accounts_manager.modal.accounts_empty_title') }}
@@ -763,28 +700,22 @@ const deleteConnection = async (connection) => {
                         </div>
                     </section>
 
-                    <section class="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <template v-if="selectedConnection">
                             <div class="flex flex-wrap items-start justify-between gap-3">
                                 <div>
-                                    <div class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                                        {{ t('social.accounts_manager.modal.selected_connection') }}
-                                    </div>
-                                    <h5 class="mt-1 text-xl font-semibold text-stone-900 dark:text-neutral-100">
-                                        {{ selectedConnection.label || activeProviderCard.label }}
+                                    <h5 class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
+                                        {{ connectionDisplayName(selectedConnection) }}
                                     </h5>
-                                    <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
-                                        {{ connectionHeadline(selectedConnection) }}
-                                    </p>
                                 </div>
 
-                                <span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold" :class="statusClass(selectedConnection.status)">
+                                <span class="inline-flex items-center rounded-sm border px-3 py-1 text-xs font-semibold" :class="statusClass(selectedConnection.status)">
                                     {{ statusLabel(selectedConnection.status) }}
                                 </span>
                             </div>
 
                             <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                <div class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-800/70">
+                                <div class="rounded-sm border border-stone-200 bg-stone-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-800/70">
                                     <div class="text-[11px] uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
                                         {{ t('social.accounts_manager.modal.quick_status') }}
                                     </div>
@@ -793,7 +724,7 @@ const deleteConnection = async (connection) => {
                                     </div>
                                 </div>
 
-                                <div class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-800/70">
+                                <div class="rounded-sm border border-stone-200 bg-stone-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-800/70">
                                     <div class="text-[11px] uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
                                         {{ t('social.accounts_manager.modal.connected_at') }}
                                     </div>
@@ -802,7 +733,7 @@ const deleteConnection = async (connection) => {
                                     </div>
                                 </div>
 
-                                <div class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-800/70">
+                                <div class="rounded-sm border border-stone-200 bg-stone-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-800/70">
                                     <div class="text-[11px] uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
                                         {{ t('social.accounts_manager.modal.last_test') }}
                                     </div>
@@ -814,7 +745,7 @@ const deleteConnection = async (connection) => {
 
                             <div
                                 v-if="selectedConnection.last_test_message"
-                                class="mt-4 rounded-3xl border px-4 py-3 text-sm"
+                                class="mt-4 rounded-sm border px-4 py-3 text-sm"
                                 :class="testStatusClass(selectedConnection.last_test_status)"
                             >
                                 <div class="font-semibold">
@@ -828,20 +759,9 @@ const deleteConnection = async (connection) => {
                             </div>
 
                             <div v-if="canManage" class="mt-5 space-y-4">
-                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    <FloatingInput
-                                        v-model="form.label"
-                                        :label="t('social.accounts_manager.fields.label')"
-                                    />
-                                    <FloatingInput
-                                        v-model="form.display_name"
-                                        :label="t('social.accounts_manager.fields.display_name')"
-                                    />
-                                </div>
-
                                 <label
                                     v-if="selectedConnection.status === 'connected'"
-                                    class="flex items-start gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-3 py-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                    class="flex items-start gap-3 rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
                                 >
                                     <input
                                         v-model="form.is_active"
@@ -857,7 +777,12 @@ const deleteConnection = async (connection) => {
                                 </label>
 
                                 <div class="flex flex-wrap gap-2">
-                                    <PrimaryButton type="button" :disabled="busy || isLoading" @click="saveConnection">
+                                    <PrimaryButton
+                                        v-if="selectedConnection.status === 'connected'"
+                                        type="button"
+                                        :disabled="busy || isLoading"
+                                        @click="saveConnection"
+                                    >
                                         {{ t('social.accounts_manager.actions.save_details') }}
                                     </PrimaryButton>
 
@@ -883,7 +808,7 @@ const deleteConnection = async (connection) => {
 
                                     <button
                                         type="button"
-                                        class="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20"
+                                        class="rounded-sm border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-amber-700 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20"
                                         :disabled="busy || isLoading"
                                         @click="disconnectConnection(selectedConnection)"
                                     >
@@ -892,7 +817,7 @@ const deleteConnection = async (connection) => {
 
                                     <button
                                         type="button"
-                                        class="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
+                                        class="rounded-sm border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
                                         :disabled="busy || isLoading"
                                         @click="deleteConnection(selectedConnection)"
                                     >
@@ -901,11 +826,11 @@ const deleteConnection = async (connection) => {
                                 </div>
                             </div>
 
-                            <div v-else class="mt-5 rounded-2xl border border-stone-200 bg-stone-50 px-3 py-3 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                            <div v-else class="mt-5 rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                                 {{ t('social.accounts_manager.modal.read_only_notice') }}
                             </div>
 
-                            <details class="mt-5 rounded-3xl border border-stone-200 bg-stone-50/80 p-4 dark:border-neutral-700 dark:bg-neutral-800/70">
+                            <details class="mt-5 rounded-sm border border-stone-200 bg-stone-50/80 p-4 dark:border-neutral-700 dark:bg-neutral-800/70">
                                 <summary class="cursor-pointer list-none text-sm font-semibold text-stone-900 dark:text-neutral-100">
                                     {{ t('social.accounts_manager.actions.show_technical_details') }}
                                 </summary>
@@ -968,7 +893,7 @@ const deleteConnection = async (connection) => {
                                             <span
                                                 v-for="support in selectedConnection.supports || []"
                                                 :key="`${selectedConnection.id}-support-${support}`"
-                                                class="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+                                                class="rounded-sm border border-stone-200 bg-white px-2.5 py-1 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
                                             >
                                                 {{ support }}
                                             </span>
@@ -990,7 +915,7 @@ const deleteConnection = async (connection) => {
                                         <span
                                             v-for="scope in selectedConnection.requested_scopes || []"
                                             :key="`${selectedConnection.id}-scope-${scope}`"
-                                            class="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+                                            class="rounded-sm border border-stone-200 bg-white px-2.5 py-1 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
                                         >
                                             {{ scope }}
                                         </span>
@@ -1011,7 +936,7 @@ const deleteConnection = async (connection) => {
                                         <span
                                             v-for="permission in selectedConnection.permissions"
                                             :key="`${selectedConnection.id}-permission-${permission}`"
-                                            class="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+                                            class="rounded-sm border border-stone-200 bg-white px-2.5 py-1 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
                                         >
                                             {{ permission }}
                                         </span>
@@ -1021,7 +946,7 @@ const deleteConnection = async (connection) => {
                                     </div>
                                 </div>
 
-                                <div v-if="selectedConnection.last_error" class="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">
+                                <div v-if="selectedConnection.last_error" class="mt-4 rounded-sm border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">
                                     <div class="font-semibold">{{ t('social.accounts_manager.modal.last_error') }}</div>
                                     <div class="mt-1">{{ selectedConnection.last_error }}</div>
                                 </div>
@@ -1029,7 +954,7 @@ const deleteConnection = async (connection) => {
                         </template>
 
                         <template v-else>
-                            <div class="rounded-3xl border border-dashed border-stone-300 bg-stone-50 px-5 py-8 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800/60 dark:text-neutral-400">
+                            <div class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-5 py-8 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800/60 dark:text-neutral-400">
                                 <div class="font-semibold text-stone-900 dark:text-neutral-100">
                                     {{ t('social.accounts_manager.modal.accounts_empty_title') }}
                                 </div>

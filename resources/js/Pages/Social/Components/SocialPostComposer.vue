@@ -1,8 +1,9 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
+import DropzoneInput from '@/Components/DropzoneInput.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
@@ -225,6 +226,8 @@ const templateName = ref('');
 const hashtagDraft = ref('');
 const suggestions = ref(normalizeSuggestions(null));
 const sourceReference = ref(normalizeSourceReference(props.initialPrefill));
+const imageFile = ref(null);
+const localImagePreviewUrl = ref('');
 const form = ref({
     text: '',
     image_url: '',
@@ -310,6 +313,28 @@ const approvalRequestDate = computed(() => (
     || approvalRequest.value?.approved_at
     || null
 ));
+const imageInputModel = computed({
+    get: () => imageFile.value || String(form.value.image_url || '').trim() || null,
+    set: (value) => {
+        if (value instanceof File) {
+            imageFile.value = value;
+            form.value.image_url = '';
+
+            return;
+        }
+
+        if (typeof value === 'string' && value.trim() !== '') {
+            imageFile.value = null;
+            form.value.image_url = value.trim();
+
+            return;
+        }
+
+        imageFile.value = null;
+        form.value.image_url = '';
+    },
+});
+const previewImageSrc = computed(() => localImagePreviewUrl.value || String(form.value.image_url || '').trim());
 
 const formatDate = (value) => {
     if (!value) {
@@ -373,11 +398,24 @@ const resetSuggestions = () => {
     hashtagDraft.value = '';
 };
 
+const revokeLocalImagePreview = () => {
+    if (localImagePreviewUrl.value.startsWith('blob:')) {
+        URL.revokeObjectURL(localImagePreviewUrl.value);
+    }
+
+    localImagePreviewUrl.value = '';
+};
+
+const clearImageSelection = () => {
+    imageFile.value = null;
+};
+
 const syncFormFromDraft = (draft) => {
     draftSnapshot.value = draft ? { ...draft } : null;
     templateName.value = '';
     resetSuggestions();
     sourceReference.value = normalizeSourceReference(draft);
+    clearImageSelection();
     form.value = {
         text: String(draft?.text || ''),
         image_url: String(draft?.image_url || ''),
@@ -397,6 +435,7 @@ const resetForm = () => {
     templateName.value = '';
     resetSuggestions();
     sourceReference.value = null;
+    clearImageSelection();
     form.value = {
         text: '',
         image_url: '',
@@ -470,6 +509,23 @@ watch(() => props.selectedTemplateId, (value) => {
     requestedTemplateId.value = value;
 }, { immediate: true });
 
+watch(imageFile, (value) => {
+    revokeLocalImagePreview();
+
+    if (value instanceof File) {
+        localImagePreviewUrl.value = URL.createObjectURL(value);
+    }
+});
+
+watch(() => form.value.image_url, (value, previous) => {
+    const next = String(value || '').trim();
+    const prev = String(previous || '').trim();
+
+    if (next !== '' && next !== prev && imageFile.value instanceof File) {
+        clearImageSelection();
+    }
+});
+
 watch([sortedDrafts, activeDraftId], () => {
     if (activeDraft.value) {
         syncFormFromDraft(activeDraft.value);
@@ -489,6 +545,10 @@ watch([sortedDrafts, activeDraftId], () => {
     }
 }, { immediate: true });
 
+onBeforeUnmount(() => {
+    revokeLocalImagePreview();
+});
+
 const applyTemplate = (template, { announce = true } = {}) => {
     const availableTargetIds = availableTargetConnectionIds(template?.selected_target_connection_ids);
     const missingTargetCount = Math.max(0, Number(template?.selected_accounts_count || 0) - availableTargetIds.length);
@@ -500,6 +560,7 @@ const applyTemplate = (template, { announce = true } = {}) => {
     templateName.value = String(template?.name || '');
     resetSuggestions();
     sourceReference.value = null;
+    clearImageSelection();
     form.value = {
         text: String(template?.text || ''),
         image_url: String(template?.image_url || ''),
@@ -530,6 +591,7 @@ const applyPrefill = (prefill, { announce = true } = {}) => {
     templateName.value = '';
     resetSuggestions();
     sourceReference.value = normalizeSourceReference(normalizedPrefill);
+    clearImageSelection();
     form.value = {
         text: String(normalizedPrefill.text || ''),
         image_url: String(normalizedPrefill.image_url || ''),
@@ -759,6 +821,97 @@ const removeHashtag = (hashtag) => {
     };
 };
 
+const appendFormDataValue = (formData, key, value) => {
+    if (Array.isArray(value)) {
+        value.forEach((item) => {
+            formData.append(`${key}[]`, String(item));
+        });
+
+        return;
+    }
+
+    if (value instanceof File) {
+        formData.append(key, value);
+
+        return;
+    }
+
+    formData.append(key, value ?? '');
+};
+
+const usesFormData = (payload) => payload instanceof FormData;
+
+const putWithPayload = (url, payload) => {
+    if (usesFormData(payload)) {
+        payload.append('_method', 'PUT');
+
+        return axios.post(url, payload);
+    }
+
+    return axios.put(url, payload);
+};
+
+const composerPayload = () => {
+    const payload = {
+        text: String(form.value.text || '').trim(),
+        image_url: String(form.value.image_url || '').trim(),
+        link_url: String(form.value.link_url || '').trim(),
+        scheduled_for: String(form.value.scheduled_for || '').trim(),
+        source_type: sourceReference.value?.source_type || null,
+        source_id: sourceReference.value?.source_id || null,
+        target_connection_ids: form.value.target_connection_ids.map((id) => Number(id)).filter((id) => id > 0),
+    };
+
+    if (!(imageFile.value instanceof File)) {
+        return payload;
+    }
+
+    const formData = new FormData();
+
+    appendFormDataValue(formData, 'text', payload.text);
+    appendFormDataValue(formData, 'image_url', payload.image_url);
+    appendFormDataValue(formData, 'image_file', imageFile.value);
+    appendFormDataValue(formData, 'link_url', payload.link_url);
+    appendFormDataValue(formData, 'scheduled_for', payload.scheduled_for);
+
+    if (payload.source_type !== null) {
+        appendFormDataValue(formData, 'source_type', payload.source_type);
+    }
+
+    if (payload.source_id !== null) {
+        appendFormDataValue(formData, 'source_id', payload.source_id);
+    }
+
+    appendFormDataValue(formData, 'target_connection_ids', payload.target_connection_ids);
+
+    return formData;
+};
+
+const templatePayload = (name) => {
+    const payload = {
+        name,
+        text: String(form.value.text || '').trim(),
+        image_url: String(form.value.image_url || '').trim(),
+        link_url: String(form.value.link_url || '').trim(),
+        target_connection_ids: availableTargetConnectionIds(form.value.target_connection_ids),
+    };
+
+    if (!(imageFile.value instanceof File)) {
+        return payload;
+    }
+
+    const formData = new FormData();
+
+    appendFormDataValue(formData, 'name', payload.name);
+    appendFormDataValue(formData, 'text', payload.text);
+    appendFormDataValue(formData, 'image_url', payload.image_url);
+    appendFormDataValue(formData, 'image_file', imageFile.value);
+    appendFormDataValue(formData, 'link_url', payload.link_url);
+    appendFormDataValue(formData, 'target_connection_ids', payload.target_connection_ids);
+
+    return formData;
+};
+
 const saveDraft = async ({ quiet = false } = {}) => {
     if (!canManage.value) {
         return null;
@@ -770,19 +923,11 @@ const saveDraft = async ({ quiet = false } = {}) => {
         info.value = '';
     }
 
-    const payload = {
-        text: String(form.value.text || '').trim(),
-        image_url: String(form.value.image_url || '').trim(),
-        link_url: String(form.value.link_url || '').trim(),
-        scheduled_for: String(form.value.scheduled_for || '').trim(),
-        source_type: sourceReference.value?.source_type || null,
-        source_id: sourceReference.value?.source_id || null,
-        target_connection_ids: form.value.target_connection_ids.map((id) => Number(id)).filter((id) => id > 0),
-    };
+    const payload = composerPayload();
 
     try {
         const response = activeDraftId.value
-            ? await axios.put(route('social.posts.update', activeDraftId.value), payload)
+            ? await putWithPayload(route('social.posts.update', activeDraftId.value), payload)
             : await axios.post(route('social.posts.store'), payload);
 
         refreshFromPayload(response.data);
@@ -865,18 +1010,13 @@ const saveAsTemplate = async () => {
         link_url: form.value.link_url,
     });
 
-    const payload = {
-        name: String(templateName.value || '').trim() || fallbackName,
-        text: String(form.value.text || '').trim(),
-        image_url: String(form.value.image_url || '').trim(),
-        link_url: String(form.value.link_url || '').trim(),
-        target_connection_ids: availableTargetConnectionIds(form.value.target_connection_ids),
-    };
+    const requestedTemplateName = String(templateName.value || '').trim() || fallbackName;
+    const payload = templatePayload(requestedTemplateName);
 
     try {
         const response = await axios.post(route('social.templates.store'), payload);
         refreshFromPayload(response.data);
-        templateName.value = String(response.data?.template?.name || payload.name);
+        templateName.value = String(response.data?.template?.name || requestedTemplateName);
         info.value = String(response.data?.message || t('social.composer_manager.messages.template_save_success'));
     } catch (requestError) {
         error.value = requestErrorMessage(requestError, t('social.composer_manager.messages.template_save_error'));
@@ -1101,6 +1241,11 @@ const resolveApproval = async (decision) => {
                             v-model="form.text"
                             :label="t('social.composer_manager.fields.text')"
                             :disabled="isEditDisabled"
+                        />
+
+                        <DropzoneInput
+                            v-model="imageInputModel"
+                            :label="t('social.composer_manager.fields.image_file')"
                         />
 
                         <FloatingInput
@@ -1552,8 +1697,8 @@ const resolveApproval = async (decision) => {
                                 {{ form.text || t('social.composer_manager.preview_empty_text') }}
                             </div>
 
-                            <div v-if="form.image_url" class="mt-4 overflow-hidden rounded-3xl border border-stone-200 dark:border-neutral-700">
-                                <img :src="form.image_url" :alt="t('social.composer_manager.preview_image_alt')" class="h-52 w-full object-cover">
+                            <div v-if="previewImageSrc" class="mt-4 overflow-hidden rounded-3xl border border-stone-200 dark:border-neutral-700">
+                                <img :src="previewImageSrc" :alt="t('social.composer_manager.preview_image_alt')" class="h-52 w-full object-cover">
                             </div>
 
                             <a

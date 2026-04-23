@@ -109,6 +109,7 @@
       },
       "fields": {
         "text": "Post text",
+        "image_file": "Image from your computer",
         "image_url": "Image URL",
         "link_url": "Destination link",
         "scheduled_for": "Schedule for",
@@ -215,6 +216,7 @@
       "fields": {
         "name": "Template name",
         "text": "Post text",
+        "image_file": "Image from your computer",
         "image_url": "Image URL",
         "link_url": "Destination link"
       },
@@ -320,12 +322,36 @@
       "provider_target_type": "Target type",
       "provider_scopes": "Requested scopes",
       "provider_supports": "Supported formats",
+      "card": {
+        "no_account": "No connected account yet"
+      },
+      "visual": {
+        "title": "Connection flow",
+        "flow": {
+          "oauth": "OAuth",
+          "test": "Test",
+          "publish": "Publish"
+        },
+        "steps": {
+          "auth": {
+            "title": "Connect the network",
+            "description": "Choose the platform and authorize access from the social account."
+          },
+          "test": {
+            "title": "Verify the connection",
+            "description": "Run a simple test to confirm the token and permissions are valid."
+          },
+          "publish": {
+            "title": "Publish with confidence",
+            "description": "Once validated, the account stays ready to be targeted from the Pulse composer."
+          }
+        }
+      },
       "modal": {
-        "subtitle": "Connect an account, then use the connection test to confirm everything is ready.",
         "accounts_title": "Accounts",
         "accounts_empty_title": "No account on this platform yet",
         "accounts_empty_description": "Start the connection flow to add the first account.",
-        "selected_connection": "Selected account",
+        "account_fallback_name": "Account {number}",
         "quick_status": "Current status",
         "connected_at": "Connected at",
         "last_test": "Last test",
@@ -341,7 +367,6 @@
       },
       "fields": {
         "label": "Internal label",
-        "display_name": "Display name",
         "account_handle": "Account handle",
         "external_account_id": "External account ID"
       },

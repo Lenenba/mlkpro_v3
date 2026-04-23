@@ -109,6 +109,7 @@
       },
       "fields": {
         "text": "Texto del post",
+        "image_file": "Imagen desde tu ordenador",
         "image_url": "URL de la imagen",
         "link_url": "Enlace de destino",
         "scheduled_for": "Programar para",
@@ -215,6 +216,7 @@
       "fields": {
         "name": "Nombre del template",
         "text": "Texto del post",
+        "image_file": "Imagen desde tu ordenador",
         "image_url": "URL de la imagen",
         "link_url": "Enlace de destino"
       },
@@ -320,12 +322,36 @@
       "provider_target_type": "Tipo de destino",
       "provider_scopes": "Scopes solicitados",
       "provider_supports": "Formatos compatibles",
+      "card": {
+        "no_account": "Todavia no hay cuentas conectadas"
+      },
+      "visual": {
+        "title": "Flujo de conexion",
+        "flow": {
+          "oauth": "OAuth",
+          "test": "Prueba",
+          "publish": "Publicacion"
+        },
+        "steps": {
+          "auth": {
+            "title": "Conectar la red",
+            "description": "Elige la plataforma y autoriza el acceso desde la cuenta social."
+          },
+          "test": {
+            "title": "Verificar la conexion",
+            "description": "Ejecuta una prueba simple para confirmar que el token y los permisos son validos."
+          },
+          "publish": {
+            "title": "Publicar con confianza",
+            "description": "Una vez validada, la cuenta queda lista para usarse desde el composer de Pulse."
+          }
+        }
+      },
       "modal": {
-        "subtitle": "Conecta una cuenta y luego usa la prueba de conexion para confirmar que todo esta listo.",
         "accounts_title": "Cuentas",
         "accounts_empty_title": "Todavia no hay cuentas en esta plataforma",
         "accounts_empty_description": "Inicia la conexion para agregar la primera cuenta.",
-        "selected_connection": "Cuenta seleccionada",
+        "account_fallback_name": "Cuenta {number}",
         "quick_status": "Estado actual",
         "connected_at": "Conectada el",
         "last_test": "Ultima prueba",
@@ -341,7 +367,6 @@
       },
       "fields": {
         "label": "Label interno",
-        "display_name": "Nombre visible",
         "account_handle": "Handle de la cuenta",
         "external_account_id": "ID externo de la cuenta"
       },

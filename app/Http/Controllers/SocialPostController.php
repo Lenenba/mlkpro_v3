@@ -7,6 +7,7 @@ use App\Models\SocialPostTemplate;
 use App\Models\User;
 use App\Services\Social\SocialAccountConnectionService;
 use App\Services\Social\SocialApprovalService;
+use App\Services\Social\SocialMediaAssetService;
 use App\Services\Social\SocialPrefillService;
 use App\Services\Social\SocialPublishingService;
 use App\Services\Social\SocialPostService;
@@ -23,6 +24,7 @@ class SocialPostController extends Controller
         private readonly SocialAccountConnectionService $connectionService,
         private readonly SocialPrefillService $prefillService,
         private readonly SocialSuggestionService $suggestionService,
+        private readonly SocialMediaAssetService $mediaAssetService,
     ) {}
 
     public function index(Request $request)
@@ -139,6 +141,7 @@ class SocialPostController extends Controller
         $validated = $request->validate([
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => ['nullable', 'url', 'max:2048'],
+            'image_file' => ['nullable', 'file', 'image', 'max:10240'],
             'link_url' => ['nullable', 'url', 'max:2048'],
             'scheduled_for' => ['nullable', 'date'],
             'source_type' => ['nullable', 'string', Rule::in(SocialPrefillService::allowedSourceTypes())],
@@ -146,6 +149,7 @@ class SocialPostController extends Controller
             'target_connection_ids' => ['required', 'array', 'min:1'],
             'target_connection_ids.*' => ['integer', 'distinct'],
         ]);
+        $validated = $this->withStoredImageUpload($request, $access['owner'], $validated, 'posts');
 
         $draft = $this->postService->createDraft($access['owner'], $request->user(), $validated);
 
@@ -187,6 +191,7 @@ class SocialPostController extends Controller
         $validated = $request->validate([
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => ['nullable', 'url', 'max:2048'],
+            'image_file' => ['nullable', 'file', 'image', 'max:10240'],
             'link_url' => ['nullable', 'url', 'max:2048'],
             'scheduled_for' => ['nullable', 'date'],
             'source_type' => ['nullable', 'string', Rule::in(SocialPrefillService::allowedSourceTypes())],
@@ -194,6 +199,7 @@ class SocialPostController extends Controller
             'target_connection_ids' => ['required', 'array', 'min:1'],
             'target_connection_ids.*' => ['integer', 'distinct'],
         ]);
+        $validated = $this->withStoredImageUpload($request, $access['owner'], $validated, 'posts');
 
         $draft = $this->postService->updateDraft($access['owner'], $request->user(), $post, $validated);
 
@@ -332,10 +338,12 @@ class SocialPostController extends Controller
             'name' => ['required', 'string', 'max:160'],
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => ['nullable', 'url', 'max:2048'],
+            'image_file' => ['nullable', 'file', 'image', 'max:10240'],
             'link_url' => ['nullable', 'url', 'max:2048'],
             'target_connection_ids' => ['nullable', 'array'],
             'target_connection_ids.*' => ['integer', 'distinct'],
         ]);
+        $validated = $this->withStoredImageUpload($request, $access['owner'], $validated, 'templates');
 
         $template = $this->templateService->create($access['owner'], $request->user(), $validated);
 
@@ -357,10 +365,12 @@ class SocialPostController extends Controller
             'name' => ['required', 'string', 'max:160'],
             'text' => ['nullable', 'string', 'max:4000'],
             'image_url' => ['nullable', 'url', 'max:2048'],
+            'image_file' => ['nullable', 'file', 'image', 'max:10240'],
             'link_url' => ['nullable', 'url', 'max:2048'],
             'target_connection_ids' => ['nullable', 'array'],
             'target_connection_ids.*' => ['integer', 'distinct'],
         ]);
+        $validated = $this->withStoredImageUpload($request, $access['owner'], $validated, 'templates');
 
         $savedTemplate = $this->templateService->update($access['owner'], $request->user(), $template, $validated);
 
@@ -507,5 +517,23 @@ class SocialPostController extends Controller
             'draft_posts' => (int) ($postSummary['drafts'] ?? 0),
             'scheduled_posts' => (int) ($postSummary['scheduled'] ?? 0),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function withStoredImageUpload(Request $request, User $owner, array $validated, string $context): array
+    {
+        unset($validated['image_file']);
+
+        $imageFile = $request->file('image_file');
+        if (! $imageFile) {
+            return $validated;
+        }
+
+        $validated['image_upload'] = $this->mediaAssetService->storeUploadedImage($owner, $imageFile, $context);
+
+        return $validated;
     }
 }
