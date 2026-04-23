@@ -129,7 +129,7 @@ it('completes the oauth callback and persists encrypted social credentials', fun
             'access_token' => 'linkedin-access-token',
             'refresh_token' => 'linkedin-refresh-token',
             'expires_in' => 3600,
-            'scope' => 'r_organization_admin w_organization_social',
+            'scope' => 'rw_organization_admin w_organization_social',
             'token_type' => 'Bearer',
         ], 200),
     ]);
@@ -151,7 +151,7 @@ it('completes the oauth callback and persists encrypted social credentials', fun
         ->and($fresh->last_error)->toBeNull()
         ->and($fresh->credentials['access_token'] ?? null)->toBe('linkedin-access-token')
         ->and($fresh->credentials['refresh_token'] ?? null)->toBe('linkedin-refresh-token')
-        ->and($fresh->permissions)->toBe(['r_organization_admin', 'w_organization_social'])
+        ->and($fresh->permissions)->toBe(['rw_organization_admin', 'w_organization_social'])
         ->and($fresh->connected_at)->toBeInstanceOf(Carbon::class)
         ->and($fresh->last_synced_at)->toBeInstanceOf(Carbon::class)
         ->and($fresh->token_expires_at)->toBeInstanceOf(Carbon::class)
@@ -215,7 +215,7 @@ it('refreshes a connected social account token through the provider strategy', f
             'refresh_token' => 'refresh-token',
             'token_type' => 'Bearer',
         ],
-        'permissions' => ['r_organization_admin'],
+        'permissions' => ['rw_organization_admin'],
         'status' => SocialAccountConnection::STATUS_CONNECTED,
         'is_active' => true,
         'connected_at' => now()->subDay(),
@@ -230,7 +230,7 @@ it('refreshes a connected social account token through the provider strategy', f
             'access_token' => 'new-token',
             'refresh_token' => 'new-refresh-token',
             'expires_in' => 7200,
-            'scope' => 'r_organization_admin w_organization_social',
+            'scope' => 'rw_organization_admin w_organization_social',
             'token_type' => 'Bearer',
         ], 200),
     ]);
@@ -245,7 +245,7 @@ it('refreshes a connected social account token through the provider strategy', f
 
     expect($fresh->credentials['access_token'] ?? null)->toBe('new-token')
         ->and($fresh->credentials['refresh_token'] ?? null)->toBe('new-refresh-token')
-        ->and($fresh->permissions)->toBe(['r_organization_admin', 'w_organization_social'])
+        ->and($fresh->permissions)->toBe(['rw_organization_admin', 'w_organization_social'])
         ->and($fresh->last_synced_at)->toBeInstanceOf(Carbon::class)
         ->and($fresh->token_expires_at)->toBeInstanceOf(Carbon::class)
         ->and($fresh->status)->toBe(SocialAccountConnection::STATUS_CONNECTED)

@@ -155,6 +155,7 @@ class SocialPublishingService
             $connection = $target->socialAccountConnection;
             if (! $connection || ! $this->connectionCanPublish($connection)) {
                 $this->markTargetFailed($target, 'This social account is no longer connected or active for publishing.');
+
                 continue;
             }
 

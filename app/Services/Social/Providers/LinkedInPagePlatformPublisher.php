@@ -29,7 +29,7 @@ class LinkedInPagePlatformPublisher extends AbstractOauthPlatformPublisher
     protected function scopes(): array
     {
         return [
-            'r_organization_admin',
+            'rw_organization_admin',
             'r_organization_social',
             'w_organization_social',
         ];
