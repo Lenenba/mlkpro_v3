@@ -12,6 +12,25 @@ use InvalidArgumentException;
 
 class FacebookDataDeletionController extends Controller
 {
+    public function landing(Request $request): Response|JsonResponse
+    {
+        $payload = [
+            'message' => 'This endpoint is reserved for Facebook data deletion callbacks.',
+            'expected_method' => 'POST',
+            'expected_parameter' => 'signed_request',
+            'status_url_pattern' => route('integrations.facebook.data-deletion.status', [
+                'confirmation_code' => 'confirmation-code',
+            ]),
+            'privacy_policy_url' => route('privacy'),
+        ];
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json($payload);
+        }
+
+        return response()->view('auth.facebook-data-deletion-landing', $payload);
+    }
+
     public function callback(Request $request, FacebookDataDeletionService $deletionService): JsonResponse
     {
         $validated = $request->validate([
@@ -34,7 +53,7 @@ class FacebookDataDeletionController extends Controller
 
         return response()->json([
             'url' => route('integrations.facebook.data-deletion.status', [
-                'confirmationCode' => $deletionRequest->confirmation_code,
+                'confirmation_code' => $deletionRequest->confirmation_code,
             ]),
             'confirmation_code' => $deletionRequest->confirmation_code,
         ]);
@@ -42,11 +61,11 @@ class FacebookDataDeletionController extends Controller
 
     public function status(
         Request $request,
-        string $confirmationCode,
+        string $confirmation_code,
         FacebookDataDeletionService $deletionService
     ): Response|JsonResponse {
         try {
-            $deletionRequest = $deletionService->findByConfirmationCode($confirmationCode);
+            $deletionRequest = $deletionService->findByConfirmationCode($confirmation_code);
         } catch (ModelNotFoundException) {
             abort(404);
         }

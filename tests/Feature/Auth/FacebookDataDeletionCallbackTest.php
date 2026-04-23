@@ -11,6 +11,19 @@ beforeEach(function () {
     config()->set('social_auth.providers.facebook.data_deletion.delete_local_account', false);
 });
 
+test('facebook data deletion landing page explains that the callback expects a post request', function () {
+    $this->get(route('integrations.facebook.data-deletion.landing'))
+        ->assertOk()
+        ->assertSee('Facebook data deletion endpoint')
+        ->assertSee('POST')
+        ->assertSee('signed_request');
+
+    $this->getJson(route('integrations.facebook.data-deletion.landing'))
+        ->assertOk()
+        ->assertJsonPath('expected_method', 'POST')
+        ->assertJsonPath('expected_parameter', 'signed_request');
+});
+
 test('facebook data deletion callback deletes facebook-linked app data and returns a confirmation url', function () {
     $ownerRoleId = Role::query()->firstOrCreate(
         ['name' => 'owner'],
@@ -95,7 +108,7 @@ test('facebook data deletion callback deletes facebook-linked app data and retur
         ->assertSee('Facebook data deletion request');
 
     $this->getJson(route('integrations.facebook.data-deletion.status', [
-        'confirmationCode' => $confirmationCode,
+        'confirmation_code' => $confirmationCode,
     ]))
         ->assertOk()
         ->assertJsonPath('status', SocialDataDeletionRequest::STATUS_COMPLETED)

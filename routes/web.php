@@ -134,9 +134,11 @@ Route::get('/integrations/prospect-providers/{provider}/callback', [MarketingPro
 Route::get('/integrations/social/{platform}/callback', [SocialAccountConnectionController::class, 'oauthCallback'])
     ->whereIn('platform', ['facebook', 'instagram', 'linkedin', 'x'])
     ->name('social.accounts.oauth.callback');
+Route::get('/integrations/facebook/data-deletion', [FacebookDataDeletionController::class, 'landing'])
+    ->name('integrations.facebook.data-deletion.landing');
 Route::post('/integrations/facebook/data-deletion', [FacebookDataDeletionController::class, 'callback'])
     ->name('integrations.facebook.data-deletion.callback');
-Route::get('/integrations/facebook/data-deletion/{confirmationCode}', [FacebookDataDeletionController::class, 'status'])
+Route::get('/integrations/facebook/data-deletion/{confirmation_code}', [FacebookDataDeletionController::class, 'status'])
     ->name('integrations.facebook.data-deletion.status');
 
 // Paddle webhook is registered by Cashier Paddle at `/{CASHIER_PATH}/webhook`.
