@@ -11,11 +11,11 @@ Suivi courant:
 - `PULSE-003` fait
 - `PULSE-004` fait
 - `PULSE-005` fait
-- `PULSE-006` a faire
-- `PULSE-007` a faire
-- `PULSE-008` a faire
-- `PULSE-009` a faire
-- `PULSE-010` a faire
+- `PULSE-006` fait
+- `PULSE-007` fait
+- `PULSE-008` fait
+- `PULSE-009` fait
+- `PULSE-010` fait
 
 Bloc deja livre dans le workspace:
 
@@ -32,24 +32,35 @@ Bloc deja livre dans le workspace:
 - callback OAuth + persistence chiffree des credentials ajoutes
 - refresh token manuel par provider ajoute
 - schema additif `social_posts` et `social_post_targets` en place
+- schema additif `social_post_templates` en place
 - models `SocialPost` et `SocialPostTarget` alignes
-- workspace Pulse `index / accounts / composer` branche
+- model `SocialPostTemplate` aligne
+- workspace Pulse `index / accounts / composer / templates / history` branche
 - draft backend `social.posts.*` ajoute
 - orchestration de publication Pulse ajoutee
 - jobs `PublishSocialPostTargetJob` par target ajoutes
 - routes `social.posts.publish` et `social.posts.schedule` ajoutees
 - publication immediate + planification simple branchees
 - calcul du statut global `draft / scheduled / publishing / published / partial_failed / failed` branche
+- historique Pulse simple ajoute
+- duplication et repost editable ajoutes
+- CRUD templates Pulse ajoute
+- chargement d un template dans le composeur ajoute
+- endpoint de suggestions Pulse ajoute
+- suggestions caption + hashtags + CTA branchees dans le composeur
+- schema `social_approval_requests` ajoute
+- statut `pending_approval` branche
+- workflow `submit / approve / reject` ajoute
+- approbation Pulse branchee dans le composeur et l historique
 - suites feature dediees Pulse ajoutees
 
 Bloc actuellement en cours:
 
-- lancement de `PULSE-006` historique + duplication + repost
+- aucun bloc Pulse MVP restant dans ce plan
 
 Bloc restant pour arriver a un MVP V1 propre:
 
-- ajouter historique, duplication et repost
-- brancher templates, prefill et suggestions
+- smoke e2e Pulse a couvrir si on veut une validation bout en bout navigateur
 
 ## 1. But du document
 
@@ -163,9 +174,7 @@ Suites deja presentes:
 
 - `tests/Feature/SocialAccountConnectionsPulseTest.php`
 - `tests/Feature/SocialAccountConnectionManagementTest.php`
-
-Suites a creer ensuite:
-
+- `tests/Feature/SocialAccountConnectionOauthTest.php`
 - `tests/Feature/SocialPostsSchemaTest.php`
 - `tests/Feature/SocialComposerFeatureTest.php`
 - `tests/Feature/SocialPublishingFeatureTest.php`
@@ -174,6 +183,9 @@ Suites a creer ensuite:
 - `tests/Feature/SocialPrefillFeatureTest.php`
 - `tests/Feature/SocialSuggestionsFeatureTest.php`
 - `tests/Feature/SocialApprovalWorkflowTest.php`
+
+Suites a creer ensuite:
+
 - `tests/e2e/pulse-smoke.spec.js`
 
 Regle:
@@ -598,7 +610,25 @@ Afficher les posts passes et accelerer la reutilisation.
 
 #### Etat
 
-- `a faire`
+- `fait`
+
+#### Livraison constatee
+
+- page `Social/History` ajoutee avec tab dedie dans le workspace Pulse
+- filtres simples `recherche / statut / plateforme` branches
+- endpoints:
+  - `social.history`
+  - `social.posts.duplicate`
+  - `social.posts.repost`
+- service backend etendu pour lister l'historique owner et creer des copies editables
+- duplication possible depuis `draft / published / failed`
+- repost autorise depuis `published` uniquement
+- les copies recreent un brouillon propre:
+  - sans date de publication precedente
+  - avec targets encore connectees seulement
+  - avec metadonnee de targets manquantes si besoin
+- garde feature `social` et permissions Pulse appliquees
+- test dedie `SocialHistoryFeatureTest` ajoute et vert
 
 #### Livrables
 
@@ -612,6 +642,14 @@ Afficher les posts passes et accelerer la reutilisation.
 1. l'utilisateur retrouve ses derniers posts
 2. il peut dupliquer rapidement un contenu
 3. il peut relancer un post publie en mode repost
+
+#### Verification realisee
+
+```powershell
+php artisan test tests/Feature/SocialHistoryFeatureTest.php
+php artisan test tests/Feature/SocialAccountConnectionsPulseTest.php tests/Feature/SocialAccountConnectionManagementTest.php tests/Feature/SocialAccountConnectionOauthTest.php tests/Feature/SocialPostsSchemaTest.php tests/Feature/SocialComposerFeatureTest.php tests/Feature/SocialPublishingFeatureTest.php tests/Feature/SocialHistoryFeatureTest.php
+npm run build
+```
 
 ## 10. Sprint 4 - Productivite editoriale
 
@@ -633,13 +671,38 @@ Permettre la reutilisation des structures de posts frequentes.
 
 #### Etat
 
-- `a faire`
+- `fait`
+
+#### Livraison constatee
+
+- migration additive `social_post_templates` ajoutee
+- model `SocialPostTemplate` ajoute
+- CRUD backend:
+  - `social.templates.index`
+  - `social.templates.store`
+  - `social.templates.update`
+  - `social.templates.destroy`
+- page `Social/Templates` ajoutee avec composant `SocialTemplateManager`
+- tab templates ajoute dans le workspace Pulse
+- sauvegarde rapide du contenu courant comme template ajoutee dans le composeur
+- chargement d un template dans le composeur ajoute via librairie et lien direct `social.composer?template=...`
+- memorisation optionnelle des comptes cibles dans le template
+- garde feature `social` et permissions Pulse appliquees
+- test dedie `SocialTemplateFeatureTest` ajoute et vert
 
 #### Livrables
 
 - schema `social_post_templates`
 - CRUD template
 - chargement d'un template dans le composeur
+
+#### Verification realisee
+
+```powershell
+php artisan test tests/Feature/SocialTemplateFeatureTest.php tests/Feature/SocialComposerFeatureTest.php
+php artisan test tests/Feature/SocialAccountConnectionsPulseTest.php tests/Feature/SocialAccountConnectionManagementTest.php tests/Feature/SocialAccountConnectionOauthTest.php tests/Feature/SocialPostsSchemaTest.php tests/Feature/SocialComposerFeatureTest.php tests/Feature/SocialPublishingFeatureTest.php tests/Feature/SocialHistoryFeatureTest.php tests/Feature/SocialTemplateFeatureTest.php
+npm run build
+```
 
 ### PULSE-008 - Prefill depuis `promotion / product / service / campaign`
 
@@ -649,7 +712,20 @@ Ouvrir le composeur avec un contenu deja prepare depuis les modules metier.
 
 #### Etat
 
-- `a faire`
+- `fait`
+
+#### Livraison constatee
+
+- action `Publier avec Malikia Pulse` ajoutee dans:
+  - `promotions`
+  - `products`
+  - `services`
+  - `campaigns`
+- prefill backend branche sur `social.composer?source_type=...&source_id=...`
+- mapping metier -> payload Pulse ajoute pour `promotion / product / service / campaign`
+- sauvegarde des `source_type` et `source_id` sur les drafts Pulse issue d un prefill
+- garde tenant, module source et module `social` applique
+- test dedie `SocialPrefillFeatureTest` ajoute et vert
 
 #### Livrables
 
@@ -664,6 +740,14 @@ Ouvrir le composeur avec un contenu deja prepare depuis les modules metier.
 
 - si le module source ou `social` est off, l'action n'apparait pas
 
+#### Verification realisee
+
+```powershell
+php artisan test tests/Feature/SocialPrefillFeatureTest.php tests/Feature/SocialComposerFeatureTest.php
+php artisan test tests/Feature/SocialAccountConnectionsPulseTest.php tests/Feature/SocialAccountConnectionManagementTest.php tests/Feature/SocialAccountConnectionOauthTest.php tests/Feature/SocialPostsSchemaTest.php tests/Feature/SocialComposerFeatureTest.php tests/Feature/SocialPublishingFeatureTest.php tests/Feature/SocialHistoryFeatureTest.php tests/Feature/SocialTemplateFeatureTest.php tests/Feature/SocialPrefillFeatureTest.php
+npm run build
+```
+
 ### PULSE-009 - Suggestions caption + hashtags + CTA
 
 #### But
@@ -672,7 +756,20 @@ Accelerer la redaction sans rendre l'UI confuse.
 
 #### Etat
 
-- `a faire`
+- `fait`
+
+#### Livraison constatee
+
+- endpoint `social.suggestions` ajoute en web et api
+- service backend `SocialSuggestionService` ajoute
+- generation de captions de base selon le contexte `source / texte / locale`
+- hashtags suggeres et modifiables exposes au composeur
+- CTA reutilisables exposes au composeur
+- panneau discret de suggestions branche dans `SocialPostComposer`
+- access:
+  - owner et membres equipe avec droits `social.view / social.manage / social.publish` peuvent charger les suggestions
+  - application des suggestions reste optionnelle et pilotee dans l UI
+- test dedie `SocialSuggestionsFeatureTest` ajoute et vert
 
 #### Livrables
 
@@ -685,6 +782,14 @@ Accelerer la redaction sans rendre l'UI confuse.
 
 - suggestions discretes
 - jamais obligatoires
+
+#### Verification realisee
+
+```powershell
+php artisan test tests/Feature/SocialSuggestionsFeatureTest.php
+php artisan test tests/Feature/SocialComposerFeatureTest.php tests/Feature/SocialPrefillFeatureTest.php
+npm run build
+```
 
 ## 11. Sprint 5 - Gouvernance optionnelle
 
@@ -704,12 +809,37 @@ Permettre un mode validation avant publication pour les equipes.
 
 #### Etat
 
-- `a faire`
+- `fait`
+
+#### Livraison constatee
+
+- migration additive `social_approval_requests` ajoutee
+- model `SocialApprovalRequest` ajoute
+- statut `pending_approval` ajoute sur `SocialPost`
+- service `SocialApprovalService` ajoute avec:
+  - `submit`
+  - `approve`
+  - `reject`
+- endpoints:
+  - `social.posts.submit-approval`
+  - `social.posts.approve`
+  - `social.posts.reject`
+- owner conserve la publication directe sans friction
+- membre equipe avec `social.publish` sans `social.approve`:
+  - peut gerer le draft
+  - peut soumettre pour approbation
+  - ne peut plus publier directement
+- membre equipe avec `social.approve` peut approuver ou refuser depuis:
+  - le composeur
+  - l historique
+- verrouillage d edition backend et UI tant qu un post est en `pending_approval`
+- suite `SocialApprovalWorkflowTest` ajoutee et verte
 
 #### Livrables
 
-- schema `social_approval_requests` si retenu
+- schema `social_approval_requests`
 - statut `pending_approval`
+- action `submit for approval`
 - actions `approve / reject`
 - permission `social.approve`
 
@@ -718,6 +848,15 @@ Permettre un mode validation avant publication pour les equipes.
 1. l'owner peut continuer a publier sans friction
 2. l'equipe peut soumettre pour approbation
 3. un approbateur peut valider ou refuser
+
+#### Verification realisee
+
+```powershell
+php artisan test tests/Feature/SocialApprovalWorkflowTest.php
+php artisan test tests/Feature/SocialPublishingFeatureTest.php
+php artisan test tests/Feature/SocialComposerFeatureTest.php tests/Feature/SocialHistoryFeatureTest.php tests/Feature/SocialTemplateFeatureTest.php
+npm run build
+```
 
 ## 12. Ordre d'execution recommande
 
@@ -782,6 +921,7 @@ Verification de sortie MVP:
 
 ```powershell
 php artisan test tests/Feature/SocialAccountConnectionsPulseTest.php tests/Feature/SocialAccountConnectionManagementTest.php tests/Feature/SocialPostsSchemaTest.php tests/Feature/SocialComposerFeatureTest.php tests/Feature/SocialPublishingFeatureTest.php tests/Feature/SocialHistoryFeatureTest.php tests/Feature/SocialTemplateFeatureTest.php tests/Feature/SocialPrefillFeatureTest.php tests/Feature/SocialSuggestionsFeatureTest.php
+php artisan test tests/Feature/SocialApprovalWorkflowTest.php
 npm run build
 npx playwright test tests/e2e/pulse-smoke.spec.js
 ```
@@ -823,4 +963,39 @@ npx playwright test tests/e2e/pulse-smoke.spec.js
   - draft backend `social.posts.*`
   - selection multi-comptes et preview simple
   - suite `tests/Feature/SocialComposerFeatureTest.php`
+- `PULSE-005` livre:
+  - orchestration `SocialPublishingService`
+  - job `PublishSocialPostTargetJob` par target
+  - endpoints `social.posts.publish` et `social.posts.schedule`
+  - publication immediate et planification simple
+  - suite `tests/Feature/SocialPublishingFeatureTest.php`
+- `PULSE-006` livre:
+  - page `Social/History` + filtres simples
+  - duplication de `draft / published / failed`
+  - repost editable depuis `published`
+  - suite `tests/Feature/SocialHistoryFeatureTest.php`
+- `PULSE-007` livre:
+  - schema `social_post_templates`
+  - page `Social/Templates` + CRUD templates
+  - sauvegarde rapide du composeur comme template
+  - chargement d un template dans le composeur
+  - suite `tests/Feature/SocialTemplateFeatureTest.php`
+- `PULSE-008` livre:
+  - action `Publier avec Malikia Pulse` dans `promotions / products / services / campaigns`
+  - prefill backend branche depuis les modules metier
+  - suite `tests/Feature/SocialPrefillFeatureTest.php`
+- `PULSE-009` livre:
+  - endpoint `social.suggestions`
+  - service `SocialSuggestionService`
+  - suggestions caption + hashtags + CTA dans le composeur
+  - suite `tests/Feature/SocialSuggestionsFeatureTest.php`
+  - verifications executees avec `tests/Feature/SocialSuggestionsFeatureTest.php`, `tests/Feature/SocialComposerFeatureTest.php`, `tests/Feature/SocialPrefillFeatureTest.php` et `npm run build`
+- `PULSE-010` livre:
+  - schema `social_approval_requests`
+  - statut `pending_approval`
+  - workflow `submit / approve / reject`
+  - split direct publish vs approval pour les membres equipe
+  - UI approbation dans le composeur et l historique
+  - suite `tests/Feature/SocialApprovalWorkflowTest.php`
+  - verifications executees avec `tests/Feature/SocialApprovalWorkflowTest.php`, `tests/Feature/SocialPublishingFeatureTest.php`, `tests/Feature/SocialComposerFeatureTest.php`, `tests/Feature/SocialHistoryFeatureTest.php`, `tests/Feature/SocialTemplateFeatureTest.php` et `npm run build`
 - creation de cette doc de pilotage pour suivre la suite sans derive de scope

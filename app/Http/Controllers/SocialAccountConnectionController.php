@@ -115,6 +115,24 @@ class SocialAccountConnectionController extends Controller
         ]);
     }
 
+    public function testConnection(Request $request, SocialAccountConnection $connection)
+    {
+        [$owner, , $canManageAccounts] = $this->resolveAccess($request->user());
+        if (! $canManageAccounts) {
+            abort(403);
+        }
+
+        $result = $this->connectionService->test($owner, $connection);
+
+        return response()->json([
+            'message' => $result['message'],
+            'result' => [
+                'success' => (bool) $result['success'],
+            ],
+            'connection' => $this->connectionService->payload($result['connection']),
+        ]);
+    }
+
     public function disconnect(Request $request, SocialAccountConnection $connection)
     {
         [$owner, , $canManageAccounts] = $this->resolveAccess($request->user());

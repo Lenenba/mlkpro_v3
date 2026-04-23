@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { router, useForm } from '@inertiajs/vue3';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
@@ -35,9 +35,14 @@ const props = defineProps({
         type: String,
         default: 'CAD',
     },
+    pulse: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
+const canOpenPulseComposer = computed(() => Boolean(props.pulse?.can_open));
 
 const filterForm = useForm({
     name: props.filters?.name ?? '',
@@ -388,6 +393,13 @@ const destroyService = (service) => {
                                         class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                         {{ $t('services.actions.edit') }}
                                     </button>
+                                    <Link
+                                        v-if="canOpenPulseComposer"
+                                        :href="route('social.composer', { source_type: 'service', source_id: service.id })"
+                                        class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                    >
+                                        {{ $t('social.composer_manager.actions.publish_with_pulse') }}
+                                    </Link>
                                     <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                     <button type="button" @click="destroyService(service)"
                                         class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">

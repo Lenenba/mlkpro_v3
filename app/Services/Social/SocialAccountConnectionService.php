@@ -308,6 +308,88 @@ class SocialAccountConnectionService
         return $connection->fresh();
     }
 
+    /**
+     * @return array{success: bool, message: string, connection: SocialAccountConnection}
+     */
+    public function test(User $owner, SocialAccountConnection $connection): array
+    {
+        $this->assertOwnership($owner, $connection);
+
+        $publisher = $this->registry->publisher($connection->platform);
+        $testedAt = Carbon::now();
+        $accessToken = trim((string) data_get($connection->credentials, 'access_token'));
+        $refreshToken = trim((string) data_get($connection->credentials, 'refresh_token'));
+        $supportsRefresh = (bool) ($publisher->definition()['supports_refresh'] ?? false);
+
+        if ($accessToken === '') {
+            return $this->finalizeTestResult(
+                $connection,
+                $publisher,
+                false,
+                sprintf('%s must be reconnected before the connection can be tested.', $publisher->label()),
+                $testedAt,
+                SocialAccountConnection::STATUS_RECONNECT_REQUIRED
+            );
+        }
+
+        if ($connection->token_expires_at instanceof Carbon
+            && $connection->token_expires_at->isPast()
+            && (! $supportsRefresh || $refreshToken === '')
+        ) {
+            return $this->finalizeTestResult(
+                $connection,
+                $publisher,
+                false,
+                sprintf('%s token expired and must be refreshed or reconnected.', $publisher->label()),
+                $testedAt,
+                SocialAccountConnection::STATUS_EXPIRED
+            );
+        }
+
+        if ((string) $connection->status !== SocialAccountConnection::STATUS_CONNECTED) {
+            return $this->finalizeTestResult(
+                $connection,
+                $publisher,
+                false,
+                sprintf('%s is not connected yet. Finish OAuth before testing this account.', $publisher->label()),
+                $testedAt
+            );
+        }
+
+        if ($supportsRefresh && $refreshToken !== '') {
+            $refreshed = $this->refresh($owner, $connection);
+
+            if ((string) $refreshed->status === SocialAccountConnection::STATUS_CONNECTED) {
+                return $this->finalizeTestResult(
+                    $refreshed,
+                    $publisher,
+                    true,
+                    sprintf('%s connection is valid. The access token was refreshed successfully.', $publisher->label()),
+                    $testedAt
+                );
+            }
+
+            return $this->finalizeTestResult(
+                $refreshed,
+                $publisher,
+                false,
+                trim((string) $refreshed->last_error) !== ''
+                    ? trim((string) $refreshed->last_error)
+                    : sprintf('%s connection test failed.', $publisher->label()),
+                $testedAt,
+                (string) $refreshed->status
+            );
+        }
+
+        return $this->finalizeTestResult(
+            $connection,
+            $publisher,
+            true,
+            sprintf('%s connection looks valid and ready to publish.', $publisher->label()),
+            $testedAt
+        );
+    }
+
     public function destroy(User $owner, SocialAccountConnection $connection): void
     {
         $this->assertOwnership($owner, $connection);
@@ -539,6 +621,9 @@ class SocialAccountConnectionService
             'connected_at' => optional($connection->connected_at)->toIso8601String(),
             'last_synced_at' => optional($connection->last_synced_at)->toIso8601String(),
             'token_expires_at' => optional($connection->token_expires_at)->toIso8601String(),
+            'last_tested_at' => data_get($connection->metadata, 'last_tested_at'),
+            'last_test_status' => data_get($connection->metadata, 'last_test_status'),
+            'last_test_message' => data_get($connection->metadata, 'last_test_message'),
             'last_error' => $connection->last_error,
             'metadata' => (array) ($connection->metadata ?? []),
         ];
@@ -585,6 +670,40 @@ class SocialAccountConnectionService
     private function defaultLabel(PlatformPublisherInterface $publisher): string
     {
         return sprintf('%s connection', $publisher->label());
+    }
+
+    /**
+     * @return array{success: bool, message: string, connection: SocialAccountConnection}
+     */
+    private function finalizeTestResult(
+        SocialAccountConnection $connection,
+        PlatformPublisherInterface $publisher,
+        bool $success,
+        string $message,
+        Carbon $testedAt,
+        ?string $status = null
+    ): array {
+        $nextStatus = $status ?: (string) $connection->status;
+
+        $connection->forceFill([
+            'status' => $nextStatus,
+            'is_active' => $success
+                ? ((string) $nextStatus === SocialAccountConnection::STATUS_CONNECTED)
+                : false,
+            'last_synced_at' => $success ? $testedAt : $connection->last_synced_at,
+            'last_error' => $success ? null : $message,
+            'metadata' => $this->mergedMetadata($connection, $publisher, [
+                'last_tested_at' => $testedAt->toIso8601String(),
+                'last_test_status' => $success ? 'success' : 'failed',
+                'last_test_message' => $message,
+            ]),
+        ])->save();
+
+        return [
+            'success' => $success,
+            'message' => $message,
+            'connection' => $connection->fresh(),
+        ];
     }
 
     /**

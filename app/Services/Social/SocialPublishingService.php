@@ -302,7 +302,9 @@ class SocialPublishingService
 
         $status = SocialPost::STATUS_DRAFT;
 
-        if ($publishingCount > 0) {
+        if ((string) $post->status === SocialPost::STATUS_PENDING_APPROVAL && ! $isQueuedPublication) {
+            $status = SocialPost::STATUS_PENDING_APPROVAL;
+        } elseif ($publishingCount > 0) {
             $status = SocialPost::STATUS_PUBLISHING;
         } elseif ($totalTargets > 0 && $publishedCount === $totalTargets) {
             $status = SocialPost::STATUS_PUBLISHED;

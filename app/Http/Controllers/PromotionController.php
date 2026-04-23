@@ -12,6 +12,7 @@ use App\Models\Promotion;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
 use App\Services\Promotions\PromotionPricingService;
+use App\Services\Social\SocialPrefillService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -96,6 +97,9 @@ class PromotionController extends Controller
                 'statuses' => PromotionStatus::values(),
             ],
             'activePromotionCatalog' => app(PromotionPricingService::class)->frontendCatalogForAccount($owner->id),
+            'pulse' => [
+                'can_open' => app(SocialPrefillService::class)->canOpenComposer($owner, $request->user()),
+            ],
         ]);
     }
 

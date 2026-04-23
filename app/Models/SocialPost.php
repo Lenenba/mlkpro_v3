@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SocialPost extends Model
@@ -15,6 +16,8 @@ class SocialPost extends Model
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_SCHEDULED = 'scheduled';
+
+    public const STATUS_PENDING_APPROVAL = 'pending_approval';
 
     public const STATUS_PUBLISHING = 'publishing';
 
@@ -59,6 +62,7 @@ class SocialPost extends Model
         return [
             self::STATUS_DRAFT,
             self::STATUS_SCHEDULED,
+            self::STATUS_PENDING_APPROVAL,
             self::STATUS_PUBLISHING,
             self::STATUS_PUBLISHED,
             self::STATUS_PARTIAL_FAILED,
@@ -84,6 +88,16 @@ class SocialPost extends Model
     public function targets(): HasMany
     {
         return $this->hasMany(SocialPostTarget::class)->orderBy('id');
+    }
+
+    public function approvalRequests(): HasMany
+    {
+        return $this->hasMany(SocialApprovalRequest::class)->latest('id');
+    }
+
+    public function latestApprovalRequest(): HasOne
+    {
+        return $this->hasOne(SocialApprovalRequest::class)->latestOfMany();
     }
 
     public function scopeByUser(Builder $query, int $userId): Builder

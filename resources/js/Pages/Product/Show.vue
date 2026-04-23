@@ -16,6 +16,10 @@ const props = defineProps({
         type: Array,
         required: true,
     },
+    pulse: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
@@ -206,6 +210,7 @@ const galleryImages = computed(() => {
 const formatDate = (value) => humanizeDate(value);
 
 const pageTitle = computed(() => props.product.name || t('products.single'));
+const canOpenPulseComposer = computed(() => Boolean(props.pulse?.can_open));
 </script>
 
 <template>
@@ -233,12 +238,21 @@ const pageTitle = computed(() => props.product.name || t('products.single'));
                         </p>
                     </div>
                 </div>
-                <Link
-                    :href="route('product.index')"
-                    class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                >
-                    {{ $t('products.actions.back_to_list') }}
-                </Link>
+                <div class="flex flex-wrap items-center gap-2">
+                    <Link
+                        v-if="canOpenPulseComposer"
+                        :href="route('social.composer', { source_type: 'product', source_id: product.id })"
+                        class="rounded-sm border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-100 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-200 dark:hover:bg-green-500/20"
+                    >
+                        {{ t('social.composer_manager.actions.publish_with_pulse') }}
+                    </Link>
+                    <Link
+                        :href="route('product.index')"
+                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                    >
+                        {{ $t('products.actions.back_to_list') }}
+                    </Link>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">

@@ -36,6 +36,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    pulse: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
@@ -55,6 +59,7 @@ const campaignLinks = computed(() => (Array.isArray(props.campaigns?.links) ? pr
 const currentPerPage = computed(() => resolveDataTablePerPage(props.campaigns?.per_page, props.filters?.per_page));
 const campaignPageLabel = computed(() => t('marketing.campaign_index.page', { page: props.campaigns?.current_page || 1 }));
 const canManage = computed(() => Boolean(props.access?.can_manage));
+const canOpenPulseComposer = computed(() => Boolean(props.pulse?.can_open));
 const providerSummary = computed(() => ({
     configured: Number(props.prospectProviderSummary?.configured || 0),
     connected: Number(props.prospectProviderSummary?.connected || 0),
@@ -361,6 +366,13 @@ const statusBadgeClass = (status) => {
                                             class="rounded-sm border border-transparent bg-green-600 px-2 py-1 text-xs text-white hover:bg-green-700"
                                         >
                                             {{ t('marketing.campaign_index.actions.edit') }}
+                                        </Link>
+                                        <Link
+                                            v-if="canOpenPulseComposer"
+                                            :href="route('social.composer', { source_type: 'campaign', source_id: campaign.id })"
+                                            class="rounded-sm border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200 dark:hover:bg-sky-500/20"
+                                        >
+                                            {{ t('social.composer_manager.actions.publish_with_pulse') }}
                                         </Link>
                                     </div>
                                 </td>

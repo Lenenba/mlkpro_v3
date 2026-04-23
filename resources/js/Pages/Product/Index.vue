@@ -53,6 +53,10 @@ const props = defineProps({
         type: String,
         default: 'CAD',
     },
+    pulse: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 </script>
@@ -73,6 +77,7 @@ const props = defineProps({
                     :bulk-actions="bulkActions"
                     :ai-image="ai_image"
                     :tenant-currency-code="tenantCurrencyCode"
+                    :pulse="pulse"
                 />
             </div>
             <ProductUsageStat :items="topProducts" />

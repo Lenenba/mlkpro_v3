@@ -29,12 +29,14 @@ const props = defineProps({
     enums: { type: Object, default: () => ({}) },
     marketingSettings: { type: Object, default: () => ({}) },
     access: { type: Object, default: () => ({}) },
+    pulse: { type: Object, default: () => ({}) },
 });
 
 const { t } = useI18n();
 
 const canManage = computed(() => Boolean(props.access?.can_manage));
 const canSend = computed(() => Boolean(props.access?.can_send));
+const canOpenPulseComposer = computed(() => Boolean(props.pulse?.can_open));
 const isEdit = computed(() => Boolean(props.campaign?.id));
 const campaignId = computed(() => props.campaign?.id || null);
 const step = ref(1);
@@ -3087,6 +3089,12 @@ watch(isProspectingMode, async (enabled) => {
                     <div class="flex flex-wrap items-center gap-2 xl:justify-end">
                         <Link :href="route('campaigns.index')">
                             <SecondaryButton>{{ t('marketing.campaign_wizard.actions.back_to_list') }}</SecondaryButton>
+                        </Link>
+                        <Link
+                            v-if="isEdit && canOpenPulseComposer"
+                            :href="route('social.composer', { source_type: 'campaign', source_id: campaignId })"
+                        >
+                            <SecondaryButton>{{ t('social.composer_manager.actions.publish_with_pulse') }}</SecondaryButton>
                         </Link>
                         <Link v-if="isEdit" :href="route('campaigns.show', campaignId)">
                             <SecondaryButton>{{ t('marketing.campaign_wizard.actions.details') }}</SecondaryButton>

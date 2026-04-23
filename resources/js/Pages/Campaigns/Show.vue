@@ -14,9 +14,11 @@ const props = defineProps({
     funnel: { type: Object, default: () => ({}) },
     prospectingDashboard: { type: Object, default: () => ({}) },
     access: { type: Object, default: () => ({}) },
+    pulse: { type: Object, default: () => ({}) },
 });
 
 const canManage = computed(() => Boolean(props.access?.can_manage));
+const canOpenPulseComposer = computed(() => Boolean(props.pulse?.can_open));
 const runs = computed(() => props.campaign?.runs || []);
 const events = computed(() =>
     Object.entries(props.eventStats || {}).map(([key, value]) => ({ key, value: Number(value || 0) }))
@@ -213,6 +215,13 @@ const openProspectingWorkspace = (step = 3) => {
                         </p>
                     </div>
                     <div class="flex items-center gap-2">
+                        <Link
+                            v-if="canOpenPulseComposer"
+                            :href="route('social.composer', { source_type: 'campaign', source_id: campaign.id })"
+                            class="rounded-sm border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-100 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200 dark:hover:bg-sky-500/20"
+                        >
+                            {{ t('social.composer_manager.actions.publish_with_pulse') }}
+                        </Link>
                         <Link :href="route('campaigns.index')" class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700">{{ t('marketing.campaign_show.actions.back') }}</Link>
                         <Link v-if="canManage" :href="route('campaigns.edit', campaign.id)" class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700">{{ t('marketing.campaign_show.actions.edit') }}</Link>
                     </div>

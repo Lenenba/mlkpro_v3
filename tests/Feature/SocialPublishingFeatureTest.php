@@ -358,12 +358,13 @@ it('reports a partial failure when only some pulse targets publish successfully'
         ->and((string) $linkedinTarget?->failure_reason)->toContain('temporary publish failure');
 });
 
-it('requires social publish permission for pulse publication and scheduling', function () {
+it('requires social approve in addition to social publish for direct pulse publication and scheduling', function () {
     Queue::fake();
     pulsePublishingBindRegistry();
 
     $owner = pulsePublishingOwner();
     $publisher = pulsePublishingTeamMember($owner, ['social.publish']);
+    $approverPublisher = pulsePublishingTeamMember($owner, ['social.publish', 'social.approve']);
     $manager = pulsePublishingTeamMember($owner, ['social.manage']);
     $connection = pulsePublishingConnection($owner, SocialAccountConnection::PLATFORM_X);
     $draft = pulsePublishingDraft($owner, $owner, [$connection], [
@@ -379,6 +380,14 @@ it('requires social publish permission for pulse publication and scheduling', fu
         ->assertForbidden();
 
     $this->actingAs($publisher)
+        ->postJson(route('social.posts.publish', $draft))
+        ->assertForbidden();
+
+    $this->actingAs($publisher)
+        ->postJson(route('social.posts.schedule', $draft))
+        ->assertForbidden();
+
+    $this->actingAs($approverPublisher)
         ->postJson(route('social.posts.publish', $draft))
         ->assertStatus(202)
         ->assertJsonPath('draft.status', SocialPost::STATUS_PUBLISHING);

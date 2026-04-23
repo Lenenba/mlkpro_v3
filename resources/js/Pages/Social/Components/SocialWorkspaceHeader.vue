@@ -41,6 +41,16 @@ const tabs = computed(() => ([
         label: t('social.workspace.tabs.composer'),
         href: route('social.composer'),
     },
+    {
+        key: 'templates',
+        label: t('social.workspace.tabs.templates'),
+        href: route('social.templates.index'),
+    },
+    {
+        key: 'history',
+        label: t('social.workspace.tabs.history'),
+        href: route('social.history'),
+    },
 ]));
 
 const statCards = computed(() => ([

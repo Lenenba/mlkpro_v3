@@ -540,6 +540,12 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.index');
         Route::get('/social/composer', [SocialPostController::class, 'composer'])
             ->name('social.composer');
+        Route::get('/social/templates', [SocialPostController::class, 'templates'])
+            ->name('social.templates.index');
+        Route::get('/social/history', [SocialPostController::class, 'history'])
+            ->name('social.history');
+        Route::post('/social/suggestions', [SocialPostController::class, 'suggestions'])
+            ->name('social.suggestions');
         Route::post('/social/posts', [SocialPostController::class, 'store'])
             ->name('social.posts.store');
         Route::put('/social/posts/{post}', [SocialPostController::class, 'update'])
@@ -548,6 +554,22 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.posts.publish');
         Route::post('/social/posts/{post}/schedule', [SocialPostController::class, 'schedule'])
             ->name('social.posts.schedule');
+        Route::post('/social/posts/{post}/submit-approval', [SocialPostController::class, 'submitApproval'])
+            ->name('social.posts.submit-approval');
+        Route::post('/social/posts/{post}/approve', [SocialPostController::class, 'approve'])
+            ->name('social.posts.approve');
+        Route::post('/social/posts/{post}/reject', [SocialPostController::class, 'reject'])
+            ->name('social.posts.reject');
+        Route::post('/social/posts/{post}/duplicate', [SocialPostController::class, 'duplicate'])
+            ->name('social.posts.duplicate');
+        Route::post('/social/posts/{post}/repost', [SocialPostController::class, 'repost'])
+            ->name('social.posts.repost');
+        Route::post('/social/templates', [SocialPostController::class, 'storeTemplate'])
+            ->name('social.templates.store');
+        Route::put('/social/templates/{template}', [SocialPostController::class, 'updateTemplate'])
+            ->name('social.templates.update');
+        Route::delete('/social/templates/{template}', [SocialPostController::class, 'destroyTemplate'])
+            ->name('social.templates.destroy');
         Route::get('/social/accounts', [SocialAccountConnectionController::class, 'index'])
             ->name('social.accounts.index');
         Route::post('/social/accounts', [SocialAccountConnectionController::class, 'store'])
@@ -558,6 +580,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.accounts.authorize');
         Route::post('/social/accounts/{connection}/refresh', [SocialAccountConnectionController::class, 'refresh'])
             ->name('social.accounts.refresh');
+        Route::post('/social/accounts/{connection}/test', [SocialAccountConnectionController::class, 'testConnection'])
+            ->name('social.accounts.test');
         Route::post('/social/accounts/{connection}/disconnect', [SocialAccountConnectionController::class, 'disconnect'])
             ->name('social.accounts.disconnect');
         Route::delete('/social/accounts/{connection}', [SocialAccountConnectionController::class, 'destroy'])

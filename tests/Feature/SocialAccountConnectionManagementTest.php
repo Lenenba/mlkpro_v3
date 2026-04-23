@@ -181,6 +181,69 @@ it('lets the owner create list update disconnect and delete pulse social account
     expect(SocialAccountConnection::query()->count())->toBe(0);
 });
 
+it('lets the owner test a connected pulse social account without leaving the workspace', function () {
+    $owner = pulseOwner();
+
+    $connection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_X,
+        'label' => 'Launch profile',
+        'display_name' => 'Malikia Launch',
+        'external_account_id' => 'x-profile-1',
+        'credentials' => [
+            'access_token' => 'token-123',
+        ],
+        'permissions' => ['tweet.read', 'tweet.write'],
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now()->subHour(),
+        'metadata' => [
+            'oauth_ready' => true,
+        ],
+    ]);
+
+    $this->actingAs($owner)
+        ->postJson(route('social.accounts.test', $connection))
+        ->assertOk()
+        ->assertJsonPath('result.success', true)
+        ->assertJsonPath('connection.status', SocialAccountConnection::STATUS_CONNECTED)
+        ->assertJsonPath('connection.last_test_status', 'success')
+        ->assertJsonPath('connection.last_test_message', 'X Profiles connection looks valid and ready to publish.');
+
+    $connection->refresh();
+
+    expect(data_get($connection->metadata, 'last_test_status'))->toBe('success')
+        ->and(data_get($connection->metadata, 'last_tested_at'))->not->toBeNull()
+        ->and($connection->last_error)->toBeNull();
+});
+
+it('marks the pulse social account as reconnect required when the owner tests a connection without credentials', function () {
+    $owner = pulseOwner();
+
+    $connection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        'label' => 'Main Facebook',
+        'external_account_id' => 'fb-main',
+        'status' => SocialAccountConnection::STATUS_CONNECTED,
+        'is_active' => true,
+        'connected_at' => now()->subHour(),
+    ]);
+
+    $this->actingAs($owner)
+        ->postJson(route('social.accounts.test', $connection))
+        ->assertOk()
+        ->assertJsonPath('result.success', false)
+        ->assertJsonPath('connection.status', SocialAccountConnection::STATUS_RECONNECT_REQUIRED)
+        ->assertJsonPath('connection.last_test_status', 'failed');
+
+    $connection->refresh();
+
+    expect($connection->status)->toBe(SocialAccountConnection::STATUS_RECONNECT_REQUIRED)
+        ->and(data_get($connection->metadata, 'last_test_status'))->toBe('failed')
+        ->and($connection->last_error)->toContain('must be reconnected');
+});
+
 it('lets the owner create multiple pulse accounts on the same platform and blocks duplicate external ids', function () {
     $owner = pulseOwner();
 
@@ -268,6 +331,10 @@ it('blocks team members from mutating pulse social account connections', functio
         ->assertForbidden();
 
     $this->actingAs($member)
+        ->postJson(route('social.accounts.test', $connection))
+        ->assertForbidden();
+
+    $this->actingAs($member)
         ->postJson(route('social.accounts.disconnect', $connection))
         ->assertForbidden();
 
@@ -308,5 +375,9 @@ it('blocks pulse social account routes when the social module is unavailable', f
 
     $this->actingAs($owner)
         ->postJson(route('social.accounts.refresh', $connection))
+        ->assertForbidden();
+
+    $this->actingAs($owner)
+        ->postJson(route('social.accounts.test', $connection))
         ->assertForbidden();
 });
