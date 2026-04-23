@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -44,14 +44,14 @@ const routeParams = (provider) => {
             </p>
 
             <div class="space-y-2">
-                <Link
+                <a
                     v-for="provider in providers"
                     :key="provider.key"
                     :href="route('auth.social.redirect', routeParams(provider))"
                     class="flex w-full items-center justify-center rounded-sm border border-stone-200 bg-white px-4 py-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
                 >
                     {{ t('auth_pages.social.continue_with', { provider: provider.label }) }}
-                </Link>
+                </a>
             </div>
         </div>
 

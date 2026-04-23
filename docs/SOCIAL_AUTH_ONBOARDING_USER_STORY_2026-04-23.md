@@ -333,6 +333,10 @@ Backlog associe:
 
 ### Phase 4 - Microsoft login V1
 
+Etat:
+
+- livre le 2026-04-23
+
 Objectif:
 
 - ajouter le flow `Microsoft 365 / Entra`

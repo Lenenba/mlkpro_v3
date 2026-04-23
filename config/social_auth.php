@@ -59,7 +59,7 @@ return [
             'icon' => 'microsoft',
             'driver' => 'oidc',
             'enabled' => $socialAuthBool('SOCIAL_AUTH_MICROSOFT_ENABLED', false),
-            'implemented' => false,
+            'implemented' => true,
             'contexts' => [
                 'login' => true,
                 'register' => true,

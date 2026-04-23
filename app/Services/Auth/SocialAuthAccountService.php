@@ -77,11 +77,11 @@ class SocialAuthAccountService
                     ]);
                 }
 
-                $socialAccount = new UserSocialAccount();
+                $socialAccount = new UserSocialAccount;
                 $wasLinked = true;
             } else {
                 $user = $this->createOwnerFromSocialProfile($providerEmail, $profile, $request);
-                $socialAccount = new UserSocialAccount();
+                $socialAccount = new UserSocialAccount;
                 $wasCreated = true;
                 $wasLinked = true;
             }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\BillingPeriod;
 use App\Http\Controllers\Controller;
 use App\Services\Auth\GoogleSocialAuthService;
+use App\Services\Auth\MicrosoftSocialAuthService;
 use App\Services\Auth\SocialAuthAccountService;
 use App\Services\Auth\SocialAuthProviderRegistry;
 use App\Services\Auth\WebLoginResponseService;
@@ -59,39 +60,29 @@ class SocialAuthController extends Controller
             );
         }
 
-        if ($resolvedProvider['key'] === 'google') {
-            try {
-                $state = (string) str()->random(64);
-                $authorizationUrl = app(GoogleSocialAuthService::class)->authorizationUrl($resolvedProvider, $state);
+        try {
+            $state = (string) str()->random(64);
+            $authorizationUrl = $this->authorizationUrlForProvider($resolvedProvider, $state);
 
-                $request->session()->put('social_auth.pending', [
-                    'provider' => $resolvedProvider['key'],
-                    'source' => $source,
-                    'plan' => $plan,
-                    'billing_period' => $billingPeriod,
-                    'state' => $state,
-                    'requested_at' => now()->toIso8601String(),
-                ]);
+            $request->session()->put('social_auth.pending', [
+                'provider' => $resolvedProvider['key'],
+                'source' => $source,
+                'plan' => $plan,
+                'billing_period' => $billingPeriod,
+                'state' => $state,
+                'requested_at' => now()->toIso8601String(),
+            ]);
 
-                return redirect()->away($authorizationUrl);
-            } catch (ValidationException $exception) {
-                return $this->redirectToSource(
-                    $source,
-                    $plan,
-                    $billingPeriod,
-                    'error',
-                    $this->validationMessage($exception, __('ui.auth.social.provider_not_configured', ['provider' => $resolvedProvider['label']]))
-                );
-            }
+            return redirect()->away($authorizationUrl);
+        } catch (ValidationException $exception) {
+            return $this->redirectToSource(
+                $source,
+                $plan,
+                $billingPeriod,
+                'error',
+                $this->validationMessage($exception, __('ui.auth.social.provider_not_configured', ['provider' => $resolvedProvider['label']]))
+            );
         }
-
-        return $this->redirectToSource(
-            $source,
-            $plan,
-            $billingPeriod,
-            'warning',
-            __('ui.auth.social.provider_not_ready', ['provider' => $resolvedProvider['label']])
-        );
     }
 
     public function callback(
@@ -129,18 +120,8 @@ class SocialAuthController extends Controller
             );
         }
 
-        if ($resolvedProvider['key'] !== 'google') {
-            return $this->redirectToSource(
-                $source,
-                $plan,
-                $billingPeriod,
-                'warning',
-                __('ui.auth.social.callback_not_ready', ['provider' => $resolvedProvider['label']])
-            );
-        }
-
         try {
-            $result = app(GoogleSocialAuthService::class)->authenticate($request, $resolvedProvider, $pending);
+            $result = $this->authenticateWithProvider($request, $resolvedProvider, $pending);
             $resolved = app(SocialAuthAccountService::class)->resolve(
                 $resolvedProvider['key'],
                 $result['profile'],
@@ -251,5 +232,35 @@ class SocialAuthController extends Controller
             ->first();
 
         return is_string($message) && $message !== '' ? $message : $fallback;
+    }
+
+    /**
+     * @param  array<string, mixed>  $provider
+     */
+    private function authorizationUrlForProvider(array $provider, string $state): string
+    {
+        return match ($provider['key'] ?? null) {
+            'google' => app(GoogleSocialAuthService::class)->authorizationUrl($provider, $state),
+            'microsoft' => app(MicrosoftSocialAuthService::class)->authorizationUrl($provider, $state),
+            default => throw ValidationException::withMessages([
+                'provider' => __('ui.auth.social.provider_not_ready', ['provider' => $provider['label'] ?? ucfirst((string) ($provider['key'] ?? 'provider'))]),
+            ]),
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $provider
+     * @param  array<string, mixed>  $pending
+     * @return array{profile: array<string, mixed>, tokens: array<string, mixed>}
+     */
+    private function authenticateWithProvider(Request $request, array $provider, array $pending): array
+    {
+        return match ($provider['key'] ?? null) {
+            'google' => app(GoogleSocialAuthService::class)->authenticate($request, $provider, $pending),
+            'microsoft' => app(MicrosoftSocialAuthService::class)->authenticate($request, $provider, $pending),
+            default => throw ValidationException::withMessages([
+                'provider' => __('ui.auth.social.callback_not_ready', ['provider' => $provider['label'] ?? ucfirst((string) ($provider['key'] ?? 'provider'))]),
+            ]),
+        };
     }
 }
