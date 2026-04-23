@@ -1,10 +1,10 @@
 <?php
 
+use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Role;
 use App\Models\SocialAccountConnection;
 use App\Models\TeamMember;
 use App\Models\User;
-use App\Http\Middleware\EnsureTwoFactorVerified;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
