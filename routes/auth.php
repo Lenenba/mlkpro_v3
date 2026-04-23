@@ -48,6 +48,13 @@ Route::middleware('guest')->group(function () {
     Route::get('auth/social/{provider}/callback', [SocialAuthController::class, 'callback'])
         ->whereIn('provider', ['google', 'microsoft', 'facebook'])
         ->name('auth.social.callback');
+
+    // Legacy aliases kept for older OAuth provider configs that still use /auth/{provider}/...
+    Route::get('auth/{provider}/redirect', [SocialAuthController::class, 'redirect'])
+        ->whereIn('provider', ['google', 'microsoft', 'facebook']);
+
+    Route::get('auth/{provider}/callback', [SocialAuthController::class, 'callback'])
+        ->whereIn('provider', ['google', 'microsoft', 'facebook']);
 });
 
 Route::middleware('auth')->group(function () {

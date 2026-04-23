@@ -220,3 +220,51 @@ test('google social auth refuses provider profiles without a verified email addr
     expect(User::query()->where('email', 'unverified-google@example.com')->exists())->toBeFalse()
         ->and(UserSocialAccount::query()->where('provider_user_id', 'google-user-003')->exists())->toBeFalse();
 });
+
+test('legacy google callback path remains supported for older provider redirect uris', function () {
+    config()->set('social_auth.providers.google.redirect_uri', 'https://app.test/auth/google/callback');
+
+    Http::fake([
+        'https://oauth2.google.test/token' => Http::response([
+            'access_token' => 'legacy-google-access-token',
+            'expires_in' => 3600,
+            'scope' => 'openid profile email',
+            'token_type' => 'Bearer',
+            'id_token' => 'legacy-google-id-token',
+        ]),
+        'https://openidconnect.google.test/userinfo' => Http::response([
+            'sub' => 'google-user-legacy-001',
+            'email' => 'legacy-google-owner@example.com',
+            'email_verified' => true,
+            'name' => 'Legacy Google Owner',
+            'picture' => 'https://cdn.example.com/google-legacy-owner.png',
+        ]),
+    ]);
+
+    $response = $this
+        ->withSession([
+            'social_auth.pending' => [
+                'provider' => 'google',
+                'source' => 'onboarding',
+                'plan' => 'growth',
+                'billing_period' => 'yearly',
+                'state' => 'google-state-legacy-001',
+                'requested_at' => now()->toIso8601String(),
+            ],
+        ])
+        ->get('/auth/google/callback?state=google-state-legacy-001&code=google-auth-code');
+
+    $user = User::query()->where('email', 'legacy-google-owner@example.com')->firstOrFail();
+
+    $this->assertAuthenticatedAs($user);
+
+    $response->assertRedirect(route('onboarding.index', [
+        'plan' => 'growth',
+        'billing_period' => 'yearly',
+    ]));
+
+    expect(UserSocialAccount::query()
+        ->where('user_id', $user->id)
+        ->where('provider', 'google')
+        ->exists())->toBeTrue();
+});

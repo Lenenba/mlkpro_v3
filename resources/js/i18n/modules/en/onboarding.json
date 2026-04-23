@@ -51,6 +51,12 @@
       }
     },
     "account": {
+      "access_title": "Choose how to continue",
+      "access_subtitle": "Connect the owner account first, then continue the company onboarding.",
+      "social_title": "Continue with a social account",
+      "social_subtitle": "Google, Microsoft, and Facebook can save time when they are available.",
+      "email_title": "Continue with email",
+      "email_subtitle": "Create the owner account here if you prefer a classic email-based flow.",
       "owner_notice": "Start by creating or signing in to the owner account. The remaining onboarding steps unlock after that.",
       "full_name": "Full name",
       "email": "Email",

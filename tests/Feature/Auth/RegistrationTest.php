@@ -47,3 +47,23 @@ test('new users keep the selected public locale when they register from onboardi
 
     expect($user->locale)->toBe('es');
 });
+
+test('new users keep onboarding plan context when they register from the auth first step', function () {
+    $response = $this->post(route('onboarding.register'), [
+        'name' => 'Context Owner',
+        'email' => 'context-owner@example.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+        'source' => 'onboarding',
+        'plan' => 'solo_pro',
+        'billing_period' => 'yearly',
+    ]);
+
+    $user = User::query()->where('email', 'context-owner@example.com')->firstOrFail();
+
+    $this->assertAuthenticatedAs($user);
+    $response->assertRedirect(route('onboarding.index', [
+        'plan' => 'solo_pro',
+        'billing_period' => 'yearly',
+    ]));
+});

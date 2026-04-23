@@ -353,6 +353,10 @@ Backlog associe:
 
 ### Phase 5 - Onboarding auth first visible
 
+Etat:
+
+- livre le 2026-04-23
+
 Objectif:
 
 - transformer l etape compte en vrai choix de methode d acces

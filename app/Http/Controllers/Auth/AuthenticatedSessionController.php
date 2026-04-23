@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\BillingPeriod;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Services\AttendanceService;
@@ -19,11 +20,12 @@ class AuthenticatedSessionController extends Controller
     /**
      * Display the login view.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
+            'authContext' => $this->authContext($request),
         ]);
     }
 
@@ -38,7 +40,7 @@ class AuthenticatedSessionController extends Controller
 
         return app(WebLoginResponseService::class)->respond($request, $request->user(), [
             'auth_method' => 'password',
-            'source' => 'login',
+            ...$this->authContext($request),
         ]);
     }
 
@@ -60,5 +62,33 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/');
+    }
+
+    /**
+     * @return array{source: string, plan: ?string, billing_period: ?string}
+     */
+    private function authContext(Request $request): array
+    {
+        $source = trim((string) ($request->input('source') ?? $request->query('source') ?? 'login'));
+        if (! in_array($source, ['login', 'register', 'onboarding'], true)) {
+            $source = 'login';
+        }
+
+        return [
+            'source' => $source,
+            'plan' => $source === 'onboarding'
+                ? $this->normalizeOptionalString($request->input('plan') ?? $request->query('plan'))
+                : null,
+            'billing_period' => $source === 'onboarding'
+                ? BillingPeriod::tryFromMixed($request->input('billing_period') ?? $request->query('billing_period'))?->value
+                : null,
+        ];
+    }
+
+    private function normalizeOptionalString(mixed $value): ?string
+    {
+        $normalized = trim((string) $value);
+
+        return $normalized !== '' ? $normalized : null;
     }
 }

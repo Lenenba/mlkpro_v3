@@ -9,12 +9,20 @@ import TextInput from '@/Components/TextInput.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 
-defineProps({
+const props = defineProps({
     canResetPassword: {
         type: Boolean,
     },
     status: {
         type: String,
+    },
+    authContext: {
+        type: Object,
+        default: () => ({
+            source: 'login',
+            plan: null,
+            billing_period: null,
+        }),
     },
 });
 
@@ -24,6 +32,9 @@ const form = useForm({
     email: '',
     password: '',
     remember: false,
+    source: props.authContext?.source || 'login',
+    plan: props.authContext?.plan || null,
+    billing_period: props.authContext?.billing_period || null,
 });
 
 const submit = () => {
@@ -37,11 +48,11 @@ const submit = () => {
     <GuestLayout>
         <Head :title="t('auth_pages.login.title')" />
 
-        <div v-if="status" class="mb-4 text-sm font-medium text-green-600 dark:text-green-400">
-            {{ status }}
+        <div v-if="props.status" class="mb-4 text-sm font-medium text-green-600 dark:text-green-400">
+            {{ props.status }}
         </div>
 
-        <SocialAuthButtons source="login" />
+        <SocialAuthButtons source="login" :query="props.authContext" />
 
         <form @submit.prevent="submit">
             <div>
@@ -86,7 +97,7 @@ const submit = () => {
 
             <div class="mt-4 flex items-center justify-end">
                 <Link
-                    v-if="canResetPassword"
+                    v-if="props.canResetPassword"
                     :href="route('password.request')"
                     class="rounded-sm text-sm text-stone-600 underline hover:text-stone-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-stone-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:focus:ring-indigo-400 dark:focus:ring-offset-neutral-900"
                 >

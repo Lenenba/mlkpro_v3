@@ -15,6 +15,7 @@ import InputError from '@/Components/InputError.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import Modal from '@/Components/Modal.vue';
 import TermsContent from '@/Components/Legal/TermsContent.vue';
+import SocialAuthButtons from '@/Components/Auth/SocialAuthButtons.vue';
 
 const props = defineProps({
     preset: Object,
@@ -413,6 +414,16 @@ const selectStep = (item) => {
 };
 
 const selectedCurrencyCode = computed(() => String(form.currency_code || 'CAD').toUpperCase());
+const onboardingAuthQuery = computed(() => {
+    const plan = String(props.selectedPlanKey || form.plan_key || '').trim();
+    const billingPeriod = String(form.billing_period || props.selectedBillingPeriod || '').trim();
+
+    return {
+        source: 'onboarding',
+        plan: plan || null,
+        billing_period: billingPeriod || null,
+    };
+});
 const priceForCurrency = (plan) => plan?.prices_by_currency?.[selectedCurrencyCode.value]?.[form.billing_period] || null;
 const hasPlanPrice = (plan) => Boolean(plan?.contact_only || priceForCurrency(plan)?.stripe_price_id);
 const visiblePlanOptions = computed(() => {
@@ -588,7 +599,10 @@ const removeInvite = (index) => {
 };
 
 const submitRegister = () => {
-    registerForm.post(route('onboarding.register'), {
+    registerForm.transform((data) => ({
+        ...data,
+        ...onboardingAuthQuery.value,
+    })).post(route('onboarding.register'), {
         onFinish: () => registerForm.reset('password', 'password_confirmation'),
     });
 };
@@ -696,11 +710,45 @@ const closeTerms = () => {
 
                 <div class="p-4 space-y-4">
                     <div v-if="isGuest && step === stepIds.account" class="space-y-4">
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                {{ $t('onboarding.steps.account.title') }}
+                            </p>
+                            <h3 class="mt-2 text-base font-semibold text-stone-900 dark:text-neutral-100">
+                                {{ $t('onboarding.account.access_title') }}
+                            </h3>
+                            <p class="mt-2 text-sm text-stone-600 dark:text-neutral-300">
+                                {{ $t('onboarding.account.access_subtitle') }}
+                            </p>
+                        </div>
+
+                        <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                {{ $t('onboarding.account.social_title') }}
+                            </p>
+                            <p class="mt-2 text-sm text-stone-600 dark:text-neutral-300">
+                                {{ $t('onboarding.account.social_subtitle') }}
+                            </p>
+
+                            <div class="mt-4">
+                                <SocialAuthButtons source="onboarding" :query="onboardingAuthQuery" />
+                            </div>
+                        </div>
+
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
                             {{ $t('onboarding.account.owner_notice') }}
                         </div>
 
-                        <form class="space-y-3" @submit.prevent="submitRegister">
+                        <form class="space-y-3 rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900" @submit.prevent="submitRegister">
+                            <div class="space-y-1">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                    {{ $t('onboarding.account.email_title') }}
+                                </p>
+                                <p class="text-sm text-stone-600 dark:text-neutral-300">
+                                    {{ $t('onboarding.account.email_subtitle') }}
+                                </p>
+                            </div>
+
                             <FloatingInput v-model="registerForm.name" :label="$t('onboarding.account.full_name')" autocomplete="name" required />
                             <InputError class="mt-1" :message="registerForm.errors.name" />
 
@@ -732,7 +780,7 @@ const closeTerms = () => {
 
                             <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
                                 <Link
-                                    :href="route('login')"
+                                    :href="route('login', onboardingAuthQuery)"
                                     class="text-xs text-stone-600 hover:text-stone-900 dark:text-neutral-400 dark:hover:text-neutral-200"
                                 >
                                     {{ $t('onboarding.account.have_account') }}
