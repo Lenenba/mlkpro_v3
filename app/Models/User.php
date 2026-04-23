@@ -254,6 +254,11 @@ class User extends Authenticatable implements HasLocalePreferenceContract
         return $this->hasMany(SocialAccountConnection::class);
     }
 
+    public function userSocialAccounts(): HasMany
+    {
+        return $this->hasMany(UserSocialAccount::class);
+    }
+
     public function socialPosts(): HasMany
     {
         return $this->hasMany(SocialPost::class);

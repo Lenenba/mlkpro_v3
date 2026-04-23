@@ -17,6 +17,11 @@
       "already_registered": "Déjà inscrit ?",
       "submit": "Créer le compte"
     },
+    "social": {
+      "title": "Continuer avec",
+      "continue_with": "Continuer avec {provider}",
+      "separator": "ou"
+    },
     "forgot_password": {
       "title": "Mot de passe oublié",
       "description": "Mot de passe oublié ? Aucun souci. Saisissez votre adresse email et nous vous enverrons un lien de réinitialisation pour choisir un nouveau mot de passe.",

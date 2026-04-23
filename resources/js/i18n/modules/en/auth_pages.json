@@ -17,6 +17,11 @@
       "already_registered": "Already registered?",
       "submit": "Create account"
     },
+    "social": {
+      "title": "Continue with",
+      "continue_with": "Continue with {provider}",
+      "separator": "or"
+    },
     "forgot_password": {
       "title": "Forgot password",
       "description": "Forgot your password? No problem. Enter your email address and we'll send you a reset link so you can choose a new one.",

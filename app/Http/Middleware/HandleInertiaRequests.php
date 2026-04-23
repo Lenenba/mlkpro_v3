@@ -6,6 +6,7 @@ use App\Models\DemoWorkspace;
 use App\Models\PlatformSetting;
 use App\Models\TeamMemberShift;
 use App\Models\User;
+use App\Services\Auth\SocialAuthProviderRegistry;
 use App\Services\CompanyFeatureService;
 use App\Support\Database\UserSelects;
 use App\Support\LocalePreference;
@@ -41,6 +42,7 @@ class HandleInertiaRequests extends Middleware
         $ownerId = $user?->accountOwnerId();
         $siteUrl = rtrim((string) (config('app.url') ?: $request->getSchemeAndHttpHost()), '/');
         $featureService = app(CompanyFeatureService::class);
+        $socialAuthProviders = app(SocialAuthProviderRegistry::class);
 
         $accountOwner = null;
         $accountFeatures = null;
@@ -196,6 +198,7 @@ class HandleInertiaRequests extends Middleware
                 'social_image_url' => url('brand/social-card.png'),
                 'apple_touch_icon_url' => url('apple-touch-icon.png'),
             ],
+            'socialAuth' => $socialAuthProviders->publicPayload(),
             'demo' => [
                 'enabled' => (bool) config('demo.enabled'),
                 'allow_reset' => (bool) config('demo.allow_reset'),

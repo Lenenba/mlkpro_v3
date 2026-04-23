@@ -1,4 +1,5 @@
 <script setup>
+import SocialAuthButtons from '@/Components/Auth/SocialAuthButtons.vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -26,6 +27,8 @@ const submit = () => {
 <template>
     <GuestLayout>
         <Head :title="t('auth_pages.register.title')" />
+
+        <SocialAuthButtons source="register" />
 
         <form @submit.prevent="submit">
             <div>

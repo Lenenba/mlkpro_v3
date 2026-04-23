@@ -19,7 +19,7 @@
     "steps": {
       "account": {
         "title": "Cuenta",
-        "description": "Credenciales y seguridad."
+        "description": "Empieza por el acceso del propietario."
       },
       "company": {
         "title": "Empresa",
@@ -51,7 +51,7 @@
       }
     },
     "account": {
-      "owner_notice": "Esta cuenta se convertira en la propietaria de la empresa.",
+      "owner_notice": "Empieza creando o conectando la cuenta propietaria. Las demas etapas se desbloquean despues.",
       "full_name": "Nombre completo",
       "email": "Email",
       "password": "Contrasena",

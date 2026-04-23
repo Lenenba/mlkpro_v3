@@ -19,7 +19,7 @@
     "steps": {
       "account": {
         "title": "Compte",
-        "description": "Identifiants et sécurité."
+        "description": "Commencez par l acces proprietaire."
       },
       "company": {
         "title": "Entreprise",
@@ -51,7 +51,7 @@
       }
     },
     "account": {
-      "owner_notice": "Ce compte deviendra le propriétaire de l'entreprise.",
+      "owner_notice": "Commencez par creer ou connecter le compte proprietaire. Les autres etapes se debloquent ensuite.",
       "full_name": "Nom complet",
       "email": "Email",
       "password": "Mot de passe",

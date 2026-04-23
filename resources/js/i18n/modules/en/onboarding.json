@@ -19,7 +19,7 @@
     "steps": {
       "account": {
         "title": "Account",
-        "description": "Credentials and security."
+        "description": "Start with the owner access step."
       },
       "company": {
         "title": "Company",
@@ -51,7 +51,7 @@
       }
     },
     "account": {
-      "owner_notice": "This account will become the company owner.",
+      "owner_notice": "Start by creating or signing in to the owner account. The remaining onboarding steps unlock after that.",
       "full_name": "Full name",
       "email": "Email",
       "password": "Password",
