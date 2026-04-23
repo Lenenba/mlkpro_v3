@@ -9,6 +9,14 @@ beforeEach(function () {
     config()->set('social_auth.providers.google.client_secret', 'google-client-secret');
     config()->set('social_auth.providers.google.redirect_uri', 'https://app.test/auth/social/google/callback');
     config()->set('social_auth.providers.google.implemented', true);
+    config()->set('social_auth.providers.microsoft.enabled', false);
+    config()->set('social_auth.providers.microsoft.client_id', null);
+    config()->set('social_auth.providers.microsoft.client_secret', null);
+    config()->set('social_auth.providers.microsoft.redirect_uri', null);
+    config()->set('social_auth.providers.facebook.enabled', false);
+    config()->set('social_auth.providers.facebook.client_id', null);
+    config()->set('social_auth.providers.facebook.client_secret', null);
+    config()->set('social_auth.providers.facebook.redirect_uri', null);
 });
 
 test('login screen shares enabled social auth providers for frontend wiring', function () {

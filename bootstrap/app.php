@@ -33,6 +33,9 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\RecordRequestMetrics::class,
         ]);
         $middleware->throttleApi();
+        $middleware->validateCsrfTokens(except: [
+            'integrations/facebook/data-deletion',
+        ]);
 
         $middleware->alias([
             'company.feature' => \App\Http\Middleware\EnsureCompanyFeature::class,

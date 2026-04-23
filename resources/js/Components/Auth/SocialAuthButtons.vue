@@ -47,10 +47,20 @@ const providerButtonClass = (provider) => {
     }
 
     if (key === 'facebook') {
-        return 'border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100';
+        return 'border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50';
     }
 
     return 'border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50';
+};
+
+const providerIconClass = (provider) => {
+    const key = String(provider?.key || '').toLowerCase();
+
+    if (key === 'facebook') {
+        return 'h-[22px] w-[22px]';
+    }
+
+    return 'h-5 w-5';
 };
 </script>
 
@@ -74,7 +84,7 @@ const providerButtonClass = (provider) => {
                     v-if="provider.key === 'google'"
                     aria-hidden="true"
                     viewBox="0 0 24 24"
-                    class="h-5 w-5"
+                    :class="providerIconClass(provider)"
                 >
                     <path
                         fill="#4285F4"
@@ -98,7 +108,7 @@ const providerButtonClass = (provider) => {
                     v-else-if="provider.key === 'microsoft'"
                     aria-hidden="true"
                     viewBox="0 0 24 24"
-                    class="h-5 w-5"
+                    :class="providerIconClass(provider)"
                 >
                     <rect x="2" y="2" width="9" height="9" fill="#F25022" />
                     <rect x="13" y="2" width="9" height="9" fill="#7FBA00" />
@@ -110,12 +120,12 @@ const providerButtonClass = (provider) => {
                     v-else-if="provider.key === 'facebook'"
                     aria-hidden="true"
                     viewBox="0 0 24 24"
-                    class="h-5 w-5"
+                    :class="providerIconClass(provider)"
                 >
-                    <circle cx="12" cy="12" r="10" fill="#1877F2" />
+                    <rect x="2" y="2" width="20" height="20" rx="5" fill="#1877F2" />
                     <path
                         fill="#fff"
-                        d="M13.12 19v-6.16h2.07l.31-2.4h-2.38V8.92c0-.7.19-1.17 1.19-1.17H15.5V5.6c-.2-.03-.9-.08-1.72-.08-1.7 0-2.86 1.04-2.86 2.96v1.96H9v2.4h1.92V19h2.2Z"
+                        d="M13.92 19v-5.02h1.7l.27-2.17h-1.97v-1.39c0-.63.18-1.06 1.08-1.06h.99V7.43c-.17-.02-.77-.07-1.47-.07-1.45 0-2.45.89-2.45 2.52v1.93h-1.64v2.17h1.64V19h1.85Z"
                     />
                 </svg>
 

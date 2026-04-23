@@ -98,6 +98,9 @@ return [
             'token_url' => env('SOCIAL_AUTH_FACEBOOK_TOKEN_URL', 'https://graph.facebook.com/v23.0/oauth/access_token'),
             'userinfo_url' => env('SOCIAL_AUTH_FACEBOOK_USERINFO_URL', 'https://graph.facebook.com/me?fields=id,name,email,picture'),
             'scopes' => $socialAuthScopes('SOCIAL_AUTH_FACEBOOK_SCOPES', 'email public_profile'),
+            'data_deletion' => [
+                'delete_local_account' => $socialAuthBool('SOCIAL_AUTH_FACEBOOK_DATA_DELETION_DELETE_LOCAL_ACCOUNT', false),
+            ],
         ],
     ],
 ];
