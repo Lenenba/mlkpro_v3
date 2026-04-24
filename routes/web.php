@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\AiImageController;
 use App\Http\Controllers\AssistantController;
+use App\Http\Controllers\Auth\FacebookDataDeletionController;
 use App\Http\Controllers\CampaignAutomationController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CampaignProspectingController;
@@ -39,7 +40,6 @@ use App\Http\Controllers\PlanningController;
 use App\Http\Controllers\PlanScanController;
 use App\Http\Controllers\PlaybookController;
 use App\Http\Controllers\PlaybookRunController;
-use App\Http\Controllers\Auth\FacebookDataDeletionController;
 use App\Http\Controllers\Portal\PortalInvoiceController;
 use App\Http\Controllers\Portal\PortalLoyaltyController;
 use App\Http\Controllers\Portal\PortalProductOrderController;
