@@ -42,19 +42,19 @@ Route::middleware('guest')->group(function () {
         ->name('password.store');
 
     Route::get('auth/social/{provider}/redirect', [SocialAuthController::class, 'redirect'])
-        ->whereIn('provider', ['google', 'microsoft', 'facebook'])
+        ->whereIn('provider', ['google', 'microsoft', 'facebook', 'linkedin'])
         ->name('auth.social.redirect');
 
     Route::get('auth/social/{provider}/callback', [SocialAuthController::class, 'callback'])
-        ->whereIn('provider', ['google', 'microsoft', 'facebook'])
+        ->whereIn('provider', ['google', 'microsoft', 'facebook', 'linkedin'])
         ->name('auth.social.callback');
 
     // Legacy aliases kept for older OAuth provider configs that still use /auth/{provider}/...
     Route::get('auth/{provider}/redirect', [SocialAuthController::class, 'redirect'])
-        ->whereIn('provider', ['google', 'microsoft', 'facebook']);
+        ->whereIn('provider', ['google', 'microsoft', 'facebook', 'linkedin']);
 
     Route::get('auth/{provider}/callback', [SocialAuthController::class, 'callback'])
-        ->whereIn('provider', ['google', 'microsoft', 'facebook']);
+        ->whereIn('provider', ['google', 'microsoft', 'facebook', 'linkedin']);
 });
 
 Route::middleware('auth')->group(function () {
