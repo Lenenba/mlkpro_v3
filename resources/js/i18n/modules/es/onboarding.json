@@ -19,7 +19,7 @@
     "steps": {
       "account": {
         "title": "Cuenta",
-        "description": "Credenciales y seguridad."
+        "description": "Empieza por el acceso del propietario."
       },
       "company": {
         "title": "Empresa",
@@ -51,7 +51,13 @@
       }
     },
     "account": {
-      "owner_notice": "Esta cuenta se convertira en la propietaria de la empresa.",
+      "access_title": "Elegir como continuar",
+      "access_subtitle": "Conecta primero la cuenta propietaria y luego continua con el onboarding de la empresa.",
+      "social_title": "Continuar con una red",
+      "social_subtitle": "Google, Microsoft y Facebook ahorran tiempo cuando estan disponibles.",
+      "email_title": "Continuar con email",
+      "email_subtitle": "Crea aqui la cuenta propietaria si prefieres un flujo clasico basado en email.",
+      "owner_notice": "Empieza creando o conectando la cuenta propietaria. Las demas etapas se desbloquean despues.",
       "full_name": "Nombre completo",
       "email": "Email",
       "password": "Contrasena",

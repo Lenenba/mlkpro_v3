@@ -31,6 +31,26 @@ test('users can authenticate using the login screen', function () {
     $response->assertRedirect(route('dashboard', absolute: false));
 });
 
+test('users can authenticate from onboarding and keep the selected plan context', function () {
+    $user = User::factory()->create([
+        'onboarding_completed_at' => null,
+    ]);
+
+    $response = $this->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+        'source' => 'onboarding',
+        'plan' => 'growth',
+        'billing_period' => 'yearly',
+    ]);
+
+    $this->assertAuthenticated();
+    $response->assertRedirect(route('onboarding.index', [
+        'plan' => 'growth',
+        'billing_period' => 'yearly',
+    ]));
+});
+
 test('users without a saved locale inherit the selected public locale on login', function () {
     $user = User::factory()->create([
         'locale' => null,

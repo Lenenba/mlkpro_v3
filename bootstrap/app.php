@@ -33,6 +33,9 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\RecordRequestMetrics::class,
         ]);
         $middleware->throttleApi();
+        $middleware->validateCsrfTokens(except: [
+            'integrations/facebook/data-deletion',
+        ]);
 
         $middleware->alias([
             'company.feature' => \App\Http\Middleware\EnsureCompanyFeature::class,
@@ -43,7 +46,14 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->reportable(function (\Throwable $exception): void {
-            app(ErrorMetricsService::class)->record($exception, request());
+            try {
+                app(ErrorMetricsService::class)->record(
+                    $exception,
+                    app()->bound('request') ? request() : null
+                );
+            } catch (\Throwable) {
+                // Keep console/bootstrap exceptions reportable even before facades are fully ready.
+            }
         });
 
         $redirectForbidden = function (Request $request, ?string $message = null) {

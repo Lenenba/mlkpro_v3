@@ -35,6 +35,12 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
         'tasks.edit',
         'campaigns.manage',
     ]);
+    const canSocial = isOwner || hasAnyPermission(teamPermissions, [
+        'social.view',
+        'social.manage',
+        'social.publish',
+        'social.approve',
+    ]);
     const canExpensesNav = isOwner || hasAnyPermission(teamPermissions, [
         'expenses.view',
         'expenses.create',
@@ -203,6 +209,14 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             routeName: 'campaigns.index',
             tone: 'campaigns',
             visible: hasFeature('campaigns') && canCampaigns && !isClient && !isSeller,
+        },
+        social: {
+            key: 'social',
+            labelKey: 'nav.social',
+            descriptionKey: 'workspace_hub.modules.social',
+            routeName: 'social.index',
+            tone: 'social',
+            visible: hasFeature('social') && canSocial && !isClient && !isSeller,
         },
         loyalty: {
             key: 'loyalty',
@@ -399,8 +413,8 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             titleKey: 'workspace_hub.categories.growth.title',
             icon: 'growth',
             tone: 'growth',
-            match: ['promotions.*', 'campaigns.*', 'campaign-automations.*', 'campaign-runs.*', 'loyalty.*', 'settings.loyalty.*', 'performance.*'],
-            moduleKeys: ['promotions', 'campaigns', 'loyalty', 'performance'],
+            match: ['promotions.*', 'campaigns.*', 'campaign-automations.*', 'campaign-runs.*', 'social.*', 'loyalty.*', 'settings.loyalty.*', 'performance.*'],
+            moduleKeys: ['promotions', 'campaigns', 'social', 'loyalty', 'performance'],
         },
         {
             key: 'operations',

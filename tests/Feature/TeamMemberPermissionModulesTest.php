@@ -143,3 +143,30 @@ test('team member page exposes finance permissions when expenses and invoices ar
             })
         );
 });
+
+test('team member page exposes Malikia Pulse permissions when the social module is enabled', function () {
+    $owner = teamPermissionOwner([
+        'company_features' => [
+            'team_members' => true,
+            'tasks' => false,
+            'social' => true,
+        ],
+    ]);
+
+    $this->actingAs($owner)
+        ->get(route('team.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Team/Index')
+            ->where('availablePermissions', function ($permissions) {
+                $ids = collect($permissions)->pluck('id')->all();
+
+                return collect([
+                    'social.view',
+                    'social.manage',
+                    'social.publish',
+                    'social.approve',
+                ])->every(fn ($id) => in_array($id, $ids, true));
+            })
+        );
+});

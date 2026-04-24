@@ -8,6 +8,10 @@ defineProps({
         type: Object,
         required: true,
     },
+    canPublishWithPulse: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 defineEmits(['quick-edit', 'adjust', 'duplicate', 'toggle-archive', 'delete']);
@@ -44,6 +48,13 @@ const { t } = useI18n();
         >
             {{ t('products.actions.duplicate') }}
         </button>
+        <Link
+            v-if="canPublishWithPulse"
+            :href="route('social.composer', { source_type: 'product', source_id: product.id })"
+            class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+        >
+            {{ t('social.composer_manager.actions.publish_with_pulse') }}
+        </Link>
         <button
             type="button"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback"

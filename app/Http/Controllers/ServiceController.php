@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\Social\SocialPrefillService;
 use App\Services\StripeCatalogService;
 use App\Services\UsageLimitService;
 use App\Utils\FileHandler;
@@ -80,6 +81,11 @@ class ServiceController extends Controller
             'stats' => $stats,
             'count' => $stats['total'],
             'tenantCurrencyCode' => $tenantCurrencyCode,
+            'pulse' => [
+                'can_open' => $user
+                    ? app(SocialPrefillService::class)->canOpenComposer($user, $user)
+                    : false,
+            ],
         ]);
     }
 

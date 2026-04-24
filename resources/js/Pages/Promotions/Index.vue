@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AppModal from '@/Components/Modal.vue';
@@ -28,6 +28,10 @@ const props = defineProps({
         default: () => [],
     },
     enums: {
+        type: Object,
+        default: () => ({}),
+    },
+    pulse: {
         type: Object,
         default: () => ({}),
     },
@@ -91,6 +95,7 @@ const totalPromotions = computed(() => props.promotions.length);
 const activePromotions = computed(() => props.promotions.filter((promotion) => promotion.status === 'active').length);
 const validPromotions = computed(() => props.promotions.filter((promotion) => promotion.is_currently_valid).length);
 const codedPromotions = computed(() => props.promotions.filter((promotion) => promotion.code).length);
+const canOpenPulseComposer = computed(() => Boolean(props.pulse?.can_open));
 
 const targetTypeLabel = (type) => {
     const match = targetTypeOptions.value.find((option) => option.value === type);
@@ -333,6 +338,13 @@ const deletePromotion = (promotion) => {
                                         >
                                             {{ promotion.status === 'active' ? t('promotions.actions.deactivate') : t('promotions.actions.activate') }}
                                         </button>
+                                        <Link
+                                            v-if="canOpenPulseComposer"
+                                            :href="route('social.composer', { source_type: 'promotion', source_id: promotion.id })"
+                                            class="rounded-sm border border-green-200 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50 dark:border-green-500/30 dark:text-green-200 dark:hover:bg-green-500/10"
+                                        >
+                                            {{ t('social.composer_manager.actions.publish_with_pulse') }}
+                                        </Link>
                                         <button
                                             type="button"
                                             class="rounded-sm border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10"

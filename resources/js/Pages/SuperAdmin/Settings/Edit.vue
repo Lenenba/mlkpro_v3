@@ -102,6 +102,7 @@ const moduleKeys = computed(() => [
     { key: 'assistant', label: t('super_admin.settings.modules.assistant') },
     { key: 'loyalty', label: t('super_admin.settings.modules.loyalty') },
     { key: 'campaigns', label: t('super_admin.settings.modules.campaigns') },
+    { key: 'social', label: t('super_admin.settings.modules.social') },
 ]);
 
 const form = useForm({

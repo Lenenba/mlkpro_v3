@@ -1,4 +1,5 @@
 <script setup>
+import SocialAuthButtons from '@/Components/Auth/SocialAuthButtons.vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -7,6 +8,17 @@ import TextInput from '@/Components/TextInput.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 
+const props = defineProps({
+    authContext: {
+        type: Object,
+        default: () => ({
+            source: 'register',
+            plan: null,
+            billing_period: null,
+        }),
+    },
+});
+
 const { t } = useI18n();
 
 const form = useForm({
@@ -14,6 +26,9 @@ const form = useForm({
     email: '',
     password: '',
     password_confirmation: '',
+    source: props.authContext?.source || 'register',
+    plan: props.authContext?.plan || null,
+    billing_period: props.authContext?.billing_period || null,
 });
 
 const submit = () => {
@@ -26,6 +41,8 @@ const submit = () => {
 <template>
     <GuestLayout>
         <Head :title="t('auth_pages.register.title')" />
+
+        <SocialAuthButtons source="register" :query="props.authContext" />
 
         <form @submit.prevent="submit">
             <div>
@@ -97,7 +114,7 @@ const submit = () => {
 
             <div class="mt-4 flex items-center justify-end">
                 <Link
-                    :href="route('login')"
+                    :href="route('login', props.authContext)"
                     class="rounded-sm text-sm text-stone-600 underline hover:text-stone-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-stone-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:focus:ring-indigo-400 dark:focus:ring-offset-neutral-900"
                 >
                     {{ t('auth_pages.register.already_registered') }}

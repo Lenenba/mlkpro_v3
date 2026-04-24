@@ -8,6 +8,7 @@ const moduleRoutePatterns = {
     sales: ['sales.*'],
     promotions: ['promotions.*'],
     campaigns: ['campaigns.*', 'campaign-automations.*', 'campaign-runs.*'],
+    social: ['social.*'],
     loyalty: ['loyalty.*', 'settings.loyalty.*'],
     performance: ['performance.*'],
     jobs: ['jobs.index', 'work.*'],
@@ -309,9 +310,10 @@ const buildPromotionsModuleTail = (t) => {
         return [];
     }
 
-    return [
-        makeItem('promotions', t('nav.promotions')),
-    ].filter(Boolean);
+    // Promotions currently uses a single index page with modal CRUD.
+    // The module breadcrumb already points to "Promotions", so adding
+    // another tail item produces a duplicate "Promotions > Promotions".
+    return [];
 };
 
 const buildPerformanceModuleTail = (pageProps) => {

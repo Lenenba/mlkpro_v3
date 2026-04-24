@@ -19,6 +19,7 @@ use App\Services\Campaigns\CampaignService;
 use App\Services\Campaigns\MarketingSettingsService;
 use App\Services\Campaigns\ProspectProviderConnectionService;
 use App\Services\Customers\CustomerBulkAudienceBridgeService;
+use App\Services\Social\SocialPrefillService;
 use Illuminate\Http\Request;
 
 class CampaignController extends Controller
@@ -94,6 +95,9 @@ class CampaignController extends Controller
                 'can_manage' => $canManage,
                 'can_send' => $canSend,
             ],
+            'pulse' => [
+                'can_open' => app(SocialPrefillService::class)->canOpenComposer($owner, $user),
+            ],
         ]);
     }
 
@@ -127,6 +131,9 @@ class CampaignController extends Controller
             'access' => [
                 'can_manage' => $canManage,
                 'can_send' => $canSend,
+            ],
+            'pulse' => [
+                'can_open' => app(SocialPrefillService::class)->canOpenComposer($owner, $user),
             ],
         ]);
     }
@@ -207,6 +214,9 @@ class CampaignController extends Controller
             'access' => [
                 'can_manage' => $canManage,
                 'can_send' => $canSend,
+            ],
+            'pulse' => [
+                'can_open' => app(SocialPrefillService::class)->canOpenComposer($owner, $user),
             ],
         ]);
     }
@@ -414,6 +424,9 @@ class CampaignController extends Controller
                 'can_view' => $canView,
                 'can_manage' => $canManage,
                 'can_send' => $canSend,
+            ],
+            'pulse' => [
+                'can_open' => app(SocialPrefillService::class)->canOpenComposer($owner, $user),
             ],
         ]);
     }

@@ -17,6 +17,11 @@
       "already_registered": "Ya estas registrado?",
       "submit": "Crear cuenta"
     },
+    "social": {
+      "title": "Continuar con",
+      "continue_with": "Continuar con {provider}",
+      "separator": "o"
+    },
     "forgot_password": {
       "title": "Olvidaste tu contrasena",
       "description": "Has olvidado tu contrasena? No pasa nada. Escribe tu correo electronico y te enviaremos un enlace para restablecerla y elegir una nueva.",

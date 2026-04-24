@@ -113,6 +113,63 @@ return [
         ],
     ],
 
+    'social' => [
+        'facebook' => [
+            'oauth' => [
+                'client_id' => env('SOCIAL_FACEBOOK_CLIENT_ID'),
+                'client_secret' => env('SOCIAL_FACEBOOK_CLIENT_SECRET'),
+                'redirect_uri' => env('SOCIAL_FACEBOOK_REDIRECT_URI'),
+                'authorize_url' => env('SOCIAL_FACEBOOK_AUTHORIZE_URL', 'https://www.facebook.com/v23.0/dialog/oauth'),
+                'token_url' => env('SOCIAL_FACEBOOK_TOKEN_URL', 'https://graph.facebook.com/v23.0/oauth/access_token'),
+                'refresh_url' => env('SOCIAL_FACEBOOK_REFRESH_URL', 'https://graph.facebook.com/v23.0/oauth/access_token'),
+            ],
+            'publish' => [
+                'url' => env('SOCIAL_FACEBOOK_PUBLISH_URL'),
+                'timeout' => env('SOCIAL_FACEBOOK_PUBLISH_TIMEOUT', 20),
+            ],
+        ],
+        'instagram' => [
+            'oauth' => [
+                'client_id' => env('SOCIAL_INSTAGRAM_CLIENT_ID'),
+                'client_secret' => env('SOCIAL_INSTAGRAM_CLIENT_SECRET'),
+                'redirect_uri' => env('SOCIAL_INSTAGRAM_REDIRECT_URI'),
+                'authorize_url' => env('SOCIAL_INSTAGRAM_AUTHORIZE_URL', 'https://www.facebook.com/v23.0/dialog/oauth'),
+                'token_url' => env('SOCIAL_INSTAGRAM_TOKEN_URL', 'https://graph.facebook.com/v23.0/oauth/access_token'),
+                'refresh_url' => env('SOCIAL_INSTAGRAM_REFRESH_URL', 'https://graph.instagram.com/refresh_access_token'),
+            ],
+            'publish' => [
+                'url' => env('SOCIAL_INSTAGRAM_PUBLISH_URL'),
+                'timeout' => env('SOCIAL_INSTAGRAM_PUBLISH_TIMEOUT', 20),
+            ],
+        ],
+        'linkedin' => [
+            'oauth' => [
+                'client_id' => env('SOCIAL_LINKEDIN_CLIENT_ID'),
+                'client_secret' => env('SOCIAL_LINKEDIN_CLIENT_SECRET'),
+                'redirect_uri' => env('SOCIAL_LINKEDIN_REDIRECT_URI'),
+                'authorize_url' => env('SOCIAL_LINKEDIN_AUTHORIZE_URL', 'https://www.linkedin.com/oauth/v2/authorization'),
+                'token_url' => env('SOCIAL_LINKEDIN_TOKEN_URL', 'https://www.linkedin.com/oauth/v2/accessToken'),
+            ],
+            'publish' => [
+                'url' => env('SOCIAL_LINKEDIN_PUBLISH_URL'),
+                'timeout' => env('SOCIAL_LINKEDIN_PUBLISH_TIMEOUT', 20),
+            ],
+        ],
+        'x' => [
+            'oauth' => [
+                'client_id' => env('SOCIAL_X_CLIENT_ID'),
+                'client_secret' => env('SOCIAL_X_CLIENT_SECRET'),
+                'redirect_uri' => env('SOCIAL_X_REDIRECT_URI'),
+                'authorize_url' => env('SOCIAL_X_AUTHORIZE_URL', 'https://x.com/i/oauth2/authorize'),
+                'token_url' => env('SOCIAL_X_TOKEN_URL', 'https://api.x.com/2/oauth2/token'),
+            ],
+            'publish' => [
+                'url' => env('SOCIAL_X_PUBLISH_URL'),
+                'timeout' => env('SOCIAL_X_PUBLISH_TIMEOUT', 20),
+            ],
+        ],
+    ],
+
     'rate_limits' => [
         'api_per_user' => env('API_RATE_LIMIT_PER_MINUTE', 120),
         'public_signed_per_minute' => env('PUBLIC_SIGNED_RATE_LIMIT_PER_MINUTE', 30),

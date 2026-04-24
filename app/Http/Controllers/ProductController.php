@@ -16,6 +16,7 @@ use App\Services\Assistant\OpenAiClient;
 use App\Services\Assistant\OpenAiRequestException;
 use App\Services\AssistantCreditService;
 use App\Services\InventoryService;
+use App\Services\Social\SocialPrefillService;
 use App\Services\StripeCatalogService;
 use App\Services\UsageLimitService;
 use App\Support\BulkActions\BulkActionRegistry;
@@ -251,6 +252,9 @@ class ProductController extends Controller
             ]),
             'ai_image' => $aiImagePayload,
             'tenantCurrencyCode' => $tenantCurrencyCode,
+            'pulse' => [
+                'can_open' => app(SocialPrefillService::class)->canOpenComposer($owner, $user),
+            ],
         ]);
     }
 
@@ -589,7 +593,7 @@ class ProductController extends Controller
         if (! $user) {
             abort(403);
         }
-        [, $accountId, $canEdit] = $this->resolveProductAccount($user);
+        [$owner, $accountId, $canEdit] = $this->resolveProductAccount($user);
         $warehouses = Warehouse::query()
             ->forAccount($accountId)
             ->orderBy('name')
@@ -615,6 +619,9 @@ class ProductController extends Controller
             'warehouses' => $warehouses,
             'defaultWarehouseId' => $defaultWarehouseId,
             'canEdit' => $canEdit,
+            'pulse' => [
+                'can_open' => app(SocialPrefillService::class)->canOpenComposer($owner, $user),
+            ],
         ]);
     }
 
@@ -1717,7 +1724,7 @@ class ProductController extends Controller
         $owner = $ownerId === $user->id
             ? $user
             : User::query()
-                ->select(['id', 'company_type'])
+                ->select(['id', 'company_type', 'company_sector', 'company_features'])
                 ->find($ownerId);
 
         if (! $owner) {

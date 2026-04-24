@@ -19,7 +19,7 @@
     "steps": {
       "account": {
         "title": "Compte",
-        "description": "Identifiants et sécurité."
+        "description": "Commencez par l acces proprietaire."
       },
       "company": {
         "title": "Entreprise",
@@ -51,7 +51,13 @@
       }
     },
     "account": {
-      "owner_notice": "Ce compte deviendra le propriétaire de l'entreprise.",
+      "access_title": "Choisir comment continuer",
+      "access_subtitle": "Connectez d abord le compte proprietaire, puis continuez l onboarding de l entreprise.",
+      "social_title": "Continuer avec un reseau",
+      "social_subtitle": "Google, Microsoft et Facebook vous font gagner du temps quand ils sont disponibles.",
+      "email_title": "Continuer avec email",
+      "email_subtitle": "Créez le compte proprietaire ici si vous preferez rester sur un parcours email classique.",
+      "owner_notice": "Commencez par creer ou connecter le compte proprietaire. Les autres etapes se debloquent ensuite.",
       "full_name": "Nom complet",
       "email": "Email",
       "password": "Mot de passe",

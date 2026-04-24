@@ -18,6 +18,10 @@ defineProps({
         type: String,
         default: 'CAD',
     },
+    pulse: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 </script>
 
@@ -33,6 +37,7 @@ defineProps({
                 :categories="categories"
                 :materialProducts="materialProducts"
                 :tenant-currency-code="tenantCurrencyCode"
+                :pulse="pulse"
             />
         </div>
     </AuthenticatedLayout>

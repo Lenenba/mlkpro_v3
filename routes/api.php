@@ -75,6 +75,8 @@ use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SubscriptionController;
+use App\Http\Controllers\SocialAccountConnectionController;
+use App\Http\Controllers\SocialPostController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\SupportTicketMessageController;
 use App\Http\Controllers\TaskController;
@@ -464,6 +466,34 @@ Route::name('api.')->group(function () {
                 Route::post('campaign-automations', [CampaignAutomationController::class, 'store']);
                 Route::put('campaign-automations/{rule}', [CampaignAutomationController::class, 'update']);
                 Route::delete('campaign-automations/{rule}', [CampaignAutomationController::class, 'destroy']);
+            });
+
+            Route::middleware('company.feature:social')->group(function () {
+                Route::get('social', [SocialPostController::class, 'index']);
+                Route::get('social/composer', [SocialPostController::class, 'composer']);
+                Route::get('social/templates', [SocialPostController::class, 'templates']);
+                Route::get('social/history', [SocialPostController::class, 'history']);
+                Route::post('social/suggestions', [SocialPostController::class, 'suggestions']);
+                Route::post('social/posts', [SocialPostController::class, 'store']);
+                Route::put('social/posts/{post}', [SocialPostController::class, 'update']);
+                Route::post('social/posts/{post}/publish', [SocialPostController::class, 'publish']);
+                Route::post('social/posts/{post}/schedule', [SocialPostController::class, 'schedule']);
+                Route::post('social/posts/{post}/submit-approval', [SocialPostController::class, 'submitApproval']);
+                Route::post('social/posts/{post}/approve', [SocialPostController::class, 'approve']);
+                Route::post('social/posts/{post}/reject', [SocialPostController::class, 'reject']);
+                Route::post('social/posts/{post}/duplicate', [SocialPostController::class, 'duplicate']);
+                Route::post('social/posts/{post}/repost', [SocialPostController::class, 'repost']);
+                Route::post('social/templates', [SocialPostController::class, 'storeTemplate']);
+                Route::put('social/templates/{template}', [SocialPostController::class, 'updateTemplate']);
+                Route::delete('social/templates/{template}', [SocialPostController::class, 'destroyTemplate']);
+                Route::get('social/accounts', [SocialAccountConnectionController::class, 'index']);
+                Route::post('social/accounts', [SocialAccountConnectionController::class, 'store']);
+                Route::put('social/accounts/{connection}', [SocialAccountConnectionController::class, 'update']);
+                Route::post('social/accounts/{connection}/authorize', [SocialAccountConnectionController::class, 'beginAuthorization']);
+                Route::post('social/accounts/{connection}/refresh', [SocialAccountConnectionController::class, 'refresh']);
+                Route::post('social/accounts/{connection}/test', [SocialAccountConnectionController::class, 'testConnection']);
+                Route::post('social/accounts/{connection}/disconnect', [SocialAccountConnectionController::class, 'disconnect']);
+                Route::delete('social/accounts/{connection}', [SocialAccountConnectionController::class, 'destroy']);
             });
 
             Route::get('customers/options', [CustomerController::class, 'options']);

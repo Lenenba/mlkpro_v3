@@ -67,6 +67,10 @@ const props = defineProps({
         type: String,
         default: 'CAD',
     },
+    pulse: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const normalizeArray = (value) => {
@@ -104,6 +108,7 @@ const { t } = useI18n();
 const page = usePage();
 
 const canEdit = computed(() => Boolean(props.canEdit));
+const canOpenPulseComposer = computed(() => Boolean(props.pulse?.can_open));
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const canCreateBulkOrder = computed(() => companyType.value === 'products');
 const aiImage = computed(() => (props.aiImage && typeof props.aiImage === 'object' ? props.aiImage : {}));
@@ -1584,6 +1589,7 @@ const submitImport = () => {
                             <ProductActionsMenu
                                 v-if="canEdit"
                                 :product="product"
+                                :can-publish-with-pulse="canOpenPulseComposer"
                                 @quick-edit="startInlineEdit(product)"
                                 @adjust="openAdjust(product)"
                                 @duplicate="duplicateProduct(product)"

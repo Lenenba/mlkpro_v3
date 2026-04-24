@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\BillingPeriod;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
@@ -20,9 +21,11 @@ class RegisteredUserController extends Controller
     /**
      * Display the registration view.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
-        return Inertia::render('Auth/Register');
+        return Inertia::render('Auth/Register', [
+            'authContext' => $this->authContext($request),
+        ]);
     }
 
     /**
@@ -62,6 +65,39 @@ class RegisteredUserController extends Controller
         app()->setLocale($locale);
         $request->session()->put('locale', $locale);
 
-        return redirect(route('onboarding.index', absolute: false));
+        $context = $this->authContext($request);
+
+        return redirect()->route('onboarding.index', array_filter([
+            'plan' => $context['source'] === 'onboarding' ? $context['plan'] : null,
+            'billing_period' => $context['source'] === 'onboarding' ? $context['billing_period'] : null,
+        ], static fn (?string $value): bool => $value !== null && $value !== ''));
+    }
+
+    /**
+     * @return array{source: string, plan: ?string, billing_period: ?string}
+     */
+    private function authContext(Request $request): array
+    {
+        $source = trim((string) ($request->input('source') ?? $request->query('source') ?? 'register'));
+        if (! in_array($source, ['login', 'register', 'onboarding'], true)) {
+            $source = 'register';
+        }
+
+        return [
+            'source' => $source,
+            'plan' => $source === 'onboarding'
+                ? $this->normalizeOptionalString($request->input('plan') ?? $request->query('plan'))
+                : null,
+            'billing_period' => $source === 'onboarding'
+                ? BillingPeriod::tryFromMixed($request->input('billing_period') ?? $request->query('billing_period'))?->value
+                : null,
+        ];
+    }
+
+    private function normalizeOptionalString(mixed $value): ?string
+    {
+        $normalized = trim((string) $value);
+
+        return $normalized !== '' ? $normalized : null;
     }
 }

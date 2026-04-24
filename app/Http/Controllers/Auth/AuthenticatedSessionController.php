@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\BillingPeriod;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Services\AttendanceService;
-use App\Services\Demo\DemoWorkspaceTimelineService;
+use App\Services\Auth\WebLoginResponseService;
 use App\Services\SecurityEventService;
-use App\Services\TwoFactorService;
-use App\Support\LocalePreference;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,11 +20,12 @@ class AuthenticatedSessionController extends Controller
     /**
      * Display the login view.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
+            'authContext' => $this->authContext($request),
         ]);
     }
 
@@ -38,81 +38,10 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        $user = $request->user();
-        $resolvedLocale = $user
-            ? LocalePreference::forRequest($request, $user)
-            : LocalePreference::forRequest($request);
-
-        if ($user && ! LocalePreference::isSupported($user->locale)) {
-            $user->forceFill(['locale' => $resolvedLocale])->save();
-        }
-
-        app()->setLocale($resolvedLocale);
-        $request->session()->put('locale', $resolvedLocale);
-
-        if ($user?->is_suspended) {
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
-            return redirect()
-                ->back()
-                ->withErrors(['email' => __('ui.auth.account_suspended')]);
-        }
-
-        if ($user?->requiresTwoFactor()) {
-            $twoFactorService = app(TwoFactorService::class);
-            $effectiveMethod = $twoFactorService->resolveEffectiveMethod($user);
-
-            if ($effectiveMethod !== TwoFactorService::METHOD_APP) {
-                $result = $twoFactorService->sendCode($user, true, $effectiveMethod);
-                if (! ($result['sent'] ?? false)) {
-                    Auth::guard('web')->logout();
-                    $request->session()->invalidate();
-                    $request->session()->regenerateToken();
-
-                    return redirect()
-                        ->back()
-                        ->withErrors(['email' => __('ui.auth.two_factor_delivery_failed')]);
-                }
-
-                $effectiveMethod = (string) ($result['method'] ?? $effectiveMethod);
-                app(SecurityEventService::class)->record($user, 'auth.2fa.sent', $request, [
-                    'reason' => 'login',
-                    'method' => $effectiveMethod,
-                ]);
-            }
-
-            $request->session()->put([
-                'two_factor_passed' => false,
-                'two_factor_pending' => true,
-                'two_factor_delivery_method' => $effectiveMethod,
-            ]);
-
-            return redirect()->route('two-factor.challenge');
-        }
-
-        if ($user) {
-            app(AttendanceService::class)->autoClockIn($user);
-            app(SecurityEventService::class)->record($user, 'auth.login', $request, [
-                'two_factor' => false,
-            ]);
-            app(DemoWorkspaceTimelineService::class)->recordLoginForUser($user, [
-                'two_factor' => false,
-            ]);
-        }
-
-        if ($user?->isAccountOwner() && ! $user->onboarding_completed_at && ! $user->isSuperadmin() && ! $user->isPlatformAdmin()) {
-            return redirect()->route('onboarding.index');
-        }
-
-        if ($user?->must_change_password) {
-            return redirect()
-                ->route('profile.edit')
-                ->with('warning', __('ui.auth.update_temporary_password'));
-        }
-
-        return redirect()->intended(route('dashboard', absolute: false));
+        return app(WebLoginResponseService::class)->respond($request, $request->user(), [
+            'auth_method' => 'password',
+            ...$this->authContext($request),
+        ]);
     }
 
     /**
@@ -133,5 +62,33 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/');
+    }
+
+    /**
+     * @return array{source: string, plan: ?string, billing_period: ?string}
+     */
+    private function authContext(Request $request): array
+    {
+        $source = trim((string) ($request->input('source') ?? $request->query('source') ?? 'login'));
+        if (! in_array($source, ['login', 'register', 'onboarding'], true)) {
+            $source = 'login';
+        }
+
+        return [
+            'source' => $source,
+            'plan' => $source === 'onboarding'
+                ? $this->normalizeOptionalString($request->input('plan') ?? $request->query('plan'))
+                : null,
+            'billing_period' => $source === 'onboarding'
+                ? BillingPeriod::tryFromMixed($request->input('billing_period') ?? $request->query('billing_period'))?->value
+                : null,
+        ];
+    }
+
+    private function normalizeOptionalString(mixed $value): ?string
+    {
+        $normalized = trim((string) $value);
+
+        return $normalized !== '' ? $normalized : null;
     }
 }

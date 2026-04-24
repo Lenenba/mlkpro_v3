@@ -42,6 +42,7 @@ class SuperAdminPlatformSettingsService
         'assistant',
         'loyalty',
         'campaigns',
+        'social',
     ];
 
     public function formPayload(): array

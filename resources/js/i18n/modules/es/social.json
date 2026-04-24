@@ -1,0 +1,417 @@
+{
+  "social": {
+    "workspace": {
+      "eyebrow": "Malikia Pulse",
+      "actions": {
+        "back_to_growth": "Volver al hub de crecimiento"
+      },
+      "tabs": {
+        "overview": "Resumen",
+        "accounts": "Cuentas",
+        "composer": "Composer",
+        "templates": "Templates",
+        "history": "Historial"
+      },
+      "stats": {
+        "connected_accounts": "Cuentas conectadas",
+        "draft_posts": "Borradores",
+        "scheduled_posts": "Programadas"
+      }
+    },
+    "index_page": {
+      "head_title": "Espacio Malikia Pulse",
+      "page_title": "Espacio Malikia Pulse",
+      "page_description": "Pasa de las cuentas conectadas a los primeros borradores listos para publicar sin salir del modulo.",
+      "read_only_title": "Acceso Pulse de solo lectura",
+      "read_only_description": "Puedes revisar las cuentas y los borradores existentes, pero solo los usuarios autorizados pueden cambiar el contenido por ahora.",
+      "cards": {
+        "accounts_title": "Control de cuentas conectadas",
+        "accounts_description": "Verifica que paginas y perfiles estan realmente disponibles antes de usarlos en un borrador.",
+        "configured_accounts": "Cuentas configuradas",
+        "connected_accounts": "Conexiones activas",
+        "accounts_action_manage": "Gestionar cuentas",
+        "accounts_action_view": "Ver cuentas",
+        "composer_title": "Composer de borradores",
+        "composer_description": "Prepara texto, imagen, enlace, programacion y seleccion de cuentas objetivo desde una sola pantalla Pulse.",
+        "composer_action_manage": "Abrir composer",
+        "composer_action_view": "Ver composer"
+      },
+      "recent_drafts_title": "Borradores recientes",
+      "recent_drafts_description": "Retoma los ultimos borradores Pulse sin reconstruir la seleccion de objetivos.",
+      "open_composer": "Abrir composer",
+      "empty_recent_drafts": "Todavia no se ha guardado ningun borrador Pulse.",
+      "untitled_draft": "Borrador Pulse sin titulo",
+      "draft_targets": "{count} destino | {count} destinos",
+      "empty_value": "No disponible"
+    },
+    "accounts_page": {
+      "head_title": "Cuentas de Malikia Pulse",
+      "page_title": "Cuentas de Malikia Pulse",
+      "page_description": "Prepara, conecta y sigue las cuentas sociales que Malikia Pulse usara para la publicacion multi-red.",
+      "actions": {
+        "back_to_growth": "Volver al hub de crecimiento"
+      }
+    },
+    "composer_page": {
+      "head_title": "Composer de Malikia Pulse",
+      "page_title": "Composer de Malikia Pulse",
+      "page_description": "Crea, publica o programa un post Pulse simple con texto, imagen, enlace, programacion y seleccion de varias cuentas."
+    },
+    "templates_page": {
+      "head_title": "Templates de Malikia Pulse",
+      "page_title": "Templates de Malikia Pulse",
+      "page_description": "Guarda estructuras de posts reutilizables, conserva las cuentas objetivo correctas y recargalas directamente dentro del composer."
+    },
+    "history_page": {
+      "head_title": "Historial de Malikia Pulse",
+      "page_title": "Historial de Malikia Pulse",
+      "page_description": "Revisa los ultimos posts Pulse, filtra el historial, duplica contenido util y vuelve a abrir los posts publicados como repost editable."
+    },
+    "composer_manager": {
+      "title": "Composer de borradores",
+      "description": "Guarda un borrador Pulse limpio y luego publicalo ahora o programalo en las cuentas conectadas seleccionadas.",
+      "read_only_title": "Composer de solo lectura",
+      "read_only_description": "Puedes revisar objetivos y borradores, pero necesitas `social.manage` o `social.publish` para guardar cambios.",
+      "prefill_title": "Fuente de negocio vinculada",
+      "prefill_description": "El contenido actual permanece vinculado a {source} hasta que retires esa fuente.",
+      "suggestions_title": "Sugerencias rapidas",
+      "suggestions_description": "Genera algunas captions base, hashtags editables y CTA reutilizables sin volver confuso el composer.",
+      "suggestions_captions_title": "Captions base",
+      "suggestions_hashtags_title": "Hashtags editables",
+      "suggestions_hashtags_description": "Anade, quita o aplica estos hashtags al texto actual cuando te ayuden.",
+      "suggestions_ctas_title": "CTA reutilizables",
+      "suggestions_ctas_description": "Anade una frase simple de accion al final del texto cuando encaje.",
+      "targets_title": "Destinos conectados",
+      "targets_description": "Elige una o varias cuentas sociales activas para este borrador.",
+      "drafts_title": "Biblioteca de borradores",
+      "drafts_description": "Los ultimos borradores Pulse permanecen aislados por tenant y conservan su seleccion de objetivos.",
+      "draft_targets": "{count} destino | {count} destinos",
+      "templates_title": "Atajos de templates",
+      "templates_description": "Guarda el contenido actual como template reutilizable y vuelvelo a cargar como base de un nuevo borrador.",
+      "template_targets": "{count} destino | {count} destinos",
+      "last_updated": "Ultima actualizacion",
+      "empty_drafts": "Todavia no se ha guardado ningun borrador Pulse.",
+      "empty_templates": "Todavia no se ha guardado ningun template Pulse.",
+      "empty_suggestions": "Genera sugerencias cuando quieras acelerar la redaccion de este post.",
+      "empty_connected_title": "Todavia no hay destinos conectados",
+      "empty_connected_description": "Conecta al menos una cuenta social activa en Cuentas antes de guardar un borrador.",
+      "preview_title": "Preview inmediata",
+      "preview_description": "Revisa rapidamente el mensaje, la imagen, el enlace, la programacion y las cuentas seleccionadas antes de guardar.",
+      "preview_targets": "Destinos seleccionados",
+      "preview_no_targets": "Todavia no hay ninguna cuenta seleccionada.",
+      "preview_empty_text": "La preview de texto de Pulse aparecera aqui.",
+      "preview_image_alt": "Imagen de preview del borrador Pulse",
+      "preview_schedule": "Programacion",
+      "preview_now": "Guardar como borrador",
+      "preview": {
+        "status_draft": "Borrador",
+        "status_scheduled": "Programado"
+      },
+      "fields": {
+        "text": "Texto del post",
+        "image_file": "Imagen desde tu ordenador",
+        "image_url": "URL de la imagen",
+        "link_url": "Enlace de destino",
+        "scheduled_for": "Programar para",
+        "template_name": "Nombre del template",
+        "custom_hashtag": "Anadir un hashtag"
+      },
+      "actions": {
+        "reload": "Recargar",
+        "new_draft": "Nuevo borrador",
+        "save_draft": "Guardar borrador",
+        "update_draft": "Guardar cambios",
+        "save_as_template": "Guardar como template",
+        "submit_for_approval": "Enviar para aprobacion",
+        "publish_now": "Publicar ahora",
+        "schedule_post": "Programar post",
+        "approve_post": "Aprobar y publicar",
+        "approve_schedule": "Aprobar y programar",
+        "reject_post": "Rechazar",
+        "clear_form": "Limpiar formulario",
+        "open_templates": "Abrir biblioteca",
+        "apply_template": "Usar template",
+        "manage_templates": "Gestionar",
+        "open_source": "Abrir fuente",
+        "clear_source": "Quitar fuente",
+        "generate_suggestions": "Generar sugerencias",
+        "refresh_suggestions": "Actualizar sugerencias",
+        "apply_caption": "Usar esta caption",
+        "append_hashtags": "Anadir hashtags",
+        "append_cta": "Anadir este CTA",
+        "add_hashtag": "Anadir hashtag",
+        "publish_with_pulse": "Publicar con Malikia Pulse"
+      },
+      "statuses": {
+        "draft": "Borrador",
+        "scheduled": "Programado",
+        "pending_approval": "Pendiente de aprobacion",
+        "publishing": "Publicando",
+        "published": "Publicado",
+        "partial_failed": "Fallo parcial",
+        "failed": "Fallo"
+      },
+      "approval": {
+        "pending_title": "Esta publicacion espera aprobacion",
+        "pending_description": "El contenido queda bloqueado hasta que un aprobador lo valide o lo rechace.",
+        "pending_actionable_title": "Se requiere aprobacion antes de publicar",
+        "pending_actionable_description": "Revise el contenido y luego apruebe o rechace esta solicitud desde el composer.",
+        "request_meta": "Solicitud de {actor} el {date}",
+        "resolve_meta": "Tratado por {actor} el {date}",
+        "rejected_title": "La ultima solicitud fue rechazada",
+        "rejected_description": "Puede ajustar el contenido y volver a enviar la publicacion para aprobacion."
+      },
+      "messages": {
+        "load_error": "No se pudo recargar el composer de Pulse.",
+        "save_error": "No se pudo guardar el borrador Pulse.",
+        "save_success": "El borrador Pulse se guardo correctamente.",
+        "template_save_error": "No se pudo guardar el template Pulse desde este borrador.",
+        "template_save_success": "El template Pulse se ha guardado.",
+        "template_applied": "El template Pulse se ha cargado en el composer.",
+        "template_applied_with_missing_targets": "El template Pulse se ha cargado, pero {count} destino todavia debe reconectarse o volver a seleccionarse.",
+        "prefill_applied": "El prefill de Pulse desde {source} se ha cargado en el composer.",
+        "suggestions_load_error": "No se pudieron cargar las sugerencias de Pulse.",
+        "suggestions_loaded": "Las sugerencias de Pulse estan listas.",
+        "caption_applied": "La caption sugerida se ha aplicado al texto.",
+        "hashtags_applied": "Los hashtags se han anadido al texto.",
+        "cta_applied": "El CTA se ha anadido al texto.",
+        "hashtag_added": "El hashtag se ha anadido a la lista.",
+        "submit_approval_error": "No se pudo enviar el post Pulse para aprobacion.",
+        "submit_approval_success": "El post Pulse se envio para aprobacion.",
+        "approve_error": "No se pudo aprobar la solicitud Pulse.",
+        "approve_success": "La solicitud Pulse fue aprobada.",
+        "reject_error": "No se pudo rechazar la solicitud Pulse.",
+        "reject_success": "La solicitud Pulse fue rechazada.",
+        "publish_error": "No se pudo poner en cola el post Pulse para publicarlo.",
+        "publish_success": "El post Pulse se puso en cola para publicarlo.",
+        "schedule_error": "No se pudo programar el post Pulse.",
+        "schedule_success": "El post Pulse se programo."
+      },
+      "sources": {
+        "promotion": "Promocion",
+        "product": "Producto",
+        "service": "Servicio",
+        "campaign": "Campana"
+      },
+      "untitled_draft": "Borrador Pulse sin titulo",
+      "untitled_template": "Template Pulse sin titulo",
+      "empty_value": "No disponible"
+    },
+    "template_manager": {
+      "title": "Biblioteca de templates",
+      "description": "Guarda listas las estructuras de posts recurrentes para volver a cargarlas en el composer Pulse sin reescribir todo.",
+      "read_only_title": "Templates en solo lectura",
+      "read_only_description": "Puedes consultar y reutilizar los templates Pulse, pero hace falta `social.manage` o `social.publish` para modificarlos.",
+      "targets_title": "Destinos memorizados",
+      "targets_description": "Asocia las cuentas conectadas que quieres reutilizar con mas frecuencia en este template.",
+      "library_title": "Templates disponibles",
+      "library_description": "Cada template sigue ligado al tenant y puede volver al composer como base editable.",
+      "template_targets": "{count} destino | {count} destinos",
+      "no_targets": "Todavia no se ha guardado ningun destino en este template.",
+      "empty_templates": "Todavia no se ha guardado ningun template Pulse.",
+      "empty_connected_title": "Ningun destino conectado",
+      "empty_connected_description": "Conecta al menos una cuenta social si quieres guardar destinos dentro de un template.",
+      "untitled_template": "Template Pulse sin titulo",
+      "empty_value": "No disponible",
+      "fields": {
+        "name": "Nombre del template",
+        "text": "Texto del post",
+        "image_file": "Imagen desde tu ordenador",
+        "image_url": "URL de la imagen",
+        "link_url": "Enlace de destino"
+      },
+      "actions": {
+        "reload": "Recargar",
+        "new_template": "Nuevo template",
+        "save_template": "Guardar template",
+        "update_template": "Guardar cambios",
+        "clear_form": "Limpiar formulario",
+        "use_in_composer": "Usar en el composer",
+        "edit_template": "Editar",
+        "delete_template": "Eliminar"
+      },
+      "messages": {
+        "load_error": "No se pudo recargar la biblioteca de templates Pulse.",
+        "save_error": "No se pudo guardar el template Pulse.",
+        "save_success": "El template Pulse se ha guardado.",
+        "update_success": "El template Pulse se ha actualizado.",
+        "delete_error": "No se pudo eliminar el template Pulse.",
+        "delete_success": "El template Pulse se ha eliminado.",
+        "confirm_delete": "Eliminar el template Pulse \"{name}\"?"
+      }
+    },
+    "history_manager": {
+      "title": "Historial de posts",
+      "description": "Revisa posts Pulse publicados, fallidos, programados y en borrador, y luego duplicalos o reabrelos sin reconstruir todo el contenido.",
+      "read_only_title": "Historial de solo lectura",
+      "read_only_description": "Puedes revisar el historial Pulse, pero necesitas `social.manage` o `social.publish` para duplicar o reabrir posts.",
+      "filters_title": "Filtros del historial",
+      "filters_description": "Encuentra rapido un post anterior con una busqueda de texto, un estado o una plataforma antes de reutilizarlo.",
+      "filters": {
+        "all_statuses": "Todos los estados",
+        "all_platforms": "Todas las plataformas"
+      },
+      "summary": {
+        "total": "Posts totales",
+        "published": "Publicados",
+        "attention": "Con atencion"
+      },
+      "fields": {
+        "search": "Buscar texto o enlace",
+        "status": "Estado",
+        "platform": "Plataforma"
+      },
+      "actions": {
+        "reload": "Recargar",
+        "apply_filters": "Aplicar filtros",
+        "reset_filters": "Restablecer",
+        "edit_draft": "Editar borrador",
+        "approve_post": "Aprobar",
+        "reject_post": "Rechazar",
+        "duplicate_post": "Duplicar",
+        "repost_post": "Repost"
+      },
+      "approval": {
+        "pending": "Este post espera aprobacion antes de publicarse.",
+        "pending_with_actor": "Solicitud de aprobacion enviada por {actor}."
+      },
+      "messages": {
+        "load_error": "No se pudo recargar el historial Pulse.",
+        "approve_error": "No se pudo aprobar la solicitud Pulse desde el historial.",
+        "approve_success": "La solicitud Pulse fue aprobada desde el historial.",
+        "reject_error": "No se pudo rechazar la solicitud Pulse desde el historial.",
+        "reject_success": "La solicitud Pulse fue rechazada desde el historial.",
+        "duplicate_error": "No se pudo duplicar este post Pulse.",
+        "duplicate_success": "El post Pulse se ha duplicado.",
+        "repost_error": "No se pudo reabrir este post Pulse como repost.",
+        "repost_success": "Se ha creado el borrador de repost Pulse."
+      },
+      "meta": {
+        "published_at": "Publicado",
+        "failed_at": "Fallado",
+        "scheduled_for": "Programado para",
+        "updated_at": "Actualizado"
+      },
+      "targets_title": "Destinos",
+      "no_targets": "Ningun destino conectado esta actualmente asociado a esta copia.",
+      "empty_title": "Todavia no hay posts Pulse en este historial",
+      "empty_description": "Publica, programa o guarda un primer borrador para empezar a construir el historial reutilizable de Pulse.",
+      "untitled_post": "Post Pulse sin titulo",
+      "empty_text": "No se guardo texto en este post Pulse.",
+      "preview_image_alt": "Imagen de preview del historial Pulse",
+      "empty_value": "No disponible"
+    },
+    "accounts_manager": {
+      "hero_eyebrow": "Malikia Pulse",
+      "title": "Conecta tus redes",
+      "description": "Elige una red, inicia la autenticacion y luego confirma rapidamente que la conexion esta lista para publicar.",
+      "directory_hint": "Un clic sobre una plataforma basta para empezar la conexion.",
+      "reload": "Recargar",
+      "summary": {
+        "platforms": "plataformas",
+        "connected": "conectadas",
+        "attention": "por revisar"
+      },
+      "read_only_title": "Acceso de solo lectura",
+      "read_only_description": "Puedes revisar las conexiones, pero solo el propietario puede conectar, probar o editar una cuenta.",
+      "provider_accounts_count": "{count} cuenta | {count} cuentas",
+      "provider_connected_count": "{count} cuenta conectada | {count} cuentas conectadas",
+      "provider_ready": "Lista para conectar",
+      "provider_attention_count": "{count} por revisar",
+      "provider_setup_required": "Configuracion requerida",
+      "provider_target_type": "Tipo de destino",
+      "provider_scopes": "Scopes solicitados",
+      "provider_supports": "Formatos compatibles",
+      "card": {
+        "no_account": "Todavia no hay cuentas conectadas"
+      },
+      "visual": {
+        "title": "Flujo de conexion",
+        "flow": {
+          "oauth": "OAuth",
+          "test": "Prueba",
+          "publish": "Publicacion"
+        },
+        "steps": {
+          "auth": {
+            "title": "Conectar la red",
+            "description": "Elige la plataforma y autoriza el acceso desde la cuenta social."
+          },
+          "test": {
+            "title": "Verificar la conexion",
+            "description": "Ejecuta una prueba simple para confirmar que el token y los permisos son validos."
+          },
+          "publish": {
+            "title": "Publicar con confianza",
+            "description": "Una vez validada, la cuenta queda lista para usarse desde el composer de Pulse."
+          }
+        }
+      },
+      "modal": {
+        "accounts_title": "Cuentas",
+        "accounts_empty_title": "Todavia no hay cuentas en esta plataforma",
+        "accounts_empty_description": "Inicia la conexion para agregar la primera cuenta.",
+        "account_fallback_name": "Cuenta {number}",
+        "quick_status": "Estado actual",
+        "connected_at": "Conectada el",
+        "last_test": "Ultima prueba",
+        "last_synced_at": "Ultima sincronizacion",
+        "token_expires_at": "Expiracion del token",
+        "permissions": "Permisos otorgados",
+        "no_permissions": "Los permisos apareceran aqui despues de OAuth.",
+        "last_error": "Ultimo error",
+        "read_only_notice": "Esta vista es de solo lectura para tu rol.",
+        "connected_toggle_label": "Disponible para publicar",
+        "connected_toggle_hint": "Desactiva esto si quieres conservar la cuenta sin usarla en los proximos destinos.",
+        "technical_description": "Esta informacion es util sobre todo para soporte o depuracion."
+      },
+      "fields": {
+        "label": "Label interno",
+        "account_handle": "Handle de la cuenta",
+        "external_account_id": "ID externo de la cuenta"
+      },
+      "actions": {
+        "view_connections": "Ver",
+        "manage_accounts": "Gestionar",
+        "connect_platform": "Conectar",
+        "add_account": "Anadir cuenta",
+        "save_details": "Guardar",
+        "reconnect_oauth": "Reconectar",
+        "test_connection": "Probar conexion",
+        "disconnect": "Desconectar",
+        "delete": "Eliminar",
+        "close": "Cerrar",
+        "show_technical_details": "Ver detalles tecnicos"
+      },
+      "statuses": {
+        "draft": "Borrador",
+        "pending": "Pendiente",
+        "connected": "Conectada",
+        "error": "Error",
+        "reconnect_required": "Reconectar",
+        "expired": "Expirada",
+        "disconnected": "Desconectada"
+      },
+      "test": {
+        "success_title": "Conexion valida",
+        "error_title": "Conexion por revisar"
+      },
+      "messages": {
+        "load_error": "No se pudo recargar la pagina de cuentas Pulse.",
+        "save_error": "No se pudo guardar la cuenta Pulse.",
+        "save_success": "La cuenta Pulse se guardo correctamente.",
+        "authorize_error": "No se pudo iniciar el flujo OAuth de Pulse.",
+        "authorize_redirect": "Redirigiendo al proveedor OAuth.",
+        "test_success": "La conexion Pulse es valida.",
+        "test_error": "La conexion Pulse debe revisarse.",
+        "disconnect_error": "No se pudo desconectar la cuenta Pulse.",
+        "disconnect_success": "La cuenta Pulse se desconecto correctamente.",
+        "delete_error": "No se pudo eliminar la cuenta Pulse.",
+        "delete_success": "La cuenta Pulse se elimino correctamente.",
+        "confirm_disconnect": "Desconectar {name}?",
+        "confirm_delete": "Eliminar {name}?"
+      },
+      "empty_value": "No disponible"
+    }
+  }
+}

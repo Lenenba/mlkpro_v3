@@ -1,0 +1,417 @@
+{
+  "social": {
+    "workspace": {
+      "eyebrow": "Malikia Pulse",
+      "actions": {
+        "back_to_growth": "Retour au hub croissance"
+      },
+      "tabs": {
+        "overview": "Vue d ensemble",
+        "accounts": "Comptes",
+        "composer": "Composer",
+        "templates": "Templates",
+        "history": "Historique"
+      },
+      "stats": {
+        "connected_accounts": "Comptes connectes",
+        "draft_posts": "Brouillons",
+        "scheduled_posts": "Programmations"
+      }
+    },
+    "index_page": {
+      "head_title": "Espace Malikia Pulse",
+      "page_title": "Espace Malikia Pulse",
+      "page_description": "Passez des comptes connectes aux premiers brouillons prets a publier sans quitter le module.",
+      "read_only_title": "Acces Pulse en lecture seule",
+      "read_only_description": "Vous pouvez consulter les comptes et les brouillons existants, mais seuls les utilisateurs autorises peuvent modifier le contenu pour le moment.",
+      "cards": {
+        "accounts_title": "Pilotage des comptes connectes",
+        "accounts_description": "Verifiez quelles pages et quels profils sont vraiment disponibles avant de les utiliser dans un brouillon.",
+        "configured_accounts": "Comptes configures",
+        "connected_accounts": "Connexions actives",
+        "accounts_action_manage": "Gerer les comptes",
+        "accounts_action_view": "Voir les comptes",
+        "composer_title": "Composeur de brouillons",
+        "composer_description": "Preparez texte, image, lien, planification et selection des comptes cibles dans un seul ecran Pulse.",
+        "composer_action_manage": "Ouvrir le composeur",
+        "composer_action_view": "Voir le composeur"
+      },
+      "recent_drafts_title": "Derniers brouillons",
+      "recent_drafts_description": "Reprenez les derniers brouillons Pulse sans reconstruire la selection des cibles.",
+      "open_composer": "Ouvrir le composeur",
+      "empty_recent_drafts": "Aucun brouillon Pulse n a encore ete enregistre.",
+      "untitled_draft": "Brouillon Pulse sans titre",
+      "draft_targets": "{count} cible | {count} cibles",
+      "empty_value": "Non disponible"
+    },
+    "accounts_page": {
+      "head_title": "Comptes Malikia Pulse",
+      "page_title": "Comptes Malikia Pulse",
+      "page_description": "Preparez, connectez et suivez les comptes sociaux que Malikia Pulse utilisera pour la publication multi-reseaux.",
+      "actions": {
+        "back_to_growth": "Retour au hub croissance"
+      }
+    },
+    "composer_page": {
+      "head_title": "Composeur Malikia Pulse",
+      "page_title": "Composeur Malikia Pulse",
+      "page_description": "Creez, publiez ou planifiez un post Pulse simple avec texte, image, lien, planification et selection multi-comptes."
+    },
+    "templates_page": {
+      "head_title": "Templates Malikia Pulse",
+      "page_title": "Templates Malikia Pulse",
+      "page_description": "Conservez des structures de posts reutilisables, gardez les bons comptes cibles en memoire et rechargez-les directement dans le composeur."
+    },
+    "history_page": {
+      "head_title": "Historique Malikia Pulse",
+      "page_title": "Historique Malikia Pulse",
+      "page_description": "Consultez les derniers posts Pulse, filtrez l historique, dupliquez les contenus utiles et relancez les posts publies en repost editable."
+    },
+    "composer_manager": {
+      "title": "Composeur de brouillons",
+      "description": "Enregistrez un brouillon Pulse propre, puis publiez-le maintenant ou planifiez-le sur les comptes connectes selectionnes.",
+      "read_only_title": "Composeur en lecture seule",
+      "read_only_description": "Vous pouvez consulter les cibles et les brouillons, mais il faut `social.manage` ou `social.publish` pour enregistrer des changements.",
+      "prefill_title": "Source metier liee",
+      "prefill_description": "Le contenu courant reste relie a {source} tant que vous ne retirez pas cette source.",
+      "suggestions_title": "Suggestions rapides",
+      "suggestions_description": "Generez quelques captions de base, hashtags modifiables et CTA reutilisables sans alourdir le composeur.",
+      "suggestions_captions_title": "Captions de base",
+      "suggestions_hashtags_title": "Hashtags modifiables",
+      "suggestions_hashtags_description": "Ajoutez, retirez ou appliquez ces hashtags au texte courant quand cela vous aide.",
+      "suggestions_ctas_title": "CTA reutilisables",
+      "suggestions_ctas_description": "Ajoutez une formule d action simple a la fin du texte si besoin.",
+      "targets_title": "Cibles connectees",
+      "targets_description": "Choisissez un ou plusieurs comptes sociaux actifs pour ce brouillon.",
+      "drafts_title": "Bibliotheque des brouillons",
+      "drafts_description": "Les derniers brouillons Pulse restent rattaches au tenant et conservent leur selection de cibles.",
+      "draft_targets": "{count} cible | {count} cibles",
+      "templates_title": "Raccourcis templates",
+      "templates_description": "Sauvegardez le contenu courant comme template reutilisable, puis rechargez-le comme base d un nouveau brouillon.",
+      "template_targets": "{count} cible | {count} cibles",
+      "last_updated": "Derniere mise a jour",
+      "empty_drafts": "Aucun brouillon Pulse n a encore ete enregistre.",
+      "empty_templates": "Aucun template Pulse n a encore ete enregistre.",
+      "empty_suggestions": "Generez des suggestions quand vous voulez accelerer la redaction de ce post.",
+      "empty_connected_title": "Aucune cible connectee",
+      "empty_connected_description": "Connectez au moins un compte social actif dans Comptes avant d enregistrer un brouillon.",
+      "preview_title": "Preview immediate",
+      "preview_description": "Revoyez rapidement le message, l image, le lien, la planification et les comptes selectionnes avant l enregistrement.",
+      "preview_targets": "Cibles selectionnees",
+      "preview_no_targets": "Aucun compte n est encore selectionne.",
+      "preview_empty_text": "La preview texte Pulse s affichera ici.",
+      "preview_image_alt": "Image de preview du brouillon Pulse",
+      "preview_schedule": "Planification",
+      "preview_now": "Enregistrer comme brouillon",
+      "preview": {
+        "status_draft": "Brouillon",
+        "status_scheduled": "Programme"
+      },
+      "fields": {
+        "text": "Texte du post",
+        "image_file": "Image depuis votre ordinateur",
+        "image_url": "URL image",
+        "link_url": "Lien de destination",
+        "scheduled_for": "Programmer pour",
+        "template_name": "Nom du template",
+        "custom_hashtag": "Ajouter un hashtag"
+      },
+      "actions": {
+        "reload": "Recharger",
+        "new_draft": "Nouveau brouillon",
+        "save_draft": "Enregistrer le brouillon",
+        "update_draft": "Enregistrer les changements",
+        "save_as_template": "Sauver comme template",
+        "submit_for_approval": "Soumettre pour approbation",
+        "publish_now": "Publier maintenant",
+        "schedule_post": "Programmer le post",
+        "approve_post": "Approuver et publier",
+        "approve_schedule": "Approuver et programmer",
+        "reject_post": "Refuser",
+        "clear_form": "Vider le formulaire",
+        "open_templates": "Ouvrir la librairie",
+        "apply_template": "Utiliser le template",
+        "manage_templates": "Gerer",
+        "open_source": "Ouvrir la source",
+        "clear_source": "Retirer la source",
+        "generate_suggestions": "Generer des suggestions",
+        "refresh_suggestions": "Rafraichir les suggestions",
+        "apply_caption": "Utiliser cette caption",
+        "append_hashtags": "Ajouter les hashtags",
+        "append_cta": "Ajouter ce CTA",
+        "add_hashtag": "Ajouter le hashtag",
+        "publish_with_pulse": "Publier avec Malikia Pulse"
+      },
+      "statuses": {
+        "draft": "Brouillon",
+        "scheduled": "Programme",
+        "pending_approval": "En attente d approbation",
+        "publishing": "Publication",
+        "published": "Publie",
+        "partial_failed": "Echec partiel",
+        "failed": "Echec"
+      },
+      "approval": {
+        "pending_title": "Ce post attend une validation",
+        "pending_description": "Le contenu est verrouille jusqu a ce qu un approbateur le valide ou le refuse.",
+        "pending_actionable_title": "Validation requise avant publication",
+        "pending_actionable_description": "Relisez le contenu puis approuvez ou refusez cette demande depuis le composeur.",
+        "request_meta": "Demande par {actor} le {date}",
+        "resolve_meta": "Traite par {actor} le {date}",
+        "rejected_title": "Derniere demande refusee",
+        "rejected_description": "Vous pouvez ajuster le contenu puis renvoyer le post pour une nouvelle validation."
+      },
+      "messages": {
+        "load_error": "Le composeur Pulse n a pas pu etre recharge.",
+        "save_error": "Le brouillon Pulse n a pas pu etre enregistre.",
+        "save_success": "Le brouillon Pulse a ete enregistre.",
+        "template_save_error": "Le template Pulse n a pas pu etre enregistre depuis ce brouillon.",
+        "template_save_success": "Le template Pulse a ete enregistre.",
+        "template_applied": "Le template Pulse a ete charge dans le composeur.",
+        "template_applied_with_missing_targets": "Le template Pulse a ete charge, mais {count} cible reste a reconnecter ou reselectionner.",
+        "prefill_applied": "Le prefill Pulse depuis {source} a ete charge dans le composeur.",
+        "suggestions_load_error": "Les suggestions Pulse n ont pas pu etre chargees.",
+        "suggestions_loaded": "Les suggestions Pulse sont pretes.",
+        "caption_applied": "La caption suggeree a ete appliquee au texte.",
+        "hashtags_applied": "Les hashtags ont ete ajoutes au texte.",
+        "cta_applied": "Le CTA a ete ajoute au texte.",
+        "hashtag_added": "Le hashtag a ete ajoute a la liste.",
+        "submit_approval_error": "Le post Pulse n a pas pu etre soumis pour approbation.",
+        "submit_approval_success": "Le post Pulse a ete soumis pour approbation.",
+        "approve_error": "La demande Pulse n a pas pu etre approuvee.",
+        "approve_success": "La demande Pulse a ete approuvee.",
+        "reject_error": "La demande Pulse n a pas pu etre refusee.",
+        "reject_success": "La demande Pulse a ete refusee.",
+        "publish_error": "Le post Pulse n a pas pu etre mis en file pour la publication.",
+        "publish_success": "Le post Pulse a ete mis en file pour la publication.",
+        "schedule_error": "Le post Pulse n a pas pu etre programme.",
+        "schedule_success": "Le post Pulse a ete programme."
+      },
+      "sources": {
+        "promotion": "Promotion",
+        "product": "Produit",
+        "service": "Service",
+        "campaign": "Campagne"
+      },
+      "untitled_draft": "Brouillon Pulse sans titre",
+      "untitled_template": "Template Pulse sans titre",
+      "empty_value": "Non disponible"
+    },
+    "template_manager": {
+      "title": "Bibliotheque des templates",
+      "description": "Gardez les structures de posts recurrentes pretes a etre rechargees dans le composeur Pulse sans tout ressaisir.",
+      "read_only_title": "Templates en lecture seule",
+      "read_only_description": "Vous pouvez consulter et reutiliser les templates Pulse, mais il faut `social.manage` ou `social.publish` pour les modifier.",
+      "targets_title": "Cibles memorisees",
+      "targets_description": "Associez les comptes connectes a reutiliser le plus souvent avec ce template.",
+      "library_title": "Templates disponibles",
+      "library_description": "Chaque template reste rattache au tenant et peut etre renvoye dans le composeur comme base editable.",
+      "template_targets": "{count} cible | {count} cibles",
+      "no_targets": "Aucune cible n est encore memorisee dans ce template.",
+      "empty_templates": "Aucun template Pulse n a encore ete enregistre.",
+      "empty_connected_title": "Aucune cible connectee",
+      "empty_connected_description": "Connectez au moins un compte social si vous voulez memoriser des cibles dans un template.",
+      "untitled_template": "Template Pulse sans titre",
+      "empty_value": "Non disponible",
+      "fields": {
+        "name": "Nom du template",
+        "text": "Texte du post",
+        "image_file": "Image depuis votre ordinateur",
+        "image_url": "URL image",
+        "link_url": "Lien de destination"
+      },
+      "actions": {
+        "reload": "Recharger",
+        "new_template": "Nouveau template",
+        "save_template": "Enregistrer le template",
+        "update_template": "Enregistrer les changements",
+        "clear_form": "Vider le formulaire",
+        "use_in_composer": "Utiliser dans le composeur",
+        "edit_template": "Modifier",
+        "delete_template": "Supprimer"
+      },
+      "messages": {
+        "load_error": "La bibliotheque des templates Pulse n a pas pu etre rechargee.",
+        "save_error": "Le template Pulse n a pas pu etre enregistre.",
+        "save_success": "Le template Pulse a ete enregistre.",
+        "update_success": "Le template Pulse a ete mis a jour.",
+        "delete_error": "Le template Pulse n a pas pu etre supprime.",
+        "delete_success": "Le template Pulse a ete supprime.",
+        "confirm_delete": "Supprimer le template Pulse \"{name}\" ?"
+      }
+    },
+    "history_manager": {
+      "title": "Historique des posts",
+      "description": "Consultez les posts Pulse publies, echoues, programmes et en brouillon, puis dupliquez-les ou rouvrez-les sans reconstruire tout le contenu.",
+      "read_only_title": "Historique en lecture seule",
+      "read_only_description": "Vous pouvez consulter l historique Pulse, mais il faut `social.manage` ou `social.publish` pour dupliquer ou rouvrir un post.",
+      "filters_title": "Filtres d historique",
+      "filters_description": "Isolez rapidement un ancien post avec une recherche texte, un statut ou une plateforme avant de le reutiliser.",
+      "filters": {
+        "all_statuses": "Tous les statuts",
+        "all_platforms": "Toutes les plateformes"
+      },
+      "summary": {
+        "total": "Posts totaux",
+        "published": "Publies",
+        "attention": "A surveiller"
+      },
+      "fields": {
+        "search": "Rechercher un texte ou un lien",
+        "status": "Statut",
+        "platform": "Plateforme"
+      },
+      "actions": {
+        "reload": "Recharger",
+        "apply_filters": "Appliquer les filtres",
+        "reset_filters": "Reinitialiser",
+        "edit_draft": "Modifier le brouillon",
+        "approve_post": "Approuver",
+        "reject_post": "Refuser",
+        "duplicate_post": "Dupliquer",
+        "repost_post": "Repost"
+      },
+      "approval": {
+        "pending": "Ce post attend une approbation avant publication.",
+        "pending_with_actor": "Demande d approbation envoyee par {actor}."
+      },
+      "messages": {
+        "load_error": "L historique Pulse n a pas pu etre recharge.",
+        "approve_error": "La demande Pulse n a pas pu etre approuvee depuis l historique.",
+        "approve_success": "La demande Pulse a ete approuvee depuis l historique.",
+        "reject_error": "La demande Pulse n a pas pu etre refusee depuis l historique.",
+        "reject_success": "La demande Pulse a ete refusee depuis l historique.",
+        "duplicate_error": "Ce post Pulse n a pas pu etre duplique.",
+        "duplicate_success": "Le post Pulse a ete duplique.",
+        "repost_error": "Ce post Pulse n a pas pu etre rouvert en repost.",
+        "repost_success": "Le brouillon de repost Pulse a ete cree."
+      },
+      "meta": {
+        "published_at": "Publie le",
+        "failed_at": "Echec le",
+        "scheduled_for": "Programme pour",
+        "updated_at": "Mis a jour le"
+      },
+      "targets_title": "Cibles",
+      "no_targets": "Aucune cible connectee n est actuellement rattachee a cette copie.",
+      "empty_title": "Aucun post Pulse dans cet historique",
+      "empty_description": "Publiez, programmez ou enregistrez un premier brouillon pour commencer a construire l historique reutilisable de Pulse.",
+      "untitled_post": "Post Pulse sans titre",
+      "empty_text": "Aucun texte n a ete enregistre sur ce post Pulse.",
+      "preview_image_alt": "Image de preview de l historique Pulse",
+      "empty_value": "Non disponible"
+    },
+    "accounts_manager": {
+      "hero_eyebrow": "Malikia Pulse",
+      "title": "Connecter vos reseaux",
+      "description": "Choisissez un reseau, lancez l authentification, puis verifiez rapidement si la connexion est prete pour publier.",
+      "directory_hint": "Un clic sur une plateforme suffit pour commencer la connexion.",
+      "reload": "Recharger",
+      "summary": {
+        "platforms": "plateformes",
+        "connected": "connectes",
+        "attention": "a verifier"
+      },
+      "read_only_title": "Acces lecture seule",
+      "read_only_description": "Vous pouvez consulter les connexions, mais seul le proprietaire peut connecter, tester ou modifier un compte.",
+      "provider_accounts_count": "{count} compte | {count} comptes",
+      "provider_connected_count": "{count} compte connecte | {count} comptes connectes",
+      "provider_ready": "Pret a connecter",
+      "provider_attention_count": "{count} a verifier",
+      "provider_setup_required": "Configuration requise",
+      "provider_target_type": "Type de cible",
+      "provider_scopes": "Scopes demandes",
+      "provider_supports": "Formats pris en charge",
+      "card": {
+        "no_account": "Aucun compte connecte"
+      },
+      "visual": {
+        "title": "Parcours de connexion",
+        "flow": {
+          "oauth": "OAuth",
+          "test": "Test",
+          "publish": "Publication"
+        },
+        "steps": {
+          "auth": {
+            "title": "Connecter le reseau",
+            "description": "Choisissez la plateforme et autorisez l acces depuis le compte social."
+          },
+          "test": {
+            "title": "Verifier la connexion",
+            "description": "Lancez un test simple pour confirmer que le token et les droits sont valides."
+          },
+          "publish": {
+            "title": "Publier sereinement",
+            "description": "Une fois valide, le compte reste pret a etre cible dans le composeur Pulse."
+          }
+        }
+      },
+      "modal": {
+        "accounts_title": "Comptes",
+        "accounts_empty_title": "Aucun compte sur cette plateforme",
+        "accounts_empty_description": "Lancez la connexion pour ajouter un premier compte.",
+        "account_fallback_name": "Compte {number}",
+        "quick_status": "Etat actuel",
+        "connected_at": "Connecte le",
+        "last_test": "Dernier test",
+        "last_synced_at": "Derniere synchro",
+        "token_expires_at": "Expiration du token",
+        "permissions": "Permissions accordees",
+        "no_permissions": "Les permissions apparaitront ici apres OAuth.",
+        "last_error": "Derniere erreur",
+        "read_only_notice": "Cette vue est en lecture seule pour votre role.",
+        "connected_toggle_label": "Disponible pour la publication",
+        "connected_toggle_hint": "Desactivez ceci si vous voulez garder le compte sans l utiliser dans les prochaines cibles.",
+        "technical_description": "Ces informations sont utiles surtout pour le support ou le debug."
+      },
+      "fields": {
+        "label": "Label interne",
+        "account_handle": "Handle du compte",
+        "external_account_id": "ID externe du compte"
+      },
+      "actions": {
+        "view_connections": "Voir",
+        "manage_accounts": "Gerer",
+        "connect_platform": "Connecter",
+        "add_account": "Ajouter un compte",
+        "save_details": "Enregistrer",
+        "reconnect_oauth": "Reconnecter",
+        "test_connection": "Tester la connexion",
+        "disconnect": "Deconnecter",
+        "delete": "Supprimer",
+        "close": "Fermer",
+        "show_technical_details": "Voir les details techniques"
+      },
+      "statuses": {
+        "draft": "Brouillon",
+        "pending": "En attente",
+        "connected": "Connecte",
+        "error": "Erreur",
+        "reconnect_required": "Reconnexion requise",
+        "expired": "Expire",
+        "disconnected": "Deconnecte"
+      },
+      "test": {
+        "success_title": "Connexion valide",
+        "error_title": "Connexion a verifier"
+      },
+      "messages": {
+        "load_error": "La page comptes Pulse n a pas pu etre rechargee.",
+        "save_error": "Le compte Pulse n a pas pu etre enregistre.",
+        "save_success": "Le compte Pulse a ete enregistre.",
+        "authorize_error": "Le flux OAuth Pulse n a pas pu etre lance.",
+        "authorize_redirect": "Redirection vers le provider OAuth.",
+        "test_success": "La connexion Pulse est valide.",
+        "test_error": "La connexion Pulse doit etre verifiee.",
+        "disconnect_error": "Le compte Pulse n a pas pu etre deconnecte.",
+        "disconnect_success": "Le compte Pulse a ete deconnecte.",
+        "delete_error": "Le compte Pulse n a pas pu etre supprime.",
+        "delete_success": "Le compte Pulse a ete supprime.",
+        "confirm_disconnect": "Deconnecter {name} ?",
+        "confirm_delete": "Supprimer {name} ?"
+      },
+      "empty_value": "Non disponible"
+    }
+  }
+}
