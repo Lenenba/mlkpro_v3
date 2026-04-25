@@ -3,7 +3,7 @@ import { buildWorkspaceHubCategories } from '@/utils/workspaceHub';
 const moduleRoutePatterns = {
     customers: ['customer.index', 'customer.create', 'customer.show', 'customer.edit'],
     prospects: ['prospects.*', 'request.*'],
-    requests: ['request.*'],
+    requests: ['service-requests.*'],
     quotes: ['quote.index', 'customer.quote.*'],
     orders: ['orders.*'],
     sales: ['sales.*'],
@@ -113,6 +113,13 @@ const leadLabel = (lead) => (
     || fallbackIdLabel(lead?.id)
 );
 
+const serviceRequestLabel = (serviceRequest) => (
+    pickLabel(serviceRequest, ['title', 'service_type', 'requester_name'])
+    || customerLabel(serviceRequest?.customer)
+    || leadLabel(serviceRequest?.prospect)
+    || fallbackIdLabel(serviceRequest?.id)
+);
+
 const quoteLabel = (quote) => (
     pickLabel(quote, ['number', 'job_title', 'title'])
     || fallbackIdLabel(quote?.id)
@@ -220,6 +227,22 @@ const buildRequestsModuleTail = (pageProps) => {
     return [
         customerBreadcrumbItem(lead.customer),
         makeItem(`request-${lead.id ?? 'current'}`, leadLabel(lead)),
+    ].filter(Boolean);
+};
+
+const buildServiceRequestsModuleTail = (pageProps) => {
+    if (!route().current('service-requests.show')) {
+        return [];
+    }
+
+    const serviceRequest = pageProps.serviceRequest;
+    if (!serviceRequest) {
+        return [];
+    }
+
+    return [
+        customerBreadcrumbItem(serviceRequest.customer),
+        makeItem(`service-request-${serviceRequest.id ?? 'current'}`, serviceRequestLabel(serviceRequest)),
     ].filter(Boolean);
 };
 
@@ -462,7 +485,7 @@ const resolveModuleTail = ({ moduleKey, pageProps, t }) => {
         case 'prospects':
             return buildRequestsModuleTail(pageProps);
         case 'requests':
-            return buildRequestsModuleTail(pageProps);
+            return buildServiceRequestsModuleTail(pageProps);
         case 'quotes':
             return buildQuotesModuleTail(pageProps, t);
         case 'sales':

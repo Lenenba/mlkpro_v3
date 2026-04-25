@@ -735,7 +735,23 @@ const isCustomerActive = computed(() => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('requests') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.prospects')" :href="'prospects.index'" tone="requests"
+                                <LinkAncor v-if="showServices && hasFeature('requests') && canSalesManage && !isSeller" :label="$t('nav.requests')" :href="'service-requests.index'" tone="requests"
+                                    :active="route().current('service-requests.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-clipboard-list">
+                                            <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+                                            <path d="M9 14h6" />
+                                            <path d="M9 18h6" />
+                                            <path d="M9 10h6" />
+                                            <path d="M4 6h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+                                <!-- Item -->
+                                <LinkAncor v-if="showServices && hasFeature('requests') && canSalesManage && !isSeller" :label="$t('nav.prospects')" :href="'prospects.index'" tone="requests"
                                     :active="route().current('prospects.*') || route().current('request.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"

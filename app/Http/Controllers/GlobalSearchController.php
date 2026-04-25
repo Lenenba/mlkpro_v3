@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use App\Models\Quote;
+use App\Models\ServiceRequest;
 use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -70,6 +71,55 @@ class GlobalSearchController extends Controller
             ? $user->teamMembership
             : $user->teamMembership()->first();
         $teamPermissions = $membership?->permissions ?? [];
+        $canManageRequests = $user->id === $accountId
+            || in_array('sales.manage', $teamPermissions, true);
+        $requestsEnabled = $ownerAccount?->hasCompanyFeature('requests') ?? false;
+
+        if ($canManageRequests && $requestsEnabled) {
+            $serviceRequests = ServiceRequest::query()
+                ->byUser($accountId)
+                ->where(function ($serviceRequestQuery) use ($like) {
+                    $serviceRequestQuery->where('title', 'like', $like)
+                        ->orWhere('service_type', 'like', $like)
+                        ->orWhere('description', 'like', $like)
+                        ->orWhere('requester_name', 'like', $like)
+                        ->orWhere('requester_email', 'like', $like)
+                        ->orWhere('requester_phone', 'like', $like);
+                })
+                ->orderByDesc('submitted_at')
+                ->orderByDesc('created_at')
+                ->limit($limit)
+                ->get([
+                    'id',
+                    'title',
+                    'service_type',
+                    'requester_name',
+                    'source',
+                    'status',
+                    'submitted_at',
+                ]);
+
+            if ($serviceRequests->isNotEmpty()) {
+                $groups[] = [
+                    'type' => 'service_requests',
+                    'items' => $serviceRequests->map(function (ServiceRequest $serviceRequest) {
+                        $title = $serviceRequest->title
+                            ?: ($serviceRequest->service_type ?: 'Service request');
+                        $subtitleParts = array_filter([
+                            $serviceRequest->requester_name,
+                            $serviceRequest->status ? Str::headline($serviceRequest->status) : null,
+                        ]);
+
+                        return [
+                            'id' => $serviceRequest->id,
+                            'title' => $title,
+                            'subtitle' => implode(' · ', $subtitleParts),
+                            'url' => route('service-requests.show', $serviceRequest->id),
+                        ];
+                    })->values(),
+                ];
+            }
+        }
 
         $canTasks = $user->id === $accountId
             || in_array('tasks.view', $teamPermissions, true)

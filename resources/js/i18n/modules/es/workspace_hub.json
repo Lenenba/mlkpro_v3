@@ -23,7 +23,7 @@
         "categories": {
             "revenue": {
                 "title": "Ingresos y pipeline de clientes",
-                "description": "Clientes, solicitudes, cotizaciones, pedidos y ventas en un mismo lugar."
+                "description": "Clientes, solicitudes, prospectos, cotizaciones, pedidos y ventas en un mismo lugar."
             },
             "growth": {
                 "title": "Crecimiento y retencion",
@@ -48,7 +48,7 @@
         },
         "modules": {
             "customers": "Fichas de clientes, notas, etiquetas e historial de relacion.",
-            "requests": "Entrada de leads, calificacion y seguimiento de conversion.",
+            "requests": "Solicitudes de servicio, fuentes de entrada y vinculacion con cliente o prospecto.",
             "prospects": "Espacio de prospectos para calificacion, seguimiento y conversion comercial.",
             "quotes": "Propuestas comerciales y seguimiento de cotizaciones.",
             "manager_dashboard_label": "Dashboard manager",

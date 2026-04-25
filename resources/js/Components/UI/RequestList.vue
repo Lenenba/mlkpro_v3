@@ -2,6 +2,13 @@
 import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { humanizeDate } from '@/utils/date';
+import {
+    serviceRequestRequesterLabel,
+    serviceRequestSourceLabel,
+    serviceRequestStatusClass,
+    serviceRequestStatusLabel,
+    serviceRequestTitle,
+} from '@/utils/serviceRequestPresentation';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -36,38 +43,33 @@ const formatAbsoluteDate = (value) => {
     return date.toLocaleString();
 };
 
-const titleForRequest = (item) => item?.title || item?.service_type || item?.requester_name || item?.contact_name || t('requests.labels.request');
-
 const sourceLabel = (item) => {
-    const source = item?.source || '';
-
-    switch (source) {
-        case 'manual_admin':
-            return t('requests.sources.manual');
-        case 'public_form':
-            return t('requests.sources.web_form');
-        case 'customer_portal':
-            return t('requests.sources.portal');
-        case 'campaign':
-            return t('requests.sources.ads');
-        case 'api':
-            return t('requests.sources.api');
-        case 'import':
-            return t('requests.sources.import');
-        default:
-            return source || t('requests.sources.other');
+    if (isServiceRequest(item)) {
+        return serviceRequestSourceLabel(item?.source, t);
     }
+
+    return item?.source || '';
 };
+
+const titleForRequest = (item) => (
+    isServiceRequest(item)
+        ? serviceRequestTitle(item, t)
+        : (item?.title || item?.service_type || item?.contact_name || t('requests.labels.request'))
+);
 
 const requestSubtitle = (item) => {
     if (isServiceRequest(item)) {
-        return item?.requester_name || item?.service_type || sourceLabel(item);
+        return serviceRequestRequesterLabel(item, t) || item?.service_type || sourceLabel(item);
     }
 
     return item?.service_type || t('requests.labels.request_number', { id: item?.id || '-' });
 };
 
 const statusLabel = (status) => {
+    if (['new', 'in_progress', 'pending', 'accepted', 'refused', 'completed', 'cancelled'].includes(status)) {
+        return serviceRequestStatusLabel(status, t);
+    }
+
     switch (status) {
         case 'REQ_NEW':
             return t('requests.status.new');
@@ -105,6 +107,10 @@ const statusLabel = (status) => {
 };
 
 const statusPillClass = (status) => {
+    if (['new', 'in_progress', 'pending', 'accepted', 'refused', 'completed', 'cancelled'].includes(status)) {
+        return serviceRequestStatusClass(status);
+    }
+
     switch (status) {
         case 'REQ_NEW':
             return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400';
@@ -209,9 +215,16 @@ const secondaryValue = (item) => {
                     <span class="flex size-9 items-center justify-center rounded-sm bg-amber-500 text-[11px] font-semibold text-white">
                         RQ
                     </span>
-                    <div class="min-w-0">
-                        <div class="truncate text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ titleForRequest(lead) }}
+                        <div class="min-w-0">
+                        <Link
+                            v-if="isServiceRequest(lead)"
+                            :href="route('service-requests.show', lead.id)"
+                            class="block truncate text-sm font-semibold text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300"
+                        >
+                            {{ serviceRequestTitle(lead, t) }}
+                        </Link>
+                        <div v-else class="truncate text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ lead?.title || lead?.service_type || lead?.contact_name || t('requests.labels.request') }}
                         </div>
                         <div class="truncate text-xs text-stone-500 dark:text-neutral-400">
                             {{ requestSubtitle(lead) }}

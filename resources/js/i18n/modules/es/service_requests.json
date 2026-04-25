@@ -1,0 +1,144 @@
+{
+  "service_requests": {
+    "page_title": "Solicitudes",
+    "eyebrow": "Modulo solicitudes",
+    "workspace": {
+      "title": "Solicitudes de servicio",
+      "subtitle": "Centraliza las solicitudes entrantes, su vinculacion con clientes o prospectos, y el contexto de captura en un espacio dedicado."
+    },
+    "stats": {
+      "total": "Total",
+      "new": "Nuevas",
+      "active": "Activas",
+      "resolved": "Resueltas",
+      "closed": "Cerradas"
+    },
+    "filters": {
+      "search": "Busqueda",
+      "search_placeholder": "Titulo, servicio, solicitante, ciudad...",
+      "status": "Estado",
+      "source": "Fuente",
+      "relation": "Relacion",
+      "sort": "Ordenar",
+      "direction": "Orden",
+      "per_page": "Filas",
+      "all_statuses": "Todos los estados",
+      "all_sources": "Todas las fuentes",
+      "all_relations": "Todas las relaciones",
+      "newest_first": "Mas recientes",
+      "oldest_first": "Mas antiguas"
+    },
+    "sort": {
+      "submitted_at": "Fecha de envio",
+      "created_at": "Fecha de creacion",
+      "title": "Titulo",
+      "status": "Estado",
+      "source": "Fuente"
+    },
+    "actions": {
+      "apply_filters": "Aplicar",
+      "reset_filters": "Restablecer",
+      "view": "Ver",
+      "back": "Volver",
+      "open_customer": "Abrir cliente",
+      "open_prospect": "Abrir prospecto",
+      "open_customers": "Modulo clientes",
+      "open_prospects": "Modulo prospectos"
+    },
+    "list": {
+      "customer": "Cliente",
+      "prospect": "Prospecto",
+      "service": "Servicio"
+    },
+    "side": {
+      "relations": "Distribucion de relaciones",
+      "sources": "Distribucion de fuentes"
+    },
+    "empty": {
+      "title": "Todavia no hay solicitudes",
+      "body": "Las nuevas solicitudes de servicio apareceran aqui en cuanto se creen o se capturen."
+    },
+    "labels": {
+      "request_fallback": "Solicitud",
+      "unknown_requester": "Solicitante desconocido",
+      "unknown_status": "Estado desconocido",
+      "no_address": "No hay direccion registrada.",
+      "none": "Ninguno"
+    },
+    "relations": {
+      "customer": "Vinculada a un cliente",
+      "prospect": "Vinculada a un prospecto",
+      "unlinked": "Sin vinculacion"
+    },
+    "sources": {
+      "manual_admin": "Creacion manual",
+      "customer_portal": "Espacio cliente",
+      "public_form": "Formulario publico",
+      "campaign": "Campana de marketing",
+      "api": "API / integracion",
+      "import": "Importacion",
+      "other": "Otro"
+    },
+    "status": {
+      "new": "Nueva",
+      "in_progress": "En curso",
+      "pending": "En espera",
+      "accepted": "Aceptada",
+      "refused": "Rechazada",
+      "completed": "Completada",
+      "cancelled": "Cancelada"
+    },
+    "activity": {
+      "system": "Sistema",
+      "empty": "Todavia no hay actividad registrada para esta solicitud."
+    },
+    "show": {
+      "tabs": {
+        "left": {
+          "overview": "Resumen",
+          "description": "Descripcion",
+          "address": "Direccion"
+        },
+        "right": {
+          "relations": "Relaciones",
+          "source": "Fuente",
+          "activity": "Actividad"
+        }
+      },
+      "summary": {
+        "status": "Estado",
+        "submitted": "Enviada",
+        "relation": "Relacion",
+        "source": "Fuente",
+        "service": "Servicio"
+      },
+      "overview_title": "Resumen de la solicitud",
+      "description_title": "Descripcion de la solicitud",
+      "address_title": "Direccion de la solicitud",
+      "relations_title": "Relaciones de negocio",
+      "source_title": "Contexto de captura",
+      "activity_title": "Historial",
+      "requester": "Solicitante",
+      "email": "Email",
+      "phone": "Telefono",
+      "request_type": "Tipo de solicitud",
+      "service_type": "Tipo de servicio",
+      "urgency": "Urgencia",
+      "budget": "Presupuesto",
+      "serviceable": "Atendible",
+      "source": "Fuente",
+      "channel": "Canal",
+      "source_ref": "Referencia de fuente",
+      "timeline": {
+        "title": "Hitos",
+        "submitted": "Enviada",
+        "accepted": "Aceptada",
+        "completed": "Completada",
+        "cancelled": "Cancelada"
+      },
+      "no_description": "Todavia no hay descripcion.",
+      "yes": "Si",
+      "no": "No"
+    }
+  }
+}

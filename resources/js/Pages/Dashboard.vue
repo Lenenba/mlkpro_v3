@@ -96,6 +96,7 @@ const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
 const hasAnyPermission = (permissions = []) => permissions.some((permission) => teamPermissions.value.includes(permission));
 const canQuotes = computed(() => isOwner.value || hasAnyPermission(['quotes.view', 'quotes.edit', 'quotes.send']));
+const canSalesManage = computed(() => isOwner.value || hasAnyPermission(['sales.manage']));
 const canJobs = computed(() => isOwner.value || hasAnyPermission(['jobs.view', 'jobs.edit']));
 const canTasks = computed(() => isOwner.value || hasAnyPermission(['tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete']));
 const canInvoices = computed(() => isOwner.value || hasAnyPermission([
@@ -856,7 +857,7 @@ const suggestionActions = computed(() => {
         });
     }
 
-    if (showServices.value && isOwner.value && hasFeature('requests')) {
+    if (showServices.value && canSalesManage.value && hasFeature('requests')) {
         actions.push({
             key: 'request',
             label: t('dashboard.suggestions.create_request'),

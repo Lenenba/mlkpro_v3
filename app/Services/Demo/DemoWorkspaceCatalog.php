@@ -134,8 +134,8 @@ class DemoWorkspaceCatalog
         return [
             'requests' => [
                 'key' => 'requests',
-                'label' => 'Prospects',
-                'description' => 'Prospect intake, qualification, and next follow-ups.',
+                'label' => 'Prospects & requests',
+                'description' => 'Prospect qualification plus service request intake and next follow-ups.',
                 'category' => 'Pipeline',
                 'company_types' => ['services'],
             ],

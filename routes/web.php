@@ -410,6 +410,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::delete('/prospects/{lead}/media/{media}', [RequestMediaController::class, 'destroy'])->name('prospects.media.destroy');
         Route::delete('/prospects/{lead}', [ProspectController::class, 'destroy'])->name('prospects.destroy');
 
+        Route::get('/service-requests', [ServiceRequestController::class, 'index'])->name('service-requests.index');
+        Route::get('/service-requests/{serviceRequest}', [ServiceRequestController::class, 'show'])->name('service-requests.show');
         Route::post('/service-requests', [ServiceRequestController::class, 'store'])->name('service-requests.store');
 
         Route::get('/requests', [RequestController::class, 'index'])->name('request.index');
