@@ -4,6 +4,7 @@ use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
+use App\Models\TeamMember;
 use App\Models\User;
 
 function prospectConversionOwner(array $attributes = []): User
@@ -197,4 +198,197 @@ it('creates a new customer from the prospect conversion wizard payload', functio
         ->and($lead->companyName())->toBe('Northwind Studio')
         ->and($customer->prospects()->whereKey($lead->id)->exists())->toBeTrue()
         ->and((int) data_get($lead->meta, 'customer_conversion.customer_id'))->toBe($customerId);
+});
+
+it('blocks creating a new customer when the submitted payload matches an existing customer by email phone or company', function () {
+    $owner = prospectConversionOwner();
+
+    $existingCustomer = Customer::factory()->create([
+        'user_id' => $owner->id,
+        'company_name' => 'Northwind Studio',
+        'email' => 'northwind@example.com',
+        'phone' => '+1 438 555 0110',
+    ]);
+
+    $lead = LeadRequest::query()->create([
+        'user_id' => $owner->id,
+        'status' => LeadRequest::STATUS_QUALIFIED,
+        'status_updated_at' => now(),
+        'last_activity_at' => now(),
+        'title' => 'Duplicate guard prospect',
+        'contact_name' => 'Jordan Prospect',
+        'contact_email' => 'jordan.prospect@example.com',
+        'contact_phone' => '+1 438 555 0999',
+        'meta' => [
+            'company_name' => 'Fresh Prospect Company',
+        ],
+    ]);
+
+    $this->actingAs($owner)
+        ->postJson(route('prospects.convert-customer', $lead), [
+            'mode' => 'create_new',
+            'contact_name' => 'Jordan Prospect',
+            'contact_email' => 'northwind@example.com',
+            'contact_phone' => '+1 (438) 555-0110',
+            'company_name' => 'Northwind Studio',
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['customer_id', 'contact_email', 'contact_phone', 'company_name']);
+
+    $lead->refresh();
+
+    expect(Customer::query()->where('user_id', $owner->id)->count())->toBe(1)
+        ->and($lead->customer_id)->toBeNull()
+        ->and($lead->status)->toBe(LeadRequest::STATUS_QUALIFIED)
+        ->and($lead->isConvertedToCustomer())->toBeFalse()
+        ->and(ActivityLog::query()
+            ->where('subject_type', $lead->getMorphClass())
+            ->where('subject_id', $lead->id)
+            ->where('action', 'converted_to_customer')
+            ->doesntExist())->toBeTrue()
+        ->and($existingCustomer->prospects()->whereKey($lead->id)->exists())->toBeFalse();
+});
+
+it('returns a validation error when the email is already reserved by another account', function () {
+    $owner = prospectConversionOwner();
+    $otherOwner = prospectConversionOwner();
+
+    Customer::factory()->create([
+        'user_id' => $otherOwner->id,
+        'company_name' => 'Cross Tenant Studio',
+        'email' => 'cross-tenant@example.com',
+        'phone' => '+1 438 555 0220',
+    ]);
+
+    $lead = LeadRequest::query()->create([
+        'user_id' => $owner->id,
+        'status' => LeadRequest::STATUS_QUALIFIED,
+        'status_updated_at' => now(),
+        'last_activity_at' => now(),
+        'title' => 'Cross tenant conversion',
+        'contact_name' => 'Avery Prospect',
+        'contact_email' => 'lead-initial@example.com',
+        'meta' => [
+            'company_name' => 'Initial Prospect Company',
+        ],
+    ]);
+
+    $this->actingAs($owner)
+        ->postJson(route('prospects.convert-customer', $lead), [
+            'mode' => 'create_new',
+            'contact_name' => 'Avery Prospect',
+            'contact_email' => 'cross-tenant@example.com',
+            'contact_phone' => '+1 438 555 0220',
+            'company_name' => 'Cross Tenant Studio',
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['contact_email']);
+
+    $lead->refresh();
+
+    expect(Customer::query()->where('user_id', $owner->id)->count())->toBe(0)
+        ->and($lead->customer_id)->toBeNull()
+        ->and($lead->isConvertedToCustomer())->toBeFalse();
+});
+
+it('forbids customer conversion to team members without convert permission', function () {
+    $owner = prospectConversionOwner([
+        'company_features' => [
+            'requests' => true,
+            'quotes' => true,
+            'team_members' => true,
+        ],
+    ]);
+
+    $memberUser = User::factory()->create([
+        'company_type' => 'services',
+        'onboarding_completed_at' => now(),
+    ]);
+
+    TeamMember::factory()->create([
+        'account_id' => $owner->id,
+        'user_id' => $memberUser->id,
+        'role' => 'member',
+        'permissions' => ['prospects.view'],
+        'is_active' => true,
+    ]);
+
+    $lead = LeadRequest::query()->create([
+        'user_id' => $owner->id,
+        'status' => LeadRequest::STATUS_QUALIFIED,
+        'status_updated_at' => now(),
+        'last_activity_at' => now(),
+        'title' => 'Permission guarded conversion',
+        'contact_name' => 'Taylor Prospect',
+        'contact_email' => 'taylor.prospect@example.com',
+        'meta' => [
+            'company_name' => 'Permission Guard Inc.',
+        ],
+    ]);
+
+    $this->actingAs($memberUser)
+        ->postJson(route('prospects.convert-customer', $lead), [
+            'mode' => 'create_new',
+            'contact_name' => 'Taylor Prospect',
+            'contact_email' => 'taylor.prospect@example.com',
+            'company_name' => 'Permission Guard Inc.',
+        ])
+        ->assertForbidden();
+
+    $lead->refresh();
+
+    expect($lead->customer_id)->toBeNull()
+        ->and($lead->isConvertedToCustomer())->toBeFalse();
+});
+
+it('allows customer conversion to team members with the legacy convert permission alias', function () {
+    $owner = prospectConversionOwner([
+        'company_features' => [
+            'requests' => true,
+            'quotes' => true,
+            'team_members' => true,
+        ],
+    ]);
+
+    $memberUser = User::factory()->create([
+        'company_type' => 'services',
+        'onboarding_completed_at' => now(),
+    ]);
+
+    TeamMember::factory()->create([
+        'account_id' => $owner->id,
+        'user_id' => $memberUser->id,
+        'role' => 'member',
+        'permissions' => ['requests.convert'],
+        'is_active' => true,
+    ]);
+
+    $lead = LeadRequest::query()->create([
+        'user_id' => $owner->id,
+        'status' => LeadRequest::STATUS_QUALIFIED,
+        'status_updated_at' => now(),
+        'last_activity_at' => now(),
+        'title' => 'Legacy permission conversion',
+        'contact_name' => 'Casey Prospect',
+        'contact_email' => 'casey.prospect@example.com',
+        'meta' => [
+            'company_name' => 'Legacy Permission Co.',
+        ],
+    ]);
+
+    $this->actingAs($memberUser)
+        ->postJson(route('prospects.convert-customer', $lead), [
+            'mode' => 'create_new',
+            'contact_name' => 'Casey Prospect',
+            'contact_email' => 'casey.prospect@example.com',
+            'company_name' => 'Legacy Permission Co.',
+        ])
+        ->assertOk()
+        ->assertJsonPath('request.status', LeadRequest::STATUS_CONVERTED);
+
+    $lead->refresh();
+
+    expect($lead->customer_id)->not->toBeNull()
+        ->and($lead->convertedByUserId())->toBe($memberUser->id)
+        ->and($lead->isConvertedToCustomer())->toBeTrue();
 });

@@ -8,12 +8,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Request extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     public const CUSTOMER_CONVERSION_META_KEY = 'customer_conversion';
+
+    public const LOSS_META_KEY = 'loss';
 
     public const STATUS_NEW = 'REQ_NEW';
 
@@ -30,6 +34,17 @@ class Request extends Model
     public const STATUS_LOST = 'REQ_LOST';
 
     public const STATUS_CONVERTED = 'REQ_CONVERTED';
+
+    public const LOST_REASON_OPTIONS = [
+        'budget' => 'requests.loss.reasons.budget',
+        'timing' => 'requests.loss.reasons.timing',
+        'no_fit' => 'requests.loss.reasons.no_fit',
+        'competitor' => 'requests.loss.reasons.competitor',
+        'no_response' => 'requests.loss.reasons.no_response',
+        'duplicate' => 'requests.loss.reasons.duplicate',
+        'internal_decision' => 'requests.loss.reasons.internal_decision',
+        'other' => 'requests.loss.reasons.other',
+    ];
 
     public const QUOTE_STATUS_TO_REQUEST_STATUS = [
         'sent' => self::STATUS_QUOTE_SENT,
@@ -81,6 +96,7 @@ class Request extends Model
         'archived_at',
         'archived_by_user_id',
         'archive_reason',
+        'deleted_by_user_id',
         'duplicate_of_prospect_id',
         'merged_into_prospect_id',
         'status_updated_at',
@@ -100,6 +116,7 @@ class Request extends Model
         'triage_priority' => 'integer',
         'stale_since_at' => 'datetime',
         'archived_at' => 'datetime',
+        'deleted_at' => 'datetime',
         'status_updated_at' => 'datetime',
         'next_follow_up_at' => 'datetime',
         'meta' => 'array',
@@ -123,6 +140,11 @@ class Request extends Model
     public function archivedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'archived_by_user_id');
+    }
+
+    public function deletedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by_user_id');
     }
 
     public function duplicateOf(): BelongsTo
@@ -185,6 +207,11 @@ class Request extends Model
         return $this->archived_at !== null;
     }
 
+    public function isDeleted(): bool
+    {
+        return $this->deleted_at !== null;
+    }
+
     public function isAnonymized(): bool
     {
         return filled(data_get($this->meta, 'privacy.anonymized_at'));
@@ -203,11 +230,33 @@ class Request extends Model
         return (array) data_get($this->meta, self::CUSTOMER_CONVERSION_META_KEY, []);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function lossMeta(): array
+    {
+        return (array) data_get($this->meta, self::LOSS_META_KEY, []);
+    }
+
     public function convertedByUserId(): ?int
     {
         $value = $this->customerConversionMeta()['converted_by_user_id'] ?? null;
 
         return is_numeric($value) ? (int) $value : null;
+    }
+
+    public function lostReasonComment(): ?string
+    {
+        $value = trim((string) ($this->lossMeta()['comment'] ?? ''));
+
+        return $value !== '' ? $value : null;
+    }
+
+    public function lostReasonLabelKey(): ?string
+    {
+        $reason = trim((string) ($this->lost_reason ?? ''));
+
+        return $reason !== '' ? (self::LOST_REASON_OPTIONS[$reason] ?? null) : null;
     }
 
     public function companyName(): ?string
@@ -231,6 +280,47 @@ class Request extends Model
         );
 
         return $meta;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    public function mergeLossMeta(array $attributes): array
+    {
+        $meta = (array) ($this->meta ?? []);
+        data_set(
+            $meta,
+            self::LOSS_META_KEY,
+            array_merge($this->lossMeta(), $attributes)
+        );
+
+        return $meta;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function clearLossMeta(): array
+    {
+        $meta = (array) ($this->meta ?? []);
+        data_forget($meta, self::LOSS_META_KEY);
+
+        return $meta;
+    }
+
+    /**
+     * @return array<int, array{id:string,label_key:string}>
+     */
+    public static function lostReasonOptions(): array
+    {
+        return collect(self::LOST_REASON_OPTIONS)
+            ->map(fn (string $labelKey, string $id): array => [
+                'id' => $id,
+                'label_key' => $labelKey,
+            ])
+            ->values()
+            ->all();
     }
 
     public static function statusForQuoteStatus(?string $quoteStatus): ?string

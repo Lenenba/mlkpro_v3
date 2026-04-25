@@ -61,6 +61,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    lostReasonOptions: {
+        type: Array,
+        default: () => [],
+    },
     assignees: {
         type: Array,
         default: () => [],
@@ -78,6 +82,10 @@ const props = defineProps({
         default: () => [],
     },
     canManageSavedSegments: {
+        type: Boolean,
+        default: false,
+    },
+    canExport: {
         type: Boolean,
         default: false,
     },
@@ -298,6 +306,13 @@ const statusActionOptions = computed(() =>
     }))
 );
 
+const lostReasonSelectOptions = computed(() =>
+    (props.lostReasonOptions || []).map((reason) => ({
+        id: String(reason.id),
+        name: t(reason.label_key),
+    }))
+);
+
 const assigneeSelectOptions = computed(() => [
     { id: '', name: t('requests.labels.unassigned') },
     ...(props.assignees || []).map((assignee) => ({
@@ -352,7 +367,6 @@ const bulkStatusLabelKey = computed(() => props.bulkActions?.controls?.status?.l
 const bulkStatusPlaceholderKey = computed(() => props.bulkActions?.controls?.status?.placeholder_key || 'requests.bulk.status_placeholder');
 const bulkStatusSubmitLabelKey = computed(() => props.bulkActions?.controls?.status?.submit_label_key || 'requests.bulk.apply_status');
 const bulkLostReasonPlaceholderKey = computed(() => props.bulkActions?.controls?.status?.lost_reason_placeholder_key || 'requests.bulk.lost_reason');
-const bulkLostReasonPromptKey = computed(() => props.bulkActions?.controls?.status?.lost_reason_prompt_key || 'requests.bulk.lost_reason_prompt');
 const bulkLostReasonTriggerValue = computed(() => props.bulkActions?.controls?.status?.lost_reason_trigger_value || 'REQ_LOST');
 const bulkAssignLabelKey = computed(() => props.bulkActions?.controls?.assign?.label_key || 'requests.bulk.assign_label');
 const bulkAssignPlaceholderKey = computed(() => props.bulkActions?.controls?.assign?.placeholder_key || 'requests.bulk.assign_placeholder');
@@ -428,6 +442,21 @@ const filterPayload = () => {
 
     return payload;
 };
+
+const exportPayload = computed(() => compactObject({
+    search: filterForm.search,
+    status: filterForm.status,
+    assigned_team_member_id: filterForm.assigned_team_member_id,
+    source: filterForm.source,
+    request_type: filterForm.request_type,
+    priority: filterForm.priority,
+    follow_up: filterForm.follow_up,
+    unassigned: filterForm.unassigned ? 1 : null,
+    archived: filterForm.archived ? 1 : null,
+    queue: filterForm.queue,
+}));
+
+const exportHref = computed(() => route('prospects.export', exportPayload.value));
 
 let filterTimeout;
 const autoFilter = () => {
@@ -559,6 +588,7 @@ const {
 const bulkStatus = ref('');
 const bulkAssignee = ref('');
 const bulkLostReason = ref('');
+const bulkCloseOpenTasks = ref(false);
 const bulkErrors = ref({});
 const bulkProcessing = ref(false);
 const bulkResult = ref(null);
@@ -591,6 +621,7 @@ const reloadBulkContext = () => new Promise((resolve) => {
 watch(() => bulkStatus.value, (value) => {
     if (value !== bulkLostReasonTriggerValue.value) {
         bulkLostReason.value = '';
+        bulkCloseOpenTasks.value = false;
         bulkErrors.value = {};
     }
 });
@@ -602,11 +633,11 @@ const submitBulkStatus = async () => {
 
     let lostReason = bulkLostReason.value;
     if (bulkStatus.value === bulkLostReasonTriggerValue.value && !lostReason) {
-        lostReason = window.prompt(t(bulkLostReasonPromptKey.value));
-        if (!lostReason) {
-            return;
-        }
-        bulkLostReason.value = lostReason;
+        bulkErrors.value = {
+            lost_reason: t('requests.loss.reason_required'),
+        };
+
+        return;
     }
 
     bulkErrors.value = {};
@@ -618,6 +649,9 @@ const submitBulkStatus = async () => {
             ids: selected.value,
             status: bulkStatus.value,
             lost_reason: bulkStatus.value === bulkLostReasonTriggerValue.value ? lostReason : null,
+            close_open_tasks: bulkStatus.value === bulkLostReasonTriggerValue.value
+                ? bulkCloseOpenTasks.value
+                : false,
         }, {
             headers: {
                 Accept: 'application/json',
@@ -628,11 +662,17 @@ const submitBulkStatus = async () => {
         clearSelection();
         bulkStatus.value = '';
         bulkLostReason.value = '';
+        bulkCloseOpenTasks.value = false;
         dispatchBulkActionToast(result, t);
         await reloadBulkContext();
     } catch (error) {
         if (error?.response?.status === 422) {
-            bulkErrors.value = error?.response?.data?.errors || {};
+            bulkErrors.value = Object.fromEntries(
+                Object.entries(error?.response?.data?.errors || {}).map(([key, value]) => [
+                    key,
+                    Array.isArray(value) ? (value[0] || '') : value,
+                ])
+            );
 
             return;
         }
@@ -873,6 +913,8 @@ const updateForm = useForm({
     assigned_team_member_id: '',
     next_follow_up_at: '',
     lost_reason: '',
+    lost_comment: '',
+    close_open_tasks: false,
     status_comment: '',
 });
 const quickNoteForm = useForm({
@@ -902,6 +944,8 @@ const openUpdate = (lead) => {
     updateForm.assigned_team_member_id = lead?.assigned_team_member_id ? String(lead.assigned_team_member_id) : '';
     updateForm.next_follow_up_at = formatDateTimeLocal(lead?.next_follow_up_at);
     updateForm.lost_reason = lead?.lost_reason || '';
+    updateForm.lost_comment = lead?.meta?.loss?.comment || '';
+    updateForm.close_open_tasks = false;
     updateForm.status_comment = '';
 
     if (window.HSOverlay) {
@@ -989,7 +1033,7 @@ const runQuickLeadUpdate = (lead, payload, options = {}) => {
 };
 
 const deleteLead = (lead) => {
-    if (!lead?.id || isArchivedLead(lead)) {
+    if (!canDeleteLead(lead)) {
         return;
     }
 
@@ -1012,6 +1056,7 @@ const deleteLead = (lead) => {
 
 const isAnonymizedLead = (lead) => prospectIsAnonymized(lead);
 const isArchivedLead = (lead) => Boolean(lead?.archived_at);
+const canDeleteLead = (lead) => Boolean(lead?.id) && isArchivedLead(lead) && isAnonymizedLead(lead);
 const isClosedStatus = (status) => ['REQ_WON', 'REQ_LOST', 'REQ_CONVERTED'].includes(status);
 const isClosedLead = (lead) => isArchivedLead(lead) || isClosedStatus(lead?.status);
 
@@ -1078,15 +1123,15 @@ const setLeadStatus = (lead, status) => {
     if (!lead || lead.status === status || isArchivedLead(lead)) {
         return;
     }
-    let payload = { status };
+
     if (status === 'REQ_LOST') {
-        const reason = lead?.lost_reason || window.prompt(t('requests.bulk.lost_reason_prompt'));
-        if (!reason) {
-            return;
-        }
-        payload = { status, lost_reason: reason };
+        openUpdate(lead);
+        updateForm.status = status;
+
+        return;
     }
-    runQuickLeadUpdate(lead, payload);
+
+    runQuickLeadUpdate(lead, { status });
 };
 
 const setLeadAssignee = (lead, assigneeId) => {
@@ -1546,6 +1591,13 @@ const submitImport = async (ignoreDuplicates = false) => {
                         >
                             {{ $t('requests.actions.import_csv') }}
                         </button>
+                        <a
+                            v-if="canExport"
+                            :href="exportHref"
+                            :class="crmButtonClass('secondary', 'toolbar')"
+                        >
+                            {{ $t('requests.actions.export_csv') }}
+                        </a>
                         <button
                             type="button"
                             :class="crmButtonClass('primary', 'toolbar')"
@@ -1691,13 +1743,26 @@ const submitImport = async (ignoreDuplicates = false) => {
                     class="min-w-[170px]"
                     data-testid="request-bulk-status"
                 />
-                <input
+                <FloatingSelect
                     v-if="bulkStatus === bulkLostReasonTriggerValue"
                     v-model="bulkLostReason"
-                    type="text"
-                    class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                    :options="lostReasonSelectOptions"
+                    :label="$t('requests.bulk.lost_reason')"
                     :placeholder="$t(bulkLostReasonPlaceholderKey)"
+                    dense
+                    class="min-w-[220px]"
                 />
+                <label
+                    v-if="bulkStatus === bulkLostReasonTriggerValue"
+                    class="flex items-center gap-2 text-sm text-stone-600 dark:text-neutral-300"
+                >
+                    <input
+                        v-model="bulkCloseOpenTasks"
+                        type="checkbox"
+                        class="rounded border-stone-300 text-green-600 focus:ring-green-600 dark:border-neutral-600"
+                    />
+                    {{ $t('requests.loss.close_open_tasks_short') }}
+                </label>
                 <button
                     type="button"
                     class="py-2 px-3 rounded-sm border border-transparent bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
@@ -2361,11 +2426,30 @@ const submitImport = async (ignoreDuplicates = false) => {
             </div>
 
             <div v-if="showLostReason">
-                <FloatingTextarea v-model="updateForm.lost_reason" :label="$t('requests.update.lost_reason')" />
+                <FloatingSelect
+                    v-model="updateForm.lost_reason"
+                    :label="$t('requests.update.lost_reason')"
+                    :options="lostReasonSelectOptions"
+                    :placeholder="$t('requests.loss.reason_placeholder')"
+                />
                 <InputError class="mt-1" :message="updateForm.errors.lost_reason" />
             </div>
 
-            <div>
+            <div v-if="showLostReason">
+                <FloatingTextarea v-model="updateForm.lost_comment" :label="$t('requests.loss.comment')" />
+                <InputError class="mt-1" :message="updateForm.errors.lost_comment" />
+            </div>
+
+            <label v-if="showLostReason" class="flex items-start gap-2 text-sm text-stone-600 dark:text-neutral-300">
+                <input
+                    v-model="updateForm.close_open_tasks"
+                    type="checkbox"
+                    class="mt-0.5 rounded border-stone-300 text-green-600 focus:ring-green-600 dark:border-neutral-600"
+                />
+                <span>{{ $t('requests.loss.close_open_tasks') }}</span>
+            </label>
+
+            <div v-if="!showLostReason">
                 <FloatingTextarea v-model="updateForm.status_comment" :label="$t('requests.update.status_comment')" />
                 <InputError class="mt-1" :message="updateForm.errors.status_comment" />
             </div>

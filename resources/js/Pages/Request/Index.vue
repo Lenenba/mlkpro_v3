@@ -13,6 +13,10 @@ const props = defineProps({
     lead_intake: Object,
     customers: Array,
     statuses: Array,
+    lostReasonOptions: {
+        type: Array,
+        default: () => [],
+    },
     assignees: Array,
     bulkActions: {
         type: Object,
@@ -23,6 +27,10 @@ const props = defineProps({
         default: () => [],
     },
     canManageSavedSegments: {
+        type: Boolean,
+        default: false,
+    },
+    canExport: {
         type: Boolean,
         default: false,
     },
@@ -54,10 +62,12 @@ const props = defineProps({
                 :lead-intake="lead_intake"
                 :customers="customers"
                 :statuses="statuses"
+                :lost-reason-options="lostReasonOptions"
                 :assignees="assignees"
                 :bulk-actions="bulkActions"
                 :saved-segments="savedSegments"
                 :can-manage-saved-segments="canManageSavedSegments"
+                :can-export="canExport"
             />
         </div>
     </AuthenticatedLayout>

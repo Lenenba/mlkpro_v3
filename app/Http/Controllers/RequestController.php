@@ -16,7 +16,9 @@ use App\Models\Customer;
 use App\Models\Prospect;
 use App\Models\Request as LeadRequest;
 use App\Models\SavedSegment;
+use App\Models\Task;
 use App\Models\TeamMember;
+use App\Models\User;
 use App\Queries\Requests\BuildRequestAnalyticsData;
 use App\Queries\Requests\BuildRequestInboxIndexData;
 use App\Services\Campaigns\CampaignLeadAttributionService;
@@ -25,12 +27,14 @@ use App\Services\Prospects\ProspectDuplicateAlertService;
 use App\Services\Prospects\ProspectDuplicateDetectionService;
 use App\Services\Prospects\ProspectMergeService;
 use App\Services\ProspectStatusHistoryService;
+use App\Services\TaskStatusHistoryService;
 use App\Services\UsageLimitService;
 use App\Support\Prospects\ProspectIntakeMeta;
 use App\Support\BulkActions\BulkActionRegistry;
 use App\Support\CRM\SalesActivityTaxonomy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
@@ -84,6 +88,7 @@ class RequestController extends Controller
             ->values();
 
         $statuses = Prospect::statusOptions();
+        $lostReasonOptions = LeadRequest::lostReasonOptions();
 
         $assignees = TeamMember::query()
             ->where('account_id', $accountId)
@@ -130,6 +135,7 @@ class RequestController extends Controller
             'stats' => $stats,
             'customers' => $customers,
             'statuses' => $statuses,
+            'lostReasonOptions' => $lostReasonOptions,
             'assignees' => $assignees,
             'bulkActions' => app(BulkActionRegistry::class)->definitionFor('request', [
                 'statuses' => $statuses,
@@ -137,6 +143,7 @@ class RequestController extends Controller
             ]),
             'savedSegments' => $savedSegments,
             'canManageSavedSegments' => true,
+            'canExport' => $this->canExportProspects($user, $accountId),
             'lead_intake' => $leadIntake,
             'analytics' => app(BuildRequestAnalyticsData::class)->execute($accountId),
         ]);
@@ -181,6 +188,7 @@ class RequestController extends Controller
             ->get();
 
         $statuses = Prospect::statusOptions();
+        $lostReasonOptions = LeadRequest::lostReasonOptions();
 
         $assignees = TeamMember::query()
             ->where('account_id', $accountId)
@@ -200,12 +208,13 @@ class RequestController extends Controller
         $duplicates = app(ProspectDuplicateDetectionService::class)->forLead($lead);
 
         $campaignOrigin = app(CampaignLeadAttributionService::class)->campaignOriginForLead($lead, $user);
-        $customerConversion = $this->buildCustomerConversionPayload($lead, $accountId);
+        $customerConversion = $this->buildCustomerConversionPayload($lead, $accountId, $user);
 
         return $this->inertiaOrJson('Request/Show', [
             'lead' => $lead,
             'activity' => $activity,
             'statuses' => $statuses,
+            'lostReasonOptions' => $lostReasonOptions,
             'assignees' => $assignees,
             'duplicates' => $duplicates,
             'campaignOrigin' => $campaignOrigin,
@@ -524,6 +533,111 @@ class RequestController extends Controller
         return redirect()->back()->with('success', "{$imported} prospects imported.");
     }
 
+    public function export(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        if ($user->currentAccessToken() && ! $user->tokenCan('exports:read')) {
+            abort(403);
+        }
+
+        $accountId = (int) ($user->accountOwnerId() ?? 0);
+
+        if (! $this->canExportProspects($user, $accountId)) {
+            abort(403);
+        }
+
+        $filters = $request->only([
+            'search',
+            'status',
+            'customer_id',
+            'queue',
+            'assigned_team_member_id',
+            'source',
+            'request_type',
+            'priority',
+            'follow_up',
+            'unassigned',
+            'archived',
+        ]);
+
+        $leads = app(BuildRequestInboxIndexData::class)->resolveCollection($accountId, $filters);
+        $filename = 'prospects-'.now()->format('Ymd-His').'.csv';
+
+        ActivityLog::record($user, $user, 'prospect_export', [
+            'filters' => $filters,
+            'row_count' => $leads->count(),
+            'exported_ids' => $leads->pluck('id')->values()->all(),
+        ], 'Prospects exported');
+
+        return response()->streamDownload(function () use ($leads): void {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, [
+                'id',
+                'status',
+                'channel',
+                'service_type',
+                'title',
+                'contact_name',
+                'contact_email',
+                'contact_phone',
+                'company_name',
+                'customer_id',
+                'customer_name',
+                'quote_id',
+                'quote_number',
+                'assigned_team_member_id',
+                'assigned_to',
+                'next_follow_up_at',
+                'last_activity_at',
+                'created_at',
+                'archived_at',
+                'lost_reason',
+                'is_serviceable',
+                'is_anonymized',
+                'city',
+                'state',
+                'country',
+            ]);
+
+            foreach ($leads as $lead) {
+                fputcsv($handle, [
+                    $lead->id,
+                    $lead->status,
+                    $lead->channel,
+                    $lead->service_type,
+                    $lead->title,
+                    $lead->contact_name,
+                    $lead->contact_email,
+                    $lead->contact_phone,
+                    $lead->companyName(),
+                    $lead->customer_id,
+                    $this->customerDisplayName($lead->customer),
+                    $lead->quote?->id,
+                    $lead->quote?->number,
+                    $lead->assigned_team_member_id,
+                    $lead->assignee?->user?->name,
+                    optional($lead->next_follow_up_at)->toDateTimeString(),
+                    optional($lead->last_activity_at)->toDateTimeString(),
+                    optional($lead->created_at)->toDateTimeString(),
+                    optional($lead->archived_at)->toDateTimeString(),
+                    $lead->lost_reason,
+                    $lead->is_serviceable === null ? null : ($lead->is_serviceable ? '1' : '0'),
+                    $lead->isAnonymized() ? '1' : '0',
+                    $lead->city,
+                    $lead->state,
+                    $lead->country,
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
     /**
      * Convert a request into a draft quote.
      */
@@ -592,7 +706,7 @@ class RequestController extends Controller
 
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        if ($lead->user_id !== $accountId) {
+        if (! $this->canConvertLeadToCustomer($user, $accountId, $lead)) {
             abort(403);
         }
 
@@ -643,6 +757,9 @@ class RequestController extends Controller
 
         $updates = [];
         $previousStatus = $lead->status;
+        $previousAssigneeId = $lead->assigned_team_member_id;
+        $previousLossMeta = $lead->lossMeta();
+        $lostComment = $this->normalizeNullableText($validated['lost_comment'] ?? null);
 
         if (array_key_exists('status', $validated) && $validated['status']) {
             $updates['status'] = $validated['status'];
@@ -678,8 +795,19 @@ class RequestController extends Controller
         }
 
         $nextStatus = $updates['status'] ?? $lead->status;
-        if ($nextStatus !== LeadRequest::STATUS_LOST) {
+        if ($nextStatus === LeadRequest::STATUS_LOST) {
+            $updates['next_follow_up_at'] = null;
+            $updates['meta'] = $this->buildLossMeta(
+                $lead,
+                $updates['meta'] ?? null,
+                $user,
+                $updates['lost_reason'] ?? $lead->lost_reason,
+                $lostComment,
+                $previousStatus
+            );
+        } else {
             $updates['lost_reason'] = null;
+            $updates['meta'] = $this->clearLossMeta($lead, $updates['meta'] ?? null);
         }
 
         if (! empty($updates)) {
@@ -687,21 +815,54 @@ class RequestController extends Controller
         }
 
         $lead->update($updates);
+        $closedOpenTaskCount = $lead->status === LeadRequest::STATUS_LOST && ($validated['close_open_tasks'] ?? false)
+            ? $this->closeOpenTasksForLostLead($lead, $user)
+            : 0;
 
         if ($previousStatus !== $lead->status) {
             app(ProspectStatusHistoryService::class)->record($lead, $user, [
                 'from_status' => $previousStatus,
                 'to_status' => $lead->status,
-                'comment' => $validated['status_comment'] ?? ($lead->status === LeadRequest::STATUS_LOST ? $lead->lost_reason : null),
+                'comment' => $lead->status === LeadRequest::STATUS_LOST
+                    ? ($lostComment ?? $lead->lost_reason)
+                    : ($validated['status_comment'] ?? null),
+                'metadata' => $lead->status === LeadRequest::STATUS_LOST
+                    ? [
+                        'source' => 'manual_status_change',
+                        'lost_reason' => $lead->lost_reason,
+                        'lost_comment' => $lead->lostReasonComment(),
+                        'closed_open_tasks' => (bool) ($validated['close_open_tasks'] ?? false),
+                        'closed_open_task_count' => $closedOpenTaskCount,
+                    ]
+                    : null,
+            ]);
+
+            $this->recordLeadStatusAudit($user, $lead, $previousStatus, $lead->status, [
+                'source' => 'manual_update',
+                'lost_reason' => $lead->lost_reason,
+                'lost_comment' => $lead->lostReasonComment(),
+                'closed_open_tasks' => (bool) ($validated['close_open_tasks'] ?? false),
+                'closed_open_task_count' => $closedOpenTaskCount,
             ]);
         }
+
+        $this->recordLeadAssignmentAudit($user, $lead, $previousAssigneeId, $lead->assigned_team_member_id, [
+            'source' => 'manual_update',
+        ]);
 
         ActivityLog::record($user, $lead, 'updated', [
             'from' => $previousStatus,
             'to' => $lead->status,
             'next_follow_up_at' => $lead->next_follow_up_at,
             'assigned_team_member_id' => $lead->assigned_team_member_id,
-        ], 'Prospect updated');
+            'lost_reason' => $lead->lost_reason,
+            'lost_comment' => $lead->lostReasonComment(),
+            'closed_open_tasks' => (bool) ($validated['close_open_tasks'] ?? false),
+            'closed_open_task_count' => $closedOpenTaskCount,
+            'previous_lost_reason' => $previousLossMeta['code'] ?? null,
+        ], $previousStatus !== LeadRequest::STATUS_LOST && $lead->status === LeadRequest::STATUS_LOST
+            ? 'Prospect marked as lost'
+            : 'Prospect updated');
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -726,6 +887,8 @@ class RequestController extends Controller
 
         $status = $validated['status'] ?? null;
         $hasAssignee = array_key_exists('assigned_team_member_id', $validated);
+        $lostComment = $this->normalizeNullableText($validated['lost_comment'] ?? null);
+        $closeOpenTasks = (bool) ($validated['close_open_tasks'] ?? false);
 
         $updates = [];
         if ($status) {
@@ -734,6 +897,9 @@ class RequestController extends Controller
             $updates['lost_reason'] = $status === LeadRequest::STATUS_LOST
                 ? $validated['lost_reason']
                 : null;
+            if ($status === LeadRequest::STATUS_LOST) {
+                $updates['next_follow_up_at'] = null;
+            }
         }
 
         if ($hasAssignee) {
@@ -754,22 +920,71 @@ class RequestController extends Controller
 
         foreach ($leads as $lead) {
             $previousStatus = $lead->status;
-            $lead->update($updates);
+            $previousAssigneeId = $lead->assigned_team_member_id;
+            $previousLossMeta = $lead->lossMeta();
+            $leadUpdates = $updates;
+
+            if (($leadUpdates['status'] ?? null) === LeadRequest::STATUS_LOST) {
+                $leadUpdates['meta'] = $this->buildLossMeta(
+                    $lead,
+                    $leadUpdates['meta'] ?? null,
+                    $user,
+                    $leadUpdates['lost_reason'] ?? $lead->lost_reason,
+                    $lostComment,
+                    $previousStatus
+                );
+            } else {
+                $leadUpdates['meta'] = $this->clearLossMeta($lead, $leadUpdates['meta'] ?? null);
+            }
+
+            $lead->update($leadUpdates);
+            $closedOpenTaskCount = $lead->status === LeadRequest::STATUS_LOST && $closeOpenTasks
+                ? $this->closeOpenTasksForLostLead($lead, $user)
+                : 0;
 
             if ($previousStatus !== $lead->status) {
                 app(ProspectStatusHistoryService::class)->record($lead, $user, [
                     'from_status' => $previousStatus,
                     'to_status' => $lead->status,
-                    'comment' => $validated['status'] === LeadRequest::STATUS_LOST ? ($validated['lost_reason'] ?? null) : null,
-                    'metadata' => ['source' => 'bulk_update'],
+                    'comment' => $validated['status'] === LeadRequest::STATUS_LOST
+                        ? ($lostComment ?? ($validated['lost_reason'] ?? null))
+                        : null,
+                    'metadata' => $validated['status'] === LeadRequest::STATUS_LOST
+                        ? [
+                            'source' => 'bulk_update',
+                            'lost_reason' => $lead->lost_reason,
+                            'lost_comment' => $lead->lostReasonComment(),
+                            'closed_open_tasks' => $closeOpenTasks,
+                            'closed_open_task_count' => $closedOpenTaskCount,
+                        ]
+                        : ['source' => 'bulk_update'],
+                ]);
+
+                $this->recordLeadStatusAudit($user, $lead, $previousStatus, $lead->status, [
+                    'source' => 'bulk_update',
+                    'lost_reason' => $lead->lost_reason,
+                    'lost_comment' => $lead->lostReasonComment(),
+                    'closed_open_tasks' => $closeOpenTasks,
+                    'closed_open_task_count' => $closedOpenTaskCount,
                 ]);
             }
+
+            $this->recordLeadAssignmentAudit($user, $lead, $previousAssigneeId, $lead->assigned_team_member_id, [
+                'source' => 'bulk_update',
+            ]);
 
             ActivityLog::record($user, $lead, 'bulk_updated', [
                 'from' => $previousStatus,
                 'to' => $lead->status,
                 'assigned_team_member_id' => $lead->assigned_team_member_id,
-            ], 'Prospect updated');
+                'lost_reason' => $lead->lost_reason,
+                'lost_comment' => $lead->lostReasonComment(),
+                'closed_open_tasks' => $closeOpenTasks,
+                'closed_open_task_count' => $closedOpenTaskCount,
+                'previous_lost_reason' => $previousLossMeta['code'] ?? null,
+            ], $previousStatus !== LeadRequest::STATUS_LOST && $lead->status === LeadRequest::STATUS_LOST
+                ? 'Prospect marked as lost'
+                : 'Prospect updated');
         }
 
         if ($this->shouldReturnJson($request)) {
@@ -960,17 +1175,40 @@ class RequestController extends Controller
             abort(403);
         }
 
-        $this->ensureLeadIsMutable(
-            $lead,
-            'lead',
-            'Archived prospects must be restored before they can be deleted.'
-        );
+        $lead->loadMissing('quote');
+
+        if (! $lead->isArchived()) {
+            throw ValidationException::withMessages([
+                'lead' => ['Prospects must be archived before they can be deleted.'],
+            ]);
+        }
+
+        if (! $lead->isAnonymized()) {
+            throw ValidationException::withMessages([
+                'lead' => ['Prospects must be anonymized before they can be deleted.'],
+            ]);
+        }
+
+        if ($lead->customer_id !== null || $lead->quote !== null) {
+            throw ValidationException::withMessages([
+                'lead' => ['Prospects linked to a customer or quote require a dedicated retention workflow before deletion.'],
+            ]);
+        }
+
+        $lead->update([
+            'deleted_by_user_id' => $user->id,
+            'last_activity_at' => now(),
+        ]);
+
+        $lead->delete();
 
         ActivityLog::record($user, $lead, 'deleted', [
             'status' => $lead->status,
+            'archived_at' => optional($lead->archived_at)->toIso8601String(),
+            'anonymized_at' => data_get($lead->meta, 'privacy.anonymized_at'),
+            'deleted_at' => optional($lead->deleted_at)->toIso8601String(),
+            'deleted_by_user_id' => $lead->deleted_by_user_id,
         ], 'Prospect deleted');
-
-        $lead->delete();
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -1088,12 +1326,12 @@ class RequestController extends Controller
      *     submit_url:string
      * }
      */
-    private function buildCustomerConversionPayload(LeadRequest $lead, int $accountId): array
+    private function buildCustomerConversionPayload(LeadRequest $lead, int $accountId, ?User $user): array
     {
         $matches = $this->detectPotentialCustomerMatches($lead, $accountId);
 
         return [
-            'can_convert' => ! $lead->isArchived() && ! $lead->customer_id,
+            'can_convert' => $user ? $this->canConvertLeadToCustomer($user, $accountId, $lead) : false,
             'default_mode' => count($matches) > 0 ? 'link_existing' : 'create_new',
             'matches' => $matches,
             'preview' => [
@@ -1117,6 +1355,203 @@ class RequestController extends Controller
             ],
             'submit_url' => route('prospects.convert-customer', $lead),
         ];
+    }
+
+    private function canConvertLeadToCustomer(User $user, int $accountId, LeadRequest $lead): bool
+    {
+        if ($lead->isArchived() || $lead->customer_id || (int) $lead->user_id !== $accountId) {
+            return false;
+        }
+
+        if ((int) $user->id === $accountId) {
+            return true;
+        }
+
+        $membership = $user->relationLoaded('teamMembership')
+            ? $user->teamMembership
+            : $user->teamMembership()->first();
+
+        return (bool) $membership
+            && (int) $membership->account_id === $accountId
+            && $membership->hasPermission(Prospect::PERMISSION_CONVERT);
+    }
+
+    private function canExportProspects(User $user, int $accountId): bool
+    {
+        if ($accountId <= 0) {
+            return false;
+        }
+
+        if ((int) $user->id === $accountId) {
+            return true;
+        }
+
+        $membership = $user->relationLoaded('teamMembership')
+            ? $user->teamMembership
+            : $user->teamMembership()->first();
+
+        return (bool) $membership
+            && (int) $membership->account_id === $accountId
+            && $membership->hasPermission(Prospect::PERMISSION_EXPORT);
+    }
+
+    /**
+     * @param  array<string, mixed>  $properties
+     */
+    private function recordLeadStatusAudit(User $actor, LeadRequest $lead, ?string $fromStatus, ?string $toStatus, array $properties = []): void
+    {
+        if ($fromStatus === $toStatus) {
+            return;
+        }
+
+        ActivityLog::record($actor, $lead, 'status_changed', [
+            'from_status' => $fromStatus,
+            'to_status' => $toStatus,
+            ...$properties,
+        ], 'Prospect status changed');
+    }
+
+    /**
+     * @param  array<string, mixed>  $properties
+     */
+    private function recordLeadAssignmentAudit(User $actor, LeadRequest $lead, mixed $fromAssigneeId, mixed $toAssigneeId, array $properties = []): void
+    {
+        $normalizedFrom = is_numeric($fromAssigneeId) ? (int) $fromAssigneeId : null;
+        $normalizedTo = is_numeric($toAssigneeId) ? (int) $toAssigneeId : null;
+
+        if ($normalizedFrom === $normalizedTo) {
+            return;
+        }
+
+        ActivityLog::record($actor, $lead, 'assignment_changed', [
+            'from_assigned_team_member_id' => $normalizedFrom,
+            'to_assigned_team_member_id' => $normalizedTo,
+            ...$properties,
+        ], 'Prospect assignment changed');
+    }
+
+    private function customerDisplayName(?Customer $customer): ?string
+    {
+        if (! $customer) {
+            return null;
+        }
+
+        $displayName = trim((string) ($customer->company_name ?? ''));
+        if ($displayName !== '') {
+            return $displayName;
+        }
+
+        $displayName = trim(implode(' ', array_filter([
+            $customer->first_name,
+            $customer->last_name,
+        ])));
+
+        return $displayName !== '' ? $displayName : null;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $meta
+     * @return array<string, mixed>
+     */
+    private function buildLossMeta(
+        LeadRequest $lead,
+        ?array $meta,
+        User $actor,
+        ?string $lostReason,
+        ?string $lostComment,
+        ?string $previousStatus
+    ): array {
+        $workingLead = clone $lead;
+        $workingLead->meta = is_array($meta) ? $meta : (array) ($lead->meta ?? []);
+
+        return $workingLead->mergeLossMeta([
+            'code' => $lostReason,
+            'comment' => $lostComment,
+            'lost_at' => $previousStatus === LeadRequest::STATUS_LOST
+                ? (data_get($workingLead->meta, 'loss.lost_at') ?? now()->toISOString())
+                : now()->toISOString(),
+            'lost_by_user_id' => $previousStatus === LeadRequest::STATUS_LOST
+                ? (data_get($workingLead->meta, 'loss.lost_by_user_id') ?? $actor->id)
+                : $actor->id,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $meta
+     * @return array<string, mixed>
+     */
+    private function clearLossMeta(LeadRequest $lead, ?array $meta): array
+    {
+        $workingLead = clone $lead;
+        $workingLead->meta = is_array($meta) ? $meta : (array) ($lead->meta ?? []);
+
+        return $workingLead->clearLossMeta();
+    }
+
+    private function normalizeNullableText(mixed $value): ?string
+    {
+        $normalized = trim((string) $value);
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function closeOpenTasksForLostLead(LeadRequest $lead, User $actor): int
+    {
+        $openTasks = Task::query()
+            ->where('request_id', $lead->id)
+            ->whereIn('status', Task::OPEN_STATUSES)
+            ->get();
+
+        if ($openTasks->isEmpty()) {
+            return 0;
+        }
+
+        $cancelledAt = now();
+        $cancellationReason = $this->buildLostTaskCancellationReason($lead);
+
+        foreach ($openTasks as $task) {
+            $previousStatus = $task->status;
+
+            $task->update([
+                'status' => Task::STATUS_CANCELLED,
+                'completed_at' => null,
+                'completion_reason' => null,
+                'cancelled_at' => $cancelledAt,
+                'cancellation_reason' => $cancellationReason,
+                'delay_started_at' => null,
+            ]);
+
+            app(TaskStatusHistoryService::class)->record($task, $actor, [
+                'from_status' => $previousStatus,
+                'to_status' => $task->status,
+                'action' => 'cancelled',
+                'note' => $task->cancellation_reason,
+                'metadata' => [
+                    'source' => 'prospect_lost',
+                    'request_id' => $lead->id,
+                    'lost_reason' => $lead->lost_reason,
+                    'lost_comment' => $lead->lostReasonComment(),
+                    'cancellation_reason' => $task->cancellation_reason,
+                ],
+            ]);
+        }
+
+        return $openTasks->count();
+    }
+
+    private function buildLostTaskCancellationReason(LeadRequest $lead): string
+    {
+        $segments = ['Prospect marked as lost'];
+
+        if ($lead->lost_reason) {
+            $segments[] = 'Loss reason: '.$lead->lost_reason;
+        }
+
+        if ($lead->lostReasonComment()) {
+            $segments[] = $lead->lostReasonComment();
+        }
+
+        return Str::limit(implode(' | ', $segments), 255, '');
     }
 
     /**

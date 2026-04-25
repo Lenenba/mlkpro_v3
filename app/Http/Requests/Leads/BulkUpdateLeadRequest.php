@@ -25,7 +25,9 @@ class BulkUpdateLeadRequest extends LeadWriteRequest
             ],
             'status' => $this->statusRule(),
             'assigned_team_member_id' => $this->assigneeRule(),
-            'lost_reason' => ['nullable', 'string', 'max:255'],
+            'lost_reason' => ['nullable', 'string', Rule::in(array_keys(LeadRequestModel::LOST_REASON_OPTIONS))],
+            'lost_comment' => ['nullable', 'string', 'max:1000'],
+            'close_open_tasks' => ['nullable', 'boolean'],
         ];
     }
 

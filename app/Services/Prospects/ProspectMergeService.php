@@ -41,7 +41,10 @@ class ProspectMergeService
             $primary->update($this->buildPrimaryUpdates($primary, $secondary, $mergedAt));
 
             if ($secondary->quote && ! $primary->quote) {
-                $secondary->quote->update(['request_id' => $primary->id]);
+                $secondary->quote->update([
+                    'request_id' => $primary->id,
+                    'prospect_id' => $primary->id,
+                ]);
                 $summary['quote_transferred'] = true;
                 $summary['quote_id'] = $secondary->quote->id;
             }

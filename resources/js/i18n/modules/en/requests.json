@@ -81,6 +81,7 @@
       "clear": "Clear",
       "intake": "Prospect intake",
       "import_csv": "Import CSV",
+      "export_csv": "Export CSV",
       "new_request": "New prospect",
       "view": "View",
       "back": "Back",
@@ -182,6 +183,25 @@
       "convert_error": "Unable to convert the prospect.",
       "convert_customer_error": "Unable to convert the prospect to a customer.",
       "public_submit_error": "Unable to submit the request."
+    },
+    "loss": {
+      "reason_placeholder": "Select a lost reason",
+      "reason_required": "Choose a lost reason.",
+      "reason_missing": "Lost reason not specified",
+      "comment": "Loss comment (optional)",
+      "comment_empty": "No loss comment.",
+      "close_open_tasks": "Close open tasks linked to this prospect",
+      "close_open_tasks_short": "Close open tasks",
+      "reasons": {
+        "budget": "Budget blocked",
+        "timing": "Bad timing",
+        "no_fit": "Not a good fit",
+        "competitor": "Lost to a competitor",
+        "no_response": "No response",
+        "duplicate": "Duplicate opportunity",
+        "internal_decision": "Internal decision",
+        "other": "Other"
+      }
     },
     "customer_conversion": {
       "title": "Prospect to customer conversion",
@@ -503,6 +523,8 @@
       "contact_consent": "Contact consent",
       "marketing_consent": "Marketing consent",
       "customer": "Customer",
+      "lost_reason": "Lost reason",
+      "lost_comment": "Loss comment",
       "status_updated": "Status updated",
       "source": "Source",
       "archived_banner": "Prospect archived",
@@ -696,6 +718,7 @@
       "assignee": "Assignee",
       "follow_up": "Next follow-up",
       "lost_reason": "Lost reason",
+      "lost_comment": "Loss comment",
       "status_comment": "Status note (optional)"
     },
     "interactions": {

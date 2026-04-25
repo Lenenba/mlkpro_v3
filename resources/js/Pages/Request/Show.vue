@@ -39,6 +39,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    lostReasonOptions: {
+        type: Array,
+        default: () => [],
+    },
     assignees: {
         type: Array,
         default: () => [],
@@ -147,6 +151,9 @@ const anonymizationReason = computed(() => anonymizedMeta.value?.anonymization_r
 const statusHistoryItems = computed(() => Array.isArray(props.lead?.status_histories) ? props.lead.status_histories : []);
 const prospectInteractionItems = ref(Array.isArray(props.lead?.prospect_interactions) ? [...props.lead.prospect_interactions] : []);
 const customerConversionModalRef = ref(null);
+const lostReasonMap = computed(() => new Map(
+    (props.lostReasonOptions || []).map((reason) => [String(reason.id), reason.label_key])
+));
 
 const hasMedia = computed(() => Array.isArray(props.lead?.media) && props.lead.media.length > 0);
 const hasTasks = computed(() => Array.isArray(props.lead?.tasks) && props.lead.tasks.length > 0);
@@ -205,6 +212,13 @@ const isOverdue = (lead) => {
 
 const contactPhone = computed(() => (isAnonymized.value ? '' : (props.lead?.contact_phone || props.lead?.customer?.phone || '')));
 const contactEmail = computed(() => (isAnonymized.value ? '' : (props.lead?.contact_email || props.lead?.customer?.email || '')));
+const lostReasonLabel = computed(() => {
+    const code = String(props.lead?.lost_reason || '');
+    const labelKey = lostReasonMap.value.get(code);
+
+    return labelKey ? t(labelKey) : (code || t('requests.loss.reason_missing'));
+});
+const lostComment = computed(() => props.lead?.meta?.loss?.comment || '');
 const canConvertToCustomer = computed(() =>
     Boolean(props.customerConversion?.can_convert) && !isArchived.value && !isAnonymized.value && !props.lead?.customer
 );
@@ -257,6 +271,25 @@ const anonymizeLead = () => {
         anonymization_reason: reason.trim() || null,
     }, {
         preserveScroll: true,
+    });
+};
+
+const deleteLead = () => {
+    if (!isArchived.value || !isAnonymized.value) {
+        return;
+    }
+
+    if (!confirm(t('requests.actions.delete_confirm'))) {
+        return;
+    }
+
+    router.delete(route('prospects.destroy', props.lead.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            router.visit(route('prospects.index', { archived: 1 }), {
+                preserveScroll: true,
+            });
+        },
     });
 };
 
@@ -829,6 +862,14 @@ const openCustomerConversion = () => {
                     >
                         {{ $t('requests.actions.anonymize') }}
                     </button>
+                    <button
+                        v-if="isArchived && isAnonymized"
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+                        @click="deleteLead"
+                    >
+                        {{ $t('requests.actions.delete') }}
+                    </button>
                 </div>
             </div>
 
@@ -966,6 +1007,20 @@ const openCustomerConversion = () => {
                                     {{ lead.urgency || $t('requests.show.urgency_fallback') }}
                                 </div>
                             </div>
+                            <template v-if="lead.status === 'REQ_LOST'">
+                                <div>
+                                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.lost_reason') }}</div>
+                                    <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                        {{ lostReasonLabel }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.lost_comment') }}</div>
+                                    <div class="mt-1 text-stone-800 dark:text-neutral-200">
+                                        {{ lostComment || $t('requests.loss.comment_empty') }}
+                                    </div>
+                                </div>
+                            </template>
                             <div class="sm:col-span-2">
                                 <div class="text-xs uppercase tracking-wide text-stone-400">{{ $t('requests.show.description') }}</div>
                                 <p class="mt-1 text-stone-700 dark:text-neutral-200">

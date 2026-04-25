@@ -81,6 +81,7 @@
       "clear": "Borrar",
       "intake": "Captacion de prospectos",
       "import_csv": "Importar CSV",
+      "export_csv": "Exportar CSV",
       "new_request": "Nuevo prospecto",
       "view": "Ver",
       "back": "Atrás",
@@ -180,6 +181,25 @@
       "import_error": "No se pudieron importar los prospectos.",
       "convert_error": "No se pudo convertir el prospecto.",
       "public_submit_error": "No se pudo enviar la solicitud."
+    },
+    "loss": {
+      "reason_placeholder": "Selecciona un motivo de perdida",
+      "reason_required": "Selecciona un motivo de perdida.",
+      "reason_missing": "Motivo de perdida no especificado",
+      "comment": "Comentario de perdida (opcional)",
+      "comment_empty": "Sin comentario de perdida.",
+      "close_open_tasks": "Cerrar las tareas abiertas vinculadas a este prospecto",
+      "close_open_tasks_short": "Cerrar tareas abiertas",
+      "reasons": {
+        "budget": "Presupuesto bloqueado",
+        "timing": "Mal momento",
+        "no_fit": "No encaja",
+        "competitor": "Perdido frente a un competidor",
+        "no_response": "Sin respuesta",
+        "duplicate": "Oportunidad duplicada",
+        "internal_decision": "Decision interna",
+        "other": "Otro"
+      }
     },
     "intake": {
       "title": "Captacion de prospectos",
@@ -452,6 +472,8 @@
       "contact_consent": "Consentimiento de contacto",
       "marketing_consent": "Consentimiento de marketing",
       "customer": "Cliente",
+      "lost_reason": "Motivo de perdida",
+      "lost_comment": "Comentario de perdida",
       "status_updated": "Estado actualizado",
       "source": "Fuente",
       "archived_banner": "Prospecto archivado",
@@ -645,6 +667,7 @@
       "assignee": "Cesionario",
       "follow_up": "Próximo seguimiento",
       "lost_reason": "razón perdida",
+      "lost_comment": "Comentario de perdida",
       "status_comment": "Nota de estado (opcional)"
     },
     "interactions": {

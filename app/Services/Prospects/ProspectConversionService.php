@@ -35,6 +35,25 @@ class ProspectConversionService
             ->values()
             ->all();
         $created = $mode === 'create_new';
+        $duplicateMatches = $created
+            ? $this->detectExistingCustomerConflicts($lead, $accountId, $validated)
+            : [];
+
+        if ($duplicateMatches !== []) {
+            throw ValidationException::withMessages($this->duplicateConflictErrors($duplicateMatches));
+        }
+
+        $matchedCustomerIds = collect([
+            ...$matchedCustomerIds,
+            ...array_map(
+                fn (array $match): int => (int) ($match['id'] ?? 0),
+                $duplicateMatches
+            ),
+        ])
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
 
         return DB::transaction(function () use ($accountId, $actor, $created, $lead, $matchedCustomerIds, $mode, $validated) {
             $timestamp = now();
@@ -69,6 +88,7 @@ class ProspectConversionService
                     'source' => 'customer_conversion',
                     'mode' => $mode,
                     'customer_id' => $customer->id,
+                    'matched_customer_ids' => $matchedCustomerIds,
                     'quote_ids' => $quoteIds,
                     'created_customer' => $created,
                 ],
@@ -81,6 +101,17 @@ class ProspectConversionService
                 'quote_ids' => $quoteIds,
                 'created_customer' => $created,
             ], 'Prospect converted to customer');
+
+            ActivityLog::record($actor, $lead, 'status_changed', [
+                'from_status' => $previousStatus,
+                'to_status' => $lead->status,
+                'source' => 'customer_conversion',
+                'mode' => $mode,
+                'customer_id' => $customer->id,
+                'matched_customer_ids' => $matchedCustomerIds,
+                'quote_ids' => $quoteIds,
+                'created_customer' => $created,
+            ], 'Prospect status changed');
 
             return [
                 'customer' => $customer->fresh(['defaultProperty:id,customer_id,street1,street2,city,state,zip,country,is_default']),
@@ -148,13 +179,17 @@ class ProspectConversionService
             ]);
         }
 
-        $existingEmailCustomer = Customer::query()
+        $globalEmailCustomer = Customer::query()
             ->whereRaw('LOWER(email) = ?', [$contactEmail])
-            ->first();
+            ->first(['id', 'user_id']);
 
-        if ($existingEmailCustomer) {
+        if ($globalEmailCustomer) {
+            $message = (int) $globalEmailCustomer->user_id === $accountId
+                ? 'A customer already exists with this email address. Link the existing customer instead.'
+                : 'This email address is already used by another customer record.';
+
             throw ValidationException::withMessages([
-                'contact_email' => ['A customer already exists with this email. Link the existing customer instead.'],
+                'contact_email' => [$message],
             ]);
         }
 
@@ -227,6 +262,97 @@ class ProspectConversionService
     }
 
     /**
+     * @param  array<string, mixed>  $validated
+     * @return array<int, array{id:int,reasons:array<int, string>}>
+     */
+    private function detectExistingCustomerConflicts(LeadRequest $lead, int $accountId, array $validated): array
+    {
+        $contactEmail = $this->normalizeEmail($validated['contact_email'] ?? $lead->contact_email);
+        $contactPhone = $this->normalizePhone($validated['contact_phone'] ?? $lead->contact_phone);
+        $companyName = $this->normalizeText($validated['company_name'] ?? $lead->companyName());
+
+        if (! $contactEmail && ! $contactPhone && ! $companyName) {
+            return [];
+        }
+
+        $phoneTail = $contactPhone ? substr($contactPhone, -7) : null;
+
+        return Customer::query()
+            ->where('user_id', $accountId)
+            ->where(function ($query) use ($companyName, $contactEmail, $phoneTail) {
+                if ($contactEmail) {
+                    $query->orWhereRaw('LOWER(email) = ?', [$contactEmail]);
+                }
+
+                if ($phoneTail) {
+                    $query->orWhere('phone', 'like', '%'.$phoneTail.'%');
+                }
+
+                if ($companyName) {
+                    $query->orWhereRaw('LOWER(company_name) = ?', [$companyName]);
+                }
+            })
+            ->get(['id', 'company_name', 'email', 'phone'])
+            ->map(function (Customer $customer) use ($companyName, $contactEmail, $contactPhone) {
+                $reasons = [];
+
+                if ($contactEmail && $this->normalizeEmail($customer->email) === $contactEmail) {
+                    $reasons[] = 'email_exact';
+                }
+
+                if ($contactPhone && $this->normalizePhone($customer->phone) === $contactPhone) {
+                    $reasons[] = 'phone_exact';
+                }
+
+                if ($companyName && $this->normalizeText($customer->company_name) === $companyName) {
+                    $reasons[] = 'company_exact';
+                }
+
+                if ($reasons === []) {
+                    return null;
+                }
+
+                return [
+                    'id' => $customer->id,
+                    'reasons' => $reasons,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array{id:int,reasons:array<int, string>}>  $matches
+     * @return array<string, array<int, string>>
+     */
+    private function duplicateConflictErrors(array $matches): array
+    {
+        $reasonCodes = collect($matches)
+            ->flatMap(fn (array $match): array => (array) ($match['reasons'] ?? []))
+            ->unique()
+            ->values();
+
+        $errors = [
+            'customer_id' => ['A matching customer already exists. Link the existing customer instead.'],
+        ];
+
+        if ($reasonCodes->contains('email_exact')) {
+            $errors['contact_email'] = ['A customer already exists with this email address. Link the existing customer instead.'];
+        }
+
+        if ($reasonCodes->contains('phone_exact')) {
+            $errors['contact_phone'] = ['A customer already exists with this phone number. Link the existing customer instead.'];
+        }
+
+        if ($reasonCodes->contains('company_exact')) {
+            $errors['company_name'] = ['A customer already exists with this company name. Link the existing customer instead.'];
+        }
+
+        return $errors;
+    }
+
+    /**
      * @return array{0:string,1:string}
      */
     private function splitContactName(string $contactName, ?string $fallbackLastName = null): array
@@ -249,6 +375,24 @@ class ProspectConversionService
     private function normalizeEmail(mixed $value): ?string
     {
         $normalized = strtolower(trim((string) $value));
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function normalizePhone(mixed $value): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $value) ?? '';
+
+        if ($digits !== '' && strlen($digits) === 11 && str_starts_with($digits, '1')) {
+            $digits = substr($digits, 1);
+        }
+
+        return strlen($digits) >= 7 ? $digits : null;
+    }
+
+    private function normalizeText(mixed $value): ?string
+    {
+        $normalized = preg_replace('/\s+/', ' ', strtolower(trim((string) $value))) ?? '';
 
         return $normalized !== '' ? $normalized : null;
     }

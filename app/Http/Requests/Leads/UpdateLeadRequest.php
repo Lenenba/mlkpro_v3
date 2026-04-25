@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Leads;
 
 use App\Models\Request as LeadRequestModel;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class UpdateLeadRequest extends LeadWriteRequest
@@ -18,7 +19,9 @@ class UpdateLeadRequest extends LeadWriteRequest
             'status' => $this->statusRule(),
             'assigned_team_member_id' => $this->assigneeRule(),
             'next_follow_up_at' => ['nullable', 'date'],
-            'lost_reason' => ['nullable', 'string', 'max:255'],
+            'lost_reason' => ['nullable', 'string', Rule::in($this->allowedLostReasonValues())],
+            'lost_comment' => ['nullable', 'string', 'max:1000'],
+            'close_open_tasks' => ['nullable', 'boolean'],
             'status_comment' => ['nullable', 'string', 'max:1000'],
             'channel' => ['nullable', 'string', 'max:50'],
             'urgency' => ['nullable', 'string', 'max:50'],
@@ -39,5 +42,21 @@ class UpdateLeadRequest extends LeadWriteRequest
                 $validator->errors()->add('lost_reason', 'Lost reason is required.');
             }
         });
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function allowedLostReasonValues(): array
+    {
+        $allowed = array_keys(LeadRequestModel::LOST_REASON_OPTIONS);
+        $lead = $this->route('lead');
+        $existingReason = trim((string) ($lead?->lost_reason ?? ''));
+
+        if ($existingReason !== '') {
+            $allowed[] = $existingReason;
+        }
+
+        return array_values(array_unique($allowed));
     }
 }

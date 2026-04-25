@@ -385,6 +385,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     // Lead Requests
     Route::middleware('company.feature:requests')->group(function () {
         Route::get('/prospects', [ProspectController::class, 'index'])->name('prospects.index');
+        Route::get('/prospects/export', [ProspectController::class, 'export'])->name('prospects.export');
         Route::patch('/prospects/bulk', [ProspectController::class, 'bulkUpdate'])->name('prospects.bulk');
         Route::post('/prospects', [ProspectController::class, 'store'])->name('prospects.store');
         Route::post('/prospects/import', [ProspectController::class, 'import'])->name('prospects.import');
@@ -408,6 +409,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::delete('/prospects/{lead}', [ProspectController::class, 'destroy'])->name('prospects.destroy');
 
         Route::get('/requests', [RequestController::class, 'index'])->name('request.index');
+        Route::get('/requests/export', [RequestController::class, 'export'])->name('request.export');
         Route::patch('/requests/bulk', [RequestController::class, 'bulkUpdate'])->name('request.bulk');
         Route::post('/requests', [RequestController::class, 'store'])->name('request.store');
         Route::post('/requests/import', [RequestController::class, 'import'])->name('request.import');

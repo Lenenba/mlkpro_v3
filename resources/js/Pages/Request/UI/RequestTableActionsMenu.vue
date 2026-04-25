@@ -117,7 +117,7 @@ const { t } = useI18n();
             {{ t('requests.actions.anonymize') }}
         </button>
         <button
-            v-if="!archived"
+            v-if="archived && anonymized"
             type="button"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-neutral-800"
             :disabled="processing"

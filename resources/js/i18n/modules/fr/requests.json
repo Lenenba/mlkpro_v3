@@ -81,6 +81,7 @@
       "clear": "Effacer",
       "intake": "Entrees prospects",
       "import_csv": "Importer CSV",
+      "export_csv": "Exporter CSV",
       "new_request": "Nouveau prospect",
       "view": "Voir",
       "back": "Retour",
@@ -182,6 +183,25 @@
       "convert_error": "Impossible de convertir le prospect.",
       "convert_customer_error": "Impossible de convertir le prospect en client.",
       "public_submit_error": "Impossible d'envoyer la demande."
+    },
+    "loss": {
+      "reason_placeholder": "Choisir une raison de perte",
+      "reason_required": "Choisissez une raison de perte.",
+      "reason_missing": "Raison de perte non renseignee",
+      "comment": "Commentaire de perte (optionnel)",
+      "comment_empty": "Aucun commentaire de perte.",
+      "close_open_tasks": "Fermer les taches ouvertes liees a ce prospect",
+      "close_open_tasks_short": "Fermer les taches ouvertes",
+      "reasons": {
+        "budget": "Budget bloque",
+        "timing": "Mauvais timing",
+        "no_fit": "Mauvais fit",
+        "competitor": "Perdu face a un concurrent",
+        "no_response": "Aucune reponse",
+        "duplicate": "Doublon commercial",
+        "internal_decision": "Decision interne",
+        "other": "Autre"
+      }
     },
     "customer_conversion": {
       "title": "Conversion prospect vers client",
@@ -503,6 +523,8 @@
       "contact_consent": "Consentement de contact",
       "marketing_consent": "Consentement marketing",
       "customer": "Client",
+      "lost_reason": "Raison de perte",
+      "lost_comment": "Commentaire de perte",
       "status_updated": "Statut mis a jour",
       "source": "Source",
       "archived_banner": "Prospect archive",
@@ -696,6 +718,7 @@
       "assignee": "Assigne",
       "follow_up": "Prochaine relance",
       "lost_reason": "Raison de perte",
+      "lost_comment": "Commentaire de perte",
       "status_comment": "Note de statut (optionnel)"
     },
     "interactions": {

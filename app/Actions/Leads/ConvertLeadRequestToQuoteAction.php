@@ -71,6 +71,14 @@ class ConvertLeadRequestToQuoteAction
                 'customer_id' => $quote->customer_id,
             ], 'Prospect converted to quote');
 
+            ActivityLog::record($actor, $lead, 'status_changed', [
+                'from_status' => $previousStatus,
+                'to_status' => $lead->status,
+                'source' => 'quote_conversion',
+                'quote_id' => $quote->id,
+                'customer_id' => $quote->customer_id,
+            ], 'Prospect status changed');
+
             ActivityLog::record($actor, $quote, 'created', [
                 'request_id' => $lead->id,
                 'customer_id' => $quote->customer_id,

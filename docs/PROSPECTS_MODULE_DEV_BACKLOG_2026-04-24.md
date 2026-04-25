@@ -816,7 +816,7 @@ Objectif technique:
 
 ### `PROSPECT-603` - Ajouter les garde-fous de conversion
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: eviter les doublons et les conversions abusives
 - Livrables:
 - verification par email, telephone, entreprise
@@ -828,6 +828,8 @@ Objectif technique:
 - `tests/Feature/ProspectConversionTest.php`
 - Definition de done:
 - la conversion est bloquee ou avertie quand un doublon ou un manque de droit existe
+- Verification executee:
+- `php artisan test tests/Feature/ProspectConversionTest.php tests/Feature/ProspectQuoteBridgeTest.php tests/Feature/ProspectStatusHistoryTest.php tests/Feature/ProspectWorkspaceFeatureTest.php`
 
 Definition de done de phase:
 
@@ -846,60 +848,72 @@ Objectif technique:
 
 ### `PROSPECT-701` - Gerer les prospects perdus
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: capturer la raison business de perte
 - Livrables:
 - liste de raisons de perte
 - commentaire libre
+- fermeture optionnelle des taches ouvertes
 - journalisation
 - Fichiers probables:
 - `app/Models/Request.php`
 - `resources/js/Pages/Request/Show.vue`
-- `tests/Feature/ProspectAuditComplianceTest.php`
+- `tests/Feature/ProspectLostManagementTest.php`
 - Definition de done:
 - un prospect peut etre marque perdu avec raison exploitable
+- Verification executee:
+- `php artisan test tests/Feature/ProspectLostManagementTest.php tests/Feature/ProspectStatusHistoryTest.php tests/Feature/ProspectWorkspaceFeatureTest.php`
 
 ### `PROSPECT-702` - Ajouter archivage et anonymisation
 
-- Statut: `partiel`
+- Statut: `fait`
 - But: respecter la retention et nettoyer l'operationnel
 - Livrables:
 - archivage
 - anonymisation
-- eventuelle suppression logique controlee
+- suppression logique controlee
 - Fichiers probables:
 - `app/Models/Request.php`
 - controller de module
-- commandes si necessaire
-- `tests/Feature/ProspectAuditComplianceTest.php`
+- `database/migrations/2026_04_25_000005_add_prospect_soft_delete_fields_to_requests_table.php`
+- `tests/Feature/ProspectWorkspaceFeatureTest.php`
 - Definition de done:
 - les actions sensibles existent et sont protegees
-- Note d'avancement:
-- archivage/restauration et consultation en lecture seule deja branches sur le workspace prospects
-- anonymisation V1 archive-only est branchee avec scrub des donnees personnelles, neutralisation des notes/fichiers/taches, masquage UI et blocage de restauration
-- suppression logique controlee reste a implementer
+- Verification executee:
+- `php artisan test tests/Feature/ProspectWorkspaceFeatureTest.php tests/Feature/ProspectLostManagementTest.php tests/Feature/ProspectStatusHistoryTest.php tests/Feature/ProspectConversionTest.php`
 
 ### `PROSPECT-703` - Renforcer l'audit du module Prospects
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: tracer creation, edition, statut, assignation, merge, conversion, export
+- Livrables:
+- evenements d'audit explicites `status_changed` et `assignment_changed`
+- couverture centralisee des traces creation / merge / conversion / export
 - Fichiers probables:
 - `app/Models/ActivityLog.php`
 - eventuel service d'audit prospects
 - `tests/Feature/ProspectAuditComplianceTest.php`
 - Definition de done:
 - les actions sensibles laissent une trace consultable
+- Verification executee:
+- `php artisan test tests/Feature/ProspectAuditComplianceTest.php tests/Feature/ProspectWorkspaceFeatureTest.php tests/Feature/ProspectConversionTest.php tests/Feature/ProspectDuplicateMergeTest.php tests/Feature/ProspectLostManagementTest.php tests/Feature/ProspectStatusHistoryTest.php`
 
 ### `PROSPECT-704` - Ajouter l'export controle des donnees prospects
 
-- Statut: `a faire`
+- Statut: `fait`
 - But: permettre l'export sans ouvrir les vannes a tout le monde
+- Livrables:
+- route d'export CSV prospects avec reprise des filtres du workspace
+- garde-fou permission `prospects.export` avec alias legacy `requests.export`
+- journalisation `prospect_export`
 - Fichiers probables:
 - controller / action d'export
 - permissions equipe
 - `tests/Feature/ProspectAuditComplianceTest.php`
 - Definition de done:
 - seuls les utilisateurs autorises peuvent exporter, et l'export est journalise
+- Verification executee:
+- `php artisan test tests/Feature/ProspectAuditComplianceTest.php tests/Feature/ProspectWorkspaceFeatureTest.php tests/Feature/ProspectConversionTest.php tests/Feature/ProspectDuplicateMergeTest.php tests/Feature/ProspectLostManagementTest.php tests/Feature/ProspectStatusHistoryTest.php`
 
 Definition de done de phase:
 

@@ -683,3 +683,75 @@ it('blocks invalid anonymization flows and prevents restoring anonymized prospec
         ->and($linkedLead->fresh()?->isAnonymized())->toBeFalse()
         ->and($archivedLead->archive_reason)->toBeNull();
 });
+
+it('soft deletes only archived anonymized prospects and keeps the audit trail', function () {
+    $owner = prospectWorkspaceOwner();
+
+    $activeLead = LeadRequest::query()->create([
+        'user_id' => $owner->id,
+        'status' => LeadRequest::STATUS_CONTACTED,
+        'title' => 'Active deletion candidate',
+        'contact_name' => 'Active Candidate',
+        'contact_email' => 'active.delete@example.com',
+    ]);
+
+    $archivedLead = LeadRequest::query()->create([
+        'user_id' => $owner->id,
+        'status' => LeadRequest::STATUS_CONTACTED,
+        'title' => 'Archived only candidate',
+        'contact_name' => 'Archived Candidate',
+        'contact_email' => 'archived.delete@example.com',
+        'archived_at' => now(),
+        'archived_by_user_id' => $owner->id,
+    ]);
+
+    $anonymizedLead = LeadRequest::query()->create([
+        'user_id' => $owner->id,
+        'status' => LeadRequest::STATUS_CONTACTED,
+        'title' => 'Archived anonymized candidate',
+        'contact_name' => 'Archived Anonymized',
+        'contact_email' => 'anonymized.delete@example.com',
+        'archived_at' => now(),
+        'archived_by_user_id' => $owner->id,
+    ]);
+
+    $this->actingAs($owner)
+        ->patchJson(route('prospects.anonymize', $anonymizedLead), [
+            'anonymization_reason' => 'Retention cleanup',
+        ])
+        ->assertOk();
+
+    $this->actingAs($owner)
+        ->deleteJson(route('prospects.destroy', $activeLead))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('lead');
+
+    $this->actingAs($owner)
+        ->deleteJson(route('prospects.destroy', $archivedLead))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('lead');
+
+    $this->actingAs($owner)
+        ->deleteJson(route('prospects.destroy', $anonymizedLead))
+        ->assertOk()
+        ->assertJsonPath('message', 'Prospect deleted.');
+
+    $anonymizedLead = LeadRequest::withTrashed()->findOrFail($anonymizedLead->id);
+
+    expect(LeadRequest::query()->whereKey($activeLead->id)->exists())->toBeTrue()
+        ->and(LeadRequest::query()->whereKey($archivedLead->id)->exists())->toBeTrue()
+        ->and(LeadRequest::query()->whereKey($anonymizedLead->id)->exists())->toBeFalse()
+        ->and($anonymizedLead->trashed())->toBeTrue()
+        ->and($anonymizedLead->deleted_at)->not->toBeNull()
+        ->and($anonymizedLead->deleted_by_user_id)->toBe($owner->id);
+
+    expect(ActivityLog::query()
+        ->where('subject_type', $anonymizedLead->getMorphClass())
+        ->where('subject_id', $anonymizedLead->id)
+        ->where('action', 'deleted')
+        ->exists())->toBeTrue();
+
+    $this->actingAs($owner)
+        ->getJson(route('prospects.show', $anonymizedLead->id))
+        ->assertNotFound();
+});
