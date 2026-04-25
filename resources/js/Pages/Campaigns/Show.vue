@@ -480,7 +480,7 @@ const openProspectingWorkspace = (step = 3) => {
                                     {{ t('marketing.campaign_show.prospecting.fit_intent', { fit: prospect.fit_score ?? '-', intent: prospect.intent_score ?? '-' }) }}
                                 </div>
                                 <div v-if="prospect.converted_lead" class="mt-2">
-                                    <Link :href="route('request.show', prospect.converted_lead.id)" class="text-xs font-medium text-emerald-700 underline underline-offset-2 dark:text-emerald-300">
+                                    <Link :href="route('prospects.show', prospect.converted_lead.id)" class="text-xs font-medium text-emerald-700 underline underline-offset-2 dark:text-emerald-300">
                                         {{ t('marketing.campaign_show.prospecting.open_lead') }}
                                     </Link>
                                 </div>

@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api\Integration;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Customer;
 use App\Models\Request as LeadRequest;
 use App\Services\CompanyFeatureService;
 use App\Services\UsageLimitService;
+use App\Support\Prospects\ProspectIntakeMeta;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -48,6 +48,9 @@ class RequestController extends Controller
             'next_follow_up_at' => 'nullable|date',
             'meta' => 'nullable|array',
             'meta.budget' => 'nullable|numeric',
+            'meta.request_type' => 'nullable|string|max:100',
+            'meta.contact_consent' => 'nullable|boolean',
+            'meta.marketing_consent' => 'nullable|boolean',
         ]);
 
         if (
@@ -68,25 +71,28 @@ class RequestController extends Controller
         $channel = $this->normalizeChannel($validated['channel'] ?? null) ?? 'api';
         $urgency = $this->normalizeUrgency($validated['urgency'] ?? null);
 
-        $customerId = $this->resolveCustomerId(
-            $accountId,
-            $validated['contact_email'] ?? null,
-            $validated['contact_phone'] ?? null
-        );
-
         $title = $validated['title']
             ?? $validated['service_type']
             ?? $validated['contact_name'];
+        $meta = ProspectIntakeMeta::merge(
+            $validated['meta'] ?? null,
+            source: $channel,
+            requestType: data_get($validated, 'meta.request_type') ?? 'api_inbound',
+            contactConsent: data_get($validated, 'meta.contact_consent'),
+            marketingConsent: data_get($validated, 'meta.marketing_consent')
+        );
 
         $lead = LeadRequest::create([
             ...$validated,
             'user_id' => $accountId,
-            'customer_id' => $customerId,
+            'customer_id' => null,
             'channel' => $channel,
             'urgency' => $urgency,
             'title' => $title,
             'status' => LeadRequest::STATUS_NEW,
             'status_updated_at' => now(),
+            'last_activity_at' => now(),
+            'meta' => $meta,
         ]);
 
         ActivityLog::record($user, $lead, 'created', [
@@ -110,27 +116,6 @@ class RequestController extends Controller
         if ($token && !$user->tokenCan($ability)) {
             abort(403);
         }
-    }
-
-    private function resolveCustomerId(int $accountId, ?string $email, ?string $phone): ?int
-    {
-        $query = Customer::query()->byUser($accountId);
-
-        if ($email) {
-            $customer = (clone $query)->where('email', $email)->first();
-            if ($customer) {
-                return $customer->id;
-            }
-        }
-
-        if ($phone) {
-            $customer = (clone $query)->where('phone', $phone)->first();
-            if ($customer) {
-                return $customer->id;
-            }
-        }
-
-        return null;
     }
 
     private function normalizeChannel(?string $value): ?string

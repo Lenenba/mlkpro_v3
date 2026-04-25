@@ -377,7 +377,7 @@ const autoFilter = () => {
     }
     filterTimeout = setTimeout(() => {
         isLoading.value = true;
-        router.get(route('request.index'), filterPayload(), {
+        router.get(route('prospects.index'), filterPayload(), {
             only: ['requests', 'filters', 'stats', 'analytics'],
             preserveState: true,
             preserveScroll: true,
@@ -512,7 +512,7 @@ const submitBulkStatus = async () => {
     bulkProcessing.value = true;
 
     try {
-        const { data } = await axios.patch(route('request.bulk'), {
+        const { data } = await axios.patch(route('prospects.bulk'), {
             ids: selected.value,
             status: bulkStatus.value,
             lost_reason: bulkStatus.value === bulkLostReasonTriggerValue.value ? lostReason : null,
@@ -560,7 +560,7 @@ const submitBulkAssign = async () => {
     bulkProcessing.value = true;
 
     try {
-        const { data } = await axios.patch(route('request.bulk'), {
+        const { data } = await axios.patch(route('prospects.bulk'), {
             ids: selected.value,
             assigned_team_member_id: Number(bulkAssignee.value),
         }, {
@@ -697,7 +697,7 @@ const submitConvert = () => {
         return;
     }
 
-    convertForm.post(route('request.convert', leadId), {
+    convertForm.post(route('prospects.convert', leadId), {
         preserveScroll: true,
         onSuccess: () => {
             if (window.HSOverlay) {
@@ -756,7 +756,7 @@ const submitUpdate = () => {
         return;
     }
 
-    updateForm.put(route('request.update', leadId), {
+    updateForm.put(route('prospects.update', leadId), {
         preserveScroll: true,
         onSuccess: () => {
             if (window.HSOverlay) {
@@ -774,7 +774,7 @@ const runQuickLeadUpdate = (lead, payload, options = {}) => {
 
     processingId.value = lead.id;
 
-    router.put(route('request.update', lead.id), payload, {
+    router.put(route('prospects.update', lead.id), payload, {
         preserveScroll: true,
         only: ['requests', 'stats', 'flash'],
         ...options,
@@ -799,7 +799,7 @@ const deleteLead = (lead) => {
     }
 
     processingId.value = lead.id;
-    router.delete(route('request.destroy', lead.id), {
+    router.delete(route('prospects.destroy', lead.id), {
         preserveScroll: true,
         onFinish: () => {
             processingId.value = null;
@@ -1112,7 +1112,7 @@ const submitImport = () => {
         return;
     }
     importForm.mapping = { ...importMapping.value };
-    importForm.post(route('request.import'), {
+    importForm.post(route('prospects.import'), {
         forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
@@ -1425,7 +1425,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                         <td class="px-5 py-3">
                             <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">
                                 <Link
-                                    :href="route('request.show', lead.id)"
+                                    :href="route('prospects.show', lead.id)"
                                     class="hover:text-emerald-600"
                                 >
                                     {{ lead.title || lead.service_type || $t('requests.labels.request_number', { id: lead.id }) }}

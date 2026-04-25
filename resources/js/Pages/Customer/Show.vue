@@ -545,7 +545,7 @@ const activityHref = (log) => {
     }
 
     if (type.endsWith('Request')) {
-        return route('request.show', id);
+        return route('prospects.show', id);
     }
 
     if (type.endsWith('Quote')) {

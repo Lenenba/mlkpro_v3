@@ -20,6 +20,7 @@ use App\Services\CRM\OutgoingEmailLogService;
 use App\Services\LeadServiceSuggestionService;
 use App\Services\TrackingService;
 use App\Services\UsageLimitService;
+use App\Support\Prospects\ProspectIntakeMeta;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -236,12 +237,6 @@ class PublicRequestController extends Controller
         $title = $validated['service_type']
             ?? $validated['contact_name'];
 
-        $customerId = $this->resolveCustomerId(
-            $user->id,
-            $validated['contact_email'] ?? null,
-            $validated['contact_phone'] ?? null
-        );
-
         $meta = [];
         if ($finalAction === self::FINAL_ACTION_REQUEST_CALL) {
             $meta['lead_stage'] = 'call_requested';
@@ -302,13 +297,21 @@ class PublicRequestController extends Controller
             $meta,
             $leadAttributionService->buildInboundAttributionMeta($request, $user)
         );
+        $meta = ProspectIntakeMeta::merge(
+            $meta,
+            source: 'web_form',
+            requestType: $finalAction === self::FINAL_ACTION_RECEIVE_QUOTE ? 'quote_request' : 'contact_request',
+            contactConsent: true,
+            marketingConsent: false
+        );
 
         $lead = LeadRequest::create([
             'user_id' => $user->id,
-            'customer_id' => $customerId,
+            'customer_id' => null,
             'channel' => 'web_form',
             'status' => LeadRequest::STATUS_NEW,
             'status_updated_at' => now(),
+            'last_activity_at' => now(),
             'title' => $title,
             'service_type' => $validated['service_type'] ?? null,
             'description' => $validated['description'] ?? null,
@@ -484,6 +487,7 @@ class PublicRequestController extends Controller
         $lead->update([
             'status' => LeadRequest::STATUS_CALL_REQUESTED,
             'status_updated_at' => now(),
+            'last_activity_at' => now(),
             'next_follow_up_at' => $lead->next_follow_up_at ?? now()->addDay(),
         ]);
 

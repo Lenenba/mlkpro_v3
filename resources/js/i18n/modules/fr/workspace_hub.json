@@ -49,6 +49,7 @@
         "modules": {
             "customers": "Fiches clients, notes, tags et historique de relation.",
             "requests": "Intake lead, qualification et suivi de conversion.",
+            "prospects": "Espace prospects pour qualification, relance et conversion commerciale.",
             "quotes": "Propositions commerciales et suivi des devis.",
             "manager_dashboard_label": "Dashboard manager",
             "manager_dashboard": "Pipeline pondere, stage aging, relances en retard et quote pull-through dans une vue revenue manager.",

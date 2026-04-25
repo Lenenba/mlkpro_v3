@@ -1,8 +1,8 @@
 {
   "requests": {
-    "title": "Demandes",
+    "title": "Prospects",
     "stats": {
-      "total": "Total demandes",
+      "total": "Total prospects",
       "new": "Nouvelles",
       "in_progress": "En cours",
       "due_soon": "A traiter bientot",
@@ -13,7 +13,7 @@
       "unassigned": "Non assignees"
     },
     "filters": {
-      "search_placeholder": "Rechercher demandes...",
+      "search_placeholder": "Rechercher prospects...",
       "all_statuses": "Tous statuts",
       "all_customers": "Tous clients"
     },
@@ -73,7 +73,7 @@
       "clear": "Effacer",
       "intake": "Entrees leads",
       "import_csv": "Importer CSV",
-      "new_request": "Nouvelle demande",
+      "new_request": "Nouveau prospect",
       "view": "Voir",
       "back": "Retour",
       "view_quote": "Voir devis",
@@ -81,10 +81,10 @@
       "update": "Mettre a jour",
       "timeline": "Historique",
       "delete": "Supprimer",
-      "delete_confirm": "Supprimer cette demande ?",
+      "delete_confirm": "Supprimer ce prospect ?",
       "cancel": "Annuler",
       "save": "Enregistrer",
-      "create_request": "Creer demande",
+      "create_request": "Creer prospect",
       "convert_to_quote": "Convertir en devis"
     },
     "view": {
@@ -92,7 +92,7 @@
       "board": "Kanban"
     },
     "board": {
-      "empty": "Aucune demande ici."
+      "empty": "Aucun prospect ici."
     },
     "sources": {
       "manual": "Manuel",
@@ -366,15 +366,15 @@
       "actions": "Actions"
     },
     "labels": {
-      "request_number": "Demande #{id}",
-      "request": "Demande",
+      "request_number": "Prospect #{id}",
+      "request": "Prospect",
       "unknown_customer": "Client inconnu",
       "unknown_status": "Statut inconnu",
       "unassigned": "Non assigne",
       "no_follow_up": "Aucune relance"
     },
     "show": {
-      "details": "Details lead",
+      "details": "Fiche prospect",
       "channel_fallback": "Canal inconnu",
       "service": "Service",
       "service_fallback": "Non renseigne",
@@ -545,14 +545,14 @@
       "lost": "Perdue",
       "converted": "Convertie"
     },
-    "empty": "Aucune demande trouvee.",
+    "empty": "Aucun prospect trouve.",
     "pagination": {
       "previous": "Precedent",
       "next": "Suivant",
       "showing": "Affichage {from}-{to}"
     },
     "convert": {
-      "title": "Convertir la demande en devis",
+      "title": "Convertir le prospect en devis",
       "default_job_title": "Nouveau devis",
       "create_customer": "Creer un nouveau client",
       "customer": "Client",
@@ -568,7 +568,7 @@
       "notes_optional": "Notes (optionnel)"
     },
     "update": {
-      "title": "Mettre a jour la demande",
+      "title": "Mettre a jour le prospect",
       "status": "Statut",
       "assignee": "Assigne",
       "follow_up": "Prochaine relance",

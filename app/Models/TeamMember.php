@@ -92,10 +92,22 @@ class TeamMember extends Model
     public function hasPermission(string $permission): bool
     {
         $permissions = $this->permissions ?? [];
-        if (!is_array($permissions)) {
+        if (! is_array($permissions)) {
             return false;
         }
 
-        return in_array($permission, $permissions, true);
+        if (in_array($permission, $permissions, true)) {
+            return true;
+        }
+
+        $aliases = Prospect::permissionAliases()[$permission] ?? [];
+
+        foreach ($aliases as $alias) {
+            if (in_array($alias, $permissions, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -232,7 +232,7 @@ const submit = () => {
         return;
     }
 
-    form.post(route('request.store'), {
+    form.post(route('prospects.store'), {
         transform: (data) => ({
             ...data,
             is_serviceable: data.is_serviceable === '' ? null : data.is_serviceable === '1',

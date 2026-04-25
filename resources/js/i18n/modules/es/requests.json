@@ -1,8 +1,8 @@
 {
   "requests": {
-    "title": "Solicitudes",
+    "title": "Prospectos",
     "stats": {
-      "total": "Solicitudes totales",
+      "total": "Prospectos totales",
       "new": "Nuevo",
       "in_progress": "En progreso",
       "due_soon": "Por vencer",
@@ -13,7 +13,7 @@
       "unassigned": "No asignado"
     },
     "filters": {
-      "search_placeholder": "Solicitudes de búsqueda...",
+      "search_placeholder": "Buscar prospectos...",
       "all_statuses": "Todos los estados",
       "all_customers": "Todos los clientes"
     },
@@ -73,7 +73,7 @@
       "clear": "Borrar",
       "intake": "Ingesta de plomo",
       "import_csv": "Importar CSV",
-      "new_request": "Nueva solicitud",
+      "new_request": "Nuevo prospecto",
       "view": "Ver",
       "back": "Atrás",
       "view_quote": "Ver cotización",
@@ -81,10 +81,10 @@
       "update": "Actualizar",
       "timeline": "Línea de tiempo",
       "delete": "Eliminar",
-      "delete_confirm": "¿Eliminar esta solicitud?",
+      "delete_confirm": "Eliminar este prospecto?",
       "cancel": "Cancelar",
       "save": "Guardar",
-      "create_request": "Crear solicitud",
+      "create_request": "Crear prospecto",
       "convert_to_quote": "Convertir a cotización"
     },
     "view": {
@@ -92,7 +92,7 @@
       "board": "tablero"
     },
     "board": {
-      "empty": "No hay pistas aquí todavía."
+      "empty": "No hay prospectos aqui todavia."
     },
     "sources": {
       "manual": "manuales",
@@ -366,8 +366,8 @@
       "actions": "Acciones"
     },
     "labels": {
-      "request_number": "Solicitud #{id}",
-      "request": "Solicitar",
+      "request_number": "Prospecto #{id}",
+      "request": "Prospecto",
       "unknown_customer": "Cliente desconocido",
       "unknown_status": "Estado desconocido",
       "unassigned": "No asignado",
@@ -545,14 +545,14 @@
       "lost": "perdido",
       "converted": "Convertido"
     },
-    "empty": "No se encontraron solicitudes.",
+    "empty": "No se encontraron prospectos.",
     "pagination": {
       "previous": "Anterior",
       "next": "Siguiente",
       "showing": "Mostrando {from}-{to}"
     },
     "convert": {
-      "title": "Convertir solicitud en cotización",
+      "title": "Convertir prospecto en cotizacion",
       "default_job_title": "Nueva cotización",
       "create_customer": "Crear nuevo cliente",
       "customer": "Cliente",
@@ -568,7 +568,7 @@
       "notes_optional": "Notas (opcional)"
     },
     "update": {
-      "title": "Solicitud de actualización",
+      "title": "Actualizar prospecto",
       "status": "Estado",
       "assignee": "Cesionario",
       "follow_up": "Próximo seguimiento",

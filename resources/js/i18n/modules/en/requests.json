@@ -1,8 +1,8 @@
 {
   "requests": {
-    "title": "Requests",
+    "title": "Prospects",
     "stats": {
-      "total": "Total requests",
+      "total": "Total prospects",
       "new": "New",
       "in_progress": "In progress",
       "due_soon": "Due soon",
@@ -13,7 +13,7 @@
       "unassigned": "Unassigned"
     },
     "filters": {
-      "search_placeholder": "Search requests...",
+      "search_placeholder": "Search prospects...",
       "all_statuses": "All statuses",
       "all_customers": "All customers"
     },
@@ -73,7 +73,7 @@
       "clear": "Clear",
       "intake": "Lead intake",
       "import_csv": "Import CSV",
-      "new_request": "New request",
+      "new_request": "New prospect",
       "view": "View",
       "back": "Back",
       "view_quote": "View quote",
@@ -81,10 +81,10 @@
       "update": "Update",
       "timeline": "Timeline",
       "delete": "Delete",
-      "delete_confirm": "Delete this request?",
+      "delete_confirm": "Delete this prospect?",
       "cancel": "Cancel",
       "save": "Save",
-      "create_request": "Create request",
+      "create_request": "Create prospect",
       "convert_to_quote": "Convert to quote"
     },
     "view": {
@@ -366,15 +366,15 @@
       "actions": "Actions"
     },
     "labels": {
-      "request_number": "Request #{id}",
-      "request": "Request",
+      "request_number": "Prospect #{id}",
+      "request": "Prospect",
       "unknown_customer": "Unknown customer",
       "unknown_status": "Unknown status",
       "unassigned": "Unassigned",
       "no_follow_up": "No follow-up"
     },
     "show": {
-      "details": "Lead details",
+      "details": "Prospect details",
       "channel_fallback": "Unknown channel",
       "service": "Service",
       "service_fallback": "Not specified",
@@ -545,14 +545,14 @@
       "lost": "Lost",
       "converted": "Converted"
     },
-    "empty": "No requests found.",
+    "empty": "No prospects found.",
     "pagination": {
       "previous": "Previous",
       "next": "Next",
       "showing": "Showing {from}-{to}"
     },
     "convert": {
-      "title": "Convert request to quote",
+      "title": "Convert prospect to quote",
       "default_job_title": "New quote",
       "create_customer": "Create new customer",
       "customer": "Customer",
@@ -568,7 +568,7 @@
       "notes_optional": "Notes (optional)"
     },
     "update": {
-      "title": "Update request",
+      "title": "Update prospect",
       "status": "Status",
       "assignee": "Assignee",
       "follow_up": "Next follow-up",

@@ -284,7 +284,7 @@ const handleBoardChange = (status, event) => {
         return;
     }
     lead.status = status;
-    router.put(route('request.update', lead.id), payload, {
+    router.put(route('prospects.update', lead.id), payload, {
         preserveScroll: true,
         only: ['requests', 'stats', 'flash'],
     });
@@ -333,7 +333,7 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0">
                                     <Link
-                                        :href="route('request.show', element.id)"
+                                        :href="route('prospects.show', element.id)"
                                         class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-100"
                                         @click="(event) => { if (!canOpenCard()) event.preventDefault(); }"
                                     >

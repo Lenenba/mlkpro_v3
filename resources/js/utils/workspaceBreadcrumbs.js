@@ -207,7 +207,7 @@ const buildCustomerModuleTail = (pageProps, t) => {
 };
 
 const buildRequestsModuleTail = (pageProps) => {
-    if (!route().current('request.show')) {
+    if (!route().current('prospects.show') && !route().current('request.show')) {
         return [];
     }
 

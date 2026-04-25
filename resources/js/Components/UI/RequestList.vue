@@ -104,7 +104,7 @@ const convertToQuote = (lead) => {
     processingId.value = lead.id;
 
     router.post(
-        route('request.convert', lead.id),
+        route('prospects.convert', lead.id),
         {
             customer_id: props.customer.id,
             property_id: props.defaultPropertyId || null,

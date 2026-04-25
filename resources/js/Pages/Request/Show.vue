@@ -175,7 +175,7 @@ const submitNote = () => {
     if (noteForm.processing) {
         return;
     }
-    noteForm.post(route('request.notes.store', props.lead.id), {
+    noteForm.post(route('prospects.notes.store', props.lead.id), {
         preserveScroll: true,
         onSuccess: () => {
             noteForm.reset();
@@ -190,7 +190,7 @@ const deleteNote = (note) => {
     if (!confirm(t('requests.notes.delete_confirm'))) {
         return;
     }
-    router.delete(route('request.notes.destroy', { lead: props.lead.id, note: note.id }), {
+    router.delete(route('prospects.notes.destroy', { lead: props.lead.id, note: note.id }), {
         preserveScroll: true,
     });
 };
@@ -234,7 +234,7 @@ const submitMedia = () => {
     if (mediaForm.processing || !mediaForm.file) {
         return;
     }
-    mediaForm.post(route('request.media.store', props.lead.id), {
+    mediaForm.post(route('prospects.media.store', props.lead.id), {
         preserveScroll: true,
         forceFormData: true,
         onSuccess: () => {
@@ -254,7 +254,7 @@ const deleteMedia = (media) => {
     if (!confirm(t('requests.media.delete_confirm'))) {
         return;
     }
-    router.delete(route('request.media.destroy', { lead: props.lead.id, media: media.id }), {
+    router.delete(route('prospects.media.destroy', { lead: props.lead.id, media: media.id }), {
         preserveScroll: true,
     });
 };
@@ -498,7 +498,7 @@ const submitQuality = () => {
             ...(props.lead?.meta || {}),
             budget: data.budget === '' ? null : Number(data.budget),
         },
-    })).put(route('request.update', props.lead.id), {
+    })).put(route('prospects.update', props.lead.id), {
         preserveScroll: true,
     });
 };
@@ -510,7 +510,7 @@ const mergeDuplicate = (duplicate) => {
     if (!confirm(t('requests.duplicates.merge_confirm'))) {
         return;
     }
-    router.post(route('request.merge', props.lead.id), {
+    router.post(route('prospects.merge', props.lead.id), {
         source_id: duplicate.id,
     }, {
         preserveScroll: true,
@@ -551,7 +551,7 @@ const mergeDuplicate = (duplicate) => {
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <Link
-                        :href="route('request.index')"
+                        :href="route('prospects.index')"
                         class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                     >
                         {{ $t('requests.actions.back') }}
@@ -1068,7 +1068,7 @@ const mergeDuplicate = (duplicate) => {
                                 class="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
                             >
                                 <div>
-                                    <Link :href="route('request.show', duplicate.id)" class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200">
+                                    <Link :href="route('prospects.show', duplicate.id)" class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200">
                                         {{ duplicate.title || duplicate.service_type || $t('requests.labels.request_number', { id: duplicate.id }) }}
                                     </Link>
                                     <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">

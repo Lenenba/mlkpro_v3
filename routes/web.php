@@ -55,6 +55,7 @@ use App\Http\Controllers\ProductPriceLookupController;
 use App\Http\Controllers\ProductsSearchController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromotionController;
+use App\Http\Controllers\ProspectController;
 use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\PublicQuoteController;
@@ -383,6 +384,24 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
     // Lead Requests
     Route::middleware('company.feature:requests')->group(function () {
+        Route::get('/prospects', [ProspectController::class, 'index'])->name('prospects.index');
+        Route::patch('/prospects/bulk', [ProspectController::class, 'bulkUpdate'])->name('prospects.bulk');
+        Route::post('/prospects', [ProspectController::class, 'store'])->name('prospects.store');
+        Route::post('/prospects/import', [ProspectController::class, 'import'])->name('prospects.import');
+        Route::get('/prospects/{lead}', [ProspectController::class, 'show'])->name('prospects.show');
+        Route::post('/prospects/{lead}/sales-activities', [SalesActivityController::class, 'storeForRequest'])
+            ->name('crm.sales-activities.prospects.store');
+        Route::put('/prospects/{lead}', [ProspectController::class, 'update'])->name('prospects.update');
+        Route::post('/prospects/{lead}/merge', [ProspectController::class, 'merge'])->name('prospects.merge');
+        Route::post('/prospects/{lead}/convert', [ProspectController::class, 'convert'])
+            ->middleware('company.feature:quotes')
+            ->name('prospects.convert');
+        Route::post('/prospects/{lead}/notes', [RequestNoteController::class, 'store'])->name('prospects.notes.store');
+        Route::delete('/prospects/{lead}/notes/{note}', [RequestNoteController::class, 'destroy'])->name('prospects.notes.destroy');
+        Route::post('/prospects/{lead}/media', [RequestMediaController::class, 'store'])->name('prospects.media.store');
+        Route::delete('/prospects/{lead}/media/{media}', [RequestMediaController::class, 'destroy'])->name('prospects.media.destroy');
+        Route::delete('/prospects/{lead}', [ProspectController::class, 'destroy'])->name('prospects.destroy');
+
         Route::get('/requests', [RequestController::class, 'index'])->name('request.index');
         Route::patch('/requests/bulk', [RequestController::class, 'bulkUpdate'])->name('request.bulk');
         Route::post('/requests', [RequestController::class, 'store'])->name('request.store');

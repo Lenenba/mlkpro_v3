@@ -138,11 +138,11 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             tone: 'customers',
             visible: ((showServices && isOwner) || (companyType === 'products' && hasFeature('sales') && canSales)) && !isSeller,
         },
-        requests: {
-            key: 'requests',
-            labelKey: 'nav.requests',
-            descriptionKey: 'workspace_hub.modules.requests',
-            routeName: 'request.index',
+        prospects: {
+            key: 'prospects',
+            labelKey: 'nav.prospects',
+            descriptionKey: 'workspace_hub.modules.prospects',
+            routeName: 'prospects.index',
             tone: 'requests',
             visible: showServices && hasFeature('requests') && isOwner && !isSeller,
         },
@@ -403,8 +403,8 @@ export function buildWorkspaceHubCategories({ account, planningPendingCount = 0 
             titleKey: 'workspace_hub.categories.revenue.title',
             icon: 'revenue',
             tone: 'revenue',
-            match: ['customer.*', 'request.*', 'quote.*', 'crm.next-actions.*', 'crm.sales-inbox.*', 'crm.manager-dashboard.*', 'orders.*', 'sales.*'],
-            moduleKeys: ['customers', 'requests', 'quotes', 'manager_dashboard', 'sales_inbox', 'next_actions', 'orders', 'sales'],
+            match: ['customer.*', 'prospects.*', 'request.*', 'quote.*', 'crm.next-actions.*', 'crm.sales-inbox.*', 'crm.manager-dashboard.*', 'orders.*', 'sales.*'],
+            moduleKeys: ['customers', 'prospects', 'quotes', 'manager_dashboard', 'sales_inbox', 'next_actions', 'orders', 'sales'],
         },
         {
             key: 'growth',

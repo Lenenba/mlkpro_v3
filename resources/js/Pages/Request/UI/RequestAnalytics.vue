@@ -311,7 +311,7 @@ const riskClass = (days) => (days >= 14
                         class="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
                     >
                         <div class="min-w-0">
-                            <Link :href="route('request.show', lead.id)" class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200">
+                            <Link :href="route('prospects.show', lead.id)" class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200">
                                 {{ lead.title || lead.service_type || $t('requests.labels.request_number', { id: lead.id }) }}
                             </Link>
                             <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-stone-500 dark:text-neutral-400">

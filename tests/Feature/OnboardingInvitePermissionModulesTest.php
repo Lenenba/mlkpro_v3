@@ -124,3 +124,42 @@ test('onboarding invites keep reservation permissions when reservation module is
         'reservations.queue',
     ]);
 });
+
+test('onboarding invites include prospect permissions when requests module is enabled', function () {
+    onboardingInviteRoleId('employee');
+    $owner = onboardingInviteOwner([
+        'company_features' => [
+            'team_members' => true,
+            'jobs' => false,
+            'tasks' => false,
+            'requests' => true,
+            'quotes' => false,
+            'reservations' => false,
+            'sales' => false,
+        ],
+    ]);
+
+    $result = invokeOnboardingInviteApply($owner, [[
+        'name' => 'Invite Prospect Admin',
+        'email' => 'invite-prospect-admin-'.Str::lower(Str::random(10)).'@example.com',
+        'role' => 'admin',
+    ]]);
+
+    expect($result['count'])->toBe(1);
+
+    $member = TeamMember::query()
+        ->where('account_id', $owner->id)
+        ->latest('id')
+        ->first();
+
+    expect($member)->not->toBeNull();
+    expect($member->permissions)->toBe([
+        'prospects.view',
+        'prospects.create',
+        'prospects.edit',
+        'prospects.assign',
+        'prospects.convert',
+        'prospects.merge',
+        'prospects.export',
+    ]);
+});

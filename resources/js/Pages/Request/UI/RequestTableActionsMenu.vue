@@ -52,7 +52,7 @@ const { t } = useI18n();
             {{ t('requests.actions.convert') }}
         </button>
         <Link
-            :href="route('request.show', lead.id)"
+            :href="route('prospects.show', lead.id)"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
         >
             {{ t('requests.actions.view') }}

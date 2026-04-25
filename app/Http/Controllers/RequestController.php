@@ -11,6 +11,7 @@ use App\Http\Requests\Leads\StoreLeadRequest;
 use App\Http\Requests\Leads\UpdateLeadRequest;
 use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\Prospect;
 use App\Models\Request as LeadRequest;
 use App\Models\SavedSegment;
 use App\Models\TeamMember;
@@ -18,6 +19,7 @@ use App\Queries\Requests\BuildRequestAnalyticsData;
 use App\Queries\Requests\BuildRequestInboxIndexData;
 use App\Services\Campaigns\CampaignLeadAttributionService;
 use App\Services\UsageLimitService;
+use App\Support\Prospects\ProspectIntakeMeta;
 use App\Support\BulkActions\BulkActionRegistry;
 use App\Support\CRM\SalesActivityTaxonomy;
 use Illuminate\Http\Request;
@@ -74,15 +76,7 @@ class RequestController extends Controller
             })
             ->values();
 
-        $statuses = collect([
-            ['id' => LeadRequest::STATUS_NEW, 'name' => 'New'],
-            ['id' => LeadRequest::STATUS_CALL_REQUESTED, 'name' => 'Call requested'],
-            ['id' => LeadRequest::STATUS_CONTACTED, 'name' => 'Contacted'],
-            ['id' => LeadRequest::STATUS_QUALIFIED, 'name' => 'Qualified'],
-            ['id' => LeadRequest::STATUS_QUOTE_SENT, 'name' => 'Quote sent'],
-            ['id' => LeadRequest::STATUS_WON, 'name' => 'Won'],
-            ['id' => LeadRequest::STATUS_LOST, 'name' => 'Lost'],
-        ])->values()->all();
+        $statuses = Prospect::statusOptions();
 
         $assignees = TeamMember::query()
             ->where('account_id', $accountId)
@@ -176,15 +170,7 @@ class RequestController extends Controller
             ->take(50)
             ->get();
 
-        $statuses = collect([
-            ['id' => LeadRequest::STATUS_NEW, 'name' => 'New'],
-            ['id' => LeadRequest::STATUS_CALL_REQUESTED, 'name' => 'Call requested'],
-            ['id' => LeadRequest::STATUS_CONTACTED, 'name' => 'Contacted'],
-            ['id' => LeadRequest::STATUS_QUALIFIED, 'name' => 'Qualified'],
-            ['id' => LeadRequest::STATUS_QUOTE_SENT, 'name' => 'Quote sent'],
-            ['id' => LeadRequest::STATUS_WON, 'name' => 'Won'],
-            ['id' => LeadRequest::STATUS_LOST, 'name' => 'Lost'],
-        ])->values()->all();
+        $statuses = Prospect::statusOptions();
 
         $assignees = TeamMember::query()
             ->where('account_id', $accountId)
@@ -251,12 +237,23 @@ class RequestController extends Controller
 
         $validated = $request->validated();
         $customerId = $validated['customer_id'] ?? null;
+        $channel = $this->normalizeChannel($validated['channel'] ?? null) ?? 'manual';
+        $meta = ProspectIntakeMeta::merge(
+            $validated['meta'] ?? null,
+            source: $channel,
+            requestType: data_get($validated, 'meta.request_type') ?? 'manual_entry',
+            contactConsent: data_get($validated, 'meta.contact_consent'),
+            marketingConsent: data_get($validated, 'meta.marketing_consent')
+        );
 
         $lead = LeadRequest::create([
             ...$validated,
             'user_id' => $accountId,
+            'channel' => $channel,
             'status' => LeadRequest::STATUS_NEW,
             'status_updated_at' => now(),
+            'last_activity_at' => now(),
+            'meta' => $meta,
         ]);
 
         ActivityLog::record($user, $lead, 'created', [
@@ -376,6 +373,19 @@ class RequestController extends Controller
                 'budget', 'amount', 'estimate', 'price',
             ]);
             $budget = is_numeric($budgetRaw) ? (float) $budgetRaw : null;
+            $contactConsent = $this->normalizeBoolean(
+                $this->resolveImportValue($rowLower, $mapping, 'contact_consent', [
+                    'contact_consent', 'consent_contact', 'can_contact', 'consent_to_contact',
+                ])
+            );
+            $marketingConsent = $this->normalizeBoolean(
+                $this->resolveImportValue($rowLower, $mapping, 'marketing_consent', [
+                    'marketing_consent', 'consent_marketing', 'marketing_opt_in', 'opt_in',
+                ])
+            );
+            $requestType = $this->resolveImportValue($rowLower, $mapping, 'request_type', [
+                'request_type', 'lead_type', 'type',
+            ]);
 
             $nextFollowRaw = $this->resolveImportValue($rowLower, $mapping, 'next_follow_up_at', [
                 'next_follow_up', 'follow_up', 'followup_date',
@@ -394,6 +404,10 @@ class RequestController extends Controller
                     'serviceable', 'is_serviceable', 'service_area',
                 ])
             );
+            $meta = [];
+            if ($budget !== null) {
+                $meta['budget'] = $budget;
+            }
 
             $payloads[] = [
                 'contact_name' => $contactName,
@@ -427,7 +441,13 @@ class RequestController extends Controller
                 ]),
                 'next_follow_up_at' => $nextFollowUpAt,
                 'is_serviceable' => $isServiceable,
-                'meta' => $budget !== null ? ['budget' => $budget] : null,
+                'meta' => ProspectIntakeMeta::merge(
+                    $meta,
+                    source: $channel,
+                    requestType: $requestType ?: 'csv_import',
+                    contactConsent: $contactConsent,
+                    marketingConsent: $marketingConsent
+                ),
             ];
         }
 
@@ -441,18 +461,12 @@ class RequestController extends Controller
 
         $imported = 0;
         foreach ($payloads as $payload) {
-            $customerId = $this->resolveCustomerId(
-                $accountId,
-                $payload['contact_email'] ?? null,
-                $payload['contact_phone'] ?? null
-            );
-
             $lead = LeadRequest::create([
                 ...array_filter($payload, static fn ($value) => $value !== null && $value !== ''),
                 'user_id' => $accountId,
-                'customer_id' => $customerId,
                 'status' => LeadRequest::STATUS_NEW,
                 'status_updated_at' => now(),
+                'last_activity_at' => now(),
             ]);
 
             ActivityLog::record($user, $lead, 'created', [
@@ -727,7 +741,7 @@ class RequestController extends Controller
             ]);
         }
 
-        return redirect()->route('request.show', $lead)->with('success', 'Request merged.');
+        return redirect()->route('prospects.show', $lead)->with('success', 'Request merged.');
     }
 
     public function destroy(Request $request, LeadRequest $lead)
@@ -856,24 +870,4 @@ class RequestController extends Controller
         return null;
     }
 
-    private function resolveCustomerId(int $accountId, ?string $email, ?string $phone): ?int
-    {
-        $query = Customer::query()->byUser($accountId);
-
-        if ($email) {
-            $customer = (clone $query)->where('email', $email)->first();
-            if ($customer) {
-                return $customer->id;
-            }
-        }
-
-        if ($phone) {
-            $customer = (clone $query)->where('phone', $phone)->first();
-            if ($customer) {
-                return $customer->id;
-            }
-        }
-
-        return null;
-    }
 }

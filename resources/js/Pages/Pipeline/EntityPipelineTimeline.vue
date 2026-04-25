@@ -129,7 +129,7 @@ const requestLink = computed(() => {
         return null;
     }
     const search = pipeline.value.request.title || pipeline.value.request.service_type || '';
-    return route('request.index', search ? { search } : {});
+    return route('prospects.index', search ? { search } : {});
 });
 
 const quoteLink = computed(() =>
@@ -186,7 +186,7 @@ const openSourceLink = computed(() => {
     const entityId = props.entityId;
     switch (entityType) {
         case 'request':
-            return requestLink.value || route('request.index');
+            return requestLink.value || route('prospects.index');
         case 'quote':
             return route('customer.quote.show', entityId);
         case 'job':

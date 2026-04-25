@@ -35,6 +35,9 @@ class StoreLeadRequest extends LeadWriteRequest
             'next_follow_up_at' => ['nullable', 'date'],
             'meta' => ['nullable', 'array'],
             'meta.budget' => ['nullable', 'numeric'],
+            'meta.request_type' => ['nullable', 'string', 'max:100'],
+            'meta.contact_consent' => ['nullable', 'boolean'],
+            'meta.marketing_consent' => ['nullable', 'boolean'],
         ];
     }
 }

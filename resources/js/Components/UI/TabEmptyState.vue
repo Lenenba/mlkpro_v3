@@ -39,7 +39,7 @@ const action = computed(() => {
 
     if (props.type === 'requests') {
         return {
-            href: route('request.index'),
+            href: route('prospects.index'),
             label: t('customers.tabs.actions.create_request'),
         };
     }
